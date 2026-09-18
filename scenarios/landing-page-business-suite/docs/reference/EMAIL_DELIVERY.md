@@ -13,10 +13,10 @@ Companion documents:
   including the mail records this scenario requires.
 - `docs/guides/CONFIGURATION_GUIDE.md` — configuration surface and values.
 
-> **Status.** This document describes the intended system. Where the shipped
-> code still differs, the difference is named inline as *Current gap*. Those
-> gaps are the subject of the implementation plan
-> `mature-email-delivery-durable-configuration-provider-ladder`.
+> **Status.** The durable outbox, provider registry, shared DNS verifier,
+> runtime worker, reviewed deploy-time mail-DNS checks, and first admin page are
+> shipped locally. Remaining operator proof and the explicitly listed gaps are
+> still tracked by `mature-email-delivery-durable-configuration-provider-ladder`.
 
 ---
 
@@ -110,9 +110,10 @@ flowchart TB
 | Event ingestion | Verifies provider webhook signatures, de-duplicates, stores events, updates derived state. |
 | Suppression | Cross-provider recipient safety. Consulted immediately before dispatch. |
 
-**Current gap.** There is no enqueue function, no outbox and no worker. Five
-callers use three send paths, all sending inline inside the originating HTTP
-request. See §11.
+The enqueue boundary, durable outbox, lifecycle-owned worker, and five-purpose
+callers are implemented in `api/internal/emaildelivery` and
+`api/email_delivery_runtime.go`. Production callers enqueue; development keeps
+the explicit recorder path for local operation.
 
 ---
 
@@ -267,8 +268,19 @@ confirmed value in `limits` with its `limits_checked_at`.
 | Amazon SES | none (promotional credits only) | — | $0.10 / 1,000 | Cheapest overflow available. Needs a production-access request. |
 | SendGrid | trial only, 60 days | 100 | ~$20 / month | No longer has a free tier, and `vrooli.com` does **not** authorize it. |
 
-**Recommended initial ladder:** Resend primary, Mailgun as the already-authorized
-fallback, Amazon SES behind an operator switch for overflow.
+**Current ladder:** Mailgun is the only enabled and recommended provider. It is
+already authorized on `vrooli.com` and is the only production route currently
+used by this deployment. Resend and Amazon SES remain recommended catalog
+options for a future, explicitly configured route; they are not enabled by this
+release.
+
+The shipped database seed catalogs all ten surveyed providers: Mailgun,
+SendGrid, Resend, Brevo, Mailjet, Mailtrap, SMTP2GO, MailerSend, Postmark and
+Amazon SES. Mailgun is enabled and recommended because its DNS and credential
+are currently usable. The other catalog rows are disabled until an operator
+supplies the provider-specific credential, transport settings and
+account-specific DKIM selectors. A catalog row is not evidence that an account
+exists or that the provider is ready to send.
 
 ---
 
@@ -383,7 +395,7 @@ domain. That needs an aligned pass on SPF or DKIM.
 
 | Record | Value | Consequence |
 | --- | --- | --- |
-| SPF (`vrooli.com` TXT) | `v=spf1 include:mailgun.org ~all` | Authorizes Mailgun. Costs **3 of 10** permitted lookups (`include:mailgun.org` expands to `_spf.mailgun.org` and `_spf.eu.mailgun.org`). |
+| SPF (`vrooli.com` TXT) | `v=spf1 include:mailgun.org ~all` | Authorizes Mailgun. The current verifier measures **5 of 10** permitted lookups; the nested include chain is authoritative and must be rechecked before a write. |
 | DKIM (`k1._domainkey.vrooli.com`) | RSA public key, published as **TXT** | Valid. Note the record type — a CNAME-only checker reports a false failure. |
 | DMARC (`_dmarc.vrooli.com`) | `v=DMARC1; p=reject; aspf=s;` | Unauthorized mail is **rejected**, not spam-foldered. `aspf=s` requires exact-domain SPF alignment. |
 | MX | `mxa.mailgun.org`, `mxb.mailgun.org` | Inbound mail goes to Mailgun. Do not disturb. |
@@ -399,9 +411,9 @@ signature** — an SPF entry alone is not sufficient.
 A domain may publish **exactly one** SPF record. A second `v=spf1` record breaks
 SPF evaluation entirely. The ten-lookup limit applies **per record**, so
 providers that use their own return-path subdomain carry their own record with a
-separate budget. Measured costs: Amazon SES 1, SMTP2GO 1, SendGrid 2, Mailgun 3.
+separate budget. The current live verifier measures Mailgun at 5 lookups; provider-specific costs must be measured against the live chain before enabling a new route.
 
-The root record has 7 lookups remaining. The number of supported providers is
+The root record has 5 lookups remaining. The number of supported providers is
 not meaningfully capped by SPF; only providers sending with the bare
 `vrooli.com` envelope domain consume the root budget.
 
@@ -447,9 +459,12 @@ mechanism, and writes the combined record back. Two prohibitions:
 A merge that would push the record past ten lookups is refused, with the
 computed cost reported.
 
-**Current gaps.** `tunnel-manager` accepts only A, AAAA and CNAME records and has
-no update operation at all. It also leaves its DNS client nil and skips DNS
-automation silently when its Cloudflare credential cannot be resolved.
+`tunnel-manager` now accepts TXT and MX records, supports explicit in-place
+updates, and exposes SPF merge logic that refuses a result above the shared
+ten-lookup budget. The reviewed `config dns-update` and `config dns-spf`
+commands expose those operations: dry-run previews are read-only, while live
+writes require explicit operator confirmation. Deployment activation still does
+not invoke them automatically.
 
 Two further facts make the deploy-time path dormant rather than merely
 incomplete:
@@ -466,7 +481,7 @@ incomplete:
 
 ## 7. Data model
 
-Five tables, deliberately not the fifteen a platform-scale design would carry.
+Six tables, deliberately not the fifteen a platform-scale design would carry.
 This deployment sends a few dozen messages per day; the machinery is sized for
 that, with seams where a larger design would attach.
 
@@ -517,9 +532,9 @@ Therefore: settings that an administrator can change at runtime belong in
 Postgres; secrets belong in the credential authority; only content that ships
 with the release belongs on disk.
 
-**Current gap.** `config_store.go` writes `config/branding.json` inside the
-release directory, and that file is the only copy of the live relay
-configuration. A migration must import it before the behaviour changes.
+Branding and mail settings are now imported once from the seed artifact and
+read and written from durable `site_settings`; the release-directory file is no
+longer authoritative.
 
 ---
 
@@ -578,12 +593,12 @@ operator webhook:
 
 | Alert | Status |
 | --- | --- |
-| No eligible provider for an urgent message | new |
+| No eligible provider for an urgent message | implemented |
 | A provider credential was rejected | already implemented |
 | Messages accepted but no delivery confirmations returning | already implemented |
-| A sign-in message is older than the token it carries | new |
-| A provider passed 80% of a quota window | new |
-| The domain stopped authorizing a provider we are using | new |
+| A sign-in message is older than the token it carries | implemented |
+| A provider passed 80% of a quota window | implemented |
+| The domain stopped authorizing a provider we are using | implemented |
 
 ### Security
 
@@ -608,37 +623,21 @@ appear in logs.
 - Links are built from the configured origin, never from a request `Host`
   header.
 
-**Current gap.** The per-email rate limiter is wired to `nil`.
+The sign-in endpoint is protected by both the durable per-email/per-IP throttle
+and the narrow request-boundary limiter. The delivery subsystem's quota windows
+are separate: they bound provider submissions, while the request throttles bound
+customer abuse.
 
 ---
 
 ## 11. Known gaps in the shipped code
 
-Tracked by the implementation plan
-`mature-email-delivery-durable-configuration-provider-ladder`.
+The following items remain open or require operator-owned evidence.
 
 | # | Gap | Location |
 | --- | --- | --- |
-| 1 | `allowUnconfiguredDelivery` returns success for an email it never sent | `api/email_signin.go:64-71` |
-| 2 | `SendFeedbackNotification` returns nil when SMTP is unconfigured, and again when no support address is set | `api/email_service.go:171-176`, `:178-180` |
-| 2a | `SendMagicLink` logs `magic_link_delivery_disabled` and returns nil | `api/email_service.go:366-374` |
-| 2b | The security notifier returns nil early when the email service is absent | `api/admin_security_notifier.go:8-10` |
-| 2c | The contact-form notifier is fire-and-forget in a goroutine; a failure is logged and nothing else | `api/feedback_notifier.go:18,25` |
-| 3 | `extractSMTPConfig` swallows the credential-read error | `api/email_service.go:205-231` |
-| 4 | Sender identity resolved in four places with different fallbacks | `api/email_service.go:96-106,224-228,430-433` |
-| 5 | Three send paths for five callers | `api/email_signin.go`, `api/email_service.go` |
-| 6 | A failed send retires the sign-in token and burns an attempt | `api/internal/administration/user_auth_signin.go:153-155` |
-| 7 | DKIM verified by CNAME lookup only; false failure on a TXT selector | `api/internal/emailreadiness/readiness.go:68-74,116-136` |
-| 8 | SPF checked only when SendGrid is configured | `api/internal/emailreadiness/readiness.go:61-67` |
-| 9 | DMARC checked on a different domain from SPF and DKIM | `api/internal/emailreadiness/readiness.go:75-86` |
-| 10 | Readiness cache ignores its own arguments | `api/internal/emailreadiness/readiness.go:39-47,96-98` |
-| 11 | Mail settings written inside the release directory | `api/internal/experimentation/config_store.go:489,551-562,593` |
-| 12 | SendGrid key snapshotted once at construction | `api/email_service.go:95` |
-| 13 | Per-email rate limiter wired to `nil` | `api/routes.go:427` |
-| 14 | Provider names typed as string literals across components | `api/provider_verification.go`, `api/routes.go:394`, `api/internal/emailevents/` |
-| 15 | `EMAIL_SMTP_DKIM_SELECTOR` read but declared in no manifest | `docs/guides/CONFIGURATION_GUIDE.md:604` |
-| 16 | Customer-facing copy promises a retry that cannot work | `ui/src/surfaces/user-auth/routes/UserLogin.tsx:39` |
-| 17 | No admin surface for any of the above | `ui/src/surfaces/admin-portal` |
+| 1 | Production proof still needs operator-owned deployment, restored credential, and two external inboxes | Phase 4 handoff |
+| 2 | Production deployment does not automatically invoke managed-DNS writes; an operator must review and run the tunnel-manager DNS command | `tunnel-manager config dns-update`, `tunnel-manager config dns-spf` |
 
 ---
 

@@ -28,6 +28,7 @@ const BillingSettings = lazyRoute(() => import('../../surfaces/admin-portal/rout
 const DownloadSettings = lazyRoute(() => import('../../surfaces/admin-portal/routes/DownloadSettings'), 'DownloadSettings');
 const RemoteProfiles = lazyRoute(() => import('../../surfaces/admin-portal/routes/RemoteProfiles'), 'RemoteProfiles');
 const BrandingSettings = lazyRoute(() => import('../../surfaces/admin-portal/routes/BrandingSettings'), 'BrandingSettings');
+const EmailDelivery = lazyRoute(() => import('../../surfaces/admin-portal/routes/EmailDelivery'), 'EmailDelivery');
 const DocsViewer = lazyRoute(() => import('../../surfaces/admin-portal/routes/DocsViewer'), 'DocsViewer');
 const FeedbackManagement = lazyRoute(() => import('../../surfaces/admin-portal/routes/FeedbackManagement'), 'FeedbackManagement');
 const WaitlistManagement = lazyRoute(() => import('../../surfaces/admin-portal/routes/WaitlistManagement'), 'WaitlistManagement');
@@ -89,6 +90,7 @@ export const adminRoutes = (
     <Route path="/admin/downloads" element={<AdminRoute name="DownloadSettings"><DownloadSettings /></AdminRoute>} />
     <Route path="/admin/remote-profiles" element={<AdminRoute name="RemoteProfiles"><RemoteProfiles /></AdminRoute>} />
     <Route path="/admin/branding" element={<AdminRoute name="BrandingSettings"><BrandingSettings /></AdminRoute>} />
+    <Route path="/admin/email-delivery" element={<AdminRoute name="EmailDelivery"><EmailDelivery /></AdminRoute>} />
     <Route path="/admin/profile" element={<AdminRoute name="ProfileSettings"><ProfileSettings /></AdminRoute>} />
     <Route path="/admin/docs" element={<AdminRoute name="DocsViewer"><DocsViewer /></AdminRoute>} />
     <Route path="/admin/feedback" element={<AdminRoute name="FeedbackManagement"><FeedbackManagement /></AdminRoute>} />

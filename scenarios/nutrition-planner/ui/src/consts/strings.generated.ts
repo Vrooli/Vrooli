@@ -23,8 +23,11 @@ export const strings = {
     closeNavigation: "layout.closeNavigation",
     nav: {
       dashboard: "layout.nav.dashboard",
-      notes: "layout.nav.notes",
       settings: "layout.nav.settings",
+      today: "layout.nav.today",
+      week: "layout.nav.week",
+      groceries: "layout.nav.groceries",
+      nutrition: "layout.nav.nutrition",
     },
   },
   theme: {
@@ -41,10 +44,6 @@ export const strings = {
       description: "pages.dashboard.description",
       placeholderTitle: "pages.dashboard.placeholderTitle",
       placeholderDescription: "pages.dashboard.placeholderDescription",
-    },
-    notes: {
-      title: "pages.notes.title",
-      description: "pages.notes.description",
     },
     settings: {
       title: "pages.settings.title",
@@ -71,30 +70,6 @@ export const strings = {
     summary: "notifications.summary",
     summary_zero: "notifications.summary_zero",
     summary_one: "notifications.summary_one",
-  },
-  notes: {
-    title: "notes.title",
-    loading: "notes.loading",
-    empty: "notes.empty",
-    create: "notes.create",
-    attachmentsLabel: "notes.attachmentsLabel",
-    attachmentsLabel_one: "notes.attachmentsLabel_one",
-    table: {
-      title: "notes.table.title",
-      created: "notes.table.created",
-      attachments: "notes.table.attachments",
-      actions: "notes.table.actions",
-      search: "notes.table.search",
-    },
-    uploadAttachment: "notes.uploadAttachment",
-    attachmentFileLabel: "notes.attachmentFileLabel",
-    uploadSuccess: "notes.uploadSuccess",
-    noFileSelected: "notes.noFileSelected",
-    measure: {
-      title: "notes.measure.title",
-      loading: "notes.measure.loading",
-      thisWeek: "notes.measure.thisWeek",
-    },
   },
   errors: {
     canceled: "errors.canceled",

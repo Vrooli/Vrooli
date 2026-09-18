@@ -42,6 +42,7 @@ func TestSignInProvidersReportsConfiguredProviders(t *testing.T) {
 			return &experimentation.SiteBranding{
 				SMTPHost:     stringPtr("smtp.example.com"),
 				SMTPUsername: stringPtr("mailer"),
+				SMTPFrom:     stringPtr("noreply@example.com"),
 			}
 		})
 
@@ -62,6 +63,7 @@ func TestSignInProvidersReportsConfiguredProviders(t *testing.T) {
 			return &experimentation.SiteBranding{
 				SMTPHost:     stringPtr("smtp.example.com"),
 				SMTPUsername: stringPtr("mailer"),
+				SMTPFrom:     stringPtr("noreply@example.com"),
 			}
 		})
 

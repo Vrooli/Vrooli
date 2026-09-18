@@ -11,6 +11,7 @@ import (
 
 	"github.com/vrooli/api-core/health"
 
+	"landing-page-business-suite-api/internal/emaildelivery"
 	"landing-page-business-suite-api/internal/envx"
 	"landing-page-business-suite-api/internal/logx"
 	"landing-page-business-suite-api/internal/opsalert"
@@ -80,11 +81,8 @@ func (c *providerVerificationCache) snapshot() []providerprobe.Result {
 // no mail: SendGrid is asked for the key's scopes and the relay is asked to
 // accept a login.
 func (s *Server) verifySignInProviders(ctx context.Context) []providerprobe.Result {
-	if s.emailService == nil {
+	if s.emailService == nil || s.routedDB == nil {
 		return nil
-	}
-	results := []providerprobe.Result{
-		providerprobe.VerifySendGrid(ctx, nil, resolveSecret("SENDGRID_API_KEY"), envx.Get("LPBS_SENDGRID_SCOPES_URL")),
 	}
 	target := providerprobe.SMTPTarget{}
 	if branding := s.emailService.currentBranding(); branding != nil {
@@ -92,7 +90,26 @@ func (s *Server) verifySignInProviders(ctx context.Context) []providerprobe.Resu
 			target = providerprobe.SMTPTarget{Host: config.Host, Port: config.Port, Username: config.Username, Password: config.Password}
 		}
 	}
-	return append(results, providerprobe.VerifySMTP(ctx, nil, target))
+	providers, err := emaildelivery.LoadProviders(ctx, s.routedDB)
+	if err != nil {
+		return nil
+	}
+	results := make([]providerprobe.Result, 0, len(providers))
+	for _, provider := range providers {
+		var result providerprobe.Result
+		switch provider.Transport {
+		case "sendgrid_http":
+			result = providerprobe.VerifySendGrid(ctx, nil, resolveSecret("SENDGRID_API_KEY"), envx.Get("LPBS_SENDGRID_SCOPES_URL"))
+		case "mailgun_smtp", "smtp":
+			result = providerprobe.VerifySMTP(ctx, nil, target)
+		default:
+			continue
+		}
+		// The registry, not the transport probe, owns provider identity.
+		result.Provider = provider.ID
+		results = append(results, result)
+	}
+	return results
 }
 
 // verifyPaymentsProvider authenticates the active Stripe secret key and
@@ -101,11 +118,11 @@ func (s *Server) verifySignInProviders(ctx context.Context) []providerprobe.Resu
 func (s *Server) verifyPaymentsProvider(ctx context.Context) providerprobe.Result {
 	mode := strings.ToLower(strings.TrimSpace(envx.Get("STRIPE_MODE")))
 	if s.paymentSettings == nil || mode == "" {
-		return providerprobe.Result{Provider: "stripe", Capability: "card payments", Status: providerprobe.StatusNotConfigured, Detail: "this deployment declares no Stripe mode", CheckedAt: time.Now().UTC()}
+		return providerprobe.Result{Provider: providerprobe.ProviderStripe, Capability: "card payments", Status: providerprobe.StatusNotConfigured, Detail: "this deployment declares no Stripe mode", CheckedAt: time.Now().UTC()}
 	}
 	settings, err := s.paymentSettings.GetStripeSettings(ctx)
 	if err != nil || settings == nil {
-		return providerprobe.Result{Provider: "stripe", Capability: "card payments", Status: providerprobe.StatusUnknown, Detail: "the active Stripe credentials could not be read", CheckedAt: time.Now().UTC()}
+		return providerprobe.Result{Provider: providerprobe.ProviderStripe, Capability: "card payments", Status: providerprobe.StatusUnknown, Detail: "the active Stripe credentials could not be read", CheckedAt: time.Now().UTC()}
 	}
 	return providerprobe.VerifyStripe(ctx, nil, settings.GetSecretKey(), mode, envx.Get("LPBS_STRIPE_ACCOUNT_URL"))
 }
@@ -245,6 +262,32 @@ func (s *Server) providerCredentialCheck(name, provider string) health.Checker {
 			return nil
 		}
 		return fmt.Errorf("%s: %s", result.Capability, result.Detail)
+	})
+}
+
+// signInProviderCredentialCheck publishes the cached verdicts for the
+// enabled provider registry rather than a fixed pair of provider names. A
+// provider may be added or removed by configuration, so health must follow
+// the same registry that the router and worker use.
+func (s *Server) signInProviderCredentialCheck() health.Checker {
+	return health.Func("sign_in_provider_credentials", func(ctx context.Context) error {
+		if s == nil || s.routedDB == nil {
+			return nil
+		}
+		providers, err := emaildelivery.LoadProviders(ctx, s.routedDB)
+		if err != nil {
+			return fmt.Errorf("read email provider registry: %w", err)
+		}
+		for _, provider := range providers {
+			if !provider.Enabled || !provider.SupportedPurposes[emaildelivery.PurposeSignIn] {
+				continue
+			}
+			result, ok := s.providerVerification.get(provider.ID)
+			if ok && result.Actionable() {
+				return fmt.Errorf("%s: %s", result.Capability, result.Detail)
+			}
+		}
+		return nil
 	})
 }
 

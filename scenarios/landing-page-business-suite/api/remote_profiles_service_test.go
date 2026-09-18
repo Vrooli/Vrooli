@@ -1550,6 +1550,17 @@ func TestIsAllowedRemoteProxyPath(t *testing.T) {
 			t.Fatalf("expected channel path %q to be allowlisted for release promotion", path)
 		}
 	}
+	for _, path := range []string{
+		"/admin/mfa/reset",
+		"/admin/admin-credentials/reset",
+	} {
+		if !isAllowedRemoteProxyPath(path) {
+			t.Fatalf("expected operator recovery path %q to be allowlisted", path)
+		}
+	}
+	if isAllowedRemoteProxyPath("/admin/admin-credentials") {
+		t.Fatalf("expected the recovery parent path to remain disallowed")
+	}
 	if isAllowedRemoteProxyPath("/admin/users") {
 		t.Fatalf("expected disallowed path")
 	}

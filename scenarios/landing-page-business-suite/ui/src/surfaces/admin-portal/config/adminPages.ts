@@ -116,6 +116,14 @@ export const ADMIN_PAGE_DEFINITIONS: AdminPageDefinition[] = [
     documentation: { ...ADMIN_GUIDE_DOC, anchor: 'branding' },
   },
   {
+    id: 'email-delivery',
+    name: 'Email Delivery',
+    description: 'Provider authorization, outbox state, and delivery outcomes.',
+    route: '/admin/email-delivery',
+    routePattern: '/admin/email-delivery',
+    documentation: { ...ADMIN_GUIDE_DOC, anchor: 'email-delivery' },
+  },
+  {
     id: 'billing-dashboard',
     name: 'Billing Dashboard',
     description: 'Stripe readiness, plans status, and quick flows.',

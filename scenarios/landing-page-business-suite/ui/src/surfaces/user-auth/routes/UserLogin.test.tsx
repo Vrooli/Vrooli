@@ -134,7 +134,7 @@ describe('UserLogin', () => {
     renderLogin();
     fireEvent.change(screen.getByTestId('email-input'), { target: { value: 'buyer@example.com' } });
     fireEvent.click(screen.getByTestId('submit-button'));
-    expect(await screen.findByText(/couldn’t send the email right now/)).toBeInTheDocument();
+    expect(await screen.findByText(/couldn’t send an email, so no sign-in code was issued/)).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Check your email' })).not.toBeInTheDocument();
   });
 

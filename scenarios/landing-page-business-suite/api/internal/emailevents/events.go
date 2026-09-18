@@ -99,6 +99,9 @@ func (r *Repository) Record(ctx context.Context, event Event, receivedAt time.Ti
 	} else if messageID != "" {
 		_, err = r.updateToken(ctx, "provider_message_id", messageID, status, event)
 	}
+	if err == nil && status.Terminal && (status.Provider == "bounce" || status.Provider == "dropped" || status.Provider == "spamreport") {
+		_, err = r.DB.ExecContext(ctx, `INSERT INTO email_suppressions (recipient, reason, source_event_id) VALUES ($1,$2,$3) ON CONFLICT (recipient) DO UPDATE SET reason=EXCLUDED.reason, source_event_id=EXCLUDED.source_event_id, suppressed_at=NOW()`, strings.ToLower(strings.TrimSpace(event.Email)), status.Reason, event.SGEventID)
+	}
 	return true, err
 }
 
@@ -107,7 +110,9 @@ func (r *Repository) updateToken(ctx context.Context, column, value string, stat
 		return nil, fmt.Errorf("invalid token correlation")
 	}
 	where := fmt.Sprintf("%s=$5", column)
-	if column == "provider_message_id" { where = "(provider_message_id=$5 OR split_part(provider_message_id,'.',1)=split_part($5,'.',1))" }
+	if column == "provider_message_id" {
+		where = "(provider_message_id=$5 OR split_part(provider_message_id,'.',1)=split_part($5,'.',1))"
+	}
 	query := fmt.Sprintf(`UPDATE auth_tokens SET provider_status=$1,provider_status_at=to_timestamp($2),provider_reason_class=$3,delivery_status=$4 WHERE %s AND (provider_status IS NULL OR provider_status NOT IN ('delivered','bounce','dropped','spamreport') OR $1 IN ('delivered','bounce','dropped','spamreport'))`, where)
 	return r.DB.ExecContext(ctx, query, status.Provider, event.Timestamp, status.Reason, status.Delivery, value)
 }

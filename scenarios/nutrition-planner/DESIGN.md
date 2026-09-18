@@ -37,10 +37,12 @@ constraints:
 
 `DESIGN.md` is the source of truth for scenario UI decisions. Stack-specific adapters may translate these tokens into CSS, Tailwind, egui, native mobile themes, or future targets, but adapters must not redefine the design language.
 
-> ORIENTATION-TODO: scenario-design-adaptation — Replace this marker with a
-> short note explaining why this design language fits the generated scenario's
-> users, density, workflow, and accessibility needs. Keep the token contract
-> intact unless the scenario intentionally adopts another design kit.
+Daily uses the Vrooli Operational Console language because meal capture,
+planning, shopping, and history are repeated operational workflows: users need
+compact lists, clear revision and completeness states, and trustworthy pending
+or unknown indicators rather than decorative dashboards. The existing token
+contract is retained so the nutrition-specific surfaces remain keyboard-first,
+responsive, and legible when data is incomplete.
 
 ## How To Read This Document
 

@@ -11,8 +11,11 @@
     "closeNavigation": "ナビゲーションを閉じる",
     "nav": {
       "dashboard": "ホーム",
-      "notes": "ノート",
-      "settings": "設定"
+    "settings": "設定",
+    "today": "今日",
+    "week": "週間",
+    "groceries": "買い物",
+    "nutrition": "栄養"
     }
   },
   "theme": {
@@ -29,10 +32,6 @@
       "description": "オペレーターが最初に目にする画面です。出荷前にここに何を置くか決めてください。",
       "placeholderTitle": "このシナリオのホーム画面はまだ決まっていません",
       "placeholderDescription": "START-HERE のゲート 5 を開き、このページが答える一つの問いを決めてください。このプレースホルダーをその画面に置き換えます。隣のヘルスカードは、ライブラリ部品で作ったシナリオ所有機能の例です。"
-    },
-    "notes": {
-      "title": "ノート",
-      "description": "動作するサンプルドメイン: 一覧、作成、計測。形を一度写したら detemplate で削除します。"
     },
     "settings": {
       "title": "設定",
@@ -56,29 +55,6 @@
   },
   "notifications": {
     "summary": "{{count}} 件の通知"
-  },
-  "notes": {
-    "title": "ノート",
-    "loading": "ノートを読み込み中…",
-    "empty": "まだノートはありません。",
-    "create": "ノートを作成",
-    "attachmentsLabel": "添付ファイル {{count}} 件",
-    "table": {
-      "title": "タイトル",
-      "created": "作成日",
-      "attachments": "添付",
-      "actions": "操作",
-      "search": "ノートを検索"
-    },
-    "uploadAttachment": "添付ファイルをアップロード",
-    "attachmentFileLabel": "添付ファイル",
-    "uploadSuccess": "{{name}} をアップロードしました。",
-    "noFileSelected": "アップロードするファイルを選択してください。",
-    "measure": {
-      "title": "今週のノート",
-      "loading": "集計中…",
-      "thisWeek": "今週作成されたノート: {{count}} 件"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

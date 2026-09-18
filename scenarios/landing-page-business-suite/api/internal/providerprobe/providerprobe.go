@@ -26,6 +26,12 @@ import (
 type Status string
 
 const (
+	ProviderSendGrid = "sendgrid"
+	ProviderSMTP     = "smtp"
+	ProviderStripe   = "stripe"
+)
+
+const (
 	// StatusPass means the credential authenticated.
 	StatusPass Status = "pass"
 	// StatusFail means the provider rejected the credential, or the
@@ -76,7 +82,7 @@ func now() time.Time { return time.Now().UTC() }
 // that authenticates but cannot send mail is a failure, not a pass: it will
 // reject every sign-in email.
 func VerifySendGrid(ctx context.Context, doer HTTPDoer, apiKey, endpoint string) Result {
-	result := Result{Provider: "sendgrid", Capability: "customer sign-in email", CheckedAt: now()}
+	result := Result{Provider: ProviderSendGrid, Capability: "customer sign-in email", CheckedAt: now()}
 	if strings.TrimSpace(apiKey) == "" {
 		result.Status = StatusNotConfigured
 		result.Detail = "no SendGrid API key is configured"
@@ -147,7 +153,7 @@ func DialSMTP(ctx context.Context, addr string) (SMTPSession, error) {
 // TLS is required before authentication, matching the delivery path: a probe
 // must not prove a credential works over a channel the sender would refuse.
 func VerifySMTP(ctx context.Context, dial SMTPDialer, target SMTPTarget) Result {
-	result := Result{Provider: "smtp", Capability: "customer sign-in email (SMTP fallback)", CheckedAt: now()}
+	result := Result{Provider: ProviderSMTP, Capability: "customer sign-in email (legacy SMTP compatibility)", CheckedAt: now()}
 	if !target.Configured() {
 		result.Status = StatusNotConfigured
 		result.Detail = "the site SMTP relay is not fully configured"
@@ -190,7 +196,7 @@ func VerifySMTP(ctx context.Context, dial SMTPDialer, target SMTPTarget) Result 
 // The mode check is the point: a test-mode key in a live deployment
 // authenticates perfectly and quietly takes no money.
 func VerifyStripe(ctx context.Context, doer HTTPDoer, secretKey, declaredMode, endpoint string) Result {
-	result := Result{Provider: "stripe", Capability: "card payments", CheckedAt: now()}
+	result := Result{Provider: ProviderStripe, Capability: "card payments", CheckedAt: now()}
 	secretKey = strings.TrimSpace(secretKey)
 	if secretKey == "" {
 		result.Status = StatusNotConfigured

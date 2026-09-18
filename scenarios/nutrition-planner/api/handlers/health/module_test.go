@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
 	"nutrition-planner/handlers/health"
 	"nutrition-planner/internal/testutil/mocks"
 

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"landing-page-business-suite-api/internal/emailreadiness"
+	maildns "github.com/vrooli/vrooli/packages/maildns-go"
 	"landing-page-business-suite-api/internal/logx"
 
 	"github.com/vrooli/api-core/health"
@@ -111,18 +111,16 @@ func TestHealthEndpoint(t *testing.T) {
 	})
 }
 
-// TestSignInEmailDNSCheckSkipsDeployedSendingGateOutsideProduction pins the
-// environment gate: a local instance serves on a loopback origin and cannot
-// align a real From domain or publish DKIM, so this deployed-sending check must
-// not degrade non-production health and drive recovery churn.
-func TestSignInEmailDNSCheckSkipsDeployedSendingGateOutsideProduction(t *testing.T) {
+// DNS readiness is evaluated in every environment so local checks cannot hide
+// a broken provider configuration.
+func TestSignInEmailDNSCheckRunsOutsideProduction(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	t.Setenv("VROOLI_ENVIRONMENT", "")
 
-	srv := &Server{emailReadinessService: emailreadiness.New(nil)}
+	srv := &Server{mailDNSService: maildns.New(nil)}
 	result := srv.signInEmailDNSCheck().Check(context.Background())
-	if !result.Connected || result.Error != nil {
-		t.Fatalf("non-production email DNS check must not fail health: connected=%v err=%v", result.Connected, result.Error)
+	if result.Error == nil {
+		t.Fatal("non-production email DNS check must report the unavailable resolver")
 	}
 }
 

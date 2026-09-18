@@ -35,6 +35,37 @@ There is no built-in password. The admin account is seeded on startup:
   that account still uses the bootstrap email; after you change the email in `/admin/profile`, the
   account is yours and restarts leave it alone.
 
+#### Recover a locked-out administrator
+
+If you no longer know the admin password, use one of these operator-only paths.
+None of them require the current password, and none are reachable from a
+browser session.
+
+- **Same host:** `landing-page-business-suite admin-credential-reset --email <email> --new-password-stdin`
+  reads the new password from stdin. When the account still uses the bootstrap
+  email it also rotates the `admin-default-password` authority value, so a
+  restart keeps the reset.
+- **Local control plane → deployment:** the deployment declares
+  `admin-default-password` as a managed credential, so rotating it through
+  `scenario-to-cloud` distributes the new value over the deployment transport
+  and restarts the consumer automatically:
+
+  ```bash
+  printf '%s' "$NEW_PASSWORD" | scenario-to-cloud credential rotate \
+    --deployment <deployment-id> \
+    --binding <admin-default-password-binding-id> \
+    --value-stdin
+  ```
+
+  A local LPBS with a stored remote profile can also proxy the recovery call
+  without an interactive session on the VPS:
+  `landing-page-business-suite admin-credential-reset --profile-tag prod --new-password-stdin`.
+- **Unknown or unreachable email:** pass `--new-email` to
+  `admin-credential-reset` to set a sign-in email you control.
+
+A password reset revokes the account's other sessions and records an
+`admin_credential_reset` security event.
+
 If the credential is not provisioned, development starts generate a random one-time password nobody
 knows, and production refuses to start. Two-factor sign-in applies only after you enroll it in
 `/admin/profile`.

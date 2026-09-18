@@ -234,20 +234,6 @@ belong in [`FLOWS.md`](FLOWS.md). Storage details belong in [`DATA.md`](DATA.md)
 
 ### Scaffold example — `notes` (not product scope)
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The template ships the `notes` domain as a worked CRUD vertical slice with a binary
-upload exception. It exists so a new scenario can copy the vertical-slice shape; it is
-**not** a Nutrition Planner capability and `template-manager detemplate` removes it once
-the first real domain is green.
-
-| Domain | Responsibility | Primary Archetype | Source Paths |
-|---|---|---|---|
-| notes | Template worked example only; demonstrates the expected vertical slice and the sanctioned multipart exception (source-artifact upload is the product analog). | crud | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/nutrition-planner/v1/notes/` |
-
-- Does not own: any product capability, table, or requirement.
-- Storage: `api/internal/notes/schema.sql`; removed with the domain.
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Shared Concepts
 
 These terms are used the same way across every domain document.

@@ -4,13 +4,16 @@
  * produces (skip link, navigation landmarks, main). Feature cards keep their
  * own a11y tests.
  */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
 import { setLocale } from "../i18n";
 import { TestAppRouter } from "../app/routes";
+
+vi.mock("../api/recipes", () => ({ listRecipes: () => new Promise(() => undefined), createRecipe: vi.fn() }));
+vi.mock("../api/workspace", () => ({ ensureWorkspace: () => new Promise(() => undefined) }));
 
 describe("AppShell accessibility", () => {
   beforeEach(async () => {

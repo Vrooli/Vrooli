@@ -18,7 +18,11 @@ func TestSensitiveAdminRouteInventoryUsesStepUp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	text := string(source) + string(composition)
+	recoveryComposition, err := os.ReadFile("admin_credential_reset_composition.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(source) + string(composition) + string(recoveryComposition)
 	required := []string{
 		"RegisterPresentationAdminRoutes(s.router, s.configStore, s.requireAdminStepUp)",
 		"RegisterStripeSettingsConnectRoutes(s.router, s.paymentSettings, s.stripeService, s.paymentAnomaly, s.requireAdminStepUp)",
@@ -33,6 +37,7 @@ func TestSensitiveAdminRouteInventoryUsesStepUp(t *testing.T) {
 		"RegisterProfileConnectRoutes(s.router, profileDeps, s.requireAdminProfile)",
 		"/api/v1/admin/mfa/disable", "s.requireAdminStepUp(adminhttp.DisableAdminMFA",
 		"/api/v1/admin/mfa/recovery-codes", "s.requireAdminStepUp(adminhttp.RegenerateAdminRecoveryCodes",
+		"/api/v1/admin/admin-credentials/reset", "s.requireAdminOrService(adminhttp.ResetAdminCredential",
 		"wrapped := s.requireAdminStepUp(http.HandlerFunc(handler.ServeHTTP))",
 	}
 	for _, fragment := range required {

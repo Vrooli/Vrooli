@@ -1,150 +1,80 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "nutrition-planner",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Nutrition Planner CLI surface. Connect bindings are added as each domain becomes user-operable; API-only bootstrap operations remain explicit omissions.",
   "groups": [
     {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
+      "name": "workspace",
+      "description": "Inspect the authenticated workspace collection.",
       "commands": [
         {
           "name": "list",
-          "description": "List all notes",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "ListNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "create",
-          "description": "Create a note",
-          "flags": [
-            {
-              "name": "title",
-              "required": true,
-              "description": "Note title"
-            },
-            {
-              "name": "body",
-              "description": "Note body"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CreateNote"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
-          }
-        },
-        {
-          "name": "get",
-          "description": "Get a note by id",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Note id"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "GetNote"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
-          "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CountNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
-            }
-          }
+          "description": "List workspaces owned by the authenticated actor.",
+          "binding": {"kind": "connect-rpc", "service": "WorkspaceService", "method": "ListWorkspaces"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["nutrition:read"]}
         }
       ]
     }
   ],
   "measures": {
-    "domains": [
-      {
-        "domain": "notes",
-        "stateful": true,
-        "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier."
-      }
-    ]
+    "domains": []
   },
-  "exceptions": [
-    {
-      "command": "notes attach",
-      "class": "upload",
-      "reason": "Multipart file upload is exposed through the notes REST attachment endpoint, while cli-manifest/v1 only models Connect-RPC bindings."
-    }
-  ],
-  "omitted": []
+  "exceptions": [],
+  "omitted": [
+    {"service": "WorkspaceService", "method": "CreateWorkspace", "reason": "Workspace bootstrap is currently owned by the authenticated web flow; CLI parity is added with the workspace collection vertical slice."},
+    {"service": "WorkspaceService", "method": "GetWorkspace", "reason": "Workspace bootstrap is currently owned by the authenticated web flow; CLI parity is added with the workspace collection vertical slice."},
+    {"service": "RecipeService", "method": "CreateRecipe", "reason": "Recipe CLI commands are introduced with the durable meal collection UI slice."},
+    {"service": "RecipeService", "method": "GetRecipe", "reason": "Recipe CLI commands are introduced with the durable meal collection UI slice."},
+    {"service": "RecipeService", "method": "ListRecipes", "reason": "Recipe CLI commands are introduced with the durable meal collection UI slice."},
+    {"service": "RecipeService", "method": "UpdateRecipe", "reason": "Recipe CLI commands are introduced with the durable meal collection UI slice."},
+    {"service": "PortabilityService", "method": "ExportRecipes", "reason": "Native export is currently exposed through the authenticated web/API surface; CLI export parity is scheduled with the portability phase."},
+    {"service": "PortabilityService", "method": "ExportWorkspace", "reason": "Workspace export is currently exposed through the authenticated web/API surface; CLI export parity is scheduled with the portability phase."},
+    {"service": "PortabilityService", "method": "PreviewWorkspaceImport", "reason": "Workspace import preview is currently exposed through the authenticated web/API surface; CLI parity is scheduled with the portability phase."},
+    {"service": "PortabilityService", "method": "ApplyWorkspaceImport", "reason": "Workspace restore is currently exposed through the authenticated web/API surface; CLI parity is scheduled with the portability phase."},
+    {"service": "JobsService", "method": "ListJobs", "reason": "Optional job status is currently exposed through the authenticated web/API surface; CLI parity is scheduled with the jobs phase."},
+    {"service": "JobsService", "method": "CreateJob", "reason": "Optional job creation is currently exposed through the authenticated web/API surface; CLI parity is scheduled with the jobs phase."},
+    {"service": "JobsService", "method": "TransitionJob", "reason": "Optional job transitions are currently exposed through the authenticated web/API surface; CLI parity is scheduled with the jobs phase."},
+    {"service": "JobsService", "method": "CancelJob", "reason": "Optional job cancellation is currently exposed through the authenticated web/API surface; CLI parity is scheduled with the jobs phase."},
+    {"service": "PortabilityService", "method": "ExportGroceriesCSV", "reason": "Grocery CSV export is currently exposed through the authenticated web/API surface; CLI parity is scheduled with the portability phase."},
+    {"service": "PortabilityService", "method": "ExportRecipePDF", "reason": "Recipe PDF export is currently exposed through the authenticated web/API surface; CLI parity is scheduled with the portability phase."},
+    {"service": "PortabilityService", "method": "ExportWeeklyPDF", "reason": "Weekly PDF export is currently exposed through the authenticated web/API surface; CLI parity is scheduled with the portability phase."},
+    {"service": "ProfileService", "method": "GetProfile", "reason": "Profile commands are introduced with the onboarding UI slice."},
+    {"service": "ProfileService", "method": "SaveProfileDraft", "reason": "Profile commands are introduced with the onboarding UI slice."},
+    {"service": "ProfileService", "method": "ApplyProfile", "reason": "Profile commands are introduced with the onboarding UI slice."}
+    ,{"service": "EligibilityService", "method": "Evaluate", "reason": "Eligibility evaluation is currently consumed through the authenticated onboarding/planner API; CLI parity is scheduled with planning commands."},
+    {"service": "PlanningService", "method": "GeneratePlan", "reason": "Planning CLI parity is scheduled with the weekly planning surface."},
+    {"service": "PlanningService", "method": "ApplyPlan", "reason": "Planning CLI parity is scheduled with the weekly planning surface."},
+    {"service": "PlanningService", "method": "PreviewSwap", "reason": "Planning CLI parity is scheduled with the weekly planning surface."},
+    {"service": "PlanningService", "method": "GetShoppingPreview", "reason": "Shopping CLI parity is scheduled with the shopping preview surface."},
+    {"service": "PlanningService", "method": "SetShoppingChecked", "reason": "Shopping CLI parity is scheduled with the shopping preview surface."},
+    {"service": "PlanningService", "method": "RecordFeedback", "reason": "Feedback CLI parity is scheduled with the feedback surface."},
+    {"service": "PlanningService", "method": "UndoFeedback", "reason": "Feedback CLI parity is scheduled with the feedback surface."},
+    {"service": "CatalogService", "method": "ListCatalog", "reason": "Catalog CLI parity is scheduled with the nutrition and food evidence surface."},
+    {"service": "CatalogService", "method": "CreateRevision", "reason": "Catalog CLI parity is scheduled with the nutrition and food evidence surface."},
+    {"service": "CatalogService", "method": "GetRevision", "reason": "Catalog CLI parity is scheduled with the nutrition and food evidence surface."}
+    ,{"service": "NutritionService", "method": "ListTargets", "reason": "Nutrition target CLI parity is scheduled with the nutrition analysis surface."}
+    ,{"service": "NutritionService", "method": "CreateTarget", "reason": "Nutrition target CLI parity is scheduled with the nutrition analysis surface."}
+    ,{"service": "NutritionService", "method": "GetTarget", "reason": "Nutrition target CLI parity is scheduled with the nutrition analysis surface."}
+    ,{"service": "NutritionService", "method": "EvaluateScope", "reason": "Nutrition evaluation CLI parity is scheduled with the nutrition analysis surface."}
+    ,{"service": "NutritionService", "method": "ListIntakes", "reason": "Recorded intake CLI parity is scheduled with the nutrition analysis surface."}
+    ,{"service": "NutritionService", "method": "RecordIntake", "reason": "Recorded intake CLI parity is scheduled with the nutrition analysis surface."}
+    ,{"service": "SupplementService", "method": "ListSchedules", "reason": "Supplement CLI parity is scheduled with the nutrition analysis surface."}
+    ,{"service": "SupplementService", "method": "CreateSchedule", "reason": "Supplement CLI parity is scheduled with the nutrition analysis surface."}
+    ,{"service": "SupplementService", "method": "UpdateSchedule", "reason": "Supplement CLI parity is scheduled with the nutrition analysis surface."}
+    ,{"service": "SupplementService", "method": "GetSchedule", "reason": "Supplement CLI parity is scheduled with the nutrition analysis surface."}
+    ,{"service": "RoutineService", "method": "ListTemplates", "reason": "Routine CLI parity is scheduled with the full-day planning surface."}
+    ,{"service": "RoutineService", "method": "CreateTemplate", "reason": "Routine CLI parity is scheduled with the full-day planning surface."}
+    ,{"service": "RoutineService", "method": "UpdateTemplate", "reason": "Routine CLI parity is scheduled with the full-day planning surface."}
+    ,{"service": "RoutineService", "method": "GenerateOccurrences", "reason": "Routine CLI parity is scheduled with the full-day planning surface."}
+    ,{"service": "CostService", "method": "ListPriceObservations", "reason": "Cost CLI parity is scheduled with the price-book surface."}
+    ,{"service": "CostService", "method": "CreatePriceObservation", "reason": "Cost CLI parity is scheduled with the price-book surface."}
+    ,{"service": "InventoryService", "method": "ListEvents", "reason": "Inventory CLI parity is scheduled with pantry and batch operations."}
+    ,{"service": "InventoryService", "method": "RecordEvent", "reason": "Inventory CLI parity is scheduled with pantry and batch operations."}
+    ,{"service": "InventoryService", "method": "PrepareBatch", "reason": "Batch preparation CLI parity is scheduled with pantry and batch operations."}
+    ,{"service": "InventoryService", "method": "ConsumeBatchPortion", "reason": "Batch consumption CLI parity is scheduled with pantry and batch operations."}
+    ,{"service": "InventoryService", "method": "UndoBatchPortion", "reason": "Batch correction CLI parity is scheduled with pantry and batch operations."}
+    ,{"service": "InventoryService", "method": "StageReceiptProposal", "reason": "Receipt review CLI parity is scheduled with the pantry and receipt-adapter surface."}
+    ,{"service": "InventoryService", "method": "ListReceiptProposals", "reason": "Receipt review CLI parity is scheduled with the pantry and receipt-adapter surface."}
+    ,{"service": "InventoryService", "method": "ApplyReceiptProposal", "reason": "Receipt review CLI parity is scheduled with the pantry and receipt-adapter surface."}
+  ]
 }

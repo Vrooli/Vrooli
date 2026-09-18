@@ -1,0 +1,13 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { renderWithProviders } from "../../test-utils";
+const generatePlan = vi.hoisted(() => vi.fn());
+const listRecipes = vi.hoisted(() => vi.fn());
+const applyPlan = vi.hoisted(() => vi.fn());
+const previewSwap = vi.hoisted(() => vi.fn());
+vi.mock("../../api/planning", () => ({ generatePlan, applyPlan, previewSwap }));
+vi.mock("../../api/recipes", () => ({ listRecipes }));
+vi.mock("../../api/workspace", () => ({ ensureWorkspace: vi.fn().mockResolvedValue({ id: "w1" }) }));
+import { WeekPage } from "./WeekPage";
+describe("WeekPage", () => { beforeEach(() => { vi.clearAllMocks(); listRecipes.mockResolvedValue([]); }); it("renders seven explicit dinner rows and supports navigation", async () => { const user = userEvent.setup(); generatePlan.mockResolvedValue({ occurrences: [], unresolved: [], currentRevision: 0n }); renderWithProviders(<WeekPage />); await waitFor(() => expect(screen.getAllByText(/Open dinner slot/)).toHaveLength(7)); await user.click(screen.getByRole("button", { name: "Next week" })); expect(generatePlan).toHaveBeenCalledTimes(2); }); it("previews and applies a scoped swap", async () => { const user = userEvent.setup(); const date = new Date().toISOString().slice(0, 10); generatePlan.mockResolvedValue({ occurrences: [{ date, recipeId: "a", recipeName: "A", locked: false, reason: "Known fit" }], unresolved: [], currentRevision: 1n }); listRecipes.mockResolvedValue([{ id: "b", name: "B" }]); previewSwap.mockResolvedValue({ revision: 1n, preview: { draft: { occurrences: [{ date, recipeId: "b", recipeName: "B", locked: false, reason: "swapped" }], unresolved: [], inputReferences: [], runId: "seed-0", seed: 0, currentRevision: 1n }, changes: [{ date, beforeName: "A", afterName: "B" }] }, affectedDates: [date] }); applyPlan.mockResolvedValue({ revision: 2n }); renderWithProviders(<WeekPage />); await waitFor(() => expect(screen.getByRole("heading", { name: "Your dinner week" })).toBeInTheDocument()); await user.click(screen.getByRole("button", { name: "Swap meal" })); await user.selectOptions(screen.getByLabelText("Replacement meal"), "b"); await user.click(screen.getByRole("button", { name: "Preview swap" })); await waitFor(() => expect(screen.getByText(/A → B/)).toBeInTheDocument()); await user.click(screen.getByRole("button", { name: "Apply swap" })); await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument()); expect(applyPlan).toHaveBeenCalled(); }); });

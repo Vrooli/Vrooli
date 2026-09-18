@@ -46,6 +46,7 @@ import (
 	"landing-page-business-suite-api/internal/logx"
 	"landing-page-business-suite-api/internal/monetization"
 	passkeyinternal "landing-page-business-suite-api/internal/passkeys"
+	"landing-page-business-suite-api/internal/providerprobe"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/authn"
@@ -391,7 +392,7 @@ func registerHealthRoutes(s *Server) {
 		}
 		return nil
 	})
-	healthHandler := health.New().Version("1.0.0").Check(health.DB(s.primaryDB()), health.Critical).Check(adminMFAPolicyCheck, health.Optional).Check(s.signInDeliveryCheck(), health.Optional).Check(s.signInEmailDNSCheck(), health.Optional).Check(s.paymentsCheck(), health.Optional).Check(s.providerCredentialCheck("sign_in_email_credentials", "sendgrid"), health.Optional).Check(s.providerCredentialCheck("sign_in_smtp_credentials", "smtp"), health.Optional).Check(s.providerCredentialCheck("payments_credentials", "stripe"), health.Optional).Handler()
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(s.primaryDB()), health.Critical).Check(adminMFAPolicyCheck, health.Optional).Check(s.signInDeliveryCheck(), health.Optional).Check(s.signInEmailDNSCheck(), health.Optional).Check(s.paymentsCheck(), health.Optional).Check(s.signInProviderCredentialCheck(), health.Optional).Check(s.providerCredentialCheck("payments_credentials", providerprobe.ProviderStripe), health.Optional).Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 }
@@ -424,7 +425,10 @@ func registerAuthRoutes(s *Server) {
 	// Public auth endpoints (no auth required)
 	// Durable throttles replace the process-local limiter so limits survive
 	// restarts and hold across replicas.
-	deps := userAuthHandlerDependencies(s.userAuthService, nil)
+	// Keep the narrow recipient limiter wired in addition to the durable
+	// per-email and per-IP throttle. This protects the public endpoint even if
+	// the durable throttle is temporarily unavailable.
+	deps := userAuthHandlerDependencies(s.userAuthService, s.magicLinkLimiter)
 	deps.Throttle = s.authThrottle
 	s.router.HandleFunc("/api/v1/auth/magic-link", adminhttp.RequestMagicLink(deps)).Methods("POST")
 	s.router.HandleFunc("/api/v1/auth/magic-link/preview", adminhttp.PreviewSignIn(deps)).Methods("POST")
@@ -585,6 +589,7 @@ func registerAdminCoreRoutes(s *Server) {
 	landinghttp.RegisterPresentationAdminRoutes(s.router, s.configStore, s.requireAdminStepUp)
 	adminhttp.RegisterSessionConnectRoutes(s.router, s.adminSessionDependencies(), adminhttp.ResetDependencies{Reset: s.resetDemoData, Now: time.Now, LogError: logx.Error}, s.requireAdmin)
 	registerAdminMFARoutes(s)
+	registerAdminCredentialResetRoutes(s)
 	s.router.HandleFunc("/api/v1/admin/auth/delivery", s.requireMetricsReader(s.signInDeliveryReport)).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/auth/email-readiness", s.requireAdmin(s.emailReadinessReport)).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/provider-credentials", s.requireAdmin(s.providerVerificationReport)).Methods("GET")

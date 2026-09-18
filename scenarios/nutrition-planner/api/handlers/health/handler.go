@@ -9,6 +9,7 @@ package health
 import (
 	"context"
 	"net/http"
+
 	"nutrition-planner/internal/database"
 
 	apihealth "github.com/vrooli/api-core/health"

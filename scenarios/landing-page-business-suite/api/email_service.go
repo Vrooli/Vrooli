@@ -4,19 +4,24 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"net"
 	"net/http"
 	"net/smtp"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"landing-page-business-suite-api/internal/administration"
+	"landing-page-business-suite-api/internal/emaildelivery"
 	"landing-page-business-suite-api/internal/experimentation"
 	"landing-page-business-suite-api/internal/logx"
 	domainmetrics "landing-page-business-suite-api/internal/metrics"
@@ -33,7 +38,7 @@ type SMTPConfig struct {
 
 // IsConfigured returns true if SMTP settings are complete
 func (c *SMTPConfig) IsConfigured() bool {
-	return c.Host != "" && c.Username != "" && c.Password != ""
+	return c.Host != "" && c.Username != "" && c.Password != "" && c.From != ""
 }
 
 // SendGridConfig holds SendGrid configuration
@@ -62,22 +67,20 @@ type EmailServiceOptions struct {
 	// SMTPPasswordResolver supplies the authority-owned SMTP secret. The
 	// branding model deliberately cannot provide this value.
 	SMTPPasswordResolver func() (string, error)
-	// AllowUnconfiguredDelivery is a development-only seam. It never logs or
-	// returns a magic-link URL; production composition leaves it false so a
-	// missing provider is an explicit delivery failure.
-	AllowUnconfiguredDelivery bool
 }
 
 // EmailService handles sending emails using public branding settings plus
 // authority-owned provider credentials.
 type EmailService struct {
-	sendGridConfig            *SendGridConfig
-	sendGridEndpoint          string
-	httpClient                *http.Client
-	smtpSender                SMTPSenderFunc
-	smtpPasswordResolver      func() (string, error)
-	allowUnconfiguredDelivery bool
-	brandingSource            func() *experimentation.SiteBranding
+	sendGridConfig       *SendGridConfig
+	sendGridEndpoint     string
+	httpClient           *http.Client
+	smtpSender           SMTPSenderFunc
+	smtpPasswordResolver func() (string, error)
+	brandingSource       func() *experimentation.SiteBranding
+	developmentRecorder  func(to, subject, text, html string) error
+	sendGridKeyResolver  func() string
+	mailer               *emaildelivery.Mailer
 }
 
 const defaultSendGridEndpoint = "https://api.sendgrid.com/v3/mail/send"
@@ -89,6 +92,31 @@ func firstNonEmpty(value, fallback string) string {
 	return fallback
 }
 
+// recordDevelopmentEmail is an honest local transport: it records the full
+// message in a durable, operator-readable spool and only then reports success.
+// It is installed only by the normal non-production composition; tests that
+// construct EmailServiceWithOptions still see a missing-provider error.
+func recordDevelopmentEmail(to, subject, text, html string) error {
+	path := strings.TrimSpace(os.Getenv("LPBS_DEVELOPMENT_EMAIL_SPOOL"))
+	if path == "" {
+		path = filepath.Join("..", ".vrooli", "state", "email-development.ndjson")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		return err
+	}
+	record, err := json.Marshal(map[string]string{"to": to, "subject": subject, "text": text, "html": html, "recorded_at": time.Now().UTC().Format(time.RFC3339Nano)})
+	if err != nil {
+		return err
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	_, err = file.Write(append(record, '\n'))
+	return err
+}
+
 // NewEmailService creates a new email service
 func NewEmailService() *EmailService {
 	// Load SendGrid config from secrets
@@ -97,10 +125,7 @@ func NewEmailService() *EmailService {
 	fromName := resolveConfig("EMAIL_FROM_NAME")
 
 	var sgConfig *SendGridConfig
-	if apiKey != "" {
-		if fromEmail == "" {
-			fromEmail = "noreply@example.com"
-		}
+	if apiKey != "" && strings.TrimSpace(fromEmail) != "" {
 		if fromName == "" {
 			fromName = "App"
 		}
@@ -121,16 +146,20 @@ func NewEmailService() *EmailService {
 		})
 	}
 
-	return &EmailService{
+	service := &EmailService{
 		sendGridConfig:   sgConfig,
 		sendGridEndpoint: defaultSendGridEndpoint,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		smtpSender:                secureSMTPSend,
-		smtpPasswordResolver:      func() (string, error) { return administration.ResolveAuthorityCredential("SMTP_PASSWORD") },
-		allowUnconfiguredDelivery: !isProductionSecurityEnvironment(),
+		smtpSender:           secureSMTPSend,
+		smtpPasswordResolver: func() (string, error) { return administration.ResolveAuthorityCredential("SMTP_PASSWORD") },
+		sendGridKeyResolver:  func() string { return resolveSecret("SENDGRID_API_KEY") },
 	}
+	if !isProductionSecurityEnvironment() {
+		service.developmentRecorder = recordDevelopmentEmail
+	}
+	return service
 }
 
 // NewEmailServiceWithOptions creates a new email service with custom options (for testing).
@@ -150,33 +179,54 @@ func NewEmailServiceWithOptions(opts EmailServiceOptions) *EmailService {
 	}
 
 	return &EmailService{
-		sendGridConfig:            opts.SendGridConfig,
-		sendGridEndpoint:          firstNonEmpty(opts.SendGridEndpoint, defaultSendGridEndpoint),
-		httpClient:                httpClient,
-		smtpSender:                sender,
-		smtpPasswordResolver:      passwordResolver,
-		allowUnconfiguredDelivery: opts.AllowUnconfiguredDelivery,
+		sendGridConfig:       opts.SendGridConfig,
+		sendGridEndpoint:     firstNonEmpty(opts.SendGridEndpoint, defaultSendGridEndpoint),
+		httpClient:           httpClient,
+		smtpSender:           sender,
+		smtpPasswordResolver: passwordResolver,
 	}
 }
 
 // IsSendGridConfigured returns true if SendGrid is properly configured
 func (s *EmailService) IsSendGridConfigured() bool {
+	s.refreshSendGridConfig()
 	return s.sendGridConfig != nil && s.sendGridConfig.IsConfigured()
+}
+
+func (s *EmailService) refreshSendGridConfig() {
+	if s.sendGridKeyResolver == nil {
+		return
+	}
+	key := strings.TrimSpace(s.sendGridKeyResolver())
+	from := strings.TrimSpace(resolveConfig("EMAIL_FROM_ADDRESS"))
+	if key == "" || from == "" {
+		s.sendGridConfig = nil
+		return
+	}
+	s.sendGridConfig = &SendGridConfig{APIKey: key, FromEmail: from, FromName: firstNonEmpty(resolveConfig("EMAIL_FROM_NAME"), "App")}
 }
 
 // SendFeedbackNotification sends an email notification for new feedback
 func (s *EmailService) SendFeedbackNotification(branding *experimentation.SiteBranding, feedback *domainmetrics.FeedbackRequest) error {
-	config := s.extractSMTPConfig(branding)
+	config, configErr := s.extractSMTPConfigWithError(branding)
+	if configErr != nil {
+		if s.developmentRecorder == nil {
+			return fmt.Errorf("resolve SMTP configuration: %w", configErr)
+		}
+		config = &SMTPConfig{}
+	}
 
 	if !config.IsConfigured() {
-		logx.Info("email_skipped", map[string]interface{}{
-			"reason": "smtp not configured in branding settings",
-		})
-		return nil
+		if s.developmentRecorder != nil && branding != nil && branding.SupportEmail != nil && strings.TrimSpace(*branding.SupportEmail) != "" {
+			subject := fmt.Sprintf("[Feedback] %s: %s", feedbackTypeLabel(feedback.Type), feedback.Subject)
+			body := fmt.Sprintf("New feedback received\n\nFrom: %s\nSubject: %s\n\n%s", feedback.Email, feedback.Subject, feedback.Message)
+			return s.developmentRecorder(*branding.SupportEmail, subject, body, "<pre>"+html.EscapeString(body)+"</pre>")
+		}
+		return fmt.Errorf("SMTP provider is not configured")
 	}
 
 	if branding.SupportEmail == nil || *branding.SupportEmail == "" {
-		return nil
+		return fmt.Errorf("feedback support email is not configured")
 	}
 
 	to := *branding.SupportEmail
@@ -197,14 +247,41 @@ Message:
 	}
 
 	body += fmt.Sprintf("\n---\nSubmitted at: %s\nFeedback ID: %d\n", feedback.CreatedAt.Format("2006-01-02 15:04:05 UTC"), feedback.ID)
+	if s.mailer != nil {
+		return s.mailer.Enqueue(context.Background(), emaildelivery.Message{
+			DedupeKey: feedbackDedupeKey(feedback), IdempotencyKey: feedbackDedupeKey(feedback),
+			Purpose: emaildelivery.PurposeContact, Recipient: to, Sender: config.From,
+			Subject: subject, TextBody: body, HTMLBody: "<pre>" + html.EscapeString(body) + "</pre>",
+			TemplateRef: "feedback.notification", Priority: 40,
+		})
+	}
 
 	return s.Send(config, to, subject, body)
 }
 
+// UseMailer switches the service to the durable outbox boundary. It is used
+// by production composition; test-only constructions retain the synchronous
+// transport so their provider assertions remain local and deterministic.
+func (s *EmailService) UseMailer(mailer *emaildelivery.Mailer) {
+	s.mailer = mailer
+}
+
+func feedbackDedupeKey(feedback *domainmetrics.FeedbackRequest) string {
+	return fmt.Sprintf("feedback:%d:%s", feedback.ID, strings.ToLower(strings.TrimSpace(feedback.Email)))
+}
+
 // extractSMTPConfig pulls SMTP settings from branding
 func (s *EmailService) extractSMTPConfig(branding *experimentation.SiteBranding) *SMTPConfig {
+	config, _ := s.extractSMTPConfigWithError(branding)
+	return config
+}
+
+func (s *EmailService) extractSMTPConfigWithError(branding *experimentation.SiteBranding) (*SMTPConfig, error) {
 	config := &SMTPConfig{
 		Port: 587, // default
+	}
+	if branding == nil {
+		return config, nil
 	}
 
 	if branding.SMTPHost != nil {
@@ -217,17 +294,17 @@ func (s *EmailService) extractSMTPConfig(branding *experimentation.SiteBranding)
 		config.Username = *branding.SMTPUsername
 	}
 	if s.smtpPasswordResolver != nil {
-		if password, err := s.smtpPasswordResolver(); err == nil {
-			config.Password = password
+		password, err := s.smtpPasswordResolver()
+		if err != nil {
+			return config, err
 		}
+		config.Password = password
 	}
 	if branding.SMTPFrom != nil && *branding.SMTPFrom != "" {
 		config.From = *branding.SMTPFrom
-	} else {
-		config.From = config.Username // default to username
 	}
 
-	return config
+	return config, nil
 }
 
 // Send sends an email using the provided config
@@ -361,16 +438,19 @@ func (s *EmailService) SendMagicLink(to, magicLink, appName string) error {
 	subject := fmt.Sprintf("Sign in to %s", appName)
 	htmlContent := buildMagicLinkHTML(magicLink, appName)
 	textContent := buildMagicLinkText(magicLink, appName)
+	if s.mailer != nil {
+		digest := sha256.Sum256([]byte(magicLink))
+		dedupe := fmt.Sprintf("magic-link:%s:%x", strings.ToLower(strings.TrimSpace(to)), digest[:])
+		return s.mailer.Enqueue(context.Background(), emaildelivery.Message{
+			DedupeKey: dedupe, IdempotencyKey: dedupe, Purpose: emaildelivery.PurposeMagicLink,
+			Recipient: to, Sender: s.senderIdentity(), Subject: subject, TextBody: textContent,
+			HTMLBody: htmlContent, TemplateRef: "auth.magic-link", Priority: 100,
+		})
+	}
 
 	if !s.IsSendGridConfigured() {
-		if s.allowUnconfiguredDelivery {
-			logx.Info("magic_link_delivery_disabled", map[string]interface{}{
-				"level":    "warn",
-				"to":       to,
-				"provider": "sendgrid",
-				"message":  "magic-link delivery is disabled in the non-production test/development composition",
-			})
-			return nil
+		if s.developmentRecorder != nil {
+			return s.developmentRecorder(to, subject, textContent, htmlContent)
 		}
 		return fmt.Errorf("magic-link email provider is not configured")
 	}
@@ -396,7 +476,14 @@ func (s *EmailService) sendViaSendGridWithMetadata(ctx context.Context, to, subj
 // SendSecurityNotification sends a tracking-free administrator security
 // notice using a distinct provider category.
 func (s *EmailService) SendSecurityNotification(ctx context.Context, to, event, detail string) error {
-	_, err := s.sendViaSendGridCategory(ctx, to, "LPBS administrator security alert", fmt.Sprintf("Security event: %s\n\n%s", event, detail), fmt.Sprintf("<p>Security event: <strong>%s</strong></p><p>%s</p>", event, detail), "", "lpbs-admin-security")
+	subject := "LPBS administrator security alert"
+	textBody := fmt.Sprintf("Security event: %s\n\n%s", event, detail)
+	htmlBody := fmt.Sprintf("<p>Security event: <strong>%s</strong></p><p>%s</p>", html.EscapeString(event), html.EscapeString(detail))
+	if s.mailer != nil {
+		dedupe := fmt.Sprintf("security:%s:%s:%x", strings.ToLower(strings.TrimSpace(to)), event, sha256.Sum256([]byte(detail)))
+		return s.mailer.Enqueue(ctx, emaildelivery.Message{DedupeKey: dedupe, IdempotencyKey: dedupe, Purpose: emaildelivery.PurposeSecurity, Recipient: to, Sender: s.senderIdentity(), Subject: subject, TextBody: textBody, HTMLBody: htmlBody, TemplateRef: "security.alert", Priority: 80})
+	}
+	_, err := s.sendViaSendGridCategory(ctx, to, subject, textBody, htmlBody, "", "lpbs-admin-security")
 	return err
 }
 
@@ -409,12 +496,35 @@ func (s *EmailService) sendPasskeyNotification(ctx context.Context, to, event, d
 	if event == "passkey_removed" {
 		subject = "A passkey was removed from your account"
 	}
-	_, err := s.sendViaSendGridCategory(ctx, to, subject, fmt.Sprintf("%s\n\n%s\n\nReview your account security at /account/security.", subject, detail), fmt.Sprintf("<p>%s</p><p>%s</p><p>Review your account security at <a href=\"/account/security\">/account/security</a>.</p>", subject, detail), "", "lpbs-auth")
+	textBody := fmt.Sprintf("%s\n\n%s\n\nReview your account security at /account/security.", subject, detail)
+	htmlBody := fmt.Sprintf("<p>%s</p><p>%s</p><p>Review your account security at <a href=\"/account/security\">/account/security</a>.</p>", html.EscapeString(subject), html.EscapeString(detail))
+	if s.mailer != nil {
+		dedupe := fmt.Sprintf("passkey:%s:%s:%x", strings.ToLower(strings.TrimSpace(to)), event, sha256.Sum256([]byte(detail)))
+		return s.mailer.Enqueue(ctx, emaildelivery.Message{DedupeKey: dedupe, IdempotencyKey: dedupe, Purpose: emaildelivery.PurposePasskey, Recipient: to, Sender: s.senderIdentity(), Subject: subject, TextBody: textBody, HTMLBody: htmlBody, TemplateRef: "passkey.notice", Priority: 60})
+	}
+	_, err := s.sendViaSendGridCategory(ctx, to, subject, textBody, htmlBody, "", "lpbs-auth")
 	return err
 }
 
+func (s *EmailService) senderIdentity() string {
+	if value := strings.TrimSpace(resolveConfig("EMAIL_FROM_ADDRESS")); value != "" {
+		return value
+	}
+	if branding := s.currentBranding(); branding != nil && branding.SMTPFrom != nil {
+		return strings.TrimSpace(*branding.SMTPFrom)
+	}
+	return ""
+}
+
 func (s *EmailService) sendViaSendGridCategory(ctx context.Context, to, subject, textContent, htmlContent, requestID, category string) (*administration.SignInDelivery, error) {
+	s.refreshSendGridConfig()
 	if s.sendGridConfig == nil || !s.sendGridConfig.IsConfigured() {
+		if s.developmentRecorder != nil {
+			if err := s.developmentRecorder(to, subject, textContent, htmlContent); err != nil {
+				return nil, fmt.Errorf("record development email: %w", err)
+			}
+			return &administration.SignInDelivery{Provider: "development"}, nil
+		}
 		return nil, fmt.Errorf("SendGrid not configured")
 	}
 
@@ -502,7 +612,7 @@ func (s *EmailService) sendViaSendGridCategory(ctx context.Context, to, subject,
 		"to":    to,
 	})
 
-	return &administration.SignInDelivery{Provider: "sendgrid", ProviderMessageID: strings.TrimSpace(resp.Header.Get("X-Message-Id"))}, nil
+	return &administration.SignInDelivery{Provider: emaildelivery.ProviderSendGrid, ProviderMessageID: strings.TrimSpace(resp.Header.Get("X-Message-Id"))}, nil
 }
 
 // buildMagicLinkHTML creates an HTML email for magic link authentication

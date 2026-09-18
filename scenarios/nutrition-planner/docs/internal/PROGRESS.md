@@ -11,6 +11,11 @@ Entries are appended when work lands, not while it is still speculative.
 |---|---|---|---|
 | 2026-09-18 | opencode | documented | Filled PRD, requirements, concept/business/operations/internal docs, and experience contract from the canonical product specification; implementation not started |
 | 2026-09-18 | opencode | documented | Closed remaining internal-doc stubs: filled ERROR-HANDLING with stable error codes and semantics, added the planned product seams to SEAMS, and recorded decisions D-018–D-020 |
+| 2026-09-18 | codex | implemented | Added exact decimal, money, unit, and nutrient registries; mounted an authenticated, SQLite-backed workspace domain with server-derived ownership and idempotent create retries; generated workspace Connect artifacts; removed the template notes domain; regenerated endpoint metadata. |
+| 2026-09-18 | codex | implemented | Added review-only receipt purchase proposals with source/transaction/normalized-line deduplication, explicit idempotent purchase application, authenticated inventory RPCs, and provider-disabled manual fallback. |
+| 2026-09-18 | codex | implemented | Added durable server-side workspace entitlements and idempotent optional-compute reservations, enforced job budgets, a disabled billing adapter boundary, and scoped diagnostics/data-health reporting for failed jobs, stale prices, unknown targets, unresolved recipe data, incomplete plans, schema version, and provider availability. |
+| 2026-09-18 | codex | implemented | Made Today’s recipe-map action load the authenticated planned revision into the shared recipe viewer, with explicit Error and unknown-error handling covered by UI regressions. |
+| 2026-09-18 | codex | implemented | Added a source-aware USDA FoodData Central adapter behind the canonical HTTP seam, including search/detail identity, observed dates, nutrient evidence, API-key fallback, and classified HTTP failures. |
 
 ## Entry Template
 

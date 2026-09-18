@@ -1,11 +1,15 @@
 package experimentation
 
 import (
+	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/DATA-DOG/go-sqlmock"
 )
 
 func TestConfigStoreVariantFilePathRejectsTraversal(t *testing.T) {
@@ -85,6 +89,56 @@ func TestConfigStoreRejectsLegacySMTPPasswordWithoutMigrationOwner(t *testing.T)
 	store := NewConfigStore("", brandingPath, nil)
 	if err := store.LoadAll(); err == nil || !strings.Contains(err.Error(), "credential authority migration") {
 		t.Fatalf("LoadAll() error = %v, want migration-owner error", err)
+	}
+}
+
+func TestConfigStoreDurableBrandingSurvivesRestartAndSeedIsOneShot(t *testing.T) {
+	seed := filepath.Join(t.TempDir(), "branding.json")
+	if err := os.WriteFile(seed, []byte(`{"site_name":"Seeded","smtp_host":"smtp.seed.test"}`), 0o600); err != nil {
+		t.Fatalf("write seed: %v", err)
+	}
+
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectQuery(`SELECT payload FROM site_settings WHERE id = 1`).
+		WillReturnError(sql.ErrNoRows)
+	mock.ExpectExec(`INSERT INTO site_settings`).
+		WithArgs(sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+	first := NewConfigStoreWithOptions(ConfigStoreOptions{BrandingPath: seed, SettingsDB: db})
+	if err := first.LoadAll(); err != nil {
+		t.Fatalf("first LoadAll: %v", err)
+	}
+	updated := first.GetBranding()
+	updated.SiteName = "Changed after deploy"
+	mock.ExpectExec(`INSERT INTO site_settings`).
+		WithArgs(sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+	if err := first.SaveBranding(updated); err != nil {
+		t.Fatalf("SaveBranding: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("first expectations: %v", err)
+	}
+
+	db2, mock2, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("second sqlmock: %v", err)
+	}
+	defer db2.Close()
+	payload, _ := json.Marshal(updated)
+	mock2.ExpectQuery(`SELECT payload FROM site_settings WHERE id = 1`).
+		WillReturnRows(sqlmock.NewRows([]string{"payload"}).AddRow(driver.Value(payload)))
+	second := NewConfigStoreWithOptions(ConfigStoreOptions{BrandingPath: filepath.Join(t.TempDir(), "missing-branding.json"), SettingsDB: db2})
+	if err := second.LoadAll(); err != nil {
+		t.Fatalf("second LoadAll: %v", err)
+	}
+	if got := second.GetBranding().SiteName; got != "Changed after deploy" {
+		t.Fatalf("durable site name = %q, want persisted update", got)
+	}
+	if err := mock2.ExpectationsWereMet(); err != nil {
+		t.Fatalf("second expectations: %v", err)
 	}
 }
 

@@ -32,7 +32,10 @@
   },
   "edge": {
     "domain": "vrooli.com",
-    "dns_policy": "warn",
+    "dns_policy": "required",
+    "mail_dns": [
+      {"name": "mailgun", "spf_mechanism": "include:mailgun.org", "dkim": [{"selector": "k1", "type": "TXT"}]}
+    ],
     "health_path": "/api/v1/health",
     "caddy": {
       "enabled": true
@@ -59,6 +62,21 @@
         "descriptor": {
           "logical_id": "vrooli/landing-page-business-suite",
           "field": "service-secret"
+        }
+      },
+      {
+        "id": "admin-default-password",
+        "class": "user_prompt",
+        "required": true,
+        "description": "Password for the seeded administrator account. Recover a locked-out administrator by rotating this binding and restarting.",
+        "capability": "administrator sign-in",
+        "target": {
+          "type": "env",
+          "name": "ADMIN_DEFAULT_PASSWORD"
+        },
+        "descriptor": {
+          "logical_id": "vrooli/landing-page-business-suite",
+          "field": "admin-default-password"
         }
       },
       {

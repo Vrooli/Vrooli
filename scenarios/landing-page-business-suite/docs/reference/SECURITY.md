@@ -314,6 +314,26 @@ Use the admin portal ( `/admin/profile` ) to rotate credentials:
 
 The change is applied to the live session immediately; the default hash is removed from the database.
 
+#### Option 3: Operator Recovery (Locked Out)
+
+When the current password is unknown, `POST /api/v1/admin/admin-credentials/reset`
+is the service-principal-only recovery path. It never accepts a browser admin
+session, updates the stored bcrypt hash, mirrors the new password into the
+`admin-default-password` authority value so a restart on the bootstrap account
+cannot revert it, revokes the account's other sessions, and records an
+`admin_credential_reset` security event. It is reachable:
+
+- locally: `landing-page-business-suite admin-credential-reset --new-password-stdin`
+  (the CLI presents the LPBS service credential from the credential authority);
+- through a stored remote profile: the same command with `--profile-tag <tag>`;
+- through the deployment credential lifecycle: rotate the declared
+  `admin-default-password` binding in `scenario-to-cloud`, which redistributes
+  the value and restarts the consumer.
+
+Both recovery endpoints (`/admin/mfa/reset` and
+`/admin/admin-credentials/reset`) are on the exact remote-profile proxy
+allowlist and require the service principal on the target.
+
 ---
 
 ## Session Management

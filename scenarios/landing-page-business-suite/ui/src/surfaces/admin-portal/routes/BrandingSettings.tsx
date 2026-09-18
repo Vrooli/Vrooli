@@ -575,7 +575,7 @@ export function BrandingSettings() {
                     <div>
                       <LabelWithHelp
                         label="From Address (optional)"
-                        help="The email address that appears in the 'From' field. If left empty, uses the SMTP username. Some providers require this to match a verified sender address."
+                        help="The email address that appears in the 'From' field. It must be an explicitly configured, provider-verified sender address; it never falls back to the SMTP username."
                       />
                       <input
                         type="email"

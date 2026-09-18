@@ -31,7 +31,7 @@ importers:
         version: file:../../../packages/flow-runtime
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
-        version: file:../../../packages/iframe-bridge
+        version: file:../../../packages/iframe-bridge(react@18.3.1)
       '@vrooli/proto-types':
         specifier: file:../../../packages/proto/gen/typescript
         version: file:../../../packages/proto/gen/typescript
@@ -1016,6 +1016,11 @@ packages:
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
     resolution: {directory: ../../../packages/iframe-bridge, type: directory}
+    peerDependencies:
+      react: '>=18.0.0'
+    peerDependenciesMeta:
+      react:
+        optional: true
 
   '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
     resolution: {directory: ../../../packages/proto/gen/typescript, type: directory}
@@ -3773,7 +3778,9 @@ snapshots:
 
   '@vrooli/flow-runtime@file:../../../packages/flow-runtime': {}
 
-  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
+  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge(react@18.3.1)':
+    optionalDependencies:
+      react: 18.3.1
 
   '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
     dependencies:

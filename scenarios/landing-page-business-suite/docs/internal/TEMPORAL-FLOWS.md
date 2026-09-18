@@ -24,7 +24,7 @@ NewServer
   │   ├─ seed payment_settings (id=1)
   │   ├─ seedDownloadDefaults
   │   └─ seedTierLimitsDefaults
-  ├─ ConfigStore.LoadAll               (reads config/variants/*.json + branding.json)
+  ├─ ConfigStore.LoadAll               (reads config/variants/*.json; imports branding.json once into site_settings)
   ├─ construct services (PlanService, DownloadService, …, MeteredInferenceService)
   └─ setupRoutes
 server.Run

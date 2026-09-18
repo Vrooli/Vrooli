@@ -189,7 +189,7 @@ func TestSignInRequestStoresDeliveryProviderMetadata(t *testing.T) {
 	}
 }
 
-func TestUndeliveredSignInIsReportedRetiredAndVisibleInHealth(t *testing.T) {
+func TestUndeliveredSignInIsReportedUsableAndVisibleInHealth(t *testing.T) {
 	email := "signin-delivery-failure@example.com"
 	db := setupTestDB(t)
 	defer cleanupUserTestData(t, db, email)
@@ -199,8 +199,8 @@ func TestUndeliveredSignInIsReportedRetiredAndVisibleInHealth(t *testing.T) {
 	if !errors.Is(err, administration.ErrDeliveryUnavailable) {
 		t.Fatalf("delivery failure reported as %v", err)
 	}
-	if _, err := service.VerifySignIn(ctx, administration.SignInVerification{Token: captured.token}); err == nil {
-		t.Fatal("an undelivered link remained usable")
+	if _, err := service.VerifySignIn(ctx, administration.SignInVerification{Token: captured.token}); err != nil {
+		t.Fatalf("an undelivered link should remain usable for retry: %v", err)
 	}
 	health, err := service.DeliveryHealth(ctx, time.Hour)
 	if err != nil || health.Failed == 0 || health.LastFailure == nil || !strings.Contains(health.LastError, "provider down") {

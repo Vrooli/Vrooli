@@ -12,6 +12,7 @@ package server
 import (
 	"log"
 	"net/http"
+
 	"nutrition-planner/internal/middleware"
 	"nutrition-planner/internal/module"
 

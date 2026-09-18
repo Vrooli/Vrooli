@@ -11,8 +11,11 @@
     "closeNavigation": "Close navigation",
     "nav": {
       "dashboard": "Home",
-      "notes": "Notes",
-      "settings": "Settings"
+    "settings": "Settings",
+    "today": "Today",
+    "week": "Week",
+    "groceries": "Groceries",
+    "nutrition": "Nutrition"
     }
   },
   "theme": {
@@ -29,10 +32,6 @@
       "description": "The first thing an operator sees. Decide what belongs here before you ship.",
       "placeholderTitle": "This scenario has not decided its home surface yet",
       "placeholderDescription": "Open START-HERE, Gate 5, and name the one question this page answers. Replace this placeholder with that surface. The health card beside it is the example of a scenario-owned feature built from library parts."
-    },
-    "notes": {
-      "title": "Notes",
-      "description": "A worked example domain: list, create, measure. Copy the shape once, then remove it with detemplate."
     },
     "settings": {
       "title": "Settings",
@@ -59,30 +58,6 @@
     "summary": "{{count}} notifications",
     "summary_zero": "No notifications",
     "summary_one": "1 notification"
-  },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "table": {
-      "title": "Title",
-      "created": "Created",
-      "attachments": "Attachments",
-      "actions": "Actions",
-      "search": "Search notes"
-    },
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading.",
-    "measure": {
-      "title": "Notes this week",
-      "loading": "Counting…",
-      "thisWeek": "{{count}} notes created this week"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

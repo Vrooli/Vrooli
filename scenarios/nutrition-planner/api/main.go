@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+
 	"nutrition-planner/internal/capabilities"
 	"nutrition-planner/internal/modules"
 	"nutrition-planner/internal/server"
@@ -23,8 +24,30 @@ import (
 	_ "modernc.org/sqlite"
 
 	capsH "nutrition-planner/handlers/capabilities"
+	catalogH "nutrition-planner/handlers/catalog"
+	costH "nutrition-planner/handlers/cost"
+	diagnosticsH "nutrition-planner/handlers/diagnostics"
+	eligibilityH "nutrition-planner/handlers/eligibility"
 	healthH "nutrition-planner/handlers/health"
-	notesH "nutrition-planner/handlers/notes" // EXAMPLE-DOMAIN:notes
+	inventoryH "nutrition-planner/handlers/inventory"
+	jobsH "nutrition-planner/handlers/jobs"
+	nutritionH "nutrition-planner/handlers/nutrition"
+	planningH "nutrition-planner/handlers/planning"
+	portabilityH "nutrition-planner/handlers/portability"
+	profileH "nutrition-planner/handlers/profile"
+	recipeH "nutrition-planner/handlers/recipe"
+	routineH "nutrition-planner/handlers/routine"
+	supplementH "nutrition-planner/handlers/supplement"
+	workspaceH "nutrition-planner/handlers/workspace"
+	internalEntitlements "nutrition-planner/internal/entitlements"
+	internalFeedback "nutrition-planner/internal/feedback"
+	internalJobs "nutrition-planner/internal/jobs"
+	internalPlanning "nutrition-planner/internal/planning"
+	internalPortability "nutrition-planner/internal/portability"
+	internalProfile "nutrition-planner/internal/profile"
+	internalRecipe "nutrition-planner/internal/recipe"
+	internalShopping "nutrition-planner/internal/shopping"
+	internalWorkspace "nutrition-planner/internal/workspace"
 )
 
 // scenarioStorageRoots resolves all filesystem storage classes once at
@@ -71,11 +94,27 @@ func main() {
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
 
+	workspaceService := internalWorkspace.NewService(internalWorkspace.NewSQLiteRepository(db, schedule.System()))
+	recipeService := internalRecipe.NewService(internalRecipe.NewSQLiteRepository(db, schedule.System()))
+	profileService := internalProfile.NewService(internalProfile.NewSQLiteRepository(db, schedule.System()))
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "nutrition-planner-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
-		notesH.Module(db, schedule.System(), log.Default()), // EXAMPLE-DOMAIN:notes
+		diagnosticsH.Module(db, workspaceService),
+		catalogH.Module(db, schedule.System(), log.Default()),
+		costH.Module(db, schedule.System(), log.Default()),
+		inventoryH.Module(db, schedule.System(), log.Default()),
+		nutritionH.Module(db, schedule.System(), log.Default()),
+		supplementH.Module(db, schedule.System(), log.Default()),
+		routineH.Module(db, schedule.System(), log.Default()),
+		workspaceH.ModuleWithService(workspaceService, log.Default()),
+		recipeH.ModuleWithService(recipeService, workspaceService, log.Default()),
+		portabilityH.ModuleWithRestorer(recipeService, workspaceService, internalPlanning.NewSQLiteRepository(db, schedule.System()), internalShopping.NewSQLiteRepository(db, schedule.System()), internalPortability.NewSQLiteRestorer(db, schedule.System()), log.Default()),
+		profileH.ModuleWithServices(profileService, workspaceService, recipeService, log.Default()),
+		eligibilityH.ModuleWithWorkspace(workspaceService, log.Default()),
+		jobsH.Module(internalJobs.NewSQLiteRepository(db, schedule.System()), workspaceService, log.Default(), internalEntitlements.NewSQLiteRepository(db)),
+		planningH.ModuleWithServices(workspaceService, recipeService, profileService, internalPlanning.NewSQLiteRepository(db, schedule.System()), internalShopping.NewSQLiteRepository(db, schedule.System()), internalFeedback.NewSQLiteRepository(db, schedule.System()), log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -83,19 +122,6 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, schedule.System())
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
 
 	rootMux.Handle("/", srv.Handler())
 	authConfig, err := authn.FromEnvironment(os.Getenv)

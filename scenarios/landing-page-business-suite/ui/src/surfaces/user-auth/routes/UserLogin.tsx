@@ -36,7 +36,7 @@ export function isValidEmail(email: string): boolean {
 
 function describeRequestError(err: unknown): string {
   if (isApiError(err, 'rate_limited')) return 'Too many sign-in requests. Wait a few minutes, then try again.';
-  if (isApiError(err) && err.reason === 'delivery_unavailable') return 'We couldn’t send the email right now. Please try again in a minute.';
+  if (isApiError(err) && err.reason === 'delivery_unavailable') return 'We couldn’t send an email, so no sign-in code was issued. Please contact support or try again after email delivery is restored.';
   if (isApiError(err, 'validation')) return err.userMessage || 'Please enter a valid email address.';
   if (isApiError(err, 'network') || isApiError(err, 'timeout')) return 'We couldn’t reach the server. Check your connection and try again.';
   return 'Something went wrong on our side. Please try again.';

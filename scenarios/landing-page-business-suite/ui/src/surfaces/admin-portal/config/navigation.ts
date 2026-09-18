@@ -95,6 +95,14 @@ export const NAVIGATION_CONFIG: NavigationConfig = {
           testId: 'nav-branding',
         },
         {
+          id: 'email-delivery',
+          name: 'Email delivery',
+          description: 'Provider authorization and durable queue health',
+          icon: Activity,
+          path: '/admin/email-delivery',
+          testId: 'nav-email-delivery',
+        },
+        {
           id: 'agent',
           name: 'Agent',
           description: 'AI-powered landing page improvements',

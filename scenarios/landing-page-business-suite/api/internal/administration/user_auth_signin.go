@@ -9,10 +9,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"math/big"
 	"net/url"
 	"strings"
 	"time"
+
+	"landing-page-business-suite-api/internal/emaildelivery"
 )
 
 // Sign-in failure modes beyond the shared token errors.
@@ -43,6 +46,9 @@ type SignInMessage struct {
 	AppName   string
 	ExpiresIn time.Duration
 	RequestID string
+	Subject   string
+	TextBody  string
+	HTMLBody  string
 }
 
 // SignInRequest starts passwordless sign-in. No user row is created until the
@@ -127,31 +133,76 @@ func (s *UserAuthService) RequestSignIn(ctx context.Context, request SignInReque
 	}
 
 	expiresAt := time.Now().UTC().Add(s.magicLinkTTL)
+	link := fmt.Sprintf("%s?token=%s", s.baseURL, url.QueryEscape(token))
+	subject, textBody, htmlBody := renderSignInMessage(code, link, s.appName, s.magicLinkTTL)
 	var requestID string
-	err = s.db.QueryRowContext(ctx, `
+	var dedupeKey string
+	if s.outboxEnabled {
+		db, ok := s.db.(*sql.DB)
+		if !ok {
+			return nil, errors.New("durable email outbox requires a SQL database")
+		}
+		tx, txErr := db.BeginTx(ctx, nil)
+		if txErr != nil {
+			return nil, fmt.Errorf("begin sign-in transaction: %w", txErr)
+		}
+		defer tx.Rollback()
+		err = tx.QueryRowContext(ctx, `
 		INSERT INTO auth_tokens (token_hash, token_type, expires_at, ip_address, user_agent, email, code_hash, request_context, browser_binding_hash, delivery_status)
 		VALUES ($1, $2, $3, $4::inet, $5, $6, $7, $8, $9, 'pending')
 		RETURNING id
 	`, HashToken(token), signInTokenType, expiresAt, toNullableParam(request.IPAddress), toNullableParam(request.UserAgent),
-		email, signInCodeHash(email, code), contextValue, bindingHash(request.BrowserBinding)).Scan(&requestID)
+			email, signInCodeHash(email, code), contextValue, bindingHash(request.BrowserBinding)).Scan(&requestID)
+		if err != nil {
+			return nil, fmt.Errorf("store auth token: %w", err)
+		}
+		dedupeKey = "signin:" + HashToken(token)
+		templateData, marshalErr := json.Marshal(map[string]string{"auth_token_id": requestID})
+		if marshalErr != nil {
+			return nil, fmt.Errorf("encode sign-in email metadata: %w", marshalErr)
+		}
+		if err := emaildelivery.EnqueueTx(ctx, tx, emaildelivery.Message{
+			DedupeKey: dedupeKey, IdempotencyKey: dedupeKey, Purpose: emaildelivery.PurposeSignIn,
+			Recipient: email, Sender: s.senderIdentity, Subject: subject, TextBody: textBody, HTMLBody: htmlBody,
+			TemplateRef: "auth.sign-in", TemplateData: templateData, Priority: 100, ExpiresAt: &expiresAt,
+		}); err != nil {
+			return nil, fmt.Errorf("enqueue sign-in email: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, fmt.Errorf("commit sign-in transaction: %w", err)
+		}
+	} else {
+		err = s.db.QueryRowContext(ctx, `
+			INSERT INTO auth_tokens (token_hash, token_type, expires_at, ip_address, user_agent, email, code_hash, request_context, browser_binding_hash, delivery_status)
+			VALUES ($1, $2, $3, $4::inet, $5, $6, $7, $8, $9, 'pending')
+			RETURNING id
+		`, HashToken(token), signInTokenType, expiresAt, toNullableParam(request.IPAddress), toNullableParam(request.UserAgent),
+			email, signInCodeHash(email, code), contextValue, bindingHash(request.BrowserBinding)).Scan(&requestID)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("store auth token: %w", err)
 	}
 
-	link := fmt.Sprintf("%s?token=%s", s.baseURL, url.QueryEscape(token))
 	if s.onMagicLinkGenerated != nil {
 		s.onMagicLinkGenerated(email, token, link)
 	}
 	if s.onSignInCodeGenerated != nil {
 		s.onSignInCodeGenerated(email, code)
 	}
+	if dedupeKey != "" {
+		if _, err := s.db.ExecContext(ctx, `UPDATE auth_tokens SET delivery_status = 'queued' WHERE id = $1`, requestID); err != nil {
+			return nil, fmt.Errorf("mark sign-in queued: %w", err)
+		}
+		s.log("magic_link_queued", map[string]interface{}{"level": "info", "email": email})
+		return &SignInStarted{RequestID: requestID, ExpiresAt: expiresAt}, nil
+	}
 
-	delivery, sendErr := s.deliverSignIn(SignInMessage{To: email, Link: link, Code: code, AppName: s.appName, ExpiresIn: s.magicLinkTTL, RequestID: requestID})
+	delivery, sendErr := s.deliverSignIn(SignInMessage{To: email, Link: link, Code: code, AppName: s.appName, ExpiresIn: s.magicLinkTTL, RequestID: requestID, Subject: subject, TextBody: textBody, HTMLBody: htmlBody})
 	if sendErr != nil {
-		// A request that was never delivered cannot be completed; retire it so
-		// it does not linger as a usable credential.
+		// Delivery failure is infrastructure failure, not customer use. Keep the
+		// token usable so a retry can succeed without consuming the attempt.
 		if _, markErr := s.db.ExecContext(ctx, `
-			UPDATE auth_tokens SET delivery_status = 'failed', delivery_error = $2, used_at = NOW() WHERE id = $1
+			UPDATE auth_tokens SET delivery_status = 'failed', delivery_error = $2 WHERE id = $1
 		`, requestID, truncate(sendErr.Error(), 500)); markErr != nil {
 			s.logError("sign_in_delivery_mark_failed", map[string]interface{}{"error": markErr.Error()})
 		}
@@ -162,12 +213,28 @@ func (s *UserAuthService) RequestSignIn(ctx context.Context, request SignInReque
 		UPDATE auth_tokens
 		SET delivery_status = 'sent', provider = $2, provider_message_id = $3
 		WHERE id = $1
-	`, requestID, nullableDeliveryProvider(delivery), nullableDeliveryMessageID(delivery)); err != nil {
+		`, requestID, nullableDeliveryProvider(delivery), nullableDeliveryMessageID(delivery)); err != nil {
 		s.logError("sign_in_delivery_mark_failed", map[string]interface{}{"error": err.Error()})
+	}
+	if dedupeKey != "" {
+		if _, err := s.db.ExecContext(ctx, `UPDATE email_outbox SET status = 'accepted', provider_message_id = $2, accepted_at = NOW(), settled_at = NOW(), updated_at = NOW() WHERE dedupe_key = $1`, dedupeKey, nullableDeliveryMessageID(delivery)); err != nil {
+			s.logError("sign_in_outbox_mark_accepted_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 
 	s.log("magic_link_requested", map[string]interface{}{"level": "info", "email": email})
 	return &SignInStarted{RequestID: requestID, ExpiresAt: expiresAt}, nil
+}
+
+func renderSignInMessage(code, link, appName string, ttl time.Duration) (string, string, string) {
+	appName = strings.TrimSpace(appName)
+	if appName == "" {
+		appName = "App"
+	}
+	subject := fmt.Sprintf("%s is your %s sign-in code", code, appName)
+	textBody := fmt.Sprintf("Your %s sign-in code is %s.\n\nSign in: %s\n\nThis code expires in %s.", appName, code, link, ttl)
+	htmlBody := fmt.Sprintf("<p>Your %s sign-in code is <strong>%s</strong>.</p><p><a href=\"%s\">Sign in</a></p><p>This code expires in %s.</p>", html.EscapeString(appName), html.EscapeString(code), html.EscapeString(link), html.EscapeString(ttl.String()))
+	return subject, textBody, htmlBody
 }
 
 func nullableDeliveryProvider(delivery *SignInDelivery) any {

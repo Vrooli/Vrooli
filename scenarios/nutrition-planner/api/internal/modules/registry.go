@@ -17,18 +17,46 @@
 package modules
 
 import (
+	costH "nutrition-planner/handlers/cost"
+	inventoryH "nutrition-planner/handlers/inventory"
+	inventoryDomain "nutrition-planner/internal/inventory"
 	"nutrition-planner/internal/module"
+	supplementDomain "nutrition-planner/internal/supplement"
 
 	capsH "nutrition-planner/handlers/capabilities"
+	catalogH "nutrition-planner/handlers/catalog"
+	diagnosticsH "nutrition-planner/handlers/diagnostics"
+	eligibilityH "nutrition-planner/handlers/eligibility"
+	jobsH "nutrition-planner/handlers/jobs"
+	nutritionH "nutrition-planner/handlers/nutrition"
+	planningH "nutrition-planner/handlers/planning"
+	portabilityH "nutrition-planner/handlers/portability"
+	profileH "nutrition-planner/handlers/profile"
+	recipeH "nutrition-planner/handlers/recipe"
+	routineH "nutrition-planner/handlers/routine"
+	supplementH "nutrition-planner/handlers/supplement"
+	workspaceH "nutrition-planner/handlers/workspace"
+	entitlementsDomain "nutrition-planner/internal/entitlements"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "nutrition-planner/handlers/health"
-	notesH "nutrition-planner/handlers/notes" // EXAMPLE-DOMAIN:notes
 	localdb "nutrition-planner/internal/database"
 
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/notes" // EXAMPLE-DOMAIN:notes
+	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/catalog"
+	costv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/cost"
+	eligibilityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/eligibility"
+	inventoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/inventory"
+	jobsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/jobs"
+	nutritionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/nutrition"
+	planningv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/planning"
+	portabilityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/portability"
+	profilev1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/profile"
+	recipev1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/recipe"
+	routinev1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/routine"
+	supplementv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/supplement"
+	workspacev1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/workspace"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -39,7 +67,20 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, diagnosticsH.Endpoints...)
+	out = append(out, workspaceH.Endpoints...)
+	out = append(out, recipeH.Endpoints...)
+	out = append(out, catalogH.Endpoints...)
+	out = append(out, costH.Endpoints...)
+	out = append(out, inventoryH.Endpoints...)
+	out = append(out, nutritionH.Endpoints...)
+	out = append(out, supplementH.Endpoints...)
+	out = append(out, routineH.Endpoints...)
+	out = append(out, portabilityH.Endpoints...)
+	out = append(out, profileH.Endpoints...)
+	out = append(out, eligibilityH.Endpoints...)
+	out = append(out, jobsH.Endpoints...)
+	out = append(out, planningH.Endpoints...)
 	return out
 }
 
@@ -66,7 +107,19 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_nutrition_planner_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
+		{Module: "workspace", File: workspacev1.File_nutrition_planner_v1_workspace_workspace_proto},
+		{Module: "recipe", File: recipev1.File_nutrition_planner_v1_recipe_recipe_proto},
+		{Module: "catalog", File: catalogv1.File_nutrition_planner_v1_catalog_catalog_proto},
+		{Module: "cost", File: costv1.File_nutrition_planner_v1_cost_cost_proto},
+		{Module: "inventory", File: inventoryv1.File_nutrition_planner_v1_inventory_inventory_proto},
+		{Module: "nutrition", File: nutritionv1.File_nutrition_planner_v1_nutrition_nutrition_proto},
+		{Module: "supplement", File: supplementv1.File_nutrition_planner_v1_supplement_supplement_proto},
+		{Module: "routine", File: routinev1.File_nutrition_planner_v1_routine_routine_proto},
+		{Module: "portability", File: portabilityv1.File_nutrition_planner_v1_portability_portability_proto},
+		{Module: "profile", File: profilev1.File_nutrition_planner_v1_profile_profile_proto},
+		{Module: "eligibility", File: eligibilityv1.File_nutrition_planner_v1_eligibility_eligibility_proto},
+		{Module: "jobs", File: jobsv1.File_nutrition_planner_v1_jobs_jobs_proto},
+		{Module: "planning", File: planningv1.File_nutrition_planner_v1_planning_planning_proto},
 	}
 }
 
@@ -81,6 +134,18 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(workspaceH.Schema),
+		apidb.SchemaProviderFunc(recipeH.Schema),
+		apidb.SchemaProviderFunc(catalogH.Schema),
+		apidb.SchemaProviderFunc(costH.Schema),
+		apidb.SchemaProviderFunc(inventoryDomain.Schema),
+		apidb.SchemaProviderFunc(nutritionH.Schema),
+		apidb.SchemaProviderFunc(supplementDomain.Schema),
+		apidb.SchemaProviderFunc(routineH.Schema),
+		apidb.SchemaProviderFunc(profileH.Schema),
+		apidb.SchemaProviderFunc(planningH.Schema),
+		apidb.SchemaProviderFunc(portabilityH.Schema),
+		apidb.SchemaProviderFunc(jobsH.Schema),
+		apidb.SchemaProviderFunc(entitlementsDomain.Schema),
 	}
 }

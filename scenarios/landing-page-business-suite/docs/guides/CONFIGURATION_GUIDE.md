@@ -601,8 +601,7 @@ _dmarc.vrooli.com.               TXT   "v=DMARC1; p=none; rua=mailto:dmarc@vrool
 ```
 
 Set `EMAIL_FROM_ADDRESS=sign-in@mail.vrooli.com` and `EMAIL_FROM_NAME=Vrooli`.
-For SMTP fallback, also set `EMAIL_SMTP_DKIM_SELECTOR` to the selector supplied
-by the relay. Start DMARC at `p=none`, review aggregate reports for 2–4 weeks,
+DKIM selectors belong in the durable email provider registry. Start DMARC at `p=none`, review aggregate reports for 2–4 weeks,
 then move to `p=quarantine` and eventually `p=reject` after all legitimate
 senders align.
 

@@ -23,29 +23,6 @@ const literalSelectors = {
   notifications: {
     summary: "notifications-summary",
   },
-  // EXAMPLE-DOMAIN:notes START
-  notes: {
-    surface: "notes-surface",
-    card: "notes-card",
-    list: "notes-list",
-    loading: "notes-loading",
-    empty: "notes-empty",
-    error: "notes-error",
-    createButton: "notes-create-button",
-    createdAt: "notes-created-at",
-    attachmentCount: "notes-attachment-count",
-    attachmentUpload: "notes-attachment-upload",
-    attachmentFile: "notes-attachment-file",
-    attachmentButton: "notes-attachment-button",
-    attachmentStatus: "notes-attachment-status",
-    measure: {
-      card: "notes-measure-card",
-      value: "notes-measure-value",
-      loading: "notes-measure-loading",
-      error: "notes-measure-error",
-    },
-  },
-  // EXAMPLE-DOMAIN:notes END
   layout: {
     // The library AppShell derives every part id from the root id it is given.
     shell: "layout-shell",
@@ -63,7 +40,6 @@ const literalSelectors = {
     dashboard: "page-dashboard",
     dashboardHeader: "page-dashboard-header",
     dashboardPlaceholder: "page-dashboard-placeholder",
-    notes: "page-notes", // EXAMPLE-DOMAIN:notes
     settings: "page-settings",
   },
   errorBoundary: {
@@ -82,8 +58,11 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
-            "notes", // EXAMPLE-DOMAIN:notes
             "settings",
+            "today",
+            "week",
+            "groceries",
+            "nutrition",
           ] as const,
         },
       },
@@ -96,8 +75,11 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
-            "notes", // EXAMPLE-DOMAIN:notes
             "settings",
+            "today",
+            "week",
+            "groceries",
+            "nutrition",
           ] as const,
         },
       },

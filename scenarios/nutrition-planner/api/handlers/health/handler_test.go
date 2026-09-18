@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"testing"
+
 	"nutrition-planner/handlers/health"
 	"nutrition-planner/internal/module"
 	"nutrition-planner/internal/server"

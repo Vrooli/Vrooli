@@ -61,6 +61,7 @@ func TestSMTPConfig_IsConfigured_AllSet(t *testing.T) {
 		Host:     "smtp.example.com",
 		Username: "user",
 		Password: "pass",
+		From:     "noreply@example.com",
 	}
 	if !config.IsConfigured() {
 		t.Error("expected IsConfigured to return true when all fields set")
@@ -528,7 +529,7 @@ func TestExtractSMTPConfig_DefaultPort(t *testing.T) {
 	}
 }
 
-func TestExtractSMTPConfig_FromDefaultsToUsername(t *testing.T) {
+func TestExtractSMTPConfig_FromRequiresExplicitIdentity(t *testing.T) {
 	username := "testuser@example.com"
 	branding := &experimentation.SiteBranding{
 		SMTPUsername: &username,
@@ -537,8 +538,8 @@ func TestExtractSMTPConfig_FromDefaultsToUsername(t *testing.T) {
 	svc := NewEmailServiceWithOptions(EmailServiceOptions{})
 	config := svc.extractSMTPConfig(branding)
 
-	if config.From != username {
-		t.Errorf("expected from to default to username '%s', got '%s'", username, config.From)
+	if config.From != "" {
+		t.Errorf("expected from to remain empty without explicit sender identity, got '%s'", config.From)
 	}
 }
 
@@ -591,10 +592,9 @@ func TestSendFeedbackNotification_NotConfigured(t *testing.T) {
 		Message: "Test message",
 	}
 
-	// Should not return error when SMTP not configured (just skips)
 	err := svc.SendFeedbackNotification(branding, feedback)
-	if err != nil {
-		t.Errorf("expected no error when SMTP not configured, got: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "not configured") {
+		t.Errorf("expected explicit SMTP configuration error, got: %v", err)
 	}
 }
 
@@ -602,6 +602,7 @@ func TestSendFeedbackNotification_NoSupportEmail(t *testing.T) {
 	host := "smtp.test.com"
 	username := "user"
 	password := "pass"
+	from := "noreply@example.com"
 
 	svc := NewEmailServiceWithOptions(EmailServiceOptions{
 		SMTPSender: func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
@@ -614,6 +615,7 @@ func TestSendFeedbackNotification_NoSupportEmail(t *testing.T) {
 		SMTPHost:     &host,
 		SMTPUsername: &username,
 		SMTPPassword: &password,
+		SMTPFrom:     &from,
 		SupportEmail: nil, // No support email
 	}
 
@@ -622,10 +624,9 @@ func TestSendFeedbackNotification_NoSupportEmail(t *testing.T) {
 		Subject: "Test",
 	}
 
-	// Should return nil when no support email
 	err := svc.SendFeedbackNotification(branding, feedback)
-	if err != nil {
-		t.Errorf("expected no error when support email not set, got: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "support email") {
+		t.Errorf("expected explicit support-email error, got: %v", err)
 	}
 }
 
@@ -635,6 +636,7 @@ func TestSendFeedbackNotification_Success(t *testing.T) {
 	host := "smtp.test.com"
 	username := "user"
 	password := "pass"
+	from := "noreply@example.com"
 	supportEmail := "support@example.com"
 
 	svc := NewEmailServiceWithOptions(EmailServiceOptions{
@@ -649,6 +651,7 @@ func TestSendFeedbackNotification_Success(t *testing.T) {
 		SMTPHost:     &host,
 		SMTPUsername: &username,
 		SMTPPassword: &password,
+		SMTPFrom:     &from,
 		SupportEmail: &supportEmail,
 	}
 
@@ -675,6 +678,7 @@ func TestSendFeedbackNotification_WithOrderID(t *testing.T) {
 	host := "smtp.test.com"
 	username := "user"
 	password := "pass"
+	from := "noreply@example.com"
 	supportEmail := "support@example.com"
 	orderID := "order_12345"
 
@@ -690,6 +694,7 @@ func TestSendFeedbackNotification_WithOrderID(t *testing.T) {
 		SMTPHost:     &host,
 		SMTPUsername: &username,
 		SMTPPassword: &password,
+		SMTPFrom:     &from,
 		SupportEmail: &supportEmail,
 	}
 
@@ -798,7 +803,7 @@ func TestExtractSMTPConfig_PartialConfiguration(t *testing.T) {
 				Port:     587,
 				Username: "user@example.com",
 				Password: "secret",
-				From:     "user@example.com", // Defaults to username
+				From:     "",
 			},
 		},
 	}

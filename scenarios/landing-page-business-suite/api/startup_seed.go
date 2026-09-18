@@ -26,6 +26,15 @@ func applyRuntimeSchema(db StartupStore) error {
 	}
 	ctx := context.Background()
 	provider := database.SchemaProviderFunc(runtimeSchema)
+	// api-core deliberately refuses to add UNIQUE columns to an existing
+	// table because doing so can hide a data-integrity decision. These two
+	// nullable WebAuthn handles are safe to add without rewriting existing
+	// rows: NULL values do not collide under a unique index, and passkey
+	// registration fills the handle for each account. Repair this specific
+	// legacy shape before the generic reconciler evaluates the declaration.
+	if err := repairLegacyWebAuthnColumns(ctx, concrete); err != nil {
+		return err
+	}
 	// Reconcile additive columns before executing the domain DDL. Existing
 	// deployments can contain indexes in CREATE TABLE blobs that reference
 	// columns added after the table was first created; applying those blobs
@@ -44,6 +53,44 @@ func applyRuntimeSchema(db StartupStore) error {
 	}
 	if _, err := concrete.ExecContext(ctx, commerce.FinancialIndexesSchema()); err != nil {
 		return fmt.Errorf("apply financial indexes: %w", err)
+	}
+	return nil
+}
+
+func repairLegacyWebAuthnColumns(ctx context.Context, db *sql.DB) error {
+	for _, table := range []string{"admin_users", "users"} {
+		var tableExists bool
+		if err := db.QueryRowContext(ctx, `
+			SELECT EXISTS (
+				SELECT 1
+				FROM information_schema.tables
+				WHERE table_schema = current_schema() AND table_name = $1
+			)`, table).Scan(&tableExists); err != nil {
+			return fmt.Errorf("check legacy WebAuthn table %s: %w", table, err)
+		}
+		if !tableExists {
+			continue
+		}
+
+		var columnExists bool
+		if err := db.QueryRowContext(ctx, `
+			SELECT EXISTS (
+				SELECT 1
+				FROM information_schema.columns
+				WHERE table_schema = current_schema() AND table_name = $1 AND column_name = $2
+			)`, table, "webauthn_user_handle").Scan(&columnExists); err != nil {
+			return fmt.Errorf("check legacy WebAuthn column %s.webauthn_user_handle: %w", table, err)
+		}
+		if columnExists {
+			continue
+		}
+
+		if _, err := db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN webauthn_user_handle BYTEA", table)); err != nil {
+			return fmt.Errorf("repair legacy WebAuthn column %s.webauthn_user_handle: %w", table, err)
+		}
+		if _, err := db.ExecContext(ctx, fmt.Sprintf("CREATE UNIQUE INDEX IF NOT EXISTS %s_webauthn_user_handle_key ON %s (webauthn_user_handle)", table, table)); err != nil {
+			return fmt.Errorf("add legacy WebAuthn uniqueness for %s: %w", table, err)
+		}
 	}
 	return nil
 }

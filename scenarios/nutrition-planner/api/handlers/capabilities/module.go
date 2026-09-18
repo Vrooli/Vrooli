@@ -2,6 +2,7 @@ package capabilities
 
 import (
 	"net/http"
+
 	"nutrition-planner/internal/capabilities"
 	"nutrition-planner/internal/module"
 

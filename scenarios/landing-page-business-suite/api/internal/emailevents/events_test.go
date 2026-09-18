@@ -37,6 +37,7 @@ func TestRepositoryRecordsAndCorrelatesOnlyNewEvents(t *testing.T) {
 	event := Event{Event: "bounce", Timestamp: 1700000000, Email: "user@example.com", SGEventID: "evt-1", SGMessageID: "msg-1", Status: "550", CustomArgs: map[string]string{"lpbs_sign_in_request_id": "token-1"}}
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO auth_email_events")).WithArgs("evt-1", "msg-1", "token-1", "bounce", "invalid", event.Timestamp, "user@example.com", "bounce", sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE auth_tokens SET provider_status")).WithArgs("bounce", event.Timestamp, "invalid", "rejected", "token-1").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO email_suppressions")).WithArgs("user@example.com", "invalid", "evt-1").WillReturnResult(sqlmock.NewResult(0, 1))
 	accepted, err := r.Record(context.Background(), event, time.Unix(1700000001, 0))
 	if err != nil || !accepted {
 		t.Fatalf("Record = %v, %v", accepted, err)

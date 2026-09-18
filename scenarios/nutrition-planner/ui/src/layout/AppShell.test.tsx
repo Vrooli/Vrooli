@@ -4,7 +4,7 @@
  * and that the landmarks a page relies on are present. Page content is
  * exercised in the per-page tests.
  */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -15,6 +15,9 @@ import en from "../i18n/locales/en.json";
 import ja from "../i18n/locales/ja.json";
 import ar from "../i18n/locales/ar.json";
 import { TestAppRouter } from "../app/routes";
+
+vi.mock("../api/recipes", () => ({ listRecipes: () => new Promise(() => undefined), createRecipe: vi.fn() }));
+vi.mock("../api/workspace", () => ({ ensureWorkspace: () => new Promise(() => undefined) }));
 
 const renderShell = (path = "/") =>
   renderWithProviders(<TestAppRouter initialEntries={[path]} />, { withoutRouter: true });
@@ -44,7 +47,6 @@ describe("AppShell structure (cimode)", () => {
     renderShell("/settings");
     for (const key of [
       "dashboard",
-      "notes", // EXAMPLE-DOMAIN:notes
       "settings",
     ] as const) {
       expect(screen.getByTestId(selectors.layout.navLink({ key }))).toBeInTheDocument();
@@ -89,7 +91,8 @@ describe("Locale switching through the shell (real locales)", () => {
   it("switches to Japanese when 日本語 is selected", async () => {
     const user = userEvent.setup();
     renderShell("/settings");
-    await user.selectOptions(screen.getByTestId(selectors.settingsPage.localeSelect), "ja");
+    await user.click(screen.getByTestId(selectors.settingsPage.localeSelect));
+    await user.click(screen.getByRole("option", { name: "日本語" }));
 
     await waitFor(() => {
       expect(screen.getAllByText(ja.layout.nav.dashboard).length).toBeGreaterThan(0);
@@ -100,7 +103,8 @@ describe("Locale switching through the shell (real locales)", () => {
   it("flips <html dir> to rtl when an RTL locale (ar) is chosen", async () => {
     const user = userEvent.setup();
     renderShell("/settings");
-    await user.selectOptions(screen.getByTestId(selectors.settingsPage.localeSelect), "ar");
+    await user.click(screen.getByTestId(selectors.settingsPage.localeSelect));
+    await user.click(screen.getByRole("option", { name: "العربية" }));
 
     await waitFor(() => {
       expect(document.documentElement.dir).toBe("rtl");

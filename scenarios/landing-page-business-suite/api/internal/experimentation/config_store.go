@@ -1,6 +1,8 @@
 package experimentation
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -69,6 +71,7 @@ type ConfigStore struct {
 	space                *VariantSpace
 	log                  func(event string, fields map[string]interface{})
 	migrateCredential    func(key, value string) error
+	settingsDB           SettingsStore
 	presentationRoots    *filerouting.RoutedRoots
 	presentationVerifier PresentationPublicationVerifier
 }
@@ -92,6 +95,16 @@ type ConfigStoreOptions struct {
 	// JSON settings file. Production composition supplies the credential
 	// authority; tests can provide an isolated recorder.
 	MigrateCredential func(key, value string) error
+	// SettingsDB is the durable owner for mutable branding and mail settings.
+	// When nil, the file-backed path remains available for isolated legacy
+	// tests and first-run tooling that has no database.
+	SettingsDB SettingsStore
+}
+
+// SettingsStore is the narrow database seam required for durable settings.
+type SettingsStore interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
 }
 
 func NewConfigStoreWithOptions(opts ConfigStoreOptions) *ConfigStore {
@@ -106,6 +119,7 @@ func NewConfigStoreWithOptions(opts ConfigStoreOptions) *ConfigStore {
 		space:             space,
 		log:               opts.Log,
 		migrateCredential: opts.MigrateCredential,
+		settingsDB:        opts.SettingsDB,
 	}
 }
 
@@ -132,6 +146,25 @@ func (cs *ConfigStore) LoadAll() error {
 }
 
 func (cs *ConfigStore) loadBrandingLocked() error {
+	if cs.settingsDB != nil {
+		var payload []byte
+		err := cs.settingsDB.QueryRowContext(context.Background(),
+			`SELECT payload FROM site_settings WHERE id = 1`).Scan(&payload)
+		if err == nil {
+			var branding SiteBranding
+			if err := json.Unmarshal(payload, &branding); err != nil {
+				return fmt.Errorf("parse durable branding JSON: %w", err)
+			}
+			cs.normalizeBrandingLocked(&branding)
+			cs.branding = &branding
+			cs.logEvent("branding_loaded", map[string]interface{}{"source": "site_settings", "site_name": branding.SiteName})
+			return nil
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("read durable site settings: %w", err)
+		}
+	}
+
 	if cs.brandingPath == "" {
 		cs.branding = defaultBranding()
 		return nil
@@ -164,20 +197,28 @@ func (cs *ConfigStore) loadBrandingLocked() error {
 		if err := cs.migrateCredential("SMTP_PASSWORD", *branding.SMTPPassword); err != nil {
 			return fmt.Errorf("migrate legacy smtp_password: %w", err)
 		}
-		if err := removeLegacySMTPPassword(cs.brandingPath); err != nil {
-			return fmt.Errorf("remove legacy smtp_password: %w", err)
+		if cs.settingsDB == nil {
+			if err := removeLegacySMTPPassword(cs.brandingPath); err != nil {
+				return fmt.Errorf("remove legacy smtp_password: %w", err)
+			}
 		}
 		cs.logEvent("legacy_smtp_password_migrated", map[string]interface{}{"path": cs.brandingPath})
 	}
 	branding.SMTPPassword = nil
 
-	// Set defaults for required fields
-	if branding.SiteName == "" {
-		branding.SiteName = "My Landing"
+	cs.normalizeBrandingLocked(&branding)
+
+	if cs.settingsDB != nil {
+		payload, err := json.Marshal(branding)
+		if err != nil {
+			return fmt.Errorf("marshal seeded branding: %w", err)
+		}
+		if _, err := cs.settingsDB.ExecContext(context.Background(),
+			`INSERT INTO site_settings (id, payload, schema_version, updated_at) VALUES (1, $1::jsonb, 1, NOW()) ON CONFLICT (id) DO NOTHING`, payload); err != nil {
+			return fmt.Errorf("import branding into site_settings: %w", err)
+		}
+		cs.logEvent("branding_imported", map[string]interface{}{"source": cs.brandingPath, "keys": brandingKeys(&branding)})
 	}
-	branding.ID = 1 // Singleton pattern
-	branding.CreatedAt = time.Now()
-	branding.UpdatedAt = time.Now()
 
 	cs.branding = &branding
 	cs.logEvent("branding_loaded", map[string]interface{}{
@@ -185,6 +226,37 @@ func (cs *ConfigStore) loadBrandingLocked() error {
 		"site_name": branding.SiteName,
 	})
 	return nil
+}
+
+func (cs *ConfigStore) normalizeBrandingLocked(branding *SiteBranding) {
+	if branding.SiteName == "" {
+		branding.SiteName = "My Landing"
+	}
+	branding.ID = 1
+	if branding.CreatedAt.IsZero() {
+		branding.CreatedAt = time.Now()
+	}
+	branding.UpdatedAt = time.Now()
+}
+
+func brandingKeys(branding *SiteBranding) []string {
+	keys := []string{"site_name"}
+	if branding.SMTPHost != nil {
+		keys = append(keys, "smtp_host")
+	}
+	if branding.SMTPPort != nil {
+		keys = append(keys, "smtp_port")
+	}
+	if branding.SMTPUsername != nil {
+		keys = append(keys, "smtp_username")
+	}
+	if branding.SMTPFrom != nil {
+		keys = append(keys, "smtp_from")
+	}
+	if branding.SupportEmail != nil {
+		keys = append(keys, "support_email")
+	}
+	return keys
 }
 
 func removeLegacySMTPPassword(path string) error {
@@ -498,7 +570,8 @@ func (cs *ConfigStore) SaveBranding(branding *SiteBranding) error {
 		return errors.New("site_name is required")
 	}
 
-	// Build file structure (exclude internal fields like ID, CreatedAt, UpdatedAt)
+	// Build the durable payload (exclude internal fields like ID, CreatedAt,
+	// UpdatedAt). Protected credentials never enter this payload.
 	fileData := map[string]interface{}{
 		"site_name": branding.SiteName,
 	}
@@ -590,8 +663,15 @@ func (cs *ConfigStore) SaveBranding(branding *SiteBranding) error {
 		return fmt.Errorf("marshal branding: %w", err)
 	}
 
-	if err := os.WriteFile(cs.brandingPath, data, 0o600); err != nil {
-		return fmt.Errorf("write branding file: %w", err)
+	if cs.settingsDB != nil {
+		if _, err := cs.settingsDB.ExecContext(context.Background(),
+			`INSERT INTO site_settings (id, payload, schema_version, updated_at) VALUES (1, $1::jsonb, 1, NOW()) ON CONFLICT (id) DO UPDATE SET payload = EXCLUDED.payload, schema_version = EXCLUDED.schema_version, updated_at = NOW()`, data); err != nil {
+			return fmt.Errorf("write durable site settings: %w", err)
+		}
+	} else {
+		if err := os.WriteFile(cs.brandingPath, data, 0o600); err != nil {
+			return fmt.Errorf("write branding file: %w", err)
+		}
 	}
 
 	// Update cache
@@ -601,6 +681,7 @@ func (cs *ConfigStore) SaveBranding(branding *SiteBranding) error {
 
 	cs.logEvent("branding_saved", map[string]interface{}{
 		"path":      cs.brandingPath,
+		"durable":   cs.settingsDB != nil,
 		"site_name": branding.SiteName,
 	})
 	return nil

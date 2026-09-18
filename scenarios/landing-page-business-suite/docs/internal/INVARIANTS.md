@@ -33,7 +33,7 @@ Properties that must hold **at all times** across the data + behavior of the sce
 
 ## Configuration
 
-12. **`config/variants/*.json` and `config/branding.json` are the source of truth for landing config.** The runtime `ConfigStore` reflects them; a database row is never authoritative for variant or branding fields.
+12. **`config/variants/*.json` is the seed source for landing variants; `site_settings` is the authoritative source for mutable branding and mail settings.** The runtime `ConfigStore` imports branding once when the singleton row is empty and thereafter reads and writes the durable database row.
 13. **`.vrooli/plans.json` is the source of truth for pricing.** Database `bundle_prices` may exist for in-flight data but does not override the file.
 14. **`metrics_events.event_type` is constrained.** Only the values listed in the `CHECK` constraint (`page_view`, `scroll_depth`, `click`, `form_submit`, `conversion`, `download`) are accepted; ingestion rejects others with `400`.
 

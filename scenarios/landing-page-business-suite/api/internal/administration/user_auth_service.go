@@ -72,6 +72,8 @@ type UserAuthService struct {
 	onSignInCodeGenerated func(email, code string)
 	log                   func(string, map[string]interface{})
 	logError              func(string, map[string]interface{})
+	outboxEnabled         bool
+	senderIdentity        string
 }
 
 // UseTokenCallback sets a callback that will be invoked when a magic link is generated.
@@ -159,6 +161,8 @@ type UserAuthServiceOptions struct {
 	MagicLinkTTL          time.Duration
 	Log                   func(string, map[string]interface{})
 	LogError              func(string, map[string]interface{})
+	OutboxEnabled         bool
+	SenderIdentity        string
 }
 
 // NewUserAuthService creates a user-authentication service from explicit
@@ -256,6 +260,8 @@ func NewUserAuthService(opts UserAuthServiceOptions) *UserAuthService {
 		appName:        appName,
 		log:            log,
 		logError:       logError,
+		outboxEnabled:  opts.OutboxEnabled,
+		senderIdentity: strings.TrimSpace(opts.SenderIdentity),
 	}
 }
 

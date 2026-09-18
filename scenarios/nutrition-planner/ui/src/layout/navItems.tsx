@@ -1,8 +1,4 @@
-import {
-  Home,
-  NotebookPen, // EXAMPLE-DOMAIN:notes
-  Settings,
-} from "lucide-react";
+import { CalendarDays, Home, ListChecks, ShoppingBasket, Settings, Target } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { strings } from "../consts/strings";
@@ -19,8 +15,11 @@ export interface NavItem {
   /** Selector parameter; stable across locales. */
   key:
     | "dashboard"
-    | "notes" // EXAMPLE-DOMAIN:notes
-    | "settings";
+    | "settings"
+    | "today"
+    | "week"
+    | "groceries"
+    | "nutrition";
   /** Router path. */
   path: string;
   /** True when this is the index route (exact match for the active state). */
@@ -33,7 +32,10 @@ export interface NavItem {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard, icon: <Home aria-hidden="true" /> },
-  { key: "notes", path: "/notes", labelKey: strings.layout.nav.notes, icon: <NotebookPen aria-hidden="true" /> }, // EXAMPLE-DOMAIN:notes
+  { key: "today", path: "/today", labelKey: strings.layout.nav.today, icon: <CalendarDays aria-hidden="true" /> },
+  { key: "week", path: "/week", labelKey: strings.layout.nav.week, icon: <ListChecks aria-hidden="true" /> },
+  { key: "groceries", path: "/groceries", labelKey: strings.layout.nav.groceries, icon: <ShoppingBasket aria-hidden="true" /> },
+  { key: "nutrition", path: "/nutrition", labelKey: strings.layout.nav.nutrition, icon: <Target aria-hidden="true" /> },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings, icon: <Settings aria-hidden="true" /> },
 ];
 

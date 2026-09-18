@@ -127,6 +127,60 @@
   "dependencies": {
     "resources": {}
   },
+  "storage": {
+    "entries": {
+      "nutrition-planner-db": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "nutrition-planner.db",
+        "format": "sqlite",
+        "regenerable": false,
+        "budget": {"max_bytes": "2GiB", "rationale": "Durable workspace, recipe, profile, plan, catalog, feedback, and shopping state."},
+        "rationale": "Primary scenario SQLite database."
+      },
+      "nutrition-planner-db-wal": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "nutrition-planner.db-wal",
+        "format": "sqlite",
+        "regenerable": true,
+        "budget": {"max_bytes": "2GiB", "rationale": "SQLite WAL sidecar is bounded by the primary database ceiling."},
+        "rationale": "SQLite write-ahead log sidecar."
+      },
+      "nutrition-planner-db-shm": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "nutrition-planner.db-shm",
+        "format": "sqlite",
+        "regenerable": true,
+        "budget": {"max_bytes": "64MiB", "rationale": "SQLite shared-memory sidecar is regenerable and bounded."},
+        "rationale": "SQLite shared-memory sidecar."
+      },
+      "deployment-report": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "deployment/deployment-report.json",
+        "format": "json",
+        "regenerable": false,
+        "budget": {"max_age": "30d", "rationale": "Retain recent deployment evidence for operations."},
+        "rationale": "Lifecycle deployment evidence."
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "subpath": "retention/enforcement-receipt.json",
+        "format": "json",
+        "regenerable": true,
+        "budget": {"max_bytes": "1MiB", "max_age": "30d", "rationale": "The shared retention engine replaces this compact operational receipt on each run."},
+        "rationale": "Shared storage retention enforcement receipt."
+      }
+    }
+  },
   "credentials": {},
   "branding": {
     "brand": "nutrition-planner",

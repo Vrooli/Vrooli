@@ -94,6 +94,12 @@ var remoteProfileProxyAllowlist = []string{
 	"/landing_page_business_suite.v1.AdministrationService/SetAPIKeyActive",
 	"/landing_page_business_suite.v1.StripeSettingsService/GetStripeSettings",
 	"/landing_page_business_suite.v1.StripeSettingsService/UpdateStripeSettings",
+	// Operator recovery endpoints are service-principal-only on the target and
+	// are reachable only through a stored remote-profile session, so a local
+	// control plane can recover a locked-out administrator on a deployment.
+	// Keep these exact: the proxy must not become a general admin tunnel.
+	"/admin/mfa/reset",
+	"/admin/admin-credentials/reset",
 	// Read-only metrics are allowed through the service-authenticated deployment
 	// relay. Keep these exact procedures; do not turn the proxy into a general
 	// metrics or admin tunnel.

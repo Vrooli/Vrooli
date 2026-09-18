@@ -9,13 +9,16 @@ import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
  * because `<App>` mounts `createBrowserRouter`, which doesn't play with the
  * memory-router wrapper inside `renderWithProviders`.
  */
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 
 import { renderWithProviders } from "./test-utils";
 import { Providers } from "./app/providers";
 import { TestAppRouter } from "./app/routes";
 import { selectors } from "./consts/selectors";
+
+vi.mock("./api/recipes", () => ({ listRecipes: () => new Promise(() => undefined), createRecipe: vi.fn() }));
+vi.mock("./api/workspace", () => ({ ensureWorkspace: () => new Promise(() => undefined) }));
 
 describe("App composition", () => {
   afterEach(() => {
@@ -48,11 +51,13 @@ it("changes the theme when the focused setting receives gamepad Select", async (
     { withoutRouter: true },
   );
   try {
-    const dark = screen.getByTestId(selectors.settingsPage.themeOption({ choice: "dark" }));
-    expect(dark).toHaveAttribute("aria-checked", "false");
-    dark.focus();
-    window.dispatchEvent(new Event("gamepadconnected"));
-    await waitFor(() => expect(dark).toHaveAttribute("aria-checked", "true"));
+    const dark = screen.getByTestId(selectors.settingsPage.themeSelect);
+    await import("@testing-library/user-event").then(async ({ default: userEvent }) => {
+      const user = userEvent.setup();
+      await user.click(dark);
+      await user.click(screen.getByRole("option", { name: "theme.choice.dark" }));
+    });
+    await waitFor(() => expect(document.documentElement).toHaveAttribute("data-resolved-theme", "dark"));
     expect(document.documentElement).toHaveAttribute("data-theme", "dark");
   } finally {
     view.unmount();

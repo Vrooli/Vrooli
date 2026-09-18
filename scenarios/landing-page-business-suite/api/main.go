@@ -31,6 +31,7 @@ import (
 	corestorage "github.com/vrooli/api-core/storage"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
+	maildns "github.com/vrooli/vrooli/packages/maildns-go"
 	aihandler "landing-page-business-suite-api/handlers/intelligence"
 	accountsecurity "landing-page-business-suite-api/internal/accountsecurity"
 	"landing-page-business-suite-api/internal/administration"
@@ -40,7 +41,7 @@ import (
 	"landing-page-business-suite-api/internal/content"
 	"landing-page-business-suite-api/internal/delivery"
 	desktoplink "landing-page-business-suite-api/internal/desktoplink"
-	"landing-page-business-suite-api/internal/emailreadiness"
+	"landing-page-business-suite-api/internal/emaildelivery"
 	"landing-page-business-suite-api/internal/envx"
 	"landing-page-business-suite-api/internal/experimentation"
 	"landing-page-business-suite-api/internal/intelligence"
@@ -97,24 +98,25 @@ type Server struct {
 	// Remote profile service (admin-managed remote connections)
 	remoteProfileService *administration.RemoteProfileService
 	// User authentication services
-	userAuthService        *administration.UserAuthService
-	nativeGrants           *nativegrants.Repository
-	userManagementService  *administration.UserManagementService
-	accountSecurityService *accountsecurity.Service
-	passkeyService         *passkeys.Service
-	passkeyChallenges      *passkeys.Repository
-	passkeyCredentials     *passkeys.Credentials
-	emailReadinessService  *emailreadiness.Service
-	providerVerification   *providerVerificationCache
-	businessAccounts       businessaccount.Repository
-	desktopLinkService     *desktoplink.Service
-	desktopLinkVerifier    authn.TokenVerifier
-	magicLinkLimiter       *RateLimiter
-	authThrottle           *administration.AuthThrottle
-	adminMFA               *administration.AdminMFA
-	stopAuthJanitor        func()
-	stopAuthDeliveryAlerts func()
-	stopProviderChecks     func()
+	userAuthService         *administration.UserAuthService
+	nativeGrants            *nativegrants.Repository
+	userManagementService   *administration.UserManagementService
+	accountSecurityService  *accountsecurity.Service
+	passkeyService          *passkeys.Service
+	passkeyChallenges       *passkeys.Repository
+	passkeyCredentials      *passkeys.Credentials
+	mailDNSService          *maildns.Service
+	providerVerification    *providerVerificationCache
+	businessAccounts        businessaccount.Repository
+	desktopLinkService      *desktoplink.Service
+	desktopLinkVerifier     authn.TokenVerifier
+	magicLinkLimiter        *RateLimiter
+	authThrottle            *administration.AuthThrottle
+	adminMFA                *administration.AdminMFA
+	stopAuthJanitor         func()
+	stopAuthDeliveryAlerts  func()
+	stopEmailDeliveryWorker func()
+	stopProviderChecks      func()
 	// AI MeteredInferenceProvider service
 	meteredInferenceService *intelligence.MeteredInferenceService
 	meteredInferenceHandler *aihandler.Handler
@@ -243,6 +245,9 @@ func NewServer() (*Server, error) {
 	if err := administration.NewReaderTokens(db).UpsertAuthority(metricsReaderToken); err != nil {
 		return nil, fmt.Errorf("persist metrics reader token: %w", err)
 	}
+	if err := emaildelivery.SeedDefaults(context.Background(), routedDB); err != nil {
+		return nil, fmt.Errorf("seed email provider registry: %w", err)
+	}
 
 	// Initialize config store from tracked scenario config files.
 	variantsDir := resolveVariantsDir()
@@ -253,6 +258,7 @@ func NewServer() (*Server, error) {
 		BrandingPath:      brandingPath,
 		Space:             variantSpace,
 		MigrateCredential: administration.PutAuthorityCredential,
+		SettingsDB:        routedDB,
 	})
 	if err := configStore.LoadAll(); err != nil {
 		return nil, fmt.Errorf("failed to load config from JSON files: %w", err)
@@ -342,6 +348,9 @@ func NewServer() (*Server, error) {
 	feedbackService := domainmetrics.NewFeedbackService(routedDB)
 	emailService := NewEmailService()
 	emailService.UseBrandingSource(configStore.GetBranding)
+	if isProductionEnvironment() {
+		emailService.UseMailer(&emaildelivery.Mailer{DB: routedDB})
+	}
 	// Waitlist is the first request-context-aware domain migrated to RoutedDB.
 	// Test-mode requests reach the lease-owned pool while all other services
 	// continue their explicit, staged migration from the primary pool.
@@ -403,6 +412,8 @@ func NewServer() (*Server, error) {
 		RefreshGrace:          sessionConfig.RefreshGrace,
 		BaseURL:               resolveMagicLinkBaseURL(),
 		AppName:               resolveConfig("EMAIL_FROM_NAME"),
+		OutboxEnabled:         isProductionEnvironment(),
+		SenderIdentity:        resolveConfig("EMAIL_FROM_ADDRESS"),
 		Log:                   logx.Info,
 		LogError:              logx.Error,
 	})
@@ -423,7 +434,7 @@ func NewServer() (*Server, error) {
 		return nil, err
 	}
 	logx.Info("webauthn_rp_configured", map[string]interface{}{"rp_id": passkeyConfig.RPID, "origins": passkeyConfig.RPOrigins})
-	emailReadinessService := emailreadiness.New(net.DefaultResolver)
+	mailDNSService := maildns.New(maildns.NetResolver{Resolver: net.DefaultResolver})
 	nativeGrantsRepository := nativegrants.NewRepository(routedDB)
 	businessAccounts := businessaccount.NewSQLRepository(routedDB)
 	desktopLinkService := desktoplink.NewService(desktoplink.NewSQLRepository(routedDB))
@@ -517,7 +528,7 @@ func NewServer() (*Server, error) {
 		passkeyService:         passkeyService,
 		passkeyChallenges:      &passkeys.Repository{DB: routedDB},
 		passkeyCredentials:     &passkeys.Credentials{DB: routedDB},
-		emailReadinessService:  emailReadinessService,
+		mailDNSService:         mailDNSService,
 		providerVerification:   newProviderVerificationCache(),
 		nativeGrants:           nativeGrantsRepository,
 		businessAccounts:       businessAccounts,
@@ -540,6 +551,9 @@ func NewServer() (*Server, error) {
 	if err := registerScenarioDevRouting(srv.router, routedDB, fileRoots); err != nil {
 		_ = routedDB.Close()
 		return nil, fmt.Errorf("register development routing: %w", err)
+	}
+	if isProductionEnvironment() {
+		srv.stopEmailDeliveryWorker = startEmailDeliveryWorker(routedDB, emailService, mailDNSService, senderDomain)
 	}
 	logx.Info("server_initialization_completed", nil)
 	return srv, nil
@@ -727,6 +741,9 @@ func (s *Server) Cleanup() error {
 	}
 	if s.stopAuthDeliveryAlerts != nil {
 		s.stopAuthDeliveryAlerts()
+	}
+	if s.stopEmailDeliveryWorker != nil {
+		s.stopEmailDeliveryWorker()
 	}
 	if s.routedDB != nil {
 		return s.routedDB.Close()
