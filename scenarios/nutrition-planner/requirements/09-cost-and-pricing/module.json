@@ -1,0 +1,99 @@
+{
+  "_metadata": {
+    "module": "cost-and-pricing",
+    "description": "Allocated portion cost, checkout estimate, actual spend, and dated price observations without fabricated savings.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "COST-001",
+      "title": "Portion cost, checkout, and actual spend are separate",
+      "status": "planned",
+      "prd_ref": "OT-P0-012",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "The scenario shall keep allocated portion cost, estimated checkout, and recorded actual spend as separate labeled values, computing portion cost from package price times consumed quantity over usable package quantity and checkout from packages to buy times package price.",
+      "tags": [
+        "cost",
+        "checkout",
+        "reporting"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: FIX-03 shows $15.60 allocated food cost alongside $16.50 additional checkout, each labeled with its coverage; neither is presented as actual spend (ACT-024, ACT-052)."
+        }
+      ]
+    },
+    {
+      "id": "COST-002",
+      "title": "Price observations carry their conditions",
+      "status": "planned",
+      "prd_ref": "OT-P0-012",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "Every price observation shall preserve product and package, retailer, amount and currency, observed date, validity or freshness, availability, membership or coupon or minimum-buy conditions, and source, and a refresh shall create a new observation rather than overwrite history.",
+      "tags": [
+        "prices",
+        "provenance",
+        "freshness"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a price refresh produces a new dated observation and leaves recorded purchases and historical consumed-cost snapshots intact (ACT-052)."
+        }
+      ]
+    },
+    {
+      "id": "COST-003",
+      "title": "Missing prices stay unpriced and savings need a baseline",
+      "status": "planned",
+      "prd_ref": "OT-P0-012",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "If a required price is missing, then the scenario shall keep it unpriced and use any internal ranking estimate only as a clearly marked internal fallback, and it shall not claim savings, a global price, or a speculative best price without a named comparable baseline, date range, and included fees.",
+      "tags": [
+        "honesty",
+        "savings",
+        "prices"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a missing price never renders as $0 or a satisfied required budget, and absent baseline produces tradeoffs instead of a savings percentage (ACT-052)."
+        }
+      ]
+    },
+    {
+      "id": "COST-004",
+      "title": "Cost bases convert explicitly and retain selected offers",
+      "status": "planned",
+      "prd_ref": "OT-P0-012",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "When a cost basis uses edible or drained quantity, the scenario shall record the conversion rather than treating net and drained weight as equal, and with multiple package options it shall choose a combination under the selected policy and retain the selected offers in the result.",
+      "tags": [
+        "units",
+        "packages",
+        "basis"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: an unrecorded net-to-drained conversion is rejected or flagged, and the chosen purchase combination preserves each selected offer."
+        }
+      ]
+    }
+  ]
+}

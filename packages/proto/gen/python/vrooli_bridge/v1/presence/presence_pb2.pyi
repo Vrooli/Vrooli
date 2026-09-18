@@ -110,3 +110,15 @@ class ReportScenarioResponseResponse(_message.Message):
     ACCEPTED_FIELD_NUMBER: _ClassVar[int]
     accepted: bool
     def __init__(self, accepted: _Optional[bool] = ...) -> None: ...
+
+class ReportInteractiveSignalResponseRequest(_message.Message):
+    __slots__ = ("response",)
+    RESPONSE_FIELD_NUMBER: _ClassVar[int]
+    response: _channel_pb2.InteractiveSignalResponse
+    def __init__(self, response: _Optional[_Union[_channel_pb2.InteractiveSignalResponse, _Mapping]] = ...) -> None: ...
+
+class ReportInteractiveSignalResponseResponse(_message.Message):
+    __slots__ = ("accepted",)
+    ACCEPTED_FIELD_NUMBER: _ClassVar[int]
+    accepted: bool
+    def __init__(self, accepted: _Optional[bool] = ...) -> None: ...

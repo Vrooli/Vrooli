@@ -1,0 +1,78 @@
+{
+  "_metadata": {
+    "description": "Deferred household, public-sharing, and adaptive-intelligence capabilities gated on deliberate evidence and authorization.",
+    "last_validated_at": "2026-09-18T11:10:07-04:00",
+    "module": "deferred-expansion",
+    "prd_ref": "PRD.md",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "EXP-001",
+      "title": "Household roles are deliberate and mapping is explicit",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "domain",
+      "criticality": "P2",
+      "description": "A future household capability may add deliberate roles and profile-to-person mapping with person-specific targets and shared shopping, and it should not treat multiple people as one nutritional profile; multiplying a recipe's serving count remains a distinct earlier capability.",
+      "tags": [
+        "household",
+        "roles",
+        "profiles"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned: two profiles in one household keep separate targets while sharing a shopping plan (spec section 19.4)."
+        }
+      ]
+    },
+    {
+      "id": "EXP-002",
+      "title": "Public sharing handles rights before catalog",
+      "status": "complete",
+      "prd_ref": "OT-P2-004",
+      "category": "policy",
+      "criticality": "P2",
+      "description": "A future sharing or marketplace feature may proceed only with deliberate attribution, permission, redaction, moderation, and a copied-versus-linked revision policy before any public catalog exists.",
+      "tags": [
+        "sharing",
+        "licensing",
+        "moderation"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Planned review of attribution, permission, redaction, moderation, and copied-versus-linked revision handling before enabling any public catalog (spec section 18.3)."
+        }
+      ]
+    },
+    {
+      "id": "EXP-003",
+      "title": "Adaptive intelligence is evidence-gated",
+      "status": "planned",
+      "prd_ref": "OT-P2-005",
+      "category": "policy",
+      "criticality": "P2",
+      "description": "Adaptive or deferred intelligence such as adherence and temptation modeling, probabilistic inventory, expected-waste and effective-cost optimization, research agents, receipt or order ingestion, and automated ordering may be evaluated only with its required evidence and authorization, while transparent rules and voluntary feedback come first.",
+      "tags": [
+        "adaptive",
+        "deferred",
+        "evidence"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned: each deferred capability is disabled by default and exposes the inputs and evaluation criteria it requires before activation (spec section 14.7)."
+        }
+      ]
+    }
+  ]
+}

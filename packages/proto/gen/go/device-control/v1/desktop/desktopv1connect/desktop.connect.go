@@ -27,6 +27,8 @@ const (
 	DesktopOwnerServiceName = "vrooli.device_control.v1.desktop.DesktopOwnerService"
 	// DesktopAccountServiceName is the fully-qualified name of the DesktopAccountService service.
 	DesktopAccountServiceName = "vrooli.device_control.v1.desktop.DesktopAccountService"
+	// DesktopSessionServiceName is the fully-qualified name of the DesktopSessionService service.
+	DesktopSessionServiceName = "vrooli.device_control.v1.desktop.DesktopSessionService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -186,6 +188,30 @@ const (
 	// DesktopAccountServiceStopProcedure is the fully-qualified name of the DesktopAccountService's
 	// Stop RPC.
 	DesktopAccountServiceStopProcedure = "/vrooli.device_control.v1.desktop.DesktopAccountService/Stop"
+	// DesktopSessionServiceGetReadinessProcedure is the fully-qualified name of the
+	// DesktopSessionService's GetReadiness RPC.
+	DesktopSessionServiceGetReadinessProcedure = "/vrooli.device_control.v1.desktop.DesktopSessionService/GetReadiness"
+	// DesktopSessionServiceOpenSessionProcedure is the fully-qualified name of the
+	// DesktopSessionService's OpenSession RPC.
+	DesktopSessionServiceOpenSessionProcedure = "/vrooli.device_control.v1.desktop.DesktopSessionService/OpenSession"
+	// DesktopSessionServiceAttachViewerProcedure is the fully-qualified name of the
+	// DesktopSessionService's AttachViewer RPC.
+	DesktopSessionServiceAttachViewerProcedure = "/vrooli.device_control.v1.desktop.DesktopSessionService/AttachViewer"
+	// DesktopSessionServiceTakeControlProcedure is the fully-qualified name of the
+	// DesktopSessionService's TakeControl RPC.
+	DesktopSessionServiceTakeControlProcedure = "/vrooli.device_control.v1.desktop.DesktopSessionService/TakeControl"
+	// DesktopSessionServiceSignalProcedure is the fully-qualified name of the DesktopSessionService's
+	// Signal RPC.
+	DesktopSessionServiceSignalProcedure = "/vrooli.device_control.v1.desktop.DesktopSessionService/Signal"
+	// DesktopSessionServiceInputProcedure is the fully-qualified name of the DesktopSessionService's
+	// Input RPC.
+	DesktopSessionServiceInputProcedure = "/vrooli.device_control.v1.desktop.DesktopSessionService/Input"
+	// DesktopSessionServiceClipboardProcedure is the fully-qualified name of the
+	// DesktopSessionService's Clipboard RPC.
+	DesktopSessionServiceClipboardProcedure = "/vrooli.device_control.v1.desktop.DesktopSessionService/Clipboard"
+	// DesktopSessionServiceCloseSessionProcedure is the fully-qualified name of the
+	// DesktopSessionService's CloseSession RPC.
+	DesktopSessionServiceCloseSessionProcedure = "/vrooli.device_control.v1.desktop.DesktopSessionService/CloseSession"
 )
 
 // DesktopHelperServiceClient is a client for the
@@ -1634,4 +1660,259 @@ func (UnimplementedDesktopAccountServiceHandler) Act(context.Context, *connect.R
 
 func (UnimplementedDesktopAccountServiceHandler) Stop(context.Context, *connect.Request[desktop.OwnerStopRequest]) (*connect.Response[desktop.StopResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.desktop.DesktopAccountService.Stop is not implemented"))
+}
+
+// DesktopSessionServiceClient is a client for the
+// vrooli.device_control.v1.desktop.DesktopSessionService service.
+type DesktopSessionServiceClient interface {
+	GetReadiness(context.Context, *connect.Request[desktop.GetReadinessRequest]) (*connect.Response[desktop.DesktopReadiness], error)
+	OpenSession(context.Context, *connect.Request[desktop.OpenSessionRequest]) (*connect.Response[desktop.DesktopSession], error)
+	AttachViewer(context.Context, *connect.Request[desktop.AttachViewerRequest]) (*connect.Response[desktop.DesktopSession], error)
+	TakeControl(context.Context, *connect.Request[desktop.TakeControlRequest]) (*connect.Response[desktop.DesktopSession], error)
+	Signal(context.Context, *connect.Request[desktop.DesktopSignalRequest]) (*connect.Response[desktop.DesktopSignalResponse], error)
+	Input(context.Context, *connect.Request[desktop.InputRequest]) (*connect.Response[desktop.InputReceipt], error)
+	Clipboard(context.Context, *connect.Request[desktop.ClipboardRequest]) (*connect.Response[desktop.ClipboardReceipt], error)
+	CloseSession(context.Context, *connect.Request[desktop.CloseSessionRequest]) (*connect.Response[desktop.CloseSessionResponse], error)
+}
+
+// NewDesktopSessionServiceClient constructs a client for the
+// vrooli.device_control.v1.desktop.DesktopSessionService service. By default, it uses the Connect
+// protocol with the binary Protobuf Codec, asks for gzipped responses, and sends uncompressed
+// requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
+// connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewDesktopSessionServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) DesktopSessionServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	desktopSessionServiceMethods := desktop.File_device_control_v1_desktop_desktop_proto.Services().ByName("DesktopSessionService").Methods()
+	return &desktopSessionServiceClient{
+		getReadiness: connect.NewClient[desktop.GetReadinessRequest, desktop.DesktopReadiness](
+			httpClient,
+			baseURL+DesktopSessionServiceGetReadinessProcedure,
+			connect.WithSchema(desktopSessionServiceMethods.ByName("GetReadiness")),
+			connect.WithClientOptions(opts...),
+		),
+		openSession: connect.NewClient[desktop.OpenSessionRequest, desktop.DesktopSession](
+			httpClient,
+			baseURL+DesktopSessionServiceOpenSessionProcedure,
+			connect.WithSchema(desktopSessionServiceMethods.ByName("OpenSession")),
+			connect.WithClientOptions(opts...),
+		),
+		attachViewer: connect.NewClient[desktop.AttachViewerRequest, desktop.DesktopSession](
+			httpClient,
+			baseURL+DesktopSessionServiceAttachViewerProcedure,
+			connect.WithSchema(desktopSessionServiceMethods.ByName("AttachViewer")),
+			connect.WithClientOptions(opts...),
+		),
+		takeControl: connect.NewClient[desktop.TakeControlRequest, desktop.DesktopSession](
+			httpClient,
+			baseURL+DesktopSessionServiceTakeControlProcedure,
+			connect.WithSchema(desktopSessionServiceMethods.ByName("TakeControl")),
+			connect.WithClientOptions(opts...),
+		),
+		signal: connect.NewClient[desktop.DesktopSignalRequest, desktop.DesktopSignalResponse](
+			httpClient,
+			baseURL+DesktopSessionServiceSignalProcedure,
+			connect.WithSchema(desktopSessionServiceMethods.ByName("Signal")),
+			connect.WithClientOptions(opts...),
+		),
+		input: connect.NewClient[desktop.InputRequest, desktop.InputReceipt](
+			httpClient,
+			baseURL+DesktopSessionServiceInputProcedure,
+			connect.WithSchema(desktopSessionServiceMethods.ByName("Input")),
+			connect.WithClientOptions(opts...),
+		),
+		clipboard: connect.NewClient[desktop.ClipboardRequest, desktop.ClipboardReceipt](
+			httpClient,
+			baseURL+DesktopSessionServiceClipboardProcedure,
+			connect.WithSchema(desktopSessionServiceMethods.ByName("Clipboard")),
+			connect.WithClientOptions(opts...),
+		),
+		closeSession: connect.NewClient[desktop.CloseSessionRequest, desktop.CloseSessionResponse](
+			httpClient,
+			baseURL+DesktopSessionServiceCloseSessionProcedure,
+			connect.WithSchema(desktopSessionServiceMethods.ByName("CloseSession")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// desktopSessionServiceClient implements DesktopSessionServiceClient.
+type desktopSessionServiceClient struct {
+	getReadiness *connect.Client[desktop.GetReadinessRequest, desktop.DesktopReadiness]
+	openSession  *connect.Client[desktop.OpenSessionRequest, desktop.DesktopSession]
+	attachViewer *connect.Client[desktop.AttachViewerRequest, desktop.DesktopSession]
+	takeControl  *connect.Client[desktop.TakeControlRequest, desktop.DesktopSession]
+	signal       *connect.Client[desktop.DesktopSignalRequest, desktop.DesktopSignalResponse]
+	input        *connect.Client[desktop.InputRequest, desktop.InputReceipt]
+	clipboard    *connect.Client[desktop.ClipboardRequest, desktop.ClipboardReceipt]
+	closeSession *connect.Client[desktop.CloseSessionRequest, desktop.CloseSessionResponse]
+}
+
+// GetReadiness calls vrooli.device_control.v1.desktop.DesktopSessionService.GetReadiness.
+func (c *desktopSessionServiceClient) GetReadiness(ctx context.Context, req *connect.Request[desktop.GetReadinessRequest]) (*connect.Response[desktop.DesktopReadiness], error) {
+	return c.getReadiness.CallUnary(ctx, req)
+}
+
+// OpenSession calls vrooli.device_control.v1.desktop.DesktopSessionService.OpenSession.
+func (c *desktopSessionServiceClient) OpenSession(ctx context.Context, req *connect.Request[desktop.OpenSessionRequest]) (*connect.Response[desktop.DesktopSession], error) {
+	return c.openSession.CallUnary(ctx, req)
+}
+
+// AttachViewer calls vrooli.device_control.v1.desktop.DesktopSessionService.AttachViewer.
+func (c *desktopSessionServiceClient) AttachViewer(ctx context.Context, req *connect.Request[desktop.AttachViewerRequest]) (*connect.Response[desktop.DesktopSession], error) {
+	return c.attachViewer.CallUnary(ctx, req)
+}
+
+// TakeControl calls vrooli.device_control.v1.desktop.DesktopSessionService.TakeControl.
+func (c *desktopSessionServiceClient) TakeControl(ctx context.Context, req *connect.Request[desktop.TakeControlRequest]) (*connect.Response[desktop.DesktopSession], error) {
+	return c.takeControl.CallUnary(ctx, req)
+}
+
+// Signal calls vrooli.device_control.v1.desktop.DesktopSessionService.Signal.
+func (c *desktopSessionServiceClient) Signal(ctx context.Context, req *connect.Request[desktop.DesktopSignalRequest]) (*connect.Response[desktop.DesktopSignalResponse], error) {
+	return c.signal.CallUnary(ctx, req)
+}
+
+// Input calls vrooli.device_control.v1.desktop.DesktopSessionService.Input.
+func (c *desktopSessionServiceClient) Input(ctx context.Context, req *connect.Request[desktop.InputRequest]) (*connect.Response[desktop.InputReceipt], error) {
+	return c.input.CallUnary(ctx, req)
+}
+
+// Clipboard calls vrooli.device_control.v1.desktop.DesktopSessionService.Clipboard.
+func (c *desktopSessionServiceClient) Clipboard(ctx context.Context, req *connect.Request[desktop.ClipboardRequest]) (*connect.Response[desktop.ClipboardReceipt], error) {
+	return c.clipboard.CallUnary(ctx, req)
+}
+
+// CloseSession calls vrooli.device_control.v1.desktop.DesktopSessionService.CloseSession.
+func (c *desktopSessionServiceClient) CloseSession(ctx context.Context, req *connect.Request[desktop.CloseSessionRequest]) (*connect.Response[desktop.CloseSessionResponse], error) {
+	return c.closeSession.CallUnary(ctx, req)
+}
+
+// DesktopSessionServiceHandler is an implementation of the
+// vrooli.device_control.v1.desktop.DesktopSessionService service.
+type DesktopSessionServiceHandler interface {
+	GetReadiness(context.Context, *connect.Request[desktop.GetReadinessRequest]) (*connect.Response[desktop.DesktopReadiness], error)
+	OpenSession(context.Context, *connect.Request[desktop.OpenSessionRequest]) (*connect.Response[desktop.DesktopSession], error)
+	AttachViewer(context.Context, *connect.Request[desktop.AttachViewerRequest]) (*connect.Response[desktop.DesktopSession], error)
+	TakeControl(context.Context, *connect.Request[desktop.TakeControlRequest]) (*connect.Response[desktop.DesktopSession], error)
+	Signal(context.Context, *connect.Request[desktop.DesktopSignalRequest]) (*connect.Response[desktop.DesktopSignalResponse], error)
+	Input(context.Context, *connect.Request[desktop.InputRequest]) (*connect.Response[desktop.InputReceipt], error)
+	Clipboard(context.Context, *connect.Request[desktop.ClipboardRequest]) (*connect.Response[desktop.ClipboardReceipt], error)
+	CloseSession(context.Context, *connect.Request[desktop.CloseSessionRequest]) (*connect.Response[desktop.CloseSessionResponse], error)
+}
+
+// NewDesktopSessionServiceHandler builds an HTTP handler from the service implementation. It
+// returns the path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewDesktopSessionServiceHandler(svc DesktopSessionServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	desktopSessionServiceMethods := desktop.File_device_control_v1_desktop_desktop_proto.Services().ByName("DesktopSessionService").Methods()
+	desktopSessionServiceGetReadinessHandler := connect.NewUnaryHandler(
+		DesktopSessionServiceGetReadinessProcedure,
+		svc.GetReadiness,
+		connect.WithSchema(desktopSessionServiceMethods.ByName("GetReadiness")),
+		connect.WithHandlerOptions(opts...),
+	)
+	desktopSessionServiceOpenSessionHandler := connect.NewUnaryHandler(
+		DesktopSessionServiceOpenSessionProcedure,
+		svc.OpenSession,
+		connect.WithSchema(desktopSessionServiceMethods.ByName("OpenSession")),
+		connect.WithHandlerOptions(opts...),
+	)
+	desktopSessionServiceAttachViewerHandler := connect.NewUnaryHandler(
+		DesktopSessionServiceAttachViewerProcedure,
+		svc.AttachViewer,
+		connect.WithSchema(desktopSessionServiceMethods.ByName("AttachViewer")),
+		connect.WithHandlerOptions(opts...),
+	)
+	desktopSessionServiceTakeControlHandler := connect.NewUnaryHandler(
+		DesktopSessionServiceTakeControlProcedure,
+		svc.TakeControl,
+		connect.WithSchema(desktopSessionServiceMethods.ByName("TakeControl")),
+		connect.WithHandlerOptions(opts...),
+	)
+	desktopSessionServiceSignalHandler := connect.NewUnaryHandler(
+		DesktopSessionServiceSignalProcedure,
+		svc.Signal,
+		connect.WithSchema(desktopSessionServiceMethods.ByName("Signal")),
+		connect.WithHandlerOptions(opts...),
+	)
+	desktopSessionServiceInputHandler := connect.NewUnaryHandler(
+		DesktopSessionServiceInputProcedure,
+		svc.Input,
+		connect.WithSchema(desktopSessionServiceMethods.ByName("Input")),
+		connect.WithHandlerOptions(opts...),
+	)
+	desktopSessionServiceClipboardHandler := connect.NewUnaryHandler(
+		DesktopSessionServiceClipboardProcedure,
+		svc.Clipboard,
+		connect.WithSchema(desktopSessionServiceMethods.ByName("Clipboard")),
+		connect.WithHandlerOptions(opts...),
+	)
+	desktopSessionServiceCloseSessionHandler := connect.NewUnaryHandler(
+		DesktopSessionServiceCloseSessionProcedure,
+		svc.CloseSession,
+		connect.WithSchema(desktopSessionServiceMethods.ByName("CloseSession")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/vrooli.device_control.v1.desktop.DesktopSessionService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case DesktopSessionServiceGetReadinessProcedure:
+			desktopSessionServiceGetReadinessHandler.ServeHTTP(w, r)
+		case DesktopSessionServiceOpenSessionProcedure:
+			desktopSessionServiceOpenSessionHandler.ServeHTTP(w, r)
+		case DesktopSessionServiceAttachViewerProcedure:
+			desktopSessionServiceAttachViewerHandler.ServeHTTP(w, r)
+		case DesktopSessionServiceTakeControlProcedure:
+			desktopSessionServiceTakeControlHandler.ServeHTTP(w, r)
+		case DesktopSessionServiceSignalProcedure:
+			desktopSessionServiceSignalHandler.ServeHTTP(w, r)
+		case DesktopSessionServiceInputProcedure:
+			desktopSessionServiceInputHandler.ServeHTTP(w, r)
+		case DesktopSessionServiceClipboardProcedure:
+			desktopSessionServiceClipboardHandler.ServeHTTP(w, r)
+		case DesktopSessionServiceCloseSessionProcedure:
+			desktopSessionServiceCloseSessionHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedDesktopSessionServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedDesktopSessionServiceHandler struct{}
+
+func (UnimplementedDesktopSessionServiceHandler) GetReadiness(context.Context, *connect.Request[desktop.GetReadinessRequest]) (*connect.Response[desktop.DesktopReadiness], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.desktop.DesktopSessionService.GetReadiness is not implemented"))
+}
+
+func (UnimplementedDesktopSessionServiceHandler) OpenSession(context.Context, *connect.Request[desktop.OpenSessionRequest]) (*connect.Response[desktop.DesktopSession], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.desktop.DesktopSessionService.OpenSession is not implemented"))
+}
+
+func (UnimplementedDesktopSessionServiceHandler) AttachViewer(context.Context, *connect.Request[desktop.AttachViewerRequest]) (*connect.Response[desktop.DesktopSession], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.desktop.DesktopSessionService.AttachViewer is not implemented"))
+}
+
+func (UnimplementedDesktopSessionServiceHandler) TakeControl(context.Context, *connect.Request[desktop.TakeControlRequest]) (*connect.Response[desktop.DesktopSession], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.desktop.DesktopSessionService.TakeControl is not implemented"))
+}
+
+func (UnimplementedDesktopSessionServiceHandler) Signal(context.Context, *connect.Request[desktop.DesktopSignalRequest]) (*connect.Response[desktop.DesktopSignalResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.desktop.DesktopSessionService.Signal is not implemented"))
+}
+
+func (UnimplementedDesktopSessionServiceHandler) Input(context.Context, *connect.Request[desktop.InputRequest]) (*connect.Response[desktop.InputReceipt], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.desktop.DesktopSessionService.Input is not implemented"))
+}
+
+func (UnimplementedDesktopSessionServiceHandler) Clipboard(context.Context, *connect.Request[desktop.ClipboardRequest]) (*connect.Response[desktop.ClipboardReceipt], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.desktop.DesktopSessionService.Clipboard is not implemented"))
+}
+
+func (UnimplementedDesktopSessionServiceHandler) CloseSession(context.Context, *connect.Request[desktop.CloseSessionRequest]) (*connect.Response[desktop.CloseSessionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.desktop.DesktopSessionService.CloseSession is not implemented"))
 }

@@ -295,8 +295,52 @@ class RelayCancel(_message.Message):
     reason: str
     def __init__(self, correlation_id: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
 
+class InteractiveSignal(_message.Message):
+    __slots__ = ("channel_id", "node_id", "lease_epoch", "kind", "generation", "payload", "request_id", "session_id", "lease_id")
+    CHANNEL_ID_FIELD_NUMBER: _ClassVar[int]
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    LEASE_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    GENERATION_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    LEASE_ID_FIELD_NUMBER: _ClassVar[int]
+    channel_id: str
+    node_id: str
+    lease_epoch: int
+    kind: int
+    generation: str
+    payload: bytes
+    request_id: str
+    session_id: str
+    lease_id: str
+    def __init__(self, channel_id: _Optional[str] = ..., node_id: _Optional[str] = ..., lease_epoch: _Optional[int] = ..., kind: _Optional[int] = ..., generation: _Optional[str] = ..., payload: _Optional[bytes] = ..., request_id: _Optional[str] = ..., session_id: _Optional[str] = ..., lease_id: _Optional[str] = ...) -> None: ...
+
+class InteractiveSignalResponse(_message.Message):
+    __slots__ = ("channel_id", "lease_epoch", "kind", "generation", "payload", "accepted", "reason_code", "request_id", "node_id")
+    CHANNEL_ID_FIELD_NUMBER: _ClassVar[int]
+    LEASE_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    GENERATION_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    ACCEPTED_FIELD_NUMBER: _ClassVar[int]
+    REASON_CODE_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    channel_id: str
+    lease_epoch: int
+    kind: int
+    generation: str
+    payload: bytes
+    accepted: bool
+    reason_code: str
+    request_id: str
+    node_id: str
+    def __init__(self, channel_id: _Optional[str] = ..., lease_epoch: _Optional[int] = ..., kind: _Optional[int] = ..., generation: _Optional[str] = ..., payload: _Optional[bytes] = ..., accepted: _Optional[bool] = ..., reason_code: _Optional[str] = ..., request_id: _Optional[str] = ..., node_id: _Optional[str] = ...) -> None: ...
+
 class ServerFrame(_message.Message):
-    __slots__ = ("frame_id", "ack", "job", "provision", "ping", "abort", "session", "relay", "relay_cancel", "cleanup", "credential_push", "credential_purge", "credential_grant", "scenario_request", "artifact_delivery")
+    __slots__ = ("frame_id", "ack", "job", "provision", "ping", "abort", "session", "relay", "relay_cancel", "cleanup", "credential_push", "credential_purge", "credential_grant", "scenario_request", "artifact_delivery", "interactive_signal")
     FRAME_ID_FIELD_NUMBER: _ClassVar[int]
     ACK_FIELD_NUMBER: _ClassVar[int]
     JOB_FIELD_NUMBER: _ClassVar[int]
@@ -312,6 +356,7 @@ class ServerFrame(_message.Message):
     CREDENTIAL_GRANT_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_REQUEST_FIELD_NUMBER: _ClassVar[int]
     ARTIFACT_DELIVERY_FIELD_NUMBER: _ClassVar[int]
+    INTERACTIVE_SIGNAL_FIELD_NUMBER: _ClassVar[int]
     frame_id: str
     ack: HandshakeAck
     job: JobPush
@@ -327,7 +372,8 @@ class ServerFrame(_message.Message):
     credential_grant: CredentialGrant
     scenario_request: ScenarioRequest
     artifact_delivery: ArtifactDelivery
-    def __init__(self, frame_id: _Optional[str] = ..., ack: _Optional[_Union[HandshakeAck, _Mapping]] = ..., job: _Optional[_Union[JobPush, _Mapping]] = ..., provision: _Optional[_Union[ProvisionCommand, _Mapping]] = ..., ping: _Optional[_Union[ControlPing, _Mapping]] = ..., abort: _Optional[_Union[AbortJob, _Mapping]] = ..., session: _Optional[_Union[_shared_pb2.SessionFrame, _Mapping]] = ..., relay: _Optional[_Union[RelayRequest, _Mapping]] = ..., relay_cancel: _Optional[_Union[RelayCancel, _Mapping]] = ..., cleanup: _Optional[_Union[CleanupCommand, _Mapping]] = ..., credential_push: _Optional[_Union[CredentialPush, _Mapping]] = ..., credential_purge: _Optional[_Union[CredentialPurge, _Mapping]] = ..., credential_grant: _Optional[_Union[CredentialGrant, _Mapping]] = ..., scenario_request: _Optional[_Union[ScenarioRequest, _Mapping]] = ..., artifact_delivery: _Optional[_Union[ArtifactDelivery, _Mapping]] = ...) -> None: ...
+    interactive_signal: InteractiveSignal
+    def __init__(self, frame_id: _Optional[str] = ..., ack: _Optional[_Union[HandshakeAck, _Mapping]] = ..., job: _Optional[_Union[JobPush, _Mapping]] = ..., provision: _Optional[_Union[ProvisionCommand, _Mapping]] = ..., ping: _Optional[_Union[ControlPing, _Mapping]] = ..., abort: _Optional[_Union[AbortJob, _Mapping]] = ..., session: _Optional[_Union[_shared_pb2.SessionFrame, _Mapping]] = ..., relay: _Optional[_Union[RelayRequest, _Mapping]] = ..., relay_cancel: _Optional[_Union[RelayCancel, _Mapping]] = ..., cleanup: _Optional[_Union[CleanupCommand, _Mapping]] = ..., credential_push: _Optional[_Union[CredentialPush, _Mapping]] = ..., credential_purge: _Optional[_Union[CredentialPurge, _Mapping]] = ..., credential_grant: _Optional[_Union[CredentialGrant, _Mapping]] = ..., scenario_request: _Optional[_Union[ScenarioRequest, _Mapping]] = ..., artifact_delivery: _Optional[_Union[ArtifactDelivery, _Mapping]] = ..., interactive_signal: _Optional[_Union[InteractiveSignal, _Mapping]] = ...) -> None: ...
 
 class SignedServerFrame(_message.Message):
     __slots__ = ("frame", "signature")
@@ -338,7 +384,7 @@ class SignedServerFrame(_message.Message):
     def __init__(self, frame: _Optional[bytes] = ..., signature: _Optional[bytes] = ...) -> None: ...
 
 class NodeFrame(_message.Message):
-    __slots__ = ("handshake", "heartbeat", "run_event", "delivery_ack", "session", "relay_response", "credential_receipt", "scenario_response", "artifact_receipt")
+    __slots__ = ("handshake", "heartbeat", "run_event", "delivery_ack", "session", "relay_response", "credential_receipt", "scenario_response", "artifact_receipt", "interactive_signal_response")
     HANDSHAKE_FIELD_NUMBER: _ClassVar[int]
     HEARTBEAT_FIELD_NUMBER: _ClassVar[int]
     RUN_EVENT_FIELD_NUMBER: _ClassVar[int]
@@ -348,6 +394,7 @@ class NodeFrame(_message.Message):
     CREDENTIAL_RECEIPT_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_RESPONSE_FIELD_NUMBER: _ClassVar[int]
     ARTIFACT_RECEIPT_FIELD_NUMBER: _ClassVar[int]
+    INTERACTIVE_SIGNAL_RESPONSE_FIELD_NUMBER: _ClassVar[int]
     handshake: Handshake
     heartbeat: _shared_pb2.Heartbeat
     run_event: _shared_pb2.RunEvent
@@ -357,4 +404,5 @@ class NodeFrame(_message.Message):
     credential_receipt: CredentialReceipt
     scenario_response: _shared_pb2.ScenarioResponse
     artifact_receipt: _shared_pb2.ArtifactReceipt
-    def __init__(self, handshake: _Optional[_Union[Handshake, _Mapping]] = ..., heartbeat: _Optional[_Union[_shared_pb2.Heartbeat, _Mapping]] = ..., run_event: _Optional[_Union[_shared_pb2.RunEvent, _Mapping]] = ..., delivery_ack: _Optional[_Union[_shared_pb2.DeliveryAck, _Mapping]] = ..., session: _Optional[_Union[_shared_pb2.SessionFrame, _Mapping]] = ..., relay_response: _Optional[_Union[_shared_pb2.RelayResponse, _Mapping]] = ..., credential_receipt: _Optional[_Union[CredentialReceipt, _Mapping]] = ..., scenario_response: _Optional[_Union[_shared_pb2.ScenarioResponse, _Mapping]] = ..., artifact_receipt: _Optional[_Union[_shared_pb2.ArtifactReceipt, _Mapping]] = ...) -> None: ...
+    interactive_signal_response: InteractiveSignalResponse
+    def __init__(self, handshake: _Optional[_Union[Handshake, _Mapping]] = ..., heartbeat: _Optional[_Union[_shared_pb2.Heartbeat, _Mapping]] = ..., run_event: _Optional[_Union[_shared_pb2.RunEvent, _Mapping]] = ..., delivery_ack: _Optional[_Union[_shared_pb2.DeliveryAck, _Mapping]] = ..., session: _Optional[_Union[_shared_pb2.SessionFrame, _Mapping]] = ..., relay_response: _Optional[_Union[_shared_pb2.RelayResponse, _Mapping]] = ..., credential_receipt: _Optional[_Union[CredentialReceipt, _Mapping]] = ..., scenario_response: _Optional[_Union[_shared_pb2.ScenarioResponse, _Mapping]] = ..., artifact_receipt: _Optional[_Union[_shared_pb2.ArtifactReceipt, _Mapping]] = ..., interactive_signal_response: _Optional[_Union[InteractiveSignalResponse, _Mapping]] = ...) -> None: ...

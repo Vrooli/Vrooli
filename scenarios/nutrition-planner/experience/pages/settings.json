@@ -1,0 +1,363 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": [
+      "/settings"
+    ],
+    "purpose": "Control locale, units, theme, accessibility, automation, and AI settings, and surface workspace data health so unsafe or incomplete state is visible before it causes a decision.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-015",
+      "OT-P1-005",
+      "OT-P0-014",
+      "OT-P2-001",
+      "OT-P2-002",
+      "OT-P1-002"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The app remains fully usable with no model configured and says so rather than hiding the fallback."
+    },
+    {
+      "statement": "Locale, currency, and display units are separate settings and changing a display unit never changes the underlying quantity."
+    },
+    {
+      "statement": "Automation and notifications are opt-in, bounded, and reversible."
+    },
+    {
+      "statement": "Data health reports orphaned or conflicting records and links to the transfer center for recovery."
+    },
+    {
+      "statement": "Accessibility preferences such as reduced motion are honored and reachable by keyboard."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The surface at rest with data present; the state a journey step assumes when it names none.",
+      "setup": {
+        "route": "/settings"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "First read of the page's data; layout is reserved so nothing shifts on arrival.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "loading"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "The read succeeded and there is genuinely nothing, which is distinct from not-yet-loaded.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some contributing data could not be read; what is missing is named rather than shown as zero.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next available action are stated.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "validation-error",
+      "description": "Input was rejected before submission; the offending field is identified next to it.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
+    },
+    {
+      "id": "saving",
+      "description": "A write is in flight; the affected control says why it is unavailable.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
+      "id": "offline",
+      "description": "The client cannot reach the API; read-only or queued behavior is explained.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    },
+    {
+      "id": "no-provider",
+      "description": "No model or credentialed provider is configured; the page states that manual entry and deterministic planning remain fully available.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "no-provider"
+        }
+      }
+    },
+    {
+      "id": "data-health",
+      "description": "The workspace data health report is shown with orphaned, conflicting, or unreferenced records named and linked to recovery.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "data-health"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "locale-form",
+      "role": "form",
+      "description": "Locale, timezone, and currency, kept separate from display units."
+    },
+    {
+      "id": "currency-units",
+      "role": "combobox",
+      "description": "Display units and currency presentation, which do not change stored quantities."
+    },
+    {
+      "id": "theme-toggle",
+      "role": "radiogroup",
+      "description": "Light, dark, and system themes."
+    },
+    {
+      "id": "accessibility-options",
+      "role": "group",
+      "description": "Focus, motion, and status-cue preferences."
+    },
+    {
+      "id": "reduced-motion-toggle",
+      "role": "switch",
+      "description": "Honors the reduced-motion preference for page and selection motion."
+    },
+    {
+      "id": "automation-settings",
+      "role": "form",
+      "description": "Opt-in recurring draft generation and notification preferences in the profile timezone."
+    },
+    {
+      "id": "ai-provider-status",
+      "role": "status",
+      "description": "Whether an optional model adapter is configured."
+    },
+    {
+      "id": "budget-note",
+      "role": "note",
+      "description": "Per-workspace automation budget and the requirement that a model outage never blocks core workflows."
+    },
+    {
+      "id": "data-health-table",
+      "role": "table",
+      "name": "Data health",
+      "description": "Orphaned, conflicting, and unreferenced records across the workspace."
+    },
+    {
+      "id": "orphan-findings",
+      "role": "list",
+      "description": "Per-record findings with a link to the owning surface or the transfer center."
+    },
+    {
+      "id": "export-link",
+      "role": "button",
+      "name": "Your food, portable.",
+      "description": "Opens the transfer center for recovery and export."
+    },
+    {
+      "id": "setup-resume",
+      "role": "status",
+      "description": "The resumable setup draft, separate from active rules."
+    },
+    {
+      "id": "no-provider-note",
+      "role": "alert",
+      "description": "States that recipes, editing, plans, and export all remain available without a configured model."
+    }
+  ],
+  "claims": [
+    {
+      "id": "useful-without-a-model",
+      "type": "element-present",
+      "statement": "With no provider configured, the page states that manual entry and deterministic planning remain fully available and never blocks a core workflow.",
+      "tier": "aspirational",
+      "elements": [
+        "ai-provider-status",
+        "no-provider-note",
+        "automation-settings"
+      ],
+      "states": [
+        "no-provider"
+      ]
+    },
+    {
+      "id": "locale-currency-units-separate",
+      "type": "element-present",
+      "statement": "Locale, currency, and display units are separate settings, and changing a display unit does not change the underlying quantity.",
+      "tier": "aspirational",
+      "elements": [
+        "locale-form",
+        "currency-units"
+      ]
+    },
+    {
+      "id": "data-health-is-surfaced",
+      "type": "element-present",
+      "statement": "Workspace data health names orphaned and conflicting records and links to the surface or transfer center that can resolve them.",
+      "tier": "aspirational",
+      "elements": [
+        "data-health-table",
+        "orphan-findings",
+        "export-link"
+      ],
+      "states": [
+        "data-health"
+      ]
+    },
+    {
+      "id": "reduced-motion-is-honored",
+      "type": "affordance-present",
+      "statement": "The reduced-motion preference is available and honored across page and selection motion.",
+      "tier": "aspirational",
+      "elements": [
+        "reduced-motion-toggle",
+        "accessibility-options"
+      ]
+    },
+    {
+      "id": "settings-are-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Theme, accessibility, and automation controls are fully keyboard reachable with visible focus.",
+      "tier": "aspirational",
+      "elements": [
+        "theme-toggle",
+        "accessibility-options",
+        "automation-settings"
+      ]
+    },
+    {
+      "id": "automation-is-opt-in",
+      "type": "element-present",
+      "statement": "Recurring drafts and notifications are opt-in, timezone-aware, and reversible, and a scheduled run never replaces an accepted plan.",
+      "tier": "aspirational",
+      "elements": [
+        "automation-settings",
+        "budget-note"
+      ]
+    },
+    {
+      "id": "resumable-draft-visible",
+      "type": "element-present",
+      "statement": "A resumable setup draft is reported separately from active rules so an unfinished change is never treated as active.",
+      "tier": "aspirational",
+      "elements": [
+        "setup-resume",
+        "locale-form"
+      ]
+    },
+    {
+      "id": "settings-no-horizontal-overflow",
+      "type": "no-document-horizontal-overflow",
+      "statement": "The settings forms and data-health table never scroll the whole document sideways.",
+      "tier": "aspirational",
+      "elements": [
+        "data-health-table"
+      ]
+    },
+    {
+      "id": "recovery-is-reachable",
+      "type": "affordance-present",
+      "statement": "The transfer center is reachable from data health so a flagged record has a recovery path.",
+      "tier": "aspirational",
+      "elements": [
+        "export-link",
+        "data-health-table"
+      ],
+      "states": [
+        "data-health"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "locale-form": {
+        "testid": "settings-locale-form"
+      },
+      "currency-units": {
+        "testid": "settings-currency-units"
+      },
+      "theme-toggle": {
+        "testid": "settings-theme-toggle"
+      },
+      "accessibility-options": {
+        "testid": "settings-accessibility-options"
+      },
+      "reduced-motion-toggle": {
+        "testid": "settings-reduced-motion-toggle"
+      },
+      "automation-settings": {
+        "testid": "settings-automation-settings"
+      },
+      "ai-provider-status": {
+        "testid": "settings-ai-provider-status"
+      },
+      "budget-note": {
+        "testid": "settings-budget-note"
+      },
+      "data-health-table": {
+        "testid": "settings-data-health-table"
+      },
+      "orphan-findings": {
+        "testid": "settings-orphan-findings"
+      },
+      "export-link": {
+        "testid": "settings-export-link"
+      },
+      "setup-resume": {
+        "testid": "settings-setup-resume"
+      },
+      "no-provider-note": {
+        "testid": "settings-no-provider-note"
+      }
+    }
+  }
+}

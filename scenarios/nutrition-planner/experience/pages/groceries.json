@@ -1,0 +1,431 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "groceries",
+    "title": "Groceries",
+    "routes": [
+      "/groceries"
+    ],
+    "purpose": "Turn an explicit plan and inventory policy into an honest shopping list with stock considered, package plans, separated unknown costs, and a distinct purchase confirmation.",
+    "prd_refs": [
+      "OT-P0-011",
+      "OT-P0-012",
+      "OT-P0-014",
+      "OT-P0-013"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The plan or date range the list was derived from is stated before any line."
+    },
+    {
+      "statement": "A shopping checkmark is checklist state only and is never presented as a purchase, stock change, or consumption."
+    },
+    {
+      "statement": "Quantity needed, stock considered, amount missing, package plan, and price each show their own unknown state."
+    },
+    {
+      "statement": "The checkout summary separates priced packages from unpriced items and from unmodeled costs such as tax or delivery."
+    },
+    {
+      "statement": "Explicitly adding purchases to the pantry previews idempotent quantity and price changes before any stock write."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The surface at rest with data present; the state a journey step assumes when it names none.",
+      "setup": {
+        "route": "/groceries"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "First read of the page's data; layout is reserved so nothing shifts on arrival.",
+      "setup": {
+        "route": "/groceries",
+        "query": {
+          "fixture": "loading"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "The read succeeded and there is genuinely nothing, which is distinct from not-yet-loaded.",
+      "setup": {
+        "route": "/groceries",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some contributing data could not be read; what is missing is named rather than shown as zero.",
+      "setup": {
+        "route": "/groceries",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "setup": {
+        "route": "/groceries",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next available action are stated.",
+      "setup": {
+        "route": "/groceries",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "validation-error",
+      "description": "Input was rejected before submission; the offending field is identified next to it.",
+      "setup": {
+        "route": "/groceries",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
+    },
+    {
+      "id": "saving",
+      "description": "A write is in flight; the affected control says why it is unavailable.",
+      "setup": {
+        "route": "/groceries",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
+      "id": "offline",
+      "description": "The client cannot reach the API; read-only or queued behavior is explained.",
+      "setup": {
+        "route": "/groceries",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    },
+    {
+      "id": "unknown-cost",
+      "description": "One or more package prices are missing; the checkout reads as a known subtotal plus a count of unpriced items.",
+      "setup": {
+        "route": "/groceries",
+        "query": {
+          "fixture": "unknown-cost"
+        }
+      }
+    },
+    {
+      "id": "stock-considered",
+      "description": "On-hand or asserted stock reduces the amount to buy without making consumed food economically free.",
+      "setup": {
+        "route": "/groceries",
+        "query": {
+          "fixture": "stock-considered"
+        }
+      }
+    },
+    {
+      "id": "purchase-confirm",
+      "description": "The explicit 'Add purchases to pantry' preview is open with quantities, packages, prices, and partial-fulfillment options.",
+      "setup": {
+        "route": "/groceries",
+        "query": {
+          "fixture": "purchase-confirm"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "plan-scope",
+      "role": "status",
+      "description": "The explicit plan or date range the list was derived from, such as 'For your meals, September 21-27.'"
+    },
+    {
+      "id": "checked-count",
+      "role": "status",
+      "description": "Checked and remaining counts, labeled so a check is not read as bought."
+    },
+    {
+      "id": "grocery-list",
+      "role": "table",
+      "name": "Shopping list",
+      "description": "Derived lines grouped practically, each with need, stock, missing, package, and price."
+    },
+    {
+      "id": "line-need",
+      "role": "status",
+      "description": "Total planned need for the line in a compatible unit."
+    },
+    {
+      "id": "line-stock",
+      "role": "status",
+      "description": "Stock considered, with its confidence state and last-updated origin."
+    },
+    {
+      "id": "line-missing",
+      "role": "status",
+      "description": "Amount missing after usable stock is considered."
+    },
+    {
+      "id": "line-package",
+      "role": "status",
+      "description": "Selected package plan and package count, which may be unknown even when the needed mass is known."
+    },
+    {
+      "id": "line-price",
+      "role": "status",
+      "description": "Estimated price with its observation date and conditions."
+    },
+    {
+      "id": "unknown-line-note",
+      "role": "note",
+      "description": "States which of amount, conversion, package size, or price is unknown for a line."
+    },
+    {
+      "id": "already-have-action",
+      "role": "button",
+      "name": "Already have",
+      "description": "Creates a stock assertion with its own basis, stronger than a shopping checkmark."
+    },
+    {
+      "id": "manual-item-form",
+      "role": "form",
+      "name": "Add a manual item",
+      "description": "Adds a manual grocery item that replanning cannot delete."
+    },
+    {
+      "id": "checkout-summary",
+      "role": "status",
+      "description": "Known package subtotal with unpriced and unmodeled costs kept separate."
+    },
+    {
+      "id": "unpriced-count",
+      "role": "status",
+      "description": "The count of items without a usable price."
+    },
+    {
+      "id": "excluded-costs-note",
+      "role": "note",
+      "description": "Names tax, delivery, travel, or membership conditions that are not modeled."
+    },
+    {
+      "id": "purchase-action",
+      "role": "button",
+      "name": "Add purchases to pantry",
+      "description": "Opens the explicit purchase preview; checking a box alone never triggers it."
+    },
+    {
+      "id": "purchase-dialog",
+      "role": "dialog",
+      "name": "Add purchases to pantry",
+      "description": "Previews quantities and prices and supports partial fulfillment before an idempotent write."
+    },
+    {
+      "id": "purchase-changes",
+      "role": "list",
+      "description": "The stock and spend changes the confirmation would create."
+    },
+    {
+      "id": "mismatch-badge",
+      "role": "status",
+      "description": "Flags an overridden purchase quantity whose plan need has since changed."
+    }
+  ],
+  "claims": [
+    {
+      "id": "derived-scope-is-stated",
+      "type": "element-present",
+      "statement": "The shopping list states the plan or date range it was derived from before any line.",
+      "tier": "aspirational",
+      "elements": [
+        "plan-scope"
+      ]
+    },
+    {
+      "id": "check-is-not-purchase",
+      "type": "element-present",
+      "statement": "Checking a line is presented as checklist state only, and adding to the pantry is a separate explicit confirmation.",
+      "tier": "aspirational",
+      "elements": [
+        "checked-count",
+        "purchase-action",
+        "purchase-dialog"
+      ],
+      "states": [
+        "purchase-confirm"
+      ]
+    },
+    {
+      "id": "unknown-cost-not-zero",
+      "type": "element-present",
+      "statement": "The checkout reports a known subtotal plus a count of unpriced items and never titles an incomplete subtotal as a total.",
+      "tier": "aspirational",
+      "elements": [
+        "checkout-summary",
+        "unpriced-count",
+        "excluded-costs-note"
+      ],
+      "states": [
+        "unknown-cost"
+      ]
+    },
+    {
+      "id": "package-plan-honest",
+      "type": "element-present",
+      "statement": "A line can show a known needed amount with an unknown package count, and the unknown part is named rather than filled in.",
+      "tier": "aspirational",
+      "elements": [
+        "line-package",
+        "line-need",
+        "unknown-line-note"
+      ]
+    },
+    {
+      "id": "stock-considered-separately",
+      "type": "element-present",
+      "statement": "Stock considered is shown separately from the amount missing, with its confidence state and origin.",
+      "tier": "aspirational",
+      "elements": [
+        "line-stock",
+        "line-missing"
+      ],
+      "states": [
+        "stock-considered"
+      ]
+    },
+    {
+      "id": "purchase-preview-before-write",
+      "type": "affordance-present",
+      "statement": "Adding purchases previews the quantity and price changes and supports partial fulfillment before an idempotent stock write.",
+      "tier": "aspirational",
+      "elements": [
+        "purchase-dialog",
+        "purchase-changes",
+        "purchase-action"
+      ],
+      "states": [
+        "purchase-confirm"
+      ]
+    },
+    {
+      "id": "manual-items-outlive-replan",
+      "type": "element-present",
+      "statement": "Manual grocery items remain distinct from plan-derived requirements and are not deleted by replanning.",
+      "tier": "aspirational",
+      "elements": [
+        "manual-item-form",
+        "grocery-list"
+      ]
+    },
+    {
+      "id": "overrides-keep-their-mismatch",
+      "type": "element-present",
+      "statement": "An overridden purchase quantity is retained and carries a mismatch badge when the plan need later changes.",
+      "tier": "aspirational",
+      "elements": [
+        "mismatch-badge"
+      ],
+      "states": [
+        "partial"
+      ]
+    },
+    {
+      "id": "already-have-is-an-assertion",
+      "type": "element-present",
+      "statement": "The 'Already have' action creates a stock assertion with its own basis rather than a bare checklist mark.",
+      "tier": "aspirational",
+      "elements": [
+        "already-have-action",
+        "line-stock"
+      ],
+      "states": [
+        "stock-considered"
+      ]
+    },
+    {
+      "id": "groceries-no-horizontal-overflow",
+      "type": "no-document-horizontal-overflow",
+      "statement": "The shopping list never scrolls the whole document sideways; each line wraps or scrolls within its own region.",
+      "tier": "aspirational",
+      "elements": [
+        "grocery-list"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "plan-scope": {
+        "testid": "groceries-plan-scope"
+      },
+      "checked-count": {
+        "testid": "groceries-checked-count"
+      },
+      "grocery-list": {
+        "testid": "groceries-grocery-list"
+      },
+      "line-need": {
+        "testid": "groceries-line-need"
+      },
+      "line-stock": {
+        "testid": "groceries-line-stock"
+      },
+      "line-missing": {
+        "testid": "groceries-line-missing"
+      },
+      "line-package": {
+        "testid": "groceries-line-package"
+      },
+      "line-price": {
+        "testid": "groceries-line-price"
+      },
+      "unknown-line-note": {
+        "testid": "groceries-unknown-line-note"
+      },
+      "already-have-action": {
+        "testid": "groceries-already-have-action"
+      },
+      "manual-item-form": {
+        "testid": "groceries-manual-item-form"
+      },
+      "checkout-summary": {
+        "testid": "groceries-checkout-summary"
+      },
+      "unpriced-count": {
+        "testid": "groceries-unpriced-count"
+      },
+      "excluded-costs-note": {
+        "testid": "groceries-excluded-costs-note"
+      },
+      "purchase-action": {
+        "testid": "groceries-purchase-action"
+      },
+      "purchase-dialog": {
+        "testid": "groceries-purchase-dialog"
+      },
+      "purchase-changes": {
+        "testid": "groceries-purchase-changes"
+      },
+      "mismatch-badge": {
+        "testid": "groceries-mismatch-badge"
+      }
+    }
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "_metadata": {
+    "module": "portability-and-printing",
+    "description": "Namespaced native import/export, semantic round-trip, legacy migration, recoverable restore, and printable PDF/CSV output.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PORT-001",
+      "title": "Native formats are namespaced and versioned",
+      "status": "planned",
+      "prd_ref": "OT-P0-013",
+      "category": "contract",
+      "criticality": "P0",
+      "description": "The scenario shall export native namespaced formats such as daily.recipes and daily.workspace with an independent schema version, a scope, a manifest of included record kinds and omissions, and records identified by kind, id, and positive revision.",
+      "tags": [
+        "export",
+        "format",
+        "versioning"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: FIX-09 identifies the format string as authoritative rather than the version number alone, resolves immutable references within the export, and reports omissions honestly (ACT-029)."
+        }
+      ]
+    },
+    {
+      "id": "PORT-002",
+      "title": "Import stages, reviews, and applies atomically",
+      "status": "planned",
+      "prd_ref": "OT-P0-013",
+      "category": "service",
+      "criticality": "P0",
+      "description": "The scenario shall detect format and version before parsing into the live model, produce a review with counts, duplicates, conflicts, missing dependencies, unsupported fields, and validation paths, and apply only selected valid changes in a transaction exactly once.",
+      "tags": [
+        "import",
+        "review",
+        "transaction"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: staging or cancelling changes nothing, exact canonical duplicates are skipped, and same-ID different-content conflicts use the chosen policy with references remapped (ACT-026, ACT-027)."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a semantic round-trip into an empty workspace re-exported and canonicalized equals the original including null and unknown states (ACT-029)."
+        }
+      ]
+    },
+    {
+      "id": "PORT-003",
+      "title": "Legacy prototype data migrates explicitly",
+      "status": "planned",
+      "prd_ref": "OT-P0-013",
+      "category": "adapter",
+      "criticality": "P0",
+      "description": "The scenario shall import legacy prototype recipes and workspaces only through a named legacy adapter that preserves source text and links, retains the reviewed flag and empty allergen lists as assertions rather than clearance, and never turns seven index-based choices into invented dated intake.",
+      "tags": [
+        "legacy",
+        "migration",
+        "provenance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: FIX-08 imports the minimal legacy recipe with evidence limitations, converts finite values to canonical decimals without added precision, and keeps sample data illustrative (ACT-030)."
+        }
+      ]
+    },
+    {
+      "id": "PORT-004",
+      "title": "Restore is recoverable and never carries authority",
+      "status": "planned",
+      "prd_ref": "OT-P0-013",
+      "category": "security",
+      "criticality": "P0",
+      "description": "A full restore shall validate references, show removal and replacement counts, create a recoverable checkpoint, compare the expected workspace revision, remap identity into the currently authorized workspace, and exclude secrets, authentication state, entitlements, and billing instruments.",
+      "tags": [
+        "restore",
+        "checkpoint",
+        "security"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a malformed reference prevents replacement and leaves the prior workspace intact; account authority is preserved and never imported from the backup (ACT-028)."
+        }
+      ]
+    },
+    {
+      "id": "PORT-005",
+      "title": "Printables are real vector PDFs and safe CSV",
+      "status": "planned",
+      "prd_ref": "OT-P0-013",
+      "category": "reporting",
+      "criticality": "P0",
+      "description": "The scenario shall generate real text/vector recipe and weekly PDFs with embedded fonts, labeled scope, page numbers, and printable A4 and US Letter layouts, plus CSV that keeps known numeric columns numeric and neutralizes formula interpretation for user-controlled text.",
+      "tags": [
+        "pdf",
+        "csv",
+        "printing"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: recipe and weekly PDFs download and open with legible long text, Unicode, branches, and open slots; CSV survives commas, quotes, line breaks, non-ASCII, and formula-like cells (ACT-031, ACT-032, ACT-033)."
+        }
+      ]
+    }
+  ]
+}

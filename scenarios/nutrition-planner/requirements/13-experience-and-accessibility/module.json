@@ -1,0 +1,105 @@
+{
+  "_metadata": {
+    "module": "experience-and-accessibility",
+    "description": "WCAG 2.2 AA target, keyboard and dialog behavior, responsive layouts, and reduced-motion interaction.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "UX-001",
+      "title": "Accessible keyboard and focus behavior is a product target",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The product shall target WCAG 2.2 AA with complete keyboard paths, visible focus, zoom and reflow support, semantic controls, and meaningful accessible names on icon-only actions.",
+      "tags": [
+        "accessibility",
+        "keyboard",
+        "wcag"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: keyboard-only traversal of the primary flows reaches every action and focus is never lost; zoom and reflow do not hide controls (ACT-037, ACT-038)."
+        },
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Planned accessibility review against the WCAG 2.2 AA target, recorded as an implementation target rather than a certification claim."
+        }
+      ]
+    },
+    {
+      "id": "UX-002",
+      "title": "Dialogs contain focus and status uses more than color",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "While a dialog is active, the scenario shall contain focus within it, close on Escape, restore focus to its trigger, convey status with icon or text in addition to color, and announce save errors and import outcomes through appropriate live regions.",
+      "tags": [
+        "dialogs",
+        "focus",
+        "status"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: opening, tabbing, escaping, and closing a dialog returns focus to the trigger, and error states carry a non-color cue (ACT-038)."
+        }
+      ]
+    },
+    {
+      "id": "UX-003",
+      "title": "Responsive layouts keep the primary action visible",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The scenario shall stack and reflow mobile and desktop layouts so the primary action remains visible without traversing a large analytics panel, and a wide recipe map shall scroll inside its own region with no page-level horizontal scrolling.",
+      "tags": [
+        "responsive",
+        "layout",
+        "mobile"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: narrow and desktop viewports render without page-level horizontal scroll, and a wide map confines scrolling to the map region (ACT-037)."
+        }
+      ]
+    },
+    {
+      "id": "UX-004",
+      "title": "Motion and touch targets respect user needs",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The scenario shall keep motion short and purposeful, honor reduced-motion preferences, and provide at least a comfortable 44 px target for frequent touch actions.",
+      "tags": [
+        "motion",
+        "touch-targets",
+        "accessibility"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: reduced-motion media preference suppresses selection and transition animation, and frequent controls measure at least 44 px (ACT-037)."
+        }
+      ]
+    }
+  ]
+}

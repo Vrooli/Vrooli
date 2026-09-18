@@ -50,6 +50,10 @@ service ConfigService {
   // provider-neutral on the wire; the configured provider adapter performs
   // the mutation and refuses conflicts with records owned elsewhere.
   rpc EnsureDNSRecord(EnsureDNSRecordRequest) returns (EnsureDNSRecordResponse);
+  // UpdateDNSRecord replaces one explicitly owned record in place.
+  rpc UpdateDNSRecord(UpdateDNSRecordRequest) returns (UpdateDNSRecordResponse);
+  // EnsureSPFRecord merges one provider mechanism into the single SPF record.
+  rpc EnsureSPFRecord(EnsureSPFRecordRequest) returns (EnsureSPFRecordResponse);
   // SwitchMode migrates between "remote" and "local" management modes. It is
   // PURE: it persists the mode and performs zero ingress writes.
   rpc SwitchMode(SwitchModeRequest) returns (SwitchModeResponse);
@@ -357,6 +361,8 @@ message EnsureDNSRecordRequest {
   bool proxied = 6;
   string owner = 7;
   bool dry_run = 8;
+  // MX preference. Ignored for other record types.
+  int32 priority = 9;
 }
 
 message EnsureDNSRecordResponse {
@@ -369,6 +375,52 @@ message EnsureDNSRecordResponse {
   bool dry_run = 7;
   string owner = 8;
   string message = 9;
+}
+
+message UpdateDNSRecordRequest {
+  string provider_profile = 1;
+  string hostname = 2;
+  string type = 3;
+  string content = 4;
+  int32 ttl = 5;
+  bool proxied = 6;
+  string owner = 7;
+  bool dry_run = 8;
+  int32 priority = 9;
+}
+
+message UpdateDNSRecordResponse {
+  string provider_profile = 1;
+  string hostname = 2;
+  string type = 3;
+  string record_id = 4;
+  bool created = 5;
+  bool changed = 6;
+  bool dry_run = 7;
+  string owner = 8;
+  string message = 9;
+}
+
+message EnsureSPFRecordRequest {
+  string provider_profile = 1;
+  string hostname = 2;
+  string mechanism = 3;
+  int32 ttl = 4;
+  string owner = 5;
+  bool dry_run = 6;
+}
+
+message EnsureSPFRecordResponse {
+  string provider_profile = 1;
+  string hostname = 2;
+  string merged_value = 3;
+  string record_id = 4;
+  bool created = 5;
+  bool changed = 6;
+  bool dry_run = 7;
+  string owner = 8;
+  int32 lookup_cost = 9;
+  string message = 10;
 }
 
 message SwitchModeRequest {

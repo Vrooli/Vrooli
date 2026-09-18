@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "tired-evening",
+    "title": "A tired evening",
+    "purpose": "From the next meal to a lower-effort alternative in one action, with cost and effort tradeoffs visible and dependent groceries recalculated, without giving a reason.",
+    "prd_refs": [
+      "OT-P0-008",
+      "OT-P0-006",
+      "OT-P0-011"
+    ]
+  },
+  "steps": [
+    {
+      "page": "today",
+      "intent": "See the next meal immediately with its reason and known metrics.",
+      "via": "next-meal-card"
+    },
+    {
+      "page": "today",
+      "state": "swap-open",
+      "intent": "Ask for less effort and compare eligible alternatives ranked for minimal active effort.",
+      "via": "easy-night-action"
+    },
+    {
+      "page": "today",
+      "state": "swap-open",
+      "intent": "Select an alternative that still passes every required rule and equipment constraint.",
+      "via": "swap-alternatives"
+    },
+    {
+      "page": "groceries",
+      "state": "unknown-cost",
+      "intent": "See the recalculated grocery requirements and which prices remain unknown.",
+      "via": "grocery-list"
+    }
+  ],
+  "claims": [
+    {
+      "id": "swap-is-optional-and-reason-free",
+      "type": "affordance-present",
+      "statement": "A swap can be requested and completed without giving a reason and without changing permanent priorities.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "blocked-alternatives-not-offered",
+      "type": "state-distinct",
+      "statement": "Alternatives that fail a required rule are separated and not selectable as compliant recommendations.",
+      "tier": "aspirational"
+    }
+  ]
+}

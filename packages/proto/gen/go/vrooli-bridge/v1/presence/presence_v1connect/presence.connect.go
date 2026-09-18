@@ -54,6 +54,9 @@ const (
 	// PresenceServiceReportScenarioResponseProcedure is the fully-qualified name of the
 	// PresenceService's ReportScenarioResponse RPC.
 	PresenceServiceReportScenarioResponseProcedure = "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportScenarioResponse"
+	// PresenceServiceReportInteractiveSignalResponseProcedure is the fully-qualified name of the
+	// PresenceService's ReportInteractiveSignalResponse RPC.
+	PresenceServiceReportInteractiveSignalResponseProcedure = "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportInteractiveSignalResponse"
 )
 
 // PresenceServiceClient is a client for the vrooli.vrooli_bridge.v1.presence.PresenceService
@@ -83,6 +86,9 @@ type PresenceServiceClient interface {
 	// ReportScenarioResponse returns the bounded response from a node-local
 	// scenario API for a control-plane proxied request.
 	ReportScenarioResponse(context.Context, *connect.Request[presence.ReportScenarioResponseRequest]) (*connect.Response[presence.ReportScenarioResponseResponse], error)
+	// ReportInteractiveSignalResponse returns the bounded answer/ICE response
+	// from the node-local Device Control companion to an owner signal call.
+	ReportInteractiveSignalResponse(context.Context, *connect.Request[presence.ReportInteractiveSignalResponseRequest]) (*connect.Response[presence.ReportInteractiveSignalResponseResponse], error)
 }
 
 // NewPresenceServiceClient constructs a client for the
@@ -139,18 +145,25 @@ func NewPresenceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(presenceServiceMethods.ByName("ReportScenarioResponse")),
 			connect.WithClientOptions(opts...),
 		),
+		reportInteractiveSignalResponse: connect.NewClient[presence.ReportInteractiveSignalResponseRequest, presence.ReportInteractiveSignalResponseResponse](
+			httpClient,
+			baseURL+PresenceServiceReportInteractiveSignalResponseProcedure,
+			connect.WithSchema(presenceServiceMethods.ByName("ReportInteractiveSignalResponse")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // presenceServiceClient implements PresenceServiceClient.
 type presenceServiceClient struct {
-	reportHeartbeat         *connect.Client[presence.ReportHeartbeatRequest, presence.ReportHeartbeatResponse]
-	reportDeliveryAck       *connect.Client[presence.ReportDeliveryAckRequest, presence.ReportDeliveryAckResponse]
-	reportSessionFrame      *connect.Client[presence.ReportSessionFrameRequest, presence.ReportSessionFrameResponse]
-	reportRelayResponse     *connect.Client[presence.ReportRelayResponseRequest, presence.ReportRelayResponseResponse]
-	reportCredentialReceipt *connect.Client[presence.ReportCredentialReceiptRequest, presence.ReportCredentialReceiptResponse]
-	reportArtifactReceipt   *connect.Client[presence.ReportArtifactReceiptRequest, presence.ReportArtifactReceiptResponse]
-	reportScenarioResponse  *connect.Client[presence.ReportScenarioResponseRequest, presence.ReportScenarioResponseResponse]
+	reportHeartbeat                 *connect.Client[presence.ReportHeartbeatRequest, presence.ReportHeartbeatResponse]
+	reportDeliveryAck               *connect.Client[presence.ReportDeliveryAckRequest, presence.ReportDeliveryAckResponse]
+	reportSessionFrame              *connect.Client[presence.ReportSessionFrameRequest, presence.ReportSessionFrameResponse]
+	reportRelayResponse             *connect.Client[presence.ReportRelayResponseRequest, presence.ReportRelayResponseResponse]
+	reportCredentialReceipt         *connect.Client[presence.ReportCredentialReceiptRequest, presence.ReportCredentialReceiptResponse]
+	reportArtifactReceipt           *connect.Client[presence.ReportArtifactReceiptRequest, presence.ReportArtifactReceiptResponse]
+	reportScenarioResponse          *connect.Client[presence.ReportScenarioResponseRequest, presence.ReportScenarioResponseResponse]
+	reportInteractiveSignalResponse *connect.Client[presence.ReportInteractiveSignalResponseRequest, presence.ReportInteractiveSignalResponseResponse]
 }
 
 // ReportHeartbeat calls vrooli.vrooli_bridge.v1.presence.PresenceService.ReportHeartbeat.
@@ -191,6 +204,12 @@ func (c *presenceServiceClient) ReportScenarioResponse(ctx context.Context, req 
 	return c.reportScenarioResponse.CallUnary(ctx, req)
 }
 
+// ReportInteractiveSignalResponse calls
+// vrooli.vrooli_bridge.v1.presence.PresenceService.ReportInteractiveSignalResponse.
+func (c *presenceServiceClient) ReportInteractiveSignalResponse(ctx context.Context, req *connect.Request[presence.ReportInteractiveSignalResponseRequest]) (*connect.Response[presence.ReportInteractiveSignalResponseResponse], error) {
+	return c.reportInteractiveSignalResponse.CallUnary(ctx, req)
+}
+
 // PresenceServiceHandler is an implementation of the
 // vrooli.vrooli_bridge.v1.presence.PresenceService service.
 type PresenceServiceHandler interface {
@@ -218,6 +237,9 @@ type PresenceServiceHandler interface {
 	// ReportScenarioResponse returns the bounded response from a node-local
 	// scenario API for a control-plane proxied request.
 	ReportScenarioResponse(context.Context, *connect.Request[presence.ReportScenarioResponseRequest]) (*connect.Response[presence.ReportScenarioResponseResponse], error)
+	// ReportInteractiveSignalResponse returns the bounded answer/ICE response
+	// from the node-local Device Control companion to an owner signal call.
+	ReportInteractiveSignalResponse(context.Context, *connect.Request[presence.ReportInteractiveSignalResponseRequest]) (*connect.Response[presence.ReportInteractiveSignalResponseResponse], error)
 }
 
 // NewPresenceServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -269,6 +291,12 @@ func NewPresenceServiceHandler(svc PresenceServiceHandler, opts ...connect.Handl
 		connect.WithSchema(presenceServiceMethods.ByName("ReportScenarioResponse")),
 		connect.WithHandlerOptions(opts...),
 	)
+	presenceServiceReportInteractiveSignalResponseHandler := connect.NewUnaryHandler(
+		PresenceServiceReportInteractiveSignalResponseProcedure,
+		svc.ReportInteractiveSignalResponse,
+		connect.WithSchema(presenceServiceMethods.ByName("ReportInteractiveSignalResponse")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_bridge.v1.presence.PresenceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case PresenceServiceReportHeartbeatProcedure:
@@ -285,6 +313,8 @@ func NewPresenceServiceHandler(svc PresenceServiceHandler, opts ...connect.Handl
 			presenceServiceReportArtifactReceiptHandler.ServeHTTP(w, r)
 		case PresenceServiceReportScenarioResponseProcedure:
 			presenceServiceReportScenarioResponseHandler.ServeHTTP(w, r)
+		case PresenceServiceReportInteractiveSignalResponseProcedure:
+			presenceServiceReportInteractiveSignalResponseHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -320,4 +350,8 @@ func (UnimplementedPresenceServiceHandler) ReportArtifactReceipt(context.Context
 
 func (UnimplementedPresenceServiceHandler) ReportScenarioResponse(context.Context, *connect.Request[presence.ReportScenarioResponseRequest]) (*connect.Response[presence.ReportScenarioResponseResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.presence.PresenceService.ReportScenarioResponse is not implemented"))
+}
+
+func (UnimplementedPresenceServiceHandler) ReportInteractiveSignalResponse(context.Context, *connect.Request[presence.ReportInteractiveSignalResponseRequest]) (*connect.Response[presence.ReportInteractiveSignalResponseResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.presence.PresenceService.ReportInteractiveSignalResponse is not implemented"))
 }

@@ -1,0 +1,99 @@
+{
+  "_metadata": {
+    "module": "today-and-swap",
+    "description": "The Today recommendation, reason-chipped swaps scoped to future occurrences, preview, undo, and immutable history.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "TODAY-001",
+      "title": "The next meal carries a calculation-backed reason",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The Today dashboard shall show the next uncompleted scheduled meal with one concise calculation-backed reason and an honest unknown state for energy, protein, portion cost, and time, where a missing price is never shown as $0.00 and a known zero remains distinguishable.",
+      "tags": [
+        "today",
+        "reasons",
+        "unknown"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a missing price renders as unpriced, while a zero-cost assertion renders as a known zero; the hero reason cites the evaluated values rather than an invented claim (ACT-022)."
+        }
+      ]
+    },
+    {
+      "id": "TODAY-002",
+      "title": "Swap alternatives are reason-chipped and scoped",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "When the user opens What sounds better?, the scenario shall show up to four useful alternatives with optional reason chips Something different, Less effort, Lower cost, and Missing ingredients, and a missing-ingredient exclusion shall belong to that swap only and never become a permanent dislike or allergy.",
+      "tags": [
+        "swap",
+        "reasons",
+        "scope"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a reason reranks or filters candidates, no reason is mandatory, and only alternatives that pass active hard constraints are selectable (ACT-018)."
+        }
+      ]
+    },
+    {
+      "id": "TODAY-003",
+      "title": "Swap previews scoped effects before apply",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "service",
+      "criticality": "P0",
+      "description": "A swap shall preview the updated day and week nutrients, portion and checkout costs, required groceries, and batch dependencies for the selected future occurrence and planned servings, leaving other occurrences unchanged unless the user explicitly replaces matching future occurrences with a count and preview.",
+      "tags": [
+        "swap",
+        "preview",
+        "impact"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: applying a single-slot swap affects only that occurrence, recomputes derived plan state, and offers a compact confirmation when a required target, batch, or lock is affected (ACT-018)."
+        }
+      ]
+    },
+    {
+      "id": "TODAY-004",
+      "title": "History is never edited and undo respects revisions",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "When a swap undoes, the scenario shall restore the prior occurrence and derived plan state only if the affected revisions still match, otherwise offer a fresh preview, and consumed occurrences and recorded history shall never be changed by a swap.",
+      "tags": [
+        "swap",
+        "undo",
+        "history"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a consumed occurrence is not offered for replacement, and a conflicting newer edit produces a new preview instead of being overwritten (ACT-018)."
+        }
+      ]
+    }
+  ]
+}

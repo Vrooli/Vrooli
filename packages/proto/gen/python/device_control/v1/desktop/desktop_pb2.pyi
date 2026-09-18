@@ -17,9 +17,61 @@ class SemanticMatchMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SEMANTIC_MATCH_MODE_EXACT: _ClassVar[SemanticMatchMode]
     SEMANTIC_MATCH_MODE_NORMALIZED: _ClassVar[SemanticMatchMode]
     SEMANTIC_MATCH_MODE_FUZZY: _ClassVar[SemanticMatchMode]
+
+class DesktopSignalKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    DESKTOP_SIGNAL_KIND_UNSPECIFIED: _ClassVar[DesktopSignalKind]
+    DESKTOP_SIGNAL_KIND_OFFER: _ClassVar[DesktopSignalKind]
+    DESKTOP_SIGNAL_KIND_ANSWER: _ClassVar[DesktopSignalKind]
+    DESKTOP_SIGNAL_KIND_ICE: _ClassVar[DesktopSignalKind]
+
+class ReadinessState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    READINESS_STATE_UNSPECIFIED: _ClassVar[ReadinessState]
+    READINESS_STATE_OFFLINE: _ClassVar[ReadinessState]
+    READINESS_STATE_NO_SESSION: _ClassVar[ReadinessState]
+    READINESS_STATE_PREBOOT: _ClassVar[ReadinessState]
+    READINESS_STATE_PERMISSION_REQUIRED: _ClassVar[ReadinessState]
+    READINESS_STATE_NO_DISPLAY: _ClassVar[ReadinessState]
+    READINESS_STATE_READY: _ClassVar[ReadinessState]
+    READINESS_STATE_LOCKED: _ClassVar[ReadinessState]
+    READINESS_STATE_FAILED: _ClassVar[ReadinessState]
+
+class InputOutcome(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    INPUT_OUTCOME_UNSPECIFIED: _ClassVar[InputOutcome]
+    INPUT_OUTCOME_ACCEPTED: _ClassVar[InputOutcome]
+    INPUT_OUTCOME_REJECTED: _ClassVar[InputOutcome]
+    INPUT_OUTCOME_UNKNOWN: _ClassVar[InputOutcome]
+
+class ClipboardDirection(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CLIPBOARD_DIRECTION_UNSPECIFIED: _ClassVar[ClipboardDirection]
+    CLIPBOARD_DIRECTION_TO_DESKTOP: _ClassVar[ClipboardDirection]
+    CLIPBOARD_DIRECTION_FROM_DESKTOP: _ClassVar[ClipboardDirection]
 SEMANTIC_MATCH_MODE_EXACT: SemanticMatchMode
 SEMANTIC_MATCH_MODE_NORMALIZED: SemanticMatchMode
 SEMANTIC_MATCH_MODE_FUZZY: SemanticMatchMode
+DESKTOP_SIGNAL_KIND_UNSPECIFIED: DesktopSignalKind
+DESKTOP_SIGNAL_KIND_OFFER: DesktopSignalKind
+DESKTOP_SIGNAL_KIND_ANSWER: DesktopSignalKind
+DESKTOP_SIGNAL_KIND_ICE: DesktopSignalKind
+READINESS_STATE_UNSPECIFIED: ReadinessState
+READINESS_STATE_OFFLINE: ReadinessState
+READINESS_STATE_NO_SESSION: ReadinessState
+READINESS_STATE_PREBOOT: ReadinessState
+READINESS_STATE_PERMISSION_REQUIRED: ReadinessState
+READINESS_STATE_NO_DISPLAY: ReadinessState
+READINESS_STATE_READY: ReadinessState
+READINESS_STATE_LOCKED: ReadinessState
+READINESS_STATE_FAILED: ReadinessState
+INPUT_OUTCOME_UNSPECIFIED: InputOutcome
+INPUT_OUTCOME_ACCEPTED: InputOutcome
+INPUT_OUTCOME_REJECTED: InputOutcome
+INPUT_OUTCOME_UNKNOWN: InputOutcome
+CLIPBOARD_DIRECTION_UNSPECIFIED: ClipboardDirection
+CLIPBOARD_DIRECTION_TO_DESKTOP: ClipboardDirection
+CLIPBOARD_DIRECTION_FROM_DESKTOP: ClipboardDirection
 
 class OwnerDescribeRequest(_message.Message):
     __slots__ = ()
@@ -712,3 +764,225 @@ class OwnerCompanionActivationRequest(_message.Message):
     companion_window: int
     include_image: bool
     def __init__(self, session: _Optional[_Union[_surface_pb2.SessionRef, _Mapping]] = ..., companion_window: _Optional[int] = ..., include_image: _Optional[bool] = ...) -> None: ...
+
+class DesktopSignalRequest(_message.Message):
+    __slots__ = ("session", "lease_id", "lease_epoch", "kind", "generation", "payload")
+    SESSION_FIELD_NUMBER: _ClassVar[int]
+    LEASE_ID_FIELD_NUMBER: _ClassVar[int]
+    LEASE_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    GENERATION_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    session: _surface_pb2.SessionRef
+    lease_id: str
+    lease_epoch: int
+    kind: DesktopSignalKind
+    generation: str
+    payload: bytes
+    def __init__(self, session: _Optional[_Union[_surface_pb2.SessionRef, _Mapping]] = ..., lease_id: _Optional[str] = ..., lease_epoch: _Optional[int] = ..., kind: _Optional[_Union[DesktopSignalKind, str]] = ..., generation: _Optional[str] = ..., payload: _Optional[bytes] = ...) -> None: ...
+
+class DesktopSignalResponse(_message.Message):
+    __slots__ = ("accepted", "kind", "generation", "payload", "reason_code")
+    ACCEPTED_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    GENERATION_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    REASON_CODE_FIELD_NUMBER: _ClassVar[int]
+    accepted: bool
+    kind: DesktopSignalKind
+    generation: str
+    payload: bytes
+    reason_code: str
+    def __init__(self, accepted: _Optional[bool] = ..., kind: _Optional[_Union[DesktopSignalKind, str]] = ..., generation: _Optional[str] = ..., payload: _Optional[bytes] = ..., reason_code: _Optional[str] = ...) -> None: ...
+
+class Display(_message.Message):
+    __slots__ = ("id", "name", "width", "height", "scale", "selected")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    WIDTH_FIELD_NUMBER: _ClassVar[int]
+    HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    SCALE_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    name: str
+    width: int
+    height: int
+    scale: float
+    selected: bool
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., scale: _Optional[float] = ..., selected: _Optional[bool] = ...) -> None: ...
+
+class DesktopReadiness(_message.Message):
+    __slots__ = ("state", "reason_code", "recovery", "active_user", "session_type", "displays", "selected_display_id", "capture_allowed", "input_allowed", "clipboard_allowed", "companion_version", "evidence_id", "observed_at", "expires_at", "geometry_revision")
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    REASON_CODE_FIELD_NUMBER: _ClassVar[int]
+    RECOVERY_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_USER_FIELD_NUMBER: _ClassVar[int]
+    SESSION_TYPE_FIELD_NUMBER: _ClassVar[int]
+    DISPLAYS_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_DISPLAY_ID_FIELD_NUMBER: _ClassVar[int]
+    CAPTURE_ALLOWED_FIELD_NUMBER: _ClassVar[int]
+    INPUT_ALLOWED_FIELD_NUMBER: _ClassVar[int]
+    CLIPBOARD_ALLOWED_FIELD_NUMBER: _ClassVar[int]
+    COMPANION_VERSION_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_ID_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    GEOMETRY_REVISION_FIELD_NUMBER: _ClassVar[int]
+    state: ReadinessState
+    reason_code: str
+    recovery: str
+    active_user: str
+    session_type: str
+    displays: _containers.RepeatedCompositeFieldContainer[Display]
+    selected_display_id: str
+    capture_allowed: bool
+    input_allowed: bool
+    clipboard_allowed: bool
+    companion_version: str
+    evidence_id: str
+    observed_at: _timestamp_pb2.Timestamp
+    expires_at: _timestamp_pb2.Timestamp
+    geometry_revision: str
+    def __init__(self, state: _Optional[_Union[ReadinessState, str]] = ..., reason_code: _Optional[str] = ..., recovery: _Optional[str] = ..., active_user: _Optional[str] = ..., session_type: _Optional[str] = ..., displays: _Optional[_Iterable[_Union[Display, _Mapping]]] = ..., selected_display_id: _Optional[str] = ..., capture_allowed: _Optional[bool] = ..., input_allowed: _Optional[bool] = ..., clipboard_allowed: _Optional[bool] = ..., companion_version: _Optional[str] = ..., evidence_id: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., geometry_revision: _Optional[str] = ...) -> None: ...
+
+class GetReadinessRequest(_message.Message):
+    __slots__ = ("surface", "display_id")
+    SURFACE_FIELD_NUMBER: _ClassVar[int]
+    DISPLAY_ID_FIELD_NUMBER: _ClassVar[int]
+    surface: _surface_pb2.SurfaceRef
+    display_id: str
+    def __init__(self, surface: _Optional[_Union[_surface_pb2.SurfaceRef, _Mapping]] = ..., display_id: _Optional[str] = ...) -> None: ...
+
+class DesktopSession(_message.Message):
+    __slots__ = ("ref", "channel_id", "lease_id", "lease_epoch", "selected_display_id", "codec", "connection_state", "viewer_count", "controller", "expires_at", "geometry_revision")
+    REF_FIELD_NUMBER: _ClassVar[int]
+    CHANNEL_ID_FIELD_NUMBER: _ClassVar[int]
+    LEASE_ID_FIELD_NUMBER: _ClassVar[int]
+    LEASE_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_DISPLAY_ID_FIELD_NUMBER: _ClassVar[int]
+    CODEC_FIELD_NUMBER: _ClassVar[int]
+    CONNECTION_STATE_FIELD_NUMBER: _ClassVar[int]
+    VIEWER_COUNT_FIELD_NUMBER: _ClassVar[int]
+    CONTROLLER_FIELD_NUMBER: _ClassVar[int]
+    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    GEOMETRY_REVISION_FIELD_NUMBER: _ClassVar[int]
+    ref: _surface_pb2.SessionRef
+    channel_id: str
+    lease_id: str
+    lease_epoch: int
+    selected_display_id: str
+    codec: str
+    connection_state: str
+    viewer_count: int
+    controller: bool
+    expires_at: _timestamp_pb2.Timestamp
+    geometry_revision: str
+    def __init__(self, ref: _Optional[_Union[_surface_pb2.SessionRef, _Mapping]] = ..., channel_id: _Optional[str] = ..., lease_id: _Optional[str] = ..., lease_epoch: _Optional[int] = ..., selected_display_id: _Optional[str] = ..., codec: _Optional[str] = ..., connection_state: _Optional[str] = ..., viewer_count: _Optional[int] = ..., controller: _Optional[bool] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., geometry_revision: _Optional[str] = ...) -> None: ...
+
+class OpenSessionRequest(_message.Message):
+    __slots__ = ("surface", "display_id", "ttl_seconds", "control", "clipboard", "request_id")
+    SURFACE_FIELD_NUMBER: _ClassVar[int]
+    DISPLAY_ID_FIELD_NUMBER: _ClassVar[int]
+    TTL_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    CONTROL_FIELD_NUMBER: _ClassVar[int]
+    CLIPBOARD_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    surface: _surface_pb2.SurfaceRef
+    display_id: str
+    ttl_seconds: int
+    control: bool
+    clipboard: bool
+    request_id: str
+    def __init__(self, surface: _Optional[_Union[_surface_pb2.SurfaceRef, _Mapping]] = ..., display_id: _Optional[str] = ..., ttl_seconds: _Optional[int] = ..., control: _Optional[bool] = ..., clipboard: _Optional[bool] = ..., request_id: _Optional[str] = ...) -> None: ...
+
+class AttachViewerRequest(_message.Message):
+    __slots__ = ("session", "request_id")
+    SESSION_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    session: _surface_pb2.SessionRef
+    request_id: str
+    def __init__(self, session: _Optional[_Union[_surface_pb2.SessionRef, _Mapping]] = ..., request_id: _Optional[str] = ...) -> None: ...
+
+class TakeControlRequest(_message.Message):
+    __slots__ = ("session", "takeover")
+    SESSION_FIELD_NUMBER: _ClassVar[int]
+    TAKEOVER_FIELD_NUMBER: _ClassVar[int]
+    session: _surface_pb2.SessionRef
+    takeover: bool
+    def __init__(self, session: _Optional[_Union[_surface_pb2.SessionRef, _Mapping]] = ..., takeover: _Optional[bool] = ...) -> None: ...
+
+class InputRequest(_message.Message):
+    __slots__ = ("session", "lease_id", "lease_epoch", "command_id", "display_id", "geometry_revision", "action")
+    SESSION_FIELD_NUMBER: _ClassVar[int]
+    LEASE_ID_FIELD_NUMBER: _ClassVar[int]
+    LEASE_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_ID_FIELD_NUMBER: _ClassVar[int]
+    DISPLAY_ID_FIELD_NUMBER: _ClassVar[int]
+    GEOMETRY_REVISION_FIELD_NUMBER: _ClassVar[int]
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    session: _surface_pb2.SessionRef
+    lease_id: str
+    lease_epoch: int
+    command_id: str
+    display_id: str
+    geometry_revision: str
+    action: Action
+    def __init__(self, session: _Optional[_Union[_surface_pb2.SessionRef, _Mapping]] = ..., lease_id: _Optional[str] = ..., lease_epoch: _Optional[int] = ..., command_id: _Optional[str] = ..., display_id: _Optional[str] = ..., geometry_revision: _Optional[str] = ..., action: _Optional[_Union[Action, _Mapping]] = ...) -> None: ...
+
+class InputReceipt(_message.Message):
+    __slots__ = ("command_id", "outcome", "reason_code", "observed_at")
+    COMMAND_ID_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    REASON_CODE_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    command_id: str
+    outcome: InputOutcome
+    reason_code: str
+    observed_at: _timestamp_pb2.Timestamp
+    def __init__(self, command_id: _Optional[str] = ..., outcome: _Optional[_Union[InputOutcome, str]] = ..., reason_code: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class ClipboardRequest(_message.Message):
+    __slots__ = ("session", "lease_id", "lease_epoch", "direction", "text", "command_id")
+    SESSION_FIELD_NUMBER: _ClassVar[int]
+    LEASE_ID_FIELD_NUMBER: _ClassVar[int]
+    LEASE_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    DIRECTION_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_ID_FIELD_NUMBER: _ClassVar[int]
+    session: _surface_pb2.SessionRef
+    lease_id: str
+    lease_epoch: int
+    direction: ClipboardDirection
+    text: str
+    command_id: str
+    def __init__(self, session: _Optional[_Union[_surface_pb2.SessionRef, _Mapping]] = ..., lease_id: _Optional[str] = ..., lease_epoch: _Optional[int] = ..., direction: _Optional[_Union[ClipboardDirection, str]] = ..., text: _Optional[str] = ..., command_id: _Optional[str] = ...) -> None: ...
+
+class ClipboardReceipt(_message.Message):
+    __slots__ = ("command_id", "outcome", "text_length", "reason_code", "observed_at", "text")
+    COMMAND_ID_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    TEXT_LENGTH_FIELD_NUMBER: _ClassVar[int]
+    REASON_CODE_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    command_id: str
+    outcome: InputOutcome
+    text_length: int
+    reason_code: str
+    observed_at: _timestamp_pb2.Timestamp
+    text: str
+    def __init__(self, command_id: _Optional[str] = ..., outcome: _Optional[_Union[InputOutcome, str]] = ..., text_length: _Optional[int] = ..., reason_code: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., text: _Optional[str] = ...) -> None: ...
+
+class CloseSessionRequest(_message.Message):
+    __slots__ = ("session", "reason")
+    SESSION_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    session: _surface_pb2.SessionRef
+    reason: str
+    def __init__(self, session: _Optional[_Union[_surface_pb2.SessionRef, _Mapping]] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class CloseSessionResponse(_message.Message):
+    __slots__ = ("closed",)
+    CLOSED_FIELD_NUMBER: _ClassVar[int]
+    closed: bool
+    def __init__(self, closed: _Optional[bool] = ...) -> None: ...

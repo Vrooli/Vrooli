@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "scenario": "nutrition-planner",
+  "input_digest": "sha256:e89921a1dab4f98d14e05ab97806bd33a928444e6410ad174d9bd5a17766f639",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "schemas/nutrition-planner/v1/notes/attachments.proto",
+    "schemas/nutrition-planner/v1/notes/notes.proto",
+    "schemas/nutrition-planner/v1/shared/errors.proto",
+    "schemas/nutrition-planner/v1/shared/health.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/nutrition-planner/v1/notes/attachments.pb.go": "sha256:f8ebfe169b6676a1d2e0802f2d1e1ea5373871c1e394b33d5b6bdbfc945320cc",
+    "gen/go/nutrition-planner/v1/notes/notes.pb.go": "sha256:23539dcc4d41d07b8f545805e9b9d8678c580e424f4feae201b49f4cfc1543e5",
+    "gen/go/nutrition-planner/v1/notes/notes_v1connect/notes.connect.go": "sha256:ab5937daae5f6e2faa09aa7efce246cedef7a1188dff53772501f8614e247f12",
+    "gen/go/nutrition-planner/v1/shared/errors.pb.go": "sha256:75e344647afad9910ec8ca8aa2fd9706b6ec672c3a8c66ee6df5e32b632dd0d5",
+    "gen/go/nutrition-planner/v1/shared/health.pb.go": "sha256:7800595bb8d53bf361847f0bedb3c72617326a353641e63a250ba2cf7e990a97",
+    "gen/python/nutrition_planner/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/nutrition_planner/v1/notes/attachments_pb2.py": "sha256:ab35b9bc04ad0cd14aa7b1864e9c94f68e98caa3262f333285b48e400404e03a",
+    "gen/python/nutrition_planner/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/nutrition_planner/v1/notes/notes_pb2.py": "sha256:d756a25f3994fe7a01f1c52a67499ca30f5cae95f723a86561bc52e0b834da69",
+    "gen/python/nutrition_planner/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/nutrition_planner/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/nutrition_planner/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/nutrition_planner/v1/shared/errors_pb2.py": "sha256:737570a09019c896d186646eb46bec1007f8a3c84b72c2c9ff5a952a67db5c4e",
+    "gen/python/nutrition_planner/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/nutrition_planner/v1/shared/health_pb2.py": "sha256:1abc9dcdd08bb3ef9a02c9ad1afeb0985a0a5af1245ed7d3d39764ec58d9c6b3",
+    "gen/python/nutrition_planner/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/nutrition_planner/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/nutrition-planner/v1/notes/attachments_pb.ts": "sha256:f5e683448c0b625f2802a02e30e30f270cd62d2d6efad7534fc99765d9556d27",
+    "gen/typescript/nutrition-planner/v1/notes/notes_pb.ts": "sha256:1cfbd58e2ee740da70d0ffaad1963ca299a3d05342114e050ee6e813b5b275fd",
+    "gen/typescript/nutrition-planner/v1/shared/errors_pb.ts": "sha256:4a99d223de74b04f7a9f65e341efb454334d755ea83895397aee21d5e444cf36",
+    "gen/typescript/nutrition-planner/v1/shared/health_pb.ts": "sha256:0cb7f18df42a1189f8839cf3e144e4a0fb6a8400100a7d0605b361b182caf1c8"
+  }
+}

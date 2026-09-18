@@ -55,6 +55,10 @@ service PresenceService {
   // ReportScenarioResponse returns the bounded response from a node-local
   // scenario API for a control-plane proxied request.
   rpc ReportScenarioResponse(ReportScenarioResponseRequest) returns (ReportScenarioResponseResponse);
+
+  // ReportInteractiveSignalResponse returns the bounded answer/ICE response
+  // from the node-local Device Control companion to an owner signal call.
+  rpc ReportInteractiveSignalResponse(ReportInteractiveSignalResponseRequest) returns (ReportInteractiveSignalResponseResponse);
 }
 
 message ReportHeartbeatRequest {
@@ -124,5 +128,13 @@ message ReportScenarioResponseRequest {
 }
 
 message ReportScenarioResponseResponse {
+  bool accepted = 1;
+}
+
+message ReportInteractiveSignalResponseRequest {
+  vrooli.vrooli_bridge.v1.channel.InteractiveSignalResponse response = 1;
+}
+
+message ReportInteractiveSignalResponseResponse {
   bool accepted = 1;
 }

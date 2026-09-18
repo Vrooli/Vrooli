@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "cooking-and-logging",
+    "title": "Cooking and logging",
+    "purpose": "Follow one pinned revision through focused cooking mode, finish the batch, and record eating a serving as a separate action that can be corrected.",
+    "prd_refs": [
+      "OT-P0-005",
+      "OT-P0-004",
+      "OT-P0-014",
+      "OT-P0-011"
+    ]
+  },
+  "steps": [
+    {
+      "page": "recipe",
+      "intent": "Open the pinned revision and scale the displayed servings if the batch needs it.",
+      "via": "serving-selector"
+    },
+    {
+      "page": "recipe",
+      "state": "cook-mode",
+      "intent": "Follow one prominent step while marking completion separately from viewing.",
+      "via": "current-step"
+    },
+    {
+      "page": "recipe",
+      "state": "cook-mode",
+      "intent": "Finish cooking to create a prepared batch from the pinned revision.",
+      "via": "cooked-action"
+    },
+    {
+      "page": "recipe",
+      "state": "cook-mode",
+      "intent": "Record eating a serving as a distinct consumption event.",
+      "via": "ate-action"
+    }
+  ],
+  "claims": [
+    {
+      "id": "cooking-does-not-imply-eating",
+      "type": "state-covered",
+      "statement": "A person can cook without consuming, consume leftovers without cooking again, or close the viewer without logging anything.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "correction-reverses-effects-once",
+      "type": "state-covered",
+      "statement": "Undo creates a correction and reverses linked inventory effects transactionally rather than double-applying them.",
+      "tier": "aspirational"
+    }
+  ]
+}

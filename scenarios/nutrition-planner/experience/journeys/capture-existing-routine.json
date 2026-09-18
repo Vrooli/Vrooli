@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "capture-existing-routine",
+    "title": "Capture an existing routine",
+    "purpose": "Turn rough pasted text or a sequence of meal names into a review queue of detected meals, slots, foods, and supplements without inventing quantities, brands, or doses.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P1-001",
+      "OT-P0-010"
+    ]
+  },
+  "steps": [
+    {
+      "page": "meals",
+      "intent": "Paste or name the meals and supplements I already take without entering nutrition.",
+      "via": "quick-capture-form"
+    },
+    {
+      "page": "meals",
+      "state": "needs-review",
+      "intent": "Review the detected items and answer only the material quantity and duplicate questions.",
+      "via": "fit-status"
+    },
+    {
+      "page": "kitchen",
+      "state": "routine-setup",
+      "intent": "Accept recurring baseline slots and express the supplements as a fixed schedule.",
+      "via": "target-editor"
+    },
+    {
+      "page": "kitchen",
+      "state": "validation-error",
+      "intent": "Correct an inverted target bound before saving the routine.",
+      "via": "target-editor"
+    }
+  ],
+  "claims": [
+    {
+      "id": "rough-text-becomes-a-review-queue",
+      "type": "state-covered",
+      "statement": "Rough text becomes a review queue, and the system preserves the source text without inventing amounts, brands, or doses.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "recurring-slots-become-anchors",
+      "type": "affordance-present",
+      "statement": "Accepted recurring slots become baseline templates while the flexible slots remain open to later variation.",
+      "tier": "aspirational"
+    }
+  ]
+}

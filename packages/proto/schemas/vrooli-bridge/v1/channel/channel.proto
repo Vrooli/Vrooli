@@ -365,6 +365,33 @@ message RelayCancel {
   reserved 3 to 15;
 }
 
+// InteractiveSignal carries one bounded browser/companion WebRTC signal over
+// the already-authenticated node channel. Bridge forwards it opaquely; the
+// node-local Device Control companion owns SDP/ICE parsing.
+message InteractiveSignal {
+  string channel_id = 1;
+  string node_id = 2;
+  uint64 lease_epoch = 3;
+  uint32 kind = 4;
+  string generation = 5;
+  bytes payload = 6;
+  string request_id = 7;
+  string session_id = 8;
+  string lease_id = 9;
+}
+
+message InteractiveSignalResponse {
+  string channel_id = 1;
+  uint64 lease_epoch = 2;
+  uint32 kind = 3;
+  string generation = 4;
+  bytes payload = 5;
+  bool accepted = 6;
+  string reason_code = 7;
+  string request_id = 8;
+  string node_id = 10;
+}
+
 // RunEvent streams a durable run's progress back to the control plane (node →
 // control plane, OT-P0-005). The runs domain proxies these to the block-once
 // wait verb so a re-attaching client sees the same stream.
@@ -391,6 +418,7 @@ message ServerFrame {
     CredentialGrant credential_grant = 13;
     ScenarioRequest scenario_request = 14;
     ArtifactDelivery artifact_delivery = 15;
+    InteractiveSignal interactive_signal = 16;
   }
 }
 
@@ -432,5 +460,6 @@ message NodeFrame {
     CredentialReceipt credential_receipt = 7;
     shared.ScenarioResponse scenario_response = 8;
     shared.ArtifactReceipt artifact_receipt = 9;
+    InteractiveSignalResponse interactive_signal_response = 10;
   }
 }

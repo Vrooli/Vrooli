@@ -55,6 +55,12 @@ const (
 	// ConfigServiceEnsureDNSRecordProcedure is the fully-qualified name of the ConfigService's
 	// EnsureDNSRecord RPC.
 	ConfigServiceEnsureDNSRecordProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/EnsureDNSRecord"
+	// ConfigServiceUpdateDNSRecordProcedure is the fully-qualified name of the ConfigService's
+	// UpdateDNSRecord RPC.
+	ConfigServiceUpdateDNSRecordProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/UpdateDNSRecord"
+	// ConfigServiceEnsureSPFRecordProcedure is the fully-qualified name of the ConfigService's
+	// EnsureSPFRecord RPC.
+	ConfigServiceEnsureSPFRecordProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/EnsureSPFRecord"
 	// ConfigServiceSwitchModeProcedure is the fully-qualified name of the ConfigService's SwitchMode
 	// RPC.
 	ConfigServiceSwitchModeProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/SwitchMode"
@@ -110,6 +116,10 @@ type ConfigServiceClient interface {
 	// provider-neutral on the wire; the configured provider adapter performs
 	// the mutation and refuses conflicts with records owned elsewhere.
 	EnsureDNSRecord(context.Context, *connect.Request[config.EnsureDNSRecordRequest]) (*connect.Response[config.EnsureDNSRecordResponse], error)
+	// UpdateDNSRecord replaces one explicitly owned record in place.
+	UpdateDNSRecord(context.Context, *connect.Request[config.UpdateDNSRecordRequest]) (*connect.Response[config.UpdateDNSRecordResponse], error)
+	// EnsureSPFRecord merges one provider mechanism into the single SPF record.
+	EnsureSPFRecord(context.Context, *connect.Request[config.EnsureSPFRecordRequest]) (*connect.Response[config.EnsureSPFRecordResponse], error)
 	// SwitchMode migrates between "remote" and "local" management modes. It is
 	// PURE: it persists the mode and performs zero ingress writes.
 	SwitchMode(context.Context, *connect.Request[config.SwitchModeRequest]) (*connect.Response[config.SwitchModeResponse], error)
@@ -202,6 +212,18 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(configServiceMethods.ByName("EnsureDNSRecord")),
 			connect.WithClientOptions(opts...),
 		),
+		updateDNSRecord: connect.NewClient[config.UpdateDNSRecordRequest, config.UpdateDNSRecordResponse](
+			httpClient,
+			baseURL+ConfigServiceUpdateDNSRecordProcedure,
+			connect.WithSchema(configServiceMethods.ByName("UpdateDNSRecord")),
+			connect.WithClientOptions(opts...),
+		),
+		ensureSPFRecord: connect.NewClient[config.EnsureSPFRecordRequest, config.EnsureSPFRecordResponse](
+			httpClient,
+			baseURL+ConfigServiceEnsureSPFRecordProcedure,
+			connect.WithSchema(configServiceMethods.ByName("EnsureSPFRecord")),
+			connect.WithClientOptions(opts...),
+		),
 		switchMode: connect.NewClient[config.SwitchModeRequest, config.SwitchModeResponse](
 			httpClient,
 			baseURL+ConfigServiceSwitchModeProcedure,
@@ -263,6 +285,8 @@ type configServiceClient struct {
 	clearCloudflareCredentials *connect.Client[config.ClearCloudflareCredentialsRequest, config.ClearCloudflareCredentialsResponse]
 	sync                       *connect.Client[config.SyncRequest, config.SyncResponse]
 	ensureDNSRecord            *connect.Client[config.EnsureDNSRecordRequest, config.EnsureDNSRecordResponse]
+	updateDNSRecord            *connect.Client[config.UpdateDNSRecordRequest, config.UpdateDNSRecordResponse]
+	ensureSPFRecord            *connect.Client[config.EnsureSPFRecordRequest, config.EnsureSPFRecordResponse]
 	switchMode                 *connect.Client[config.SwitchModeRequest, config.SwitchModeResponse]
 	getDrift                   *connect.Client[config.GetDriftRequest, config.GetDriftResponse]
 	adoptIngress               *connect.Client[config.AdoptIngressRequest, config.AdoptIngressResponse]
@@ -313,6 +337,16 @@ func (c *configServiceClient) Sync(ctx context.Context, req *connect.Request[con
 // EnsureDNSRecord calls vrooli.tunnel_manager.v1.config.ConfigService.EnsureDNSRecord.
 func (c *configServiceClient) EnsureDNSRecord(ctx context.Context, req *connect.Request[config.EnsureDNSRecordRequest]) (*connect.Response[config.EnsureDNSRecordResponse], error) {
 	return c.ensureDNSRecord.CallUnary(ctx, req)
+}
+
+// UpdateDNSRecord calls vrooli.tunnel_manager.v1.config.ConfigService.UpdateDNSRecord.
+func (c *configServiceClient) UpdateDNSRecord(ctx context.Context, req *connect.Request[config.UpdateDNSRecordRequest]) (*connect.Response[config.UpdateDNSRecordResponse], error) {
+	return c.updateDNSRecord.CallUnary(ctx, req)
+}
+
+// EnsureSPFRecord calls vrooli.tunnel_manager.v1.config.ConfigService.EnsureSPFRecord.
+func (c *configServiceClient) EnsureSPFRecord(ctx context.Context, req *connect.Request[config.EnsureSPFRecordRequest]) (*connect.Response[config.EnsureSPFRecordResponse], error) {
+	return c.ensureSPFRecord.CallUnary(ctx, req)
 }
 
 // SwitchMode calls vrooli.tunnel_manager.v1.config.ConfigService.SwitchMode.
@@ -387,6 +421,10 @@ type ConfigServiceHandler interface {
 	// provider-neutral on the wire; the configured provider adapter performs
 	// the mutation and refuses conflicts with records owned elsewhere.
 	EnsureDNSRecord(context.Context, *connect.Request[config.EnsureDNSRecordRequest]) (*connect.Response[config.EnsureDNSRecordResponse], error)
+	// UpdateDNSRecord replaces one explicitly owned record in place.
+	UpdateDNSRecord(context.Context, *connect.Request[config.UpdateDNSRecordRequest]) (*connect.Response[config.UpdateDNSRecordResponse], error)
+	// EnsureSPFRecord merges one provider mechanism into the single SPF record.
+	EnsureSPFRecord(context.Context, *connect.Request[config.EnsureSPFRecordRequest]) (*connect.Response[config.EnsureSPFRecordResponse], error)
 	// SwitchMode migrates between "remote" and "local" management modes. It is
 	// PURE: it persists the mode and performs zero ingress writes.
 	SwitchMode(context.Context, *connect.Request[config.SwitchModeRequest]) (*connect.Response[config.SwitchModeResponse], error)
@@ -475,6 +513,18 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(configServiceMethods.ByName("EnsureDNSRecord")),
 		connect.WithHandlerOptions(opts...),
 	)
+	configServiceUpdateDNSRecordHandler := connect.NewUnaryHandler(
+		ConfigServiceUpdateDNSRecordProcedure,
+		svc.UpdateDNSRecord,
+		connect.WithSchema(configServiceMethods.ByName("UpdateDNSRecord")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceEnsureSPFRecordHandler := connect.NewUnaryHandler(
+		ConfigServiceEnsureSPFRecordProcedure,
+		svc.EnsureSPFRecord,
+		connect.WithSchema(configServiceMethods.ByName("EnsureSPFRecord")),
+		connect.WithHandlerOptions(opts...),
+	)
 	configServiceSwitchModeHandler := connect.NewUnaryHandler(
 		ConfigServiceSwitchModeProcedure,
 		svc.SwitchMode,
@@ -541,6 +591,10 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 			configServiceSyncHandler.ServeHTTP(w, r)
 		case ConfigServiceEnsureDNSRecordProcedure:
 			configServiceEnsureDNSRecordHandler.ServeHTTP(w, r)
+		case ConfigServiceUpdateDNSRecordProcedure:
+			configServiceUpdateDNSRecordHandler.ServeHTTP(w, r)
+		case ConfigServiceEnsureSPFRecordProcedure:
+			configServiceEnsureSPFRecordHandler.ServeHTTP(w, r)
 		case ConfigServiceSwitchModeProcedure:
 			configServiceSwitchModeHandler.ServeHTTP(w, r)
 		case ConfigServiceGetDriftProcedure:
@@ -596,6 +650,14 @@ func (UnimplementedConfigServiceHandler) Sync(context.Context, *connect.Request[
 
 func (UnimplementedConfigServiceHandler) EnsureDNSRecord(context.Context, *connect.Request[config.EnsureDNSRecordRequest]) (*connect.Response[config.EnsureDNSRecordResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.EnsureDNSRecord is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) UpdateDNSRecord(context.Context, *connect.Request[config.UpdateDNSRecordRequest]) (*connect.Response[config.UpdateDNSRecordResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.UpdateDNSRecord is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) EnsureSPFRecord(context.Context, *connect.Request[config.EnsureSPFRecordRequest]) (*connect.Response[config.EnsureSPFRecordResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.EnsureSPFRecord is not implemented"))
 }
 
 func (UnimplementedConfigServiceHandler) SwitchMode(context.Context, *connect.Request[config.SwitchModeRequest]) (*connect.Response[config.SwitchModeResponse], error) {

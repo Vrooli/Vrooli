@@ -286,3 +286,162 @@ message OwnerReadActivationRequest { common.v1.SessionRef session = 1; string co
 message CompanionActivationRequest { Lease lease = 1; uint64 companion_window = 2; uint32 companion_pid = 3; bool include_image = 4; }
 // No PID field: native owner derives process identity from the Unix connection.
 message OwnerCompanionActivationRequest { common.v1.SessionRef session = 1; uint64 companion_window = 2; bool include_image = 3; }
+
+// -----------------------------------------------------------------------------
+// Browser-operated desktop session contract.
+// -----------------------------------------------------------------------------
+
+service DesktopSessionService {
+ rpc GetReadiness(GetReadinessRequest) returns (DesktopReadiness);
+ rpc OpenSession(OpenSessionRequest) returns (DesktopSession);
+ rpc AttachViewer(AttachViewerRequest) returns (DesktopSession);
+ rpc TakeControl(TakeControlRequest) returns (DesktopSession);
+ rpc Signal(DesktopSignalRequest) returns (DesktopSignalResponse);
+ rpc Input(InputRequest) returns (InputReceipt);
+  rpc Clipboard(ClipboardRequest) returns (ClipboardReceipt);
+  rpc CloseSession(CloseSessionRequest) returns (CloseSessionResponse);
+}
+
+enum DesktopSignalKind {
+ DESKTOP_SIGNAL_KIND_UNSPECIFIED = 0;
+ DESKTOP_SIGNAL_KIND_OFFER = 1;
+ DESKTOP_SIGNAL_KIND_ANSWER = 2;
+ DESKTOP_SIGNAL_KIND_ICE = 3;
+}
+
+message DesktopSignalRequest {
+ common.v1.SessionRef session = 1;
+ string lease_id = 2;
+ uint64 lease_epoch = 3;
+ DesktopSignalKind kind = 4;
+ string generation = 5;
+ bytes payload = 6;
+}
+
+message DesktopSignalResponse {
+ bool accepted = 1;
+ DesktopSignalKind kind = 2;
+ string generation = 3;
+ bytes payload = 4;
+ string reason_code = 5;
+}
+
+enum ReadinessState {
+  READINESS_STATE_UNSPECIFIED = 0;
+  READINESS_STATE_OFFLINE = 1;
+  READINESS_STATE_NO_SESSION = 2;
+  READINESS_STATE_PREBOOT = 3;
+  READINESS_STATE_PERMISSION_REQUIRED = 4;
+  READINESS_STATE_NO_DISPLAY = 5;
+  READINESS_STATE_READY = 6;
+  READINESS_STATE_LOCKED = 7;
+  READINESS_STATE_FAILED = 8;
+}
+
+enum InputOutcome {
+  INPUT_OUTCOME_UNSPECIFIED = 0;
+  INPUT_OUTCOME_ACCEPTED = 1;
+  INPUT_OUTCOME_REJECTED = 2;
+  INPUT_OUTCOME_UNKNOWN = 3;
+}
+
+enum ClipboardDirection {
+  CLIPBOARD_DIRECTION_UNSPECIFIED = 0;
+  CLIPBOARD_DIRECTION_TO_DESKTOP = 1;
+  CLIPBOARD_DIRECTION_FROM_DESKTOP = 2;
+}
+
+message Display {
+  string id = 1;
+  string name = 2;
+  uint32 width = 3;
+  uint32 height = 4;
+  float scale = 5;
+  bool selected = 6;
+}
+
+message DesktopReadiness {
+  ReadinessState state = 1;
+  string reason_code = 2;
+  string recovery = 3;
+  string active_user = 4;
+  string session_type = 5;
+  repeated Display displays = 6;
+  string selected_display_id = 7;
+  bool capture_allowed = 8;
+  bool input_allowed = 9;
+  bool clipboard_allowed = 10;
+  string companion_version = 11;
+  string evidence_id = 12;
+  google.protobuf.Timestamp observed_at = 13;
+  google.protobuf.Timestamp expires_at = 14;
+  string geometry_revision = 15;
+}
+
+message GetReadinessRequest { common.v1.SurfaceRef surface = 1; string display_id = 2; }
+
+message DesktopSession {
+  common.v1.SessionRef ref = 1;
+  string channel_id = 2;
+  string lease_id = 3;
+  uint64 lease_epoch = 4;
+  string selected_display_id = 5;
+  string codec = 6;
+  string connection_state = 7;
+  uint32 viewer_count = 8;
+  bool controller = 9;
+  google.protobuf.Timestamp expires_at = 10;
+  string geometry_revision = 11;
+}
+
+message OpenSessionRequest {
+  common.v1.SurfaceRef surface = 1;
+  string display_id = 2;
+  uint32 ttl_seconds = 3;
+  bool control = 4;
+  bool clipboard = 5;
+  string request_id = 6;
+}
+
+message AttachViewerRequest { common.v1.SessionRef session = 1; string request_id = 2; }
+message TakeControlRequest { common.v1.SessionRef session = 1; bool takeover = 2; }
+
+message InputRequest {
+  common.v1.SessionRef session = 1;
+  string lease_id = 2;
+  uint64 lease_epoch = 3;
+  string command_id = 4;
+  string display_id = 5;
+  string geometry_revision = 6;
+  Action action = 7;
+}
+
+message InputReceipt {
+  string command_id = 1;
+  InputOutcome outcome = 2;
+  string reason_code = 3;
+  google.protobuf.Timestamp observed_at = 4;
+}
+
+message ClipboardRequest {
+  common.v1.SessionRef session = 1;
+  string lease_id = 2;
+  uint64 lease_epoch = 3;
+  ClipboardDirection direction = 4;
+  string text = 5;
+  string command_id = 6;
+}
+
+message ClipboardReceipt {
+  string command_id = 1;
+  InputOutcome outcome = 2;
+  uint32 text_length = 3;
+  string reason_code = 4;
+  google.protobuf.Timestamp observed_at = 5;
+  // Returned only for an authorized FROM_DESKTOP request; it is never logged
+  // or persisted by Device Control.
+  string text = 6;
+}
+
+message CloseSessionRequest { common.v1.SessionRef session = 1; string reason = 2; }
+message CloseSessionResponse { bool closed = 1; }

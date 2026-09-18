@@ -1,0 +1,99 @@
+{
+  "_metadata": {
+    "module": "ai-assistance",
+    "description": "Optional AI capture-to-review pipeline, proposals that are never truth, and safe URL and attachment ingestion.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "AI-001",
+      "title": "Extraction follows a staged, reviewable pipeline",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "service",
+      "criticality": "P1",
+      "description": "The scenario should run a capture, extract, validate, compare, review, and apply pipeline with a persisted job boundary between stages, so a retried model request does not create another meal and only accepted changes apply through the manual domain operation with an expected revision.",
+      "tags": [
+        "ai",
+        "pipeline",
+        "review"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a malformed model field is rejected without losing the original source, and an accepted change applies through the same domain operation as a manual edit (ACT-056)."
+        }
+      ]
+    },
+    {
+      "id": "AI-002",
+      "title": "Proposals are never truth and never overwrite newer edits",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "policy",
+      "criticality": "P1",
+      "description": "An AI proposal should carry its schema version, source IDs, base draft revision, proposed changes, evidence references, unresolved questions, and validation warnings; it should never be treated as verified truth, never overwrite a newer user edit, and the application should remain useful with no model configured.",
+      "tags": [
+        "ai",
+        "proposals",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: an extraction finishing after a user edit shows a comparison instead of overwriting, and all deterministic flows remain available with the provider disabled (ACT-056)."
+        }
+      ]
+    },
+    {
+      "id": "AI-003",
+      "title": "URL ingestion is a controlled server-side fetch",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "security",
+      "criticality": "P1",
+      "description": "When a URL is fetched, the scenario should use a controlled server adapter that restricts supported schemes, rejects local, private, and link-local destinations, validates each redirect, bounds response size and time, and isolates outbound credentials.",
+      "tags": [
+        "ssrf",
+        "fetch",
+        "security"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a request to a loopback or metadata address is rejected, a redirect to a private address is blocked, and oversize or slow responses are terminated (ACT-057)."
+        }
+      ]
+    },
+    {
+      "id": "AI-004",
+      "title": "Fetched content is untrusted and the URL is always stored",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "security",
+      "criticality": "P1",
+      "description": "The scenario should store the source URL immediately even when fetching is unavailable, should treat all fetched content and document text as untrusted data that cannot mutate settings or trigger actions, and should render imported rich text through a safe allowed subset with enforced attachment limits.",
+      "tags": [
+        "untrusted-content",
+        "attachments",
+        "security"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a page containing ignore-previous-instructions text cannot change profile settings, and an unsupported attachment type or macro is refused (ACT-057)."
+        }
+      ]
+    }
+  ]
+}

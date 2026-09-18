@@ -76,6 +76,226 @@ func (SemanticMatchMode) EnumDescriptor() ([]byte, []int) {
 	return file_device_control_v1_desktop_desktop_proto_rawDescGZIP(), []int{0}
 }
 
+type DesktopSignalKind int32
+
+const (
+	DesktopSignalKind_DESKTOP_SIGNAL_KIND_UNSPECIFIED DesktopSignalKind = 0
+	DesktopSignalKind_DESKTOP_SIGNAL_KIND_OFFER       DesktopSignalKind = 1
+	DesktopSignalKind_DESKTOP_SIGNAL_KIND_ANSWER      DesktopSignalKind = 2
+	DesktopSignalKind_DESKTOP_SIGNAL_KIND_ICE         DesktopSignalKind = 3
+)
+
+// Enum value maps for DesktopSignalKind.
+var (
+	DesktopSignalKind_name = map[int32]string{
+		0: "DESKTOP_SIGNAL_KIND_UNSPECIFIED",
+		1: "DESKTOP_SIGNAL_KIND_OFFER",
+		2: "DESKTOP_SIGNAL_KIND_ANSWER",
+		3: "DESKTOP_SIGNAL_KIND_ICE",
+	}
+	DesktopSignalKind_value = map[string]int32{
+		"DESKTOP_SIGNAL_KIND_UNSPECIFIED": 0,
+		"DESKTOP_SIGNAL_KIND_OFFER":       1,
+		"DESKTOP_SIGNAL_KIND_ANSWER":      2,
+		"DESKTOP_SIGNAL_KIND_ICE":         3,
+	}
+)
+
+func (x DesktopSignalKind) Enum() *DesktopSignalKind {
+	p := new(DesktopSignalKind)
+	*p = x
+	return p
+}
+
+func (x DesktopSignalKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DesktopSignalKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_device_control_v1_desktop_desktop_proto_enumTypes[1].Descriptor()
+}
+
+func (DesktopSignalKind) Type() protoreflect.EnumType {
+	return &file_device_control_v1_desktop_desktop_proto_enumTypes[1]
+}
+
+func (x DesktopSignalKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DesktopSignalKind.Descriptor instead.
+func (DesktopSignalKind) EnumDescriptor() ([]byte, []int) {
+	return file_device_control_v1_desktop_desktop_proto_rawDescGZIP(), []int{1}
+}
+
+type ReadinessState int32
+
+const (
+	ReadinessState_READINESS_STATE_UNSPECIFIED         ReadinessState = 0
+	ReadinessState_READINESS_STATE_OFFLINE             ReadinessState = 1
+	ReadinessState_READINESS_STATE_NO_SESSION          ReadinessState = 2
+	ReadinessState_READINESS_STATE_PREBOOT             ReadinessState = 3
+	ReadinessState_READINESS_STATE_PERMISSION_REQUIRED ReadinessState = 4
+	ReadinessState_READINESS_STATE_NO_DISPLAY          ReadinessState = 5
+	ReadinessState_READINESS_STATE_READY               ReadinessState = 6
+	ReadinessState_READINESS_STATE_LOCKED              ReadinessState = 7
+	ReadinessState_READINESS_STATE_FAILED              ReadinessState = 8
+)
+
+// Enum value maps for ReadinessState.
+var (
+	ReadinessState_name = map[int32]string{
+		0: "READINESS_STATE_UNSPECIFIED",
+		1: "READINESS_STATE_OFFLINE",
+		2: "READINESS_STATE_NO_SESSION",
+		3: "READINESS_STATE_PREBOOT",
+		4: "READINESS_STATE_PERMISSION_REQUIRED",
+		5: "READINESS_STATE_NO_DISPLAY",
+		6: "READINESS_STATE_READY",
+		7: "READINESS_STATE_LOCKED",
+		8: "READINESS_STATE_FAILED",
+	}
+	ReadinessState_value = map[string]int32{
+		"READINESS_STATE_UNSPECIFIED":         0,
+		"READINESS_STATE_OFFLINE":             1,
+		"READINESS_STATE_NO_SESSION":          2,
+		"READINESS_STATE_PREBOOT":             3,
+		"READINESS_STATE_PERMISSION_REQUIRED": 4,
+		"READINESS_STATE_NO_DISPLAY":          5,
+		"READINESS_STATE_READY":               6,
+		"READINESS_STATE_LOCKED":              7,
+		"READINESS_STATE_FAILED":              8,
+	}
+)
+
+func (x ReadinessState) Enum() *ReadinessState {
+	p := new(ReadinessState)
+	*p = x
+	return p
+}
+
+func (x ReadinessState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ReadinessState) Descriptor() protoreflect.EnumDescriptor {
+	return file_device_control_v1_desktop_desktop_proto_enumTypes[2].Descriptor()
+}
+
+func (ReadinessState) Type() protoreflect.EnumType {
+	return &file_device_control_v1_desktop_desktop_proto_enumTypes[2]
+}
+
+func (x ReadinessState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ReadinessState.Descriptor instead.
+func (ReadinessState) EnumDescriptor() ([]byte, []int) {
+	return file_device_control_v1_desktop_desktop_proto_rawDescGZIP(), []int{2}
+}
+
+type InputOutcome int32
+
+const (
+	InputOutcome_INPUT_OUTCOME_UNSPECIFIED InputOutcome = 0
+	InputOutcome_INPUT_OUTCOME_ACCEPTED    InputOutcome = 1
+	InputOutcome_INPUT_OUTCOME_REJECTED    InputOutcome = 2
+	InputOutcome_INPUT_OUTCOME_UNKNOWN     InputOutcome = 3
+)
+
+// Enum value maps for InputOutcome.
+var (
+	InputOutcome_name = map[int32]string{
+		0: "INPUT_OUTCOME_UNSPECIFIED",
+		1: "INPUT_OUTCOME_ACCEPTED",
+		2: "INPUT_OUTCOME_REJECTED",
+		3: "INPUT_OUTCOME_UNKNOWN",
+	}
+	InputOutcome_value = map[string]int32{
+		"INPUT_OUTCOME_UNSPECIFIED": 0,
+		"INPUT_OUTCOME_ACCEPTED":    1,
+		"INPUT_OUTCOME_REJECTED":    2,
+		"INPUT_OUTCOME_UNKNOWN":     3,
+	}
+)
+
+func (x InputOutcome) Enum() *InputOutcome {
+	p := new(InputOutcome)
+	*p = x
+	return p
+}
+
+func (x InputOutcome) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (InputOutcome) Descriptor() protoreflect.EnumDescriptor {
+	return file_device_control_v1_desktop_desktop_proto_enumTypes[3].Descriptor()
+}
+
+func (InputOutcome) Type() protoreflect.EnumType {
+	return &file_device_control_v1_desktop_desktop_proto_enumTypes[3]
+}
+
+func (x InputOutcome) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use InputOutcome.Descriptor instead.
+func (InputOutcome) EnumDescriptor() ([]byte, []int) {
+	return file_device_control_v1_desktop_desktop_proto_rawDescGZIP(), []int{3}
+}
+
+type ClipboardDirection int32
+
+const (
+	ClipboardDirection_CLIPBOARD_DIRECTION_UNSPECIFIED  ClipboardDirection = 0
+	ClipboardDirection_CLIPBOARD_DIRECTION_TO_DESKTOP   ClipboardDirection = 1
+	ClipboardDirection_CLIPBOARD_DIRECTION_FROM_DESKTOP ClipboardDirection = 2
+)
+
+// Enum value maps for ClipboardDirection.
+var (
+	ClipboardDirection_name = map[int32]string{
+		0: "CLIPBOARD_DIRECTION_UNSPECIFIED",
+		1: "CLIPBOARD_DIRECTION_TO_DESKTOP",
+		2: "CLIPBOARD_DIRECTION_FROM_DESKTOP",
+	}
+	ClipboardDirection_value = map[string]int32{
+		"CLIPBOARD_DIRECTION_UNSPECIFIED":  0,
+		"CLIPBOARD_DIRECTION_TO_DESKTOP":   1,
+		"CLIPBOARD_DIRECTION_FROM_DESKTOP": 2,
+	}
+)
+
+func (x ClipboardDirection) Enum() *ClipboardDirection {
+	p := new(ClipboardDirection)
+	*p = x
+	return p
+}
+
+func (x ClipboardDirection) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ClipboardDirection) Descriptor() protoreflect.EnumDescriptor {
+	return file_device_control_v1_desktop_desktop_proto_enumTypes[4].Descriptor()
+}
+
+func (ClipboardDirection) Type() protoreflect.EnumType {
+	return &file_device_control_v1_desktop_desktop_proto_enumTypes[4]
+}
+
+func (x ClipboardDirection) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ClipboardDirection.Descriptor instead.
+func (ClipboardDirection) EnumDescriptor() ([]byte, []int) {
+	return file_device_control_v1_desktop_desktop_proto_rawDescGZIP(), []int{4}
+}
+
 type PointerAction_Kind int32
 
 const (
@@ -115,11 +335,11 @@ func (x PointerAction_Kind) String() string {
 }
 
 func (PointerAction_Kind) Descriptor() protoreflect.EnumDescriptor {
-	return file_device_control_v1_desktop_desktop_proto_enumTypes[1].Descriptor()
+	return file_device_control_v1_desktop_desktop_proto_enumTypes[5].Descriptor()
 }
 
 func (PointerAction_Kind) Type() protoreflect.EnumType {
-	return &file_device_control_v1_desktop_desktop_proto_enumTypes[1]
+	return &file_device_control_v1_desktop_desktop_proto_enumTypes[5]
 }
 
 func (x PointerAction_Kind) Number() protoreflect.EnumNumber {
@@ -167,11 +387,11 @@ func (x PointerAction_Button) String() string {
 }
 
 func (PointerAction_Button) Descriptor() protoreflect.EnumDescriptor {
-	return file_device_control_v1_desktop_desktop_proto_enumTypes[2].Descriptor()
+	return file_device_control_v1_desktop_desktop_proto_enumTypes[6].Descriptor()
 }
 
 func (PointerAction_Button) Type() protoreflect.EnumType {
-	return &file_device_control_v1_desktop_desktop_proto_enumTypes[2]
+	return &file_device_control_v1_desktop_desktop_proto_enumTypes[6]
 }
 
 func (x PointerAction_Button) Number() protoreflect.EnumNumber {
@@ -219,11 +439,11 @@ func (x KeyAction_Kind) String() string {
 }
 
 func (KeyAction_Kind) Descriptor() protoreflect.EnumDescriptor {
-	return file_device_control_v1_desktop_desktop_proto_enumTypes[3].Descriptor()
+	return file_device_control_v1_desktop_desktop_proto_enumTypes[7].Descriptor()
 }
 
 func (KeyAction_Kind) Type() protoreflect.EnumType {
-	return &file_device_control_v1_desktop_desktop_proto_enumTypes[3]
+	return &file_device_control_v1_desktop_desktop_proto_enumTypes[7]
 }
 
 func (x KeyAction_Kind) Number() protoreflect.EnumNumber {
@@ -271,11 +491,11 @@ func (x ResolveResponse_Disposition) String() string {
 }
 
 func (ResolveResponse_Disposition) Descriptor() protoreflect.EnumDescriptor {
-	return file_device_control_v1_desktop_desktop_proto_enumTypes[4].Descriptor()
+	return file_device_control_v1_desktop_desktop_proto_enumTypes[8].Descriptor()
 }
 
 func (ResolveResponse_Disposition) Type() protoreflect.EnumType {
-	return &file_device_control_v1_desktop_desktop_proto_enumTypes[4]
+	return &file_device_control_v1_desktop_desktop_proto_enumTypes[8]
 }
 
 func (x ResolveResponse_Disposition) Number() protoreflect.EnumNumber {
@@ -4091,6 +4311,1196 @@ func (x *OwnerCompanionActivationRequest) GetIncludeImage() bool {
 	return false
 }
 
+type DesktopSignalRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Session       *v1.SessionRef         `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
+	LeaseId       string                 `protobuf:"bytes,2,opt,name=lease_id,json=leaseId,proto3" json:"lease_id,omitempty"`
+	LeaseEpoch    uint64                 `protobuf:"varint,3,opt,name=lease_epoch,json=leaseEpoch,proto3" json:"lease_epoch,omitempty"`
+	Kind          DesktopSignalKind      `protobuf:"varint,4,opt,name=kind,proto3,enum=vrooli.device_control.v1.desktop.DesktopSignalKind" json:"kind,omitempty"`
+	Generation    string                 `protobuf:"bytes,5,opt,name=generation,proto3" json:"generation,omitempty"`
+	Payload       []byte                 `protobuf:"bytes,6,opt,name=payload,proto3" json:"payload,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DesktopSignalRequest) Reset() {
+	*x = DesktopSignalRequest{}
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DesktopSignalRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DesktopSignalRequest) ProtoMessage() {}
+
+func (x *DesktopSignalRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DesktopSignalRequest.ProtoReflect.Descriptor instead.
+func (*DesktopSignalRequest) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_desktop_desktop_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *DesktopSignalRequest) GetSession() *v1.SessionRef {
+	if x != nil {
+		return x.Session
+	}
+	return nil
+}
+
+func (x *DesktopSignalRequest) GetLeaseId() string {
+	if x != nil {
+		return x.LeaseId
+	}
+	return ""
+}
+
+func (x *DesktopSignalRequest) GetLeaseEpoch() uint64 {
+	if x != nil {
+		return x.LeaseEpoch
+	}
+	return 0
+}
+
+func (x *DesktopSignalRequest) GetKind() DesktopSignalKind {
+	if x != nil {
+		return x.Kind
+	}
+	return DesktopSignalKind_DESKTOP_SIGNAL_KIND_UNSPECIFIED
+}
+
+func (x *DesktopSignalRequest) GetGeneration() string {
+	if x != nil {
+		return x.Generation
+	}
+	return ""
+}
+
+func (x *DesktopSignalRequest) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+type DesktopSignalResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Accepted      bool                   `protobuf:"varint,1,opt,name=accepted,proto3" json:"accepted,omitempty"`
+	Kind          DesktopSignalKind      `protobuf:"varint,2,opt,name=kind,proto3,enum=vrooli.device_control.v1.desktop.DesktopSignalKind" json:"kind,omitempty"`
+	Generation    string                 `protobuf:"bytes,3,opt,name=generation,proto3" json:"generation,omitempty"`
+	Payload       []byte                 `protobuf:"bytes,4,opt,name=payload,proto3" json:"payload,omitempty"`
+	ReasonCode    string                 `protobuf:"bytes,5,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DesktopSignalResponse) Reset() {
+	*x = DesktopSignalResponse{}
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DesktopSignalResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DesktopSignalResponse) ProtoMessage() {}
+
+func (x *DesktopSignalResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DesktopSignalResponse.ProtoReflect.Descriptor instead.
+func (*DesktopSignalResponse) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_desktop_desktop_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *DesktopSignalResponse) GetAccepted() bool {
+	if x != nil {
+		return x.Accepted
+	}
+	return false
+}
+
+func (x *DesktopSignalResponse) GetKind() DesktopSignalKind {
+	if x != nil {
+		return x.Kind
+	}
+	return DesktopSignalKind_DESKTOP_SIGNAL_KIND_UNSPECIFIED
+}
+
+func (x *DesktopSignalResponse) GetGeneration() string {
+	if x != nil {
+		return x.Generation
+	}
+	return ""
+}
+
+func (x *DesktopSignalResponse) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *DesktopSignalResponse) GetReasonCode() string {
+	if x != nil {
+		return x.ReasonCode
+	}
+	return ""
+}
+
+type Display struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Width         uint32                 `protobuf:"varint,3,opt,name=width,proto3" json:"width,omitempty"`
+	Height        uint32                 `protobuf:"varint,4,opt,name=height,proto3" json:"height,omitempty"`
+	Scale         float32                `protobuf:"fixed32,5,opt,name=scale,proto3" json:"scale,omitempty"`
+	Selected      bool                   `protobuf:"varint,6,opt,name=selected,proto3" json:"selected,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Display) Reset() {
+	*x = Display{}
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Display) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Display) ProtoMessage() {}
+
+func (x *Display) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Display.ProtoReflect.Descriptor instead.
+func (*Display) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_desktop_desktop_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *Display) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Display) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Display) GetWidth() uint32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *Display) GetHeight() uint32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+func (x *Display) GetScale() float32 {
+	if x != nil {
+		return x.Scale
+	}
+	return 0
+}
+
+func (x *Display) GetSelected() bool {
+	if x != nil {
+		return x.Selected
+	}
+	return false
+}
+
+type DesktopReadiness struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	State             ReadinessState         `protobuf:"varint,1,opt,name=state,proto3,enum=vrooli.device_control.v1.desktop.ReadinessState" json:"state,omitempty"`
+	ReasonCode        string                 `protobuf:"bytes,2,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	Recovery          string                 `protobuf:"bytes,3,opt,name=recovery,proto3" json:"recovery,omitempty"`
+	ActiveUser        string                 `protobuf:"bytes,4,opt,name=active_user,json=activeUser,proto3" json:"active_user,omitempty"`
+	SessionType       string                 `protobuf:"bytes,5,opt,name=session_type,json=sessionType,proto3" json:"session_type,omitempty"`
+	Displays          []*Display             `protobuf:"bytes,6,rep,name=displays,proto3" json:"displays,omitempty"`
+	SelectedDisplayId string                 `protobuf:"bytes,7,opt,name=selected_display_id,json=selectedDisplayId,proto3" json:"selected_display_id,omitempty"`
+	CaptureAllowed    bool                   `protobuf:"varint,8,opt,name=capture_allowed,json=captureAllowed,proto3" json:"capture_allowed,omitempty"`
+	InputAllowed      bool                   `protobuf:"varint,9,opt,name=input_allowed,json=inputAllowed,proto3" json:"input_allowed,omitempty"`
+	ClipboardAllowed  bool                   `protobuf:"varint,10,opt,name=clipboard_allowed,json=clipboardAllowed,proto3" json:"clipboard_allowed,omitempty"`
+	CompanionVersion  string                 `protobuf:"bytes,11,opt,name=companion_version,json=companionVersion,proto3" json:"companion_version,omitempty"`
+	EvidenceId        string                 `protobuf:"bytes,12,opt,name=evidence_id,json=evidenceId,proto3" json:"evidence_id,omitempty"`
+	ObservedAt        *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	ExpiresAt         *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	GeometryRevision  string                 `protobuf:"bytes,15,opt,name=geometry_revision,json=geometryRevision,proto3" json:"geometry_revision,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *DesktopReadiness) Reset() {
+	*x = DesktopReadiness{}
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[59]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DesktopReadiness) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DesktopReadiness) ProtoMessage() {}
+
+func (x *DesktopReadiness) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[59]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DesktopReadiness.ProtoReflect.Descriptor instead.
+func (*DesktopReadiness) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_desktop_desktop_proto_rawDescGZIP(), []int{59}
+}
+
+func (x *DesktopReadiness) GetState() ReadinessState {
+	if x != nil {
+		return x.State
+	}
+	return ReadinessState_READINESS_STATE_UNSPECIFIED
+}
+
+func (x *DesktopReadiness) GetReasonCode() string {
+	if x != nil {
+		return x.ReasonCode
+	}
+	return ""
+}
+
+func (x *DesktopReadiness) GetRecovery() string {
+	if x != nil {
+		return x.Recovery
+	}
+	return ""
+}
+
+func (x *DesktopReadiness) GetActiveUser() string {
+	if x != nil {
+		return x.ActiveUser
+	}
+	return ""
+}
+
+func (x *DesktopReadiness) GetSessionType() string {
+	if x != nil {
+		return x.SessionType
+	}
+	return ""
+}
+
+func (x *DesktopReadiness) GetDisplays() []*Display {
+	if x != nil {
+		return x.Displays
+	}
+	return nil
+}
+
+func (x *DesktopReadiness) GetSelectedDisplayId() string {
+	if x != nil {
+		return x.SelectedDisplayId
+	}
+	return ""
+}
+
+func (x *DesktopReadiness) GetCaptureAllowed() bool {
+	if x != nil {
+		return x.CaptureAllowed
+	}
+	return false
+}
+
+func (x *DesktopReadiness) GetInputAllowed() bool {
+	if x != nil {
+		return x.InputAllowed
+	}
+	return false
+}
+
+func (x *DesktopReadiness) GetClipboardAllowed() bool {
+	if x != nil {
+		return x.ClipboardAllowed
+	}
+	return false
+}
+
+func (x *DesktopReadiness) GetCompanionVersion() string {
+	if x != nil {
+		return x.CompanionVersion
+	}
+	return ""
+}
+
+func (x *DesktopReadiness) GetEvidenceId() string {
+	if x != nil {
+		return x.EvidenceId
+	}
+	return ""
+}
+
+func (x *DesktopReadiness) GetObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return nil
+}
+
+func (x *DesktopReadiness) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+func (x *DesktopReadiness) GetGeometryRevision() string {
+	if x != nil {
+		return x.GeometryRevision
+	}
+	return ""
+}
+
+type GetReadinessRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Surface       *v1.SurfaceRef         `protobuf:"bytes,1,opt,name=surface,proto3" json:"surface,omitempty"`
+	DisplayId     string                 `protobuf:"bytes,2,opt,name=display_id,json=displayId,proto3" json:"display_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetReadinessRequest) Reset() {
+	*x = GetReadinessRequest{}
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[60]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetReadinessRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetReadinessRequest) ProtoMessage() {}
+
+func (x *GetReadinessRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[60]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetReadinessRequest.ProtoReflect.Descriptor instead.
+func (*GetReadinessRequest) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_desktop_desktop_proto_rawDescGZIP(), []int{60}
+}
+
+func (x *GetReadinessRequest) GetSurface() *v1.SurfaceRef {
+	if x != nil {
+		return x.Surface
+	}
+	return nil
+}
+
+func (x *GetReadinessRequest) GetDisplayId() string {
+	if x != nil {
+		return x.DisplayId
+	}
+	return ""
+}
+
+type DesktopSession struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Ref               *v1.SessionRef         `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
+	ChannelId         string                 `protobuf:"bytes,2,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
+	LeaseId           string                 `protobuf:"bytes,3,opt,name=lease_id,json=leaseId,proto3" json:"lease_id,omitempty"`
+	LeaseEpoch        uint64                 `protobuf:"varint,4,opt,name=lease_epoch,json=leaseEpoch,proto3" json:"lease_epoch,omitempty"`
+	SelectedDisplayId string                 `protobuf:"bytes,5,opt,name=selected_display_id,json=selectedDisplayId,proto3" json:"selected_display_id,omitempty"`
+	Codec             string                 `protobuf:"bytes,6,opt,name=codec,proto3" json:"codec,omitempty"`
+	ConnectionState   string                 `protobuf:"bytes,7,opt,name=connection_state,json=connectionState,proto3" json:"connection_state,omitempty"`
+	ViewerCount       uint32                 `protobuf:"varint,8,opt,name=viewer_count,json=viewerCount,proto3" json:"viewer_count,omitempty"`
+	Controller        bool                   `protobuf:"varint,9,opt,name=controller,proto3" json:"controller,omitempty"`
+	ExpiresAt         *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	GeometryRevision  string                 `protobuf:"bytes,11,opt,name=geometry_revision,json=geometryRevision,proto3" json:"geometry_revision,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *DesktopSession) Reset() {
+	*x = DesktopSession{}
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DesktopSession) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DesktopSession) ProtoMessage() {}
+
+func (x *DesktopSession) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DesktopSession.ProtoReflect.Descriptor instead.
+func (*DesktopSession) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_desktop_desktop_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *DesktopSession) GetRef() *v1.SessionRef {
+	if x != nil {
+		return x.Ref
+	}
+	return nil
+}
+
+func (x *DesktopSession) GetChannelId() string {
+	if x != nil {
+		return x.ChannelId
+	}
+	return ""
+}
+
+func (x *DesktopSession) GetLeaseId() string {
+	if x != nil {
+		return x.LeaseId
+	}
+	return ""
+}
+
+func (x *DesktopSession) GetLeaseEpoch() uint64 {
+	if x != nil {
+		return x.LeaseEpoch
+	}
+	return 0
+}
+
+func (x *DesktopSession) GetSelectedDisplayId() string {
+	if x != nil {
+		return x.SelectedDisplayId
+	}
+	return ""
+}
+
+func (x *DesktopSession) GetCodec() string {
+	if x != nil {
+		return x.Codec
+	}
+	return ""
+}
+
+func (x *DesktopSession) GetConnectionState() string {
+	if x != nil {
+		return x.ConnectionState
+	}
+	return ""
+}
+
+func (x *DesktopSession) GetViewerCount() uint32 {
+	if x != nil {
+		return x.ViewerCount
+	}
+	return 0
+}
+
+func (x *DesktopSession) GetController() bool {
+	if x != nil {
+		return x.Controller
+	}
+	return false
+}
+
+func (x *DesktopSession) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+func (x *DesktopSession) GetGeometryRevision() string {
+	if x != nil {
+		return x.GeometryRevision
+	}
+	return ""
+}
+
+type OpenSessionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Surface       *v1.SurfaceRef         `protobuf:"bytes,1,opt,name=surface,proto3" json:"surface,omitempty"`
+	DisplayId     string                 `protobuf:"bytes,2,opt,name=display_id,json=displayId,proto3" json:"display_id,omitempty"`
+	TtlSeconds    uint32                 `protobuf:"varint,3,opt,name=ttl_seconds,json=ttlSeconds,proto3" json:"ttl_seconds,omitempty"`
+	Control       bool                   `protobuf:"varint,4,opt,name=control,proto3" json:"control,omitempty"`
+	Clipboard     bool                   `protobuf:"varint,5,opt,name=clipboard,proto3" json:"clipboard,omitempty"`
+	RequestId     string                 `protobuf:"bytes,6,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenSessionRequest) Reset() {
+	*x = OpenSessionRequest{}
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[62]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenSessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenSessionRequest) ProtoMessage() {}
+
+func (x *OpenSessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[62]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenSessionRequest.ProtoReflect.Descriptor instead.
+func (*OpenSessionRequest) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_desktop_desktop_proto_rawDescGZIP(), []int{62}
+}
+
+func (x *OpenSessionRequest) GetSurface() *v1.SurfaceRef {
+	if x != nil {
+		return x.Surface
+	}
+	return nil
+}
+
+func (x *OpenSessionRequest) GetDisplayId() string {
+	if x != nil {
+		return x.DisplayId
+	}
+	return ""
+}
+
+func (x *OpenSessionRequest) GetTtlSeconds() uint32 {
+	if x != nil {
+		return x.TtlSeconds
+	}
+	return 0
+}
+
+func (x *OpenSessionRequest) GetControl() bool {
+	if x != nil {
+		return x.Control
+	}
+	return false
+}
+
+func (x *OpenSessionRequest) GetClipboard() bool {
+	if x != nil {
+		return x.Clipboard
+	}
+	return false
+}
+
+func (x *OpenSessionRequest) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+type AttachViewerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Session       *v1.SessionRef         `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
+	RequestId     string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AttachViewerRequest) Reset() {
+	*x = AttachViewerRequest{}
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[63]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AttachViewerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AttachViewerRequest) ProtoMessage() {}
+
+func (x *AttachViewerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[63]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AttachViewerRequest.ProtoReflect.Descriptor instead.
+func (*AttachViewerRequest) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_desktop_desktop_proto_rawDescGZIP(), []int{63}
+}
+
+func (x *AttachViewerRequest) GetSession() *v1.SessionRef {
+	if x != nil {
+		return x.Session
+	}
+	return nil
+}
+
+func (x *AttachViewerRequest) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+type TakeControlRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Session       *v1.SessionRef         `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
+	Takeover      bool                   `protobuf:"varint,2,opt,name=takeover,proto3" json:"takeover,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TakeControlRequest) Reset() {
+	*x = TakeControlRequest{}
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[64]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TakeControlRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TakeControlRequest) ProtoMessage() {}
+
+func (x *TakeControlRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[64]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TakeControlRequest.ProtoReflect.Descriptor instead.
+func (*TakeControlRequest) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_desktop_desktop_proto_rawDescGZIP(), []int{64}
+}
+
+func (x *TakeControlRequest) GetSession() *v1.SessionRef {
+	if x != nil {
+		return x.Session
+	}
+	return nil
+}
+
+func (x *TakeControlRequest) GetTakeover() bool {
+	if x != nil {
+		return x.Takeover
+	}
+	return false
+}
+
+type InputRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Session          *v1.SessionRef         `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
+	LeaseId          string                 `protobuf:"bytes,2,opt,name=lease_id,json=leaseId,proto3" json:"lease_id,omitempty"`
+	LeaseEpoch       uint64                 `protobuf:"varint,3,opt,name=lease_epoch,json=leaseEpoch,proto3" json:"lease_epoch,omitempty"`
+	CommandId        string                 `protobuf:"bytes,4,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
+	DisplayId        string                 `protobuf:"bytes,5,opt,name=display_id,json=displayId,proto3" json:"display_id,omitempty"`
+	GeometryRevision string                 `protobuf:"bytes,6,opt,name=geometry_revision,json=geometryRevision,proto3" json:"geometry_revision,omitempty"`
+	Action           *Action                `protobuf:"bytes,7,opt,name=action,proto3" json:"action,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *InputRequest) Reset() {
+	*x = InputRequest{}
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[65]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InputRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InputRequest) ProtoMessage() {}
+
+func (x *InputRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[65]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InputRequest.ProtoReflect.Descriptor instead.
+func (*InputRequest) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_desktop_desktop_proto_rawDescGZIP(), []int{65}
+}
+
+func (x *InputRequest) GetSession() *v1.SessionRef {
+	if x != nil {
+		return x.Session
+	}
+	return nil
+}
+
+func (x *InputRequest) GetLeaseId() string {
+	if x != nil {
+		return x.LeaseId
+	}
+	return ""
+}
+
+func (x *InputRequest) GetLeaseEpoch() uint64 {
+	if x != nil {
+		return x.LeaseEpoch
+	}
+	return 0
+}
+
+func (x *InputRequest) GetCommandId() string {
+	if x != nil {
+		return x.CommandId
+	}
+	return ""
+}
+
+func (x *InputRequest) GetDisplayId() string {
+	if x != nil {
+		return x.DisplayId
+	}
+	return ""
+}
+
+func (x *InputRequest) GetGeometryRevision() string {
+	if x != nil {
+		return x.GeometryRevision
+	}
+	return ""
+}
+
+func (x *InputRequest) GetAction() *Action {
+	if x != nil {
+		return x.Action
+	}
+	return nil
+}
+
+type InputReceipt struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CommandId     string                 `protobuf:"bytes,1,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
+	Outcome       InputOutcome           `protobuf:"varint,2,opt,name=outcome,proto3,enum=vrooli.device_control.v1.desktop.InputOutcome" json:"outcome,omitempty"`
+	ReasonCode    string                 `protobuf:"bytes,3,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	ObservedAt    *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InputReceipt) Reset() {
+	*x = InputReceipt{}
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[66]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InputReceipt) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InputReceipt) ProtoMessage() {}
+
+func (x *InputReceipt) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[66]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InputReceipt.ProtoReflect.Descriptor instead.
+func (*InputReceipt) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_desktop_desktop_proto_rawDescGZIP(), []int{66}
+}
+
+func (x *InputReceipt) GetCommandId() string {
+	if x != nil {
+		return x.CommandId
+	}
+	return ""
+}
+
+func (x *InputReceipt) GetOutcome() InputOutcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return InputOutcome_INPUT_OUTCOME_UNSPECIFIED
+}
+
+func (x *InputReceipt) GetReasonCode() string {
+	if x != nil {
+		return x.ReasonCode
+	}
+	return ""
+}
+
+func (x *InputReceipt) GetObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return nil
+}
+
+type ClipboardRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Session       *v1.SessionRef         `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
+	LeaseId       string                 `protobuf:"bytes,2,opt,name=lease_id,json=leaseId,proto3" json:"lease_id,omitempty"`
+	LeaseEpoch    uint64                 `protobuf:"varint,3,opt,name=lease_epoch,json=leaseEpoch,proto3" json:"lease_epoch,omitempty"`
+	Direction     ClipboardDirection     `protobuf:"varint,4,opt,name=direction,proto3,enum=vrooli.device_control.v1.desktop.ClipboardDirection" json:"direction,omitempty"`
+	Text          string                 `protobuf:"bytes,5,opt,name=text,proto3" json:"text,omitempty"`
+	CommandId     string                 `protobuf:"bytes,6,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClipboardRequest) Reset() {
+	*x = ClipboardRequest{}
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[67]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClipboardRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClipboardRequest) ProtoMessage() {}
+
+func (x *ClipboardRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[67]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClipboardRequest.ProtoReflect.Descriptor instead.
+func (*ClipboardRequest) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_desktop_desktop_proto_rawDescGZIP(), []int{67}
+}
+
+func (x *ClipboardRequest) GetSession() *v1.SessionRef {
+	if x != nil {
+		return x.Session
+	}
+	return nil
+}
+
+func (x *ClipboardRequest) GetLeaseId() string {
+	if x != nil {
+		return x.LeaseId
+	}
+	return ""
+}
+
+func (x *ClipboardRequest) GetLeaseEpoch() uint64 {
+	if x != nil {
+		return x.LeaseEpoch
+	}
+	return 0
+}
+
+func (x *ClipboardRequest) GetDirection() ClipboardDirection {
+	if x != nil {
+		return x.Direction
+	}
+	return ClipboardDirection_CLIPBOARD_DIRECTION_UNSPECIFIED
+}
+
+func (x *ClipboardRequest) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *ClipboardRequest) GetCommandId() string {
+	if x != nil {
+		return x.CommandId
+	}
+	return ""
+}
+
+type ClipboardReceipt struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	CommandId  string                 `protobuf:"bytes,1,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
+	Outcome    InputOutcome           `protobuf:"varint,2,opt,name=outcome,proto3,enum=vrooli.device_control.v1.desktop.InputOutcome" json:"outcome,omitempty"`
+	TextLength uint32                 `protobuf:"varint,3,opt,name=text_length,json=textLength,proto3" json:"text_length,omitempty"`
+	ReasonCode string                 `protobuf:"bytes,4,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	ObservedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	// Returned only for an authorized FROM_DESKTOP request; it is never logged
+	// or persisted by Device Control.
+	Text          string `protobuf:"bytes,6,opt,name=text,proto3" json:"text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClipboardReceipt) Reset() {
+	*x = ClipboardReceipt{}
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[68]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClipboardReceipt) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClipboardReceipt) ProtoMessage() {}
+
+func (x *ClipboardReceipt) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[68]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClipboardReceipt.ProtoReflect.Descriptor instead.
+func (*ClipboardReceipt) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_desktop_desktop_proto_rawDescGZIP(), []int{68}
+}
+
+func (x *ClipboardReceipt) GetCommandId() string {
+	if x != nil {
+		return x.CommandId
+	}
+	return ""
+}
+
+func (x *ClipboardReceipt) GetOutcome() InputOutcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return InputOutcome_INPUT_OUTCOME_UNSPECIFIED
+}
+
+func (x *ClipboardReceipt) GetTextLength() uint32 {
+	if x != nil {
+		return x.TextLength
+	}
+	return 0
+}
+
+func (x *ClipboardReceipt) GetReasonCode() string {
+	if x != nil {
+		return x.ReasonCode
+	}
+	return ""
+}
+
+func (x *ClipboardReceipt) GetObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return nil
+}
+
+func (x *ClipboardReceipt) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+type CloseSessionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Session       *v1.SessionRef         `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CloseSessionRequest) Reset() {
+	*x = CloseSessionRequest{}
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[69]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CloseSessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CloseSessionRequest) ProtoMessage() {}
+
+func (x *CloseSessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[69]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CloseSessionRequest.ProtoReflect.Descriptor instead.
+func (*CloseSessionRequest) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_desktop_desktop_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *CloseSessionRequest) GetSession() *v1.SessionRef {
+	if x != nil {
+		return x.Session
+	}
+	return nil
+}
+
+func (x *CloseSessionRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type CloseSessionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Closed        bool                   `protobuf:"varint,1,opt,name=closed,proto3" json:"closed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CloseSessionResponse) Reset() {
+	*x = CloseSessionResponse{}
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CloseSessionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CloseSessionResponse) ProtoMessage() {}
+
+func (x *CloseSessionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_desktop_desktop_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CloseSessionResponse.ProtoReflect.Descriptor instead.
+func (*CloseSessionResponse) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_desktop_desktop_proto_rawDescGZIP(), []int{70}
+}
+
+func (x *CloseSessionResponse) GetClosed() bool {
+	if x != nil {
+		return x.Closed
+	}
+	return false
+}
+
 var File_device_control_v1_desktop_desktop_proto protoreflect.FileDescriptor
 
 const file_device_control_v1_desktop_desktop_proto_rawDesc = "" +
@@ -4441,11 +5851,166 @@ const file_device_control_v1_desktop_desktop_proto_rawDesc = "" +
 	"\x1fOwnerCompanionActivationRequest\x12/\n" +
 	"\asession\x18\x01 \x01(\v2\x15.common.v1.SessionRefR\asession\x12)\n" +
 	"\x10companion_window\x18\x02 \x01(\x04R\x0fcompanionWindow\x12#\n" +
-	"\rinclude_image\x18\x03 \x01(\bR\fincludeImage*u\n" +
+	"\rinclude_image\x18\x03 \x01(\bR\fincludeImage\"\x86\x02\n" +
+	"\x14DesktopSignalRequest\x12/\n" +
+	"\asession\x18\x01 \x01(\v2\x15.common.v1.SessionRefR\asession\x12\x19\n" +
+	"\blease_id\x18\x02 \x01(\tR\aleaseId\x12\x1f\n" +
+	"\vlease_epoch\x18\x03 \x01(\x04R\n" +
+	"leaseEpoch\x12G\n" +
+	"\x04kind\x18\x04 \x01(\x0e23.vrooli.device_control.v1.desktop.DesktopSignalKindR\x04kind\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x05 \x01(\tR\n" +
+	"generation\x12\x18\n" +
+	"\apayload\x18\x06 \x01(\fR\apayload\"\xd7\x01\n" +
+	"\x15DesktopSignalResponse\x12\x1a\n" +
+	"\baccepted\x18\x01 \x01(\bR\baccepted\x12G\n" +
+	"\x04kind\x18\x02 \x01(\x0e23.vrooli.device_control.v1.desktop.DesktopSignalKindR\x04kind\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x03 \x01(\tR\n" +
+	"generation\x12\x18\n" +
+	"\apayload\x18\x04 \x01(\fR\apayload\x12\x1f\n" +
+	"\vreason_code\x18\x05 \x01(\tR\n" +
+	"reasonCode\"\x8d\x01\n" +
+	"\aDisplay\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
+	"\x05width\x18\x03 \x01(\rR\x05width\x12\x16\n" +
+	"\x06height\x18\x04 \x01(\rR\x06height\x12\x14\n" +
+	"\x05scale\x18\x05 \x01(\x02R\x05scale\x12\x1a\n" +
+	"\bselected\x18\x06 \x01(\bR\bselected\"\xc0\x05\n" +
+	"\x10DesktopReadiness\x12F\n" +
+	"\x05state\x18\x01 \x01(\x0e20.vrooli.device_control.v1.desktop.ReadinessStateR\x05state\x12\x1f\n" +
+	"\vreason_code\x18\x02 \x01(\tR\n" +
+	"reasonCode\x12\x1a\n" +
+	"\brecovery\x18\x03 \x01(\tR\brecovery\x12\x1f\n" +
+	"\vactive_user\x18\x04 \x01(\tR\n" +
+	"activeUser\x12!\n" +
+	"\fsession_type\x18\x05 \x01(\tR\vsessionType\x12E\n" +
+	"\bdisplays\x18\x06 \x03(\v2).vrooli.device_control.v1.desktop.DisplayR\bdisplays\x12.\n" +
+	"\x13selected_display_id\x18\a \x01(\tR\x11selectedDisplayId\x12'\n" +
+	"\x0fcapture_allowed\x18\b \x01(\bR\x0ecaptureAllowed\x12#\n" +
+	"\rinput_allowed\x18\t \x01(\bR\finputAllowed\x12+\n" +
+	"\x11clipboard_allowed\x18\n" +
+	" \x01(\bR\x10clipboardAllowed\x12+\n" +
+	"\x11companion_version\x18\v \x01(\tR\x10companionVersion\x12\x1f\n" +
+	"\vevidence_id\x18\f \x01(\tR\n" +
+	"evidenceId\x12;\n" +
+	"\vobserved_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"observedAt\x129\n" +
+	"\n" +
+	"expires_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12+\n" +
+	"\x11geometry_revision\x18\x0f \x01(\tR\x10geometryRevision\"e\n" +
+	"\x13GetReadinessRequest\x12/\n" +
+	"\asurface\x18\x01 \x01(\v2\x15.common.v1.SurfaceRefR\asurface\x12\x1d\n" +
+	"\n" +
+	"display_id\x18\x02 \x01(\tR\tdisplayId\"\xb0\x03\n" +
+	"\x0eDesktopSession\x12'\n" +
+	"\x03ref\x18\x01 \x01(\v2\x15.common.v1.SessionRefR\x03ref\x12\x1d\n" +
+	"\n" +
+	"channel_id\x18\x02 \x01(\tR\tchannelId\x12\x19\n" +
+	"\blease_id\x18\x03 \x01(\tR\aleaseId\x12\x1f\n" +
+	"\vlease_epoch\x18\x04 \x01(\x04R\n" +
+	"leaseEpoch\x12.\n" +
+	"\x13selected_display_id\x18\x05 \x01(\tR\x11selectedDisplayId\x12\x14\n" +
+	"\x05codec\x18\x06 \x01(\tR\x05codec\x12)\n" +
+	"\x10connection_state\x18\a \x01(\tR\x0fconnectionState\x12!\n" +
+	"\fviewer_count\x18\b \x01(\rR\vviewerCount\x12\x1e\n" +
+	"\n" +
+	"controller\x18\t \x01(\bR\n" +
+	"controller\x129\n" +
+	"\n" +
+	"expires_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12+\n" +
+	"\x11geometry_revision\x18\v \x01(\tR\x10geometryRevision\"\xdc\x01\n" +
+	"\x12OpenSessionRequest\x12/\n" +
+	"\asurface\x18\x01 \x01(\v2\x15.common.v1.SurfaceRefR\asurface\x12\x1d\n" +
+	"\n" +
+	"display_id\x18\x02 \x01(\tR\tdisplayId\x12\x1f\n" +
+	"\vttl_seconds\x18\x03 \x01(\rR\n" +
+	"ttlSeconds\x12\x18\n" +
+	"\acontrol\x18\x04 \x01(\bR\acontrol\x12\x1c\n" +
+	"\tclipboard\x18\x05 \x01(\bR\tclipboard\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x06 \x01(\tR\trequestId\"e\n" +
+	"\x13AttachViewerRequest\x12/\n" +
+	"\asession\x18\x01 \x01(\v2\x15.common.v1.SessionRefR\asession\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x02 \x01(\tR\trequestId\"a\n" +
+	"\x12TakeControlRequest\x12/\n" +
+	"\asession\x18\x01 \x01(\v2\x15.common.v1.SessionRefR\asession\x12\x1a\n" +
+	"\btakeover\x18\x02 \x01(\bR\btakeover\"\xa8\x02\n" +
+	"\fInputRequest\x12/\n" +
+	"\asession\x18\x01 \x01(\v2\x15.common.v1.SessionRefR\asession\x12\x19\n" +
+	"\blease_id\x18\x02 \x01(\tR\aleaseId\x12\x1f\n" +
+	"\vlease_epoch\x18\x03 \x01(\x04R\n" +
+	"leaseEpoch\x12\x1d\n" +
+	"\n" +
+	"command_id\x18\x04 \x01(\tR\tcommandId\x12\x1d\n" +
+	"\n" +
+	"display_id\x18\x05 \x01(\tR\tdisplayId\x12+\n" +
+	"\x11geometry_revision\x18\x06 \x01(\tR\x10geometryRevision\x12@\n" +
+	"\x06action\x18\a \x01(\v2(.vrooli.device_control.v1.desktop.ActionR\x06action\"\xd5\x01\n" +
+	"\fInputReceipt\x12\x1d\n" +
+	"\n" +
+	"command_id\x18\x01 \x01(\tR\tcommandId\x12H\n" +
+	"\aoutcome\x18\x02 \x01(\x0e2..vrooli.device_control.v1.desktop.InputOutcomeR\aoutcome\x12\x1f\n" +
+	"\vreason_code\x18\x03 \x01(\tR\n" +
+	"reasonCode\x12;\n" +
+	"\vobserved_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"observedAt\"\x86\x02\n" +
+	"\x10ClipboardRequest\x12/\n" +
+	"\asession\x18\x01 \x01(\v2\x15.common.v1.SessionRefR\asession\x12\x19\n" +
+	"\blease_id\x18\x02 \x01(\tR\aleaseId\x12\x1f\n" +
+	"\vlease_epoch\x18\x03 \x01(\x04R\n" +
+	"leaseEpoch\x12R\n" +
+	"\tdirection\x18\x04 \x01(\x0e24.vrooli.device_control.v1.desktop.ClipboardDirectionR\tdirection\x12\x12\n" +
+	"\x04text\x18\x05 \x01(\tR\x04text\x12\x1d\n" +
+	"\n" +
+	"command_id\x18\x06 \x01(\tR\tcommandId\"\x8e\x02\n" +
+	"\x10ClipboardReceipt\x12\x1d\n" +
+	"\n" +
+	"command_id\x18\x01 \x01(\tR\tcommandId\x12H\n" +
+	"\aoutcome\x18\x02 \x01(\x0e2..vrooli.device_control.v1.desktop.InputOutcomeR\aoutcome\x12\x1f\n" +
+	"\vtext_length\x18\x03 \x01(\rR\n" +
+	"textLength\x12\x1f\n" +
+	"\vreason_code\x18\x04 \x01(\tR\n" +
+	"reasonCode\x12;\n" +
+	"\vobserved_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"observedAt\x12\x12\n" +
+	"\x04text\x18\x06 \x01(\tR\x04text\"^\n" +
+	"\x13CloseSessionRequest\x12/\n" +
+	"\asession\x18\x01 \x01(\v2\x15.common.v1.SessionRefR\asession\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\".\n" +
+	"\x14CloseSessionResponse\x12\x16\n" +
+	"\x06closed\x18\x01 \x01(\bR\x06closed*u\n" +
 	"\x11SemanticMatchMode\x12\x1d\n" +
 	"\x19SEMANTIC_MATCH_MODE_EXACT\x10\x00\x12\"\n" +
 	"\x1eSEMANTIC_MATCH_MODE_NORMALIZED\x10\x01\x12\x1d\n" +
-	"\x19SEMANTIC_MATCH_MODE_FUZZY\x10\x022\x92\r\n" +
+	"\x19SEMANTIC_MATCH_MODE_FUZZY\x10\x02*\x94\x01\n" +
+	"\x11DesktopSignalKind\x12#\n" +
+	"\x1fDESKTOP_SIGNAL_KIND_UNSPECIFIED\x10\x00\x12\x1d\n" +
+	"\x19DESKTOP_SIGNAL_KIND_OFFER\x10\x01\x12\x1e\n" +
+	"\x1aDESKTOP_SIGNAL_KIND_ANSWER\x10\x02\x12\x1b\n" +
+	"\x17DESKTOP_SIGNAL_KIND_ICE\x10\x03*\xa7\x02\n" +
+	"\x0eReadinessState\x12\x1f\n" +
+	"\x1bREADINESS_STATE_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17READINESS_STATE_OFFLINE\x10\x01\x12\x1e\n" +
+	"\x1aREADINESS_STATE_NO_SESSION\x10\x02\x12\x1b\n" +
+	"\x17READINESS_STATE_PREBOOT\x10\x03\x12'\n" +
+	"#READINESS_STATE_PERMISSION_REQUIRED\x10\x04\x12\x1e\n" +
+	"\x1aREADINESS_STATE_NO_DISPLAY\x10\x05\x12\x19\n" +
+	"\x15READINESS_STATE_READY\x10\x06\x12\x1a\n" +
+	"\x16READINESS_STATE_LOCKED\x10\a\x12\x1a\n" +
+	"\x16READINESS_STATE_FAILED\x10\b*\x80\x01\n" +
+	"\fInputOutcome\x12\x1d\n" +
+	"\x19INPUT_OUTCOME_UNSPECIFIED\x10\x00\x12\x1a\n" +
+	"\x16INPUT_OUTCOME_ACCEPTED\x10\x01\x12\x1a\n" +
+	"\x16INPUT_OUTCOME_REJECTED\x10\x02\x12\x19\n" +
+	"\x15INPUT_OUTCOME_UNKNOWN\x10\x03*\x83\x01\n" +
+	"\x12ClipboardDirection\x12#\n" +
+	"\x1fCLIPBOARD_DIRECTION_UNSPECIFIED\x10\x00\x12\"\n" +
+	"\x1eCLIPBOARD_DIRECTION_TO_DESKTOP\x10\x01\x12$\n" +
+	" CLIPBOARD_DIRECTION_FROM_DESKTOP\x10\x022\x92\r\n" +
 	"\x14DesktopHelperService\x12\x91\x01\n" +
 	"\x1aCaptureCompanionActivation\x12<.vrooli.device_control.v1.desktop.CompanionActivationRequest\x1a5.vrooli.device_control.v1.desktop.ActivationReference\x12y\n" +
 	"\x11CaptureActivation\x12-.vrooli.device_control.v1.desktop.StopRequest\x1a5.vrooli.device_control.v1.desktop.ActivationReference\x12\x80\x01\n" +
@@ -4499,7 +6064,16 @@ const file_device_control_v1_desktop_desktop_proto_rawDesc = "" +
 	"\fApplications\x12:.vrooli.device_control.v1.desktop.OwnerApplicationsRequest\x1a6.vrooli.device_control.v1.desktop.ApplicationsResponse\x12s\n" +
 	"\aObserve\x125.vrooli.device_control.v1.desktop.OwnerObserveRequest\x1a1.vrooli.device_control.v1.desktop.ObserveResponse\x12g\n" +
 	"\x03Act\x121.vrooli.device_control.v1.desktop.OwnerActRequest\x1a-.vrooli.device_control.v1.desktop.ActResponse\x12j\n" +
-	"\x04Stop\x122.vrooli.device_control.v1.desktop.OwnerStopRequest\x1a..vrooli.device_control.v1.desktop.StopResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/desktop;desktopv1b\x06proto3"
+	"\x04Stop\x122.vrooli.device_control.v1.desktop.OwnerStopRequest\x1a..vrooli.device_control.v1.desktop.StopResponse2\xd1\a\n" +
+	"\x15DesktopSessionService\x12y\n" +
+	"\fGetReadiness\x125.vrooli.device_control.v1.desktop.GetReadinessRequest\x1a2.vrooli.device_control.v1.desktop.DesktopReadiness\x12u\n" +
+	"\vOpenSession\x124.vrooli.device_control.v1.desktop.OpenSessionRequest\x1a0.vrooli.device_control.v1.desktop.DesktopSession\x12w\n" +
+	"\fAttachViewer\x125.vrooli.device_control.v1.desktop.AttachViewerRequest\x1a0.vrooli.device_control.v1.desktop.DesktopSession\x12u\n" +
+	"\vTakeControl\x124.vrooli.device_control.v1.desktop.TakeControlRequest\x1a0.vrooli.device_control.v1.desktop.DesktopSession\x12y\n" +
+	"\x06Signal\x126.vrooli.device_control.v1.desktop.DesktopSignalRequest\x1a7.vrooli.device_control.v1.desktop.DesktopSignalResponse\x12g\n" +
+	"\x05Input\x12..vrooli.device_control.v1.desktop.InputRequest\x1a..vrooli.device_control.v1.desktop.InputReceipt\x12s\n" +
+	"\tClipboard\x122.vrooli.device_control.v1.desktop.ClipboardRequest\x1a2.vrooli.device_control.v1.desktop.ClipboardReceipt\x12}\n" +
+	"\fCloseSession\x125.vrooli.device_control.v1.desktop.CloseSessionRequest\x1a6.vrooli.device_control.v1.desktop.CloseSessionResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/desktop;desktopv1b\x06proto3"
 
 var (
 	file_device_control_v1_desktop_desktop_proto_rawDescOnce sync.Once
@@ -4513,252 +6087,309 @@ func file_device_control_v1_desktop_desktop_proto_rawDescGZIP() []byte {
 	return file_device_control_v1_desktop_desktop_proto_rawDescData
 }
 
-var file_device_control_v1_desktop_desktop_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_device_control_v1_desktop_desktop_proto_msgTypes = make([]protoimpl.MessageInfo, 56)
+var file_device_control_v1_desktop_desktop_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
+var file_device_control_v1_desktop_desktop_proto_msgTypes = make([]protoimpl.MessageInfo, 71)
 var file_device_control_v1_desktop_desktop_proto_goTypes = []any{
 	(SemanticMatchMode)(0),                  // 0: vrooli.device_control.v1.desktop.SemanticMatchMode
-	(PointerAction_Kind)(0),                 // 1: vrooli.device_control.v1.desktop.PointerAction.Kind
-	(PointerAction_Button)(0),               // 2: vrooli.device_control.v1.desktop.PointerAction.Button
-	(KeyAction_Kind)(0),                     // 3: vrooli.device_control.v1.desktop.KeyAction.Kind
-	(ResolveResponse_Disposition)(0),        // 4: vrooli.device_control.v1.desktop.ResolveResponse.Disposition
-	(*OwnerDescribeRequest)(nil),            // 5: vrooli.device_control.v1.desktop.OwnerDescribeRequest
-	(*OwnerDescribeResponse)(nil),           // 6: vrooli.device_control.v1.desktop.OwnerDescribeResponse
-	(*OwnerOpenRequest)(nil),                // 7: vrooli.device_control.v1.desktop.OwnerOpenRequest
-	(*OwnerOpenResponse)(nil),               // 8: vrooli.device_control.v1.desktop.OwnerOpenResponse
-	(*OwnerObserveRequest)(nil),             // 9: vrooli.device_control.v1.desktop.OwnerObserveRequest
-	(*OwnerActRequest)(nil),                 // 10: vrooli.device_control.v1.desktop.OwnerActRequest
-	(*OwnerStopRequest)(nil),                // 11: vrooli.device_control.v1.desktop.OwnerStopRequest
-	(*Lease)(nil),                           // 12: vrooli.device_control.v1.desktop.Lease
-	(*OpenRequest)(nil),                     // 13: vrooli.device_control.v1.desktop.OpenRequest
-	(*OpenResponse)(nil),                    // 14: vrooli.device_control.v1.desktop.OpenResponse
-	(*PointerAction)(nil),                   // 15: vrooli.device_control.v1.desktop.PointerAction
-	(*KeyAction)(nil),                       // 16: vrooli.device_control.v1.desktop.KeyAction
-	(*TextAction)(nil),                      // 17: vrooli.device_control.v1.desktop.TextAction
-	(*AssertTextAction)(nil),                // 18: vrooli.device_control.v1.desktop.AssertTextAction
-	(*InvokeAction)(nil),                    // 19: vrooli.device_control.v1.desktop.InvokeAction
-	(*SemanticElement)(nil),                 // 20: vrooli.device_control.v1.desktop.SemanticElement
-	(*SemanticObservation)(nil),             // 21: vrooli.device_control.v1.desktop.SemanticObservation
-	(*WheelAction)(nil),                     // 22: vrooli.device_control.v1.desktop.WheelAction
-	(*Action)(nil),                          // 23: vrooli.device_control.v1.desktop.Action
-	(*ActRequest)(nil),                      // 24: vrooli.device_control.v1.desktop.ActRequest
-	(*Receipt)(nil),                         // 25: vrooli.device_control.v1.desktop.Receipt
-	(*ActResponse)(nil),                     // 26: vrooli.device_control.v1.desktop.ActResponse
-	(*StopRequest)(nil),                     // 27: vrooli.device_control.v1.desktop.StopRequest
-	(*StopResponse)(nil),                    // 28: vrooli.device_control.v1.desktop.StopResponse
-	(*ObserveRequest)(nil),                  // 29: vrooli.device_control.v1.desktop.ObserveRequest
-	(*ObserveResponse)(nil),                 // 30: vrooli.device_control.v1.desktop.ObserveResponse
-	(*Application)(nil),                     // 31: vrooli.device_control.v1.desktop.Application
-	(*ApplicationsRequest)(nil),             // 32: vrooli.device_control.v1.desktop.ApplicationsRequest
-	(*OwnerApplicationsRequest)(nil),        // 33: vrooli.device_control.v1.desktop.OwnerApplicationsRequest
-	(*ApplicationsResponse)(nil),            // 34: vrooli.device_control.v1.desktop.ApplicationsResponse
-	(*SemanticSelector)(nil),                // 35: vrooli.device_control.v1.desktop.SemanticSelector
-	(*ResolveRequest)(nil),                  // 36: vrooli.device_control.v1.desktop.ResolveRequest
-	(*OwnerResolveRequest)(nil),             // 37: vrooli.device_control.v1.desktop.OwnerResolveRequest
-	(*ResolveResponse)(nil),                 // 38: vrooli.device_control.v1.desktop.ResolveResponse
-	(*ClaimFlowRequest)(nil),                // 39: vrooli.device_control.v1.desktop.ClaimFlowRequest
-	(*ClaimFlowResponse)(nil),               // 40: vrooli.device_control.v1.desktop.ClaimFlowResponse
-	(*FinishFlowRequest)(nil),               // 41: vrooli.device_control.v1.desktop.FinishFlowRequest
-	(*FlowRecord)(nil),                      // 42: vrooli.device_control.v1.desktop.FlowRecord
-	(*OwnerRunFlowRequest)(nil),             // 43: vrooli.device_control.v1.desktop.OwnerRunFlowRequest
-	(*OwnerPromoteFlowRequest)(nil),         // 44: vrooli.device_control.v1.desktop.OwnerPromoteFlowRequest
-	(*OwnerGetSavedFlowRequest)(nil),        // 45: vrooli.device_control.v1.desktop.OwnerGetSavedFlowRequest
-	(*OwnerRunSavedFlowRequest)(nil),        // 46: vrooli.device_control.v1.desktop.OwnerRunSavedFlowRequest
-	(*SavedDesktopFlow)(nil),                // 47: vrooli.device_control.v1.desktop.SavedDesktopFlow
-	(*CleanupResponse)(nil),                 // 48: vrooli.device_control.v1.desktop.CleanupResponse
-	(*OwnerCleanupResponse)(nil),            // 49: vrooli.device_control.v1.desktop.OwnerCleanupResponse
-	(*OwnerListAdmissionsRequest)(nil),      // 50: vrooli.device_control.v1.desktop.OwnerListAdmissionsRequest
-	(*OwnerAdmission)(nil),                  // 51: vrooli.device_control.v1.desktop.OwnerAdmission
-	(*OwnerListAdmissionsResponse)(nil),     // 52: vrooli.device_control.v1.desktop.OwnerListAdmissionsResponse
-	(*OwnerOpenDisposition)(nil),            // 53: vrooli.device_control.v1.desktop.OwnerOpenDisposition
-	(*DesktopBounds)(nil),                   // 54: vrooli.device_control.v1.desktop.DesktopBounds
-	(*ActivationImage)(nil),                 // 55: vrooli.device_control.v1.desktop.ActivationImage
-	(*ActivationReference)(nil),             // 56: vrooli.device_control.v1.desktop.ActivationReference
-	(*ReadActivationRequest)(nil),           // 57: vrooli.device_control.v1.desktop.ReadActivationRequest
-	(*OwnerReadActivationRequest)(nil),      // 58: vrooli.device_control.v1.desktop.OwnerReadActivationRequest
-	(*CompanionActivationRequest)(nil),      // 59: vrooli.device_control.v1.desktop.CompanionActivationRequest
-	(*OwnerCompanionActivationRequest)(nil), // 60: vrooli.device_control.v1.desktop.OwnerCompanionActivationRequest
-	(*v1.SurfaceDescriptor)(nil),            // 61: common.v1.SurfaceDescriptor
-	(*v1.SurfaceRef)(nil),                   // 62: common.v1.SurfaceRef
-	(*v1.SessionRef)(nil),                   // 63: common.v1.SessionRef
-	(*timestamppb.Timestamp)(nil),           // 64: google.protobuf.Timestamp
-	(*shared.Flow)(nil),                     // 65: vrooli.device_control.v1.shared.Flow
+	(DesktopSignalKind)(0),                  // 1: vrooli.device_control.v1.desktop.DesktopSignalKind
+	(ReadinessState)(0),                     // 2: vrooli.device_control.v1.desktop.ReadinessState
+	(InputOutcome)(0),                       // 3: vrooli.device_control.v1.desktop.InputOutcome
+	(ClipboardDirection)(0),                 // 4: vrooli.device_control.v1.desktop.ClipboardDirection
+	(PointerAction_Kind)(0),                 // 5: vrooli.device_control.v1.desktop.PointerAction.Kind
+	(PointerAction_Button)(0),               // 6: vrooli.device_control.v1.desktop.PointerAction.Button
+	(KeyAction_Kind)(0),                     // 7: vrooli.device_control.v1.desktop.KeyAction.Kind
+	(ResolveResponse_Disposition)(0),        // 8: vrooli.device_control.v1.desktop.ResolveResponse.Disposition
+	(*OwnerDescribeRequest)(nil),            // 9: vrooli.device_control.v1.desktop.OwnerDescribeRequest
+	(*OwnerDescribeResponse)(nil),           // 10: vrooli.device_control.v1.desktop.OwnerDescribeResponse
+	(*OwnerOpenRequest)(nil),                // 11: vrooli.device_control.v1.desktop.OwnerOpenRequest
+	(*OwnerOpenResponse)(nil),               // 12: vrooli.device_control.v1.desktop.OwnerOpenResponse
+	(*OwnerObserveRequest)(nil),             // 13: vrooli.device_control.v1.desktop.OwnerObserveRequest
+	(*OwnerActRequest)(nil),                 // 14: vrooli.device_control.v1.desktop.OwnerActRequest
+	(*OwnerStopRequest)(nil),                // 15: vrooli.device_control.v1.desktop.OwnerStopRequest
+	(*Lease)(nil),                           // 16: vrooli.device_control.v1.desktop.Lease
+	(*OpenRequest)(nil),                     // 17: vrooli.device_control.v1.desktop.OpenRequest
+	(*OpenResponse)(nil),                    // 18: vrooli.device_control.v1.desktop.OpenResponse
+	(*PointerAction)(nil),                   // 19: vrooli.device_control.v1.desktop.PointerAction
+	(*KeyAction)(nil),                       // 20: vrooli.device_control.v1.desktop.KeyAction
+	(*TextAction)(nil),                      // 21: vrooli.device_control.v1.desktop.TextAction
+	(*AssertTextAction)(nil),                // 22: vrooli.device_control.v1.desktop.AssertTextAction
+	(*InvokeAction)(nil),                    // 23: vrooli.device_control.v1.desktop.InvokeAction
+	(*SemanticElement)(nil),                 // 24: vrooli.device_control.v1.desktop.SemanticElement
+	(*SemanticObservation)(nil),             // 25: vrooli.device_control.v1.desktop.SemanticObservation
+	(*WheelAction)(nil),                     // 26: vrooli.device_control.v1.desktop.WheelAction
+	(*Action)(nil),                          // 27: vrooli.device_control.v1.desktop.Action
+	(*ActRequest)(nil),                      // 28: vrooli.device_control.v1.desktop.ActRequest
+	(*Receipt)(nil),                         // 29: vrooli.device_control.v1.desktop.Receipt
+	(*ActResponse)(nil),                     // 30: vrooli.device_control.v1.desktop.ActResponse
+	(*StopRequest)(nil),                     // 31: vrooli.device_control.v1.desktop.StopRequest
+	(*StopResponse)(nil),                    // 32: vrooli.device_control.v1.desktop.StopResponse
+	(*ObserveRequest)(nil),                  // 33: vrooli.device_control.v1.desktop.ObserveRequest
+	(*ObserveResponse)(nil),                 // 34: vrooli.device_control.v1.desktop.ObserveResponse
+	(*Application)(nil),                     // 35: vrooli.device_control.v1.desktop.Application
+	(*ApplicationsRequest)(nil),             // 36: vrooli.device_control.v1.desktop.ApplicationsRequest
+	(*OwnerApplicationsRequest)(nil),        // 37: vrooli.device_control.v1.desktop.OwnerApplicationsRequest
+	(*ApplicationsResponse)(nil),            // 38: vrooli.device_control.v1.desktop.ApplicationsResponse
+	(*SemanticSelector)(nil),                // 39: vrooli.device_control.v1.desktop.SemanticSelector
+	(*ResolveRequest)(nil),                  // 40: vrooli.device_control.v1.desktop.ResolveRequest
+	(*OwnerResolveRequest)(nil),             // 41: vrooli.device_control.v1.desktop.OwnerResolveRequest
+	(*ResolveResponse)(nil),                 // 42: vrooli.device_control.v1.desktop.ResolveResponse
+	(*ClaimFlowRequest)(nil),                // 43: vrooli.device_control.v1.desktop.ClaimFlowRequest
+	(*ClaimFlowResponse)(nil),               // 44: vrooli.device_control.v1.desktop.ClaimFlowResponse
+	(*FinishFlowRequest)(nil),               // 45: vrooli.device_control.v1.desktop.FinishFlowRequest
+	(*FlowRecord)(nil),                      // 46: vrooli.device_control.v1.desktop.FlowRecord
+	(*OwnerRunFlowRequest)(nil),             // 47: vrooli.device_control.v1.desktop.OwnerRunFlowRequest
+	(*OwnerPromoteFlowRequest)(nil),         // 48: vrooli.device_control.v1.desktop.OwnerPromoteFlowRequest
+	(*OwnerGetSavedFlowRequest)(nil),        // 49: vrooli.device_control.v1.desktop.OwnerGetSavedFlowRequest
+	(*OwnerRunSavedFlowRequest)(nil),        // 50: vrooli.device_control.v1.desktop.OwnerRunSavedFlowRequest
+	(*SavedDesktopFlow)(nil),                // 51: vrooli.device_control.v1.desktop.SavedDesktopFlow
+	(*CleanupResponse)(nil),                 // 52: vrooli.device_control.v1.desktop.CleanupResponse
+	(*OwnerCleanupResponse)(nil),            // 53: vrooli.device_control.v1.desktop.OwnerCleanupResponse
+	(*OwnerListAdmissionsRequest)(nil),      // 54: vrooli.device_control.v1.desktop.OwnerListAdmissionsRequest
+	(*OwnerAdmission)(nil),                  // 55: vrooli.device_control.v1.desktop.OwnerAdmission
+	(*OwnerListAdmissionsResponse)(nil),     // 56: vrooli.device_control.v1.desktop.OwnerListAdmissionsResponse
+	(*OwnerOpenDisposition)(nil),            // 57: vrooli.device_control.v1.desktop.OwnerOpenDisposition
+	(*DesktopBounds)(nil),                   // 58: vrooli.device_control.v1.desktop.DesktopBounds
+	(*ActivationImage)(nil),                 // 59: vrooli.device_control.v1.desktop.ActivationImage
+	(*ActivationReference)(nil),             // 60: vrooli.device_control.v1.desktop.ActivationReference
+	(*ReadActivationRequest)(nil),           // 61: vrooli.device_control.v1.desktop.ReadActivationRequest
+	(*OwnerReadActivationRequest)(nil),      // 62: vrooli.device_control.v1.desktop.OwnerReadActivationRequest
+	(*CompanionActivationRequest)(nil),      // 63: vrooli.device_control.v1.desktop.CompanionActivationRequest
+	(*OwnerCompanionActivationRequest)(nil), // 64: vrooli.device_control.v1.desktop.OwnerCompanionActivationRequest
+	(*DesktopSignalRequest)(nil),            // 65: vrooli.device_control.v1.desktop.DesktopSignalRequest
+	(*DesktopSignalResponse)(nil),           // 66: vrooli.device_control.v1.desktop.DesktopSignalResponse
+	(*Display)(nil),                         // 67: vrooli.device_control.v1.desktop.Display
+	(*DesktopReadiness)(nil),                // 68: vrooli.device_control.v1.desktop.DesktopReadiness
+	(*GetReadinessRequest)(nil),             // 69: vrooli.device_control.v1.desktop.GetReadinessRequest
+	(*DesktopSession)(nil),                  // 70: vrooli.device_control.v1.desktop.DesktopSession
+	(*OpenSessionRequest)(nil),              // 71: vrooli.device_control.v1.desktop.OpenSessionRequest
+	(*AttachViewerRequest)(nil),             // 72: vrooli.device_control.v1.desktop.AttachViewerRequest
+	(*TakeControlRequest)(nil),              // 73: vrooli.device_control.v1.desktop.TakeControlRequest
+	(*InputRequest)(nil),                    // 74: vrooli.device_control.v1.desktop.InputRequest
+	(*InputReceipt)(nil),                    // 75: vrooli.device_control.v1.desktop.InputReceipt
+	(*ClipboardRequest)(nil),                // 76: vrooli.device_control.v1.desktop.ClipboardRequest
+	(*ClipboardReceipt)(nil),                // 77: vrooli.device_control.v1.desktop.ClipboardReceipt
+	(*CloseSessionRequest)(nil),             // 78: vrooli.device_control.v1.desktop.CloseSessionRequest
+	(*CloseSessionResponse)(nil),            // 79: vrooli.device_control.v1.desktop.CloseSessionResponse
+	(*v1.SurfaceDescriptor)(nil),            // 80: common.v1.SurfaceDescriptor
+	(*v1.SurfaceRef)(nil),                   // 81: common.v1.SurfaceRef
+	(*v1.SessionRef)(nil),                   // 82: common.v1.SessionRef
+	(*timestamppb.Timestamp)(nil),           // 83: google.protobuf.Timestamp
+	(*shared.Flow)(nil),                     // 84: vrooli.device_control.v1.shared.Flow
 }
 var file_device_control_v1_desktop_desktop_proto_depIdxs = []int32{
-	61,  // 0: vrooli.device_control.v1.desktop.OwnerDescribeResponse.surface:type_name -> common.v1.SurfaceDescriptor
-	62,  // 1: vrooli.device_control.v1.desktop.OwnerOpenRequest.surface:type_name -> common.v1.SurfaceRef
-	63,  // 2: vrooli.device_control.v1.desktop.OwnerOpenResponse.session:type_name -> common.v1.SessionRef
-	64,  // 3: vrooli.device_control.v1.desktop.OwnerOpenResponse.expires_at:type_name -> google.protobuf.Timestamp
-	63,  // 4: vrooli.device_control.v1.desktop.OwnerObserveRequest.session:type_name -> common.v1.SessionRef
-	63,  // 5: vrooli.device_control.v1.desktop.OwnerActRequest.session:type_name -> common.v1.SessionRef
-	23,  // 6: vrooli.device_control.v1.desktop.OwnerActRequest.action:type_name -> vrooli.device_control.v1.desktop.Action
-	63,  // 7: vrooli.device_control.v1.desktop.OwnerStopRequest.session:type_name -> common.v1.SessionRef
-	63,  // 8: vrooli.device_control.v1.desktop.Lease.ref:type_name -> common.v1.SessionRef
-	64,  // 9: vrooli.device_control.v1.desktop.Lease.expires_at:type_name -> google.protobuf.Timestamp
-	12,  // 10: vrooli.device_control.v1.desktop.OpenRequest.lease:type_name -> vrooli.device_control.v1.desktop.Lease
-	12,  // 11: vrooli.device_control.v1.desktop.OpenResponse.lease:type_name -> vrooli.device_control.v1.desktop.Lease
-	1,   // 12: vrooli.device_control.v1.desktop.PointerAction.kind:type_name -> vrooli.device_control.v1.desktop.PointerAction.Kind
-	2,   // 13: vrooli.device_control.v1.desktop.PointerAction.button:type_name -> vrooli.device_control.v1.desktop.PointerAction.Button
-	3,   // 14: vrooli.device_control.v1.desktop.KeyAction.kind:type_name -> vrooli.device_control.v1.desktop.KeyAction.Kind
-	64,  // 15: vrooli.device_control.v1.desktop.SemanticObservation.expires_at:type_name -> google.protobuf.Timestamp
-	20,  // 16: vrooli.device_control.v1.desktop.SemanticObservation.elements:type_name -> vrooli.device_control.v1.desktop.SemanticElement
-	15,  // 17: vrooli.device_control.v1.desktop.Action.pointer:type_name -> vrooli.device_control.v1.desktop.PointerAction
-	16,  // 18: vrooli.device_control.v1.desktop.Action.key:type_name -> vrooli.device_control.v1.desktop.KeyAction
-	17,  // 19: vrooli.device_control.v1.desktop.Action.text:type_name -> vrooli.device_control.v1.desktop.TextAction
-	22,  // 20: vrooli.device_control.v1.desktop.Action.wheel:type_name -> vrooli.device_control.v1.desktop.WheelAction
-	18,  // 21: vrooli.device_control.v1.desktop.Action.assert_text:type_name -> vrooli.device_control.v1.desktop.AssertTextAction
-	19,  // 22: vrooli.device_control.v1.desktop.Action.invoke:type_name -> vrooli.device_control.v1.desktop.InvokeAction
-	12,  // 23: vrooli.device_control.v1.desktop.ActRequest.lease:type_name -> vrooli.device_control.v1.desktop.Lease
-	23,  // 24: vrooli.device_control.v1.desktop.ActRequest.action:type_name -> vrooli.device_control.v1.desktop.Action
-	25,  // 25: vrooli.device_control.v1.desktop.ActResponse.receipt:type_name -> vrooli.device_control.v1.desktop.Receipt
-	12,  // 26: vrooli.device_control.v1.desktop.StopRequest.lease:type_name -> vrooli.device_control.v1.desktop.Lease
-	12,  // 27: vrooli.device_control.v1.desktop.ObserveRequest.lease:type_name -> vrooli.device_control.v1.desktop.Lease
-	64,  // 28: vrooli.device_control.v1.desktop.ObserveResponse.captured_at:type_name -> google.protobuf.Timestamp
-	21,  // 29: vrooli.device_control.v1.desktop.ObserveResponse.semantic:type_name -> vrooli.device_control.v1.desktop.SemanticObservation
-	12,  // 30: vrooli.device_control.v1.desktop.ApplicationsRequest.lease:type_name -> vrooli.device_control.v1.desktop.Lease
-	63,  // 31: vrooli.device_control.v1.desktop.OwnerApplicationsRequest.session:type_name -> common.v1.SessionRef
-	64,  // 32: vrooli.device_control.v1.desktop.ApplicationsResponse.expires_at:type_name -> google.protobuf.Timestamp
-	31,  // 33: vrooli.device_control.v1.desktop.ApplicationsResponse.applications:type_name -> vrooli.device_control.v1.desktop.Application
+	80,  // 0: vrooli.device_control.v1.desktop.OwnerDescribeResponse.surface:type_name -> common.v1.SurfaceDescriptor
+	81,  // 1: vrooli.device_control.v1.desktop.OwnerOpenRequest.surface:type_name -> common.v1.SurfaceRef
+	82,  // 2: vrooli.device_control.v1.desktop.OwnerOpenResponse.session:type_name -> common.v1.SessionRef
+	83,  // 3: vrooli.device_control.v1.desktop.OwnerOpenResponse.expires_at:type_name -> google.protobuf.Timestamp
+	82,  // 4: vrooli.device_control.v1.desktop.OwnerObserveRequest.session:type_name -> common.v1.SessionRef
+	82,  // 5: vrooli.device_control.v1.desktop.OwnerActRequest.session:type_name -> common.v1.SessionRef
+	27,  // 6: vrooli.device_control.v1.desktop.OwnerActRequest.action:type_name -> vrooli.device_control.v1.desktop.Action
+	82,  // 7: vrooli.device_control.v1.desktop.OwnerStopRequest.session:type_name -> common.v1.SessionRef
+	82,  // 8: vrooli.device_control.v1.desktop.Lease.ref:type_name -> common.v1.SessionRef
+	83,  // 9: vrooli.device_control.v1.desktop.Lease.expires_at:type_name -> google.protobuf.Timestamp
+	16,  // 10: vrooli.device_control.v1.desktop.OpenRequest.lease:type_name -> vrooli.device_control.v1.desktop.Lease
+	16,  // 11: vrooli.device_control.v1.desktop.OpenResponse.lease:type_name -> vrooli.device_control.v1.desktop.Lease
+	5,   // 12: vrooli.device_control.v1.desktop.PointerAction.kind:type_name -> vrooli.device_control.v1.desktop.PointerAction.Kind
+	6,   // 13: vrooli.device_control.v1.desktop.PointerAction.button:type_name -> vrooli.device_control.v1.desktop.PointerAction.Button
+	7,   // 14: vrooli.device_control.v1.desktop.KeyAction.kind:type_name -> vrooli.device_control.v1.desktop.KeyAction.Kind
+	83,  // 15: vrooli.device_control.v1.desktop.SemanticObservation.expires_at:type_name -> google.protobuf.Timestamp
+	24,  // 16: vrooli.device_control.v1.desktop.SemanticObservation.elements:type_name -> vrooli.device_control.v1.desktop.SemanticElement
+	19,  // 17: vrooli.device_control.v1.desktop.Action.pointer:type_name -> vrooli.device_control.v1.desktop.PointerAction
+	20,  // 18: vrooli.device_control.v1.desktop.Action.key:type_name -> vrooli.device_control.v1.desktop.KeyAction
+	21,  // 19: vrooli.device_control.v1.desktop.Action.text:type_name -> vrooli.device_control.v1.desktop.TextAction
+	26,  // 20: vrooli.device_control.v1.desktop.Action.wheel:type_name -> vrooli.device_control.v1.desktop.WheelAction
+	22,  // 21: vrooli.device_control.v1.desktop.Action.assert_text:type_name -> vrooli.device_control.v1.desktop.AssertTextAction
+	23,  // 22: vrooli.device_control.v1.desktop.Action.invoke:type_name -> vrooli.device_control.v1.desktop.InvokeAction
+	16,  // 23: vrooli.device_control.v1.desktop.ActRequest.lease:type_name -> vrooli.device_control.v1.desktop.Lease
+	27,  // 24: vrooli.device_control.v1.desktop.ActRequest.action:type_name -> vrooli.device_control.v1.desktop.Action
+	29,  // 25: vrooli.device_control.v1.desktop.ActResponse.receipt:type_name -> vrooli.device_control.v1.desktop.Receipt
+	16,  // 26: vrooli.device_control.v1.desktop.StopRequest.lease:type_name -> vrooli.device_control.v1.desktop.Lease
+	16,  // 27: vrooli.device_control.v1.desktop.ObserveRequest.lease:type_name -> vrooli.device_control.v1.desktop.Lease
+	83,  // 28: vrooli.device_control.v1.desktop.ObserveResponse.captured_at:type_name -> google.protobuf.Timestamp
+	25,  // 29: vrooli.device_control.v1.desktop.ObserveResponse.semantic:type_name -> vrooli.device_control.v1.desktop.SemanticObservation
+	16,  // 30: vrooli.device_control.v1.desktop.ApplicationsRequest.lease:type_name -> vrooli.device_control.v1.desktop.Lease
+	82,  // 31: vrooli.device_control.v1.desktop.OwnerApplicationsRequest.session:type_name -> common.v1.SessionRef
+	83,  // 32: vrooli.device_control.v1.desktop.ApplicationsResponse.expires_at:type_name -> google.protobuf.Timestamp
+	35,  // 33: vrooli.device_control.v1.desktop.ApplicationsResponse.applications:type_name -> vrooli.device_control.v1.desktop.Application
 	0,   // 34: vrooli.device_control.v1.desktop.SemanticSelector.match_mode:type_name -> vrooli.device_control.v1.desktop.SemanticMatchMode
-	12,  // 35: vrooli.device_control.v1.desktop.ResolveRequest.lease:type_name -> vrooli.device_control.v1.desktop.Lease
-	35,  // 36: vrooli.device_control.v1.desktop.ResolveRequest.selector:type_name -> vrooli.device_control.v1.desktop.SemanticSelector
-	63,  // 37: vrooli.device_control.v1.desktop.OwnerResolveRequest.session:type_name -> common.v1.SessionRef
-	35,  // 38: vrooli.device_control.v1.desktop.OwnerResolveRequest.selector:type_name -> vrooli.device_control.v1.desktop.SemanticSelector
-	4,   // 39: vrooli.device_control.v1.desktop.ResolveResponse.disposition:type_name -> vrooli.device_control.v1.desktop.ResolveResponse.Disposition
-	64,  // 40: vrooli.device_control.v1.desktop.ResolveResponse.expires_at:type_name -> google.protobuf.Timestamp
-	12,  // 41: vrooli.device_control.v1.desktop.ClaimFlowRequest.lease:type_name -> vrooli.device_control.v1.desktop.Lease
-	42,  // 42: vrooli.device_control.v1.desktop.ClaimFlowResponse.record:type_name -> vrooli.device_control.v1.desktop.FlowRecord
-	12,  // 43: vrooli.device_control.v1.desktop.FinishFlowRequest.lease:type_name -> vrooli.device_control.v1.desktop.Lease
-	64,  // 44: vrooli.device_control.v1.desktop.FlowRecord.claimed_at:type_name -> google.protobuf.Timestamp
-	64,  // 45: vrooli.device_control.v1.desktop.FlowRecord.finished_at:type_name -> google.protobuf.Timestamp
-	63,  // 46: vrooli.device_control.v1.desktop.OwnerRunFlowRequest.session:type_name -> common.v1.SessionRef
-	65,  // 47: vrooli.device_control.v1.desktop.OwnerRunFlowRequest.flow:type_name -> vrooli.device_control.v1.shared.Flow
-	63,  // 48: vrooli.device_control.v1.desktop.OwnerPromoteFlowRequest.session:type_name -> common.v1.SessionRef
-	63,  // 49: vrooli.device_control.v1.desktop.OwnerPromoteFlowRequest.source_session:type_name -> common.v1.SessionRef
-	63,  // 50: vrooli.device_control.v1.desktop.OwnerGetSavedFlowRequest.session:type_name -> common.v1.SessionRef
-	63,  // 51: vrooli.device_control.v1.desktop.OwnerRunSavedFlowRequest.session:type_name -> common.v1.SessionRef
-	65,  // 52: vrooli.device_control.v1.desktop.SavedDesktopFlow.flow:type_name -> vrooli.device_control.v1.shared.Flow
-	12,  // 53: vrooli.device_control.v1.desktop.CleanupResponse.lease:type_name -> vrooli.device_control.v1.desktop.Lease
-	64,  // 54: vrooli.device_control.v1.desktop.CleanupResponse.observed_at:type_name -> google.protobuf.Timestamp
-	63,  // 55: vrooli.device_control.v1.desktop.OwnerCleanupResponse.session:type_name -> common.v1.SessionRef
-	64,  // 56: vrooli.device_control.v1.desktop.OwnerCleanupResponse.observed_at:type_name -> google.protobuf.Timestamp
-	63,  // 57: vrooli.device_control.v1.desktop.OwnerAdmission.session:type_name -> common.v1.SessionRef
-	64,  // 58: vrooli.device_control.v1.desktop.OwnerAdmission.expires_at:type_name -> google.protobuf.Timestamp
-	51,  // 59: vrooli.device_control.v1.desktop.OwnerListAdmissionsResponse.admissions:type_name -> vrooli.device_control.v1.desktop.OwnerAdmission
-	63,  // 60: vrooli.device_control.v1.desktop.OwnerOpenDisposition.session:type_name -> common.v1.SessionRef
-	64,  // 61: vrooli.device_control.v1.desktop.OwnerOpenDisposition.expires_at:type_name -> google.protobuf.Timestamp
-	56,  // 62: vrooli.device_control.v1.desktop.ActivationImage.reference:type_name -> vrooli.device_control.v1.desktop.ActivationReference
-	54,  // 63: vrooli.device_control.v1.desktop.ActivationReference.source_bounds:type_name -> vrooli.device_control.v1.desktop.DesktopBounds
-	64,  // 64: vrooli.device_control.v1.desktop.ActivationReference.captured_at:type_name -> google.protobuf.Timestamp
-	64,  // 65: vrooli.device_control.v1.desktop.ActivationReference.expires_at:type_name -> google.protobuf.Timestamp
-	12,  // 66: vrooli.device_control.v1.desktop.ReadActivationRequest.lease:type_name -> vrooli.device_control.v1.desktop.Lease
-	63,  // 67: vrooli.device_control.v1.desktop.OwnerReadActivationRequest.session:type_name -> common.v1.SessionRef
-	12,  // 68: vrooli.device_control.v1.desktop.CompanionActivationRequest.lease:type_name -> vrooli.device_control.v1.desktop.Lease
-	63,  // 69: vrooli.device_control.v1.desktop.OwnerCompanionActivationRequest.session:type_name -> common.v1.SessionRef
-	59,  // 70: vrooli.device_control.v1.desktop.DesktopHelperService.CaptureCompanionActivation:input_type -> vrooli.device_control.v1.desktop.CompanionActivationRequest
-	27,  // 71: vrooli.device_control.v1.desktop.DesktopHelperService.CaptureActivation:input_type -> vrooli.device_control.v1.desktop.StopRequest
-	57,  // 72: vrooli.device_control.v1.desktop.DesktopHelperService.ReadActivation:input_type -> vrooli.device_control.v1.desktop.ReadActivationRequest
-	57,  // 73: vrooli.device_control.v1.desktop.DesktopHelperService.ReadActivationImage:input_type -> vrooli.device_control.v1.desktop.ReadActivationRequest
-	57,  // 74: vrooli.device_control.v1.desktop.DesktopHelperService.DeleteActivation:input_type -> vrooli.device_control.v1.desktop.ReadActivationRequest
-	27,  // 75: vrooli.device_control.v1.desktop.DesktopHelperService.ReadCleanup:input_type -> vrooli.device_control.v1.desktop.StopRequest
-	39,  // 76: vrooli.device_control.v1.desktop.DesktopHelperService.ClaimFlow:input_type -> vrooli.device_control.v1.desktop.ClaimFlowRequest
-	41,  // 77: vrooli.device_control.v1.desktop.DesktopHelperService.FinishFlow:input_type -> vrooli.device_control.v1.desktop.FinishFlowRequest
-	13,  // 78: vrooli.device_control.v1.desktop.DesktopHelperService.Open:input_type -> vrooli.device_control.v1.desktop.OpenRequest
-	36,  // 79: vrooli.device_control.v1.desktop.DesktopHelperService.Resolve:input_type -> vrooli.device_control.v1.desktop.ResolveRequest
-	32,  // 80: vrooli.device_control.v1.desktop.DesktopHelperService.Applications:input_type -> vrooli.device_control.v1.desktop.ApplicationsRequest
-	29,  // 81: vrooli.device_control.v1.desktop.DesktopHelperService.Observe:input_type -> vrooli.device_control.v1.desktop.ObserveRequest
-	24,  // 82: vrooli.device_control.v1.desktop.DesktopHelperService.Act:input_type -> vrooli.device_control.v1.desktop.ActRequest
-	27,  // 83: vrooli.device_control.v1.desktop.DesktopHelperService.Stop:input_type -> vrooli.device_control.v1.desktop.StopRequest
-	60,  // 84: vrooli.device_control.v1.desktop.DesktopOwnerService.CaptureCompanionActivation:input_type -> vrooli.device_control.v1.desktop.OwnerCompanionActivationRequest
-	11,  // 85: vrooli.device_control.v1.desktop.DesktopOwnerService.CaptureActivation:input_type -> vrooli.device_control.v1.desktop.OwnerStopRequest
-	58,  // 86: vrooli.device_control.v1.desktop.DesktopOwnerService.ReadActivation:input_type -> vrooli.device_control.v1.desktop.OwnerReadActivationRequest
-	58,  // 87: vrooli.device_control.v1.desktop.DesktopOwnerService.ReadActivationImage:input_type -> vrooli.device_control.v1.desktop.OwnerReadActivationRequest
-	58,  // 88: vrooli.device_control.v1.desktop.DesktopOwnerService.DeleteActivation:input_type -> vrooli.device_control.v1.desktop.OwnerReadActivationRequest
-	7,   // 89: vrooli.device_control.v1.desktop.DesktopOwnerService.ReconcileOpen:input_type -> vrooli.device_control.v1.desktop.OwnerOpenRequest
-	50,  // 90: vrooli.device_control.v1.desktop.DesktopOwnerService.ListAdmissions:input_type -> vrooli.device_control.v1.desktop.OwnerListAdmissionsRequest
-	11,  // 91: vrooli.device_control.v1.desktop.DesktopOwnerService.ReadCleanup:input_type -> vrooli.device_control.v1.desktop.OwnerStopRequest
-	43,  // 92: vrooli.device_control.v1.desktop.DesktopOwnerService.RunFlow:input_type -> vrooli.device_control.v1.desktop.OwnerRunFlowRequest
-	44,  // 93: vrooli.device_control.v1.desktop.DesktopOwnerService.PromoteFlow:input_type -> vrooli.device_control.v1.desktop.OwnerPromoteFlowRequest
-	45,  // 94: vrooli.device_control.v1.desktop.DesktopOwnerService.GetSavedFlow:input_type -> vrooli.device_control.v1.desktop.OwnerGetSavedFlowRequest
-	46,  // 95: vrooli.device_control.v1.desktop.DesktopOwnerService.RunSavedFlow:input_type -> vrooli.device_control.v1.desktop.OwnerRunSavedFlowRequest
-	5,   // 96: vrooli.device_control.v1.desktop.DesktopOwnerService.Describe:input_type -> vrooli.device_control.v1.desktop.OwnerDescribeRequest
-	7,   // 97: vrooli.device_control.v1.desktop.DesktopOwnerService.Open:input_type -> vrooli.device_control.v1.desktop.OwnerOpenRequest
-	37,  // 98: vrooli.device_control.v1.desktop.DesktopOwnerService.Resolve:input_type -> vrooli.device_control.v1.desktop.OwnerResolveRequest
-	33,  // 99: vrooli.device_control.v1.desktop.DesktopOwnerService.Applications:input_type -> vrooli.device_control.v1.desktop.OwnerApplicationsRequest
-	9,   // 100: vrooli.device_control.v1.desktop.DesktopOwnerService.Observe:input_type -> vrooli.device_control.v1.desktop.OwnerObserveRequest
-	10,  // 101: vrooli.device_control.v1.desktop.DesktopOwnerService.Act:input_type -> vrooli.device_control.v1.desktop.OwnerActRequest
-	11,  // 102: vrooli.device_control.v1.desktop.DesktopOwnerService.Stop:input_type -> vrooli.device_control.v1.desktop.OwnerStopRequest
-	11,  // 103: vrooli.device_control.v1.desktop.DesktopAccountService.CaptureActivation:input_type -> vrooli.device_control.v1.desktop.OwnerStopRequest
-	58,  // 104: vrooli.device_control.v1.desktop.DesktopAccountService.ReadActivation:input_type -> vrooli.device_control.v1.desktop.OwnerReadActivationRequest
-	58,  // 105: vrooli.device_control.v1.desktop.DesktopAccountService.ReadActivationImage:input_type -> vrooli.device_control.v1.desktop.OwnerReadActivationRequest
-	58,  // 106: vrooli.device_control.v1.desktop.DesktopAccountService.DeleteActivation:input_type -> vrooli.device_control.v1.desktop.OwnerReadActivationRequest
-	7,   // 107: vrooli.device_control.v1.desktop.DesktopAccountService.ReconcileOpen:input_type -> vrooli.device_control.v1.desktop.OwnerOpenRequest
-	50,  // 108: vrooli.device_control.v1.desktop.DesktopAccountService.ListAdmissions:input_type -> vrooli.device_control.v1.desktop.OwnerListAdmissionsRequest
-	11,  // 109: vrooli.device_control.v1.desktop.DesktopAccountService.ReadCleanup:input_type -> vrooli.device_control.v1.desktop.OwnerStopRequest
-	43,  // 110: vrooli.device_control.v1.desktop.DesktopAccountService.RunFlow:input_type -> vrooli.device_control.v1.desktop.OwnerRunFlowRequest
-	44,  // 111: vrooli.device_control.v1.desktop.DesktopAccountService.PromoteFlow:input_type -> vrooli.device_control.v1.desktop.OwnerPromoteFlowRequest
-	45,  // 112: vrooli.device_control.v1.desktop.DesktopAccountService.GetSavedFlow:input_type -> vrooli.device_control.v1.desktop.OwnerGetSavedFlowRequest
-	46,  // 113: vrooli.device_control.v1.desktop.DesktopAccountService.RunSavedFlow:input_type -> vrooli.device_control.v1.desktop.OwnerRunSavedFlowRequest
-	7,   // 114: vrooli.device_control.v1.desktop.DesktopAccountService.Open:input_type -> vrooli.device_control.v1.desktop.OwnerOpenRequest
-	37,  // 115: vrooli.device_control.v1.desktop.DesktopAccountService.Resolve:input_type -> vrooli.device_control.v1.desktop.OwnerResolveRequest
-	33,  // 116: vrooli.device_control.v1.desktop.DesktopAccountService.Applications:input_type -> vrooli.device_control.v1.desktop.OwnerApplicationsRequest
-	9,   // 117: vrooli.device_control.v1.desktop.DesktopAccountService.Observe:input_type -> vrooli.device_control.v1.desktop.OwnerObserveRequest
-	10,  // 118: vrooli.device_control.v1.desktop.DesktopAccountService.Act:input_type -> vrooli.device_control.v1.desktop.OwnerActRequest
-	11,  // 119: vrooli.device_control.v1.desktop.DesktopAccountService.Stop:input_type -> vrooli.device_control.v1.desktop.OwnerStopRequest
-	56,  // 120: vrooli.device_control.v1.desktop.DesktopHelperService.CaptureCompanionActivation:output_type -> vrooli.device_control.v1.desktop.ActivationReference
-	56,  // 121: vrooli.device_control.v1.desktop.DesktopHelperService.CaptureActivation:output_type -> vrooli.device_control.v1.desktop.ActivationReference
-	56,  // 122: vrooli.device_control.v1.desktop.DesktopHelperService.ReadActivation:output_type -> vrooli.device_control.v1.desktop.ActivationReference
-	55,  // 123: vrooli.device_control.v1.desktop.DesktopHelperService.ReadActivationImage:output_type -> vrooli.device_control.v1.desktop.ActivationImage
-	28,  // 124: vrooli.device_control.v1.desktop.DesktopHelperService.DeleteActivation:output_type -> vrooli.device_control.v1.desktop.StopResponse
-	48,  // 125: vrooli.device_control.v1.desktop.DesktopHelperService.ReadCleanup:output_type -> vrooli.device_control.v1.desktop.CleanupResponse
-	40,  // 126: vrooli.device_control.v1.desktop.DesktopHelperService.ClaimFlow:output_type -> vrooli.device_control.v1.desktop.ClaimFlowResponse
-	42,  // 127: vrooli.device_control.v1.desktop.DesktopHelperService.FinishFlow:output_type -> vrooli.device_control.v1.desktop.FlowRecord
-	14,  // 128: vrooli.device_control.v1.desktop.DesktopHelperService.Open:output_type -> vrooli.device_control.v1.desktop.OpenResponse
-	38,  // 129: vrooli.device_control.v1.desktop.DesktopHelperService.Resolve:output_type -> vrooli.device_control.v1.desktop.ResolveResponse
-	34,  // 130: vrooli.device_control.v1.desktop.DesktopHelperService.Applications:output_type -> vrooli.device_control.v1.desktop.ApplicationsResponse
-	30,  // 131: vrooli.device_control.v1.desktop.DesktopHelperService.Observe:output_type -> vrooli.device_control.v1.desktop.ObserveResponse
-	26,  // 132: vrooli.device_control.v1.desktop.DesktopHelperService.Act:output_type -> vrooli.device_control.v1.desktop.ActResponse
-	28,  // 133: vrooli.device_control.v1.desktop.DesktopHelperService.Stop:output_type -> vrooli.device_control.v1.desktop.StopResponse
-	56,  // 134: vrooli.device_control.v1.desktop.DesktopOwnerService.CaptureCompanionActivation:output_type -> vrooli.device_control.v1.desktop.ActivationReference
-	56,  // 135: vrooli.device_control.v1.desktop.DesktopOwnerService.CaptureActivation:output_type -> vrooli.device_control.v1.desktop.ActivationReference
-	56,  // 136: vrooli.device_control.v1.desktop.DesktopOwnerService.ReadActivation:output_type -> vrooli.device_control.v1.desktop.ActivationReference
-	55,  // 137: vrooli.device_control.v1.desktop.DesktopOwnerService.ReadActivationImage:output_type -> vrooli.device_control.v1.desktop.ActivationImage
-	28,  // 138: vrooli.device_control.v1.desktop.DesktopOwnerService.DeleteActivation:output_type -> vrooli.device_control.v1.desktop.StopResponse
-	53,  // 139: vrooli.device_control.v1.desktop.DesktopOwnerService.ReconcileOpen:output_type -> vrooli.device_control.v1.desktop.OwnerOpenDisposition
-	52,  // 140: vrooli.device_control.v1.desktop.DesktopOwnerService.ListAdmissions:output_type -> vrooli.device_control.v1.desktop.OwnerListAdmissionsResponse
-	49,  // 141: vrooli.device_control.v1.desktop.DesktopOwnerService.ReadCleanup:output_type -> vrooli.device_control.v1.desktop.OwnerCleanupResponse
-	42,  // 142: vrooli.device_control.v1.desktop.DesktopOwnerService.RunFlow:output_type -> vrooli.device_control.v1.desktop.FlowRecord
-	47,  // 143: vrooli.device_control.v1.desktop.DesktopOwnerService.PromoteFlow:output_type -> vrooli.device_control.v1.desktop.SavedDesktopFlow
-	47,  // 144: vrooli.device_control.v1.desktop.DesktopOwnerService.GetSavedFlow:output_type -> vrooli.device_control.v1.desktop.SavedDesktopFlow
-	42,  // 145: vrooli.device_control.v1.desktop.DesktopOwnerService.RunSavedFlow:output_type -> vrooli.device_control.v1.desktop.FlowRecord
-	6,   // 146: vrooli.device_control.v1.desktop.DesktopOwnerService.Describe:output_type -> vrooli.device_control.v1.desktop.OwnerDescribeResponse
-	8,   // 147: vrooli.device_control.v1.desktop.DesktopOwnerService.Open:output_type -> vrooli.device_control.v1.desktop.OwnerOpenResponse
-	38,  // 148: vrooli.device_control.v1.desktop.DesktopOwnerService.Resolve:output_type -> vrooli.device_control.v1.desktop.ResolveResponse
-	34,  // 149: vrooli.device_control.v1.desktop.DesktopOwnerService.Applications:output_type -> vrooli.device_control.v1.desktop.ApplicationsResponse
-	30,  // 150: vrooli.device_control.v1.desktop.DesktopOwnerService.Observe:output_type -> vrooli.device_control.v1.desktop.ObserveResponse
-	26,  // 151: vrooli.device_control.v1.desktop.DesktopOwnerService.Act:output_type -> vrooli.device_control.v1.desktop.ActResponse
-	28,  // 152: vrooli.device_control.v1.desktop.DesktopOwnerService.Stop:output_type -> vrooli.device_control.v1.desktop.StopResponse
-	56,  // 153: vrooli.device_control.v1.desktop.DesktopAccountService.CaptureActivation:output_type -> vrooli.device_control.v1.desktop.ActivationReference
-	56,  // 154: vrooli.device_control.v1.desktop.DesktopAccountService.ReadActivation:output_type -> vrooli.device_control.v1.desktop.ActivationReference
-	55,  // 155: vrooli.device_control.v1.desktop.DesktopAccountService.ReadActivationImage:output_type -> vrooli.device_control.v1.desktop.ActivationImage
-	28,  // 156: vrooli.device_control.v1.desktop.DesktopAccountService.DeleteActivation:output_type -> vrooli.device_control.v1.desktop.StopResponse
-	53,  // 157: vrooli.device_control.v1.desktop.DesktopAccountService.ReconcileOpen:output_type -> vrooli.device_control.v1.desktop.OwnerOpenDisposition
-	52,  // 158: vrooli.device_control.v1.desktop.DesktopAccountService.ListAdmissions:output_type -> vrooli.device_control.v1.desktop.OwnerListAdmissionsResponse
-	49,  // 159: vrooli.device_control.v1.desktop.DesktopAccountService.ReadCleanup:output_type -> vrooli.device_control.v1.desktop.OwnerCleanupResponse
-	42,  // 160: vrooli.device_control.v1.desktop.DesktopAccountService.RunFlow:output_type -> vrooli.device_control.v1.desktop.FlowRecord
-	47,  // 161: vrooli.device_control.v1.desktop.DesktopAccountService.PromoteFlow:output_type -> vrooli.device_control.v1.desktop.SavedDesktopFlow
-	47,  // 162: vrooli.device_control.v1.desktop.DesktopAccountService.GetSavedFlow:output_type -> vrooli.device_control.v1.desktop.SavedDesktopFlow
-	42,  // 163: vrooli.device_control.v1.desktop.DesktopAccountService.RunSavedFlow:output_type -> vrooli.device_control.v1.desktop.FlowRecord
-	8,   // 164: vrooli.device_control.v1.desktop.DesktopAccountService.Open:output_type -> vrooli.device_control.v1.desktop.OwnerOpenResponse
-	38,  // 165: vrooli.device_control.v1.desktop.DesktopAccountService.Resolve:output_type -> vrooli.device_control.v1.desktop.ResolveResponse
-	34,  // 166: vrooli.device_control.v1.desktop.DesktopAccountService.Applications:output_type -> vrooli.device_control.v1.desktop.ApplicationsResponse
-	30,  // 167: vrooli.device_control.v1.desktop.DesktopAccountService.Observe:output_type -> vrooli.device_control.v1.desktop.ObserveResponse
-	26,  // 168: vrooli.device_control.v1.desktop.DesktopAccountService.Act:output_type -> vrooli.device_control.v1.desktop.ActResponse
-	28,  // 169: vrooli.device_control.v1.desktop.DesktopAccountService.Stop:output_type -> vrooli.device_control.v1.desktop.StopResponse
-	120, // [120:170] is the sub-list for method output_type
-	70,  // [70:120] is the sub-list for method input_type
-	70,  // [70:70] is the sub-list for extension type_name
-	70,  // [70:70] is the sub-list for extension extendee
-	0,   // [0:70] is the sub-list for field type_name
+	16,  // 35: vrooli.device_control.v1.desktop.ResolveRequest.lease:type_name -> vrooli.device_control.v1.desktop.Lease
+	39,  // 36: vrooli.device_control.v1.desktop.ResolveRequest.selector:type_name -> vrooli.device_control.v1.desktop.SemanticSelector
+	82,  // 37: vrooli.device_control.v1.desktop.OwnerResolveRequest.session:type_name -> common.v1.SessionRef
+	39,  // 38: vrooli.device_control.v1.desktop.OwnerResolveRequest.selector:type_name -> vrooli.device_control.v1.desktop.SemanticSelector
+	8,   // 39: vrooli.device_control.v1.desktop.ResolveResponse.disposition:type_name -> vrooli.device_control.v1.desktop.ResolveResponse.Disposition
+	83,  // 40: vrooli.device_control.v1.desktop.ResolveResponse.expires_at:type_name -> google.protobuf.Timestamp
+	16,  // 41: vrooli.device_control.v1.desktop.ClaimFlowRequest.lease:type_name -> vrooli.device_control.v1.desktop.Lease
+	46,  // 42: vrooli.device_control.v1.desktop.ClaimFlowResponse.record:type_name -> vrooli.device_control.v1.desktop.FlowRecord
+	16,  // 43: vrooli.device_control.v1.desktop.FinishFlowRequest.lease:type_name -> vrooli.device_control.v1.desktop.Lease
+	83,  // 44: vrooli.device_control.v1.desktop.FlowRecord.claimed_at:type_name -> google.protobuf.Timestamp
+	83,  // 45: vrooli.device_control.v1.desktop.FlowRecord.finished_at:type_name -> google.protobuf.Timestamp
+	82,  // 46: vrooli.device_control.v1.desktop.OwnerRunFlowRequest.session:type_name -> common.v1.SessionRef
+	84,  // 47: vrooli.device_control.v1.desktop.OwnerRunFlowRequest.flow:type_name -> vrooli.device_control.v1.shared.Flow
+	82,  // 48: vrooli.device_control.v1.desktop.OwnerPromoteFlowRequest.session:type_name -> common.v1.SessionRef
+	82,  // 49: vrooli.device_control.v1.desktop.OwnerPromoteFlowRequest.source_session:type_name -> common.v1.SessionRef
+	82,  // 50: vrooli.device_control.v1.desktop.OwnerGetSavedFlowRequest.session:type_name -> common.v1.SessionRef
+	82,  // 51: vrooli.device_control.v1.desktop.OwnerRunSavedFlowRequest.session:type_name -> common.v1.SessionRef
+	84,  // 52: vrooli.device_control.v1.desktop.SavedDesktopFlow.flow:type_name -> vrooli.device_control.v1.shared.Flow
+	16,  // 53: vrooli.device_control.v1.desktop.CleanupResponse.lease:type_name -> vrooli.device_control.v1.desktop.Lease
+	83,  // 54: vrooli.device_control.v1.desktop.CleanupResponse.observed_at:type_name -> google.protobuf.Timestamp
+	82,  // 55: vrooli.device_control.v1.desktop.OwnerCleanupResponse.session:type_name -> common.v1.SessionRef
+	83,  // 56: vrooli.device_control.v1.desktop.OwnerCleanupResponse.observed_at:type_name -> google.protobuf.Timestamp
+	82,  // 57: vrooli.device_control.v1.desktop.OwnerAdmission.session:type_name -> common.v1.SessionRef
+	83,  // 58: vrooli.device_control.v1.desktop.OwnerAdmission.expires_at:type_name -> google.protobuf.Timestamp
+	55,  // 59: vrooli.device_control.v1.desktop.OwnerListAdmissionsResponse.admissions:type_name -> vrooli.device_control.v1.desktop.OwnerAdmission
+	82,  // 60: vrooli.device_control.v1.desktop.OwnerOpenDisposition.session:type_name -> common.v1.SessionRef
+	83,  // 61: vrooli.device_control.v1.desktop.OwnerOpenDisposition.expires_at:type_name -> google.protobuf.Timestamp
+	60,  // 62: vrooli.device_control.v1.desktop.ActivationImage.reference:type_name -> vrooli.device_control.v1.desktop.ActivationReference
+	58,  // 63: vrooli.device_control.v1.desktop.ActivationReference.source_bounds:type_name -> vrooli.device_control.v1.desktop.DesktopBounds
+	83,  // 64: vrooli.device_control.v1.desktop.ActivationReference.captured_at:type_name -> google.protobuf.Timestamp
+	83,  // 65: vrooli.device_control.v1.desktop.ActivationReference.expires_at:type_name -> google.protobuf.Timestamp
+	16,  // 66: vrooli.device_control.v1.desktop.ReadActivationRequest.lease:type_name -> vrooli.device_control.v1.desktop.Lease
+	82,  // 67: vrooli.device_control.v1.desktop.OwnerReadActivationRequest.session:type_name -> common.v1.SessionRef
+	16,  // 68: vrooli.device_control.v1.desktop.CompanionActivationRequest.lease:type_name -> vrooli.device_control.v1.desktop.Lease
+	82,  // 69: vrooli.device_control.v1.desktop.OwnerCompanionActivationRequest.session:type_name -> common.v1.SessionRef
+	82,  // 70: vrooli.device_control.v1.desktop.DesktopSignalRequest.session:type_name -> common.v1.SessionRef
+	1,   // 71: vrooli.device_control.v1.desktop.DesktopSignalRequest.kind:type_name -> vrooli.device_control.v1.desktop.DesktopSignalKind
+	1,   // 72: vrooli.device_control.v1.desktop.DesktopSignalResponse.kind:type_name -> vrooli.device_control.v1.desktop.DesktopSignalKind
+	2,   // 73: vrooli.device_control.v1.desktop.DesktopReadiness.state:type_name -> vrooli.device_control.v1.desktop.ReadinessState
+	67,  // 74: vrooli.device_control.v1.desktop.DesktopReadiness.displays:type_name -> vrooli.device_control.v1.desktop.Display
+	83,  // 75: vrooli.device_control.v1.desktop.DesktopReadiness.observed_at:type_name -> google.protobuf.Timestamp
+	83,  // 76: vrooli.device_control.v1.desktop.DesktopReadiness.expires_at:type_name -> google.protobuf.Timestamp
+	81,  // 77: vrooli.device_control.v1.desktop.GetReadinessRequest.surface:type_name -> common.v1.SurfaceRef
+	82,  // 78: vrooli.device_control.v1.desktop.DesktopSession.ref:type_name -> common.v1.SessionRef
+	83,  // 79: vrooli.device_control.v1.desktop.DesktopSession.expires_at:type_name -> google.protobuf.Timestamp
+	81,  // 80: vrooli.device_control.v1.desktop.OpenSessionRequest.surface:type_name -> common.v1.SurfaceRef
+	82,  // 81: vrooli.device_control.v1.desktop.AttachViewerRequest.session:type_name -> common.v1.SessionRef
+	82,  // 82: vrooli.device_control.v1.desktop.TakeControlRequest.session:type_name -> common.v1.SessionRef
+	82,  // 83: vrooli.device_control.v1.desktop.InputRequest.session:type_name -> common.v1.SessionRef
+	27,  // 84: vrooli.device_control.v1.desktop.InputRequest.action:type_name -> vrooli.device_control.v1.desktop.Action
+	3,   // 85: vrooli.device_control.v1.desktop.InputReceipt.outcome:type_name -> vrooli.device_control.v1.desktop.InputOutcome
+	83,  // 86: vrooli.device_control.v1.desktop.InputReceipt.observed_at:type_name -> google.protobuf.Timestamp
+	82,  // 87: vrooli.device_control.v1.desktop.ClipboardRequest.session:type_name -> common.v1.SessionRef
+	4,   // 88: vrooli.device_control.v1.desktop.ClipboardRequest.direction:type_name -> vrooli.device_control.v1.desktop.ClipboardDirection
+	3,   // 89: vrooli.device_control.v1.desktop.ClipboardReceipt.outcome:type_name -> vrooli.device_control.v1.desktop.InputOutcome
+	83,  // 90: vrooli.device_control.v1.desktop.ClipboardReceipt.observed_at:type_name -> google.protobuf.Timestamp
+	82,  // 91: vrooli.device_control.v1.desktop.CloseSessionRequest.session:type_name -> common.v1.SessionRef
+	63,  // 92: vrooli.device_control.v1.desktop.DesktopHelperService.CaptureCompanionActivation:input_type -> vrooli.device_control.v1.desktop.CompanionActivationRequest
+	31,  // 93: vrooli.device_control.v1.desktop.DesktopHelperService.CaptureActivation:input_type -> vrooli.device_control.v1.desktop.StopRequest
+	61,  // 94: vrooli.device_control.v1.desktop.DesktopHelperService.ReadActivation:input_type -> vrooli.device_control.v1.desktop.ReadActivationRequest
+	61,  // 95: vrooli.device_control.v1.desktop.DesktopHelperService.ReadActivationImage:input_type -> vrooli.device_control.v1.desktop.ReadActivationRequest
+	61,  // 96: vrooli.device_control.v1.desktop.DesktopHelperService.DeleteActivation:input_type -> vrooli.device_control.v1.desktop.ReadActivationRequest
+	31,  // 97: vrooli.device_control.v1.desktop.DesktopHelperService.ReadCleanup:input_type -> vrooli.device_control.v1.desktop.StopRequest
+	43,  // 98: vrooli.device_control.v1.desktop.DesktopHelperService.ClaimFlow:input_type -> vrooli.device_control.v1.desktop.ClaimFlowRequest
+	45,  // 99: vrooli.device_control.v1.desktop.DesktopHelperService.FinishFlow:input_type -> vrooli.device_control.v1.desktop.FinishFlowRequest
+	17,  // 100: vrooli.device_control.v1.desktop.DesktopHelperService.Open:input_type -> vrooli.device_control.v1.desktop.OpenRequest
+	40,  // 101: vrooli.device_control.v1.desktop.DesktopHelperService.Resolve:input_type -> vrooli.device_control.v1.desktop.ResolveRequest
+	36,  // 102: vrooli.device_control.v1.desktop.DesktopHelperService.Applications:input_type -> vrooli.device_control.v1.desktop.ApplicationsRequest
+	33,  // 103: vrooli.device_control.v1.desktop.DesktopHelperService.Observe:input_type -> vrooli.device_control.v1.desktop.ObserveRequest
+	28,  // 104: vrooli.device_control.v1.desktop.DesktopHelperService.Act:input_type -> vrooli.device_control.v1.desktop.ActRequest
+	31,  // 105: vrooli.device_control.v1.desktop.DesktopHelperService.Stop:input_type -> vrooli.device_control.v1.desktop.StopRequest
+	64,  // 106: vrooli.device_control.v1.desktop.DesktopOwnerService.CaptureCompanionActivation:input_type -> vrooli.device_control.v1.desktop.OwnerCompanionActivationRequest
+	15,  // 107: vrooli.device_control.v1.desktop.DesktopOwnerService.CaptureActivation:input_type -> vrooli.device_control.v1.desktop.OwnerStopRequest
+	62,  // 108: vrooli.device_control.v1.desktop.DesktopOwnerService.ReadActivation:input_type -> vrooli.device_control.v1.desktop.OwnerReadActivationRequest
+	62,  // 109: vrooli.device_control.v1.desktop.DesktopOwnerService.ReadActivationImage:input_type -> vrooli.device_control.v1.desktop.OwnerReadActivationRequest
+	62,  // 110: vrooli.device_control.v1.desktop.DesktopOwnerService.DeleteActivation:input_type -> vrooli.device_control.v1.desktop.OwnerReadActivationRequest
+	11,  // 111: vrooli.device_control.v1.desktop.DesktopOwnerService.ReconcileOpen:input_type -> vrooli.device_control.v1.desktop.OwnerOpenRequest
+	54,  // 112: vrooli.device_control.v1.desktop.DesktopOwnerService.ListAdmissions:input_type -> vrooli.device_control.v1.desktop.OwnerListAdmissionsRequest
+	15,  // 113: vrooli.device_control.v1.desktop.DesktopOwnerService.ReadCleanup:input_type -> vrooli.device_control.v1.desktop.OwnerStopRequest
+	47,  // 114: vrooli.device_control.v1.desktop.DesktopOwnerService.RunFlow:input_type -> vrooli.device_control.v1.desktop.OwnerRunFlowRequest
+	48,  // 115: vrooli.device_control.v1.desktop.DesktopOwnerService.PromoteFlow:input_type -> vrooli.device_control.v1.desktop.OwnerPromoteFlowRequest
+	49,  // 116: vrooli.device_control.v1.desktop.DesktopOwnerService.GetSavedFlow:input_type -> vrooli.device_control.v1.desktop.OwnerGetSavedFlowRequest
+	50,  // 117: vrooli.device_control.v1.desktop.DesktopOwnerService.RunSavedFlow:input_type -> vrooli.device_control.v1.desktop.OwnerRunSavedFlowRequest
+	9,   // 118: vrooli.device_control.v1.desktop.DesktopOwnerService.Describe:input_type -> vrooli.device_control.v1.desktop.OwnerDescribeRequest
+	11,  // 119: vrooli.device_control.v1.desktop.DesktopOwnerService.Open:input_type -> vrooli.device_control.v1.desktop.OwnerOpenRequest
+	41,  // 120: vrooli.device_control.v1.desktop.DesktopOwnerService.Resolve:input_type -> vrooli.device_control.v1.desktop.OwnerResolveRequest
+	37,  // 121: vrooli.device_control.v1.desktop.DesktopOwnerService.Applications:input_type -> vrooli.device_control.v1.desktop.OwnerApplicationsRequest
+	13,  // 122: vrooli.device_control.v1.desktop.DesktopOwnerService.Observe:input_type -> vrooli.device_control.v1.desktop.OwnerObserveRequest
+	14,  // 123: vrooli.device_control.v1.desktop.DesktopOwnerService.Act:input_type -> vrooli.device_control.v1.desktop.OwnerActRequest
+	15,  // 124: vrooli.device_control.v1.desktop.DesktopOwnerService.Stop:input_type -> vrooli.device_control.v1.desktop.OwnerStopRequest
+	15,  // 125: vrooli.device_control.v1.desktop.DesktopAccountService.CaptureActivation:input_type -> vrooli.device_control.v1.desktop.OwnerStopRequest
+	62,  // 126: vrooli.device_control.v1.desktop.DesktopAccountService.ReadActivation:input_type -> vrooli.device_control.v1.desktop.OwnerReadActivationRequest
+	62,  // 127: vrooli.device_control.v1.desktop.DesktopAccountService.ReadActivationImage:input_type -> vrooli.device_control.v1.desktop.OwnerReadActivationRequest
+	62,  // 128: vrooli.device_control.v1.desktop.DesktopAccountService.DeleteActivation:input_type -> vrooli.device_control.v1.desktop.OwnerReadActivationRequest
+	11,  // 129: vrooli.device_control.v1.desktop.DesktopAccountService.ReconcileOpen:input_type -> vrooli.device_control.v1.desktop.OwnerOpenRequest
+	54,  // 130: vrooli.device_control.v1.desktop.DesktopAccountService.ListAdmissions:input_type -> vrooli.device_control.v1.desktop.OwnerListAdmissionsRequest
+	15,  // 131: vrooli.device_control.v1.desktop.DesktopAccountService.ReadCleanup:input_type -> vrooli.device_control.v1.desktop.OwnerStopRequest
+	47,  // 132: vrooli.device_control.v1.desktop.DesktopAccountService.RunFlow:input_type -> vrooli.device_control.v1.desktop.OwnerRunFlowRequest
+	48,  // 133: vrooli.device_control.v1.desktop.DesktopAccountService.PromoteFlow:input_type -> vrooli.device_control.v1.desktop.OwnerPromoteFlowRequest
+	49,  // 134: vrooli.device_control.v1.desktop.DesktopAccountService.GetSavedFlow:input_type -> vrooli.device_control.v1.desktop.OwnerGetSavedFlowRequest
+	50,  // 135: vrooli.device_control.v1.desktop.DesktopAccountService.RunSavedFlow:input_type -> vrooli.device_control.v1.desktop.OwnerRunSavedFlowRequest
+	11,  // 136: vrooli.device_control.v1.desktop.DesktopAccountService.Open:input_type -> vrooli.device_control.v1.desktop.OwnerOpenRequest
+	41,  // 137: vrooli.device_control.v1.desktop.DesktopAccountService.Resolve:input_type -> vrooli.device_control.v1.desktop.OwnerResolveRequest
+	37,  // 138: vrooli.device_control.v1.desktop.DesktopAccountService.Applications:input_type -> vrooli.device_control.v1.desktop.OwnerApplicationsRequest
+	13,  // 139: vrooli.device_control.v1.desktop.DesktopAccountService.Observe:input_type -> vrooli.device_control.v1.desktop.OwnerObserveRequest
+	14,  // 140: vrooli.device_control.v1.desktop.DesktopAccountService.Act:input_type -> vrooli.device_control.v1.desktop.OwnerActRequest
+	15,  // 141: vrooli.device_control.v1.desktop.DesktopAccountService.Stop:input_type -> vrooli.device_control.v1.desktop.OwnerStopRequest
+	69,  // 142: vrooli.device_control.v1.desktop.DesktopSessionService.GetReadiness:input_type -> vrooli.device_control.v1.desktop.GetReadinessRequest
+	71,  // 143: vrooli.device_control.v1.desktop.DesktopSessionService.OpenSession:input_type -> vrooli.device_control.v1.desktop.OpenSessionRequest
+	72,  // 144: vrooli.device_control.v1.desktop.DesktopSessionService.AttachViewer:input_type -> vrooli.device_control.v1.desktop.AttachViewerRequest
+	73,  // 145: vrooli.device_control.v1.desktop.DesktopSessionService.TakeControl:input_type -> vrooli.device_control.v1.desktop.TakeControlRequest
+	65,  // 146: vrooli.device_control.v1.desktop.DesktopSessionService.Signal:input_type -> vrooli.device_control.v1.desktop.DesktopSignalRequest
+	74,  // 147: vrooli.device_control.v1.desktop.DesktopSessionService.Input:input_type -> vrooli.device_control.v1.desktop.InputRequest
+	76,  // 148: vrooli.device_control.v1.desktop.DesktopSessionService.Clipboard:input_type -> vrooli.device_control.v1.desktop.ClipboardRequest
+	78,  // 149: vrooli.device_control.v1.desktop.DesktopSessionService.CloseSession:input_type -> vrooli.device_control.v1.desktop.CloseSessionRequest
+	60,  // 150: vrooli.device_control.v1.desktop.DesktopHelperService.CaptureCompanionActivation:output_type -> vrooli.device_control.v1.desktop.ActivationReference
+	60,  // 151: vrooli.device_control.v1.desktop.DesktopHelperService.CaptureActivation:output_type -> vrooli.device_control.v1.desktop.ActivationReference
+	60,  // 152: vrooli.device_control.v1.desktop.DesktopHelperService.ReadActivation:output_type -> vrooli.device_control.v1.desktop.ActivationReference
+	59,  // 153: vrooli.device_control.v1.desktop.DesktopHelperService.ReadActivationImage:output_type -> vrooli.device_control.v1.desktop.ActivationImage
+	32,  // 154: vrooli.device_control.v1.desktop.DesktopHelperService.DeleteActivation:output_type -> vrooli.device_control.v1.desktop.StopResponse
+	52,  // 155: vrooli.device_control.v1.desktop.DesktopHelperService.ReadCleanup:output_type -> vrooli.device_control.v1.desktop.CleanupResponse
+	44,  // 156: vrooli.device_control.v1.desktop.DesktopHelperService.ClaimFlow:output_type -> vrooli.device_control.v1.desktop.ClaimFlowResponse
+	46,  // 157: vrooli.device_control.v1.desktop.DesktopHelperService.FinishFlow:output_type -> vrooli.device_control.v1.desktop.FlowRecord
+	18,  // 158: vrooli.device_control.v1.desktop.DesktopHelperService.Open:output_type -> vrooli.device_control.v1.desktop.OpenResponse
+	42,  // 159: vrooli.device_control.v1.desktop.DesktopHelperService.Resolve:output_type -> vrooli.device_control.v1.desktop.ResolveResponse
+	38,  // 160: vrooli.device_control.v1.desktop.DesktopHelperService.Applications:output_type -> vrooli.device_control.v1.desktop.ApplicationsResponse
+	34,  // 161: vrooli.device_control.v1.desktop.DesktopHelperService.Observe:output_type -> vrooli.device_control.v1.desktop.ObserveResponse
+	30,  // 162: vrooli.device_control.v1.desktop.DesktopHelperService.Act:output_type -> vrooli.device_control.v1.desktop.ActResponse
+	32,  // 163: vrooli.device_control.v1.desktop.DesktopHelperService.Stop:output_type -> vrooli.device_control.v1.desktop.StopResponse
+	60,  // 164: vrooli.device_control.v1.desktop.DesktopOwnerService.CaptureCompanionActivation:output_type -> vrooli.device_control.v1.desktop.ActivationReference
+	60,  // 165: vrooli.device_control.v1.desktop.DesktopOwnerService.CaptureActivation:output_type -> vrooli.device_control.v1.desktop.ActivationReference
+	60,  // 166: vrooli.device_control.v1.desktop.DesktopOwnerService.ReadActivation:output_type -> vrooli.device_control.v1.desktop.ActivationReference
+	59,  // 167: vrooli.device_control.v1.desktop.DesktopOwnerService.ReadActivationImage:output_type -> vrooli.device_control.v1.desktop.ActivationImage
+	32,  // 168: vrooli.device_control.v1.desktop.DesktopOwnerService.DeleteActivation:output_type -> vrooli.device_control.v1.desktop.StopResponse
+	57,  // 169: vrooli.device_control.v1.desktop.DesktopOwnerService.ReconcileOpen:output_type -> vrooli.device_control.v1.desktop.OwnerOpenDisposition
+	56,  // 170: vrooli.device_control.v1.desktop.DesktopOwnerService.ListAdmissions:output_type -> vrooli.device_control.v1.desktop.OwnerListAdmissionsResponse
+	53,  // 171: vrooli.device_control.v1.desktop.DesktopOwnerService.ReadCleanup:output_type -> vrooli.device_control.v1.desktop.OwnerCleanupResponse
+	46,  // 172: vrooli.device_control.v1.desktop.DesktopOwnerService.RunFlow:output_type -> vrooli.device_control.v1.desktop.FlowRecord
+	51,  // 173: vrooli.device_control.v1.desktop.DesktopOwnerService.PromoteFlow:output_type -> vrooli.device_control.v1.desktop.SavedDesktopFlow
+	51,  // 174: vrooli.device_control.v1.desktop.DesktopOwnerService.GetSavedFlow:output_type -> vrooli.device_control.v1.desktop.SavedDesktopFlow
+	46,  // 175: vrooli.device_control.v1.desktop.DesktopOwnerService.RunSavedFlow:output_type -> vrooli.device_control.v1.desktop.FlowRecord
+	10,  // 176: vrooli.device_control.v1.desktop.DesktopOwnerService.Describe:output_type -> vrooli.device_control.v1.desktop.OwnerDescribeResponse
+	12,  // 177: vrooli.device_control.v1.desktop.DesktopOwnerService.Open:output_type -> vrooli.device_control.v1.desktop.OwnerOpenResponse
+	42,  // 178: vrooli.device_control.v1.desktop.DesktopOwnerService.Resolve:output_type -> vrooli.device_control.v1.desktop.ResolveResponse
+	38,  // 179: vrooli.device_control.v1.desktop.DesktopOwnerService.Applications:output_type -> vrooli.device_control.v1.desktop.ApplicationsResponse
+	34,  // 180: vrooli.device_control.v1.desktop.DesktopOwnerService.Observe:output_type -> vrooli.device_control.v1.desktop.ObserveResponse
+	30,  // 181: vrooli.device_control.v1.desktop.DesktopOwnerService.Act:output_type -> vrooli.device_control.v1.desktop.ActResponse
+	32,  // 182: vrooli.device_control.v1.desktop.DesktopOwnerService.Stop:output_type -> vrooli.device_control.v1.desktop.StopResponse
+	60,  // 183: vrooli.device_control.v1.desktop.DesktopAccountService.CaptureActivation:output_type -> vrooli.device_control.v1.desktop.ActivationReference
+	60,  // 184: vrooli.device_control.v1.desktop.DesktopAccountService.ReadActivation:output_type -> vrooli.device_control.v1.desktop.ActivationReference
+	59,  // 185: vrooli.device_control.v1.desktop.DesktopAccountService.ReadActivationImage:output_type -> vrooli.device_control.v1.desktop.ActivationImage
+	32,  // 186: vrooli.device_control.v1.desktop.DesktopAccountService.DeleteActivation:output_type -> vrooli.device_control.v1.desktop.StopResponse
+	57,  // 187: vrooli.device_control.v1.desktop.DesktopAccountService.ReconcileOpen:output_type -> vrooli.device_control.v1.desktop.OwnerOpenDisposition
+	56,  // 188: vrooli.device_control.v1.desktop.DesktopAccountService.ListAdmissions:output_type -> vrooli.device_control.v1.desktop.OwnerListAdmissionsResponse
+	53,  // 189: vrooli.device_control.v1.desktop.DesktopAccountService.ReadCleanup:output_type -> vrooli.device_control.v1.desktop.OwnerCleanupResponse
+	46,  // 190: vrooli.device_control.v1.desktop.DesktopAccountService.RunFlow:output_type -> vrooli.device_control.v1.desktop.FlowRecord
+	51,  // 191: vrooli.device_control.v1.desktop.DesktopAccountService.PromoteFlow:output_type -> vrooli.device_control.v1.desktop.SavedDesktopFlow
+	51,  // 192: vrooli.device_control.v1.desktop.DesktopAccountService.GetSavedFlow:output_type -> vrooli.device_control.v1.desktop.SavedDesktopFlow
+	46,  // 193: vrooli.device_control.v1.desktop.DesktopAccountService.RunSavedFlow:output_type -> vrooli.device_control.v1.desktop.FlowRecord
+	12,  // 194: vrooli.device_control.v1.desktop.DesktopAccountService.Open:output_type -> vrooli.device_control.v1.desktop.OwnerOpenResponse
+	42,  // 195: vrooli.device_control.v1.desktop.DesktopAccountService.Resolve:output_type -> vrooli.device_control.v1.desktop.ResolveResponse
+	38,  // 196: vrooli.device_control.v1.desktop.DesktopAccountService.Applications:output_type -> vrooli.device_control.v1.desktop.ApplicationsResponse
+	34,  // 197: vrooli.device_control.v1.desktop.DesktopAccountService.Observe:output_type -> vrooli.device_control.v1.desktop.ObserveResponse
+	30,  // 198: vrooli.device_control.v1.desktop.DesktopAccountService.Act:output_type -> vrooli.device_control.v1.desktop.ActResponse
+	32,  // 199: vrooli.device_control.v1.desktop.DesktopAccountService.Stop:output_type -> vrooli.device_control.v1.desktop.StopResponse
+	68,  // 200: vrooli.device_control.v1.desktop.DesktopSessionService.GetReadiness:output_type -> vrooli.device_control.v1.desktop.DesktopReadiness
+	70,  // 201: vrooli.device_control.v1.desktop.DesktopSessionService.OpenSession:output_type -> vrooli.device_control.v1.desktop.DesktopSession
+	70,  // 202: vrooli.device_control.v1.desktop.DesktopSessionService.AttachViewer:output_type -> vrooli.device_control.v1.desktop.DesktopSession
+	70,  // 203: vrooli.device_control.v1.desktop.DesktopSessionService.TakeControl:output_type -> vrooli.device_control.v1.desktop.DesktopSession
+	66,  // 204: vrooli.device_control.v1.desktop.DesktopSessionService.Signal:output_type -> vrooli.device_control.v1.desktop.DesktopSignalResponse
+	75,  // 205: vrooli.device_control.v1.desktop.DesktopSessionService.Input:output_type -> vrooli.device_control.v1.desktop.InputReceipt
+	77,  // 206: vrooli.device_control.v1.desktop.DesktopSessionService.Clipboard:output_type -> vrooli.device_control.v1.desktop.ClipboardReceipt
+	79,  // 207: vrooli.device_control.v1.desktop.DesktopSessionService.CloseSession:output_type -> vrooli.device_control.v1.desktop.CloseSessionResponse
+	150, // [150:208] is the sub-list for method output_type
+	92,  // [92:150] is the sub-list for method input_type
+	92,  // [92:92] is the sub-list for extension type_name
+	92,  // [92:92] is the sub-list for extension extendee
+	0,   // [0:92] is the sub-list for field type_name
 }
 
 func init() { file_device_control_v1_desktop_desktop_proto_init() }
@@ -4779,10 +6410,10 @@ func file_device_control_v1_desktop_desktop_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_device_control_v1_desktop_desktop_proto_rawDesc), len(file_device_control_v1_desktop_desktop_proto_rawDesc)),
-			NumEnums:      5,
-			NumMessages:   56,
+			NumEnums:      9,
+			NumMessages:   71,
 			NumExtensions: 0,
-			NumServices:   3,
+			NumServices:   4,
 		},
 		GoTypes:           file_device_control_v1_desktop_desktop_proto_goTypes,
 		DependencyIndexes: file_device_control_v1_desktop_desktop_proto_depIdxs,

@@ -1,0 +1,123 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "nutrition-planner",
+  "description": "Experience contract for Nutrition Planner (Daily). Every figure names its basis, scope, and completeness; missing data is unknown, never zero; required rules are never traded against cost, effort, or variety. Claims are aspirational until the UI exists to reconcile against them.",
+  "pages": [
+    {
+      "id": "today",
+      "path": "pages/today.json",
+      "title": "Today",
+      "status": "active"
+    },
+    {
+      "id": "week",
+      "path": "pages/week.json",
+      "title": "Your week",
+      "status": "active"
+    },
+    {
+      "id": "groceries",
+      "path": "pages/groceries.json",
+      "title": "Groceries",
+      "status": "active"
+    },
+    {
+      "id": "meals",
+      "path": "pages/meals.json",
+      "title": "Meals",
+      "status": "active"
+    },
+    {
+      "id": "recipe",
+      "path": "pages/recipe.json",
+      "title": "Recipe",
+      "status": "active"
+    },
+    {
+      "id": "kitchen",
+      "path": "pages/kitchen.json",
+      "title": "Your kitchen",
+      "status": "active"
+    },
+    {
+      "id": "nutrition",
+      "path": "pages/nutrition.json",
+      "title": "Nutrition",
+      "status": "active"
+    },
+    {
+      "id": "data",
+      "path": "pages/data.json",
+      "title": "Your food, portable.",
+      "status": "active"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "active"
+    },
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Home (retired)",
+      "status": "deprecated"
+    },
+    {
+      "id": "notes",
+      "path": "pages/notes.json",
+      "title": "Notes (retired)",
+      "status": "deprecated"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "first-useful-plan",
+      "path": "journeys/first-useful-plan.json",
+      "title": "A first useful plan",
+      "status": "active"
+    },
+    {
+      "id": "capture-existing-routine",
+      "path": "journeys/capture-existing-routine.json",
+      "title": "Capture an existing routine",
+      "status": "active"
+    },
+    {
+      "id": "tired-evening",
+      "path": "journeys/tired-evening.json",
+      "title": "A tired evening",
+      "status": "active"
+    },
+    {
+      "id": "shopping-and-changes",
+      "path": "journeys/shopping-and-changes.json",
+      "title": "Shopping and changes",
+      "status": "active"
+    },
+    {
+      "id": "cooking-and-logging",
+      "path": "journeys/cooking-and-logging.json",
+      "title": "Cooking and logging",
+      "status": "active"
+    },
+    {
+      "id": "new-week",
+      "path": "journeys/new-week.json",
+      "title": "A new week",
+      "status": "active"
+    },
+    {
+      "id": "moving-data",
+      "path": "journeys/moving-data.json",
+      "title": "Moving data",
+      "status": "active"
+    }
+  ]
+}
