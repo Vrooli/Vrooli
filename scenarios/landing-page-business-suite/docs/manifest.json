@@ -167,6 +167,22 @@
             "validated"
           ],
           "completion": "optional"
+        },
+        {
+          "path": "guides/EMAIL_OPERATIONS.md",
+          "title": "Email Operations Runbook",
+          "description": "Diagnose a mail outage, add a provider to the ladder, rotate a credential, and respond to delivery alerts",
+          "audience": [
+            "users",
+            "developers",
+            "agents"
+          ],
+          "docType": "guide",
+          "maturity": "draft",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         }
       ],
       "description": "Guides",
@@ -192,9 +208,9 @@
           ],
           "completion": "optional"
         },
-    {
-      "path": "concepts/ARCHITECTURE.md",
-      "title": "Architecture",
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "title": "Architecture",
           "description": "System design, components, and deployment topology",
           "audience": [
             "developers"
@@ -204,24 +220,24 @@
           "requiredBy": [
             "validated"
           ],
-      "completion": "optional"
-    },
-    {
-      "path": "concepts/DOMAINS.md",
-      "title": "Domains",
-      "description": "Product capability ownership and transitional source layout",
-      "audience": [
-        "developers"
-      ],
-      "docType": "concepts-domains",
-      "maturity": "active",
-      "requiredBy": [
-        "validated"
-      ],
-      "completion": "optional"
-    },
-    {
-      "path": "concepts/DESIGN_SYSTEM.md",
+          "completion": "optional"
+        },
+        {
+          "path": "concepts/DOMAINS.md",
+          "title": "Domains",
+          "description": "Product capability ownership and transitional source layout",
+          "audience": [
+            "developers"
+          ],
+          "docType": "concepts-domains",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "concepts/DESIGN_SYSTEM.md",
           "title": "Design System",
           "description": "Visual design tokens and styling guidelines",
           "audience": [
@@ -411,6 +427,21 @@
           ],
           "docType": "reference-metered-inference",
           "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "reference/EMAIL_DELIVERY.md",
+          "title": "Email Delivery",
+          "description": "Authoritative design for outbound email: delivery subsystem, provider registry and routing, DNS authorization, data model, and operator surface",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "docType": "reference",
+          "maturity": "draft",
           "requiredBy": [
             "validated"
           ],

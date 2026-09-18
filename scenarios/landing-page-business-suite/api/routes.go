@@ -43,7 +43,6 @@ import (
 	variantspacehttp "landing-page-business-suite-api/handlers/variant_space"
 	authadmin "landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/emailevents"
-	"landing-page-business-suite-api/internal/envx"
 	"landing-page-business-suite-api/internal/logx"
 	"landing-page-business-suite-api/internal/monetization"
 	passkeyinternal "landing-page-business-suite-api/internal/passkeys"
@@ -381,14 +380,18 @@ func registerDeployReadinessRoute(s *Server) {
 
 func registerHealthRoutes(s *Server) {
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
+	// The watchdog asserts the policy the login path actually enforces, not a
+	// second reading of the environment variable. The previous version only
+	// complained when ADMIN_REQUIRE_MFA was explicitly "false", so an unset
+	// variable that derived "not required" in production passed silently —
+	// the one case where enforcement was off and nothing said so.
 	adminMFAPolicyCheck := health.Func("admin_mfa_policy", func(context.Context) error {
-		mfaDisabled := strings.EqualFold(strings.TrimSpace(envx.Get("ADMIN_REQUIRE_MFA")), "false") || strings.TrimSpace(envx.Get("ADMIN_REQUIRE_MFA")) == "0" || strings.EqualFold(strings.TrimSpace(envx.Get("ADMIN_REQUIRE_MFA")), "no")
-		if (runtimeEnvironment() == "production" || runtimeEnvironment() == "prod") && mfaDisabled {
-			return fmt.Errorf("ADMIN_REQUIRE_MFA is disabled in production")
+		if isProductionEnvironment() && !adminhttp.AdminMFARequired() {
+			return fmt.Errorf("administrator second factors are not required in this production deployment; set ADMIN_REQUIRE_MFA=true or declare the production environment")
 		}
 		return nil
 	})
-	healthHandler := health.New().Version("1.0.0").Check(health.DB(s.primaryDB()), health.Critical).Check(adminMFAPolicyCheck, health.Optional).Check(s.signInDeliveryCheck(), health.Optional).Check(s.signInEmailDNSCheck(), health.Optional).Check(s.paymentsCheck(), health.Optional).Handler()
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(s.primaryDB()), health.Critical).Check(adminMFAPolicyCheck, health.Optional).Check(s.signInDeliveryCheck(), health.Optional).Check(s.signInEmailDNSCheck(), health.Optional).Check(s.paymentsCheck(), health.Optional).Check(s.providerCredentialCheck("sign_in_email_credentials", "sendgrid"), health.Optional).Check(s.providerCredentialCheck("sign_in_smtp_credentials", "smtp"), health.Optional).Check(s.providerCredentialCheck("payments_credentials", "stripe"), health.Optional).Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 }
@@ -584,6 +587,7 @@ func registerAdminCoreRoutes(s *Server) {
 	registerAdminMFARoutes(s)
 	s.router.HandleFunc("/api/v1/admin/auth/delivery", s.requireMetricsReader(s.signInDeliveryReport)).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/auth/email-readiness", s.requireAdmin(s.emailReadinessReport)).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/provider-credentials", s.requireAdmin(s.providerVerificationReport)).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/security-events", s.requireAdmin(s.adminSecurityEvents)).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/auth/delivery-probe", s.requireAdmin(s.signInDeliveryProbe)).Methods("POST")
 	profileDeps := s.adminProfileDependencies()

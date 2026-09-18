@@ -106,6 +106,30 @@ the external identity; and unlinking or revocation must not delete the LPBS
 business account. LPBS must not store Google refresh tokens, provider
 passwords, or raw OAuth callbacks.
 
+### Provider credential verification
+
+Stored provider credentials are re-verified on an hourly loop, because a
+credential breaks between deploys: a key is revoked, a password rotated, a
+Stripe key swapped for the other mode. Each probe authenticates and stops
+there.
+
+| Probe | What it asks | Health dependency |
+|---|---|---|
+| SendGrid | `GET /v3/scopes`; the key must authenticate **and** carry `mail.send` | `sign_in_email_credentials` |
+| Site SMTP relay | connect, STARTTLS, `AUTH`, `QUIT` — no message is sent | `sign_in_smtp_credentials` |
+| Stripe | key mode versus the declared `STRIPE_MODE`, then read-only `GET /v1/account` | `payments_credentials` |
+
+Only an outright rejection degrades health and raises an alert. A credential
+that is not configured is a declaration rather than a defect, and an
+unreachable provider is not evidence of a bad credential, so both are silent:
+every warning this produces is meant to be actionable. A persistent failure
+alerts once per six-hour window through the operator webhook and is recorded
+in `auth_alert_log`. `GET /api/v1/admin/provider-credentials` serves the
+cached verdicts; probe details never contain a credential value.
+
+Health reads the cache and never probes inline, so a health request cannot be
+delayed by a third party and a busy poller cannot turn into a probe flood.
+
 ### Passkeys and administrator second factors
 
 LPBS is the WebAuthn relying party for its website RP ID (`vrooli.com` in
@@ -113,8 +137,16 @@ production). Customer passkeys support passwordless browser sign-in and
 recent-authentication step-up. Administrator passkeys are an additional
 second factor alongside TOTP and recovery codes; enrollment, login, and
 reauthentication use one-use, browser-bound ceremonies and durable credential
-records. Production rollout requires `ADMIN_REQUIRE_MFA=true` and a first
-administrator second-factor enrollment.
+records.
+
+The requirement itself comes from `ADMIN_REQUIRE_MFA` when set, and is
+otherwise derived from the environment — read from `LPBS_ENVIRONMENT` or
+`VROOLI_ENVIRONMENT`, so a cloud-deployed process that only receives the
+control-plane variable still derives "required". The `admin_mfa_policy` health
+check asserts that effective policy rather than re-reading the variable, so a
+production deployment that is not enforcing second factors says so instead of
+passing silently. A production rollout still needs a first administrator
+second-factor enrollment before the portal is exposed.
 
 ### Desktop account-link endpoints
 

@@ -72,6 +72,32 @@ func (s *EmailService) SendSignIn(message administration.SignInMessage) (*admini
 	return nil, errors.New("no sign-in email provider is configured (SendGrid or site SMTP)")
 }
 
+// SignInProviders reports which sign-in mail providers are configured right
+// now. It reads configuration only and sends nothing.
+//
+// It exists because delivery health was attempt-driven: a deployment with no
+// usable provider read healthy whenever nobody happened to be signing in, so
+// the signal disappeared exactly when no customer was there to trip it.
+type SignInProviders struct {
+	SendGrid bool
+	SMTP     bool
+}
+
+// Any reports whether at least one provider could carry a sign-in email.
+func (p SignInProviders) Any() bool { return p.SendGrid || p.SMTP }
+
+// SignInProviders inspects the SendGrid credential and the site's SMTP relay
+// settings, the same two sources SendSignIn tries in that order.
+func (s *EmailService) SignInProviders() SignInProviders {
+	providers := SignInProviders{SendGrid: s.IsSendGridConfigured()}
+	if branding := s.currentBranding(); branding != nil {
+		if config := s.extractSMTPConfig(branding); config != nil && config.IsConfigured() {
+			providers.SMTP = true
+		}
+	}
+	return providers
+}
+
 func (s *EmailService) currentBranding() *experimentation.SiteBranding {
 	if s.brandingSource == nil {
 		return nil

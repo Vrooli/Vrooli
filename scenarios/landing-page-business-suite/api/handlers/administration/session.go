@@ -305,13 +305,32 @@ func LoginSession(r *http.Request, w http.ResponseWriter, request LoginRequest, 
 	return result, nil
 }
 
+// AdminMFARequired reports whether an administrator must hold a second
+// factor. An explicit ADMIN_REQUIRE_MFA wins; otherwise the requirement is
+// derived from the environment, because a production deployment must not have
+// to remember a flag to be secure.
+//
+// The derivation reads VROOLI_ENVIRONMENT as well as LPBS_ENVIRONMENT. Cloud
+// execution exports only the former, and reading just the scenario-specific
+// variable meant a deployed production process derived "not required" and
+// silently accepted administrators with no second factor.
 func AdminMFARequired() bool {
 	value := strings.ToLower(strings.TrimSpace(os.Getenv("ADMIN_REQUIRE_MFA")))
 	if value == "" {
-		environment := strings.ToLower(strings.TrimSpace(os.Getenv("LPBS_ENVIRONMENT")))
-		return environment == "production" || environment == "prod"
+		return AdminEnvironmentIsProduction()
 	}
 	return value != "0" && value != "false" && value != "no"
+}
+
+// AdminEnvironmentIsProduction resolves the deployment environment the same
+// way the rest of the API does: the scenario-specific variable first, then the
+// control-plane one exported for cloud execution.
+func AdminEnvironmentIsProduction() bool {
+	environment := strings.ToLower(strings.TrimSpace(os.Getenv("LPBS_ENVIRONMENT")))
+	if environment == "" {
+		environment = strings.ToLower(strings.TrimSpace(os.Getenv("VROOLI_ENVIRONMENT")))
+	}
+	return environment == "production" || environment == "prod"
 }
 
 func adminSessionAbsoluteTTL() time.Duration {

@@ -105,6 +105,7 @@ type Server struct {
 	passkeyChallenges      *passkeys.Repository
 	passkeyCredentials     *passkeys.Credentials
 	emailReadinessService  *emailreadiness.Service
+	providerVerification   *providerVerificationCache
 	businessAccounts       businessaccount.Repository
 	desktopLinkService     *desktoplink.Service
 	desktopLinkVerifier    authn.TokenVerifier
@@ -113,6 +114,7 @@ type Server struct {
 	adminMFA               *administration.AdminMFA
 	stopAuthJanitor        func()
 	stopAuthDeliveryAlerts func()
+	stopProviderChecks     func()
 	// AI MeteredInferenceProvider service
 	meteredInferenceService *intelligence.MeteredInferenceService
 	meteredInferenceHandler *aihandler.Handler
@@ -516,6 +518,7 @@ func NewServer() (*Server, error) {
 		passkeyChallenges:      &passkeys.Repository{DB: routedDB},
 		passkeyCredentials:     &passkeys.Credentials{DB: routedDB},
 		emailReadinessService:  emailReadinessService,
+		providerVerification:   newProviderVerificationCache(),
 		nativeGrants:           nativeGrantsRepository,
 		businessAccounts:       businessAccounts,
 		desktopLinkService:     desktopLinkService,
@@ -719,6 +722,9 @@ func (s *Server) Cleanup() error {
 	if s.stopAuthJanitor != nil {
 		s.stopAuthJanitor()
 	}
+	if s.stopProviderChecks != nil {
+		s.stopProviderChecks()
+	}
 	if s.stopAuthDeliveryAlerts != nil {
 		s.stopAuthDeliveryAlerts()
 	}
@@ -813,6 +819,7 @@ func main() {
 	}
 	srv.stopAuthJanitor = srv.startAuthJanitor()
 	srv.stopAuthDeliveryAlerts = srv.startAuthDeliveryAlerts()
+	srv.stopProviderChecks = srv.startProviderVerification()
 
 	if err := server.Run(server.Config{
 		Handler: apihttp.TestModeMiddleware(srv.Router()),

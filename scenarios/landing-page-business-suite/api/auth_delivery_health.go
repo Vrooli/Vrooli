@@ -13,7 +13,12 @@ import (
 	"landing-page-business-suite-api/internal/administration"
 )
 
-const signInDeliveryWindow = time.Hour
+// signInDeliveryWindow is the reporting window for the 24-hour operator
+// report and for health. It is a day rather than an hour because health used
+// to forget a broken provider as soon as the failed attempts aged out: the
+// site reported healthy again while sign-in was still impossible, and only
+// degraded while a customer happened to be failing to sign in.
+const signInDeliveryWindow = 24 * time.Hour
 
 // signInDeliveryCheck makes a failing sign-in mail provider visible in health
 // instead of only in logs. It is optional: the API still serves, but
@@ -23,12 +28,19 @@ func (s *Server) signInDeliveryCheck() health.Checker {
 		if s.userAuthService == nil {
 			return errors.New("sign-in service unavailable")
 		}
+		// Configuration first: a deployment with no provider cannot deliver a
+		// code whether or not anyone has tried. This is the state that used to
+		// read healthy between attempts.
+		if s.emailService != nil && isProductionEnvironment() && !s.emailService.SignInProviders().Any() {
+			return errors.New("no sign-in email provider is configured (SendGrid or the site SMTP relay); customers cannot receive a sign-in code")
+		}
 		summary, err := s.userAuthService.DeliveryHealth(ctx, signInDeliveryWindow)
 		if err != nil {
 			return fmt.Errorf("read sign-in delivery outcomes: %w", err)
 		}
 		if summary.LastFailure != nil && (summary.LastSuccess == nil || summary.LastFailure.After(*summary.LastSuccess)) {
-			return fmt.Errorf("%d of the last %d sign-in emails failed in the past hour; latest: %s", summary.Failed, summary.Failed+summary.Sent, summary.LastError)
+			return fmt.Errorf("the most recent sign-in email failed (%d of %d attempts in the last 24 hours): %s",
+				summary.Failed, summary.Failed+summary.Sent, summary.LastError)
 		}
 		return nil
 	})

@@ -88,6 +88,21 @@ settings are never modified.
 
 **Authentication:** Admin session required. CLI: `landing-page-business-suite admin-email-readiness`.
 
+### GET /admin/provider-credentials
+
+Returns the cached verdicts of the hourly provider-credential verification:
+`{results: [{provider, capability, status, detail, checked_at}]}` where status
+is `pass`, `fail`, `not_configured` or `unknown` (the provider could not be
+reached). Providers are `sendgrid`, `smtp` and `stripe`.
+
+Presence is not usability, so these are authentication attempts rather than
+configuration reads: SendGrid is asked for the key's scopes, the relay is asked
+to accept a login over TLS and then quits, and Stripe is asked for its account
+after its key mode is compared with the declared mode. Nothing is sent and
+nothing is created, and a detail never contains a credential value.
+
+**Authentication:** Admin session required.
+
 ### POST /admin/auth/delivery-probe
 
 Accepts `{to}` and sends a sign-in email tagged with probe context. The CLI
