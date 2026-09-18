@@ -63,6 +63,13 @@ capacity one.
 
 ## Rollback
 
+## Desktop companion deployment
+
+Install the companion through Bridge-managed onboarding/provisioning into the
+approved macOS user's LaunchAgent context. Record the binary digest, user,
+display, Screen Recording and Accessibility readiness, and companion version.
+Do not deploy it as a root daemon or require routine direct node access.
+
 Local development rollback is source-control based. For deployed
 targets, document the deployment-specific rollback path before release.
 

@@ -352,6 +352,20 @@ Every durable scenario document should be registered in
 
 ## Cross-References
 
+## Browser-operated desktop boundary
+
+Device Control owns desktop semantics: session readiness, one-display
+capture, raw and semantic input, clipboard, controller leases, revocation,
+and the native platform companion. Bridge supplies trusted node reach and
+interactive signaling; Web Console renders the browser pane. See the
+[canonical architecture](/home/matthalloran8/Vrooli/docs/architecture/remote-desktop-control.md)
+and [decision record](/home/matthalloran8/Vrooli/docs/architecture/remote-desktop-control-decision-record.md).
+
+The production macOS path is a Device Control-owned Go companion using Pion
+WebRTC, ScreenCaptureKit, Quartz/CGEvent, and explicit text clipboard APIs.
+The API process must never pretend that `display_attached` means an active
+Aqua session.
+
 - [`START-HERE.md`](../START-HERE.md) — first implementation workflow
 - [`QUICKSTART.md`](../QUICKSTART.md) — clone-to-running flow
 - [`DOMAINS.md`](DOMAINS.md) — bounded contexts and ownership

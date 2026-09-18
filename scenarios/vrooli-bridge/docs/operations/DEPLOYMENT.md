@@ -263,6 +263,17 @@ the resulting version, and the terminal outcome stream back as durable, audited
 
 ## Rollback
 
+## Desktop companion deployment
+
+The macOS companion is deployed and upgraded by the Bridge onboarding and
+provisioning path, but runs in the approved desktop user's LaunchAgent/user
+context. It is not a Bridge root daemon and it is not installed by a routine
+SSH session. Deployment must report binary version, active user, display
+readiness, Screen Recording status, Accessibility status, and companion
+health as typed facts. A release is not desktop-ready until a control-plane
+probe can collect those facts from minimouse and the node can be revoked
+without leaving an input-capable process behind.
+
 ### Control plane
 
 Control-plane rollback is source-control based: revert the bridge

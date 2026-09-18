@@ -121,6 +121,26 @@ and display-name matching are forbidden adoption rules.
 
 ## Privacy Notes
 
+## Interactive Desktop State
+
+Interactive desktop state is ephemeral session metadata, not a recording
+store. Bridge may retain the following bounded fields for the lifetime of a
+session and its audit receipt: `session_id`, node/device identity, selected
+display identifier, controller/viewer role, lease epoch, ICE/relay mode,
+readiness state, timestamps, revocation reason, and terminal outcome. Bridge
+must never persist video frames, pointer traces, keystroke streams, clipboard
+contents, private keys, SDP credentials, or Screen Recording/Accessibility
+permission material. Device Control owns the session state; Bridge owns only
+the transport projection needed to route and revoke it.
+
+| Interactive data | Owner | Bridge treatment | Retention |
+|---|---|---|---|
+| Session/lease metadata | Device Control | Typed projection and audit-safe receipt | Ephemeral plus bounded outcome |
+| WebRTC signaling/ICE | Bridge transport | Relayed transiently; never durable | Session only |
+| Video/audio frames | Device Control companion | Never stored by Bridge | In flight only |
+| Raw input and semantic actions | Device Control | Admission/revocation metadata only | In flight; no key log |
+| Clipboard text | Device Control/operator | Explicit, transient, redacted from logs | In flight unless operator-owned history explicitly added |
+
 Bridge stores **operational metadata about the owner's own machines** — node identities, OS/arch/revision, reachable endpoints, permission scopes, command/job history, and an immutable audit trail. It stores no third-party personal data. Three areas warrant care and are detailed in [`../internal/SECURITY.md`](../internal/SECURITY.md): (1) **node credentials** are mutual-auth secret material and are hashed at rest; (2) **distributed artifacts** remain references because device-sync-hub owns their bytes; (3) **produced run artifacts** can contain whatever the executed command emitted, so their bounded bytes inherit the sensitivity of the scenario under test and are owner-gated by run identity.
 
 ## Cross-References

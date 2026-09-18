@@ -124,6 +124,18 @@ ships, not after:
 
 ## Security Gaps
 
+## Desktop security invariants
+
+- Capture and input require an active approved GUI user session and explicit
+  macOS permissions; readiness failures are fail-closed typed states.
+- One controller lease exists per desktop session. Raw input, semantic input,
+  and clipboard writes require the current lease epoch.
+- Viewers are read-only and cannot escalate through browser messages.
+- Clipboard text is explicit, bounded, direction-labeled, and excluded from
+  logs/evidence by default.
+- The companion has no general shell authority and is revocable by Bridge.
+- Screen frames and input events are not persisted.
+
 | Gap | Severity | Revisit Trigger |
 |---|---|---|
 | Redaction policy needs broader owner review | **high** | Before additional consumers or retention policies expose real-device evidence beyond the current verified producer rules. |

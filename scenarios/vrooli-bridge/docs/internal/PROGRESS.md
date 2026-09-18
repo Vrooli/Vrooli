@@ -37,6 +37,8 @@ work lands, not while work is still speculative.
 
 ## Entry Template
 
+| 2026-09-18 | Codex | Documentation-first remote desktop baseline | Added the canonical Bridge/Device Control/Web Console ownership model, interactive channel security and testing contracts, macOS readiness/runbook guidance, and links to the focused implementation plan. |
+
 Use this table shape when appending entries.
 
 ```markdown

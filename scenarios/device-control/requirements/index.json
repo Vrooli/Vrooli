@@ -8,6 +8,7 @@
     "01-must-ship/module.json",
     "02-post-launch/module.json",
     "03-future/module.json",
-    "15-desktop-companion/module.json"
+    "15-desktop-companion/module.json",
+    "16-webrtc-desktop-session/module.json"
   ]
 }

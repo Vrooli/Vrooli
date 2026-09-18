@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "module": "desktop-transport",
-    "description": "Portal Everywhere mandatory acceptance obligations; planned evidence is not completion.",
+    "description": "Bridge interactive transport obligations for Device Control desktop sessions; planned evidence is not completion.",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -14,7 +14,7 @@
       "prd_ref": "OT-P0-009",
       "category": "rem",
       "criticality": "P0",
-      "description": "Given an existing PTY session is running, when desktop support is enabled, vrooli-bridge shall ensure: Terminal byte and resize semantics remain correct.",
+      "description": "Given an existing PTY session is running, when interactive desktop transport is enabled, vrooli-bridge shall ensure terminal byte and resize semantics remain correct.",
       "tags": [
         "portal-everywhere",
         "REM-01"
@@ -23,7 +23,7 @@
         {
           "type": "test",
           "status": "planned",
-          "notes": "Implement acceptance case REM-01 in the vrooli-bridge producer suite. Required assertion: Terminal byte and resize semantics remain correct. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+          "notes": "Preserve terminal compatibility while implementing the Device Control desktop channel. Retain producer receipt and applicable live support row. No passing evidence exists yet."
         }
       ]
     },
@@ -34,7 +34,7 @@
       "prd_ref": "OT-P0-009",
       "category": "rem",
       "criticality": "P0",
-      "description": "Given a terminal frame is sent to a desktop session, when admission evaluates it, vrooli-bridge shall ensure: It rejects the wrong protocol.",
+      "description": "Given a frame is sent to an interactive desktop session, when admission evaluates it, vrooli-bridge shall ensure that it rejects the wrong protocol or lane.",
       "tags": [
         "portal-everywhere",
         "REM-02"
@@ -43,7 +43,7 @@
         {
           "type": "test",
           "status": "planned",
-          "notes": "Implement acceptance case REM-02 in the vrooli-bridge producer suite. Required assertion: It rejects the wrong protocol. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+          "notes": "Test typed WebRTC/signaling/input/clipboard lane admission and reject protocol confusion. No passing evidence exists yet."
         }
       ]
     },

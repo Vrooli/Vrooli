@@ -138,6 +138,14 @@ attempted.
 
 ### Feedback across recommendation and execution
 
+### Remote desktop dependencies
+
+Device Control integrates with Bridge for node identity, reach, signaling, and
+revocation, and with Web Console for browser presentation. The node-local
+companion is an explicit platform adapter, not a second product authority.
+The first target is macOS/minimouse; Linux and Windows providers must conform
+to the same readiness/session/input/clipboard contract before being enabled.
+
 `device-control.do-task` returns its learning task and attempt identities. When it
 executes a recommendation from an earlier run, pass that run's `advice_attempt_id`.
 Only verified success or a failure with actual execution evidence grades the earlier

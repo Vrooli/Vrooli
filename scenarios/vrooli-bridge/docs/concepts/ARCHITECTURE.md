@@ -305,6 +305,29 @@ Every durable scenario document should be registered in
 
 ## Cross-References
 
+## Interactive Desktop Boundary
+
+Bridge is the fleet-side transport and trust boundary for remote desktop
+sessions. It does not capture pixels, inject OS input, own clipboard content,
+or decide which desktop is active. Those semantics belong to Device Control.
+Web Console is a presentation client. The complete ownership map, protocol
+lanes, readiness states, and first-release decisions are canonical in
+[`/home/matthalloran8/Vrooli/docs/architecture/remote-desktop-control.md`](../../../docs/architecture/remote-desktop-control.md).
+
+```mermaid
+flowchart LR
+  WC[Web Console desktop pane] -->|typed open / input / clipboard| B[Vrooli Bridge]
+  B -->|authorized signaling + dial-out channel| A[Bridge node-agent]
+  A -->|local companion RPC| DC[Device Control desktop service]
+  DC -->|ScreenCaptureKit + CGEvent| MAC[macOS user desktop]
+  A -.->|WebRTC media/data, direct or TURN| WC
+```
+
+The Bridge implementation must therefore remain limited to identity,
+reachability, signaling, authorization, lease/revocation propagation, and
+audit-safe session metadata. A future implementation that places capture or
+input code in Bridge is an architectural defect.
+
 - [`START-HERE.md`](../START-HERE.md) — first implementation workflow
 - [`QUICKSTART.md`](../QUICKSTART.md) — clone-to-running flow
 - [`DOMAINS.md`](DOMAINS.md) — bounded contexts and ownership

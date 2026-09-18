@@ -250,6 +250,30 @@ To add or rename a state/event:
 
 ## Deferred / Unmodeled Flows
 
+## Desktop session lifecycle
+
+```mermaid
+stateDiagram-v2
+  [*] --> probing
+  probing --> permission_required
+  probing --> no_active_gui_session
+  probing --> display_unavailable
+  probing --> ready
+  ready --> connecting
+  connecting --> active
+  active --> reconnecting: transport lost
+  reconnecting --> active: fresh lease + transport
+  active --> revoked
+  active --> closed
+  permission_required --> probing: owner approves locally
+  no_active_gui_session --> probing: approved GUI session appears
+  revoked --> [*]
+  closed --> [*]
+```
+
+Only `active` with the current controller epoch may apply input or clipboard
+writes. Viewers may receive frames but never become controllers implicitly.
+
 | Flow | Risk | Next Step |
 |---|---|---|
 | None yet. | Generated scaffold. | Add real scenario workflows when domains have stateful behavior. |

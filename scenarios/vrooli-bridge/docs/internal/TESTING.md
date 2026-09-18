@@ -194,6 +194,15 @@ target-specific owner bindings and postconditions.
 
 ### Restoration contract
 
+### Desktop transport validation
+
+Desktop tests are layered: proto compatibility and authorization in unit
+tests; channel ordering and stale-epoch behavior in contract tests; WebRTC
+signaling/direct-vs-TURN behavior in integration tests; and a live minimouse
+acceptance run for Screen Recording, Accessibility, one-display capture,
+pointer/keyboard input, text clipboard, reconnect, and revocation. A green
+transport test without an active macOS GUI session is not desktop readiness.
+
 Before any destructive fixture case, record the target identity, active
 generation, selected closure digest, and a restore-point reference. After a
 pass or failure, verify the generation and shared-dependency ownership from the

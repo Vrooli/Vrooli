@@ -643,6 +643,15 @@ an actionable diff showing exactly which entries diverged.
 - The unit-testing-architecture-steer skill (loaded via `prompt-manager skill read unit-testing-architecture-steer`) is the canonical source for "should this be a seam?" judgement calls.
 ### Scenario proxy admission
 
+### Interactive desktop channel seam
+
+The Bridge/device-control desktop seam is a typed, revocable channel rather
+than a shell or generic WebSocket. Its fake must model: readiness refusal,
+single-controller lease acquisition, stale-epoch input refusal, read-only
+viewer admission, clipboard direction, disconnect/reconnect, and server-side
+revocation. The production adapter owns only Bridge reachability/signaling;
+Device Control remains the sole authority for capture and OS input.
+
 The scenario proxy accepts one canonical Connect procedure path:
 `/<fully-qualified-proto-service>/<method>`. The HTTP edge parses that path
 once, retains the fully qualified service for the signed request, and compares

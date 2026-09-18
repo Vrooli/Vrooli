@@ -526,6 +526,30 @@ there, not here.
 
 ## Maintenance Tasks
 
+## Remote desktop operations
+
+All routine desktop operations go through Bridge; operators must not SSH to
+minimouse or another node to start a companion, copy a password, or repair a
+session. Use the Web Console desktop pane or the typed Bridge readiness and
+session commands once implemented. The readiness result must distinguish:
+
+```text
+ready
+permission_required
+no_active_gui_session
+display_unavailable
+transport_failed
+revoked
+```
+
+For `permission_required`, direct the owner to approve Screen Recording and
+Accessibility locally once, then re-run the Bridge-managed probe. For
+`no_active_gui_session`, enable the approved macOS login/session policy through
+the control-plane onboarding path; do not treat `display_attached` as proof
+that an Aqua session exists. For transport failures, inspect Bridge/node-agent
+presence, ICE mode, and the companion health receipt before considering a
+node re-onboard.
+
 | Task | Frequency | Command / Procedure |
 |---|---|---|
 | Validate tests | before handoff | `make test` |

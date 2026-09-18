@@ -79,6 +79,23 @@ The cross-OS deployment gate (OT-P1-002) is the headline consumer integration:
 
 ## Third-Party Services
 
+## Interactive Desktop Integration
+
+The first desktop release composes three Vrooli scenarios and one node-local
+companion:
+
+| Component | Owner | Bridge contract |
+|---|---|---|
+| Device Control | Desktop semantics, capture, input, clipboard, lease | Typed readiness/open/input/clipboard/revoke messages |
+| Web Console | Operator UI | Desktop-pane API and browser WebRTC client |
+| node-agent | Dial-out reach and channel lifecycle | Authenticated interactive channel, signaling, revocation |
+| Native companion | macOS ScreenCaptureKit/CGEvent integration | Local RPC; managed as an OS user service |
+| TURN/STUN | Connectivity fallback | Ephemeral ICE configuration; no desktop authority |
+
+Bridge must not add a fourth remote-desktop scenario for the first release.
+`scenario-to-desktop` remains a separate virtual-display provider and may
+reuse the typed Device Control contract later.
+
 | Service | Status | Reason | Contract |
 |---|---|---|---|
 | None | not-applicable | Bridge talks only to Vrooli installs the owner controls; OS service managers (systemd/launchd/Windows Service) are platform facilities, not third-party services, and mDNS (P1) is a LAN protocol, not an external API. | Add only if a hosted cloud-runner provider is integrated (P2). |

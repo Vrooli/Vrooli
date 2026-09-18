@@ -154,6 +154,8 @@ implementation; they do not turn missing evidence into a completion claim.
 These clauses are preserved from dated entries; later work may have superseded
 them. They do not assert that an old failure or gap still exists.
 
+| 2026-09-18 | Codex | Documentation-first remote desktop baseline | Documented Device Control desktop ownership, companion boundary, WebRTC/session data model, security invariants, and validation matrix. |
+
 - **2026-08-18 — partial**: Full API/race/lint, mDNS live, Cast live, UI, requirements, and independent Avahi checks pass; owner-present PIN/event/UI walkthroughs and the provider-owned Test Genie/baseline gate remain deferred.
 
 - **2026-08-17 — partial**: The bounded API fallback remains healthy and device-control API/UI/build checks pass; the remaining failures are the shared `@scenario/self` workflow resolver and repeated UI-health chrome captures.

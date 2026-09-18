@@ -346,6 +346,35 @@ To add or rename a state/event:
 
 ## Deferred / Unmodeled Flows
 
+## Interactive Desktop Session
+
+The desktop flow is a durable-control-plane workflow around an ephemeral
+media session:
+
+```mermaid
+sequenceDiagram
+  participant W as Web Console
+  participant B as Bridge
+  participant A as node-agent
+  participant D as Device Control companion
+  W->>B: OpenDesktop(node, display, intent)
+  B->>A: authorize + create channel
+  A->>D: readiness/open request
+  D-->>A: permission/display/capture readiness
+  A-->>B: typed readiness + signaling offer
+  B-->>W: signaling + lease receipt
+  W-->>A: ICE/DTLS WebRTC media/data
+  W->>B: input/clipboard control frame
+  B->>A: authenticated frame with lease epoch
+  A->>D: apply only if lease is current
+  B-->>W: revoke/close/reconnect state
+```
+
+Required terminal states are `ready`, `permission_required`,
+`no_active_gui_session`, `display_unavailable`, `transport_failed`,
+`revoked`, `closed`, and `failed`. A reconnect must create a fresh transport
+and revalidate the lease; it must not resurrect an old input channel.
+
 | Flow | Risk | Next Step |
 |---|---|---|
 | Job dispatch & durable run | High — network boundary + disconnect + cancellation + stale completion; mirrors the risks test-genie's durable runs already solve. | Model at Level 5 once the runs domain exists; reuse test-genie run-lifecycle semantics rather than reinventing. |

@@ -351,6 +351,24 @@ rule rollback. See [`../../../../docs/architecture/PRIVILEGE_BROKER.md`](../../.
 
 ## Cross-References
 
+## Interactive Desktop Invariants
+
+- A desktop session is admitted only for an authenticated owner, an approved
+  node/device identity, and an explicit Device Control capability.
+- The controller lease is single-holder. Every input and clipboard frame
+  carries the session id and current lease epoch; stale epochs are refused.
+- Bridge revocation is authoritative and propagates to the agent and
+  companion. Closing the browser is not treated as revocation until the
+  server-side lease timeout expires.
+- Bridge logs session metadata and outcomes, never screen pixels, key events,
+  clipboard text, SDP secrets, or permission prompts.
+- Read-only viewers receive media only. They cannot submit raw input,
+  semantic actions, clipboard writes, or lease mutations.
+- TURN credentials are short-lived and scoped to the session. Direct WebRTC
+  is preferred, but relay fallback must not bypass Bridge authorization.
+- A missing macOS GUI session or permission is a typed readiness refusal, not
+  a reason to fall back to SSH or an unbounded shell.
+
 - [`../concepts/DATA.md`](../concepts/DATA.md) — data ownership and retention
 - [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — external services and secrets
 - [`ERROR-HANDLING.md`](ERROR-HANDLING.md) — error response behavior

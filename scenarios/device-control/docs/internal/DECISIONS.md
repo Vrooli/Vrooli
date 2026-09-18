@@ -291,6 +291,15 @@ selection is still honored and unknown transports are still refused. See
 
 ## Superseded Decisions
 
+## 2026-09-18 — Desktop ownership and first-release shape
+
+Device Control owns desktop sessions and semantics; Bridge owns trusted
+interactive reach/signaling/revocation; Web Console owns the desktop pane.
+The first implementation uses a Pion Go companion, native ScreenCaptureKit,
+Quartz/CGEvent input, VP8, one selected display, raw plus semantic input, and
+text clipboard. Direct WebRTC is preferred with TURN fallback. A separate
+remote-desktop scenario is not introduced for this release.
+
 | Date | Superseded Decision | Replacement | Details |
 |---|---|---|---|
 | None yet. | n/a | n/a | Add when a durable decision is replaced. |

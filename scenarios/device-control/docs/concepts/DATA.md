@@ -95,6 +95,15 @@ backfills, add a scenario-specific migration plan here and update
 
 ## Privacy Notes
 
+## Desktop session data
+
+Desktop sessions retain only bounded metadata: session id, device/display,
+controller lease epoch, readiness, transport mode, timestamps, and terminal
+outcome. Video frames, pointer/keyboard events, clipboard text, WebRTC
+credentials, and native permission material are transient and are never
+written to the scenario database or logs. Evidence records may state that a
+clipboard/input/capture assertion passed without copying its contents.
+
 Generated template data is local development data. If a scenario stores
 personal, regulated, customer, financial, or sensitive business data,
 update this document and [`../internal/SECURITY.md`](../internal/SECURITY.md)

@@ -71,6 +71,14 @@ define backup and restore procedures before production deployment.
 
 ## Escalation
 
+## Desktop readiness and recovery
+
+Use Bridge/Web Console to probe and operate a desktop. A permission gap is
+fixed by one local owner approval followed by a control-plane probe; an
+inactive GUI session is fixed by the approved login/session policy. Never
+work around either state with SSH, a copied password, or a raw shell. Revoke
+the session before changing companion state and verify the terminal receipt.
+
 Record known operational issues in
 [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md). Append meaningful
 completed work to [`../internal/PROGRESS.md`](../internal/PROGRESS.md).

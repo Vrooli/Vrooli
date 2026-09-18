@@ -41,6 +41,7 @@ belong in [`DATA.md`](DATA.md).
 | artifacts | Distribute non-git artifacts (installers, fixtures) to nodes via device-sync-hub directed delivery, and accept bounded typed outputs produced by authenticated runs for owner retrieval. | Integration / workflow | `distributions` plus run-produced artifact bytes and references. | API, CLI, agent | OT-P1-003 | `api/internal/artifacts/`, `api/handlers/artifacts/`, `cli/domains/artifacts/` |
 | machines | Durable operator intent for a managed machine: stable identity, ordered connection locators, lifecycle, desired policy reference, trust references, and immutable Node lineage. | Entity / lifecycle | `machines`, `machine_locators`, `machine_node_lineage`, migration-review records. | API, CLI, UI | BRG-MEC-001, BRG-MEC-002 | `api/internal/machines/`, `packages/proto/schemas/vrooli-bridge/v1/machines/` |
 | enrollment | Immutable attempts to enroll a Machine, including checkpoints, typed pairing correlation, retry lineage, and recovery diagnostics. | Workflow / recovery | `enrollment_attempts`, checkpoint and reconciliation records. | API, CLI, UI | BRG-MEC-003 | `api/internal/onboard/attempts.go`, `packages/proto/schemas/vrooli-bridge/v1/onboard/onboard.proto`, and the Machine detail projection |
+| interactive | Admit and transport typed interactive channels for downstream owners such as Device Control. | Policy / realtime transport | Ephemeral channel grants, signaling state, revocation and transport evidence. | API, node-agent, UI diagnostics | OT-P0-009, OT-P2-002 | `api/internal/interactive/`, `agent/internal/interactive/`, `packages/proto/schemas/vrooli-bridge/v1/interactive/` |
 
 ## Domain Details
 
@@ -170,7 +171,7 @@ The cross-compiled **node-agent** (OT-P0-007) is not a control-plane domain — 
 Add future or intentionally deferred capabilities here only when they
 are real enough to affect architecture or requirements.
 
-The remaining P2 capabilities are genuinely future. (The P1 set — fleet roll,
+  The remaining P2 capabilities are genuinely future. (The P1 set — fleet roll,
 artifact distribution, per-node queue, fleet UI, mDNS — shipped in Phase 5: the
 first three became their own domains above rather than extending an existing
 one, the queue is in-memory scheduling over the durable runs, and mDNS is a
@@ -179,7 +180,7 @@ node-agent concern.)
 | Candidate Domain / Capability | Why Deferred | Revisit Trigger |
 |---|---|---|
 | Control-plane portability to macOS/Windows (OT-P2-001) | Cross-cutting; gated on Vrooli-the-platform running on those OSes. | When the platform becomes installable on Mac/Win. |
-| remote-desktop seam (OT-P2-002) | A *separate future scenario* (screen/input control) that reuses bridge's identity/reach, not a bridge domain. | When real-time remote control is built. |
+| Device Control desktop integration (OT-P2-002) | Device Control owns desktop semantics; Bridge owns the identity/reach/signaling seam and must not become a second desktop-control engine. | When the Device Control WebRTC desktop session is prioritized and requests the production interactive seam. |
 | Cloud-runner / ephemeral nodes (OT-P2-003) | Extends the registry (node kind is metadata). | When on-demand VM/cloud capacity is needed. |
 | Self-healing re-provisioning (OT-P2-004) | Extends provisioning with drift detection. | When fleet size makes manual re-provisioning costly. |
 
