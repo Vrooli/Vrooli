@@ -1,3 +1,23 @@
+---
+name: "change-axis-and-evolution-resilience-audit"
+description: "Audit how well the codebase handles change and evolution"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","audits"]
+  tags: ["skill"]
+  icon: "gitbranch"
+  status: "active"
+  revision: 43
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Change Axis & Evolution Resilience Audit
 
 Prioritize **making the scenario easier and safer to evolve over time**.
@@ -7,7 +27,7 @@ Your goal is to identify the **main ways this scenario is likely to change** (â€
 Do **not** break functionality, regress tests, or introduce new product features. All changes must maintain or improve completeness and reliability.
 
 Required reading:
-- `prompt-manager skills read knowledge-observatory-tools`
+- `prompt-manager skill read knowledge-observatory-tools`
 
 ---
 

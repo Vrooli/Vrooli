@@ -6,11 +6,42 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"git-control-tower/internal/policygate"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // SSHDeps contains dependencies for SSH operations.
 type SSHDeps struct {
 	Platform Platform
+}
+
+func requireHumanMutation(ctx context.Context, operation string) error {
+	principal, ok := policygate.PrincipalFromContext(ctx)
+	if !ok || principal.Kind != cliutil.CallerKindHuman {
+		return fmt.Errorf("verified human authority is required for %s", operation)
+	}
+	if _, ok := policygate.ConsumedIntentFromContext(ctx); !ok {
+		return fmt.Errorf("consumed mutation intent is required for %s", operation)
+	}
+	intent, _ := policygate.ConsumedIntentFromContext(ctx)
+	if expected := sshIntentOperation(operation); expected != "" && intent.Operation != "" && intent.Operation != expected {
+		return fmt.Errorf("mutation intent for %s cannot authorize %s", intent.Operation, operation)
+	}
+	return nil
+}
+
+func sshIntentOperation(operation string) string {
+	switch strings.ToLower(strings.TrimSpace(operation)) {
+	case "generate ssh key":
+		return "ssh.key.generate"
+	case "delete ssh key":
+		return "ssh.key.delete"
+	case "test ssh connection":
+		return "ssh.key.test"
+	default:
+		return ""
+	}
 }
 
 // ListKeys returns all SSH keys in ~/.ssh.
@@ -33,7 +64,10 @@ func ListKeys(_ context.Context, deps SSHDeps) (*ListKeysResponse, error) {
 }
 
 // GenerateKeyService generates a new SSH key pair.
-func GenerateKeyService(_ context.Context, deps SSHDeps, req GenerateKeyRequest) (*GenerateKeyResponse, error) {
+func GenerateKeyService(ctx context.Context, deps SSHDeps, req GenerateKeyRequest) (*GenerateKeyResponse, error) {
+	if err := requireHumanMutation(ctx, "generate SSH key"); err != nil {
+		return nil, err
+	}
 	// Validate type
 	if req.Type != KeyTypeEd25519 && req.Type != KeyTypeRSA {
 		return &GenerateKeyResponse{
@@ -109,7 +143,10 @@ func TestGitHubConnectionService(ctx context.Context, deps SSHDeps, req TestConn
 }
 
 // DeleteKeyService deletes an SSH key pair.
-func DeleteKeyService(_ context.Context, deps SSHDeps, req DeleteKeyRequest) (*DeleteKeyResponse, error) {
+func DeleteKeyService(ctx context.Context, deps SSHDeps, req DeleteKeyRequest) (*DeleteKeyResponse, error) {
+	if err := requireHumanMutation(ctx, "delete SSH key"); err != nil {
+		return nil, err
+	}
 	if req.KeyPath == "" {
 		return &DeleteKeyResponse{
 			Success:   false,

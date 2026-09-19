@@ -1,61 +1,56 @@
 {
-  "description": "Detect when canonical repo has changed since sandbox creation, surface patch application failures clearly",
-  "module_id": "MOD-P2-023",
-  "prd_ref": "OT-P2-002",
-  "priority": "P2",
+  "_metadata": {
+    "last_validated_at": "2026-07-13T22:51:14-04:00"
+  },
   "requirements": [
     {
+      "id": "REQ-P2-002",
+      "title": "Canonical Repo Conflict Detection",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-002",
       "category": "feature",
       "description": "Track canonical repo commit hash at sandbox creation (BaseCommitHash), detect when repo has diverged before approval, identify conflicting files, support force flag to bypass conflict check. Surface RepoChangedError and PatchConflictError with actionable hints.",
-      "id": "REQ-P2-002",
-      "prd_ref": "OT-P2-002",
-      "status": "implemented",
-      "title": "Canonical Repo Conflict Detection",
       "validation": [
         {
-          "notes": "Test GetGitCommitHash function",
-          "phase": "unit",
+          "type": "manual",
           "ref": "api/internal/diff/diff.go::GetGitCommitHash",
-          "status": "pending",
-          "type": "manual"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test GetGitCommitHash function"
         },
         {
-          "notes": "Test CheckForConflicts function",
-          "phase": "unit",
+          "type": "manual",
           "ref": "api/internal/diff/diff.go::CheckForConflicts",
-          "status": "pending",
-          "type": "manual"
-        },
-        {
-          "notes": "Test RepoChangedError type",
           "phase": "unit",
+          "status": "failing",
+          "notes": "Test CheckForConflicts function"
+        },
+        {
+          "type": "manual",
           "ref": "api/internal/types/errors.go::RepoChangedError",
-          "status": "pending",
-          "type": "manual"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test RepoChangedError type"
         },
         {
-          "notes": "API returns 409 for conflicting files",
+          "type": "test",
           "phase": "api",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "API returns 409 for conflicting files"
         },
         {
-          "notes": "Users can force-apply despite conflicts",
+          "type": "test",
           "phase": "api",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Users can force-apply despite conflicts"
         },
         {
-          "notes": "Operators can detect and handle repo conflicts",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Operators can detect and handle repo conflicts"
         }
       ]
     }
-  ],
-  "title": "Conflict Detection"
+  ]
 }

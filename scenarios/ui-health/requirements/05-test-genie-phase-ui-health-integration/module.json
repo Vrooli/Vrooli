@@ -1,0 +1,93 @@
+{
+  "description": "`test-genie` registers a new `phase_ui_health` (after `phase_contracts`) that shells out to `ui-health validate scenario \u003cname\u003e --json` and surfaces findings as Observations.",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-002"
+      ],
+      "description": "`test-genie` must register a new phase named `phase_ui_health` that executes after `phase_contracts`. This phase must shell out to `ui-health validate scenario \u003cname\u003e --json`, parse the returned Report JSON, and surface each Finding as a test-genie Observation with appropriate severity and metadata mapping.",
+      "id": "REQ-P0-008",
+      "prd_ref": "OT-P0-005",
+      "status": "draft",
+      "title": "test-genie phase_ui_health Integration Phase",
+      "validation": [
+        {
+          "notes": "`phase_ui_health` is registered in test-genie's phase registry after `phase_contracts`",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Phase correctly invokes `ui-health validate scenario \u003cname\u003e --json` as a subprocess",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Each Finding in the Report JSON is mapped to a test-genie Observation with type, message, and severity fields",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Phase passes when Report contains zero Findings",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Phase fails when Report contains one or more Findings of sufficient severity",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run test-genie on a scenario with known manifest violations and confirm Observations appear in test-genie output corresponding to each Finding",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run test-genie on a clean scenario and confirm phase_ui_health produces zero Observations and phase result is PASS",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm phase execution order: phase_contracts completes before phase_ui_health starts",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "phase_ui_health adds no more than 10 seconds overhead per scenario to the test-genie pipeline",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "UI health violations are surfaced in the same test-genie report as contract violations, giving developers a unified quality signal",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "test-genie phase_ui_health integration"
+}

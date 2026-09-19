@@ -15,7 +15,12 @@ export default function FileDetail() {
 
   const { data: issues = [], isLoading, error } = useQuery({
     queryKey: ["file-issues", scenarioName, filePath],
-    queryFn: () => fetchFileIssues(scenarioName!, filePath!),
+    queryFn: () => {
+      if (!scenarioName || !filePath) {
+        throw new Error("Scenario name and file path are required");
+      }
+      return fetchFileIssues(scenarioName, filePath);
+    },
     enabled: !!scenarioName && !!filePath,
   });
 
@@ -85,11 +90,12 @@ export default function FileDetail() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <div className="flex items-center gap-1">
               <CardTitle className="text-sm font-medium">Total Issues</CardTitle>
-              <Info
-                className="h-3 w-3 text-slate-500 cursor-help"
-                title="All issues found in this file from light scans (lint/type) and AI analysis"
-                aria-hidden="true"
-              />
+              <span title="All issues found in this file from light scans (lint/type) and AI analysis">
+                <Info
+                  className="h-3 w-3 text-slate-500 cursor-help"
+                  aria-hidden="true"
+                />
+              </span>
             </div>
             <FileText className="h-4 w-4 text-slate-400" aria-hidden="true" />
           </CardHeader>
@@ -105,11 +111,12 @@ export default function FileDetail() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <div className="flex items-center gap-1">
               <CardTitle className="text-sm font-medium">Open Issues</CardTitle>
-              <Info
-                className="h-3 w-3 text-slate-500 cursor-help"
-                title="Issues that require attention. Mark as resolved when fixed or ignore if not applicable."
-                aria-hidden="true"
-              />
+              <span title="Issues that require attention. Mark as resolved when fixed or ignore if not applicable.">
+                <Info
+                  className="h-3 w-3 text-slate-500 cursor-help"
+                  aria-hidden="true"
+                />
+              </span>
             </div>
             <AlertCircle className="h-4 w-4 text-yellow-500" aria-hidden="true" />
           </CardHeader>
@@ -125,11 +132,12 @@ export default function FileDetail() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <div className="flex items-center gap-1">
               <CardTitle className="text-sm font-medium">Resolved</CardTitle>
-              <Info
-                className="h-3 w-3 text-slate-500 cursor-help"
-                title="Issues that have been fixed or marked as resolved"
-                aria-hidden="true"
-              />
+              <span title="Issues that have been fixed or marked as resolved">
+                <Info
+                  className="h-3 w-3 text-slate-500 cursor-help"
+                  aria-hidden="true"
+                />
+              </span>
             </div>
             <CheckCircle className="h-4 w-4 text-green-500" aria-hidden="true" />
           </CardHeader>
@@ -147,10 +155,9 @@ export default function FileDetail() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <CardTitle>Issues</CardTitle>
-            <Info
-              className="h-4 w-4 text-slate-500 cursor-help"
-              title="Issues detected by linters, type checkers, or AI analysis. Line:Column indicates exact location in source file."
-            />
+            <span title="Issues detected by linters, type checkers, or AI analysis. Line:Column indicates exact location in source file.">
+              <Info className="h-4 w-4 text-slate-500 cursor-help" />
+            </span>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">

@@ -1,0 +1,45 @@
+<!-- Fixture derived 2026-09-02 on swarminator (Linux) from platform-go RenderDefinition for target darwin; not host-verified on macOS or Windows. Regenerate: PLATFORM_GO_UPDATE_FIXTURES=1 go test -run TestDarwinAndWindowsRenderersMatchFixtures -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.vrooli.autoheal</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/alice/Vrooli/scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>/Users/alice</string>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/go/bin:/usr/local/bin:/Users/alice/.cargo/bin:/Users/alice/go/bin:/Users/alice/.local/bin:/Users/alice/bin:/Users/alice/.vrooli/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>VROOLI_BIN</key>
+    <string>/Users/alice/.vrooli/bin/vrooli</string>
+    <key>VROOLI_LIFECYCLE_MANAGED</key>
+    <string>true</string>
+    <key>VROOLI_ROOT</key>
+    <string>/Users/alice/Vrooli</string>
+  </dict>
+  <key>WorkingDirectory</key>
+  <string>/Users/alice/Vrooli/scenarios/vrooli-autoheal</string>
+  <key>StandardOutPath</key>
+  <string>/Users/alice/Library/Logs/com.vrooli.autoheal.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/alice/Library/Logs/com.vrooli.autoheal.log</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+  <key>ThrottleInterval</key>
+  <integer>15</integer>
+  <key>ExitTimeOut</key>
+  <integer>30</integer>
+  <key>Nice</key>
+  <integer>-5</integer>
+</dict>
+</plist>

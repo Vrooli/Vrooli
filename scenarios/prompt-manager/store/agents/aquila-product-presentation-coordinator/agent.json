@@ -1,0 +1,18 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "aquila-product-presentation-coordinator",
+  "displayName": "Aquila Product Presentation Coordinator",
+  "status": "active",
+  "appearance": {
+    "body": "#0F172A",
+    "head": "#F97316",
+    "accent": "#55D6E6"
+  },
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-09-15T02:05:49Z",
+  "updatedAt": "2026-09-15T02:05:49Z"
+}

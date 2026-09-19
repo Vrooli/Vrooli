@@ -1,0 +1,5 @@
+order_id,customer_ref,amount_cents,status
+1001,cust-a1,1250,settled
+1002,cust-b2,4999,pending
+1003,cust-c3,300,settled
+1004,cust-d4,7800,refunded

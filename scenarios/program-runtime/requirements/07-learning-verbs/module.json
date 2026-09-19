@@ -1,0 +1,273 @@
+{
+  "_metadata": {
+    "description": "In-code learning verbs, durable evidence, dependency closure, and flagship scenario adoption.",
+    "last_validated_at": "2026-09-09T05:20:00-04:00",
+    "module": "learning-verbs",
+    "prd_ref": "OT-P1-012",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "LV-01",
+      "title": "Ten governed learning verbs",
+      "status": "complete",
+      "prd_ref": "OT-P1-012",
+      "category": "learning.verbs",
+      "criticality": "P1",
+      "description": "New programs MUST use the ten learn.* verbs for in-code learning instead of introducing a new whole-program learning declaration.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "kernel/tests/test_learn.py and the checked-in learn-verbs-example contract exercise the verb surface."
+        }
+      ]
+    },
+    {
+      "id": "LV-02",
+      "title": "Task and step tree capture",
+      "status": "complete",
+      "prd_ref": "OT-P1-012",
+      "category": "learning.tree",
+      "criticality": "P1",
+      "description": "Tasks, named steps, and bounded gather children MUST serialize as one parent-first attempt tree.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "kernel/tests/test_learn.py and vrooli-memory/.vrooli/program-runtime/finish-attempt.py cover child registration and tree capture."
+        }
+      ]
+    },
+    {
+      "id": "LV-03",
+      "title": "Query recall and adopted choice",
+      "status": "complete",
+      "prd_ref": "OT-P1-012",
+      "category": "learning.recall",
+      "criticality": "P1",
+      "description": "Recall MUST accept query-shaped input and bounded summaries, while choose MUST record an explicit adoption decision.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "kernel/tests/test_learn.py and compare-outcomes.py cover recall, choice, and derived verdict behavior."
+        }
+      ]
+    },
+    {
+      "id": "LV-04",
+      "title": "Agent provenance",
+      "status": "complete",
+      "prd_ref": "OT-P1-012",
+      "category": "learning.provenance",
+      "criticality": "P1",
+      "description": "Learning capture MUST preserve explicit agent provenance through preparation, finish, and delivery.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "learning.proto and vrooli-memory/api/internal/learning/learning.go carry the provenance fields used by capture."
+        }
+      ]
+    },
+    {
+      "id": "LV-05",
+      "title": "Fragment executor and cache",
+      "status": "complete",
+      "prd_ref": "OT-P1-012",
+      "category": "learning.fragments",
+      "criticality": "P1",
+      "description": "learn.act MUST validate normalized fragments, enforce a binding allow-set, and reuse verified durable fragments.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "kernel/tests/test_learn.py, api/internal/tasks/store_test.go, and the second all-verb fixture run provide the evidence."
+        }
+      ]
+    },
+    {
+      "id": "LV-06",
+      "title": "Undeclared dependency finding",
+      "status": "complete",
+      "prd_ref": "OT-P1-012",
+      "category": "learning.dependencies",
+      "criticality": "P1",
+      "description": "Programs validation MUST report programs.dependency_undeclared for learning or binding edges absent from the owning manifest.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "api/handlers/programs-validation/module_test.go covers the finding and contract schema declares the learning projection."
+        }
+      ]
+    },
+    {
+      "id": "LV-07",
+      "title": "Program dependency graph",
+      "status": "complete",
+      "prd_ref": "OT-P1-012",
+      "category": "learning.dependency-graph",
+      "criticality": "P1",
+      "description": "Scenario Dependency Analyzer MUST expose program-derived binding edges with a marked file fallback.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "scenario-dependency-analyzer/api/internal/deployment/program_bindings.go and the P3 DAG artifact provide the validation reference."
+        }
+      ]
+    },
+    {
+      "id": "LV-08",
+      "title": "Honest memory degradation",
+      "status": "complete",
+      "prd_ref": "OT-P1-012",
+      "category": "learning.reliability",
+      "criticality": "P1",
+      "description": "Memory and delivery failures MUST produce explicit unavailable, uncertain, or blocked states without rerunning domain work.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Task bridge/store tests and the improve skill setpoint rows cover blocked delivery and degradation reporting."
+        }
+      ]
+    },
+    {
+      "id": "LV-09",
+      "title": "Flagship learning loops",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-012",
+      "category": "learning.flagship-scenarios",
+      "criticality": "P1",
+      "description": "Browser Automation Studio and Device Control MUST declare and exercise stable learning operation keys for their workflow artifacts.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "passing",
+          "notes": "Both scenario-owned workflow suites pass; a live BAS browser receipt remains unavailable in the current validation window."
+        }
+      ]
+    },
+    {
+      "id": "LV-10",
+      "title": "Verified repair and compatible reuse",
+      "description": "When a learned fragment fails verification, the runtime SHOULD reject that candidate, provide bounded repair evidence to inference, and reuse only compatible independently verified implementations.",
+      "prd_ref": "OT-P1-012",
+      "status": "in_progress",
+      "category": "learning.lifecycle",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "kernel/tests/test_learn.py",
+          "status": "pending",
+          "notes": "Focused regression passes recorded in docs/internal/PROBLEMS.md; full scenario gates retain unrelated failures. Requirement completion awaits owner evidence synchronization."
+        }
+      ]
+    },
+    {
+      "id": "LV-11",
+      "title": "Portable reviewed baselines",
+      "description": "When optional learning services are absent, the runtime SHOULD execute a compatible reviewed baseline from the program contract, verify its postcondition, and retain an explicit learning delivery receipt.",
+      "prd_ref": "OT-P1-013",
+      "status": "in_progress",
+      "category": "learning.lifecycle",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/handlers/tasks/bridge_test.go",
+          "status": "pending",
+          "notes": "Focused regression passes recorded in docs/internal/PROBLEMS.md; full scenario gates retain unrelated failures. Requirement completion awaits owner evidence synchronization."
+        }
+      ]
+    },
+    {
+      "id": "LV-12",
+      "title": "Evidence-informed selection",
+      "description": "When prior advice is contradicted or avoided, the runtime SHOULD preserve that evidence through recall and select an eligible option or return an explicit no-option result.",
+      "prd_ref": "OT-P1-012",
+      "status": "in_progress",
+      "category": "learning.lifecycle",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "kernel/tests/test_learn.py",
+          "status": "pending",
+          "notes": "Focused regression passes recorded in docs/internal/PROBLEMS.md; full scenario gates retain unrelated failures. Requirement completion awaits owner evidence synchronization."
+        }
+      ]
+    },
+    {
+      "id": "LV-13",
+      "title": "Durable result feedback",
+      "description": "When a later consumer supplies evidence for a learning result, the runtime SHOULD retain the exact artifact and attempt attribution, update eligibility for the relevant judgment, and preserve delivery through restart.",
+      "prd_ref": "OT-P1-012",
+      "status": "in_progress",
+      "category": "learning.lifecycle",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/handlers/tasks/learning_lifecycle_test.go",
+          "status": "pending",
+          "notes": "Focused evidence and scoped Test Genie findings are recorded in docs/internal/PROBLEMS.md; owner synchronization retains completion authority."
+        }
+      ]
+    },
+    {
+      "id": "LV-14",
+      "title": "Intent-based adaptive authoring",
+      "description": "When an author declares capability owner and effect constraints, the runtime SHOULD resolve governed bindings and current argument contracts without requiring explicit method identifiers, while preserving session grants.",
+      "prd_ref": "OT-P1-012",
+      "status": "in_progress",
+      "category": "learning.lifecycle",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "kernel/tests/test_learn.py",
+          "status": "pending",
+          "notes": "Focused evidence and scoped Test Genie findings are recorded in docs/internal/PROBLEMS.md; owner synchronization retains completion authority."
+        }
+      ]
+    },
+    {
+      "id": "LV-15",
+      "title": "Owned improvement lifecycle",
+      "description": "When adaptation remains unresolved or later feedback contradicts a result, the runtime SHOULD route a durable owner finding and retain claimed repair, independent validation, and later measurement evidence.",
+      "prd_ref": "OT-P1-012",
+      "status": "in_progress",
+      "category": "learning.lifecycle",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/tasks/learning_test.go",
+          "status": "pending",
+          "notes": "Focused evidence and scoped Test Genie findings are recorded in docs/internal/PROBLEMS.md; owner synchronization retains completion authority."
+        }
+      ]
+    }
+  ]
+}

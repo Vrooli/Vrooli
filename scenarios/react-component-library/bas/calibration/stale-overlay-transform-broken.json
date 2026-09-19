@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "name": "stale-overlay-transform-broken",
+    "description": "CALIBRATION: plants an idle overlay whose drag transform survives a viewport transition.",
+    "requirement": "OVERLAY-COMPOSITION",
+    "version": "1",
+    "labels": { "reset": "none", "surface": "overlay-composition-calibration", "calibration": "expected-failure", "assertion_class": "stale-overlay-transform-broken", "requirements_json": "[\"OVERLAY-COMPOSITION\"]" },
+    "execution_mode": "EXECUTION_MODE_OBSERVER"
+  },
+  "settings": { "viewport_width": 390, "viewport_height": 844 },
+  "nodes": [
+    { "id": "navigate", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "react-component-library", "scenario_path": "/", "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED", "timeout_ms": 30000 }, "metadata": { "label": "Open calibration host" } } },
+    { "id": "plant", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(() => { document.body.innerHTML='<section id=\"surface\" role=\"dialog\" style=\"transform:translateY(96px)\"></section>'; dispatchEvent(new Event('resize')); const transform=document.querySelector('#surface').style.transform; document.body.dataset.calibrationOk=transform===''?'yes':'no'; return {transform}; })()", "store_result": "failureEvidence" }, "metadata": { "label": "Plant stale drag state and transition the viewport" } } },
+    { "id": "assert", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "body[data-calibration-ok=\"yes\"]", "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": 1000, "failure_message": "EXPECTED CALIBRATION FAILURE: the idle overlay retained its planted drag transform after viewport transition." }, "metadata": { "label": "Expected stale-transform failure" } } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate", "target": "plant", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "plant", "target": "assert", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

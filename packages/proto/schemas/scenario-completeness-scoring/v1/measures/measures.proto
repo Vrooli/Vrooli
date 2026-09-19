@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package vrooli.scenario_completeness_scoring.v1.measures;
+
+import "measures/v1/measures.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-completeness-scoring/v1/measures;measures_v1";
+
+// =============================================================================
+// MEASURES DOMAIN
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain measures
+// @stability beta
+//
+// scenario-completeness-scoring's declared analytical measures over its
+// persisted score_snapshots table. Each RPC is read-only and run-eligible, and
+// shares its compute path with the packages/measures-go registry mounted at
+// /measures for measures-health/search-hub federation.
+// =============================================================================
+
+enum RungThreshold {
+  RUNG_THRESHOLD_UNSPECIFIED = 0;
+  RUNG_THRESHOLD_R0 = 1;
+  RUNG_THRESHOLD_R1 = 2;
+  RUNG_THRESHOLD_R2 = 3;
+  RUNG_THRESHOLD_R3 = 4;
+  RUNG_THRESHOLD_R4 = 5;
+}
+
+message CountFleetBelowRungRequest {
+  // Time window used to select the latest score snapshot per scenario.
+  vrooli.measures.v1.TimeWindow window = 1;
+
+  // Rung threshold. For example, R2 counts scenarios whose latest snapshot is
+  // still working on R0 or R1 inside the requested window.
+  RungThreshold rung = 2;
+}
+
+message CountFleetBelowRungResponse {
+  int64 count = 1;
+}
+
+message AverageCompositeRequest {
+  // Time window used to select the latest score snapshot per scenario.
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+message AverageCompositeResponse {
+  double average = 1;
+}
+
+message ScoreSeriesRequest {
+  // Time window used to select score snapshots for the fleet-average series.
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+message ScoreSeriesPoint {
+  string bucket = 1;
+  double average = 2;
+  int64 count = 3;
+}
+
+message ScoreSeriesResponse {
+  repeated ScoreSeriesPoint points = 1;
+}
+
+service MeasuresService {
+  rpc CountFleetBelowRung(CountFleetBelowRungRequest) returns (CountFleetBelowRungResponse);
+  rpc AverageComposite(AverageCompositeRequest) returns (AverageCompositeResponse);
+  rpc ScoreSeries(ScoreSeriesRequest) returns (ScoreSeriesResponse);
+}

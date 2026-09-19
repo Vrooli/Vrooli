@@ -7,6 +7,8 @@ import (
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
+	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
 func TestBuildReplayMovieSpecGeneratesSpec(t *testing.T) {
@@ -58,12 +60,12 @@ func TestBuildReplayMovieSpecGeneratesSpec(t *testing.T) {
 						Height:     720,
 					},
 					CursorTrail: []*autocontracts.Point{
-						&autocontracts.Point{X: 640, Y: 360},
-						&autocontracts.Point{X: 700, Y: 420},
+						{X: 640, Y: 360},
+						{X: 700, Y: 420},
 					},
 					ClickPosition: &autocontracts.Point{X: 700, Y: 420},
 					HighlightRegions: []*autocontracts.HighlightRegion{
-						&autocontracts.HighlightRegion{Selector: "#hero"},
+						{Selector: "#hero"},
 					},
 				},
 				{
@@ -166,6 +168,20 @@ func TestBuildReplayMovieSpecGeneratesSpec(t *testing.T) {
 			t.Errorf("expected decor cursor scale to be positive, got %f", pkg.Decor.CursorScale)
 		}
 	})
+}
+
+func TestTimelineFromReplayPackageUsesTypedTimelineEntries(t *testing.T) {
+	executionID, workflowID := uuid.New(), uuid.New()
+	exec := &database.ExecutionIndex{ID: executionID, WorkflowID: workflowID, Status: database.ExecutionStatusCompleted, StartedAt: time.Now()}
+	step := int32(4)
+	nodeID := "package-node"
+	timeline, err := timelineFromReplayPackage(exec, &basevidence.ReplayPackage{Timeline: []*bastimeline.TimelineEntry{{StepIndex: &step, NodeId: &nodeID}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(timeline.Frames) != 1 || timeline.Frames[0].StepIndex != 4 || timeline.Frames[0].NodeID != nodeID {
+		t.Fatalf("typed replay timeline was not projected: %#v", timeline.Frames)
+	}
 }
 
 func TestBuildReplayMovieSpecValidatesInput(t *testing.T) {

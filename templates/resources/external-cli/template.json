@@ -1,0 +1,50 @@
+{
+  "name": "external-cli",
+  "displayName": "External CLI",
+  "description": "Scaffold a resource centered on an installed executable, version detection, and platform-aware install guidance.",
+  "driver": "external-cli",
+  "requiredVars": {
+    "RESOURCE_NAME": {
+      "flag": "name",
+      "description": "Lowercase kebab-case resource identifier."
+    }
+  },
+  "optionalVars": {
+    "RESOURCE_DISPLAY_NAME": {
+      "flag": "display-name",
+      "description": "Human-readable display name."
+    },
+    "RESOURCE_DESCRIPTION": {
+      "flag": "description",
+      "description": "Short operator-facing summary."
+    },
+    "RESOURCE_CATEGORY": {
+      "flag": "category",
+      "description": "Resource category label.",
+      "default": "developer-tooling"
+    },
+    "RESOURCE_PORTABILITY_TIER": {
+      "flag": "portability-tier",
+      "description": "Portability tier for the generated scaffold.",
+      "default": "full"
+    },
+    "RESOURCE_BINARY": {
+      "flag": "binary",
+      "description": "Executable name to probe on PATH.",
+      "default": "{{RESOURCE_NAME}}"
+    },
+    "RESOURCE_CLI_COMMAND": {
+      "flag": "cli-command",
+      "description": "Installed command name for the generated resource CLI.",
+      "default": "resource-{{RESOURCE_NAME}}"
+    }
+  },
+  "docs": {
+    "resource-templates": "docs/resources/resource-templates.md",
+    "resource-guide": "docs/resources/resource-templates.md"
+  },
+  "platformExpectations": [
+    "Generated scaffolds should treat installation, binary detection, and health probing as first-class concerns.",
+    "Version detection should stay separate from auth/config validation."
+  ]
+}

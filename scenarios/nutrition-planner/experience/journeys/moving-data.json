@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "moving-data",
+    "title": "Moving data",
+    "purpose": "Export a complete backup or a recipe collection, review an import fully before any write, and restore with a recoverable checkpoint and a default that adds meals only.",
+    "prd_refs": [
+      "OT-P0-013",
+      "OT-P0-014",
+      "OT-P1-004"
+    ]
+  },
+  "steps": [
+    {
+      "page": "data",
+      "intent": "Choose a complete backup, a recipe collection, or a printable export with distinct names.",
+      "via": "export-cards"
+    },
+    {
+      "page": "data",
+      "state": "import-review",
+      "intent": "Inspect schema version, counts, duplicates, unsupported fields, and unresolved references before any live write.",
+      "via": "import-review-panel"
+    },
+    {
+      "page": "data",
+      "state": "restore-preview",
+      "intent": "See the precise restore impact and that a recoverable checkpoint exists.",
+      "via": "restore-impact"
+    },
+    {
+      "page": "data",
+      "state": "restore-preview",
+      "intent": "Confirm a full restore or take the default of adding meals only.",
+      "via": "restore-action"
+    }
+  ],
+  "claims": [
+    {
+      "id": "import-preview-never-mutates-live-data",
+      "type": "state-covered",
+      "statement": "Parsing and previewing an import never mutates live data, and a failed apply leaves the previous workspace intact.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "restore-cannot-grant-authority",
+      "type": "custom",
+      "statement": "A restore replaces workspace content but cannot import identity, credentials, subscription, or another tenant's authority.",
+      "tier": "aspirational"
+    }
+  ]
+}

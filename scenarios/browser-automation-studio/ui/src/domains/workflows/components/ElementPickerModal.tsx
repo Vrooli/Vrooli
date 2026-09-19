@@ -1,120 +1,21 @@
 import { useState, useEffect, useCallback, useId } from 'react';
 import { logger } from '@utils/logger';
 import { X, Target, Settings, Loader, Eye, Monitor, AlertCircle, Brain, ArrowUp, ArrowDown } from 'lucide-react';
-import { getConfig } from '@/config';
-import { getAIRequestHeadersSync } from '@/utils/apiHeaders';
 import toast from 'react-hot-toast';
 import BrowserInspectorTab from './BrowserInspectorTab';
-import type { ElementInfo, ElementHierarchyEntry, ElementCoordinateResponse } from '@/types/elements';
+import type { ElementInfo, ElementHierarchyEntry } from '@/types/elements';
 import { ResponsiveDialog } from '@shared/layout';
+import { aiClient, mapProtoElementInfo, mapProtoSelectionResult } from '@/api/ai';
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
-
-const safeJson = async (response: Response): Promise<unknown> => {
-  const text = await response.text();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
+// bytesToBase64 converts a Uint8Array (proto `bytes` field) into a standard
+// base64 string for use as a data URL.
+const bytesToBase64 = (bytes: Uint8Array): string => {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
   }
-};
-
-const parseElementInfo = (value: unknown): ElementInfo | null => {
-  if (!isRecord(value)) return null;
-  if (typeof value.text !== 'string') return null;
-  if (typeof value.tagName !== 'string') return null;
-  if (typeof value.type !== 'string') return null;
-  if (!Array.isArray(value.selectors)) return null;
-  const selectors = value.selectors
-    .filter((selector): selector is ElementInfo['selectors'][number] => {
-      if (!isRecord(selector)) return false;
-      return (
-        typeof selector.selector === 'string' &&
-        typeof selector.type === 'string' &&
-        typeof selector.robustness === 'number' &&
-        typeof selector.fallback === 'boolean'
-      );
-    });
-  const boundingBox =
-    (isRecord(value.boundingBox) ? value.boundingBox : null) ??
-    (isRecord(value.bounding_box) ? value.bounding_box : null);
-  if (!boundingBox || typeof boundingBox.x !== 'number' || typeof boundingBox.y !== 'number' ||
-    typeof boundingBox.width !== 'number' || typeof boundingBox.height !== 'number') {
-    return null;
-  }
-  return {
-    text: value.text,
-    tagName: value.tagName,
-    type: value.type,
-    selectors,
-    boundingBox: {
-      x: boundingBox.x,
-      y: boundingBox.y,
-      width: boundingBox.width,
-      height: boundingBox.height,
-    },
-    confidence: typeof value.confidence === 'number' ? value.confidence : 0,
-    category: typeof value.category === 'string' ? value.category : '',
-    attributes: isRecord(value.attributes) ? (value.attributes as Record<string, string>) : {},
-  };
-};
-
-const parseElementCoordinateResponse = (value: unknown): ElementCoordinateResponse | null => {
-  if (!isRecord(value)) return null;
-  const element = value.element ? parseElementInfo(value.element) : null;
-  const candidates = Array.isArray(value.candidates)
-    ? normalizeHierarchy(value.candidates)
-    : [];
-  const selectedIndex = typeof value.selectedIndex === 'number' ? value.selectedIndex : 0;
-  return { element, candidates, selectedIndex };
-};
-
-const normalizeHierarchy = (value: unknown): ElementHierarchyEntry[] => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  const results: ElementHierarchyEntry[] = [];
-
-  for (const entry of value) {
-    if (!entry || typeof entry !== 'object') {
-      continue;
-    }
-
-    const candidate = entry as Partial<ElementHierarchyEntry> & { element?: ElementInfo };
-    if (!candidate.element) {
-      continue;
-    }
-
-    const firstElementSelector = Array.isArray(candidate.element.selectors) ? candidate.element.selectors[0] : undefined;
-    const selector = typeof candidate.selector === 'string' && candidate.selector.trim().length > 0
-      ? candidate.selector.trim()
-      : (firstElementSelector?.selector ?? '');
-
-    const depth = Number.isFinite(candidate.depth as number)
-      ? Number(candidate.depth)
-      : 0;
-
-    const path = Array.isArray(candidate.path)
-      ? candidate.path.filter((segment): segment is string => typeof segment === 'string')
-      : [];
-
-    const summary = typeof candidate.pathSummary === 'string' && candidate.pathSummary.trim().length > 0
-      ? candidate.pathSummary.trim()
-      : path.join(' > ');
-
-    results.push({
-      element: candidate.element,
-      selector,
-      depth,
-      path,
-      pathSummary: summary || undefined,
-    });
-  }
-
-  return results;
+  return btoa(binary);
 };
 
 const deriveSelector = (entry: ElementHierarchyEntry | null | undefined): string => {
@@ -195,26 +96,9 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
 
     setIsLoading(true);
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/preview-screenshot`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to take screenshot: ${response.status}`);
-      }
-
-      const payload = await safeJson(response);
-      const screenshot =
-        isRecord(payload) && typeof payload.screenshot === 'string'
-          ? payload.screenshot
-          : null;
-      if (screenshot) {
-        setScreenshot(screenshot);
+      const resp = await aiClient.takePreviewScreenshot({ url });
+      if (resp.screenshotPng && resp.screenshotPng.length > 0) {
+        setScreenshot(`data:${resp.contentType || 'image/png'};base64,${bytesToBase64(resp.screenshotPng)}`);
       }
     } catch (error) {
       logger.error('Failed to take screenshot', { component: 'ElementPickerModal', action: 'fetchScreenshot' }, error);
@@ -244,21 +128,8 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
 
     setIsLoading(true);
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/element-at-coordinate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url, x, y }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to get element: ${response.status}`);
-      }
-
-      const payload = await safeJson(response);
-      const parsed = parseElementCoordinateResponse(payload);
+      const resp = await aiClient.getElementAtCoordinate({ url, x, y });
+      const parsed = mapProtoSelectionResult(resp.selection);
       const candidates = parsed?.candidates ?? [];
 
       if (candidates.length === 0) {
@@ -364,24 +235,10 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
 
     setAiAnalyzing(true);
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/ai-analyze-elements`, {
-        method: 'POST',
-        headers: getAIRequestHeadersSync(),
-        body: JSON.stringify({
-          url,
-          intent: userIntent.trim()
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to analyze with AI: ${response.status}`);
-      }
-
-      const payload = await safeJson(response);
-      const suggestions = Array.isArray(payload)
-        ? payload.map(parseElementInfo).filter((entry): entry is ElementInfo => entry !== null)
-        : [];
+      const resp = await aiClient.aIAnalyzeElements({ url, intent: userIntent.trim() });
+      const suggestions = resp.suggestions
+        .map((entry) => mapProtoElementInfo(entry))
+        .filter((entry): entry is ElementInfo => entry !== null);
       setAiSuggestions(suggestions);
       setHierarchyCandidates([]);
       setHierarchyIndex(-1);

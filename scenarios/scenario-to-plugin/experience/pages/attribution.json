@@ -1,0 +1,196 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "attribution",
+    "title": "Install Attribution",
+    "routes": [
+      "/attribution"
+    ],
+    "purpose": "Report installs and registry referrers per plugin and per channel, so the skill-registries channel can be judged from evidence instead of argument.",
+    "prd_refs": [
+      "OT-P1-003"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Per-plugin resolution is visible, because aggregate channel totals cannot show whether one capability has standalone value."
+    },
+    {
+      "statement": "The page is explicit that these are aggregate counts and carry no user identity.",
+      "notes": "Stating the privacy boundary in the surface is what keeps a future contributor from widening it."
+    },
+    {
+      "statement": "Gaps in measurement are shown as gaps, not as zeros."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Several plugins with install counts across channels."
+    },
+    {
+      "id": "loading",
+      "description": "Attribution data is loading."
+    },
+    {
+      "id": "empty",
+      "description": "No plugin has been published, so no attribution exists."
+    },
+    {
+      "id": "partial",
+      "description": "Some channels do not report installs; those cells are marked unmeasured."
+    },
+    {
+      "id": "stale",
+      "description": "Counts are from the last successful collection and may lag."
+    },
+    {
+      "id": "request-error",
+      "description": "Attribution could not be loaded."
+    }
+  ],
+  "elements": [
+    {
+      "id": "attribution-table",
+      "role": "table",
+      "name": "Installs by plugin and channel"
+    },
+    {
+      "id": "install-count",
+      "role": "note",
+      "name": "Install count"
+    },
+    {
+      "id": "referrer-origin",
+      "role": "note",
+      "name": "Referrer origin"
+    },
+    {
+      "id": "unmeasured-marker",
+      "role": "status",
+      "name": "Not measured"
+    },
+    {
+      "id": "privacy-note",
+      "role": "note",
+      "name": "What this data does and does not contain"
+    },
+    {
+      "id": "collection-timestamp",
+      "role": "note",
+      "name": "Last collected"
+    },
+    {
+      "id": "plugin-filter",
+      "role": "button",
+      "name": "Filter by plugin"
+    },
+    {
+      "id": "channel-filter",
+      "role": "button",
+      "name": "Filter by channel"
+    }
+  ],
+  "claims": [
+    {
+      "id": "attribution-table-present",
+      "type": "element-present",
+      "statement": "The attribution table is present.",
+      "tier": "aspirational",
+      "elements": [
+        "attribution-table"
+      ]
+    },
+    {
+      "id": "per-plugin-resolution",
+      "type": "element-present",
+      "statement": "Counts are shown per plugin and per channel rather than only in aggregate.",
+      "tier": "aspirational",
+      "elements": [
+        "attribution-table",
+        "install-count"
+      ]
+    },
+    {
+      "id": "unmeasured-not-zero",
+      "type": "state-distinct",
+      "statement": "An unmeasured cell is distinguishable from a measured zero.",
+      "tier": "aspirational",
+      "elements": [
+        "unmeasured-marker",
+        "install-count"
+      ],
+      "states": [
+        "partial",
+        "default"
+      ],
+      "rationale": "Rendering an unmeasured channel as zero would understate reach and mislead an activation decision."
+    },
+    {
+      "id": "privacy-boundary-stated",
+      "type": "element-present",
+      "statement": "The page states that attribution holds counts and referrer origins only, with no user or machine identity.",
+      "tier": "aspirational",
+      "elements": [
+        "privacy-note"
+      ]
+    },
+    {
+      "id": "staleness-visible",
+      "type": "state-covered",
+      "statement": "The stale state shows when counts were last collected.",
+      "tier": "aspirational",
+      "elements": [
+        "collection-timestamp"
+      ],
+      "states": [
+        "stale"
+      ]
+    },
+    {
+      "id": "attribution-affordances",
+      "type": "affordance-present",
+      "statement": "The table offers filter by plugin and by channel.",
+      "tier": "aspirational",
+      "elements": [
+        "attribution-table"
+      ],
+      "params": {
+        "affordances": [
+          "filter"
+        ],
+        "targetRole": "table"
+      }
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "attribution-table": {
+        "testid": "attribution-table"
+      },
+      "install-count": {
+        "testid": "install-count"
+      },
+      "referrer-origin": {
+        "testid": "referrer-origin"
+      },
+      "unmeasured-marker": {
+        "testid": "unmeasured-marker"
+      },
+      "privacy-note": {
+        "testid": "privacy-note"
+      },
+      "collection-timestamp": {
+        "testid": "collection-timestamp"
+      },
+      "plugin-filter": {
+        "testid": "plugin-filter"
+      },
+      "channel-filter": {
+        "testid": "channel-filter"
+      }
+    }
+  }
+}

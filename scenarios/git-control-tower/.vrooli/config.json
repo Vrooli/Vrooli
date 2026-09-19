@@ -1,0 +1,8 @@
+{
+  "policy": {
+    "agentAccess": "confirm",
+    "agentOverrideFlag": "--i-was-explicitly-authorized",
+    "callerDetection": "broad",
+    "agentDenyMessageTemplate": ""
+  }
+}

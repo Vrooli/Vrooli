@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "navigation.resizable-sidebar",
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.3",
+    "2.0.0",
+    "2.0.1",
+    "2.0.2",
+    "2.0.3",
+    "2.0.4"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.3",
+    "1.0.2",
+    "2.0.0",
+    "2.0.1",
+    "2.0.2",
+    "2.0.3",
+    "2.0.4"
+  ],
+  "latest": "2.0.5",
+  "libraryId": "react-component-library:ResizableSidebar"
+}

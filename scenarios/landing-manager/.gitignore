@@ -1,6 +1,0 @@
-# Ignore generated landing scenarios (staging output)
-generated/
-
-# Local artifacts that shouldn't be versioned from this scenario root
-node_modules
-dist

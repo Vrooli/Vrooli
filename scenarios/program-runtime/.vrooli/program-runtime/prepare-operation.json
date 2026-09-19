@@ -1,0 +1,109 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "program-runtime.prepare-operation",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Read the selected reusable program's inputs, identity, validation status and complete owning usage skill together, with a suggested invocation.",
+  "inputs": {
+    "name": {
+      "type": "string",
+      "required": true
+    }
+  },
+  "assumptions": [
+    "Selection is not execution authority",
+    "Owner skill holds domain interpretation"
+  ],
+  "invariants": [
+    "No domain operation is executed",
+    "Missing or truncated skill content is explicit",
+    "At most one program and one skill are read"
+  ],
+  "bindings": [
+    {
+      "id": "program-runtime/library/get",
+      "effect": "read"
+    },
+    {
+      "id": "prompt-manager/skill/read",
+      "effect": "read"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "report"
+      ]
+    },
+    "signals": {
+      "program": "Selected identity and input names",
+      "skill": "Bounded owning instructions and completeness",
+      "run_command": "Invocation template requiring caller inputs"
+    },
+    "errors": {
+      "classes": [
+        "read_unavailable",
+        "skill_incomplete",
+        "invalid_contract",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Program content identity"
+  },
+  "budget": {
+    "wall_ms": 15000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 1,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "missing-name",
+      "inputs": {},
+      "expect": {
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "program-runtime"
+      ]
+    },
+    {
+      "id": "live-valid",
+      "inputs": {
+        "name": "program-runtime.portfolio-audit"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable",
+          "refused",
+          "failed"
+        ]
+      },
+      "requires": [
+        "program-runtime"
+      ],
+      "note": "Valid bounded exercise fixture added after admission-only fixtures left the contract unexercised."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime",
+  "verbs": [
+    "lib",
+    "tasks.get"
+  ]
+}

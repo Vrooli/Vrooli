@@ -5,6 +5,8 @@ package compiler
 
 import (
 	"context"
+	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -15,6 +17,7 @@ import (
 )
 
 type projectRootContextKey struct{}
+type deferScenarioURLResolutionContextKey struct{}
 
 // WithProjectRoot attaches a project root to the context for selector resolution.
 func WithProjectRoot(ctx context.Context, projectRoot string) context.Context {
@@ -37,6 +40,24 @@ func projectRootFromContext(ctx context.Context) string {
 	return ""
 }
 
+// WithDeferScenarioURLResolution marks compilation for a target-owned
+// renderer. Typed scenario destinations remain intact until the executor can
+// resolve them against that renderer's admitted origin.
+func WithDeferScenarioURLResolution(ctx context.Context, enabled bool) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, deferScenarioURLResolutionContextKey{}, enabled)
+}
+
+func deferScenarioURLResolutionFromContext(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	enabled, _ := ctx.Value(deferScenarioURLResolutionContextKey{}).(bool)
+	return enabled
+}
+
 // CompileWorkflowToContracts compiles a workflow directly to contracts.ExecutionPlan.
 // This is the preferred entry point for callers who need the canonical ExecutionPlan type.
 // It internally calls CompileWorkflow and performs the type conversion.
@@ -50,6 +71,15 @@ func CompileWorkflowToContracts(ctx context.Context, executionID uuid.UUID, work
 	var opts *CompileOptions
 	if projectRoot != "" {
 		opts = &CompileOptions{SelectorManifestRoot: projectRoot}
+		if filepath.Base(filepath.Clean(projectRoot)) == "bas" {
+			opts.ScenarioRoot = filepath.Dir(filepath.Clean(projectRoot))
+		}
+	}
+	if deferScenarioURLResolutionFromContext(ctx) {
+		if opts == nil {
+			opts = &CompileOptions{}
+		}
+		opts.DeferScenarioURLResolution = true
 	}
 
 	plan, err := CompileWorkflowWithOptions(workflow, opts)
@@ -74,24 +104,14 @@ func CompileWorkflowToContracts(ctx context.Context, executionID uuid.UUID, work
 			Index:       step.Index,
 			NodeID:      step.NodeID,
 			PreloadHTML: "",
-			Context:     map[string]any{},
+			Context:     cloneExecutionContext(step.Context),
 			Metadata:    map[string]string{},
 		}
 
-		// Build typed Action field from step type/params
-		action, actionErr := BuildActionDefinition(string(step.Type), step.Params)
-		if actionErr != nil {
-			logrus.WithFields(logrus.Fields{
-				"execution_id": executionID,
-				"workflow_id":  workflow.GetId(),
-				"node_id":      step.NodeID,
-				"step_index":   step.Index,
-				"step_type":    step.Type,
-				"error":        actionErr.Error(),
-			}).Warn("Failed to build ActionDefinition for step")
-		} else {
-			instr.Action = action
+		if step.Action == nil {
+			return contracts.ExecutionPlan{}, nil, fmt.Errorf("compiled step %s has no typed action", step.NodeID)
 		}
+		instr.Action = step.Action
 
 		instructions = append(instructions, instr)
 	}
@@ -148,7 +168,7 @@ func toContractsGraph(plan *ExecutionPlan) *contracts.PlanGraph {
 			NodeID:    step.NodeID,
 			Outgoing:  edges,
 			Metadata:  map[string]string{},
-			Context:   map[string]any{},
+			Context:   cloneExecutionContext(step.Context),
 			Preload:   "",
 			SourcePos: map[string]any{},
 		}
@@ -164,14 +184,21 @@ func toContractsGraph(plan *ExecutionPlan) *contracts.PlanGraph {
 			converted.Loop = toContractsGraph(step.LoopPlan)
 		}
 
-		// Build typed Action for type safety
-		action, err := BuildActionDefinition(string(step.Type), step.Params)
-		if err == nil {
-			converted.Action = action
-		}
+		converted.Action = step.Action
 
 		steps = append(steps, converted)
 	}
 
 	return &contracts.PlanGraph{Steps: steps}
+}
+
+func cloneExecutionContext(context map[string]any) map[string]any {
+	if len(context) == 0 {
+		return nil
+	}
+	cloned := make(map[string]any, len(context))
+	for key, value := range context {
+		cloned[key] = value
+	}
+	return cloned
 }

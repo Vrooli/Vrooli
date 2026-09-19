@@ -1,0 +1,20 @@
+syntax = "proto3";
+package vrooli.nutrition_planner.v1.planning;
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/planning;planning_v1";
+service PlanningService { rpc GeneratePlan(GeneratePlanRequest) returns (GeneratePlanResponse); rpc ApplyPlan(ApplyPlanRequest) returns (ApplyPlanResponse); rpc PreviewSwap(PreviewSwapRequest) returns (PreviewSwapResponse); rpc GetShoppingPreview(GetShoppingPreviewRequest) returns (GetShoppingPreviewResponse); rpc SetShoppingChecked(SetShoppingCheckedRequest) returns (SetShoppingCheckedResponse); rpc RecordFeedback(RecordFeedbackRequest) returns (RecordFeedbackResponse); rpc UndoFeedback(UndoFeedbackRequest) returns (UndoFeedbackResponse); }
+message MealSlot { string date=1; string slot_name=2; string mode=3; string locked_recipe_id=4; string quantity=5; }
+message GeneratePlanRequest { string workspace_id=1; repeated string dates=2; map<string,string> locked_recipe_ids=3; int64 seed=4; double cost_weight=5; double effort_weight=6; double repetition_weight=7; repeated MealSlot meal_slots=8; }
+message GeneratePlanResponse { string run_id=1; string draft_json=2; repeated string unresolved_dates=3; repeated string input_references=4; int64 current_revision=5; }
+message ApplyPlanRequest { string workspace_id=1; int64 expected_revision=2; string draft_json=3; }
+message ApplyPlanResponse { int64 revision=1; string plan_json=2; }
+message PreviewSwapRequest { string workspace_id=1; int64 expected_revision=2; string date=3; string replacement_recipe_id=4; bool replace_matching_future=5; }
+message PreviewSwapResponse { int64 revision=1; string preview_json=2; repeated string affected_dates=3; }
+message GetShoppingPreviewRequest { string workspace_id=1; int64 expected_revision=2; }
+message ShoppingLine { string key=1; string label=2; string need=3; string stock=4; string missing=5; string package_count=6; string price=7; repeated string source_recipe_ids=8; bool checked=9; }
+message GetShoppingPreviewResponse { int64 revision=1; repeated ShoppingLine lines=2; }
+message SetShoppingCheckedRequest { string workspace_id=1; string line_key=2; bool checked=3; }
+message SetShoppingCheckedResponse { bool checked=1; }
+message RecordFeedbackRequest { string workspace_id=1; int64 expected_revision=2; string date=3; string recipe_id=4; string portion=5; int32 minutes=6; }
+message RecordFeedbackResponse { string date=1; string recipe_id=2; string portion=3; int32 minutes=4; }
+message UndoFeedbackRequest { string workspace_id=1; string date=2; }
+message UndoFeedbackResponse { bool undone=1; }

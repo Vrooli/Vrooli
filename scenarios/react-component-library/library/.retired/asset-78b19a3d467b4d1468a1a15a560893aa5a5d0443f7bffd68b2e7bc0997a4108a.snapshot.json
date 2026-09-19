@@ -1,0 +1,172 @@
+{
+  "Component": {
+    "ID": "df03ee3d-278f-4404-8774-4c2e2339c726",
+    "CatalogID": "navigation.top-bar",
+    "LibraryID": "react-component-library:TopBar",
+    "Slug": "TopBar",
+    "DisplayName": "TopBar",
+    "Description": "The application-level toolbar for navigation, search, global actions, status, and account controls, with responsive overflow and single-line chrome discipline.",
+    "Slot": "ui-pattern",
+    "Category": "navigation",
+    "SourcePath": "components/TopBar/versions/1.0.7/TopBar.tsx",
+    "Version": "1.0.7",
+    "LatestVersion": "1.0.7",
+    "DraftVersion": "",
+    "ManifestPath": "components/TopBar/component.json",
+    "Tags": null,
+    "IndexedAt": "2026-09-03T00:21:28.589746477Z",
+    "UpdatedAt": "2026-09-07T22:20:55.418416531Z",
+    "Headers": {
+      "catalogExpects": "[]",
+      "catalogId": "navigation.top-bar",
+      "catalogSatisfies": "null",
+      "displayName": "TopBar",
+      "tags": "[\"navigation\",\"responsive\",\"token-bound\"]",
+      "warning": "Managed by React Component Library. Preserve this header when editing adopted copies."
+    },
+    "DesignStyles": null,
+    "AssetKind": "component",
+    "Dependencies": [
+      {
+        "LibraryID": "react-component-library:ClassMerge",
+        "Version": "1.0.2",
+        "Kind": ""
+      },
+      {
+        "LibraryID": "react-component-library:useLocale",
+        "Version": "1.1.1",
+        "Kind": ""
+      }
+    ],
+    "Expects": [],
+    "Satisfies": null,
+    "CatalogDomain": "",
+    "CatalogDomainOrder": 0,
+    "CatalogRung": 0,
+    "CatalogRungName": "",
+    "TransitiveDependentCount": 0,
+    "Metrics": {
+      "DirectAdoptionCount": 0,
+      "EffectiveAdoptionCount": 0,
+      "VersionCount": 1,
+      "VersionAdoptions": null
+    },
+    "KitCompatibility": {
+      "Verdict": "universal",
+      "CompatibleKitIDs": [
+        "switchboard-console",
+        "vrooli-command-display",
+        "vrooli-conversion-landing",
+        "vrooli-default"
+      ],
+      "UnsatisfiedProperties": null
+    }
+  },
+  "Versions": [
+    {
+      "ID": "a8a8fd03-f84f-49a2-828c-58e4dfeeef76",
+      "ComponentID": "df03ee3d-278f-4404-8774-4c2e2339c726",
+      "LibraryID": "react-component-library:TopBar",
+      "Version": "1.0.7",
+      "Status": "released",
+      "SourcePath": "components/TopBar/versions/1.0.7/TopBar.tsx",
+      "Content": "/**\n * @libraryId react-component-library:TopBar\n * @displayName TopBar\n * @version 1.0.7\n * @tags [\"navigation\",\"responsive\",\"token-bound\"]\n * @warning Managed by React Component Library. Preserve this header when editing adopted copies.\n */\n/** @vrooliComponentSource react-component-library:TopBar */\nimport { useStrings } from \"@vrooli/react-component-library/useLocale/1\";\nimport { withClassName } from \"@vrooli/react-component-library/ClassMerge/1\";\n\nimport type { ReactNode } from \"react\";\nconst panel = {\n  border: \"1px solid var(--color-border, #cbd5e1)\",\n  borderRadius: \"var(--radius-panel, 0.5rem)\",\n  background: \"var(--color-surface, #ffffff)\",\n  color: \"var(--color-foreground, #0f172a)\",\n  padding: \"var(--space-md, 24px)\",\n  boxShadow: \"var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10))\",\n};\nconst muted = { color: \"var(--color-muted-foreground, #64748b)\" };\nexport const TopBar = withClassName(function TopBar({ children }: { children?: ReactNode }) {\n  const strings = useStrings();\n  return (\n    \u003cheader\n      data-testid=\"navigation.top-bar\"\n      data-top-bar\n      style={{\n        display: \"flex\",\n        alignItems: \"center\",\n        gap: 16,\n        minHeight: 64,\n        ...panel,\n        paddingInline: 24,\n      }}\n    \u003e\n      {children ?? (\n        \u003c\u003e\n          \u003cstrong style={{ fontSize: 18 }}\u003e\n            {strings(\"navigation.top-bar.application\", \"Application\")}\n          \u003c/strong\u003e\n          \u003cspan style={{ marginInlineStart: \"auto\", ...muted }}\u003e\n            {strings(\"navigation.top-bar.workspace\", \"Workspace\")}\n          \u003c/span\u003e\n        \u003c/\u003e\n      )}\n    \u003c/header\u003e\n  );\n});\n",
+      "ContentSHA256": "f9dc8bc571a67335c7e81b03475dc5be2cc217373b8dcc08413e0f524221abd3",
+      "ChangelogMD": "",
+      "IndexedAt": "2026-09-07T22:20:55.420152513Z",
+      "CreatedAt": "2026-09-03T00:21:28.590438987Z",
+      "ReleasedAt": "2026-09-03T00:21:28.590438987Z",
+      "Presence": "materialized",
+      "Headers": null,
+      "Files": [
+        {
+          "Path": "TopBar.tsx",
+          "Content": "/**\n * @libraryId react-component-library:TopBar\n * @displayName TopBar\n * @version 1.0.7\n * @tags [\"navigation\",\"responsive\",\"token-bound\"]\n * @warning Managed by React Component Library. Preserve this header when editing adopted copies.\n */\n/** @vrooliComponentSource react-component-library:TopBar */\nimport { useStrings } from \"@vrooli/react-component-library/useLocale/1\";\nimport { withClassName } from \"@vrooli/react-component-library/ClassMerge/1\";\n\nimport type { ReactNode } from \"react\";\nconst panel = {\n  border: \"1px solid var(--color-border, #cbd5e1)\",\n  borderRadius: \"var(--radius-panel, 0.5rem)\",\n  background: \"var(--color-surface, #ffffff)\",\n  color: \"var(--color-foreground, #0f172a)\",\n  padding: \"var(--space-md, 24px)\",\n  boxShadow: \"var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10))\",\n};\nconst muted = { color: \"var(--color-muted-foreground, #64748b)\" };\nexport const TopBar = withClassName(function TopBar({ children }: { children?: ReactNode }) {\n  const strings = useStrings();\n  return (\n    \u003cheader\n      data-testid=\"navigation.top-bar\"\n      data-top-bar\n      style={{\n        display: \"flex\",\n        alignItems: \"center\",\n        gap: 16,\n        minHeight: 64,\n        ...panel,\n        paddingInline: 24,\n      }}\n    \u003e\n      {children ?? (\n        \u003c\u003e\n          \u003cstrong style={{ fontSize: 18 }}\u003e\n            {strings(\"navigation.top-bar.application\", \"Application\")}\n          \u003c/strong\u003e\n          \u003cspan style={{ marginInlineStart: \"auto\", ...muted }}\u003e\n            {strings(\"navigation.top-bar.workspace\", \"Workspace\")}\n          \u003c/span\u003e\n        \u003c/\u003e\n      )}\n    \u003c/header\u003e\n  );\n});\n",
+          "ContentSHA256": "f9dc8bc571a67335c7e81b03475dc5be2cc217373b8dcc08413e0f524221abd3",
+          "IsEntry": true,
+          "Slot": ""
+        },
+        {
+          "Path": "TopBar.strings.ts",
+          "Content": "import { defineStrings } from \"@vrooli/react-component-library/useLocale/1\";\n\nexport const TopBarStrings = defineStrings(\"react-component-library:TopBar\", {\n  \"navigation.top-bar.application\": \"Application\",\n  \"navigation.top-bar.workspace\": \"Workspace\",\n});\n",
+          "ContentSHA256": "b4845c0bfbdd2f56edebf23897618e31815a8d68c3cd6c26cfa669a619d18fab",
+          "IsEntry": false,
+          "Slot": ""
+        },
+        {
+          "Path": "dependencies.json",
+          "Content": "{\n  \"schemaVersion\": 2,\n  \"libraryId\": \"react-component-library:TopBar\",\n  \"version\": \"1.0.7\",\n  \"resolvedAt\": \"2026-09-02T07:03:55.053Z\",\n  \"dependencies\": [\n    {\n      \"libraryId\": \"react-component-library:ClassMerge\",\n      \"major\": 1,\n      \"observed\": \"1.0.2\",\n      \"rank\": 1\n    },\n    {\n      \"libraryId\": \"react-component-library:useLocale\",\n      \"major\": 1,\n      \"observed\": \"1.1.1\",\n      \"rank\": 2\n    }\n  ]\n}\n",
+          "ContentSHA256": "b1e7c7fef3fe8438fe6082af0287087bd9ced5772d61511dfed4a2285c9aeb83",
+          "IsEntry": false,
+          "Slot": ""
+        },
+        {
+          "Path": "story.json",
+          "Content": "{\n  \"$schema\": \"../../../../../../.vrooli/schemas/story-contract.schema.json\",\n  \"args\": {\n    \"fields\": []\n  },\n  \"composition\": {\n    \"frame\": {\n      \"asset\": \"navigation.page\",\n      \"capability\": \"navigation\",\n      \"fixture\": \"fixtures.user-directory\",\n      \"region\": \"navigation\",\n      \"version\": \"1.0.0\"\n    }\n  },\n  \"environment\": {\n    \"fixtures\": []\n  },\n  \"kind\": \"component\",\n  \"schemaVersion\": 5,\n  \"stories\": [\n    {\n      \"args\": {\n        \"children\": \"Workspace\"\n      },\n      \"expect\": [\n        {\n          \"kind\": \"text\",\n          \"value\": \"Workspace\"\n        }\n      ],\n      \"id\": \"default\",\n      \"mode\": \"pinned\",\n      \"name\": \"Default\",\n      \"role\": \"anatomy\"\n    },\n    {\n      \"args\": {\n        \"children\": \"Workspace\"\n      },\n      \"id\": \"long-content\",\n      \"mode\": \"pinned\",\n      \"name\": \"Long content\",\n      \"expect\": [\n        {\n          \"kind\": \"visible\",\n          \"selector\": \"body\"\n        }\n      ],\n      \"role\": \"boundary\"\n    }\n  ],\n  \"title\": \"TopBar\"\n}\n",
+          "ContentSHA256": "58ac7be87efbbfa1ba0e1251e728d2db3e21f2ae8dcc39185c953fdae85a6153",
+          "IsEntry": false,
+          "Slot": ""
+        },
+        {
+          "Path": "story.tsx",
+          "Content": "// Preview contract exports for TopBar 1.0.7.\n// The declarative story contract owns expectations; this module supplies the\n// typed specimen seam for versions whose composition is supplied by a harness.\nexport function Default() { return null; }\nexport function LongContent() { return null; }\n",
+          "ContentSHA256": "407c4de4a227f6f0084c2b542b6c3cbc472ea291e9cb74d52e4f50246ddb4dee",
+          "IsEntry": false,
+          "Slot": ""
+        }
+      ],
+      "Dependencies": [
+        {
+          "LibraryID": "react-component-library:ClassMerge",
+          "Version": "1.0.2",
+          "Kind": ""
+        },
+        {
+          "LibraryID": "react-component-library:useLocale",
+          "Version": "1.1.1",
+          "Kind": ""
+        }
+      ],
+      "DependencyLockPresent": true,
+      "RequiredTokens": [
+        "--color-border",
+        "--color-foreground",
+        "--color-muted-foreground",
+        "--color-surface",
+        "--elev-raised",
+        "--radius-panel",
+        "--space-md"
+      ],
+      "RequiredTokenPatterns": null,
+      "KitCompatibility": {
+        "Verdict": "universal",
+        "CompatibleKitIDs": [
+          "switchboard-console",
+          "vrooli-command-display",
+          "vrooli-conversion-landing",
+          "vrooli-default"
+        ],
+        "UnsatisfiedProperties": null
+      },
+      "ExperienceContract": "",
+      "ParityReport": null
+    }
+  ],
+  "Stories": [
+    {
+      "ID": "19f375b3-2b04-4096-af4a-b918e05bcaac",
+      "ComponentID": "df03ee3d-278f-4404-8774-4c2e2339c726",
+      "LibraryID": "react-component-library:TopBar",
+      "Version": "1.0.7",
+      "SchemaVersion": 5,
+      "Kind": "component",
+      "Title": "TopBar",
+      "ArgsJSON": "{\"fields\":[]}",
+      "EnvironmentJSON": "{\"fixtures\":[]}",
+      "StoriesJSON": "[{\"id\":\"default\",\"name\":\"Default\",\"role\":\"anatomy\",\"mode\":\"pinned\",\"args\":{\"children\":\"Workspace\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Workspace\"}]},{\"id\":\"long-content\",\"name\":\"Long content\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"children\":\"Workspace\"},\"expect\":[{\"kind\":\"visible\",\"selector\":\"body\"}]}]",
+      "ContractJSON": "{\"schemaVersion\":5,\"$schema\":\"../../../../../../.vrooli/schemas/story-contract.schema.json\",\"kind\":\"component\",\"title\":\"TopBar\",\"args\":{\"fields\":[]},\"environment\":{\"fixtures\":[]},\"composition\":{\"frame\":{\"asset\":\"navigation.page\",\"version\":\"1.0.0\",\"region\":\"navigation\",\"capability\":\"navigation\",\"fixture\":\"fixtures.user-directory\"}},\"stories\":[{\"id\":\"default\",\"name\":\"Default\",\"role\":\"anatomy\",\"mode\":\"pinned\",\"args\":{\"children\":\"Workspace\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Workspace\"}]},{\"id\":\"long-content\",\"name\":\"Long content\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"children\":\"Workspace\"},\"expect\":[{\"kind\":\"visible\",\"selector\":\"body\"}]}]}",
+      "SourcePath": "components/TopBar/versions/1.0.7/story.json",
+      "IndexedAt": "2026-09-07T22:20:55.420152513Z"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "primitives.edge-fade",
+    "name": "EdgeFade",
+    "kind": "primitive",
+    "surface": "base",
+    "domain": "primitives",
+    "description": "The pointer-transparent gradient mask indicating clipped or scrollable content without intercepting interaction beneath it.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "forced-colors-legibility"
+  ]
+}

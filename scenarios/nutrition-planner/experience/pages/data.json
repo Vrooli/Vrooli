@@ -1,0 +1,405 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "data",
+    "title": "Your food, portable.",
+    "routes": [
+      "/data",
+      "/transfer"
+    ],
+    "purpose": "Export, print, import, and restore owned data with review before write, explicit duplicate decisions, and a recoverable checkpoint, never exporting secrets or tenant authority.",
+    "prd_refs": [
+      "OT-P0-013",
+      "OT-P0-014",
+      "OT-P1-004"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Export, import, and restore are named distinctly so a recipe PDF is never mistaken for a complete backup."
+    },
+    {
+      "statement": "An import is parsed and reviewed with counts, duplicates, unsupported fields, and unresolved references before any live write."
+    },
+    {
+      "statement": "The default action adds meals only; restoring everything requires an explicit impact preview and a recoverable checkpoint."
+    },
+    {
+      "statement": "Secrets, credentials, infrastructure URLs, and tenant authority are excluded from every export and cannot be granted by an import."
+    },
+    {
+      "statement": "Retrieving the user's own data never requires a paid AI provider or an additional completeness step."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The surface at rest with data present; the state a journey step assumes when it names none.",
+      "setup": {
+        "route": "/data"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "First read of the page's data; layout is reserved so nothing shifts on arrival.",
+      "setup": {
+        "route": "/data",
+        "query": {
+          "fixture": "loading"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "The read succeeded and there is genuinely nothing, which is distinct from not-yet-loaded.",
+      "setup": {
+        "route": "/data",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some contributing data could not be read; what is missing is named rather than shown as zero.",
+      "setup": {
+        "route": "/data",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "setup": {
+        "route": "/data",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next available action are stated.",
+      "setup": {
+        "route": "/data",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "validation-error",
+      "description": "Input was rejected before submission; the offending field is identified next to it.",
+      "setup": {
+        "route": "/data",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
+    },
+    {
+      "id": "saving",
+      "description": "A write is in flight; the affected control says why it is unavailable.",
+      "setup": {
+        "route": "/data",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
+      "id": "offline",
+      "description": "The client cannot reach the API; read-only or queued behavior is explained.",
+      "setup": {
+        "route": "/data",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    },
+    {
+      "id": "import-review",
+      "description": "A parsed import is staged for review with record counts, duplicates, ID conflicts, unsupported fields, and validation paths before any write.",
+      "setup": {
+        "route": "/data",
+        "query": {
+          "fixture": "import-review"
+        }
+      }
+    },
+    {
+      "id": "restore-preview",
+      "description": "A full restore shows its precise impact on workspace content and the recoverable checkpoint before the explicit confirmation.",
+      "setup": {
+        "route": "/data",
+        "query": {
+          "fixture": "restore-preview"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "transfer-tabs",
+      "role": "tab",
+      "description": "Export & print and Import."
+    },
+    {
+      "id": "export-cards",
+      "role": "list",
+      "description": "Week & grocery PDF, Complete backup, Meal collection, and Grocery spreadsheet with distinct explanations."
+    },
+    {
+      "id": "backup-card",
+      "role": "group",
+      "description": "The complete-backup export card, excluding secrets."
+    },
+    {
+      "id": "recipe-pdf-card",
+      "role": "group",
+      "description": "The recipe export entry, distinct from a workspace backup."
+    },
+    {
+      "id": "csv-card",
+      "role": "group",
+      "description": "The grocery CSV export, described as a spreadsheet view and not a lossless backup."
+    },
+    {
+      "id": "export-action",
+      "role": "button",
+      "description": "Generates the selected export and reports a download or retry link."
+    },
+    {
+      "id": "import-input",
+      "role": "form",
+      "description": "Accepts a structured file or pasted JSON; plain text is directed to Quick capture."
+    },
+    {
+      "id": "import-review-panel",
+      "role": "region",
+      "description": "The staged review surface that never mutates live data during preview."
+    },
+    {
+      "id": "record-counts",
+      "role": "status",
+      "description": "Counts by record type, source format, and version."
+    },
+    {
+      "id": "duplicate-decisions",
+      "role": "group",
+      "description": "Keep existing, Copy incoming, or Replace with a new revision for stable-ID collisions."
+    },
+    {
+      "id": "unsupported-fields",
+      "role": "list",
+      "description": "Fields the target version does not support, with their paths."
+    },
+    {
+      "id": "restore-dialog",
+      "role": "dialog",
+      "name": "Restore everything",
+      "description": "The full-restore preview and confirmation."
+    },
+    {
+      "id": "restore-impact",
+      "role": "table",
+      "description": "Counts for removals and replacements and the workspace revision comparison."
+    },
+    {
+      "id": "restore-action",
+      "role": "button",
+      "name": "Restore everything",
+      "description": "Applies the reviewed restore transactionally after the checkpoint."
+    },
+    {
+      "id": "checkpoint-note",
+      "role": "note",
+      "description": "States that a recoverable pre-restore checkpoint was created."
+    },
+    {
+      "id": "secrets-excluded-note",
+      "role": "note",
+      "description": "States that secrets, credentials, and tenant authority are neither exported nor importable."
+    },
+    {
+      "id": "export-ready",
+      "role": "status",
+      "description": "Reports export generation and download status, including a visible retry path."
+    }
+  ],
+  "claims": [
+    {
+      "id": "review-before-any-write",
+      "type": "element-present",
+      "statement": "Parsing and preview never mutate live data, and the review names counts, duplicates, unsupported fields, and validation paths first.",
+      "tier": "aspirational",
+      "elements": [
+        "import-review-panel",
+        "record-counts",
+        "unsupported-fields"
+      ],
+      "states": [
+        "import-review"
+      ]
+    },
+    {
+      "id": "default-add-meals-only",
+      "type": "element-present",
+      "statement": "The default import action adds meals only, while restoring everything is a separate explicit choice.",
+      "tier": "aspirational",
+      "elements": [
+        "restore-dialog",
+        "restore-action",
+        "import-review-panel"
+      ]
+    },
+    {
+      "id": "restore-shows-impact-and-checkpoint",
+      "type": "affordance-present",
+      "statement": "A full restore previews removal and replacement counts and states that a recoverable checkpoint exists before the explicit confirmation.",
+      "tier": "aspirational",
+      "elements": [
+        "restore-dialog",
+        "restore-impact",
+        "checkpoint-note",
+        "restore-action"
+      ],
+      "states": [
+        "restore-preview"
+      ]
+    },
+    {
+      "id": "secrets-never-cross-the-boundary",
+      "type": "element-present",
+      "statement": "The transfer surface states that secrets, credentials, and tenant authority are excluded from exports and cannot be installed by imports.",
+      "tier": "aspirational",
+      "elements": [
+        "secrets-excluded-note",
+        "export-cards"
+      ]
+    },
+    {
+      "id": "export-needs-no-paid-ai",
+      "type": "custom",
+      "statement": "Exporting and printing owned data never requires a paid AI provider, extra nutrient completeness, or a subscription upgrade.",
+      "tier": "aspirational",
+      "elements": [
+        "export-cards",
+        "export-action"
+      ]
+    },
+    {
+      "id": "duplicate-decisions-explicit",
+      "type": "element-present",
+      "statement": "A stable-ID collision with different content offers Keep existing, Copy incoming, or Replace with a new revision, defaulting to Copy incoming with remapped references.",
+      "tier": "aspirational",
+      "elements": [
+        "duplicate-decisions"
+      ],
+      "states": [
+        "import-review"
+      ]
+    },
+    {
+      "id": "csv-is-not-a-backup",
+      "type": "element-present",
+      "statement": "The grocery CSV is described as a spreadsheet view rather than a canonical lossless backup.",
+      "tier": "aspirational",
+      "elements": [
+        "csv-card",
+        "backup-card"
+      ]
+    },
+    {
+      "id": "export-status-is-reachable",
+      "type": "element-present",
+      "statement": "Export generation reports its status and offers a visible download or retry link when a browser blocks automatic saving.",
+      "tier": "aspirational",
+      "elements": [
+        "export-ready",
+        "export-action"
+      ]
+    },
+    {
+      "id": "data-no-horizontal-overflow",
+      "type": "no-document-horizontal-overflow",
+      "statement": "The restore impact table never scrolls the whole document sideways; wide counts stay inside their region.",
+      "tier": "aspirational",
+      "elements": [
+        "restore-impact"
+      ]
+    },
+    {
+      "id": "unsupported-fields-are-listed",
+      "type": "element-present",
+      "statement": "Unsupported fields and missing dependent records are listed in the review rather than silently dropped.",
+      "tier": "aspirational",
+      "elements": [
+        "unsupported-fields",
+        "import-review-panel"
+      ],
+      "states": [
+        "import-review"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "transfer-tabs": {
+        "testid": "data-transfer-tabs"
+      },
+      "export-cards": {
+        "testid": "data-export-cards"
+      },
+      "backup-card": {
+        "testid": "data-backup-card"
+      },
+      "recipe-pdf-card": {
+        "testid": "data-recipe-pdf-card"
+      },
+      "csv-card": {
+        "testid": "data-csv-card"
+      },
+      "export-action": {
+        "testid": "data-export-action"
+      },
+      "import-input": {
+        "testid": "data-import-input"
+      },
+      "import-review-panel": {
+        "testid": "data-import-review-panel"
+      },
+      "record-counts": {
+        "testid": "data-record-counts"
+      },
+      "duplicate-decisions": {
+        "testid": "data-duplicate-decisions"
+      },
+      "unsupported-fields": {
+        "testid": "data-unsupported-fields"
+      },
+      "restore-dialog": {
+        "testid": "data-restore-dialog"
+      },
+      "restore-impact": {
+        "testid": "data-restore-impact"
+      },
+      "restore-action": {
+        "testid": "data-restore-action"
+      },
+      "checkpoint-note": {
+        "testid": "data-checkpoint-note"
+      },
+      "secrets-excluded-note": {
+        "testid": "data-secrets-excluded-note"
+      },
+      "export-ready": {
+        "testid": "data-export-ready"
+      }
+    }
+  }
+}

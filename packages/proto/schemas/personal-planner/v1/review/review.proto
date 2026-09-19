@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package vrooli.personal_planner.v1.review;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/review;review_v1";
+
+message GetDailySummaryRequest { string local_date = 1; }
+message DailySummary {
+  string local_date = 1;
+  int64 planned_minutes = 2;
+  int64 recorded_active_minutes = 3;
+  int64 focus_session_count = 4;
+  int64 active_goal_count = 5;
+  int64 unrecorded_minutes = 6;
+  string coverage_note = 7;
+}
+message GetDailySummaryResponse { DailySummary summary = 1; }
+
+message GetWeeklySummaryRequest { string week_start_local_date = 1; }
+message WeeklySummary {
+  string week_start_local_date = 1;
+  repeated DailySummary days = 2;
+  int64 planned_minutes = 3;
+  int64 recorded_active_minutes = 4;
+  int64 focus_session_count = 5;
+  int64 active_goal_count = 6;
+  string coverage_note = 7;
+}
+message GetWeeklySummaryResponse { WeeklySummary summary = 1; }
+
+service ReviewService {
+  rpc GetDailySummary(GetDailySummaryRequest) returns (GetDailySummaryResponse);
+  rpc GetWeeklySummary(GetWeeklySummaryRequest) returns (GetWeeklySummaryResponse);
+  rpc GetReflection(GetReflectionRequest) returns (GetReflectionResponse);
+  rpc SaveReflection(SaveReflectionRequest) returns (SaveReflectionResponse);
+}
+
+message ReviewReflection {
+  string local_date = 1;
+  string text = 2;
+  string updated_at = 3;
+}
+message SaveReflectionRequest {
+  string local_date = 1;
+  string text = 2;
+}
+message SaveReflectionResponse { ReviewReflection reflection = 1; }
+message GetReflectionRequest { string local_date = 1; }
+message GetReflectionResponse { ReviewReflection reflection = 1; }

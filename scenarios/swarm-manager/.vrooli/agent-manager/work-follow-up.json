@@ -1,0 +1,136 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "swarm-manager",
+  "key": "swarm-manager/work-follow-up",
+  "version": "1.0.0",
+  "description": "Perform one bounded authorized follow-up from an immutable execution and review snapshot; Swarm applies the result.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "entity": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "executionId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "executionId",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "snapshot": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "required": [
+      "entity",
+      "snapshot"
+    ],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "result": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "required": [
+      "result"
+    ],
+    "additionalProperties": false
+  },
+  "nodes": [
+    {
+      "id": "follow_up",
+      "kind": "run",
+      "run": {
+        "profileKey": "swarm-manager/deep-work",
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "outcome": {
+                "type": "string",
+                "enum": [
+                  "complete",
+                  "proposed",
+                  "needs_attention",
+                  "abstained"
+                ]
+              },
+              "summary": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              }
+            },
+            "required": [
+              "outcome",
+              "summary"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "bindings": [
+          {
+            "name": "entity",
+            "source": "workflow_input",
+            "selector": "$.entity",
+            "limit": 1,
+            "maxBytes": 2048,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "snapshot",
+            "source": "workflow_input",
+            "selector": "$.snapshot",
+            "limit": 1,
+            "maxBytes": 65536,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          }
+        ],
+        "maxTurns": 18,
+        "timeoutSeconds": 1800,
+        "promptRef": {
+          "skillId": "swarm-manager-workflow-work-follow-up"
+        }
+      }
+    }
+  ],
+  "budgets": {
+    "wallTimeSeconds": 3600,
+    "maxTurns": 18,
+    "maxTokens": 900000,
+    "maxChargeMicroUsd": 6000000,
+    "maxNodeAttempts": 3,
+    "maxChildren": 1,
+    "maxConcurrency": 1,
+    "maxRecursion": 1,
+    "maxRetries": 2,
+    "maxWaitSeconds": 60
+  },
+  "metadata": {
+    "consumerMutationOwner": "swarm-manager"
+  }
+}

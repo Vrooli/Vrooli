@@ -1,0 +1,35 @@
+{
+  "longTasks": [
+    {
+      "startTime": 41000,
+      "duration": 92.5,
+      "name": "self"
+    },
+    {
+      "startTime": 60000,
+      "duration": 67.0,
+      "name": "self"
+    }
+  ],
+  "paint": [
+    {
+      "name": "first-paint",
+      "startTime": 132
+    },
+    {
+      "name": "first-contentful-paint",
+      "startTime": 148
+    }
+  ],
+  "lcp": {
+    "value": 1240,
+    "size": 30000,
+    "renderTime": 1240,
+    "loadTime": 0
+  },
+  "cls": {
+    "value": 0.041,
+    "entries": 2
+  },
+  "fcp": 148
+}

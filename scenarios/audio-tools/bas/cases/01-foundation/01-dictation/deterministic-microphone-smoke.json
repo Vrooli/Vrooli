@@ -1,0 +1,377 @@
+{
+  "id": "258c1d92-46c8-4c33-bc42-be2e1d7000da",
+  "project_id": "0238b793-8b5e-42ff-a42a-7b495da99b7f",
+  "name": "audio-tools-deterministic-microphone-smoke",
+  "folder_path": "/bas/cases/01-foundation/01-dictation",
+  "description": "Drives Dictation Studio through Chromium's WAV-backed fake microphone using the real getUserMedia and PCM-v2 capture path. This is a product-path smoke lane, not stable-engine promotion evidence.",
+  "tags": [
+    "reset:none",
+    "requirements_json:[\"ATD-P0-006\"]",
+    "media_fixture:microphone",
+    "evidence_lane:deterministic_browser"
+  ],
+  "version": 1,
+  "created_at": "2026-07-12T16:40:18.969047941Z",
+  "updated_at": "2026-07-12T16:40:18.969047941Z",
+  "metadata": {
+    "name": "audio-tools-deterministic-microphone-smoke",
+    "description": "Verify Dictation Studio records and renders deterministic WAV-backed microphone input.",
+    "labels": {
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "spec_entry_id": "dictation-studio"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "name": "audio-tools-deterministic-microphone-smoke",
+      "description": "Verify Dictation Studio records the deterministic microphone fixture through the product path.",
+      "execution_mode": "mutating"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844,
+      "fake_media": {
+        "microphone_wav": "bas/fixtures/dictation-reference.wav"
+      }
+    },
+    "nodes": [
+      {
+        "id": "navigate-dictation",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "timeout_ms": 30000,
+            "wait_until": "NAVIGATE_WAIT_EVENT_UNSPECIFIED",
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED",
+            "scenario": "audio-tools",
+            "scenario_path": "/dictation-studio"
+          },
+          "metadata": {
+            "label": "Open Dictation Studio"
+          }
+        }
+      },
+      {
+        "id": "wait-recorder",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/dictationStudio.recordStart",
+            "state": "WAIT_STATE_UNSPECIFIED",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Wait for the recorder"
+          }
+        }
+      },
+      {
+        "id": "start-fake-microphone",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/dictationStudio.recordStart"
+          },
+          "metadata": {
+            "label": "Start WAV-backed microphone capture"
+          }
+        }
+      },
+      {
+        "id": "assert-recording-state",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.recordStart",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "aria-pressed",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Assert capture is active through the product UI"
+          }
+        }
+      },
+      {
+        "id": "assert-stream-connected",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.streamStatus",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Streaming transcription connected."
+            },
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Assert the PCM-v2 WebSocket is connected through the lifecycle UI proxy"
+          }
+        }
+      },
+      {
+        "id": "feed-fixture",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 4000
+          },
+          "metadata": {
+            "label": "Allow the deterministic WAV fixture to pass through PCM-v2 capture"
+          }
+        }
+      },
+      {
+        "id": "assert-fixture-pcm-captured",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnCaptureStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "data-has-captured-audio",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Assert WAV fixture produced at least one captured PCM chunk"
+          }
+        }
+      },
+      {
+        "id": "assert-fixture-pcm-sent",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnSentStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "data-has-sent-audio",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Assert captured fixture PCM was released to the stream"
+          }
+        }
+      },
+      {
+        "id": "wait-done-sent",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/dictationStudio.turnDoneReady",
+            "state": "WAIT_STATE_ATTACHED",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Wait for the terminal done control frame to leave the browser"
+          }
+        }
+      },
+      {
+        "id": "wait-processed-ack",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/dictationStudio.turnProcessedReady",
+            "state": "WAIT_STATE_ATTACHED",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Allow terminal stream processing to acknowledge fixture PCM"
+          }
+        }
+      },
+      {
+        "id": "assert-fixture-pcm-processed",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnProcessedStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "data-has-processed-audio",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Assert backend acknowledged captured fixture PCM as processed"
+          }
+        }
+      },
+      {
+        "id": "assert-diagnostic-retention-observable",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnProcessedStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_CONTAINS",
+            "expected": {
+              "string_value": ""
+            },
+            "attribute_name": "data-retained-bytes",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Assert the product path exposes bounded retention telemetry"
+          }
+        }
+      },
+      {
+        "id": "assert-diagnostic-timing-observable",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnProcessedStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_CONTAINS",
+            "expected": {
+              "string_value": ""
+            },
+            "attribute_name": "data-first-partial-latency-ms",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Assert the product path exposes first-partial timing telemetry"
+          }
+        }
+      },
+      {
+        "id": "stop-capture",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/dictationStudio.recordStart"
+          },
+          "metadata": {
+            "label": "Stop capture and request a terminal result"
+          }
+        }
+      },
+      {
+        "id": "wait-stop-transition",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 1000
+          },
+          "metadata": {
+            "label": "Allow the stop transition to render before its state assertion"
+          }
+        }
+      },
+      {
+        "id": "capture-terminal-ui",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": true
+          },
+          "metadata": {
+            "label": "Capture terminal dictation state for qualification artifacts"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "navigate-dictation",
+        "target": "wait-recorder",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e2",
+        "source": "wait-recorder",
+        "target": "start-fake-microphone",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e3",
+        "source": "start-fake-microphone",
+        "target": "assert-recording-state",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e4",
+        "source": "assert-recording-state",
+        "target": "assert-stream-connected",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e5",
+        "source": "assert-stream-connected",
+        "target": "feed-fixture",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e6",
+        "source": "feed-fixture",
+        "target": "assert-fixture-pcm-captured",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e7",
+        "source": "assert-fixture-pcm-captured",
+        "target": "assert-fixture-pcm-sent",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e8",
+        "source": "assert-fixture-pcm-sent",
+        "target": "stop-capture",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e9",
+        "source": "stop-capture",
+        "target": "wait-stop-transition",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e10",
+        "source": "wait-stop-transition",
+        "target": "wait-done-sent",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e11",
+        "source": "wait-done-sent",
+        "target": "wait-processed-ack",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e12",
+        "source": "wait-processed-ack",
+        "target": "assert-fixture-pcm-processed",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e13",
+        "source": "assert-fixture-pcm-processed",
+        "target": "assert-diagnostic-retention-observable",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e14",
+        "source": "assert-diagnostic-retention-observable",
+        "target": "assert-diagnostic-timing-observable",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e15",
+        "source": "assert-diagnostic-timing-observable",
+        "target": "capture-terminal-ui",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      }
+    ]
+  }
+}

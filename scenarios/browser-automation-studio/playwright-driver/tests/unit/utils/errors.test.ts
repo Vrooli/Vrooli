@@ -12,6 +12,7 @@ import {
   NavigationError,
   ConfigurationError,
   normalizeError,
+  extractSelectorFromMessage,
 } from '../../../src/utils/errors';
 
 describe('Errors', () => {
@@ -67,6 +68,46 @@ describe('Errors', () => {
       const error = new SelectorNotFoundError('#test-selector', 5000);
 
       expect(error.message).toBe('Selector not found: #test-selector (timeout: 5000ms)');
+    });
+
+    it('should preserve the original engine detail in the message and details', () => {
+      const detail = 'page.waitForSelector: Unsupported token "@x" while parsing css selector "@x/foo"';
+      const error = new SelectorNotFoundError('@x/foo', undefined, detail);
+
+      expect(error.message).toBe(`Selector not found: @x/foo — ${detail}`);
+      expect(error.details).toMatchObject({ selector: '@x/foo', detail });
+    });
+
+    it('should truncate an over-long detail', () => {
+      const detail = 'x'.repeat(500);
+      const error = new SelectorNotFoundError('#foo', undefined, detail);
+
+      // Prefix + truncated (299 chars) + ellipsis
+      expect(error.message.length).toBeLessThan(detail.length);
+      expect(error.message.endsWith('…')).toBe(true);
+    });
+  });
+
+  describe('extractSelectorFromMessage', () => {
+    it('extracts from a css-parse error', () => {
+      expect(
+        extractSelectorFromMessage(
+          'Unsupported token "@selector" while parsing css selector "@selector/dictationStudio.recordStart"'
+        )
+      ).toBe('@selector/dictationStudio.recordStart');
+    });
+
+    it('extracts from a locator wait message', () => {
+      expect(extractSelectorFromMessage("waiting for locator('#login-button')")).toBe('#login-button');
+      expect(extractSelectorFromMessage('waiting for locator("#login-button")')).toBe('#login-button');
+    });
+
+    it('extracts from a "to be visible" message', () => {
+      expect(extractSelectorFromMessage('waiting for #submit to be visible')).toBe('#submit');
+    });
+
+    it('returns undefined when no selector is present', () => {
+      expect(extractSelectorFromMessage('something went wrong')).toBeUndefined();
     });
   });
 
@@ -185,6 +226,38 @@ describe('Errors', () => {
 
       expect(result).toBeInstanceOf(SelectorNotFoundError);
       expect(result.code).toBe('SELECTOR_NOT_FOUND');
+    });
+
+    it('should extract the selector and preserve the message for a css-parse failure', () => {
+      const original = new Error(
+        'page.waitForSelector: Unsupported token "@selector" while parsing css selector "@selector/dictationStudio.recordStart"'
+      );
+      const result = normalizeError(original);
+
+      expect(result).toBeInstanceOf(SelectorNotFoundError);
+      expect(result.details).toMatchObject({ selector: '@selector/dictationStudio.recordStart' });
+      // Nothing is lost: original message is embedded.
+      expect(result.message).toContain('@selector/dictationStudio.recordStart');
+      expect(result.message).toContain('Unsupported token');
+      expect(result.message).not.toBe('Selector not found: unknown');
+    });
+
+    it('should prefer a caller-supplied selector over extraction', () => {
+      const original = new Error('waiting for element to be visible');
+      const result = normalizeError(original, { selector: '#known-selector' });
+
+      expect(result).toBeInstanceOf(SelectorNotFoundError);
+      expect(result.details).toMatchObject({ selector: '#known-selector' });
+      expect(result.message).toContain('#known-selector');
+    });
+
+    it('should fall back to "unknown" but still preserve the message when no selector is recoverable', () => {
+      const original = new Error('locator resolution failed unexpectedly');
+      const result = normalizeError(original);
+
+      expect(result).toBeInstanceOf(SelectorNotFoundError);
+      expect(result.details).toMatchObject({ selector: 'unknown' });
+      expect(result.message).toContain('locator resolution failed unexpectedly');
     });
 
     it('should convert navigation errors', () => {

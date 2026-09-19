@@ -1,0 +1,149 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Personal Planner are uppercase-snake-case placeholders replaced by `template-manager generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "Planner"
+  },
+  "layout": {
+    "navigationLabel": "Primary navigation",
+    "mobileNavigationLabel": "Mobile navigation",
+    "skipToContent": "Skip to content",
+    "openNavigation": "Open navigation",
+    "closeNavigation": "Close navigation",
+    "nav": {
+      "dashboard": "Today",
+      "plan": "Plan",
+      "goals": "Goals",
+      "focus": "Focus",
+      "review": "Review",
+      "settings": "Settings"
+    }
+  },
+  "theme": {
+    "switcherLabel": "Theme",
+    "choice": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Today",
+      "description": "The first thing an operator sees. Decide what belongs here before you ship.",
+      "placeholderTitle": "This scenario has not decided its home surface yet",
+      "placeholderDescription": "Open START-HERE, Gate 5, and name the one question this page answers. Replace this placeholder with that surface. The health card beside it is the example of a scenario-owned feature built from library parts."
+    },
+    "settings": {
+      "title": "Settings",
+      "themeHeading": "Appearance",
+      "localeHeading": "Language",
+      "description": "Preferences for this browser. Add every setting your scenario actually needs; nothing else in the shell duplicates one.",
+      "preferences": "Preferences",
+      "themeHint": "Light, dark, or follow the system.",
+      "localeHint": "Applies to this console only.",
+      "storyKicker": "THE PLANNER PROMISE",
+      "storyTitle": "A calm core, kept honest",
+      "storyIntro": "Today’s planning, accepted schedule, focus record, and review are included in the free personal product. Nothing essential is hidden behind an upgrade.",
+      "storyIncludedTitle": "Included now",
+      "storyIncluded": "Manual planning, capacity, focus, and evidence-linked review.",
+      "storyPrivateTitle": "Private by default",
+      "storyPrivate": "Preferences and local workspace data stay in this planner until you choose an integration.",
+      "storyFutureTitle": "Future hypothesis",
+      "storyFuture": "Optional provider connections, calibrated forecasts, and assistance may become paid convenience layers after retention proves the value.",
+      "storyNote": "No billing is active, and no payment or upgrade action is presented as if it worked.",
+      "sceneryHeading": "Scenery",
+      "sceneryHint": "Keep the planning surface calm and readable in every environment.",
+      "artFree": "Art-free mode",
+      "reducedScenery": "Reduced scenery",
+      "subduedNight": "Subdued night surface",
+      "planningHeading": "Planning profile",
+      "planningHint": "Set the local time and capacity assumptions that shape your plan.",
+      "planningUnavailable": "Planning profile is unavailable right now.",
+      "planningLoading": "Loading planning profile…",
+      "timezone": "Timezone",
+      "weekStart": "Week starts",
+      "monday": "Monday",
+      "sunday": "Sunday",
+      "dailyCapacity": "Daily capacity (minutes)",
+      "reserve": "Protected reserve (minutes)",
+      "focusSession": "Preferred focus session (minutes)",
+      "savePlanning": "Save planning profile",
+      "planningSaveError": "Planning profile could not be saved.",
+      "planningSaved": "Planning profile saved.",
+      "availabilityHeading": "Weekly availability",
+      "availabilityHint": "Set the windows where planning may place flexible work.",
+      "availabilityLoading": "Loading availability…",
+      "weekday1": "Monday",
+      "weekday2": "Tuesday",
+      "weekday3": "Wednesday",
+      "weekday4": "Thursday",
+      "weekday5": "Friday",
+      "weekday6": "Saturday",
+      "weekday7": "Sunday",
+      "protectedTime": "Protected time (optional)",
+      "protectedReason": "Reason, such as school pickup",
+      "saveAvailability": "Save availability",
+      "availabilitySaveError": "Availability could not be saved.",
+      "availabilitySaved": "Availability saved.",
+      "integrationsHeading": "Calendar connections",
+      "integrationsHint": "Read-only connection state is visible here; live provider capacity projection is still being wired.",
+      "integrationsLoading": "Loading connections…",
+      "integrationsEmpty": "No calendar is connected. Manual planning stays complete.",
+      "fixtureConnection": "Add sample calendar",
+      "fixtureConnectionHelp": "Creates synthetic data for this planner only; it does not connect an external account.",
+      "syncConnection": "Refresh sample",
+      "disconnectConnection": "Disconnect",
+      "connectionReadOnly": "Read-only",
+      "connectionEvents": "{{count}} imported events",
+      "connectionBusy": "{{count}} busy minutes",
+      "connectionFixture": "Synthetic fixture",
+      "connectionSynced": "Connection refreshed.",
+      "connectionCreated": "Sample calendar added.",
+      "connectionDisconnected": "Connection disconnected.",
+      "connectionError": "The connection action could not be completed.",
+      "integrationBoundary": "Live provider OAuth and credential storage are not configured in this local build."
+    }
+  },
+  "health": {
+    "title": "API Health",
+    "loading": "Checking API status…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:",
+    "description": "Polls this scenario's API and reports what it says."
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_zero": "No notifications",
+    "summary_one": "1 notification"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
+  }
+}

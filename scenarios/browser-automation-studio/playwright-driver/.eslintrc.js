@@ -40,5 +40,15 @@ module.exports = {
     '@typescript-eslint/no-misused-promises': 'error',
     'no-console': ['warn', { allow: ['warn', 'error'] }],
   },
+  overrides: [
+    {
+      files: ['tests/**/*.ts', '**/*.test.ts', '**/*.spec.ts'],
+      rules: {
+        // Jest/vitest mock helpers reference methods directly; the rule
+        // produces false positives against `expect(mock.method)` patterns.
+        '@typescript-eslint/unbound-method': 'off',
+      },
+    },
+  ],
   ignorePatterns: ['dist', 'node_modules', '*.js'],
 };

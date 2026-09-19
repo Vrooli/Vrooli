@@ -5,8 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"swarm-manager/internal/initiatives"
 )
 
 // --- captureAdapter tests ---
@@ -85,7 +83,7 @@ func TestCaptureAdapter_ListCaptures_ReadsCaptures(t *testing.T) {
 	}
 }
 
-func TestCaptureAdapter_ListCaptures_WithClassification(t *testing.T) {
+func TestCaptureAdapter_ListCaptures_DoesNotReadTransientClassification(t *testing.T) {
 	rootDir := t.TempDir()
 	capDir := filepath.Join(rootDir, "captures", "cap-cls")
 	if err := os.MkdirAll(capDir, 0o755); err != nil {
@@ -102,7 +100,7 @@ func TestCaptureAdapter_ListCaptures_WithClassification(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Write classification.json.
+	// A stale classification file must not be projected as durable capture data.
 	clsData, _ := json.Marshal(map[string]any{
 		"items": []map[string]string{
 			{"kind": "execute", "title": "deploy task"},
@@ -124,14 +122,8 @@ func TestCaptureAdapter_ListCaptures_WithClassification(t *testing.T) {
 	}
 
 	cap := caps[0]
-	if len(cap.Items) != 2 {
-		t.Fatalf("expected 2 classification items, got %d", len(cap.Items))
-	}
-	if cap.Items[0].Kind != "execute" || cap.Items[0].Title != "deploy task" {
-		t.Errorf("unexpected first item: %+v", cap.Items[0])
-	}
-	if cap.Items[1].Kind != "fix" || cap.Items[1].Title != "fix login" {
-		t.Errorf("unexpected second item: %+v", cap.Items[1])
+	if cap.ID != "cap-cls" || cap.Status != "classified" {
+		t.Errorf("unexpected capture: %+v", cap)
 	}
 }
 
@@ -191,119 +183,6 @@ func TestCaptureAdapter_ListCaptures_SkipsFiles(t *testing.T) {
 	}
 	if len(caps) != 0 {
 		t.Errorf("expected 0 captures, got %d", len(caps))
-	}
-}
-
-// --- initiativeAdapter tests ---
-
-func TestInitiativeAdapter_List_Empty(t *testing.T) {
-	store := initiatives.NewStore(t.TempDir())
-	adapter := NewInitiativeAdapter(store)
-
-	items, err := adapter.List()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(items) != 0 {
-		t.Errorf("expected 0 initiatives, got %d", len(items))
-	}
-}
-
-func TestInitiativeAdapter_List_MapsFields(t *testing.T) {
-	baseDir := t.TempDir()
-	store := initiatives.NewStore(baseDir)
-
-	// Save initiatives via the store directly.
-	for _, init := range []struct {
-		name, title, status string
-		items               []string
-	}{
-		{"init-a", "Initiative A", "active", []string{"execute/task-1", "fix/bug-1"}},
-		{"init-b", "Initiative B", "completed", nil},
-	} {
-		i := &initiatives.Initiative{
-			Name:    init.name,
-			Title:   init.title,
-			Status:  init.status,
-			Items:   init.items,
-			Created: "2024-01-01T00:00:00Z",
-			Updated: "2024-01-01T00:00:00Z",
-		}
-		if i.Items == nil {
-			i.Items = []string{}
-		}
-		if err := store.Save(i); err != nil {
-			t.Fatalf("Save %q: %v", init.name, err)
-		}
-	}
-
-	adapter := NewInitiativeAdapter(store)
-	entries, err := adapter.List()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(entries) != 2 {
-		t.Fatalf("expected 2 entries, got %d", len(entries))
-	}
-
-	// Store.LoadAll returns sorted by name.
-	if entries[0].Name != "init-a" {
-		t.Errorf("expected first entry init-a, got %q", entries[0].Name)
-	}
-	if entries[0].Title != "Initiative A" {
-		t.Errorf("expected title 'Initiative A', got %q", entries[0].Title)
-	}
-	if entries[0].Status != "active" {
-		t.Errorf("expected status active, got %q", entries[0].Status)
-	}
-	if len(entries[0].Items) != 2 {
-		t.Fatalf("expected 2 items, got %d", len(entries[0].Items))
-	}
-	if entries[0].Items[0] != "execute/task-1" || entries[0].Items[1] != "fix/bug-1" {
-		t.Errorf("unexpected items: %v", entries[0].Items)
-	}
-
-	if entries[1].Name != "init-b" {
-		t.Errorf("expected second entry init-b, got %q", entries[1].Name)
-	}
-	if entries[1].Status != "completed" {
-		t.Errorf("expected status completed, got %q", entries[1].Status)
-	}
-}
-
-func TestInitiativeAdapter_List_ItemsCopied(t *testing.T) {
-	baseDir := t.TempDir()
-	store := initiatives.NewStore(baseDir)
-
-	init := &initiatives.Initiative{
-		Name:    "copy-test",
-		Title:   "Copy Test",
-		Status:  "active",
-		Items:   []string{"idea/a", "idea/b"},
-		Created: "2024-01-01T00:00:00Z",
-		Updated: "2024-01-01T00:00:00Z",
-	}
-	if err := store.Save(init); err != nil {
-		t.Fatal(err)
-	}
-
-	adapter := NewInitiativeAdapter(store)
-	entries, err := adapter.List()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Mutate the returned items slice.
-	entries[0].Items[0] = "idea/mutated"
-
-	// Reload and verify no mutation.
-	entries2, err := adapter.List()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if entries2[0].Items[0] != "idea/a" {
-		t.Errorf("mutation leaked: expected idea/a, got %q", entries2[0].Items[0])
 	}
 }
 

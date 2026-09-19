@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.color-picker",
+    "name": "ColorPicker",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "forms",
+    "description": "The colour field with swatches, spectrum, channel entry, text input, alpha, contrast feedback against a target background, recent values, and normalized output formats.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.input",
+        "reason": "Text entry shares field presentation."
+      },
+      {
+        "asset": "hooks.use-drag",
+        "reason": "Spectrum selection keeps pointer movement outside React rendering."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "error-association",
+    "tap-target-size",
+    "contrast-floor",
+    "ramp-conformance",
+    "text-scale-resilience",
+    "input-preservation",
+    "gesture-alternative"
+  ],
+  "requiredStates": [
+    "default",
+    "validation-error"
+  ],
+  "rationale": "Already implemented in the catalog at 1.0.0. The contrast-feedback capability is the part worth keeping: a colour picker that lets you choose an unreadable pair without saying so is actively harmful in a design system."
+}

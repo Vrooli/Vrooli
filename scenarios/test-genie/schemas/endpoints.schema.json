@@ -167,6 +167,10 @@
           "$ref": "#/definitions/schema_def",
           "description": "Response body schema"
         },
+        "rest_exception": {
+          "$ref": "#/definitions/rest_exception",
+          "description": "Explicit declaration for documented REST endpoints that are not generated Connect procedures"
+        },
         "performance": {
           "type": "object",
           "properties": {
@@ -185,20 +189,6 @@
               "type": "string"
             },
             "events": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          }
-        },
-        "cli_mapping": {
-          "type": "object",
-          "properties": {
-            "command": {
-              "type": "string"
-            },
-            "args": {
               "type": "array",
               "items": {
                 "type": "string"
@@ -230,6 +220,63 @@
           }
         }
       }
+    },
+    "rest_exception": {
+      "type": "object",
+      "required": ["reason", "proto_payloads"],
+      "properties": {
+        "reason": {
+          "type": "string",
+          "enum": ["multipart_upload", "webhook_receiver", "third_party_shape", "ops_probe", "stream_upgrade"]
+        },
+        "note": {
+          "type": "string"
+        },
+        "proto_payloads": {
+          "$ref": "#/definitions/rest_exception_proto_payloads"
+        },
+        "implementation_anchor": {
+          "type": "object",
+          "description": "Optional future implementation-proof hint. proto-health stores declarations but does not prove anchors in this phase.",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "rest_exception_proto_payloads": {
+      "type": "object",
+      "required": ["request", "response", "error"],
+      "properties": {
+        "request": {
+          "$ref": "#/definitions/rest_exception_payload"
+        },
+        "response": {
+          "$ref": "#/definitions/rest_exception_payload"
+        },
+        "error": {
+          "$ref": "#/definitions/rest_exception_payload"
+        }
+      },
+      "additionalProperties": false
+    },
+    "rest_exception_payload": {
+      "type": "object",
+      "required": ["transport", "conformance"],
+      "properties": {
+        "proto_full_name": {
+          "type": "string",
+          "description": "Fully qualified proto message name when this payload role is proto-typed"
+        },
+        "transport": {
+          "type": "string",
+          "enum": ["connect", "json", "multipart/form-data", "none"]
+        },
+        "conformance": {
+          "type": "string",
+          "enum": ["protojson", "transport_only", "external_shape", "none"]
+        }
+      },
+      "additionalProperties": false
     },
     "parameter": {
       "type": "object",

@@ -10,11 +10,11 @@ import (
 	"net/http"
 	"sync"
 
+	"swarm-manager/internal/apierr"
+
 	"buf.build/go/protovalidate"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-
-	"swarm-manager/internal/apierr"
 )
 
 var (

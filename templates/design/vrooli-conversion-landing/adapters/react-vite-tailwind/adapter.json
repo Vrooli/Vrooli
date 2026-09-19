@@ -1,0 +1,14 @@
+{
+  "id": "react-vite-tailwind",
+  "requires": "react-vite-tailwind",
+  "copy": [
+    {
+      "from": "tokens.css",
+      "to": "ui/src/design-tokens.css"
+    },
+    {
+      "from": "tailwind.theme.json",
+      "to": "ui/tailwind.theme.json"
+    }
+  ]
+}

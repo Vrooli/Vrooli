@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package vrooli.content_desk.v1.posttypes;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/posttypes;posttypes_v1";
+
+// PosttypesService exposes the executable post-type activation registry.
+service PosttypesService {
+  rpc ListPostTypes(ListPostTypesRequest) returns (ListPostTypesResponse);
+  rpc RegisterPostType(RegisterPostTypeRequest) returns (RegisterPostTypeResponse);
+}
+
+message PostType {
+  string id = 1;
+  string status = 2;
+  repeated string failure_modes = 3;
+}
+
+message ListPostTypesRequest {}
+
+message ListPostTypesResponse {
+  repeated PostType post_types = 1;
+}
+
+message RegisterPostTypeRequest {
+  string id = 1;
+  string paired_skill = 2;
+  bool skill_exists = 3;
+  bool doc_v1 = 4;
+  bool responsibilities_declared = 5;
+  bool activate = 6;
+  repeated string failure_modes = 7;
+}
+message RegisterPostTypeResponse {
+  PostType post_type = 1;
+}

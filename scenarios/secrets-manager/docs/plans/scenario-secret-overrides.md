@@ -99,7 +99,7 @@ COMMENT ON TABLE scenario_secret_strategy_overrides IS
 
 ### 1.2 Migration Script
 
-File: `initialization/storage/postgres/migrations/002_scenario_overrides.sql`
+File: `api/internal/<domain>/storage/postgres/migrations/002_scenario_overrides.sql`
 
 ```sql
 -- Migration: Add scenario_secret_strategy_overrides table
@@ -771,7 +771,7 @@ Body: { dry_run?: boolean }
 
 ## Database Schema
 
-See `initialization/storage/postgres/migrations/002_scenario_overrides.sql`
+See `api/internal/<domain>/storage/postgres/migrations/002_scenario_overrides.sql`
 ```
 
 ---

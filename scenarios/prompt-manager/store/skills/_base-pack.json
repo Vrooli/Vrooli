@@ -1,0 +1,14 @@
+{
+  "maxSkills": 12,
+  "maxTokens": 1500,
+  "skills": [
+    "implementation-plan-execution",
+    "scientific-debugging",
+    "scenario-work-ladder",
+    "writing-standards",
+    "report-bug",
+    "skill-authoring",
+    "scenario-readiness-review",
+    "storage-steer"
+  ]
+}

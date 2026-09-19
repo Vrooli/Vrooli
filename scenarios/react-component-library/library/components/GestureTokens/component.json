@@ -1,0 +1,22 @@
+{
+  "assetKind": "foundation",
+  "catalogId": "foundations.gesture-tokens",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1",
+    "1.0.0",
+    "1.1.0"
+  ],
+  "latest": "1.1.1",
+  "libraryId": "react-component-library:GestureTokens"
+}

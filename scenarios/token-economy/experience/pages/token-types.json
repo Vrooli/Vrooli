@@ -1,0 +1,155 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "token-types",
+    "title": "Token Types",
+    "routes": [
+      "/tokens"
+    ],
+    "purpose": "Let the minter declare the economies this instance runs, including the identity that gives each one its character.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-005",
+      "OT-P0-014"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The supply policy of a type is understood before it is created, because it constrains everything afterwards."
+    },
+    {
+      "statement": "Naming, symbol and color are presented as the branding surface they are.",
+      "notes": "The product chrome stays neutral so the household's own economy is the thing with personality."
+    },
+    {
+      "statement": "Retiring a type is clearly distinct from deleting it; nothing here is ever deleted."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "One or more token types declared."
+    },
+    {
+      "id": "loading",
+      "description": "Types are being fetched."
+    },
+    {
+      "id": "empty",
+      "description": "No type exists; the page explains that nothing else in the product works until one does."
+    },
+    {
+      "id": "saving",
+      "description": "A type is being created or updated."
+    },
+    {
+      "id": "success",
+      "description": "Type saved."
+    },
+    {
+      "id": "validation-error",
+      "description": "Supply policy or identity rejected, naming the constraint."
+    },
+    {
+      "id": "request-error",
+      "description": "Type list or save failed."
+    },
+    {
+      "id": "partial",
+      "description": "Types loaded but minted totals failed; each type renders with supply state marked unavailable."
+    },
+    {
+      "id": "stale",
+      "description": "Showing cached types after a failed refresh, labelled as such."
+    }
+  ],
+  "elements": [
+    {
+      "id": "type-list",
+      "role": "table",
+      "name": "Token types",
+      "description": "Each declared type with its supply policy and minted total."
+    },
+    {
+      "id": "create-type",
+      "role": "button",
+      "name": "New token type",
+      "description": "Opens type creation."
+    },
+    {
+      "id": "supply-policy-field",
+      "role": "radiogroup",
+      "name": "Supply policy",
+      "description": "Unbounded, capped or fixed."
+    },
+    {
+      "id": "identity-fields",
+      "role": "group",
+      "name": "Identity",
+      "description": "Name, symbol and color for this economy."
+    },
+    {
+      "id": "retire-action",
+      "role": "button",
+      "name": "Retire",
+      "description": "Stops new issuance while preserving all history."
+    }
+  ],
+  "claims": [
+    {
+      "id": "supply-explained-before-choice",
+      "type": "element-present",
+      "statement": "Each supply policy option carries an explanation of what it permanently constrains.",
+      "tier": "aspirational",
+      "elements": [
+        "supply-policy-field"
+      ]
+    },
+    {
+      "id": "retire-not-delete",
+      "type": "affordance-present",
+      "statement": "Retiring is offered and deleting is not; the copy states that history is preserved.",
+      "tier": "aspirational",
+      "elements": [
+        "retire-action"
+      ]
+    },
+    {
+      "id": "empty-explains-blocking",
+      "type": "state-covered",
+      "statement": "The empty state explains that no other surface functions until a type exists.",
+      "tier": "aspirational",
+      "states": [
+        "empty"
+      ]
+    },
+    {
+      "id": "no-monetary-field",
+      "type": "element-absent",
+      "statement": "No field on this page accepts a price, currency, or monetary value of any kind.",
+      "tier": "aspirational",
+      "rationale": "Structural expression of OT-P0-014: the constraint is enforced by the capability being absent."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "type-list": {
+        "testid": "token-types-list"
+      },
+      "create-type": {
+        "testid": "token-types-create"
+      },
+      "supply-policy-field": {
+        "testid": "token-types-supply-policy"
+      },
+      "identity-fields": {
+        "testid": "token-types-identity"
+      },
+      "retire-action": {
+        "testid": "token-types-retire"
+      }
+    }
+  }
+}

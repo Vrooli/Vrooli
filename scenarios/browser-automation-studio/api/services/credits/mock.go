@@ -70,7 +70,7 @@ func NewMockService(opts ...MockServiceOption) *MockService {
 }
 
 // CanCharge implements CreditService.
-func (m *MockService) CanCharge(ctx context.Context, userIdentity string, op OperationType) (bool, int, error) {
+func (m *MockService) CanCharge(_ context.Context, _ string, op OperationType) (bool, int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -87,7 +87,7 @@ func (m *MockService) CanCharge(ctx context.Context, userIdentity string, op Ope
 }
 
 // Charge implements CreditService.
-func (m *MockService) Charge(ctx context.Context, req ChargeRequest) (*ChargeResult, error) {
+func (m *MockService) Charge(_ context.Context, req ChargeRequest) (*ChargeResult, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -138,7 +138,7 @@ func (e *insufficientCreditsError) Is(target error) bool {
 }
 
 // GetUsage implements CreditService.
-func (m *MockService) GetUsage(ctx context.Context, userIdentity string) (*UsageSummary, error) {
+func (m *MockService) GetUsage(_ context.Context, userIdentity string) (*UsageSummary, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -177,7 +177,7 @@ func (m *MockService) GetOperationCost(op OperationType) int {
 }
 
 // LogFailedOperation implements CreditService.
-func (m *MockService) LogFailedOperation(ctx context.Context, req ChargeRequest, opErr error) error {
+func (m *MockService) LogFailedOperation(_ context.Context, req ChargeRequest, _ error) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.failedOps = append(m.failedOps, req)
@@ -186,7 +186,7 @@ func (m *MockService) LogFailedOperation(ctx context.Context, req ChargeRequest,
 
 // GetUsageHistory implements CreditService.
 // Returns current usage as the only period for the mock.
-func (m *MockService) GetUsageHistory(ctx context.Context, userIdentity string, months, offset int) ([]UsageSummary, bool, error) {
+func (m *MockService) GetUsageHistory(ctx context.Context, userIdentity string, _, _ int) ([]UsageSummary, bool, error) {
 	// Get usage without holding lock to avoid deadlock
 	usage, _ := m.GetUsage(ctx, userIdentity)
 	return []UsageSummary{*usage}, false, nil
@@ -194,7 +194,7 @@ func (m *MockService) GetUsageHistory(ctx context.Context, userIdentity string, 
 
 // GetOperationLog implements CreditService.
 // Returns charges as operation log entries.
-func (m *MockService) GetOperationLog(ctx context.Context, userIdentity, month, category string, limit, offset int) (*OperationLogPage, error) {
+func (m *MockService) GetOperationLog(_ context.Context, userIdentity, month, _ string, limit, offset int) (*OperationLogPage, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -235,7 +235,7 @@ func (m *MockService) GetOperationLog(ctx context.Context, userIdentity, month, 
 }
 
 // CanPerformAIOperation implements CreditService.
-func (m *MockService) CanPerformAIOperation(ctx context.Context, userIdentity string, op OperationType, hasBYOK bool) (bool, string, string, int, error) {
+func (m *MockService) CanPerformAIOperation(_ context.Context, _ string, op OperationType, hasBYOK bool) (bool, string, string, int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

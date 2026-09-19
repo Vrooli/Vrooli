@@ -1,0 +1,6 @@
+package example
+import "testing"
+func TestCompare(t *testing.T) {
+ if got := add(2, 3); got != 5 { t.Errorf("got %d, want 5", got) }
+}
+func add(a, b int) int { return a+b }

@@ -1,124 +1,265 @@
 # Tunnel Manager
 
-Central management, monitoring, and self-healing for the Cloudflare secure tunnel that provides remote access to all Vrooli scenarios.
+Vrooli's external-access control plane: an **exposure broker** and
+**self-healing tunnel manager**. Tunnel Manager programmatically controls
+which scenarios are reachable from the public internet through the
+Cloudflare tunnel, maintains a route/exposure manifest as the single
+source of truth, enforces fixed-port contracts, and auto-recovers the
+tunnel from failure. It replaces the operator's current manual step of
+adding public hostnames in the Cloudflare dashboard.
 
-## Overview
+> **Status: production-readiness validation green.** The proto/API/CLI
+> domains, lifecycle-owned schedulers, first-run setup/readiness UI, and
+> operator workflows are implemented. The latest recorded validation is
+> `vrooli scenario test tunnel-manager` at 18/18 phases green; remaining
+> work is advisory cleanup and deferred P2 expansion, not scaffold
+> replacement.
 
-Tunnel Manager is the authoritative owner of Vrooli's external access layer. It maintains a **route manifest** — the single source of truth mapping subdomains to scenarios and their required UI ports — and continuously enforces that:
+This scenario was **regenerated from `react-vite` 1.1** (rather than
+migrated in place) and ports the prior tunnel-manager logic onto a clean
+Connect-RPC + screaming-architecture foundation. The historical regeneration
+plan is retained in the scenario's progress and decision records.
 
-1. Every published scenario has the correct fixed port in its `service.json`
-2. The cloudflared tunnel process is healthy with all HA connections established
-3. Every published route is actually reachable end-to-end (local → Cloudflare edge → public DNS)
-4. Failures are automatically recovered with exponential backoff and circuit-breaking
+## Why It Exists
 
-Supports both **locally-managed** (config YAML) and **remotely-managed** (Cloudflare API) tunnel configurations, with remote as the default.
+- **Remote access is mission-critical.** Without the tunnel, Vrooli is
+  unreachable outside the local network.
+- **Exposure used to be manual.** Exposing a scenario meant hand-adding
+  a public hostname in the Cloudflare dashboard, pointed at the
+  scenario's fixed UI port. Tunnel Manager makes that programmatic and
+  native.
+- **The hostname budget is finite.** Exposure is **tiered** and
+  budget-aware so essential scenarios are never crowded out.
+- **The tunnel must self-heal.** Current probes distinguish healthy,
+  tunnel-down, scenario-down, and config-drift states from internal and
+  external probe pairs. Richer DNS-failure and Cloudflare-outage signals
+  are tracked as future diagnostic inputs.
 
-## Quick Start
+## Exposure Tiering Model
+
+Exposure is split into two tiers, reconciled against the manifest
+(SSOT):
+
+| Tier | Source | Lifetime | Behavior |
+|---|---|---|---|
+| **CORE** | `packages/api-core/coreset` | Always-on | Every coreset member is guaranteed exposed and never auto-expired. |
+| **LEASED** | On-demand request | Time-bounded (default TTL ≈ 1 week) | Requested by the operator or another scenario ("expose me, I'll be used soon"); extendable, revocable, and auto-reaped on expiry unless the scenario is also CORE. |
+
+## Domains
+
+Seven product domains plus the scaffold `health` domain (see
+[`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) for the canonical
+map):
+
+| Domain | Owns | Purpose |
+|---|---|---|
+| `routes` | `routes` table | Exposure manifest (SSOT): subdomain, scenario, domain, local port, tier, lease, enabled. |
+| `exposure` | `leases` table | Tiered broker: CORE reconciliation + LEASED request/extend/revoke/reap; ensure-running delegation; exposure-query for app-monitor. |
+| `config` | `tunnel_config`, `dns_ownership`, `access_ownership` | Cloudflare API ingress (remote), local `config.yml` generation (fallback), proxied-CNAME DNS automation, the **/public Access-bypass** reconciler (the public-asset convention — see [`docs/concepts/PUBLIC_ASSETS.md`](../../docs/concepts/PUBLIC_ASSETS.md)), mode switching, sync. |
+| `audit` | (computed) | Port-compliance auditor: exposed scenarios must declare a fixed UI port in `service.json` matching the manifest. |
+| `tunnel` | `metrics` table | Tunnel health (systemd + `/ready`), Prometheus scraping, degraded-mode detection. |
+| `probes` | `probes` table | Internal + external liveness probing, scheduling, failure classification. |
+| `recovery` | `recovery_events` table | Auto-recovery engine (backoff + circuit breaker, live); single cloudflared-restart owner. |
+| `health` | none | Runtime readiness + dependency reachability (scaffold). |
+
+## Key CLI Commands
+
+Commands emit proto-typed `--json`:
 
 ```bash
-# Build and install
-cd scenarios/tunnel-manager && make setup
-
-# Start the scenario
-make start
-
-# Check tunnel health
-tunnel-manager status
-
-# View route manifest
-tunnel-manager routes
-
-# Verify all routes are reachable
-tunnel-manager probe
-
-# Audit scenario port compliance
-tunnel-manager audit
+tunnel-manager tunnel status          # tunnel health overview
+tunnel-manager routes list            # list the exposure manifest
+tunnel-manager exposure expose <scenario>      # request leased exposure (pins fixed port + route + lease + ingress; cycles process for ranged scenarios)
+tunnel-manager exposure leases|extend|revoke
+tunnel-manager probes run             # run internal + external liveness probes
+tunnel-manager audit run              # port-compliance findings
+tunnel-manager recovery state|events|run       # inspect / trigger recovery
+tunnel-manager config credentials-status|credentials-set|credentials-clear
+tunnel-manager config sync|mode       # reconcile ingress / switch remote<->local
+tunnel-manager config public-exposure --on|--off   # global /public Access-bypass switch (default off)
+tunnel-manager access status|dry-run  # per-host /public bypass state + what a sync would create/remove
 ```
 
-## CLI Commands
+### Public-asset Access bypass (the `/public/*` convention)
 
-| Command | Description |
-|---------|-------------|
-| `tunnel-manager status` | Overall tunnel health: systemd, HA connections, metrics, error rate |
-| `tunnel-manager routes` | Display the route manifest with live status per route |
-| `tunnel-manager probe` | Run internal + external liveness probes on all published routes |
-| `tunnel-manager audit` | Check all manifested scenarios for port compliance in `service.json` |
-| `tunnel-manager recover` | Manually trigger tunnel recovery (restart with verification) |
-| `tunnel-manager config sync` | Sync route manifest to cloudflared config (local) or Cloudflare API (remote) |
-| `tunnel-manager config mode` | Show or switch management mode (local/remote) |
+Tunnel Manager's served interface grows from "ingress + DNS reconciler" to
+"ingress + DNS + **public-exemption** reconciler". When the global
+`public-exposure` switch (or a per-route `--public-exposure enabled` override)
+is on, TM ensures exactly one Cloudflare Access **Bypass-Everyone** app scoped to
+`<host>/public` per active exposed host — making anything a scenario serves under
+the `/public/*` URL prefix fetchable by **anonymous** system fetchers (iOS
+Add-to-Home-Screen, OG crawlers) while every other path stays gated by the
+operator's primary Access application. This is a **compound-value seam**: any
+scenario that adopts the `/public/` convention (see
+[`docs/concepts/PUBLIC_ASSETS.md`](../../docs/concepts/PUBLIC_ASSETS.md)) gets
+edge-level public exposure for free, with zero per-scenario Cloudflare wiring.
+
+The capability is **default-off, opt-in, and hard-guardrailed**: TM may only ever
+create Bypass-Everyone apps on the `/public` path (never a bare host/`/`/`/*`,
+never a non-bypass decision), never modifies the primary Access app, and removes
+only apps its own ownership ledger attributes to it. It is **remote-mode only**.
 
 ## Architecture
 
-```
-tunnel-manager/
-├── api/           # Go API server
-├── cli/           # CLI (tunnel-manager binary)
-├── ui/            # React dashboard (Vite + TypeScript)
-├── .vrooli/       # Lifecycle configuration
-├── requirements/  # Technical requirements
-└── docs/          # Internal documentation
-```
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│  UI (React + Vite)             │  CLI (Go)                       │
-│  Port: TBD (lifecycle)         │  tunnel-manager                 │
-│  Real-time route status board  │  status / routes / probe / ...  │
-└──────────┬─────────────────────┴──────────┬──────────────────────┘
-           │                                │
-           ▼                                ▼
-┌──────────────────────────────────────────────────────────────────┐
-│  API (Go)   Port: TBD (lifecycle)                                │
-│  Route manifest ←→ service.json auditor ←→ Cloudflare API        │
-│  Prometheus scraper (cloudflared /metrics)                        │
-│  Liveness prober (internal + external)                            │
-│  Auto-recovery engine (backoff + circuit breaker)                 │
-└──────┬──────┬────────┬──────────────────────────────────────────┘
-       │      │        │
-       ▼      ▼        ▼
-  cloudflared  scenarios/*/service.json  Cloudflare API
-  /metrics     (port enforcement)        (remote config)
-```
+- **API** — Go on **Connect-RPC** (proto contracts under
+  `packages/proto/schemas/tunnel-manager`), one service per domain.
+- **CLI** — Go via `cli-core` / `cliapp` manifest, a thin wrapper that
+  mirrors the API one command per endpoint.
+- **UI** — React + Vite + Tailwind, **5 operator surfaces** (Overview,
+  Exposure, Recovery & Events, Metrics, Audit) plus Settings/Setup for
+  local/remote mode and Cloudflare readiness. The Exposure surface now
+  includes search, CORE/LEASED filtering, reconcile feedback, and
+  probe-classification badges over the generated Connect clients. The
+  Metrics/Diagnostics surface summarizes latest tunnel metrics, probe
+  classifications, known classification limits, and manual scrape/probe
+  actions; Audit summarizes fixed-port compliance with filters and
+  per-finding remediation hints; Recovery summarizes the state machine,
+  breaker/backoff risk, next operator action, force semantics, and event
+  details.
+- **Storage** — **SQLite only** (manifest, leases, metrics history,
+  probe history, recovery log). No external database — foundational infra
+  must keep working when other resources are down.
 
 ## Dependencies
 
-### Resources
-| Resource | Purpose | Required |
-|----------|---------|----------|
-| None | Self-contained — uses SQLite for state and cloudflared metrics endpoint | — |
+- **Required resources:** none (SQLite is in-process).
+- **Optional resources:** `redis` (UI pub/sub for real-time updates;
+  falls back to HTTP polling).
+- **External:** the `cloudflared` daemon (managed by systemd; setup
+  installs it — Tunnel Manager does not). A **Cloudflare API token** is
+  required for remote mode only; without it, Tunnel Manager remains in
+  supported **local mode** (`~/.cloudflared/config.yml`). Configure
+  remote-mode credentials through Settings or
+  `tunnel-manager config credentials-set`; credential environment variables
+  are not accepted.
+  - The base token scopes are Account read, Account:Cloudflare Tunnel,
+    Zone:Read, Zone:DNS:Edit. The **/public Access-bypass** capability
+    additionally needs **Access: Apps and Policies: Edit** — the verifier
+    reports `insufficient_scope` (with remediation) when the capability is
+    enabled but the token lacks it; it stays informational for everyone else.
 
-### External Services
-| Service | Purpose | Required |
-|---------|---------|----------|
-| cloudflared | The tunnel daemon being managed | Yes |
-| Cloudflare API | Route management (remote mode only) | No (local mode fallback) |
+## Relationship To Other Scenarios
 
-### Scenario Dependencies
-| Scenario | Purpose |
-|----------|---------|
-| None | Tunnel Manager is foundational infrastructure |
+- **vrooli-autoheal** — Tunnel Manager is the **single authoritative
+  owner** of cloudflared restarts. autoheal's cloudflared check downgrades
+  to alert-only (defense-in-depth) to avoid dueling restarts.
+- **app-monitor** — its reverse proxy stays in `packages/api-base`,
+  unchanged. Tunnel Manager exposes `IsExposed` / `ExposeAndGetURL` to
+  back app-monitor's "open in new tab" feature; the app-monitor-side
+  change is a separate later task.
 
-## Management Modes
+---
 
-### Remote (Default)
-- Tunnel configuration stored on Cloudflare's edge
-- Ingress rules managed via `PUT /accounts/{id}/cfd_tunnel/{tunnel_id}/configurations`
-- Config changes apply via hot-reload — no cloudflared restart needed
-- Requires Cloudflare API token with tunnel configuration permissions
+The scenario preserves the standard full-stack Vrooli shape:
 
-### Local
-- Tunnel configuration in `~/.cloudflared/config.yml`
-- Config changes require cloudflared restart
-- No API token needed
-- Useful for air-gapped environments or when API access is unavailable
+- Go API (`api/`)
+- React + TypeScript + Vite UI (`ui/`)
+- CLI wrapper (`cli/`)
+- Lifecycle + health wiring (`.vrooli/service.json`)
+- Requirements registry + progress log (`requirements/`, `docs/internal/PROGRESS.md`)
 
-## Relationship with vrooli-autoheal
+> **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
+> owns the first-session initialization protocol — charter, requirements,
+> domain map, design language, placeholder replacement, and first real
+> vertical slice. Run `make orient` for a machine-readable gate status.
 
-vrooli-autoheal has a basic `infra-cloudflared` health check that monitors binary installation, systemd status, and basic connectivity. That check remains for defense-in-depth. Tunnel Manager provides:
+## What You Get
 
-- **Route-level granularity**: Probes each published route individually, not just one test port
-- **Port contract enforcement**: Ensures scenarios haven't changed their fixed ports
-- **Prometheus metrics**: Scrapes cloudflared's metrics endpoint for HA connection count, request errors, RTT
-- **Cloudflare API integration**: Can read and write tunnel configuration programmatically
-- **External probing**: Verifies routes through the full public DNS → Cloudflare edge → tunnel → local path
-- **Intelligent recovery**: Distinguishes "tunnel is down" from "scenario is down" from "Cloudflare outage"
+- Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
+  coordinated through generated proto contracts.
+- Lifecycle metadata, Makefile entrypoints, health checks, endpoint
+  metadata, testing config, and CLI install wiring.
+- Domain-first API shape with per-domain service, repository, schema,
+  handler module, mocks, and tests.
+- SQLite by default. Add external resources to `.vrooli/service.json`
+  only when this scenario actually needs them.
+- UI/CLI guardrails for i18n, accessibility, API base resolution,
+  declarative command args, generated Connect clients, and report-shaped
+  output.
+- Baseline PWA branding metadata: web app manifest and standalone-mode
+  mobile tags.
+- Root-level `DESIGN.md` plus generated UI token assets from the
+  selected design kit.
+- A documentation contract in `docs/manifest.json`, covering domains,
+  flows, data, integrations, monetization, deployment, runbooks,
+  observability, security, performance, and durable decisions.
+
+## Extend Safely
+
+Treat these as **durable seams** to preserve, even as you rewrite the
+visual layout:
+
+- i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
+- Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
+- Design tokens (`bg-app-background`, `rounded-panel`, etc.).
+- The feature-folder pattern under `ui/src/features/<name>/`.
+- The proto → API → CLI → UI vertical-slice shape.
+
+**Connect-RPC is the default transport.** Every domain endpoint goes
+through a proto service and generated Connect handlers/clients. If
+you find yourself writing `Path: "/api/v1/..."` as a literal string in
+an `EndpointDescriptor`, stop — use a proto service method instead.
+Codegen rejects literal Paths that lack an explicit `RESTException`
+tag; the four allowed REST reasons (multipart upload, webhook
+receiver, third-party shape, ops probe) are enumerated in
+`api/internal/module/module.go`.
+
+[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
+workflow in full.
+
+## Running The Scenario
+
+```bash
+# Build API + UI, install pnpm deps, install scenario CLI
+make setup   # wraps `vrooli scenario setup`
+
+# Start API + UI in the background
+make start   # wraps `vrooli scenario start`
+```
+
+See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flow.
+
+Run tests with `make test` (which runs `vrooli scenario test`) or invoke
+`test-genie execute tunnel-manager --preset comprehensive` directly for
+finer-grained presets.
+
+## Documentation Map
+
+| Need | Start Here |
+|---|---|
+| Initialize after generation | [`docs/START-HERE.md`](docs/START-HERE.md) |
+| Establish UI design language | `DESIGN.md` at this scenario's root |
+| Run the scenario | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
+| Understand the architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
+| Map product domains | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
+| Track workflows, data, and integrations | [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md), [`docs/concepts/DATA.md`](docs/concepts/DATA.md), [`docs/concepts/INTEGRATIONS.md`](docs/concepts/INTEGRATIONS.md) |
+| Capture monetization and launch strategy | [`docs/business/MONETIZATION.md`](docs/business/MONETIZATION.md), [`docs/business/GO-TO-MARKET.md`](docs/business/GO-TO-MARKET.md) |
+| Prepare deployment and operations | [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md), [`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md), [`docs/operations/OBSERVABILITY.md`](docs/operations/OBSERVABILITY.md) |
+| Write tests | [`docs/internal/TESTING.md`](docs/internal/TESTING.md) |
+| Add or update seams/fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |
+| Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
+| Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
+| Add CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
+
+## Working Rules
+
+1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.
+2. **Run `make orient`** as a progress check — it reports initialization gates from `.vrooli/orientation.json`.
+3. **Update `PRD.md` and `requirements/`** before feature work. Operational targets drive code + tests.
+4. **Read root `DESIGN.md` before UI work.** Tokens, motion, and status semantics are binding; specific component lists in the design are illustrative — implement everything your scenario actually needs.
+5. **Update `docs/concepts/DOMAINS.md`** before adding product code.
+6. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
+7. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
+8. **Add resources** to `.vrooli/service.json` only when needed; this scenario ships with no resource dependencies (SQLite is in-process).
+9. **Keep boundaries**: only edit within this scenario's directory.
+
+## pnpm Everywhere
+
+This scenario assumes pnpm. If you run another package manager, convert
+lockfiles yourself before committing. Scripts use `pnpm` directly (no
+`npm` fallbacks) to reduce drift.
+
+## Need Inspiration?
+
+Open `scenarios/browser-automation-studio/` to see the same template
+shape taken to completion.

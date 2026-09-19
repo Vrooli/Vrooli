@@ -212,6 +212,21 @@ func (r *FileRepository) DeleteForPlatform(ctx context.Context, scenario string,
 	return r.Save(ctx, scenario, config)
 }
 
+// ListScenarios returns every scenario that has a signing configuration.
+func (r *FileRepository) ListScenarios() ([]string, error) {
+	all, err := r.scenarioLocator.ListScenarios()
+	if err != nil {
+		return nil, err
+	}
+	var configured []string
+	for _, scenario := range all {
+		if r.fs.Exists(r.GetPath(scenario)) {
+			configured = append(configured, scenario)
+		}
+	}
+	return configured, nil
+}
+
 // DefaultScenarioLocator implements ScenarioLocator using VROOLI_ROOT.
 type DefaultScenarioLocator struct {
 	vrooliRoot string

@@ -7,32 +7,24 @@ import (
 	"testing"
 	"time"
 
-	"scenario-dependency-analyzer/internal/deployment"
-	types "scenario-dependency-analyzer/internal/types"
+	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/deployment"
+
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 func TestBuildBundleManifestSkeletonValidatesAgainstSchema(t *testing.T) {
 	scenarioDir := t.TempDir()
 
-	if err := os.MkdirAll(filepath.Join(scenarioDir, "ui", "dist"), 0o755); err != nil {
-		t.Fatalf("failed to create ui dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "ui", "dist", "index.html"), []byte("<html></html>"), 0o644); err != nil {
-		t.Fatalf("failed to write ui entry: %v", err)
-	}
+	writeBuildableUIFolder(t, scenarioDir)
+	writeBuildableAPIFolder(t, scenarioDir, "test-scenario-api")
 
-	if err := os.MkdirAll(filepath.Join(scenarioDir, "api"), 0o755); err != nil {
-		t.Fatalf("failed to create api dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "test-scenario-api"), []byte("#!/bin/bash\necho ok\n"), 0o755); err != nil {
-		t.Fatalf("failed to write api binary placeholder: %v", err)
-	}
-
-	cfg := &types.ServiceConfig{}
+	cfg := &types.Manifest{}
 	cfg.Service.Name = "test-scenario"
 	cfg.Service.DisplayName = "Test Scenario"
 	cfg.Service.Description = "Example scenario for bundle skeleton"
 	cfg.Service.Version = "1.2.3"
+	declareComponents(cfg, true)
 
 	nodes := []types.DeploymentDependencyNode{
 		{
@@ -68,7 +60,7 @@ func TestBuildBundleManifestSkeletonValidatesAgainstSchema(t *testing.T) {
 				t.Fatalf("ui skeleton should use /health for health checks")
 			}
 		}
-		if svc.ID == "test-scenario-api" {
+		if svc.ID == "api" {
 			if svc.Health.PortName != "api" {
 				t.Fatalf("api skeleton should expose api port health check")
 			}
@@ -85,17 +77,12 @@ func TestBuildBundleManifestSkeletonValidatesAgainstSchema(t *testing.T) {
 func TestBuildBundleManifestWithoutUI(t *testing.T) {
 	scenarioDir := t.TempDir()
 
-	// Only create API binary, no UI
-	if err := os.MkdirAll(filepath.Join(scenarioDir, "api"), 0o755); err != nil {
-		t.Fatalf("failed to create api dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "test-scenario-api"), []byte("#!/bin/bash\necho ok\n"), 0o755); err != nil {
-		t.Fatalf("failed to write api binary placeholder: %v", err)
-	}
+	writeBuildableAPIFolder(t, scenarioDir, "test-scenario-api")
 
-	cfg := &types.ServiceConfig{}
+	cfg := &types.Manifest{}
 	cfg.Service.Name = "test-scenario"
 	cfg.Service.Version = "1.0.0"
+	declareComponents(cfg, false)
 
 	manifest := deployment.BuildBundleManifest("test-scenario", scenarioDir, time.Now(), nil, cfg)
 
@@ -138,9 +125,10 @@ func TestBuildBundleManifestDependencyFlattening(t *testing.T) {
 		t.Fatalf("failed to create api dir: %v", err)
 	}
 
-	cfg := &types.ServiceConfig{}
+	cfg := &types.Manifest{}
 	cfg.Service.Name = "test-scenario"
 	cfg.Service.Version = "1.0.0"
+	declareComponents(cfg, true)
 
 	// Create nested dependency tree
 	nodes := []types.DeploymentDependencyNode{
@@ -193,7 +181,7 @@ func TestBuildBundleManifestSwapsGeneration(t *testing.T) {
 		t.Fatalf("failed to create api dir: %v", err)
 	}
 
-	cfg := &types.ServiceConfig{}
+	cfg := &types.Manifest{}
 	cfg.Service.Name = "test-scenario"
 	cfg.Service.Version = "1.0.0"
 
@@ -247,7 +235,6 @@ func TestBuildBundleManifestSwapsGeneration(t *testing.T) {
 func TestBuildBundleManifestFilesDiscovery(t *testing.T) {
 	scenarioDir := t.TempDir()
 
-	// Create various files
 	if err := os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0o755); err != nil {
 		t.Fatalf("failed to create .vrooli dir: %v", err)
 	}
@@ -255,23 +242,13 @@ func TestBuildBundleManifestFilesDiscovery(t *testing.T) {
 		t.Fatalf("failed to write service.json: %v", err)
 	}
 
-	if err := os.MkdirAll(filepath.Join(scenarioDir, "api"), 0o755); err != nil {
-		t.Fatalf("failed to create api dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "test-scenario-api"), []byte("binary"), 0o755); err != nil {
-		t.Fatalf("failed to write api binary: %v", err)
-	}
+	writeBuildableAPIFolder(t, scenarioDir, "test-scenario-api")
+	writeBuildableUIFolder(t, scenarioDir)
 
-	if err := os.MkdirAll(filepath.Join(scenarioDir, "ui", "dist"), 0o755); err != nil {
-		t.Fatalf("failed to create ui dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "ui", "dist", "index.html"), []byte("<html></html>"), 0o644); err != nil {
-		t.Fatalf("failed to write ui entry: %v", err)
-	}
-
-	cfg := &types.ServiceConfig{}
+	cfg := &types.Manifest{}
 	cfg.Service.Name = "test-scenario"
 	cfg.Service.Version = "1.0.0"
+	declareComponents(cfg, true)
 
 	manifest := deployment.BuildBundleManifest("test-scenario", scenarioDir, time.Now(), nil, cfg)
 
@@ -287,98 +264,11 @@ func TestBuildBundleManifestFilesDiscovery(t *testing.T) {
 	if !fileExists["api-source"] {
 		t.Error("expected api-source to be found")
 	}
-	if !fileExists["api-binary"] {
-		t.Error("expected api-binary to be found")
+	if !fileExists["api-artifact"] {
+		t.Error("expected declared api artifact to be found")
 	}
 	if !fileExists["ui-bundle"] {
 		t.Error("expected ui-bundle to be found")
-	}
-	if !fileExists["ui-entry"] {
-		t.Error("expected ui-entry to be found")
-	}
-}
-
-func TestClassifyResource(t *testing.T) {
-	tests := []struct {
-		name         string
-		resourceName string
-		wantClass    deployment.ResourceClass
-	}{
-		{"DatabasePostgres", "postgres", deployment.ResourceClassDatabase},
-		{"CacheRedis", "redis", deployment.ResourceClassDatabase}, // redis is classified as database
-		{"AIServiceOllama", "ollama", deployment.ResourceClassAI},
-		{"BrowserBrowserless", "browserless", deployment.ResourceClassBrowser},
-		{"StorageMinio", "minio", deployment.ResourceClassStorage},
-		{"UnknownResource", "unknown-resource", deployment.ResourceClassService},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			classification := deployment.ClassifyResource(tt.resourceName)
-			if classification.Class != tt.wantClass {
-				t.Errorf("ClassifyResource(%q).Class = %q, want %q",
-					tt.resourceName, classification.Class, tt.wantClass)
-			}
-		})
-	}
-}
-
-func TestDecideTierFitness(t *testing.T) {
-	tests := []struct {
-		name          string
-		tier          string
-		resource      string
-		wantSupported bool
-		minScore      float64
-		maxScore      float64
-	}{
-		{
-			name:          "PostgresDesktopSupported",
-			tier:          "desktop",
-			resource:      "postgres",
-			wantSupported: true,
-			minScore:      0.5, // Should work but not optimal
-			maxScore:      1.0,
-		},
-		{
-			name:          "OllamaDesktopSupported",
-			tier:          "desktop",
-			resource:      "ollama",
-			wantSupported: true,
-			minScore:      0.5, // AI is heavy ops, lower score
-			maxScore:      1.0,
-		},
-		{
-			name:          "PostgresServerHighFitness",
-			tier:          "server",
-			resource:      "postgres",
-			wantSupported: true,
-			minScore:      0.9, // Server tier is ideal
-			maxScore:      1.0,
-		},
-		{
-			name:          "PostgresLocalPerfectFitness",
-			tier:          "local",
-			resource:      "postgres",
-			wantSupported: true,
-			minScore:      1.0, // Local development = everything works
-			maxScore:      1.0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			classification := deployment.ClassifyResource(tt.resource)
-			decision := deployment.DecideTierFitness(tt.tier, classification)
-			if decision.Supported != tt.wantSupported {
-				t.Errorf("DecideTierFitness(%q, %q).Supported = %v, want %v",
-					tt.tier, tt.resource, decision.Supported, tt.wantSupported)
-			}
-			if decision.FitnessScore < tt.minScore || decision.FitnessScore > tt.maxScore {
-				t.Errorf("DecideTierFitness(%q, %q).FitnessScore = %v, want between %v and %v",
-					tt.tier, tt.resource, decision.FitnessScore, tt.minScore, tt.maxScore)
-			}
-		})
 	}
 }
 
@@ -419,34 +309,33 @@ func TestComputeTierAggregates(t *testing.T) {
 }
 
 func TestDetectSecretRequirements(t *testing.T) {
+	manifestPath := filepath.Join(t.TempDir(), "resource.json")
+	if err := os.WriteFile(manifestPath, []byte(`{"credentials":{"descriptors":[{"logical_id":"custom/token","field":"token","label":"API token","description":"declared credential","required":true}]}}`), 0o644); err != nil {
+		t.Fatalf("write resource manifest: %v", err)
+	}
 	nodes := []types.DeploymentDependencyNode{
-		{Name: "postgres", Type: "resource"},
-		{Name: "redis", Type: "resource"},
-		{Name: "ollama", Type: "resource"},
+		{Name: "custom-resource", Type: "resource", Path: manifestPath},
 	}
 
 	secrets := deployment.DetectSecretRequirements(nodes)
 
-	// Should detect postgres needs credentials
-	var foundPostgresSecret bool
+	var foundDeclaredSecret bool
 	for _, secret := range secrets {
-		if secret.DependencyName == "postgres" {
-			foundPostgresSecret = true
+		if secret.DependencyName == "custom-resource" {
+			foundDeclaredSecret = true
 			if secret.SecretType == "" {
 				t.Error("postgres secret should have a type")
 			}
 		}
 	}
-	if !foundPostgresSecret {
-		t.Error("expected postgres secret requirement to be detected")
+	if !foundDeclaredSecret {
+		t.Error("expected declared credential requirement to be detected")
 	}
 }
 
 func TestSuggestResourceSwaps(t *testing.T) {
 	nodes := []types.DeploymentDependencyNode{
-		{Name: "postgres", Type: "resource"},
-		{Name: "redis", Type: "resource"},
-		{Name: "unknown-resource", Type: "resource"},
+		{Name: "custom-resource", Type: "resource", Alternatives: []string{"declared-peer"}},
 	}
 
 	swaps := deployment.SuggestResourceSwaps(nodes)
@@ -456,14 +345,8 @@ func TestSuggestResourceSwaps(t *testing.T) {
 		swapMap[swap.OriginalResource] = append(swapMap[swap.OriginalResource], swap.AlternativeResource)
 	}
 
-	// Postgres should suggest sqlite
-	if len(swapMap["postgres"]) == 0 {
-		t.Error("expected postgres swap suggestions")
-	}
-
-	// Redis should suggest embedded alternatives
-	if len(swapMap["redis"]) == 0 {
-		t.Error("expected redis swap suggestions")
+	if len(swapMap["custom-resource"]) != 1 || swapMap["custom-resource"][0] != "declared-peer" {
+		t.Errorf("expected declared alternative, got %v", swapMap)
 	}
 }
 
@@ -474,7 +357,7 @@ func TestBuildBundleManifestVersionDefaults(t *testing.T) {
 	}
 
 	// Config without version
-	cfg := &types.ServiceConfig{}
+	cfg := &types.Manifest{}
 	cfg.Service.Name = "test-scenario"
 	cfg.Service.Version = "" // Empty version
 
@@ -528,7 +411,7 @@ func TestBuildBundleManifestAppNameFallbacks(t *testing.T) {
 				t.Fatalf("failed to create api dir: %v", err)
 			}
 
-			cfg := &types.ServiceConfig{}
+			cfg := &types.Manifest{}
 			cfg.Service.DisplayName = tt.displayName
 			cfg.Service.Name = tt.serviceName
 			cfg.Service.Version = "1.0.0"
@@ -543,5 +426,69 @@ func TestBuildBundleManifestAppNameFallbacks(t *testing.T) {
 				t.Errorf("expected app name %q, got %q", tt.expectedName, manifest.Skeleton.App.Name)
 			}
 		})
+	}
+}
+
+func declareComponents(cfg *types.Manifest, includeUI bool) {
+	cfg.Lifecycle.Health = &scenariomodel.HealthConfig{
+		Endpoints: scenariomodel.HealthEndpoints{API: "/health", UI: "/health"},
+		Checks: []scenariomodel.HealthCheck{
+			{Type: "http", Target: "http://localhost:${API_PORT}/health"},
+			{Type: "http", Target: "http://localhost:${UI_PORT}/health"},
+		},
+	}
+	cfg.Ports = map[string]scenariomodel.Port{
+		"api": {EnvVar: "API_PORT", Range: "15000-19999"},
+		"ui":  {EnvVar: "UI_PORT", Range: "20000-24999"},
+	}
+	cfg.Components = map[string]scenariomodel.Component{
+		"api": {
+			Role:  "api",
+			Build: scenariomodel.ComponentBuild{Kind: "go_module", Dir: "api", Output: "api/test-scenario-api"},
+			Run:   scenariomodel.ComponentRun{Argv: []string{"{{bin.api}}"}, CWD: "api", Port: "api"},
+		},
+	}
+	if includeUI {
+		cfg.Components["ui"] = scenariomodel.Component{
+			Role:  "ui",
+			Build: scenariomodel.ComponentBuild{Kind: "pnpm_vite", Dir: "ui", Output: "ui/dist/index.html"},
+			Run:   scenariomodel.ComponentRun{Argv: []string{"node", "server.js"}, CWD: "ui", Port: "ui"},
+		}
+	}
+}
+
+// writeBuildableAPIFolder creates the declared API source and output.
+func writeBuildableAPIFolder(t *testing.T, scenarioDir, binaryName string) {
+	t.Helper()
+	apiDir := filepath.Join(scenarioDir, "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatalf("failed to create api dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "go.mod"), []byte("module test-scenario-api\n\ngo 1.23\n"), 0o644); err != nil {
+		t.Fatalf("failed to write api go.mod: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatalf("failed to write api main.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, binaryName), []byte("binary"), 0o755); err != nil {
+		t.Fatalf("failed to write api binary placeholder: %v", err)
+	}
+}
+
+// writeBuildableUIFolder creates the declared UI source and output.
+func writeBuildableUIFolder(t *testing.T, scenarioDir string) {
+	t.Helper()
+	uiDir := filepath.Join(scenarioDir, "ui")
+	if err := os.MkdirAll(filepath.Join(uiDir, "dist"), 0o755); err != nil {
+		t.Fatalf("failed to create ui dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(uiDir, "package.json"), []byte(`{"name":"ui"}`), 0o644); err != nil {
+		t.Fatalf("failed to write ui package.json: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(uiDir, "index.html"), []byte("<html></html>"), 0o644); err != nil {
+		t.Fatalf("failed to write ui index.html: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(uiDir, "dist", "index.html"), []byte("<html></html>"), 0o644); err != nil {
+		t.Fatalf("failed to write ui dist entry: %v", err)
 	}
 }

@@ -1,0 +1,146 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Personal Planner のような大文字スネークケースのプレースホルダーは、`template-manager generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Personal Planner"
+  },
+  "layout": {
+    "navigationLabel": "メインナビゲーション",
+    "mobileNavigationLabel": "モバイルナビゲーション",
+    "skipToContent": "コンテンツへスキップ",
+    "openNavigation": "ナビゲーションを開く",
+    "closeNavigation": "ナビゲーションを閉じる",
+    "nav": {
+      "dashboard": "ホーム",
+      "plan": "計画",
+      "goals": "目標",
+      "focus": "集中",
+      "review": "振り返り",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ホーム",
+      "description": "オペレーターが最初に目にする画面です。出荷前にここに何を置くか決めてください。",
+      "placeholderTitle": "このシナリオのホーム画面はまだ決まっていません",
+      "placeholderDescription": "START-HERE のゲート 5 を開き、このページが答える一つの問いを決めてください。このプレースホルダーをその画面に置き換えます。隣のヘルスカードは、ライブラリ部品で作ったシナリオ所有機能の例です。"
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語",
+      "description": "このブラウザーの設定です。シナリオに必要な設定をすべてここに追加します。シェルの他の場所で重複させません。",
+      "preferences": "環境設定",
+      "themeHint": "ライト、ダーク、またはシステムに従う。",
+      "localeHint": "このコンソールにのみ適用されます。",
+      "storyKicker": "プランナーの約束",
+      "storyTitle": "穏やかで正直な中核",
+      "storyIntro": "今日の計画、確定した予定、集中の記録、振り返りは無料の個人向け製品に含まれます。重要な機能をアップグレードで隠しません。",
+      "storyIncludedTitle": "今すぐ利用可能",
+      "storyIncluded": "手動計画、容量、集中、証拠に紐づく振り返り。",
+      "storyPrivateTitle": "デフォルトで非公開",
+      "storyPrivate": "統合を選ぶまで、設定とローカルのワークスペースデータはこのプランナーに留まります。",
+      "storyFutureTitle": "将来の仮説",
+      "storyFuture": "保持率で価値が確認できた後、任意のプロバイダー接続や予測、支援機能を有料の利便性レイヤーにする可能性があります。",
+      "storyNote": "課金は有効になっておらず、動作するかのような支払い・アップグレード操作は表示しません。",
+      "sceneryHeading": "背景",
+      "sceneryHint": "どの環境でも、計画画面を穏やかで読みやすく保ちます。",
+      "artFree": "アートなしモード",
+      "reducedScenery": "背景を減らす",
+      "subduedNight": "控えめな夜の画面",
+      "planningHeading": "計画プロフィール",
+      "planningHint": "計画の基準となる現地時間と容量を設定します。",
+      "planningUnavailable": "計画プロフィールを利用できません。",
+      "planningLoading": "計画プロフィールを読み込み中…",
+      "timezone": "タイムゾーン",
+      "weekStart": "週の開始",
+      "monday": "月曜日",
+      "sunday": "日曜日",
+      "dailyCapacity": "1日の容量（分）",
+      "reserve": "保護する余白（分）",
+      "focusSession": "推奨集中セッション（分）",
+      "savePlanning": "計画プロフィールを保存",
+      "planningSaveError": "計画プロフィールを保存できませんでした。",
+      "planningSaved": "計画プロフィールを保存しました。",
+      "availabilityHeading": "週間の空き時間",
+      "availabilityHint": "柔軟な作業を配置できる時間帯を設定します。",
+      "availabilityLoading": "空き時間を読み込み中…",
+      "weekday1": "月曜日",
+      "weekday2": "火曜日",
+      "weekday3": "水曜日",
+      "weekday4": "木曜日",
+      "weekday5": "金曜日",
+      "weekday6": "土曜日",
+      "weekday7": "日曜日",
+      "protectedTime": "保護する時間（任意）",
+      "protectedReason": "理由（例：送迎）",
+      "saveAvailability": "空き時間を保存",
+      "availabilitySaveError": "空き時間を保存できませんでした。",
+      "availabilitySaved": "空き時間を保存しました。",
+      "integrationsHeading": "Calendar connections",
+      "integrationsHint": "Read-only calendar facts can inform capacity without changing your provider.",
+      "integrationsLoading": "Loading connections…",
+      "integrationsEmpty": "No calendar is connected. Manual planning stays complete.",
+      "fixtureConnection": "Add sample calendar",
+      "fixtureConnectionHelp": "Creates synthetic data for this planner only; it does not connect an external account.",
+      "syncConnection": "Refresh sample",
+      "disconnectConnection": "Disconnect",
+      "connectionReadOnly": "Read-only",
+      "connectionEvents": "{{count}} imported events",
+      "connectionBusy": "{{count}} busy minutes",
+      "connectionFixture": "Synthetic fixture",
+      "connectionSynced": "Connection refreshed.",
+      "connectionCreated": "Sample calendar added.",
+      "connectionDisconnected": "Connection disconnected.",
+      "connectionError": "The connection action could not be completed.",
+      "integrationBoundary": "Live provider OAuth and credential storage are not configured in this local build."
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:",
+    "description": "このシナリオの API をポーリングし、その応答を表示します。"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

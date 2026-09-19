@@ -1,22 +1,14 @@
 package records
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
-
-	"github.com/gorilla/mux"
-
-	httputil "scenario-to-desktop-api/shared/http"
-	"scenario-to-desktop-api/shared/validation"
 )
 
-// Handler provides HTTP handlers for record endpoints.
+// Handler owns record behavior shared by generated Connect handlers and the
+// pipeline; records no longer expose a parallel REST administration surface.
 type Handler struct {
 	records        Store
 	builds         BuildStoreAdapter
@@ -79,84 +71,6 @@ func NewHandler(records Store, builds BuildStoreAdapter, logger *slog.Logger, op
 		}
 	}
 	return h
-}
-
-// RegisterRoutes registers record routes on the given router.
-func (h *Handler) RegisterRoutes(r *mux.Router) {
-	r.HandleFunc("/api/v1/desktop/records", h.ListHandler).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/v1/desktop/records/{record_id}/move", h.MoveHandler).Methods("POST", "OPTIONS")
-	// DELETE endpoint for cleaning up desktop apps (moved from generation handler)
-	r.HandleFunc("/api/v1/desktop/delete/{scenario_name}", h.DeleteHandler).Methods("DELETE", "OPTIONS")
-}
-
-// ListHandler returns the persisted desktop generation records.
-func (h *Handler) ListHandler(w http.ResponseWriter, r *http.Request) {
-	if h.records == nil {
-		http.Error(w, "record store unavailable", http.StatusInternalServerError)
-		return
-	}
-
-	var results []RecordWithBuild
-	for _, rec := range h.records.List() {
-		item := RecordWithBuild{Record: rec}
-		if rec != nil && rec.BuildID != "" && h.builds != nil {
-			if bs, ok := h.builds.Get(rec.BuildID); ok {
-				item.Build = bs
-				item.HasBuild = true
-				item.BuildState = bs.Status
-			}
-		}
-		if rec != nil && h.smokeTests != nil {
-			if stID, sr, ok := h.smokeTests.GetByScenario(rec.ScenarioName); ok {
-				item.SmokeTestID = stID
-				item.ScreenRecording = sr
-			}
-		}
-		results = append(results, item)
-	}
-
-	httputil.WriteJSON(w, http.StatusOK, ListResponse{Records: results})
-}
-
-// MoveHandler moves a generated desktop wrapper from its current path to a destination.
-func (h *Handler) MoveHandler(w http.ResponseWriter, r *http.Request) {
-	if h.records == nil {
-		http.Error(w, "record store unavailable", http.StatusInternalServerError)
-		return
-	}
-
-	recordID := mux.Vars(r)["record_id"]
-	rec, ok := h.records.Get(recordID)
-	if !ok || rec == nil {
-		http.Error(w, "record not found", http.StatusNotFound)
-		return
-	}
-
-	var req MoveRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid JSON", http.StatusBadRequest)
-		return
-	}
-
-	absSrc, absDest, err := h.resolveMovePaths(rec, &req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if err := performMove(absSrc, absDest); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	h.updateRecordAfterMove(rec, &req, absDest)
-
-	httputil.WriteJSON(w, http.StatusOK, MoveResult{
-		RecordID: recordID,
-		From:     absSrc,
-		To:       absDest,
-		Status:   "moved",
-	})
 }
 
 // resolveMovePaths validates and resolves absolute source and destination paths for a move.
@@ -223,82 +137,4 @@ func (h *Handler) updateRecordAfterMove(rec *DesktopAppRecord, req *MoveRequest,
 			status.Metadata["moved_to"] = absDest
 		})
 	}
-}
-
-// DeleteHandler handles DELETE requests to delete a generated desktop application.
-func (h *Handler) DeleteHandler(w http.ResponseWriter, r *http.Request) {
-	scenarioName := mux.Vars(r)["scenario_name"]
-	if scenarioName == "" {
-		http.Error(w, "scenario_name is required", http.StatusBadRequest)
-		return
-	}
-
-	// Validate scenario name to prevent path traversal
-	if !validation.IsSafeScenarioName(scenarioName) {
-		http.Error(w, "Invalid scenario name", http.StatusBadRequest)
-		return
-	}
-
-	// Ensure we have a way to compute the desktop path
-	if h.outputPathFunc == nil {
-		http.Error(w, "delete not configured (no output path function)", http.StatusInternalServerError)
-		return
-	}
-
-	desktopPath := h.outputPathFunc(scenarioName)
-
-	// Security check: verify path is within expected location
-	absDesktopPath, err := filepath.Abs(desktopPath)
-	if err != nil {
-		http.Error(w, "Failed to resolve desktop path", http.StatusInternalServerError)
-		return
-	}
-
-	// Ensure path contains "platforms/electron" to prevent accidental deletion
-	if !strings.Contains(absDesktopPath, filepath.Join("platforms", "electron")) {
-		h.logger.Error("path traversal attempt detected",
-			"scenario", scenarioName,
-			"path", absDesktopPath)
-		http.Error(w, "Security violation: invalid path", http.StatusBadRequest)
-		return
-	}
-
-	// Check if desktop directory exists
-	_, statErr := os.Stat(desktopPath)
-	if statErr == nil {
-		// Remove the entire platforms/electron directory
-		if err := os.RemoveAll(desktopPath); err != nil {
-			h.logger.Error("failed to delete desktop directory",
-				"scenario", scenarioName,
-				"path", desktopPath,
-				"error", err)
-			http.Error(w, fmt.Sprintf("Failed to delete desktop directory: %v", err), http.StatusInternalServerError)
-			return
-		}
-		h.logger.Info("deleted desktop application",
-			"scenario", scenarioName,
-			"path", desktopPath)
-	} else if !errors.Is(statErr, os.ErrNotExist) {
-		http.Error(w, fmt.Sprintf("Failed to read desktop directory: %v", statErr), http.StatusInternalServerError)
-		return
-	}
-
-	// Clean up associated records
-	removedRecords := 0
-	if h.records != nil {
-		removedRecords = h.records.DeleteByScenario(scenarioName)
-	}
-
-	message := fmt.Sprintf("Desktop version of '%s' deleted successfully", scenarioName)
-	if errors.Is(statErr, os.ErrNotExist) {
-		message = fmt.Sprintf("Desktop version of '%s' was already missing; cleaned up record state.", scenarioName)
-	}
-
-	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
-		"status":          "success",
-		"scenario_name":   scenarioName,
-		"deleted_path":    desktopPath,
-		"removed_records": removedRecords,
-		"message":         message,
-	})
 }

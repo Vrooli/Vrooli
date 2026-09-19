@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { fromJson } from '@bufbuild/protobuf';
 import { TimelineEntrySchema } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
-import { mapTimelineEntryToFrame } from '@/domains/executions';
+import { mapTimelineEntryToFrame } from '@/domains/executions/store';
 
 describe('mapTimelineEntryToFrame', () => {
   it('normalizes proto timeline entries into replay-ready shape', () => {

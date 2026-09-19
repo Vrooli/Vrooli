@@ -1,6 +1,7 @@
 package bundle
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"strconv"
@@ -8,8 +9,8 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 
-	deploymentcli "scenario-to-cloud/cli/deployment"
 	internalmanifest "scenario-to-cloud/cli/internal/manifest"
+	"scenario-to-cloud/cli/internal/selector"
 )
 
 // Run executes bundle subcommands.
@@ -31,8 +32,6 @@ func Run(client *Client, args []string) error {
 		return runCleanup(client, args[1:])
 	case "vps-list":
 		return runVPSList(client, args[1:])
-	case "vps-delete":
-		return runVPSDelete(client, args[1:])
 	case "vps-gc":
 		return runVPSGC(client, args[1:])
 	case "help", "-h", "--help":
@@ -51,8 +50,7 @@ Commands:
   stats                       Show bundle storage statistics
   delete <sha256>             Delete a bundle by SHA256
   cleanup                     Remove old or orphaned bundles
-  vps-list <manifest.json>    List bundles on the VPS
-  vps-delete <manifest.json>  Delete bundles from VPS
+  vps-list <selector>         List bundles retained on the deployment's target
   vps-gc                      Garbage-collect VPS bundle cache by deployment selector
 
 Run 'scenario-to-cloud bundle <command> -h' for command-specific options.`)
@@ -267,83 +265,23 @@ Flags:
 }
 
 func runVPSList(client *Client, args []string) error {
-	// Manifest mode: scenario-to-cloud bundle vps-list <manifest.json> [--json]
-	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		manifestPath := args[0]
-		jsonOutput := false
-		for _, a := range args[1:] {
-			switch a {
-			case "-h", "--help":
-				fmt.Println(`Usage: scenario-to-cloud bundle vps-list <manifest.json> [flags]
-
-Flags:
-  --json    Output raw JSON`)
-				return nil
-			case "--json":
-				jsonOutput = true
-			}
-		}
-
-		manifest, err := internalmanifest.ReadJSONFile(manifestPath)
-		if err != nil {
-			return err
-		}
-		req, err := extractVPSBundleListRequestFromManifest(manifest)
-		if err != nil {
-			return err
-		}
-
-		body, resp, err := client.VPSList(req)
-		if err != nil {
-			return err
-		}
-		if jsonOutput {
-			cliutil.PrintJSON(body)
-			return nil
-		}
-
-		fmt.Printf("VPS Bundles (host: %s)\n", req.Host)
-		fmt.Println(strings.Repeat("-", 100))
-		if len(resp.Bundles) == 0 {
-			fmt.Println("No bundles found on VPS.")
-			return nil
-		}
-		fmt.Printf("%-20s %-25s %-12s %s\n", "SHA256", "SCENARIO", "SIZE", "MODIFIED")
-		for _, b := range resp.Bundles {
-			sha := b.Sha256
-			if len(sha) > 16 {
-				sha = sha[:16] + "..."
-			}
-			fmt.Printf("%-20s %-25s %-12s %s\n", sha, truncate(b.ScenarioID, 25), formatSize(b.SizeBytes), b.ModTime)
-		}
-		fmt.Printf("\nTotal: %s\n", formatSize(resp.TotalSizeBytes))
-		return nil
-	}
-
-	// Selector mode: scenario-to-cloud bundle vps-list --domain/--host/--target --scenario <id> [--json]
+	// Selector mode: scenario-to-cloud bundle vps-list <selector> [--json]
 	fs := flag.NewFlagSet("bundle vps-list", flag.ContinueOnError)
-	selFlags := registerSelectorFlags(fs)
+	selFlags := selector.Register(fs)
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	sel, err := selFlags.toSelector()
+	sel, err := selFlags.Selector(fs.Args())
 	if err != nil {
 		return err
 	}
-	if strings.TrimSpace(sel.ScenarioID) == "" {
-		return fmt.Errorf("--scenario is required")
-	}
-
-	resolved, err := deploymentcli.ResolveLatestBySelector(deploymentcli.NewClient(client.APIClient()), sel)
+	deploymentID, err := selector.ResolveID(context.Background(), client.Deployments, sel)
 	if err != nil {
 		return err
 	}
-	if resolved == nil {
-		return fmt.Errorf("no deployment found for selector")
-	}
 
-	body, resp, err := client.DeploymentVPSList(resolved.ID)
+	body, resp, err := client.DeploymentVPSList(deploymentID)
 	if err != nil {
 		return err
 	}
@@ -352,7 +290,7 @@ Flags:
 		return nil
 	}
 
-	fmt.Printf("VPS Bundles (deployment: %s)\n", resolved.ID)
+	fmt.Printf("VPS Bundles (deployment: %s)\n", deploymentID)
 	fmt.Println(strings.Repeat("-", 100))
 	if len(resp.Bundles) == 0 {
 		fmt.Println("No bundles found on VPS.")
@@ -370,131 +308,9 @@ Flags:
 	return nil
 }
 
-func runVPSDelete(client *Client, args []string) error {
-	var manifestPath string
-	var sha256s []string
-	var filenames []string
-	jsonOutput := false
-
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case "-h", "--help":
-			fmt.Println(`Usage: scenario-to-cloud bundle vps-delete <manifest.json> [flags]
-
-Flags:
-  --sha <sha256>      Delete specific bundle (can be repeated)
-  --filename <name>   Delete specific bundle filename (can be repeated)
-  --all               Delete all bundles on VPS (lists then deletes)
-  --json              Output raw JSON`)
-			return nil
-		case "--sha":
-			if i+1 < len(args) {
-				i++
-				sha256s = append(sha256s, args[i])
-			}
-		case "--filename":
-			if i+1 < len(args) {
-				i++
-				filenames = append(filenames, args[i])
-			}
-		case "--json":
-			jsonOutput = true
-		default:
-			if !strings.HasPrefix(args[i], "-") && manifestPath == "" {
-				manifestPath = args[i]
-			}
-		}
-	}
-
-	if manifestPath == "" {
-		return fmt.Errorf("usage: scenario-to-cloud bundle vps-delete <manifest.json>")
-	}
-
-	manifest, err := internalmanifest.ReadJSONFile(manifestPath)
-	if err != nil {
-		return err
-	}
-
-	req, err := extractVPSBundleListRequestFromManifest(manifest)
-	if err != nil {
-		return err
-	}
-
-	// Resolve --sha to filenames by listing once.
-	if len(sha256s) > 0 {
-		_, listResp, err := client.VPSList(req)
-		if err != nil {
-			return err
-		}
-		bySHA := map[string]string{}
-		for _, b := range listResp.Bundles {
-			if b.Sha256 != "" {
-				bySHA[b.Sha256] = b.Filename
-			}
-		}
-		for _, sha := range sha256s {
-			if fn, ok := bySHA[sha]; ok {
-				filenames = append(filenames, fn)
-			} else {
-				return fmt.Errorf("sha256 not found on VPS: %s", sha)
-			}
-		}
-	}
-
-	// --all means list and delete everything.
-	for _, a := range args {
-		if a == "--all" {
-			_, listResp, err := client.VPSList(req)
-			if err != nil {
-				return err
-			}
-			for _, b := range listResp.Bundles {
-				filenames = append(filenames, b.Filename)
-			}
-			break
-		}
-	}
-
-	if len(filenames) == 0 {
-		return fmt.Errorf("no bundles selected for deletion (use --filename, --sha, or --all)")
-	}
-
-	var lastBody []byte
-	var totalFreed int64
-	deletedCount := 0
-	for _, fn := range filenames {
-		body, resp, err := client.VPSDelete(VPSBundleDeleteRequest{
-			Host:     req.Host,
-			Port:     req.Port,
-			User:     req.User,
-			KeyPath:  req.KeyPath,
-			Workdir:  req.Workdir,
-			Filename: fn,
-		})
-		lastBody = body
-		if err != nil {
-			return err
-		}
-		if resp.OK {
-			deletedCount++
-			totalFreed += resp.FreedBytes
-		} else {
-			return fmt.Errorf("failed to delete %s: %s", fn, resp.Error)
-		}
-	}
-
-	if jsonOutput {
-		// Return last response body for debug; bulk output isn't well-defined.
-		cliutil.PrintJSON(lastBody)
-		return nil
-	}
-	fmt.Printf("Deleted %d bundle(s) from VPS (%s)\n", deletedCount, formatSize(totalFreed))
-	return nil
-}
-
 func runVPSGC(client *Client, args []string) error {
 	fs := flag.NewFlagSet("bundle vps-gc", flag.ContinueOnError)
-	selFlags := registerSelectorFlags(fs)
+	selFlags := selector.Register(fs)
 	keep := fs.Int("keep", 2, "Keep N newest bundles per scenario (default: 2)")
 	dryRun := fs.Bool("dry-run", false, "Report plan only; do not delete")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
@@ -503,25 +319,17 @@ func runVPSGC(client *Client, args []string) error {
 		return err
 	}
 
-	sel, err := selFlags.toSelector()
+	sel, err := selFlags.Selector(fs.Args())
 	if err != nil {
 		return err
 	}
-	if strings.TrimSpace(sel.ScenarioID) == "" {
-		return fmt.Errorf("--scenario is required")
-	}
-
-	depClient := deploymentcli.NewClient(client.APIClient())
-	resolved, err := deploymentcli.ResolveLatestBySelector(depClient, sel)
+	ref, err := selector.Resolve(context.Background(), client.Deployments, sel)
 	if err != nil {
 		return err
 	}
-	if resolved == nil {
-		return fmt.Errorf("no deployment found for selector")
-	}
 
-	body, resp, err := client.DeploymentVPSGC(resolved.ID, VPSBundleGCRequest{
-		ScenarioID: sel.ScenarioID,
+	body, resp, err := client.DeploymentVPSGC(ref.GetId(), VPSBundleGCRequest{
+		ScenarioID: ref.GetScenarioId(),
 		KeepLatest: *keep,
 		DryRun:     *dryRun,
 	})
@@ -550,74 +358,6 @@ func runVPSGC(client *Client, args []string) error {
 		}
 	}
 	return nil
-}
-
-type selectorFlags struct {
-	host       *string
-	scenarioID *string
-	domain     *string
-	target     *string
-}
-
-func registerSelectorFlags(fs *flag.FlagSet) selectorFlags {
-	return selectorFlags{
-		host:       fs.String("host", "", "VPS host selector"),
-		scenarioID: fs.String("scenario", "", "Scenario ID selector"),
-		domain:     fs.String("domain", "", "Domain selector"),
-		target:     fs.String("target", "", "Convenience selector (domain or host)"),
-	}
-}
-
-func (s selectorFlags) toSelector() (deploymentcli.ManifestSelector, error) {
-	host := strings.TrimSpace(*s.host)
-	scenarioID := strings.TrimSpace(*s.scenarioID)
-	domain := strings.TrimSpace(*s.domain)
-	target := strings.TrimSpace(*s.target)
-
-	if target != "" && (host != "" || domain != "") {
-		return deploymentcli.ManifestSelector{}, fmt.Errorf("--target cannot be combined with --host or --domain")
-	}
-	if host == "" && domain == "" && target == "" {
-		return deploymentcli.ManifestSelector{}, fmt.Errorf("at least one selector is required: --host, --domain, or --target")
-	}
-
-	return deploymentcli.ManifestSelector{
-		Host:       host,
-		ScenarioID: scenarioID,
-		Domain:     domain,
-		Target:     target,
-	}, nil
-}
-
-func extractVPSBundleListRequestFromManifest(m map[string]interface{}) (VPSBundleListRequest, error) {
-	// Expected manifest shape:
-	// { "target": { "vps": { "host": "...", "port": 22, "user": "root", "workdir": "...", "key_path": "..." } } }
-	target, _ := m["target"].(map[string]interface{})
-	vps, _ := target["vps"].(map[string]interface{})
-	host, _ := vps["host"].(string)
-	keyPath, _ := vps["key_path"].(string)
-	workdir, _ := vps["workdir"].(string)
-	user, _ := vps["user"].(string)
-	portF, _ := vps["port"].(float64)
-
-	port := 22
-	if portF != 0 {
-		port = int(portF)
-	}
-	if user == "" {
-		user = "root"
-	}
-	if host == "" || keyPath == "" || workdir == "" {
-		return VPSBundleListRequest{}, fmt.Errorf("manifest missing required VPS fields (host, key_path, workdir)")
-	}
-
-	return VPSBundleListRequest{
-		Host:    host,
-		Port:    port,
-		User:    user,
-		KeyPath: keyPath,
-		Workdir: workdir,
-	}, nil
 }
 
 // truncate shortens a string to maxLen characters.

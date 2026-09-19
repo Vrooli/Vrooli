@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [{
+    "provider_id": "asset-studio.metadata",
+    "lifecycle": "fixture",
+    "provider_group": "asset-studio",
+    "bucket": "BUCKET_KNOW",
+    "type": "asset-metadata",
+    "description": "Versioned visual identities and released asset metadata. Returns traits, alt text, disclosure, media type, and derivation provenance only; never artifact bytes, storage references, credentials, prompts, or unreviewed assets.",
+    "scope": "SCOPE_PROJECT",
+    "class": "local_live",
+    "endpoint": {"http_json": {"scenario_id":"asset-studio","path":"/vrooli.asset_studio.v1.search.SearchService/Search","method":"HTTP_METHOD_POST","body_template":"{\"query\":\"{{query}}\",\"limit\":{{limit}}}","headers":{"Content-Type":"application/json"}}},
+    "status_endpoint": {"http_json": {"scenario_id":"asset-studio","path":"/vrooli.asset_studio.v1.search.SearchService/Status","method":"HTTP_METHOD_POST","body_template":"{}","headers":{"Content-Type":"application/json"}}},
+    "result_mapping": {"results_path":"results","id_field":"id","title_field":"title","snippet_field":"snippet","score_field":"score","score_scale":"SCORE_SCALE_COSINE_0_1"}
+  }]
+}

@@ -154,6 +154,78 @@
           "notes": "E2E workflow implicitly validates JSON persistence across operations"
         }
       ]
+    },
+    {
+      "id": "VT-REQ-024",
+      "category": "campaign-tracking.attention",
+      "operational_target_id": "OT-P0-007",
+      "prd_ref": "OT-P0-007",
+      "title": "Concurrent revision-aware claims",
+      "description": "The API shall grant at most one live claim per file, preserve retry identity, and reject expired, foreign, or changed-revision completion.",
+      "priority": "P0",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/attention_test.go",
+          "phase": "unit",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "VT-REQ-025",
+      "category": "campaign-tracking.attention",
+      "operational_target_id": "OT-P0-008",
+      "prd_ref": "OT-P0-008",
+      "title": "Governed attention composition",
+      "description": "The scenario shall expose typed attention bindings and bounded composable programs; preview shall not consume work.",
+      "priority": "P0",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/attention_test.go",
+          "phase": "unit",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "VT-REQ-026",
+      "category": "campaign-tracking.attention",
+      "operational_target_id": "OT-P0-009",
+      "prd_ref": "OT-P0-009",
+      "title": "Durable concurrent campaign updates",
+      "description": "The store shall serialize transactions and reject detached stale writes without losing committed mutations.",
+      "priority": "P0",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/attention_test.go",
+          "phase": "unit",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "VT-REQ-027",
+      "category": "campaign-tracking.attention",
+      "operational_target_id": "OT-P0-006",
+      "prd_ref": "OT-P0-006",
+      "title": "Complete revision snapshots",
+      "description": "Sync shall preserve unambiguous renames and review history, invalidate changed revisions, and reject incomplete scans without applying deletions.",
+      "priority": "P0",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/attention_test.go",
+          "phase": "unit",
+          "status": "pending"
+        }
+      ]
     }
   ]
 }

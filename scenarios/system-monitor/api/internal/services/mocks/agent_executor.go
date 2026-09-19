@@ -4,20 +4,19 @@ import (
 	"context"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	"system-monitor-api/internal/agentmanager"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/agentmanager"
 )
 
 // AgentExecutor is a configurable test double for services.AgentExecutor.
 type AgentExecutor struct {
-	enabled          bool
-	available        bool
-	profileID        string
-	executeResult    *agentmanager.ExecuteResult
-	executeErr       error
-	resolveURL       string
-	resolveURLErr    error
-	availableRunners []agentmanager.RunnerInfo
-	activeRuns       []*domainpb.Run
+	enabled       bool
+	available     bool
+	profileID     string
+	executeResult *agentmanager.ExecuteResult
+	executeErr    error
+	resolveURL    string
+	resolveURLErr error
+	activeRuns    []*domainpb.Run
 }
 
 func NewAgentExecutor() *AgentExecutor {
@@ -63,7 +62,7 @@ func (m *AgentExecutor) IsEnabled() bool { return m.enabled }
 
 func (m *AgentExecutor) IsAvailable(_ context.Context) bool { return m.available }
 
-func (m *AgentExecutor) Initialize(_ context.Context, _ *agentmanager.ProfileConfig) error {
+func (m *AgentExecutor) Initialize(_ context.Context) error {
 	return nil
 }
 
@@ -76,14 +75,6 @@ func (m *AgentExecutor) GetProfile(_ context.Context) (*domainpb.AgentProfile, e
 }
 
 func (m *AgentExecutor) GetProfileID() string { return m.profileID }
-
-func (m *AgentExecutor) UpdateProfile(_ context.Context, _ *agentmanager.ProfileConfig) (*domainpb.AgentProfile, error) {
-	return nil, nil
-}
-
-func (m *AgentExecutor) GetAvailableRunners(_ context.Context) ([]agentmanager.RunnerInfo, error) {
-	return m.availableRunners, nil
-}
 
 func (m *AgentExecutor) GetRunByTag(_ context.Context, _ string) (*domainpb.Run, error) {
 	return nil, nil

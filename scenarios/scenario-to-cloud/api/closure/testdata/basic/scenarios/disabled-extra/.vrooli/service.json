@@ -1,0 +1,14 @@
+{
+  "service": {
+    "name": "disabled-extra",
+    "version": "0.1.0"
+  },
+  "dependencies": {
+    "resources": {
+      "missing-resource": {
+        "enabled": true,
+        "required": true
+      }
+    }
+  }
+}

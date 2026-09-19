@@ -9,9 +9,12 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"test-genie/internal/requirements"
 	"time"
 
 	"github.com/gorilla/mux"
+	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/packages/artifactpaths"
 )
 
 // RequirementsSnapshot represents the data returned by the requirements endpoint.
@@ -129,6 +132,15 @@ func (s *Server) handleGetScenarioRequirements(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	if r.URL.Query().Get("view") == "registry" {
+		registry, err := requirements.NewService().Registry(r.Context(), scenarioDir)
+		if err != nil {
+			s.writeError(w, http.StatusUnprocessableEntity, "requirement registry unavailable: "+err.Error())
+			return
+		}
+		s.writeJSON(w, http.StatusOK, registry)
+		return
+	}
 	s.writeJSON(w, http.StatusOK, s.loadScenarioRequirementsView(scenarioDir, name))
 }
 
@@ -189,30 +201,21 @@ func (s *Server) handleSyncScenarioRequirements(w http.ResponseWriter, r *http.R
 
 // resolveScenarioDir finds the directory for a scenario.
 func (s *Server) resolveScenarioDir(name string) string {
-	roots := make([]string, 0, 4)
-	if s.scenarios != nil && strings.TrimSpace(s.scenarios.ScenarioRoot()) != "" {
-		roots = append(roots, s.scenarios.ScenarioRoot())
-	}
-	if value := strings.TrimSpace(os.Getenv("SCENARIOS_ROOT")); value != "" {
-		roots = append(roots, value)
-	}
-	if value := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); value != "" {
-		roots = append(roots, filepath.Join(value, "scenarios"))
-	}
-	if wd, err := os.Getwd(); err == nil {
-		roots = append(roots, filepath.Dir(filepath.Dir(wd)))
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return ""
 	}
 
-	seen := make(map[string]struct{}, len(roots))
-	for _, root := range roots {
-		if root == "" {
-			continue
+	if root := s.resolveRepoRoot(); root != "" {
+		if path, err := repocontract.ResolveScenarioPath(root, name); err == nil {
+			if info, statErr := os.Stat(path); statErr == nil && info.IsDir() {
+				return path
+			}
 		}
-		candidate := filepath.Join(root, name)
-		if _, exists := seen[candidate]; exists {
-			continue
-		}
-		seen[candidate] = struct{}{}
+	}
+
+	if scenariosRoot := s.resolveScenariosRoot(); scenariosRoot != "" {
+		candidate := filepath.Join(scenariosRoot, name)
 		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
 			return candidate
 		}
@@ -235,11 +238,12 @@ func (s *Server) loadScenarioRequirementsView(scenarioDir, scenarioName string) 
 
 func newRequirementsPaths(scenarioDir string) requirementsPaths {
 	requirementsDir := filepath.Join(scenarioDir, "requirements")
+	artifactRoot, _ := artifactpaths.ScenarioRootForDir(scenarioDir)
 	return requirementsPaths{
 		requirementsDir: requirementsDir,
 		indexPath:       filepath.Join(requirementsDir, "index.json"),
-		snapshotPath:    filepath.Join(scenarioDir, "coverage", "requirements-sync", "latest.json"),
-		syncStatusPath:  filepath.Join(scenarioDir, "coverage", "sync", "latest.json"),
+		snapshotPath:    artifactpaths.ScenarioPath(artifactRoot, artifactpaths.CoverageRoot, "requirements-sync", "latest.json"),
+		syncStatusPath:  artifactpaths.ScenarioPath(artifactRoot, artifactpaths.CoverageRoot, "sync", "latest.json"),
 	}
 }
 

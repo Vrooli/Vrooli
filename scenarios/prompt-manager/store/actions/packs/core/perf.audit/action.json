@@ -1,0 +1,90 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "perf.audit",
+  "name": "Measure a slow UI interaction (targeted perf capture)",
+  "description": "Drive a profile-mode performance capture of a scenario's UI and (optionally) a SPECIFIC interaction — a scroll, drag, or click/type sequence — so the trace spans the slow journey you are investigating. Returns a CDP trace + web-vitals; hand the trace to perf.analyze for React render/re-render (component-commit) attribution and LCP. The interaction is a bas/flows/<slug>.json marked intent:performance; omit --workflow for the default navigate+settle.",
+  "status": "active",
+  "owner": {
+    "type": "scenario",
+    "id": "performance-health"
+  },
+  "command": {
+    "argv": [
+      "performance-health",
+      "audit",
+      "run",
+      "{{scenario}}",
+      "--workflow",
+      "{{flow}}",
+      "--json"
+    ]
+  },
+  "inputs": {
+    "scenario": {
+      "type": "string",
+      "required": true,
+      "description": "Scenario slug whose UI to capture."
+    },
+    "flow": {
+      "type": "string",
+      "required": false,
+      "description": "Perf-flow slug (<scenario>/bas/flows/<slug>.json, intent:performance) to drive a specific interaction. Empty = default navigate+settle."
+    }
+  },
+  "outputs": {
+    "outcome": {
+      "type": "string",
+      "description": "captured | skipped (no UI) | unavailable (no browser/BAS) | failed."
+    },
+    "trace_artifact": {
+      "type": "string",
+      "description": "Path of the CDP trace; feed to perf.analyze."
+    }
+  },
+  "permissions": {
+    "filesystemRead": true,
+    "filesystemWrite": true,
+    "externalNetwork": true,
+    "processStart": true
+  },
+  "examples": [
+    {
+      "description": "Trace a slow virtualized-list scroll in image-tools.",
+      "input": {
+        "scenario": "image-tools",
+        "flow": "scroll-library"
+      }
+    }
+  ],
+  "tags": [
+    "performance",
+    "ui",
+    "ux",
+    "react",
+    "render",
+    "re-render",
+    "jank",
+    "scroll",
+    "drag",
+    "slow",
+    "interaction",
+    "audit",
+    "trace",
+    "measure",
+    "hotspot",
+    "web-vitals",
+    "lcp"
+  ],
+  "execution": {
+    "timeoutSeconds": 300,
+    "outputMode": "stdout",
+    "runEligible": false
+  },
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-06-22T00:00:00Z",
+  "updatedAt": "2026-06-22T00:00:00Z"
+}

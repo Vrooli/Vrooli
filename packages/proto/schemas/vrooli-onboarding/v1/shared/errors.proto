@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package vrooli.vrooli_onboarding.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/shared;sharedv1";
+
+// ErrorEnvelope is the typed non-2xx payload for the operational health probes.
+message ErrorEnvelope {
+  string code = 1;
+  string message = 2;
+  map<string, string> details = 3;
+}

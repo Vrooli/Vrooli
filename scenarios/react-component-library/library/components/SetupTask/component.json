@@ -1,0 +1,24 @@
+{
+  "catalogId": "react-component-library:SetupTask",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "entry": "SetupTask.tsx",
+  "evictedVersions": [
+    "0.1.6",
+    "0.1.5",
+    "0.1.4",
+    "0.1.3",
+    "0.1.2",
+    "0.1.1",
+    "0.1.0"
+  ],
+  "latest": "0.2.0",
+  "libraryId": "react-component-library:SetupTask"
+}

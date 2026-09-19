@@ -1,0 +1,10 @@
+{
+  "gate": "stylesheet-key",
+  "assetId": "calibration.stylesheet-key",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.stylesheet-key",
+  "source": "broken.tsx",
+  "catalogAsset": "asset.json",
+  "description": "Uses a literal page-global stylesheet name."
+}

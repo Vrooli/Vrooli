@@ -506,7 +506,6 @@ func ptrOrZero(v *int) int {
 	return *v
 }
 
-
 // convertElementFocus converts a contracts.ElementFocus to the proto type.
 // Since contracts.ElementFocus is an alias for bastimeline.ElementFocus,
 // this is a direct pass-through (kept for nil-safety and code clarity).

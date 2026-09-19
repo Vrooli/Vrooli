@@ -2,14 +2,14 @@
   "_metadata": {
     "entity": "system-monitor",
     "generated_at": "2026-02-16T21:24:14-05:00",
-    "generator": "prd-control-tower",
+    "generator": "business-health",
     "schema_version": "1.0"
   },
   "imports": [
     "01-real-time-cpu-memory-disk-network-gpu-mo/module.json",
     "02-threshold-based-anomaly-detection-with-c/module.json",
     "03-automated-investigation-of-system-anomal/module.json",
-    "04-time-series-data-storage-in-questdb/module.json",
+    "04-persistent-time-series-data-storage/module.json",
     "05-configurable-warning-critical-thresholds/module.json",
     "06-report-generation/module.json",
     "07-dark-cyberpunk-monitoring-dashboard/module.json",
@@ -23,7 +23,12 @@
     "15-custom-metric-collection-via-api/module.json",
     "16-alert-routing-to-multiple-channels/module.json",
     "17-resource-prediction-models/module.json",
-    "18-correlation-analysis-between-metrics/module.json"
+    "18-correlation-analysis-between-metrics/module.json",
+    "19-disk-recovery/module.json",
+    "20-distributed-tracing-integration/module.json",
+    "21-custom-dashboard-builder/module.json",
+    "22-mobile-monitoring-app/module.json",
+    "23-websocket-real-time-updates/module.json"
   ],
   "modules": [
     {
@@ -46,9 +51,9 @@
     },
     {
       "id": "MOD-P0-004",
-      "path": "04-time-series-data-storage-in-questdb",
+      "path": "04-persistent-time-series-data-storage",
       "priority": "P0",
-      "title": "Time-series data storage in QuestDB (configured; API defaults to in-memory with PostgreSQL fallback)"
+      "title": "Persistent time-series data storage (not yet implemented)"
     },
     {
       "id": "MOD-P0-005",
@@ -66,13 +71,13 @@
       "id": "MOD-P0-007",
       "path": "07-dark-cyberpunk-monitoring-dashboard",
       "priority": "P0",
-      "title": "Dark cyberpunk monitoring dashboard (Matrix-themed React UI)"
+      "title": "Governed responsive monitoring dashboard"
     },
     {
       "id": "MOD-P0-008",
       "path": "08-investigation-script-execution",
       "priority": "P0",
-      "title": "Investigation script execution (30 scripts in investigations/active/; API script endpoints are placeholders)"
+      "title": "Typed investigation script execution"
     },
     {
       "id": "MOD-P0-009",
@@ -90,7 +95,7 @@
       "id": "MOD-P1-011",
       "path": "11-historical-trend-analysis",
       "priority": "P1",
-      "title": "Historical trend analysis (no timeline endpoint exists; trend analysis implemented only within report generation)"
+      "title": "Historical metric timeline and trend context"
     },
     {
       "id": "MOD-P1-012",
@@ -108,7 +113,7 @@
       "id": "MOD-P1-014",
       "path": "14-agent-configuration-management",
       "priority": "P1",
-      "title": "Agent configuration management (runner type, model, max turns, timeout)"
+      "title": "Portable Agent Manager profile adoption"
     },
     {
       "id": "MOD-P1-015",
@@ -133,6 +138,30 @@
       "path": "18-correlation-analysis-between-metrics",
       "priority": "P1",
       "title": "Correlation analysis between metrics (not implemented)"
+    },
+    {
+      "id": "MOD-P2-001",
+      "path": "20-distributed-tracing-integration",
+      "priority": "P2",
+      "title": "Distributed tracing integration (planned)"
+    },
+    {
+      "id": "MOD-P2-002",
+      "path": "21-custom-dashboard-builder",
+      "priority": "P2",
+      "title": "Custom dashboard builder (planned)"
+    },
+    {
+      "id": "MOD-P2-003",
+      "path": "22-mobile-monitoring-app",
+      "priority": "P2",
+      "title": "Mobile monitoring app (planned)"
+    },
+    {
+      "id": "MOD-P2-004",
+      "path": "23-websocket-real-time-updates",
+      "priority": "P2",
+      "title": "WebSocket real-time updates (planned)"
     }
   ]
 }

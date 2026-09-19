@@ -1,0 +1,157 @@
+/**
+ * @libraryId react-component-library:BoundedMeter
+ * @displayName Meter
+ * @description The bounded-value visualization for capacity, quota, strength, or health, using semantic thresholds and explicitly not implying task progress.
+ * @version 1.0.10
+ * @tags []
+ * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
+ */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1";
+
+/** @vrooliComponentSource react-component-library:BoundedMeter */
+import { useStrings } from "@vrooli/react-component-library/useLocale/1";
+import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
+import { Stack } from "@vrooli/react-component-library/Stack/1";
+import { Text } from "@vrooli/react-component-library/Text/1";
+import { SURFACE_ELEVATIONS } from "@vrooli/react-component-library/VisualRecipes/1";
+
+export type BoundedMeterTone = "neutral" | "success" | "warning" | "danger";
+
+export interface BoundedMeterProps
+  extends Omit<HTMLAttributes<HTMLElement>, "aria-label" | "children"> {
+  label?: string;
+  value?: number;
+  min?: number;
+  max?: number;
+  valueText?: ReactNode;
+  description?: ReactNode;
+  status?: string;
+  tone?: BoundedMeterTone;
+  ariaLabel?: string;
+  meterLabel?: string;
+  assetId?: string;
+  assetVersion?: string;
+  assetStamp?: string;
+  testId?: string;
+}
+
+const styles = `
+  [data-rcl-bounded-meter] {
+    --rcl-meter-track: var(--color-border-subtle);
+    display: block;
+    color: var(--color-foreground);
+    padding: var(--space-xs);
+  }
+  [data-rcl-bounded-meter-value] {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-xs);
+  }
+  [data-rcl-bounded-meter-control] {
+    inline-size: 100%;
+    block-size: .5rem;
+    accent-color: var(--rcl-meter-fill);
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--rcl-meter-track);
+  }
+  [data-rcl-bounded-meter-control]::-webkit-meter-bar {
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--rcl-meter-track);
+  }
+  [data-rcl-bounded-meter-control]::-webkit-meter-optimum-value,
+  [data-rcl-bounded-meter-control]::-webkit-meter-suboptimum-value,
+  [data-rcl-bounded-meter-control]::-webkit-meter-even-less-good-value {
+    border-radius: var(--radius-pill);
+    background: var(--rcl-meter-fill);
+  }
+  [data-rcl-bounded-meter-control]::-moz-meter-bar {
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--rcl-meter-fill);
+  }
+`;
+
+const toneColors: Record<BoundedMeterTone, string> = {
+  neutral: "var(--color-primary)",
+  success: "var(--color-success)",
+  warning: "var(--color-warning)",
+  danger: "var(--color-danger)",
+};
+
+function finite(value: number | undefined, fallback: number) {
+  return Number.isFinite(value) ? (value as number) : fallback;
+}
+
+export const BoundedMeter = withClassName(function BoundedMeter({
+  label,
+  value = 0,
+  min = 0,
+  max = 100,
+  valueText,
+  description,
+  status,
+  tone = "neutral",
+  ariaLabel,
+  meterLabel,
+  assetId = "primitives.meter",
+  assetVersion = "1.0.1-draft.1",
+  assetStamp = "source",
+  testId = "primitives-meter",
+  className,
+  style,
+  ...sectionProps
+}: BoundedMeterProps) {
+  const libraryStrings = useStrings();
+  label = label ?? libraryStrings("primitives.meter.value", "Value");
+  const safeMin = finite(min, 0);
+  const safeMax = Math.max(safeMin + 1, finite(max, 100));
+  const safeValue = Math.max(safeMin, Math.min(safeMax, finite(value, safeMin)));
+  const mergedStyle = {
+    "--rcl-meter-fill": toneColors[tone],
+    ...style,
+  } as CSSProperties;
+
+  return (
+    <>
+      <StyleSheet libraryId="react-component-library:BoundedMeter" version="1.0.10" css={styles} />
+      <section
+        {...sectionProps}
+        className={`${SURFACE_ELEVATIONS.raised}${className ? ` ${className}` : ""}`}
+        aria-label={ariaLabel ?? `${label} meter`}
+        data-status={status}
+        data-tone={tone}
+        data-rcl-asset={assetId}
+        data-rcl-version={assetVersion}
+        data-rcl-stamp={assetStamp}
+        data-testid={testId || "primitives.meter"}
+        data-rcl-bounded-meter
+        style={mergedStyle}
+      >
+        <Stack gap="2xs">
+          <div data-rcl-bounded-meter-value>
+            <Text as="strong" textStyle="label">
+              {label}
+            </Text>
+            {valueText !== undefined && <Text numeric>{valueText}</Text>}
+          </div>
+          <meter
+            min={safeMin}
+            max={safeMax}
+            value={safeValue}
+            aria-label={meterLabel ?? `${label} value`}
+            data-rcl-bounded-meter-control
+          />
+          {description !== undefined && (
+            <Text tone="muted" numeric>
+              {description}
+            </Text>
+          )}
+        </Stack>
+      </section>
+    </>
+  );
+});

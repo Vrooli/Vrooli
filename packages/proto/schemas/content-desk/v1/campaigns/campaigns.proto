@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package vrooli.content_desk.v1.campaigns;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/campaigns;campaigns_v1";
+
+// CampaignsService owns campaign work context and the enforced artifact budget.
+service CampaignsService {
+  rpc ListCampaigns(ListCampaignsRequest) returns (ListCampaignsResponse);
+  rpc CreateCampaign(CreateCampaignRequest) returns (CreateCampaignResponse);
+  rpc ActivateCampaign(ActivateCampaignRequest) returns (ActivateCampaignResponse);
+  rpc GetLaunchAssets(GetLaunchAssetsRequest) returns (GetLaunchAssetsResponse);
+}
+
+message Campaign {
+  string id = 1;
+  string name = 2;
+  string status = 3;
+  repeated string scenario_names = 4;
+}
+
+message ListCampaignsRequest {}
+
+message ListCampaignsResponse {
+  repeated Campaign campaigns = 1;
+}
+
+message CampaignSlot {
+  string channel = 1;
+  string format = 2;
+  int32 capacity = 3;
+}
+
+message CreateCampaignRequest {
+  string name = 1;
+  repeated string evidence_refs = 2;
+  repeated CampaignSlot slots = 3;
+  repeated string scenario_names = 4;
+}
+message CreateCampaignResponse {
+  Campaign campaign = 1;
+}
+message ActivateCampaignRequest {
+  string id = 1;
+}
+message ActivateCampaignResponse {
+  Campaign campaign = 1;
+}
+
+message GetLaunchAssetsRequest { string scenario_name = 1; }
+message LaunchAssetSlot {
+  string campaign_id = 1;
+  string campaign_name = 2;
+  string channel = 3;
+  string format = 4;
+  int32 capacity = 5;
+  int32 reserved = 6;
+  // draft_count is deprecated; it mirrors approved_count for compatibility.
+  // Prefer approved_count and ready_for_review_count for new reads.
+  int32 draft_count = 7;
+  int32 approved_count = 8;
+  int32 ready_for_review_count = 9;
+  // readiness is the strongest launch-asset tier attached to the slot:
+  // "empty" | "in_progress" | "ready_for_review" | "approved".
+  string readiness = 10;
+}
+message GetLaunchAssetsResponse {
+  string scenario_name = 1;
+  repeated LaunchAssetSlot slots = 2;
+}

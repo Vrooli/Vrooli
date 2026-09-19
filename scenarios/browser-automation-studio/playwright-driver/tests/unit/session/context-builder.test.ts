@@ -2,6 +2,7 @@ import { buildContext } from '../../../src/session/context-builder';
 import type { SessionSpec } from '../../../src/types';
 import type { BrowserContextOptions } from 'rebrowser-playwright';
 import { createMockBrowser, createTestConfig } from '../../helpers';
+import { interactionStateForContext } from '../../../src/session/interaction-state';
 
 describe('ContextBuilder', () => {
   let mockBrowser: ReturnType<typeof createMockBrowser>;
@@ -43,6 +44,20 @@ describe('ContextBuilder', () => {
       );
       expect(result.context).toBeDefined();
     });
+
+    it.each(['rest', 'hover', 'focus-visible', 'pressed', 'disabled'] as const)(
+      'should apply declared interaction state %s to the browser context',
+      async (interactionState) => {
+        const specWithInteractionState: SessionSpec = {
+          ...sessionSpec,
+          browser_profile: { interaction_state: interactionState },
+        };
+
+        const result = await buildContext(mockBrowser, specWithInteractionState, config);
+
+        expect(interactionStateForContext(result.context)).toBe(interactionState);
+      }
+    );
 
     it('should create context without HAR when disabled', async () => {
       const configNoHAR = createTestConfig({
@@ -201,6 +216,15 @@ describe('ContextBuilder', () => {
       );
     });
 
+    it('grants microphone only in the explicit deterministic media driver', async () => {
+      const fixtureConfig = createTestConfig({
+        browser: { fakeMicrophoneFile: '/fixtures/reference.wav' },
+      });
+      const result = await buildContext(mockBrowser, sessionSpec, fixtureConfig);
+
+      expect(result.context.grantPermissions).toHaveBeenCalledWith(['microphone']);
+    });
+
     it('should apply ignoreHTTPSErrors from config', async () => {
       const configWithHTTPS = createTestConfig({
         browser: { headless: true, ignoreHTTPSErrors: true },
@@ -248,6 +272,37 @@ describe('ContextBuilder', () => {
   });
 
   describe('viewport source attribution', () => {
+    it('emulates coarse no-hover input for a mobile capture', async () => {
+      const mobileSpec: SessionSpec = {
+        ...sessionSpec,
+        viewport: { width: 390, height: 844 },
+      };
+
+      await buildContext(mockBrowser, mobileSpec, config);
+
+      const [options] = mockBrowser.newContext.mock.calls[0] ?? [];
+      expect(options).toEqual(expect.objectContaining({ hasTouch: true, isMobile: true }));
+    });
+
+    it('retains mobile input emulation when a phone rotates to landscape', async () => {
+      const mobileLandscapeSpec: SessionSpec = {
+        ...sessionSpec,
+        viewport: { width: 844, height: 390 },
+      };
+
+      await buildContext(mockBrowser, mobileLandscapeSpec, config);
+
+      const [options] = mockBrowser.newContext.mock.calls[0] ?? [];
+      expect(options).toEqual(expect.objectContaining({ hasTouch: true, isMobile: true }));
+    });
+
+    it('retains fine hover input for a desktop capture', async () => {
+      await buildContext(mockBrowser, sessionSpec, config);
+
+      const [options] = mockBrowser.newContext.mock.calls[0] ?? [];
+      expect(options).toEqual(expect.objectContaining({ hasTouch: false, isMobile: false }));
+    });
+
     it('should return actualViewport with requested source when using spec viewport', async () => {
       const result = await buildContext(mockBrowser, sessionSpec, config);
 

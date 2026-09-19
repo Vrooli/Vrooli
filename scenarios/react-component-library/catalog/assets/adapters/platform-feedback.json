@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "adapters.platform-feedback",
+    "name": "PlatformFeedbackAdapter",
+    "kind": "adapter",
+    "domain": "adapters",
+    "description": "Connects optional haptic, sound, clipboard, share, and native-shell behaviors to whatever the running platform actually provides, reporting availability rather than assuming it.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "adapter",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.contracts",
+        "reason": "Boundary types come from the shared framework-light vocabulary rather than being redeclared per adapter."
+      }
+    ]
+  },
+  "satisfies": [
+    "platform-feedback"
+  ]
+}

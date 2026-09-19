@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BacklogCard } from "./backlog-card";
 import type { BacklogCardProps } from "./backlog-card";
@@ -28,11 +28,8 @@ const makeActions = (overrides?: Partial<ItemActions>): ItemActions => ({
   primaryCta: "run",
   canRun: false,
   runDisabled: false,
-  canWorkshop: false,
-  workshopDisabled: false,
-  canFinalize: false,
-  finalizeDisabled: false,
   canFollowUp: false,
+  canRetry: false,
   canArchive: false,
   showDecisionStepper: false,
   agentRunning: false,
@@ -44,7 +41,6 @@ const makeActions = (overrides?: Partial<ItemActions>): ItemActions => ({
 const renderCard = (overrides?: Partial<BacklogCardProps>) => {
   const props: BacklogCardProps = {
     item: makeItem(),
-    allItems: [],
     itemActions: makeActions(),
     attentionReasons: [],
     isStepperCompleted: false,
@@ -55,32 +51,13 @@ const renderCard = (overrides?: Partial<BacklogCardProps>) => {
     onRun: vi.fn(),
     onArchive: vi.fn(),
     onFollowUp: vi.fn(),
-    onFinalize: vi.fn(),
-    onWorkshop: vi.fn(),
     archivePending: false,
-    finalizePending: false,
-    workshopPending: false,
     ...overrides,
   };
   return render(<BacklogCard {...props} />);
 };
 
 describe("BacklogCard", () => {
-  it("renders finalize as the primary action and next round as secondary", () => {
-    renderCard({
-      itemActions: makeActions({
-        primaryCta: "finalize",
-        canFinalize: true,
-        canWorkshop: true,
-      }),
-      workshopLabel: "Next Round",
-    });
-
-    const actionRow = screen.getByTestId("backlog-card-actions");
-    expect(within(actionRow).getByRole("button", { name: "Finalize" })).toBeInTheDocument();
-    expect(within(actionRow).getByRole("button", { name: "Next Round" })).toBeInTheDocument();
-  });
-
   it("renders clickable status chip when onStatusChange is provided", () => {
     renderCard({ onStatusChange: vi.fn() });
     expect(screen.getByTestId("status-chip-trigger")).toBeInTheDocument();
@@ -101,6 +78,57 @@ describe("BacklogCard", () => {
     expect(screen.queryByTestId("status-chip-trigger")).not.toBeInTheDocument();
   });
 
+  it("renders the server-owned full label and routes its action", async () => {
+    const onNextAction = vi.fn();
+    renderCard({
+      nextAction: {
+        id: "author_plan",
+        compactLabel: "Plan",
+        expandedLabel: "Author plan",
+        enabled: true,
+        blockers: [],
+      },
+      onNextAction,
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Author plan" }));
+    expect(onNextAction).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button", { name: "Run" })).not.toBeInTheDocument();
+  });
+
+  it("does not render legacy lifecycle actions beside a projected primary action", () => {
+    renderCard({
+      item: makeItem({ status: "completed" }),
+      itemActions: makeActions({ canFollowUp: true, canArchive: true }),
+      nextAction: {
+        id: "archive",
+        compactLabel: "Archive",
+        expandedLabel: "Archive item",
+        enabled: true,
+        blockers: [],
+      },
+    });
+
+    expect(screen.getByRole("button", { name: "Archive item" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Follow Up" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Archive" })).not.toBeInTheDocument();
+  });
+
+  it("does not render a legacy disabled Run beside a dependency projection", () => {
+    renderCard({
+      itemActions: makeActions({ blocked: true, runDisabled: true }),
+      nextAction: {
+        id: "resolve_dependencies",
+        compactLabel: "Blocked",
+        expandedLabel: "Resolve dependencies",
+        enabled: true,
+        blockers: [],
+      },
+    });
+
+    expect(screen.getByRole("button", { name: "Resolve dependencies" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Run" })).not.toBeInTheDocument();
+  });
+
   it("opens popover on status chip click and calls onStatusChange", async () => {
     const user = userEvent.setup();
     const onStatusChange = vi.fn();
@@ -113,18 +141,42 @@ describe("BacklogCard", () => {
     expect(onStatusChange).toHaveBeenCalledWith("backlog");
   });
 
-  it("shows finalization transition copy for research items", () => {
-    renderCard({
-      item: makeItem({ kind: "research", status: "researching" }),
-      transitionResult: {
-        autoAdvance: {
-          triggered: true,
-          reason: "finalizing",
-          nextMode: "finalize",
-        },
-      },
+  describe("pick mode (SessionContextPicker)", () => {
+    it("renders the context row with title and suppresses all action rows", () => {
+      render(
+        <BacklogCard
+          item={makeItem({ title: "Pickable Item" })}
+          selection={{ selectionMode: true, selected: false, onToggleSelect: vi.fn() }}
+        />,
+      );
+      expect(screen.getByText("Pickable Item")).toBeInTheDocument();
+      expect(screen.queryByTestId("backlog-card-actions")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("status-chip-trigger")).not.toBeInTheDocument();
+      expect(screen.getByTestId("session-context-row")).toHaveAttribute("aria-pressed", "false");
     });
 
-    expect(screen.getByText("Finalizing conclusion...")).toBeInTheDocument();
+    it("toggles on click and respects the disabled cap state", async () => {
+      const onToggleSelect = vi.fn();
+      const { rerender } = render(
+        <BacklogCard
+          item={makeItem()}
+          selection={{ selectionMode: true, selected: false, onToggleSelect }}
+        />,
+      );
+      await userEvent.click(screen.getByTestId("session-context-row"));
+      expect(onToggleSelect).toHaveBeenCalledTimes(1);
+
+      rerender(
+        <BacklogCard
+          item={makeItem()}
+          selection={{ selectionMode: true, selected: false, disabled: true, disabledReason: "Cap reached", onToggleSelect }}
+        />,
+      );
+      const row = screen.getByTestId("session-context-row");
+      expect(row).toBeDisabled();
+      expect(row).toHaveAttribute("title", "Cap reached");
+      await userEvent.click(row);
+      expect(onToggleSelect).toHaveBeenCalledTimes(1);
+    });
   });
 });

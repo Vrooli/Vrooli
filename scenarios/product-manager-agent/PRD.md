@@ -57,7 +57,7 @@ Strategic product management intelligence that automates feature prioritization,
 
 ### Quality Gates
 - [ ] All P0 requirements implemented and tested
-- [ ] Integration with mind-maps, research-assistant, task-planner verified
+- [ ] Integration with mind-maps, research-assistant, plan-manager verified
 - [ ] RICE scoring algorithm produces consistent results
 - [ ] Roadmap UI renders correctly with 100+ features
 - [ ] Sprint planning handles team capacity constraints
@@ -104,12 +104,12 @@ optional:
 integration_priorities:
   1_shared_workflows:
     - workflow: ollama.json
-      location: initialization/automation/n8n/
+      location: api/internal/<domain>/automation/n8n/
       purpose: Strategic recommendation generation
-      reused_by: [research-assistant, idea-generator]
+      reused_by: [research-assistant]
       
     - workflow: sentiment-analyzer.json
-      location: initialization/automation/n8n/
+      location: api/internal/<domain>/automation/n8n/
       purpose: User feedback sentiment processing
       reused_by: [customer-support, brand-manager]
       
@@ -120,8 +120,8 @@ integration_priorities:
     - command: research-assistant create "competitor analysis"
       purpose: Deep market research
       
-    - command: task-planner breakdown --feature-id <id>
-      purpose: Convert features to actionable tasks
+    - command: plan-manager author start
+      purpose: Decompose a feature into an implementation plan with phases
       
   3_direct_api:
     - justification: Real-time collaboration requires WebSocket
@@ -230,7 +230,7 @@ endpoints:
 published_events:
   - name: product.feature.prioritized
     payload: { feature_id: UUID, rice_score: float, rank: int }
-    subscribers: [task-planner, resource-allocator, team-dashboard]
+    subscribers: [plan-manager, resource-allocator, team-dashboard]
     
   - name: product.roadmap.updated
     payload: { roadmap_id: UUID, version: int, changes: array }
@@ -471,7 +471,7 @@ discovery:
   metadata:
     description: "AI-powered product management and strategic planning"
     keywords: [product, roadmap, prioritization, RICE, sprint, agile]
-    dependencies: [mind-maps, research-assistant, task-planner]
+    dependencies: [mind-maps, research-assistant, plan-manager]
     enhances: [team-dashboard, stakeholder-reports]
 ```
 
@@ -544,16 +544,16 @@ structure:
     - api/go.mod
     - cli/product-manager-agent
     - cli/install.sh
-    - initialization/storage/postgres/schema.sql
-    - initialization/automation/n8n/rice-calculator.json
-    - initialization/automation/n8n/roadmap-generator.json
+    - api/internal/<domain>/storage/postgres/schema.sql
+    - api/internal/<domain>/automation/n8n/rice-calculator.json
+    - api/internal/<domain>/automation/n8n/roadmap-generator.json
     - scenario-test.yaml
     
   required_dirs:
     - api
     - cli
-    - initialization/storage/postgres
-    - initialization/automation/n8n
+    - api/internal/<domain>/storage/postgres
+    - api/internal/<domain>/automation/n8n
     - ui/dashboard
 
 resources:
@@ -614,7 +614,7 @@ tests:
 ### Integration Validation
 - [ ] Calls mind-maps CLI for strategy visualization
 - [ ] Triggers research-assistant for competitor analysis
-- [ ] Sends features to task-planner for breakdown
+- [ ] Sends features to plan-manager for breakdown
 - [ ] Publishes events to Redis bus
 
 ### Capability Verification
@@ -668,7 +668,7 @@ tests:
 ### Related PRDs
 - scenarios/mind-maps/PRD.md - Visual organization capability
 - scenarios/research-assistant/PRD.md - Competitor research
-- scenarios/task-planner/PRD.md - Task breakdown
+- scenarios/plan-manager/PRD.md - Plan and phase breakdown
 
 ### External Resources
 - [RICE Scoring Framework](https://www.intercom.com/blog/rice-simple-prioritization-for-product-managers/)

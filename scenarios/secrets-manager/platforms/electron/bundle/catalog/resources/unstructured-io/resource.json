@@ -1,0 +1,212 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "unstructured-io",
+  "storage": {"entries": {
+    "cache": {"rung": "relocatable", "path": {"linux": "$USER_HOME/.cache/vrooli/resources/unstructured-io", "macos": "$USER_HOME/Library/Caches/vrooli/resources/unstructured-io", "windows": "$USER_HOME/AppData/Local/vrooli/resources/unstructured-io"}, "kind": "dir", "class": "cache", "regenerable": true, "relocation": {"key": "RESOURCE_CACHE_DIR", "scope": "container"}, "rationale": "The service binds RESOURCE_CACHE_DIR to /app/cache for reusable extraction artifacts."},
+    "logs": {"rung": "relocatable", "path": {"linux": "$USER_HOME/.local/state/logs/vrooli/resources/unstructured-io", "macos": "$USER_HOME/Library/Logs/vrooli/resources/unstructured-io", "windows": "$USER_HOME/AppData/Local/Logs/vrooli/resources/unstructured-io"}, "kind": "dir", "class": "logs", "regenerable": true, "relocation": {"key": "RESOURCE_LOGS_DIR", "scope": "container"}, "rationale": "The service binds RESOURCE_LOGS_DIR to /app/logs; logs are diagnostic and regenerable."},
+    "processing": {"rung": "relocatable", "path": {"linux": "$USER_HOME/.local/state/vrooli/resources/unstructured-io/tmp", "macos": "$USER_HOME/Library/Application Support/State/vrooli/resources/unstructured-io/tmp", "windows": "$USER_HOME/AppData/Local/State/vrooli/resources/unstructured-io/tmp"}, "kind": "dir", "class": "state", "regenerable": true, "relocation": {"key": "RESOURCE_STATE_DIR", "scope": "container"}, "rationale": "The compose service binds this directory to /tmp/unstructured-processing for transient extraction work."}
+  }},
+  "display_name": "Unstructured IO",
+  "description": "Managed Unstructured API service for document partitioning and OCR-backed extraction.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-unstructured-io",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-unstructured-io_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-unstructured-io"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "template": "docker-service",
+  "driver": "docker-service",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker images, storage, and networking remain host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        }
+      }
+    }
+  },
+  "portability_tier": "full",
+  "category": "ai",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 8000,
+      "host": 11450
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:11450/healthcheck",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    }
+  ],
+  "runtime": {
+    "image": "downloads.unstructured.io/unstructured-io/unstructured-api@sha256:a43ab55898599157fb0e0e097dabb8ecdd1d8e3df1ae5b67c6e15a136b171a6c",
+    "container_name": "vrooli-unstructured-io",
+    "env": {
+      "UNSTRUCTURED_API_LOG_LEVEL": "INFO",
+      "UNSTRUCTURED_API_MAX_REQUEST_SIZE": "52428800",
+      "UNSTRUCTURED_API_WORKERS": "1",
+      "UNSTRUCTURED_API_PORT": "8000"
+    }
+  },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific Unstructured.io dependency settings.",
+    "properties": {
+      "processing": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "cache": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "docker": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "health": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "outputFormats": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "environment_exports": {
+    "static": {
+      "UNSTRUCTURED_HOST": "localhost"
+    },
+    "from_ports": {
+      "UNSTRUCTURED_PORT": "http"
+    },
+    "from_runtime_env": [
+      "UNSTRUCTURED_API_LOG_LEVEL",
+      "UNSTRUCTURED_API_MAX_REQUEST_SIZE",
+      "UNSTRUCTURED_API_WORKERS",
+      "UNSTRUCTURED_API_PORT"
+    ],
+    "derived": {
+      "UNSTRUCTURED_URL": {
+        "template": "http://${UNSTRUCTURED_HOST}:${UNSTRUCTURED_PORT}"
+      },
+      "UNSTRUCTURED_IO_URL": {
+        "template": "${UNSTRUCTURED_URL}"
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 450,
+    "startup_timeout_seconds": 40,
+    "startup_time_estimate": "10-20s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 60,
+    "stop_timeout_seconds": 30,
+    "retries": 5
+  },
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
+}

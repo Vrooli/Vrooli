@@ -1,0 +1,827 @@
+/* Metric readout — cards and traces
+ * ==================================
+ * The Dashboard's primary instrument face. Every colour here resolves through
+ * a token defined in tokens.css so both themes are covered; nothing in this
+ * file defines a colour of its own.
+ *
+ * Two rules govern the whole file:
+ *   1. A reading that was never taken must never be drawn as a value. No
+ *      zero-length bars, no traces under an unavailable collector.
+ *   2. Severity is carried on at least two channels — colour AND an edge
+ *      treatment — so the state survives greyscale and colour-blindness.
+ */
+
+.device-graph-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.device-graph-panel__header,
+.device-graph-panel__device,
+.device-graph-panel__readings div,
+.device-graph-panel__rungs li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-sm);
+}
+
+.device-graph-panel__header {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.device-graph-panel__header h2 {
+  margin: 0;
+}
+
+.device-graph-panel__list {
+  display: grid;
+  gap: var(--spacing-sm);
+}
+
+.device-graph-panel__device {
+  flex-direction: column;
+  align-items: stretch;
+  padding: var(--spacing-sm) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.device-graph-panel__readings,
+.device-graph-panel__rungs {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.device-graph-panel__readings div {
+  justify-content: space-between;
+}
+
+.device-graph-panel__readings dt,
+.device-graph-panel__readings dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.device-graph-panel__readings dd,
+.device-graph-panel__rungs strong {
+  color: var(--color-primary);
+}
+
+.device-graph-panel__rungs li {
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.device-graph-panel__rungs li small {
+  flex-basis: 100%;
+  color: var(--color-text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CARD SHELL
+   ═══════════════════════════════════════════════════════════ */
+
+.readout-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* The severity stripe. Colour carries the state for readers who can see it;
+   the stripe's *pattern* carries the same state for readers who cannot, which
+   is why each level gets a distinct fill rhythm rather than a distinct hue. */
+.readout-card__stripe {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  background: var(--color-border);
+}
+
+.readout-card[data-severity='critical'] .readout-card__stripe {
+  /* Solid, full height: the loudest possible rhythm. */
+  background: var(--color-error);
+}
+
+.readout-card[data-severity='elevated'] .readout-card__stripe {
+  /* Long dashes — visibly interrupted, but still mostly filled. */
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--color-warning) 0 14px,
+    transparent 14px 22px
+  );
+}
+
+.readout-card[data-severity='nominal'] .readout-card__stripe {
+  /* A quiet hairline: present, unalarming. */
+  background: var(--color-primary-muted);
+}
+
+/* Read, but no bar grades it. Distinct from BOTH `nominal` (judged, and
+   within limits) and `unread` (never measured): the reading is real, so the
+   stripe is continuous rather than dotted, but it stays neutral because no
+   verdict exists to colour it. */
+.readout-card[data-severity='ungraded'] .readout-card__stripe {
+  background: var(--color-border-strong);
+}
+
+.readout-card[data-severity='unread'] .readout-card__stripe {
+  /* Fine dots — reads as "no signal" rather than "signal at zero". */
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--color-text-muted) 0 2px,
+    transparent 2px 6px
+  );
+  opacity: 0.7;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MACHINE AXIS
+   The machine is app state, not a page filter: one control in the header sets
+   the subject of every panel below it, and one strip states that subject for
+   as long as it is not this computer. Both are built from the same four
+   presence tones so a reader learns the vocabulary once.
+   ═══════════════════════════════════════════════════════════ */
+
+/* The status lamp. A ring rather than a filled dot: on graphite a filled dot at
+   this size reads as a bullet, while a lit ring reads as an indicator. */
+.machine-led {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.machine-led--local,
+.machine-led--live {
+  color: var(--color-success);
+}
+
+.machine-led--stale {
+  color: var(--color-warning);
+}
+
+/* Amber, not red: an absent machine is a state, not a fault. The row's own
+   dimming is what separates "never connected" from "went quiet". */
+.machine-led--unreachable {
+  color: var(--color-warning);
+}
+
+/* A grant is read before an action is offered, so a disabled control can carry
+   a reason instead of a permission error after the click. */
+.machine-chip {
+  flex: none;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* ── Picker ───────────────────────────────────────────────── */
+
+.machine-picker {
+  position: relative;
+}
+
+.machine-picker__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.machine-picker__trigger:hover {
+  background: var(--color-surface-hover);
+}
+
+/* Reading another machine is the exceptional state, so the control that caused
+   it stays lit for as long as it is true. */
+.machine-picker__trigger[data-remote='true'] {
+  border-color: color-mix(in srgb, var(--color-primary) 55%, transparent);
+  background: var(--color-primary-muted);
+}
+
+.machine-picker__name {
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.machine-picker__caret {
+  color: var(--color-text-muted);
+}
+
+.machine-picker__menu {
+  position: absolute;
+  right: 0;
+  z-index: var(--z-dropdown);
+  min-width: 20rem;
+  margin-top: 0.5rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-lg);
+}
+
+.machine-picker__options {
+  max-height: min(60vh, 22rem);
+  overflow-y: auto;
+}
+
+.machine-picker__eyebrow {
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.63rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.machine-picker__option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.machine-picker__option:hover,
+.machine-picker__option:focus-visible {
+  background: var(--color-surface-hover);
+}
+
+.machine-picker__option[aria-selected='true'] {
+  background: var(--color-primary-muted);
+}
+
+/* Dimmed, not hidden and not disabled: a machine that cannot answer stays
+   choosable, because choosing it should be visibly a choice the reader made
+   rather than an error they discover afterwards. */
+.machine-picker__option[data-tone='unreachable'] {
+  opacity: 0.62;
+}
+
+.machine-picker__option-body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.machine-picker__option-name {
+  overflow: hidden;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.machine-picker__option-meta {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+.machine-picker__option[data-tone='unreachable'] .machine-picker__option-meta {
+  color: var(--color-warning-text);
+}
+
+.machine-picker__check {
+  flex: none;
+  color: var(--color-primary);
+}
+
+.machine-picker__add {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.machine-picker__add:hover,
+.machine-picker__add:focus-visible {
+  background: var(--color-primary-muted);
+}
+
+/* ── Identity strip ───────────────────────────────────────── */
+
+.machine-strip {
+  border-bottom: 1px solid color-mix(in srgb, var(--strip-accent) 38%, transparent);
+  background: color-mix(in srgb, var(--strip-accent) 11%, var(--color-background));
+}
+
+.machine-strip[data-tone='live'] {
+  --strip-accent: var(--color-primary);
+}
+
+.machine-strip[data-tone='stale'] {
+  --strip-accent: var(--color-warning);
+}
+
+.machine-strip[data-tone='unreachable'] {
+  --strip-accent: var(--color-warning);
+}
+
+/* The band is full-bleed; its content is not. Sharing the container's width
+   formula puts the machine's name on the same left edge as the panels it is
+   describing, so the strip reads as part of the page rather than as chrome. */
+.machine-strip__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  width: min(100% - (var(--spacing-xl) * 2), 1400px);
+  margin-inline: auto;
+  padding: 0.6rem 0;
+}
+
+.machine-strip__identity {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+
+.machine-strip__identity b {
+  color: var(--strip-accent);
+}
+
+.machine-strip__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.machine-strip__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.machine-strip__button:hover,
+.machine-strip__button:focus-visible {
+  border-color: var(--strip-accent);
+  background: var(--color-surface-hover);
+}
+
+/* The note that explains a subject's presence. It sits in the body, not in the
+   strip, so the strip keeps one height in every state and the explanation is
+   where a reader looks for content. */
+.machine-note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  border-left: 3px solid var(--note-accent);
+}
+
+.machine-note[data-tone='stale'] {
+  --note-accent: var(--color-warning);
+}
+
+.machine-note[data-tone='unreachable'] {
+  --note-accent: var(--color-warning);
+}
+
+.machine-note__title {
+  margin: 0;
+  color: var(--color-text-heading);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.machine-note p {
+  margin: 0;
+  max-width: 78ch;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.machine-note__meta {
+  color: var(--color-text-muted) !important;
+  font-family: var(--font-mono);
+  font-size: 0.72rem !important;
+}
+
+.machine-note__readiness {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.machine-note__readiness li {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.machine-note__readiness li[data-passed='true'] {
+  color: var(--color-success-text);
+}
+
+.machine-note__readiness li[data-passed='false'] {
+  color: var(--color-warning-text);
+}
+
+/* The panels a remote subject cannot fill. A quiet footnote under the vitals,
+   not a headline above them: it explains an absence, and an explanation that
+   outweighs the readings it accompanies is in the wrong place. */
+.machine-local-only {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  max-width: 82ch;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+}
+
+.machine-local-only svg {
+  flex: none;
+  margin-top: 0.15rem;
+}
+
+/* Every reading is stamped, and while the subject is silent every stamp is the
+   same age. Freezing the whole view at one timestamp is more truthful than
+   letting some panels update and others not. */
+.readings-frozen {
+  opacity: 0.55;
+  filter: saturate(0.55);
+  transition: opacity var(--transition-fast), filter var(--transition-fast);
+}
+
+@media (max-width: 640px) {
+  .machine-strip__bar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .machine-picker__menu {
+    right: auto;
+    left: 0;
+    min-width: 16rem;
+  }
+}
+
+.readout-card[data-severity='critical'] {
+  border-color: var(--color-error);
+}
+
+.readout-card[data-severity='elevated'] {
+  border-color: var(--color-warning);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HEADER
+   ═══════════════════════════════════════════════════════════ */
+
+/* The card is a flex column with its own gap; the header's legacy bottom
+   margin would double it. */
+.readout-card .metric-header {
+  margin-bottom: 0;
+  gap: var(--spacing-sm);
+}
+
+.readout-card__label {
+  /* `text-wrap` needs a block box to act on. */
+  display: inline-block;
+  text-wrap: balance;
+}
+
+/* The expand affordance is a real button so the card is reachable and
+   operable from the keyboard; the card's own click handler stays as a
+   pointer convenience. */
+.readout-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.readout-toggle:hover {
+  color: var(--color-primary-hover);
+}
+
+.readout-toggle:focus-visible {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: var(--focus-ring);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   THE FIGURE LOCKUP
+   ═══════════════════════════════════════════════════════════
+   Number and unit are ONE object on ONE baseline, not two elements that
+   happen to be near each other. */
+
+.readout-figure {
+  display: flex;
+  align-items: baseline;
+  gap: 0.18em;
+  margin-bottom: 0;
+  line-height: 1;
+}
+
+.readout-figure__value {
+  font-family: var(--font-display);
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  font-variant-numeric: var(--numeric-tabular);
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.readout-figure__unit {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 500;
+  color: var(--color-text-muted);
+  line-height: 1;
+}
+
+@media (min-width: 900px) {
+  .readout-figure__value {
+    font-size: var(--text-5xl);
+  }
+
+  .readout-figure__unit {
+    font-size: var(--text-xl);
+  }
+}
+
+/* Provenance, not content. */
+.readout-caption {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: var(--numeric-tabular);
+  color: var(--color-text-muted);
+  letter-spacing: 0.01em;
+}
+
+.readout-reason {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--line-height-tight);
+  color: var(--color-warning-text);
+  text-wrap: balance;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   THE UNREAD BAR
+   ═══════════════════════════════════════════════════════════
+   What a metric with no reading gets INSTEAD of a bar. A hatched, empty
+   track states "nothing was measured"; a 0%-wide fill would have stated
+   "we measured zero", which is a different and false claim. */
+
+.readout-bar--unread {
+  width: 100%;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--color-border-strong) 0 2px,
+    transparent 2px 6px
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   THE TRACE
+   ═══════════════════════════════════════════════════════════ */
+
+.readout-trace {
+  display: flex;
+  align-items: stretch;
+  gap: var(--spacing-sm);
+  width: 100%;
+}
+
+.readout-trace__plot {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  /* The newest-sample dot sits exactly on the right edge; let its halo out. */
+  overflow: visible;
+}
+
+/* The value rail. Deliberately OUTSIDE the plot so it never overlaps the
+   trace it annotates. */
+.readout-trace__rail {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2px 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: var(--numeric-tabular);
+  line-height: 1;
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+.readout-trace__window {
+  margin-top: var(--spacing-xs);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* Endpoint and hover dots are HTML, not SVG: the chart's viewBox is stretched
+   horizontally to the card width, so an SVG <circle> would render as a
+   flattened ellipse. Vertical scale is 1:1, so a px `top` is exact. */
+.readout-trace__dot,
+.readout-trace__halo {
+  position: absolute;
+  border-radius: var(--radius-full);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.readout-trace__dot {
+  width: 6px;
+  height: 6px;
+  box-shadow: 0 0 0 1.5px var(--chart-dot-stroke);
+}
+
+.readout-trace__halo {
+  width: 16px;
+  height: 16px;
+  background: var(--chart-endpoint-halo);
+  animation: readout-halo-breathe 3.2s ease-in-out infinite;
+}
+
+@keyframes readout-halo-breathe {
+  0%, 100% { opacity: 0.85; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 0.45; transform: translate(-50%, -50%) scale(0.78); }
+}
+
+.readout-trace__tooltip {
+  position: absolute;
+  top: -4px;
+  transform: translate(-50%, -100%);
+  padding: 3px 7px;
+  border: 1px solid var(--chart-tooltip-border);
+  border-radius: var(--radius-sm);
+  background: var(--chart-tooltip-bg);
+  box-shadow: var(--chart-tooltip-shadow);
+  color: var(--color-text-heading);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: var(--numeric-tabular);
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ── Empty state ──
+   Honest and composed: a labelled, explicitly empty channel. It is NOT a
+   chart of zeroes, and it is NOT the "unavailable" treatment — this metric
+   is working, it simply has not accumulated a window yet. */
+.readout-trace--empty {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  width: 100%;
+}
+
+.readout-trace__empty-rule {
+  height: 0;
+  border-top: 1px dashed var(--chart-grid-strong);
+}
+
+.readout-trace__empty-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DETAIL AFFORDANCE
+   ═══════════════════════════════════════════════════════════
+   A quiet ghost, not a floating CTA. The eyebrow treatment lives here so the
+   markup can carry a normally-cased, screen-reader-friendly label. */
+
+.readout-detail {
+  margin-top: var(--spacing-sm);
+  display: flex;
+}
+
+.readout-detail__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  min-height: 44px;
+  padding: 0 var(--spacing-xs);
+  background: none;
+  border: none;
+  border-bottom: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.readout-detail__btn:hover {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.readout-detail__btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MOTION
+   ═══════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .readout-trace__halo {
+    animation: none;
+  }
+
+  .readout-toggle,
+  .readout-detail__btn {
+    transition: none;
+  }
+}

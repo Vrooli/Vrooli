@@ -1,0 +1,78 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "sd-gpu",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
+  "description": "GPU-accelerated stable-diffusion.cpp build for image-tools, installed as a distinct `sd-gpu` command from a GPU release (Vulkan on Linux — runs on NVIDIA and AMD; CUDA 12 on Windows). The image-tools stable-diffusion.cpp provider prefers `sd-gpu` over the CPU `sd` when present, so its tier reports local-gpu and the capacity broker can arbitrate op-scoped GPU VRAM. Capability-gated: cleanly skipped on hosts with no GPU.",
+  "commands": [
+    "sd-gpu"
+  ],
+  "versionArgs": [
+    "--help"
+  ],
+  "requires": {
+    "gpu": true,
+    "minVramGb": 4
+  },
+  "installHint": "GPU build for the stable-diffusion.cpp backend: run `vrooli host install sd-gpu` on a GPU host. It installs a distinct `sd-gpu` launcher (into ~/.vrooli/opt/sd-gpu) alongside any CPU `sd`; the image-tools provider prefers `sd-gpu` when present, probes vulkan0/cuda0, reports tier local-gpu, and the capacity broker can then make op-scoped GPU VRAM claims. Linux uses the prebuilt Vulkan build (leejet/stable-diffusion.cpp publishes no Linux CUDA binary; CUDA on Linux is source-only). Uninstall sd-gpu to fall back to the CPU `sd` build.",
+  "notes": "Pinned to leejet/stable-diffusion.cpp release master-709-92a3b73, matching the CPU `sd` tool. A distinct command (`sd-gpu`, not `sd`) so `vrooli host install sd-gpu` is not short-circuited by an existing CPU `sd` on PATH; the image-tools provider resolves `sd-gpu` ahead of `sd`. linux/amd64 = the x86_64-vulkan asset (NVIDIA + AMD via the Vulkan compute backend; verified live to detect an RTX 4070 Ti SUPER, fp16-capable). windows/amd64 = the win-cuda12 asset. macOS has no matching target and is cleanly unsupported (same as the CPU `sd` tool). sha256 values are the GitHub release asset digests; the linux/amd64 archive was downloaded and verified.",
+  "bundling": "vendorable",
+  "capability": "gpu-driver-health",
+  "capability_role": "primary",
+  "acquisition": {
+    "kind": "url",
+    "targets": [
+      {
+        "when": {
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "url": "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-709-92a3b73/sd-master-92a3b73-bin-Linux-Ubuntu-24.04-x86_64-vulkan.zip",
+        "sha256": "b2c8330f51c5d4603ee48cafbf2aeeca0f18541e1fe623b981389b1994fcb75f",
+        "archive": "zip",
+        "layout": "dir",
+        "bin_path": "sd-cli"
+      },
+      {
+        "when": {
+          "os": "windows",
+          "arch": "amd64"
+        },
+        "url": "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-709-92a3b73/sd-master-92a3b73-bin-win-cuda12-x64.zip",
+        "sha256": "dc36a0228e795ecd497f56a777971f389bb8feae75a51dce14292e79f23f821e",
+        "archive": "zip",
+        "layout": "dir",
+        "bin_path": "sd-cli.exe"
+      },
+      {
+        "when": {
+          "os": "linux",
+          "arch": "arm64"
+        },
+        "unsupported": "stable-diffusion.cpp publishes no Linux arm64 Vulkan release artifact; building the missing upstream target is outside host provisioning scope."
+      },
+      {
+        "when": {
+          "os": "darwin"
+        },
+        "unsupported": "stable-diffusion.cpp publishes no supported macOS GPU release artifact for this tool; building a macOS target is outside host provisioning scope."
+      }
+    ]
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  }
+}

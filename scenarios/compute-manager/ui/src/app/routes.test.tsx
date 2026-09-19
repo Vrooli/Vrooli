@@ -1,0 +1,41 @@
+/**
+ * Routing smoke — for each canonical path the matching page selector is in the
+ * document. Page-internal behaviour is exercised in per-page tests; this
+ * file's job is to assert the router config. Add one case per route you add.
+ */
+import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, screen } from "@testing-library/react";
+
+import { renderWithProviders } from "../test-utils";
+import { selectors } from "../consts/selectors";
+import { TestAppRouter } from "./routes";
+
+describe("AppRouter", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("renders the dashboard at /", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.dashboard)).toBeInTheDocument();
+  });
+
+  it("renders the settings page at /settings", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument();
+  });
+
+  it("renders the capacity request page at /request", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/request"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.request)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.pages.requestForm)).toBeInTheDocument();
+  });
+
+  it("renders the findings and instance routes", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/findings"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.findings)).toBeInTheDocument();
+    cleanup();
+    renderWithProviders(<TestAppRouter initialEntries={["/instances/instance-1"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.instance)).toBeInTheDocument();
+  });
+});

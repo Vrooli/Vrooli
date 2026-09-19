@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "exceptions": [
+    {
+      "code": "proto.shared_type_misplaced",
+      "message_full_names": [
+        "agent_manager.v1.ExecutionPolicySnapshot",
+        "agent_manager.v1.Run",
+        "agent_manager.v1.RunEvent"
+      ],
+      "reason": "These established V1 message identities are consumed by the Agent Manager API, CLI, UI, workflow sources, and generated clients. Moving them to v1/shared changes their protobuf full names and generated symbols; that requires a separately planned, versioned compatibility migration. New shared messages must be introduced in v1/shared.",
+      "expires": "V2 contract migration with a consumer inventory and compatibility plan"
+    }
+  ]
+}

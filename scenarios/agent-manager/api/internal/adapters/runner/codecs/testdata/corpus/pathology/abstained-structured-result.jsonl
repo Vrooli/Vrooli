@@ -1,0 +1,3 @@
+{"type":"thread.started","thread_id":"pathology-abstained-structured"}
+{"type":"item.completed","item":{"id":"abstained-output","type":"agent_message","text":"not valid JSON"}}
+{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":0}}

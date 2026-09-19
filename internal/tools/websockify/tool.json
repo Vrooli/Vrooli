@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "websockify",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
+  "description": "WebSocket-to-TCP proxy for bridging VNC sessions into browsers",
+  "commands": [
+    "websockify"
+  ],
+  "versionArgs": [],
+  "notes": "websockify has no version flag (--version, -V, -v all fail); empty versionArgs is intentional",
+  "defaultPackage": "websockify",
+  "packages": {
+    "apt-get": "websockify"
+  },
+  "installHint": "Install websockify to bridge VNC desktop sessions into browser WebSocket endpoints",
+  "bundling": "host-required",
+  "capability": "remote-desktop",
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unsupported",
+      "evidence": "This host OS has no declaration for the provider native command surface."
+    },
+    "windows": {
+      "status": "unsupported",
+      "evidence": "This host OS has no declaration for the provider native command surface."
+    }
+  }
+}

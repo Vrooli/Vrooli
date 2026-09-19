@@ -1,0 +1,226 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "declaration-registry",
+    "title": "Declaration Registry",
+    "routes": [
+      "/declarations"
+    ],
+    "purpose": "Show every consumer-declared record in the fleet with its registration state, so a broken or colliding declaration is visible here rather than only at generation time.",
+    "prd_refs": [
+      "OT-P0-025",
+      "OT-P0-026",
+      "OT-P0-027"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Which declarations are registered, invalid, or unregistered"
+    },
+    {
+      "statement": "Exactly which file and which owning scenario a record came from"
+    },
+    {
+      "statement": "Where two declarations collide, naming both paths"
+    }
+  ],
+  "elements": [
+    {
+      "id": "declaration-list",
+      "role": "list",
+      "name": "Declarations",
+      "description": "Every declared record grouped by owning scenario."
+    },
+    {
+      "id": "registration-status",
+      "role": "status",
+      "name": "Status",
+      "description": "Registered, invalid, or unregistered."
+    },
+    {
+      "id": "parse-error",
+      "role": "status",
+      "name": "Parse error",
+      "description": "The verbatim parse error carried by an invalid declaration."
+    },
+    {
+      "id": "collision-detail",
+      "role": "status",
+      "name": "Collision",
+      "description": "Both paths claiming a single key."
+    },
+    {
+      "id": "source-path",
+      "role": "link",
+      "name": "Source file",
+      "description": "The owning scenario and path that is the record's source of truth."
+    },
+    {
+      "id": "reindex-action",
+      "role": "button",
+      "name": "Reindex",
+      "description": "Rescans the declaration glob without restarting the service."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "All declarations registered.",
+      "setup": {
+        "route": "/declarations"
+      }
+    },
+    {
+      "id": "invalid-present",
+      "description": "At least one declaration failed to parse; its error is shown and the service is running normally.",
+      "setup": {
+        "route": "/declarations"
+      }
+    },
+    {
+      "id": "collision",
+      "description": "Two declarations claim one key; both paths are named and neither wins.",
+      "setup": {
+        "route": "/declarations"
+      }
+    },
+    {
+      "id": "unregistered-present",
+      "description": "A declaration file was deleted; the record is retained and refuses new generation.",
+      "setup": {
+        "route": "/declarations"
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No consumer has declared any record yet.",
+      "setup": {
+        "route": "/declarations"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "Data for this surface is in flight; skeleton structure is shown rather than a blank frame.",
+      "setup": {
+        "route": "/declarations"
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some data resolved and some did not; what resolved stays usable and what failed is named rather than silently omitted.",
+      "setup": {
+        "route": "/declarations"
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is known to be out of date relative to its source; the surface says so rather than presenting it as current.",
+      "setup": {
+        "route": "/declarations"
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the specific cause is stated inline and the surface offers the action that retries it.",
+      "setup": {
+        "route": "/declarations"
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "invalid-does-not-imply-broken-service",
+      "type": "state-distinct",
+      "statement": "An invalid declaration is perceivably distinct from an unhealthy service, and the surface makes clear the system is running normally.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "states": [
+        "invalid-present"
+      ],
+      "elements": [
+        "registration-status",
+        "parse-error"
+      ],
+      "rationale": "A malformed consumer file must never read as this scenario being down; it must never block startup either. (Tier: aspirational until the UI exists and accessibility captures can join these bindings; promote to machine at that point \u2014 the binding testids above are the contract the UI must satisfy.)"
+    },
+    {
+      "id": "collision-names-both-paths",
+      "type": "element-present",
+      "statement": "A key collision names both claiming paths and states that neither was applied.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "states": [
+        "collision"
+      ],
+      "elements": [
+        "collision-detail"
+      ],
+      "rationale": "Last-writer-wins is refused by design, so the surface must show why nothing resolved rather than appearing stuck. (Tier: aspirational until the UI exists and accessibility captures can join these bindings; promote to machine at that point \u2014 the binding testids above are the contract the UI must satisfy.)"
+    },
+    {
+      "id": "source-path-always-visible",
+      "type": "element-present",
+      "statement": "Every declared record shows its owning scenario and file path.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "states": [
+        "default",
+        "invalid-present"
+      ],
+      "elements": [
+        "source-path"
+      ],
+      "rationale": "The file is the source of truth; a record whose origin is not visible cannot be fixed by the team that owns it. (Tier: aspirational until the UI exists and accessibility captures can join these bindings; promote to machine at that point \u2014 the binding testids above are the contract the UI must satisfy.)"
+    },
+    {
+      "id": "unregistered-retains-provenance",
+      "type": "state-distinct",
+      "statement": "An unregistered record is distinct from a deleted one and still resolves historical provenance.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "states": [
+        "unregistered-present"
+      ],
+      "elements": [
+        "registration-status"
+      ],
+      "rationale": "Hard-deleting would orphan the provenance of every candidate ever generated from it. (Tier: aspirational until the UI exists and accessibility captures can join these bindings; promote to machine at that point \u2014 the binding testids above are the contract the UI must satisfy.)"
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "declaration-list": {
+        "testid": "declaration-list"
+      },
+      "registration-status": {
+        "testid": "registration-status"
+      },
+      "parse-error": {
+        "testid": "parse-error"
+      },
+      "collision-detail": {
+        "testid": "collision-detail"
+      },
+      "source-path": {
+        "testid": "source-path"
+      },
+      "reindex-action": {
+        "testid": "reindex-action"
+      }
+    }
+  }
+}

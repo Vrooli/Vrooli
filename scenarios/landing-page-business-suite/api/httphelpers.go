@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"landing-page-business-suite-api/internal/logx"
+
 	"github.com/gorilla/mux"
 )
 
@@ -101,7 +103,7 @@ func writeJSONSuccess(w http.ResponseWriter, message string) {
 		"success": true,
 		"message": message,
 	}); err != nil {
-		logStructuredError("write_json_success_failed", map[string]interface{}{
+		logx.Error("write_json_success_failed", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -111,7 +113,7 @@ func writeJSONSuccess(w http.ResponseWriter, message string) {
 func writeJSONSuccessData(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(data); err != nil {
-		logStructuredError("write_json_success_data_failed", map[string]interface{}{
+		logx.Error("write_json_success_data_failed", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -123,7 +125,20 @@ func writeJSONSuccessSimple(w http.ResponseWriter) {
 	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 	}); err != nil {
-		logStructuredError("write_json_success_simple_failed", map[string]interface{}{
+		logx.Error("write_json_success_simple_failed", map[string]interface{}{
+			"error": err.Error(),
+		})
+	}
+}
+
+// writeJSONStatus writes a JSON payload with an explicit HTTP status. It is the
+// structured-response writer for operations that must report both a failure
+// status and an actionable body, such as a delivery storage diagnostic.
+func writeJSONStatus(w http.ResponseWriter, status int, payload interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		logx.Error("write_json_status_failed", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}

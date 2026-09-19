@@ -1,0 +1,162 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {},
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "state": "ready",
+        "surfaceId": "results"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Results are ready"
+        }
+      ],
+      "id": "ready",
+      "mode": "pinned",
+      "name": "Ready",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Ready"
+        }
+      },
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "state": "static",
+        "surfaceId": "guidance"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Static guidance"
+        }
+      ],
+      "id": "static",
+      "mode": "pinned",
+      "name": "Static",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Static"
+        }
+      },
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "state": "loading",
+        "statusMessage": "Loading results",
+        "surfaceId": "results"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Loading results",
+          "role": "status"
+        }
+      ],
+      "id": "loading",
+      "mode": "pinned",
+      "name": "Loading",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Loading"
+        }
+      },
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "state": "empty",
+        "surfaceId": "results"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "No results"
+        }
+      ],
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Empty"
+        }
+      },
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "state": "partial",
+        "statusMessage": "Some results are unavailable",
+        "surfaceId": "results"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Some results are unavailable",
+          "role": "status"
+        }
+      ],
+      "id": "partial",
+      "mode": "pinned",
+      "name": "Partial",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Partial"
+        }
+      },
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "state": "error",
+        "statusMessage": "Results could not load",
+        "surfaceId": "results"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Results could not load",
+          "role": "status"
+        }
+      ],
+      "id": "error",
+      "mode": "pinned",
+      "name": "Error",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Error"
+        }
+      },
+      "role": "boundary"
+    },
+    {
+      "id": "as",
+      "name": "Element axis",
+      "axis": "as",
+      "covers": {"as": ["section", "div", "main", "aside"]},
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Ready"}},
+      "expect": [{"kind": "text", "value": "Results are ready"}],
+      "role": "axis",
+      "mode": "pinned"
+    },
+    {"id":"overflow","name":"Long ready message","args":{"state":"ready","message":"Results are ready with a deliberately long explanation that must wrap inside the experience surface."},"expect":[{"kind":"text","value":"Results are ready"}],"role":"boundary","mode":"pinned"}
+  ],
+  "title": "ExperienceSurface"
+}

@@ -1,0 +1,17 @@
+[
+  {
+    "machine_profile": "2vcpu-4gib-40gib-no-gpu",
+    "expected_result": "unsupported_capability",
+    "reason": "gpu required, none declared by target"
+  },
+  {
+    "machine_profile": "4vcpu-8gib-40gib-no-gpu",
+    "expected_result": "unsupported_capability",
+    "reason": "gpu required, none declared by target"
+  },
+  {
+    "machine_profile": "8vcpu-32gib-100gib-gpu-8gib",
+    "expected_result": "insufficient_capacity",
+    "reason": "disk below 40960 MiB after reserve"
+  }
+]

@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gorilla/mux"
-
 	"scenario-to-cloud/internal/httputil"
+
+	"github.com/gorilla/mux"
 )
 
 // HandleGetSecrets returns an HTTP handler that proxies to secrets-manager

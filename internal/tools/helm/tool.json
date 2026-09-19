@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "helm",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
+  "description": "Kubernetes package manager",
+  "commands": [
+    "helm"
+  ],
+  "versionArgs": [
+    "version",
+    "--short"
+  ],
+  "packages": {
+    "brew": "helm",
+    "winget": "Helm.Helm"
+  },
+  "installHint": "Helm is not in standard apt repos. Install via: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash — or use snap install helm --classic",
+  "manual": true,
+  "notes": "Not yet declared by any scenario — kept for upcoming scenario-to-cloud integration",
+  "bundling": "host-required",
+  "capability": "container-runtime",
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  }
+}

@@ -149,4 +149,3 @@ func (s *WorkflowService) HydrateExecutionProto(ctx context.Context, execIndex *
 
 	return merged, nil
 }
-

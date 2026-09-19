@@ -1,0 +1,23 @@
+{
+  "createdAt": "2026-09-01T20:28:24Z",
+  "description": "Evaluate the deployment readiness check: Storefront application is registered",
+  "entry": "SKILL.md",
+  "id": "readiness-storefront-registered",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "tools"
+  ],
+  "name": "readiness-storefront-registered",
+  "origin": {
+    "kind": "authored"
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "readiness-check",
+    "deployment-manager"
+  ],
+  "updatedAt": "2026-09-01T20:28:24Z"
+}

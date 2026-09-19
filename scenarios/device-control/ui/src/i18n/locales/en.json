@@ -1,0 +1,170 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Device Control are uppercase-snake-case placeholders replaced by `template-manager generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "Device Control"
+  },
+  "errorBoundary": {
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again",
+    "title": "Something went wrong"
+  },
+  "errors": {
+    "aborted": "Operation aborted.",
+    "already_exists": "Already exists.",
+    "canceled": "Operation canceled.",
+    "data_loss": "Data loss detected.",
+    "deadline_exceeded": "Operation timed out.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "internal": "Something went wrong. Please try again.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "not_found": "Resource not found.",
+    "out_of_range": "Out of range.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "unauthenticated": "Please sign in to continue.",
+    "unavailable": "Service temporarily unavailable.",
+    "unimplemented": "Not yet implemented.",
+    "unknown": "An unknown error occurred."
+  },
+  "health": {
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "loading": "Checking API status…",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:",
+    "title": "API Health"
+  },
+  "layout": {
+    "bottomNavLabel": "Mobile navigation",
+    "nav": {
+      "dashboard": "Dashboard",
+      "evidence": "Evidence",
+      "flows": "Flows",
+      "settings": "Settings"
+    },
+    "sidebarLabel": "Primary navigation"
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_one": "1 notification",
+    "summary_zero": "No notifications"
+  },
+  "pages": {
+    "auth": {
+      "configured": "Credential configured; use a held lease for verified unlock.",
+      "lastOutcome": "Last outcome: {{outcome}}",
+      "none": "No authentication profiles enrolled.",
+      "provider": "Provider: {{state}}",
+      "reference": "Credential reference: {{identity}}:{{field}}",
+      "title": "Device authentication",
+      "unconfigured": "Credential is not configured; provision it through the CLI stdin workflow."
+    },
+    "dashboard": {
+      "acquireLease": "Acquire lease",
+      "addDevice": "Add device",
+      "cancel": "Cancel",
+      "description": "See what each device can prove, what is running, and stop a live session immediately.",
+      "devicesAvailable": "Devices available",
+      "discoverDevices": "Discover devices",
+      "fleetSnapshot": "Fleet capability snapshot",
+      "killImmediately": "Kill immediately",
+      "killSession": "Kill session {{id}}",
+      "knownDevice": "Known device",
+      "lanDiscovery": "LAN discovery",
+      "leaseExpires": "Lease expires {{timestamp}}",
+      "leaseFailed": "Lease acquisition failed",
+      "liveLeases": "Live leases",
+      "liveSessionControls": "Live session controls",
+      "localTransport": "local",
+      "modelUnavailable": "model unavailable",
+      "no": "no",
+      "noDevices": "No devices have been probed yet.",
+      "noLiveSessions": "No live sessions. A lease is required before any device verb.",
+      "notInInventory": "Not yet in inventory",
+      "onboardingFailed": "Onboarding probe failed",
+      "onboardingProbeComplete": "Onboarding probe complete",
+      "onboardingReport": "Onboarding report",
+      "osUnavailable": "OS version unavailable",
+      "pair": "Pair",
+      "pairDevice": "Pair {{name}}",
+      "pairTransport": "Pair transport",
+      "pairingStarted": "The handshake has started. Enter the six-character hexadecimal code shown on the television.",
+      "pairingStarting": "Starting the pairing handshake…",
+      "probePassed": "Probe passed; no health warning.",
+      "promotable": "Promotable",
+      "reprobe": "Re-probe onboarding",
+      "status": "Status",
+      "strategyMatrix": "Strategy conformance matrix",
+      "tiers": "Tiers",
+      "title": "Dashboard",
+      "txtMetadata": "TXT: {{metadata}}",
+      "unavailablePrerequisites": "Unavailable prerequisites",
+      "unknown": "Unknown",
+      "unnamedDevice": "Unnamed device",
+      "yes": "yes"
+    },
+    "evidence": {
+      "actor": "Actor",
+      "created": "Created",
+      "description": "Every dispatched verb is attributable to an actor, device, and lease.",
+      "device": "Device",
+      "noVerbs": "No device verbs have been dispatched.",
+      "outcome": "Outcome",
+      "recentVerbs": "Recent device verbs",
+      "title": "Evidence and audit",
+      "verb": "Verb"
+    },
+    "flows": {
+      "acquireAndRun": "Acquire lease and run",
+      "blockedBeforeExecution": "Blocked before execution",
+      "bytes": "bytes",
+      "capabilityGapReport": "Capability gap report",
+      "chapterSummary": "{{id}}: {{disposition}} — {{message}}",
+      "checksumUnavailable": "checksum unavailable",
+      "degradedEvidence": "Degraded: {{reason}}",
+      "description": "Validate required capabilities before a lease is acquired.",
+      "device": "Device",
+      "deviceOption": "{{name}} · {{id}}",
+      "dispositionReasonUnavailable": "below claim minimum",
+      "flowDefinition": "Flow definition",
+      "flowFailed": "Flow run failed",
+      "invalidFlow": "Invalid flow JSON",
+      "json": "JSON",
+      "killActiveSession": "Kill active session",
+      "killAvailable": "Kill is available while this flow is in flight.",
+      "liveSession": "Live session: {{id}}",
+      "noRun": "No run has been submitted.",
+      "noValidation": "No validation run yet.",
+      "redactionVerified": "redaction verified: {{verified}}",
+      "resolutionSummary": "{{target}}: rung {{rung}}, confidence {{confidence}}",
+      "retainedEvidence": "Retained evidence: {{count}}",
+      "retainedEvidenceAlt": "Retained evidence {{id}}",
+      "runReview": "Run review",
+      "runnable": "Runnable",
+      "running": "Running…",
+      "sessionKillFailed": "Session kill failed",
+      "strategy": "Strategy",
+      "strategyOption": "{{id}} · {{status}}",
+      "title": "Flow authoring",
+      "validate": "Validate before run"
+    },
+    "settings": {
+      "localeHeading": "Language",
+      "themeHeading": "Appearance",
+      "title": "Settings"
+    }
+  },
+  "theme": {
+    "choice": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System"
+    },
+    "switcherLabel": "Theme"
+  }
+}

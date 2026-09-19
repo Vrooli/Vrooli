@@ -1,0 +1,119 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Treasury のような大文字スネークケースのプレースホルダーは、`template-manager generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Treasury",
+    "eyebrow": "エージェント支出管理",
+    "description": "統制された支出要求を確認し、明示的で監査可能な判断を行います。"
+  },
+  "layout": {
+    "sidebarLabel": "メインナビゲーション",
+    "bottomNavLabel": "モバイルナビゲーション",
+    "nav": {
+      "approvals": "承認",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    }
+  },
+  "approvals": {
+    "title": "承認キュー",
+    "description": "保留中のエージェント支出要求を確認します。すべての判断は認証され、監査証跡に記録されます。",
+    "signInTitle": "オペレーター認証",
+    "tokenLabel": "オペレータートークン",
+    "tokenHelp": "トークンはこのページのメモリだけに保持され、ブラウザーには保存されません。",
+    "openQueue": "承認キューを開く",
+    "loading": "キューを開いています…",
+    "authError": "認証に失敗しました。オペレータートークンを確認して再試行してください。",
+    "resolveError": "判断を記録できませんでした。要求は保留のままです。再試行してください。",
+    "pendingTitle": "保留中の要求",
+    "pendingCount": "{{count}} 件保留中",
+    "pendingCount_one": "1 件保留中",
+    "empty": "判断が必要な支出要求はありません。",
+    "statusQueued": "レビュー待ち",
+    "agentLabel": "要求エージェント",
+    "mandateLabel": "委任",
+    "bookLabel": "ブック",
+    "expiresLabel": "有効期限",
+    "approve": "承認",
+    "decline": "却下",
+    "approveAria": "{{counterparty}}への{{amount}}の支払いを承認",
+    "declineAria": "{{counterparty}}への{{amount}}の支払いを却下",
+    "approvedAnnouncement": "{{counterparty}}への支払いを承認しました。",
+    "declinedAnnouncement": "{{counterparty}}への支払いを却下しました。"
+  },
+  "controls": {
+    "title": "Treasury コントロール",
+    "description": "ブック別の継続債務を確認し、シナリオ全体の緊急停止を操作します。",
+    "tokenLabel": "オペレータートークン",
+    "open": "コントロールを開く",
+    "authError": "認証に失敗しました。オペレータートークンを確認してください。",
+    "actionError": "変更を記録できませんでした。再試行前に現在の状態を確認してください。",
+    "killSwitchTitle": "シナリオ停止スイッチ",
+    "killSwitchHelp": "新しい承認とレール送信前の承認済み支払いを停止します。",
+    "freezeAll": "すべての支出を停止",
+    "unfreezeAll": "すべての支出を再開",
+    "frozenAnnouncement": "Treasury のすべての支出を停止しました。",
+    "unfrozenAnnouncement": "シナリオ全体の停止を解除しました。",
+    "standingTitle": "継続マンデート",
+    "standingHelp": "次回請求日は永続化された繰り返し状態から算出されます。",
+    "bookLabel": "ブック",
+    "noStanding": "このブックに継続マンデートはありません。",
+    "nextCharge": "次回請求",
+    "cancel": "債務をキャンセル",
+    "cancelled": "キャンセル済み",
+    "cancelAria": "継続マンデート {{mandate}} をキャンセル",
+    "cancelledAnnouncement": "継続マンデート {{mandate}} をキャンセルしました。"
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "statusLabel": "ステータス:",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

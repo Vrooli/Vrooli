@@ -35,9 +35,10 @@ import {
 } from "lucide-react";
 import type { WorkflowWithStats } from "./hooks/useProjectDetailStore";
 import { useScheduleStore, type WorkflowSchedule, type CreateScheduleInput, type UpdateScheduleInput, describeCron, formatNextRun } from "@stores/scheduleStore";
-import { useExecutionStore, useStartWorkflow, type Execution } from "@/domains/executions";
+import { useExecutionStore, type Execution } from "@/domains/executions/store";
+import { useStartWorkflow } from "@/domains/executions/hooks/useStartWorkflow";
 import { useWorkflowStore } from "@stores/workflowStore";
-import { useProjectStore } from "@/domains/projects";
+import { useProjectStore } from "@/domains/projects/store";
 import { ScheduleModal } from "@/views/SettingsView/sections/schedules/ScheduleModal";
 import { PromptDialog } from "@shared/ui/PromptDialog";
 import { logger } from "@utils/logger";

@@ -1,0 +1,50 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "scenario-to-repository",
+  "generator": "v1.0.0",
+  "manifest_hash": "cd0a55a75a72bc2401c738aa6881a958b42fa1f0e4ad09640e8f979b2e1b8595",
+  "commands": [
+    {
+      "path": "source analyze",
+      "group": "source",
+      "command": "analyze",
+      "binding": "SourceRepositoryService.AnalyzeClosure",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "source assemble",
+      "group": "source",
+      "command": "assemble",
+      "binding": "SourceRepositoryService.AssembleExport",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "source get-distribution",
+      "group": "source",
+      "command": "get-distribution",
+      "binding": "SourceRepositoryService.GetDistribution",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "source prepare-publication",
+      "group": "source",
+      "command": "prepare-publication",
+      "binding": "SourceRepositoryService.PreparePublication",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "source verify",
+      "group": "source",
+      "command": "verify",
+      "binding": "SourceRepositoryService.VerifyExport",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    }
+  ]
+}

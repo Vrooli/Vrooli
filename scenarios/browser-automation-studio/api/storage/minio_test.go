@@ -21,13 +21,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/integration"
 )
 
 // setupMinIOContainer starts a MinIO testcontainer and returns connection details
 func setupMinIOContainer(t *testing.T) (endpoint string, cleanup func()) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
+	integration.SkipShort(t, "MinIO testcontainer integration")
 
 	ctx := context.Background()
 

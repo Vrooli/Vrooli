@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package vrooli.landing_page_business_suite.v1.shared;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared;shared_v1";
+
+// ContentSection is the reusable authored section representation used by the
+// content service and portable variant snapshots.
+message ContentSection {
+  int64 id = 1;
+  int64 variant_id = 2;
+  string section_type = 3;
+  google.protobuf.Struct content = 4;
+  int32 order = 5;
+  bool enabled = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+  // key is the stable, variant-scoped identifier for JSON-backed sections.
+  // id remains for legacy database-backed payload compatibility.
+  string key = 9;
+}

@@ -11,7 +11,8 @@ import (
 	"sort"
 	"strings"
 
-	"knowledge-observatory/internal/docschema"
+	"knowledge-observatory/internal/doctemplates"
+	"knowledge-observatory/internal/docvalidation"
 )
 
 type treeNode struct {
@@ -39,10 +40,11 @@ func (s *Service) GetDocTree(ctx context.Context, scenarioName string) (*DocTree
 	if err != nil {
 		return nil, err
 	}
-	validation, err := docschema.ValidateScenarioDocumentation(scenarioPath)
+	validation, err := docvalidation.ValidateScenarioDocumentation(scenarioPath)
 	if err != nil {
 		return nil, err
 	}
+	resolved, _ := doctemplates.NewResolverFromScenariosRoot(s.scenariosRoot).ResolveScenario(scenarioPath)
 	warnings := buildWarningIndex(validation)
 
 	root := newTreeNode(scenarioName, s.repoRelative(scenarioPath), "directory")
@@ -51,7 +53,7 @@ func (s *Service) GetDocTree(ctx context.Context, scenarioName string) (*DocTree
 	for _, name := range []string{"README.md", "PRD.md"} {
 		abs := filepath.Join(scenarioPath, name)
 		if info, err := os.Stat(abs); err == nil && !info.IsDir() {
-			addFileNode(root, s, scenarioPath, abs, info, warnings)
+			addFileNode(root, s, scenarioPath, abs, info, warnings, resolved)
 		}
 	}
 
@@ -80,7 +82,7 @@ func (s *Service) GetDocTree(ctx context.Context, scenarioName string) (*DocTree
 			if err != nil {
 				return nil
 			}
-			addFileNode(root, s, scenarioPath, path, info, warnings)
+			addFileNode(root, s, scenarioPath, path, info, warnings, resolved)
 			return nil
 		}); err != nil {
 			return nil, err
@@ -92,13 +94,13 @@ func (s *Service) GetDocTree(ctx context.Context, scenarioName string) (*DocTree
 }
 
 type warningIndex struct {
-	misplaced map[string]docschema.MisplacedDoc
+	misplaced map[string]docvalidation.MisplacedDoc
 	extra     map[string]struct{}
 }
 
-func buildWarningIndex(validation *docschema.ValidationResult) warningIndex {
+func buildWarningIndex(validation *docvalidation.Result) warningIndex {
 	index := warningIndex{
-		misplaced: map[string]docschema.MisplacedDoc{},
+		misplaced: map[string]docvalidation.MisplacedDoc{},
 		extra:     map[string]struct{}{},
 	}
 	if validation == nil {
@@ -126,14 +128,14 @@ func warningFor(relPath string, warnings warningIndex) *DocWarning {
 	if _, ok := warnings.extra[relPath]; ok {
 		return &DocWarning{
 			Type:     "extra",
-			Message:  fmt.Sprintf("Documentation file is outside the standard layout: %s", relPath),
+			Message:  fmt.Sprintf("Documentation file is not registered in the documentation contract: %s", relPath),
 			Severity: "info",
 		}
 	}
 	return nil
 }
 
-func addFileNode(root *treeNode, svc *Service, scenarioPath, absPath string, info fs.FileInfo, warnings warningIndex) {
+func addFileNode(root *treeNode, svc *Service, scenarioPath, absPath string, info fs.FileInfo, warnings warningIndex, resolved *doctemplates.Resolved) {
 	rel, err := filepath.Rel(scenarioPath, absPath)
 	if err != nil {
 		return
@@ -151,8 +153,10 @@ func addFileNode(root *treeNode, svc *Service, scenarioPath, absPath string, inf
 				return
 			}
 			docType := ""
-			if dt, ok := docschema.DocTypeForPath(segment); ok {
-				docType = string(dt)
+			if resolved != nil && resolved.Contract != nil {
+				if doc, ok := resolved.Contract.ResolvePath(rel); ok {
+					docType = doc.DocType
+				}
 			}
 			current.children[segment] = &treeNode{
 				DocTreeNode: DocTreeNode{

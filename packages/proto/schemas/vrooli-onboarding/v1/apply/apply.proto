@@ -1,0 +1,151 @@
+syntax = "proto3";
+
+package vrooli.vrooli_onboarding.v1.apply;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+import "vrooli-onboarding/v1/shared/shared.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/apply;applyv1";
+
+// ApplyService owns the long-running host configuration operation. The run id
+// is a request field so a transport cannot mistake a URL path segment for
+// application identity or rewrite it while forwarding to another node.
+service ApplyService {
+  rpc StartApply(StartApplyRequest) returns (StartApplyResponse);
+  rpc GetApplyRun(GetApplyRunRequest) returns (GetApplyRunResponse);
+  rpc GetApplyPlan(GetApplyPlanRequest) returns (GetApplyPlanResponse);
+  rpc ReviewApply(ReviewApplyRequest) returns (ReviewApplyResponse);
+  rpc CancelApply(CancelApplyRequest) returns (CancelApplyResponse);
+}
+
+message StartApplyRequest {
+  string target = 1;
+  string plan_id = 2 [(buf.validate.field).string.min_len = 1];
+  string plan_digest = 3 [(buf.validate.field).string.min_len = 1];
+  string expected_revision = 4 [(buf.validate.field).string.min_len = 1];
+  string consent_receipt_id = 5 [(buf.validate.field).string.min_len = 1];
+  string idempotency_key = 6 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetApplyRunRequest {
+  string target = 1;
+  string run_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetApplyPlanRequest {
+  string target = 1;
+}
+
+enum ApplyRunState {
+  APPLY_RUN_STATE_UNSPECIFIED = 0;
+  APPLY_RUN_STATE_PENDING = 1;
+  APPLY_RUN_STATE_APPLYING = 2;
+  APPLY_RUN_STATE_APPLIED = 3;
+  APPLY_RUN_STATE_ALREADY_SATISFIED = 4;
+  APPLY_RUN_STATE_PARTIALLY_APPLIED = 5;
+  APPLY_RUN_STATE_CONFIGURATION_INCOMPLETE = 6;
+  APPLY_RUN_STATE_FAILED = 7;
+  APPLY_RUN_STATE_CANCELLED = 8;
+  APPLY_RUN_STATE_INDETERMINATE = 9;
+}
+
+enum ApplyStepState {
+  APPLY_STEP_STATE_UNSPECIFIED = 0;
+  APPLY_STEP_STATE_PENDING = 1;
+  APPLY_STEP_STATE_APPLYING = 2;
+  APPLY_STEP_STATE_APPLIED = 3;
+  APPLY_STEP_STATE_ALREADY_SATISFIED = 4;
+  APPLY_STEP_STATE_BLOCKED = 5;
+  APPLY_STEP_STATE_FAILED = 6;
+  APPLY_STEP_STATE_TIMED_OUT = 7;
+  APPLY_STEP_STATE_NEEDS_ELEVATION = 8;
+  APPLY_STEP_STATE_NOT_APPLICABLE = 9;
+  APPLY_STEP_STATE_SKIPPED_SELF = 10;
+}
+
+message ApplyItem {
+  string id = 1;
+  string kind = 2;
+  string name = 3;
+  repeated string dependencies = 4;
+  bool required = 5;
+  bool privileged = 6;
+  string observed_state = 7;
+}
+
+// ApplyStep is both the stable identity of one planned action and the event
+// record emitted as that action moves through the run. Timestamps describe
+// the operation itself and are never epoch integers or display strings.
+message ApplyStep {
+  string id = 1;
+  string kind = 2;
+  string name = 3;
+  repeated string dependencies = 4;
+  bool required = 5;
+  bool privileged = 6;
+  string observed_state = 7;
+  ApplyStepState state = 8;
+  string legacy_outcome = 9;
+  string disposition = 10;
+  string error = 11;
+  string remediation = 12;
+  string blocked_by = 13;
+  string error_code = 14;
+  google.protobuf.Timestamp started_at = 15;
+  google.protobuf.Timestamp completed_at = 16;
+}
+
+message GetApplyPlanResponse {
+  repeated ApplyItem items = 1;
+  string target = 2;
+  string plan_id = 3;
+  string plan_digest = 4;
+  string revision = 5;
+  google.protobuf.Timestamp expires_at = 6;
+}
+
+message ReviewApplyRequest {
+  string target = 1;
+  string plan_id = 2 [(buf.validate.field).string.min_len = 1];
+  string plan_digest = 3 [(buf.validate.field).string.min_len = 1];
+  string expected_revision = 4 [(buf.validate.field).string.min_len = 1];
+}
+
+message ReviewApplyResponse {
+  string target = 1;
+  string plan_id = 2;
+  string plan_digest = 3;
+  string revision = 4;
+  string consent_receipt_id = 5;
+  google.protobuf.Timestamp expires_at = 6;
+}
+
+message StartApplyResponse {
+  GetApplyRunResponse run = 1;
+}
+
+message CancelApplyRequest {
+  string target = 1;
+  string run_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message CancelApplyResponse {
+  GetApplyRunResponse run = 1;
+}
+
+message GetApplyRunResponse {
+  string run_id = 1;
+  ApplyRunState status = 2;
+  string legacy_status = 3;
+  string selection_digest = 4;
+  google.protobuf.Timestamp started_at = 5;
+  google.protobuf.Timestamp completed_at = 6;
+  string error = 7;
+  repeated ApplyStep steps = 8;
+  repeated shared.CompletionBlocker blockers = 9;
+  repeated shared.CompletionBlocker degraded = 10;
+  string degraded_digest = 11;
+  int64 runner_pid = 12;
+  google.protobuf.Timestamp heartbeat = 13;
+}

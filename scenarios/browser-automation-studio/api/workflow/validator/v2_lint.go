@@ -123,6 +123,11 @@ func (v *Validator) ValidateV2(definition *basworkflows.WorkflowDefinitionV2) *R
 			result.Errors = append(result.Errors, errors...)
 			result.Warnings = append(result.Warnings, warnings...)
 
+		case basactions.ActionType_ACTION_TYPE_GESTURE:
+			errors, warnings := lintGestureNodeV2(nodeID, idx, action)
+			result.Errors = append(result.Errors, errors...)
+			result.Warnings = append(result.Warnings, warnings...)
+
 		case basactions.ActionType_ACTION_TYPE_CLICK,
 			basactions.ActionType_ACTION_TYPE_HOVER,
 			basactions.ActionType_ACTION_TYPE_FOCUS,
@@ -198,6 +203,86 @@ func (v *Validator) ValidateV2(definition *basworkflows.WorkflowDefinitionV2) *R
 	result.Valid = len(result.Errors) == 0
 	result.DurationMs = time.Since(start).Milliseconds()
 	return result
+}
+
+// lintGestureNodeV2 validates gesture action parameters.
+func lintGestureNodeV2(nodeID string, idx int, action *basactions.ActionDefinition) ([]Issue, []Issue) {
+	var errors []Issue
+	var warnings []Issue
+	pointer := fmt.Sprintf("/nodes/%d/action/gesture", idx)
+
+	params := action.GetGesture()
+	if params == nil {
+		errors = append(errors, Issue{
+			Severity: SeverityError,
+			Code:     "WF_V2_GESTURE_PARAMS_MISSING",
+			Message:  fmt.Sprintf("Gesture node '%s' is missing gesture parameters", nodeID),
+			NodeID:   nodeID,
+			Pointer:  pointer,
+		})
+		return errors, warnings
+	}
+
+	switch params.GetGestureType() {
+	case basactions.GestureType_GESTURE_TYPE_UNSPECIFIED:
+		errors = append(errors, Issue{
+			Severity: SeverityError,
+			Code:     "WF_V2_GESTURE_TYPE_REQUIRED",
+			Message:  fmt.Sprintf("Gesture node '%s' must specify gesture_type", nodeID),
+			NodeID:   nodeID,
+			Field:    "gesture_type",
+			Pointer:  pointer + "/gesture_type",
+		})
+	case basactions.GestureType_GESTURE_TYPE_SWIPE:
+		if params.GetDirection() == basactions.SwipeDirection_SWIPE_DIRECTION_UNSPECIFIED {
+			errors = append(errors, Issue{
+				Severity: SeverityError,
+				Code:     "WF_V2_GESTURE_DIRECTION_REQUIRED",
+				Message:  fmt.Sprintf("Swipe gesture node '%s' must specify direction", nodeID),
+				NodeID:   nodeID,
+				Field:    "direction",
+				Pointer:  pointer + "/direction",
+			})
+		}
+	case basactions.GestureType_GESTURE_TYPE_ZOOM, basactions.GestureType_GESTURE_TYPE_PINCH:
+		if params.GetSteps() <= 0 {
+			warnings = append(warnings, Issue{
+				Severity: SeverityWarning,
+				Code:     "WF_V2_GESTURE_STEPS_RECOMMENDED",
+				Message:  fmt.Sprintf("Gesture node '%s' has no steps; sustained performance captures should set steps", nodeID),
+				NodeID:   nodeID,
+				Field:    "steps",
+				Pointer:  pointer + "/steps",
+				Hint:     "Set steps and step_delay_ms to produce enough real input events for performance-health budgets.",
+			})
+		}
+	}
+
+	if params.GetDurationMs() > 0 && params.GetSteps() <= 0 {
+		warnings = append(warnings, Issue{
+			Severity: SeverityWarning,
+			Code:     "WF_V2_GESTURE_DURATION_WITHOUT_STEPS",
+			Message:  fmt.Sprintf("Gesture node '%s' sets duration_ms without steps", nodeID),
+			NodeID:   nodeID,
+			Field:    "steps",
+			Pointer:  pointer + "/steps",
+			Hint:     "Set steps so duration_ms can be converted into a deterministic input cadence.",
+		})
+	}
+
+	if strings.TrimSpace(params.GetTraceLabel()) == "" {
+		warnings = append(warnings, Issue{
+			Severity: SeverityWarning,
+			Code:     "WF_V2_GESTURE_TRACE_LABEL_RECOMMENDED",
+			Message:  fmt.Sprintf("Gesture node '%s' has no trace_label", nodeID),
+			NodeID:   nodeID,
+			Field:    "trace_label",
+			Pointer:  pointer + "/trace_label",
+			Hint:     "Set trace_label so analysis can isolate bas.gesture.<label>.start/end markers.",
+		})
+	}
+
+	return errors, warnings
 }
 
 // lintLoopNodeV2 validates loop action parameters.

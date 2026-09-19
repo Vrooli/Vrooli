@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"log"
 	"time"
-
-	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
 
 // StartTracking begins tracking an async tool operation.
@@ -19,7 +17,7 @@ func (s *AsyncTrackerService) StartTracking(
 	toolName string,
 	scenario string,
 	toolResult interface{},
-	asyncBehavior *toolspb.AsyncBehavior,
+	asyncBehavior *AsyncBehavior,
 ) error {
 	if asyncBehavior == nil || asyncBehavior.StatusPolling == nil {
 		return fmt.Errorf("no async behavior configuration provided")

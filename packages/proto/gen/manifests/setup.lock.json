@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "scenario": "setup",
+  "input_digest": "sha256:0aee0db867f444c176efb686a4d5b2681bdf45415853cd836cae41fa6f52ad39",
+  "input_files": [
+    "schemas/setup/v1/operator_input.proto",
+    "schemas/setup/v1/selection.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/setup/v1/operator_input.pb.go": "sha256:d77b2301fe0a11526a15b786496a1feca54a404692029868b86f44c2e54ee262",
+    "gen/go/setup/v1/selection.pb.go": "sha256:7793a809668031bd2c410c43c4d9bb8f1ef2acac50576a0d44c1c2a147f4c5b6",
+    "gen/python/setup/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/setup/v1/operator_input_pb2.py": "sha256:8dfddd641111c834be67e54c6408cf5e526119dbb18cabf501c60b6dd508799c",
+    "gen/python/setup/v1/operator_input_pb2.pyi": "sha256:6fded0bef52dff66df28a250d3b26d92ae5bc641adb5a82b2069c20bcf45dd16",
+    "gen/python/setup/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/setup/v1/selection_pb2.py": "sha256:f963c3cd47a880fd0c64a80159923a7e49dc5df37c96d7c6e1e4dabb719355c7",
+    "gen/python/setup/v1/selection_pb2.pyi": "sha256:84eeb14e95994bf972ffe9f0c45b74cca0f4425c73d572c7c0419f9d47696973",
+    "gen/typescript/setup/v1/operator_input_pb.ts": "sha256:e5d29f3ed6b00e6922153a60ef9ee65c72346a23c45ba3c22bca53a014760101",
+    "gen/typescript/setup/v1/selection_pb.ts": "sha256:2398e5ec7db49a297392bfb8915406a55765de3738798e3ee6ee5947dc51318d"
+  }
+}

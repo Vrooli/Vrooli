@@ -2,6 +2,25 @@
 
 This document describes the capability system in prompt-manager, which enables intelligent skill-to-agent matching based on declared capabilities.
 
+## Naming Boundary
+
+Prompt-manager also documents a proposed executable entity named **Action**. Do not use "capability" as the data-model name for that executable wrapper.
+
+In this document, **capability** means a requirement/provision contract used for matching agents and skills. It answers:
+
+```text
+What is this agent allowed or able to provide?
+What does this skill require?
+```
+
+An **Action** answers a different question:
+
+```text
+What exact Vrooli-controlled CLI operation can be run?
+```
+
+See [Actions](ACTIONS.md) for the proposed executable entity and [Memory Promotion](MEMORY-PROMOTION.md) for the broader ontology.
+
 ## Overview
 
 Capabilities are a contract system that declares:

@@ -5,15 +5,19 @@ import (
 	"errors"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
+
+	userauthhttp "landing-page-business-suite-api/handlers/administration"
+	"landing-page-business-suite-api/internal/administration"
+	"landing-page-business-suite-api/internal/envx"
+	"landing-page-business-suite-api/internal/logx"
 )
 
 // trustedProxyCIDRs holds the parsed CIDR ranges for trusted proxies.
 // These are loaded once at startup from TRUSTED_PROXY_CIDRS environment variable.
 var (
-	trustedProxyCIDRs []*net.IPNet
+	trustedProxyCIDRs  []*net.IPNet
 	trustedProxiesOnce sync.Once
 )
 
@@ -25,14 +29,18 @@ var (
 //   - Empty string means no proxies are trusted (X-Forwarded-For always ignored)
 func initTrustedProxies() {
 	trustedProxiesOnce.Do(func() {
-		cidrsEnv := strings.TrimSpace(os.Getenv("TRUSTED_PROXY_CIDRS"))
+		cidrsEnv := strings.TrimSpace(envx.Get("TRUSTED_PROXY_CIDRS"))
 		if cidrsEnv == "" {
-			// No trusted proxies configured - this is the secure default
-			logStructured("trusted_proxies_not_configured", map[string]interface{}{
+			// Browsers reach this API through the scenario's own UI server on
+			// the loopback interface, which appends the real peer to
+			// X-Forwarded-For. Without trusting loopback every visitor would
+			// share one address and per-client limits would become global.
+			// Remote peers are still never trusted.
+			cidrsEnv = "127.0.0.0/8,::1/128"
+			logx.Info("trusted_proxies_default_loopback", map[string]interface{}{
 				"level":   "info",
-				"message": "TRUSTED_PROXY_CIDRS not set; X-Forwarded-For headers will be ignored",
+				"message": "TRUSTED_PROXY_CIDRS not set; trusting only the local UI proxy on loopback",
 			})
-			return
 		}
 
 		cidrs := strings.Split(cidrsEnv, ",")
@@ -43,7 +51,7 @@ func initTrustedProxies() {
 			}
 			_, network, err := net.ParseCIDR(cidr)
 			if err != nil {
-				logStructuredError("trusted_proxy_cidr_parse_error", map[string]interface{}{
+				logx.Error("trusted_proxy_cidr_parse_error", map[string]interface{}{
 					"cidr":  cidr,
 					"error": err.Error(),
 				})
@@ -53,7 +61,7 @@ func initTrustedProxies() {
 		}
 
 		if len(trustedProxyCIDRs) > 0 {
-			logStructured("trusted_proxies_configured", map[string]interface{}{
+			logx.Info("trusted_proxies_configured", map[string]interface{}{
 				"level": "info",
 				"count": len(trustedProxyCIDRs),
 			})
@@ -121,7 +129,8 @@ func extractBearerToken(r *http.Request) string {
 	}
 
 	// Fall back to cookie
-	if cookie, err := r.Cookie("access_token"); err == nil {
+	accessName, _, _ := userauthhttp.AuthCookieNames(isSecureCookiesEnabled())
+	if cookie, err := r.Cookie(accessName); err == nil {
 		return cookie.Value
 	}
 
@@ -143,7 +152,7 @@ func (s *Server) requireUserAuth(next http.HandlerFunc) http.HandlerFunc {
 		claims, err := s.userAuthService.ValidateAccessToken(tokenString)
 		if err != nil {
 			var msg string
-			if errors.Is(err, ErrTokenExpired) {
+			if errors.Is(err, administration.ErrTokenExpired) {
 				msg = "Token has expired. Please refresh your session."
 			} else {
 				msg = "Invalid or expired token"
@@ -151,11 +160,41 @@ func (s *Server) requireUserAuth(next http.HandlerFunc) http.HandlerFunc {
 			writeJSONError(w, http.StatusUnauthorized, msg, ApiErrorTypeUnauthorized)
 			return
 		}
+		if err := s.userAuthService.ValidateSession(r.Context(), claims.SessionID); err != nil {
+			message := "Session has been revoked. Please log in again."
+			reason := "session_revoked"
+			if errors.Is(err, administration.ErrSessionExpired) {
+				message = "Session has expired. Please log in again."
+				reason = "session_expired"
+			}
+			writeJSONErrorReason(w, http.StatusUnauthorized, message, ApiErrorTypeUnauthorized, reason)
+			return
+		}
 
 		// Inject claims into context
 		ctx := context.WithValue(r.Context(), userClaimsKey, claims)
 		next(w, r.WithContext(ctx))
 	}
+}
+
+// requireRecentUserAuth protects high-impact customer operations with a
+// recent sign-in or explicit reauthentication on the current session.
+func (s *Server) requireRecentUserAuth(next http.HandlerFunc) http.HandlerFunc {
+	return s.requireUserAuth(func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := getUserClaims(r.Context())
+		if !ok || claims == nil || s.accountSecurityService == nil {
+			w.Header().Set("X-Lpbs-Auth-Reason", "reauthentication_required")
+			writeJSONErrorReason(w, http.StatusForbidden, "Recent reauthentication is required", ApiErrorTypeForbidden, "reauthentication_required")
+			return
+		}
+		recent, err := s.accountSecurityService.IsRecent(r.Context(), claims.SessionID)
+		if err != nil || !recent {
+			w.Header().Set("X-Lpbs-Auth-Reason", "reauthentication_required")
+			writeJSONErrorReason(w, http.StatusForbidden, "Recent reauthentication is required", ApiErrorTypeForbidden, "reauthentication_required")
+			return
+		}
+		next(w, r)
+	})
 }
 
 // optionalUserAuth is middleware that extracts user claims if present but doesn't require them.
@@ -167,6 +206,10 @@ func (s *Server) optionalUserAuth(next http.HandlerFunc) http.HandlerFunc {
 		// If we have a token, try to validate it
 		if tokenString != "" {
 			if claims, err := s.userAuthService.ValidateAccessToken(tokenString); err == nil {
+				if err := s.userAuthService.ValidateSession(r.Context(), claims.SessionID); err != nil {
+					next(w, r)
+					return
+				}
 				ctx := context.WithValue(r.Context(), userClaimsKey, claims)
 				next(w, r.WithContext(ctx))
 				return
@@ -180,8 +223,8 @@ func (s *Server) optionalUserAuth(next http.HandlerFunc) http.HandlerFunc {
 
 // getUserClaims retrieves user claims from the request context.
 // Returns nil, false if not authenticated.
-func getUserClaims(ctx context.Context) (*UserClaims, bool) {
-	claims, ok := ctx.Value(userClaimsKey).(*UserClaims)
+func getUserClaims(ctx context.Context) (*administration.UserClaims, bool) {
+	claims, ok := ctx.Value(userClaimsKey).(*administration.UserClaims)
 	return claims, ok
 }
 
@@ -216,80 +259,58 @@ func getSessionID(ctx context.Context) string {
 }
 
 // getClientIP extracts the client IP address from the request.
-// It validates X-Forwarded-For headers only when the direct connection is from a trusted proxy.
-// This prevents IP spoofing attacks where malicious clients send fake X-Forwarded-For headers.
+//
+// X-Forwarded-For is walked from the right: each trusted proxy appends the
+// peer it saw, so the first untrusted address from the right is the client.
+// Entries to its left were supplied by that client and are never trusted.
+// Headers are only consulted when the direct connection is a trusted proxy.
 func getClientIP(r *http.Request) string {
 	initTrustedProxies()
 
-	// Extract the direct connection IP (RemoteAddr, without port)
 	directIP := extractIPFromRemoteAddr(r.RemoteAddr)
-
-	// Only trust X-Forwarded-For and X-Real-IP if the direct connection is from a trusted proxy
-	if isIPFromTrustedProxy(directIP) {
-		// Check X-Forwarded-For header (for proxied requests)
-		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			// Take the first IP in the chain (original client)
-			var clientIP string
-			for i := 0; i < len(xff); i++ {
-				if xff[i] == ',' {
-					clientIP = strings.TrimSpace(xff[:i])
-					break
-				}
-			}
-			if clientIP == "" {
-				clientIP = strings.TrimSpace(xff)
-			}
-
-			// Validate the extracted IP format
-			if validateIPFormat(clientIP) {
-				return clientIP
-			}
-			// Invalid IP format in X-Forwarded-For, log and fall through
-			logStructured("xff_invalid_ip_format", map[string]interface{}{
-				"level":           "warn",
-				"xff_header":      xff,
-				"extracted_ip":    clientIP,
-				"direct_ip":       directIP,
-				"security":        true,
+	if !isIPFromTrustedProxy(directIP) {
+		if r.Header.Get("X-Forwarded-For") != "" || r.Header.Get("X-Real-IP") != "" {
+			logx.Info("xff_untrusted_proxy_ignored", map[string]interface{}{
+				"level":     "warn",
+				"direct_ip": directIP,
+				"message":   "forwarding headers ignored - connection not from trusted proxy",
+				"security":  true,
 			})
 		}
+		return directIP
+	}
 
-		// Check X-Real-IP header
-		if xri := r.Header.Get("X-Real-IP"); xri != "" {
-			xri = strings.TrimSpace(xri)
-			if validateIPFormat(xri) {
-				return xri
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		hops := strings.Split(xff, ",")
+		origin, wellFormed := "", true
+		for index := len(hops) - 1; index >= 0; index-- {
+			hop := strings.TrimSpace(hops[index])
+			if !validateIPFormat(hop) {
+				wellFormed = false
+				logx.Info("xff_invalid_ip_format", map[string]interface{}{"level": "warn", "direct_ip": directIP, "security": true})
+				break
 			}
-			// Invalid IP format in X-Real-IP, log and fall through
-			logStructured("xrealip_invalid_ip_format", map[string]interface{}{
-				"level":       "warn",
-				"xrealip":     xri,
-				"direct_ip":   directIP,
-				"security":    true,
-			})
+			if !isIPFromTrustedProxy(hop) {
+				return hop
+			}
+			origin = hop
 		}
-	} else {
-		// Direct connection is NOT from a trusted proxy - log if they're trying to spoof
-		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			logStructured("xff_untrusted_proxy_ignored", map[string]interface{}{
-				"level":       "warn",
-				"xff_header":  xff,
-				"direct_ip":   directIP,
-				"message":     "X-Forwarded-For header ignored - connection not from trusted proxy",
-				"security":    true,
-			})
-		}
-		if xri := r.Header.Get("X-Real-IP"); xri != "" {
-			logStructured("xrealip_untrusted_proxy_ignored", map[string]interface{}{
-				"level":       "warn",
-				"xrealip":     xri,
-				"direct_ip":   directIP,
-				"message":     "X-Real-IP header ignored - connection not from trusted proxy",
-				"security":    true,
-			})
+		// Every hop was a trusted proxy, so the leftmost one is the origin.
+		if wellFormed && origin != "" {
+			return origin
 		}
 	}
 
-	// Fall back to RemoteAddr
+	if xri := strings.TrimSpace(r.Header.Get("X-Real-IP")); xri != "" {
+		if validateIPFormat(xri) {
+			return xri
+		}
+		logx.Info("xrealip_invalid_ip_format", map[string]interface{}{
+			"level":     "warn",
+			"direct_ip": directIP,
+			"security":  true,
+		})
+	}
+
 	return directIP
 }

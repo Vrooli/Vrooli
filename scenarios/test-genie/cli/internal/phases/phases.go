@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	catalog "test-genie/internal/orchestrator/phases"
 )
 
 // Descriptor describes a test phase from the server catalog.
@@ -16,20 +18,10 @@ type Descriptor struct {
 	DefaultTimeoutSeconds int    `json:"defaultTimeoutSeconds"`
 }
 
-// AllowedPhases enumerates the standard phase set the planner understands.
-var AllowedPhases = []string{
-	"structure",
-	"standards",
-	"dependencies",
-	"lint",
-	"docs",
-	"smoke",
-	"unit",
-	"integration",
-	"playbooks",
-	"e2e", // alias for playbooks
-	"business",
-	"performance",
+// allowedPhaseNames returns the canonical phase set the planner understands,
+// derived from the test-genie catalog (the single source of truth).
+func allowedPhaseNames() []string {
+	return catalog.ValidPhaseNames()
 }
 
 // NormalizeSelection validates and deduplicates a phase selection.
@@ -46,8 +38,9 @@ func NormalizeSelection(phases []string) ([]string, error) {
 		}
 	}
 
-	allowed := make(map[string]struct{}, len(AllowedPhases))
-	for _, phase := range AllowedPhases {
+	allowedNames := allowedPhaseNames()
+	allowed := make(map[string]struct{}, len(allowedNames))
+	for _, phase := range allowedNames {
 		allowed[phase] = struct{}{}
 	}
 
@@ -58,9 +51,8 @@ func NormalizeSelection(phases []string) ([]string, error) {
 		if normalizedName == "" {
 			continue
 		}
-		normalizedName = NormalizeAlias(normalizedName)
 		if _, exists := allowed[normalizedName]; !exists {
-			return nil, fmt.Errorf("unknown phase '%s' (allowed: %s)", phase, strings.Join(AllowedPhases, ","))
+			return nil, fmt.Errorf("unknown phase '%s' (allowed: %s)", phase, strings.Join(allowedNames, ","))
 		}
 		if _, dup := seen[normalizedName]; dup {
 			continue
@@ -71,13 +63,35 @@ func NormalizeSelection(phases []string) ([]string, error) {
 	return normalized, nil
 }
 
+// DeprecatedAliasWarnings reports user-facing migration notes for phase names
+// that are still accepted but no longer canonical.
+func DeprecatedAliasWarnings(phases []string) []string {
+	if len(phases) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, 1)
+	var warnings []string
+	for _, phase := range phases {
+		key := strings.ToLower(strings.TrimSpace(phase))
+		switch key {
+		case "playbooks", "playbook", "e2e":
+			if _, ok := seen["workflow"]; ok {
+				continue
+			}
+			seen["workflow"] = struct{}{}
+			warnings = append(warnings, "phase \"playbooks\" is deprecated; use \"workflow\"")
+		}
+	}
+	return warnings
+}
+
 // NamesFromDescriptors returns the ordered, normalized list of phase names
 // provided by the server catalog.
 func NamesFromDescriptors(descriptors []Descriptor) []string {
 	var names []string
 	seen := make(map[string]struct{}, len(descriptors))
 	for _, desc := range descriptors {
-		name := NormalizeAlias(NormalizeName(desc.Name))
+		name := NormalizeName(desc.Name)
 		if name == "" {
 			continue
 		}
@@ -98,7 +112,7 @@ func ApplySkip(phases, skip []string) []string {
 	}
 	skipSet := make(map[string]struct{}, len(skip))
 	for _, s := range skip {
-		name := NormalizeAlias(NormalizeName(s))
+		name := NormalizeName(s)
 		if name == "" {
 			continue
 		}
@@ -108,7 +122,7 @@ func ApplySkip(phases, skip []string) []string {
 	seen := make(map[string]struct{}, len(phases))
 	var filtered []string
 	for _, phase := range phases {
-		name := NormalizeAlias(NormalizeName(phase))
+		name := NormalizeName(phase)
 		if name == "" {
 			continue
 		}
@@ -131,7 +145,7 @@ func dedupeNormalized(phases []string) []string {
 	seen := make(map[string]struct{}, len(phases))
 	var result []string
 	for _, phase := range phases {
-		name := NormalizeAlias(NormalizeName(phase))
+		name := NormalizeName(phase)
 		if name == "" {
 			continue
 		}
@@ -146,16 +160,12 @@ func dedupeNormalized(phases []string) []string {
 
 // NormalizeName lowercases and trims a phase name.
 func NormalizeName(name string) string {
-	return strings.ToLower(strings.TrimSpace(name))
-}
-
-// NormalizeAlias maps phase aliases to canonical names.
-func NormalizeAlias(name string) string {
-	switch name {
-	case "e2e":
-		return "playbooks"
+	key := catalog.NormalizeKey(name)
+	switch key {
+	case "playbooks", "playbook", "e2e":
+		return "workflow"
 	default:
-		return name
+		return key
 	}
 }
 
@@ -164,7 +174,7 @@ func MakeDescriptorMaps(descriptors []Descriptor) (map[string]Descriptor, map[st
 	descMap := make(map[string]Descriptor, len(descriptors))
 	targets := make(map[string]time.Duration, len(descriptors))
 	for _, desc := range descriptors {
-		key := strings.ToLower(strings.TrimSpace(desc.Name))
+		key := NormalizeName(desc.Name)
 		if key == "" {
 			continue
 		}

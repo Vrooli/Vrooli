@@ -1,0 +1,762 @@
+package env
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"slices"
+	"strconv"
+	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/credentialauthority"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
+	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
+)
+
+const (
+	resolverLocalhost = "localhost"
+)
+
+const (
+	resolverParameterA = 2
+)
+
+const (
+	testPortRegistryPath = ".vrooli/test-port-registry.json"
+)
+
+var templatePattern = regexp.MustCompile(`\$\{([A-Z0-9_]+)\}`)
+
+type PortRegistry struct {
+	ResourcePorts  map[string]int    `json:"resource_ports"`
+	ReservedRanges map[string]string `json:"reserved_ranges"`
+}
+
+type ResolveOptions struct {
+	ScenarioName string
+	// Variant selects the instance whose namespace the resolved values address.
+	// Empty ⇒ live, so the Postgres database name stays "vrooli_<scenario>" for
+	// the canonical instance and becomes "vrooli_<scenario>_<variant>" for a
+	// shadow — both derived from the InstanceKey SSOT. See Baseline Modes §1a.
+	Variant    string
+	Dependency scenario.Dependency
+}
+
+type ResourceReport struct {
+	Name     string            `json:"name"`
+	Manifest string            `json:"manifest_path,omitempty"`
+	Values   map[string]string `json:"values,omitempty"`
+	Warnings []string          `json:"warnings,omitempty"`
+	// MissingCredentials names every declared credential that did not resolve.
+	// It is additive: a consumer that ignores it sees exactly the shape it saw
+	// before, minus the variables that were never resolvable anyway.
+	MissingCredentials []MissingCredential               `json:"missing_credentials,omitempty"`
+	CredentialProvider credentialauthority.ProviderState `json:"credential_provider_state,omitempty"`
+}
+
+type ScenarioResolution struct {
+	Values    map[string]string `json:"values"`
+	Resources []ResourceReport  `json:"resources,omitempty"`
+	Warnings  []string          `json:"warnings,omitempty"`
+	// MissingCredentials aggregates every resource gap for this scenario, so a
+	// lifecycle caller can summarize once per start instead of once per
+	// descriptor.
+	MissingCredentials []MissingCredential               `json:"missing_credentials,omitempty"`
+	CredentialProvider credentialauthority.ProviderState `json:"credential_provider_state,omitempty"`
+}
+
+func ResolveScenario(root, home, scenarioName, variant string, manifest scenario.ServiceManifest) (ScenarioResolution, error) {
+	report := ScenarioResolution{
+		Values:    map[string]string{},
+		Resources: []ResourceReport{},
+		Warnings:  []string{},
+	}
+	report.CredentialProvider = credentialauthority.ProviderAvailable
+	owners := map[string]string{}
+	// credentialOwners checks the durable credential identity, not just the
+	// process-scoped injection name. Multiple resources may intentionally share
+	// one credential (for example two runners using the same OpenAI API key),
+	// but distinct identities must never compete to inject one environment name.
+	credentialOwners := map[string]credentialEnvDeclaration{}
+
+	resourceNames := make([]string, 0, len(manifest.Dependencies.Resources))
+	for name, dep := range manifest.Dependencies.Resources {
+		if dep.Enabled || dep.Required {
+			resourceNames = append(resourceNames, name)
+		}
+	}
+	slices.Sort(resourceNames)
+
+	for _, resourceName := range resourceNames {
+		dep := manifest.Dependencies.Resources[resourceName]
+		result, err := ResolveResource(root, home, resourceName, ResolveOptions{
+			ScenarioName: scenarioName,
+			Variant:      variant,
+			Dependency:   dep,
+		})
+		if err != nil {
+			return ScenarioResolution{}, err
+		}
+		report.Resources = append(report.Resources, result)
+		report.MissingCredentials = append(report.MissingCredentials, result.MissingCredentials...)
+		if result.CredentialProvider != "" {
+			report.CredentialProvider = mergeProviderState(report.CredentialProvider, result.CredentialProvider)
+		}
+		for _, credential := range declaredCredentialEnvDeclarations(root, resourceName) {
+			if owner, exists := credentialOwners[credential.Env]; exists && !owner.sameCredential(credential) {
+				return ScenarioResolution{}, fmt.Errorf(
+					"credential env collision for %s: %s (%s/%s) and %s (%s/%s) declare different credentials",
+					credential.Env, owner.Resource, owner.LogicalID, owner.Field, resourceName, credential.LogicalID, credential.Field)
+			}
+			credentialOwners[credential.Env] = credential
+		}
+		for key, value := range result.Values {
+			if owner, exists := owners[key]; exists && report.Values[key] != value {
+				return ScenarioResolution{}, fmt.Errorf("resource env collision for %s: %s and %s export different values", key, owner, resourceName)
+			}
+			report.Values[key] = value
+			owners[key] = resourceName
+		}
+		report.Warnings = append(report.Warnings, result.Warnings...)
+	}
+
+	// The scenario's own declaration is resolved after its resources so a
+	// scenario-declared credential is diagnosed on exactly the same footing as
+	// a resource-declared one. These are typically the descriptors the
+	// scenario's code resolves for itself, so most carry no env and inject
+	// nothing — but an unconfigured one is still a gap the operator has to see.
+	scenarioGaps, err := ResolveScenarioCredentialGaps(scenarioName, manifest.Credentials)
+	if err != nil {
+		return ScenarioResolution{}, err
+	}
+	report.MissingCredentials = append(report.MissingCredentials, scenarioGaps.Missing...)
+	if scenarioGaps.Provider != "" {
+		report.CredentialProvider = mergeProviderState(report.CredentialProvider, scenarioGaps.Provider)
+	}
+	// A scenario that does declare an injection target competes for the same
+	// process environment its resources export into, so it joins the same
+	// collision check rather than getting a private namespace.
+	for _, descriptor := range manifest.Credentials.Injectable() {
+		declaration := credentialEnvDeclaration{
+			Resource:  scenarioName,
+			Env:       strings.TrimSpace(descriptor.Env),
+			LogicalID: strings.TrimSpace(descriptor.LogicalID),
+			Field:     descriptor.ResolvedField(),
+		}
+		if owner, exists := credentialOwners[declaration.Env]; exists && !owner.sameCredential(declaration) {
+			return ScenarioResolution{}, fmt.Errorf(
+				"credential env collision for %s: %s (%s/%s) and scenario %s (%s/%s) declare different credentials",
+				declaration.Env, owner.Resource, owner.LogicalID, owner.Field,
+				scenarioName, declaration.LogicalID, declaration.Field)
+		}
+		credentialOwners[declaration.Env] = declaration
+	}
+
+	return report, nil
+}
+
+func ResolveResource(root, home, resourceName string, opts ResolveOptions) (ResourceReport, error) {
+	manifestPath := manifestpkg.DefaultPath(root, resourceName)
+	if _, err := os.Stat(manifestPath); err != nil {
+		if os.IsNotExist(err) {
+			return ResourceReport{Name: resourceName, Values: map[string]string{}}, nil
+		}
+		return ResourceReport{}, err
+	}
+
+	resourceManifest, err := manifestpkg.Load(manifestPath)
+	if err != nil {
+		return ResourceReport{}, err
+	}
+
+	values, warnings, credentials, err := resolveFromManifest(root, home, resourceManifest, opts)
+	if err != nil {
+		return ResourceReport{}, err
+	}
+
+	return ResourceReport{
+		Name:               resourceName,
+		Manifest:           manifestPath,
+		Values:             values,
+		Warnings:           warnings,
+		MissingCredentials: credentials.Missing,
+		CredentialProvider: credentials.Provider,
+	}, nil
+}
+
+type credentialEnvDeclaration struct {
+	Resource  string
+	Env       string
+	LogicalID string
+	Field     string
+}
+
+func (declaration credentialEnvDeclaration) sameCredential(other credentialEnvDeclaration) bool {
+	return declaration.LogicalID == other.LogicalID && declaration.Field == other.Field
+}
+
+// declaredCredentialEnvDeclarations reports the credential identity each
+// resource injects into an environment variable, without resolving a value.
+// Returning nothing for an unreadable manifest is safe: ResolveResource has
+// already surfaced that defect.
+func declaredCredentialEnvDeclarations(root, resourceName string) []credentialEnvDeclaration {
+	resourceManifest, err := manifestpkg.Load(manifestpkg.DefaultPath(root, resourceName))
+	if err != nil {
+		return nil
+	}
+	declarations := make([]credentialEnvDeclaration, 0, len(resourceManifest.Credentials.All()))
+	for _, descriptor := range resourceManifest.Credentials.All() {
+		if envName := strings.TrimSpace(descriptor.Env); envName != "" {
+			field := strings.TrimSpace(descriptor.Field)
+			if field == "" {
+				field = "value"
+			}
+			declarations = append(declarations, credentialEnvDeclaration{
+				Resource:  resourceName,
+				Env:       envName,
+				LogicalID: strings.TrimSpace(descriptor.LogicalID),
+				Field:     field,
+			})
+		}
+	}
+	return declarations
+}
+
+func resolveFromManifest(root, home string, resourceManifest manifestpkg.ResourceManifest, opts ResolveOptions) (map[string]string, []string, CredentialResolution, error) {
+	values := map[string]string{}
+	warnings := []string{}
+	templateContext := buildTemplateContext(root, home, resourceManifest.Name)
+
+	for key, value := range resourceManifest.EnvironmentExports.Static {
+		values[key] = expandTemplateWithContext(value, values, templateContext)
+	}
+
+	hostPorts, err := loadHostPorts(root, resourceManifest)
+	if err != nil {
+		return nil, nil, CredentialResolution{}, err
+	}
+	for key, portName := range resourceManifest.EnvironmentExports.FromPorts {
+		resolved, ok := hostPorts[strings.TrimSpace(portName)]
+		if !ok {
+			return nil, nil, CredentialResolution{}, fmt.Errorf("resource %s environment_exports.from_ports[%s] references unknown port %q", resourceManifest.Name, key, portName)
+		}
+		values[key] = strconv.Itoa(resolved)
+	}
+
+	runtimeValues, runtimeWarnings, err := resolveRequestedEnvValues(root, home, resourceManifest, resourceManifest.EnvironmentExports.FromRuntimeEnv, values)
+	if err != nil {
+		return nil, nil, CredentialResolution{}, err
+	}
+	for key, value := range runtimeValues {
+		values[key] = value
+	}
+	warnings = append(warnings, runtimeWarnings...)
+
+	// Credentials are the authoritative source for their declared process
+	// variables. Apply them after manifest defaults so a persisted resource can
+	// safely outlive a changed bootstrap value in its image configuration.
+	//
+	// A credential that did not resolve leaves its variable absent rather than
+	// empty, and never fails the resolve: credential state decides what a
+	// resource can do, not whether the control plane runs.
+	credentials, err := ResolveCredentialValues(resourceManifest)
+	if err != nil {
+		return nil, nil, CredentialResolution{}, err
+	}
+	for key, value := range credentials.Values {
+		values[key] = value
+	}
+	for _, gap := range credentials.Missing {
+		if _, hasNonCredentialSource := values[gap.Env]; hasNonCredentialSource {
+			// The manifest declares another source for this variable — a
+			// bootstrap default in runtime.env, typically. Deleting it would
+			// hand the resource an empty password rather than no password,
+			// which is strictly worse than the pre-credential behavior.
+			warnings = append(warnings, fmt.Sprintf(
+				"%s is running on the %s manifest default because its credential did not resolve; %s",
+				gap.Env, resourceManifest.Name, gap.Remediation))
+			continue
+		}
+		delete(values, gap.Env)
+	}
+
+	applyDependencyOverrides(resourceManifest.Name, opts, values)
+
+	if len(resourceManifest.EnvironmentExports.Static) == 0 &&
+		len(resourceManifest.EnvironmentExports.FromPorts) == 0 &&
+		len(resourceManifest.EnvironmentExports.FromRuntimeEnv) == 0 &&
+		len(resourceManifest.EnvironmentExports.Derived) == 0 {
+		return values, warnings, credentials, nil
+	} else {
+		for key, derived := range resourceManifest.EnvironmentExports.Derived {
+			values[key] = expandTemplateWithContext(derived.Template, values, templateContext)
+		}
+	}
+
+	applyFallbackDefaults(resourceManifest.Name, values, hostPorts)
+	applyDependencyOverrides(resourceManifest.Name, opts, values)
+	for key, derived := range resourceManifest.EnvironmentExports.Derived {
+		values[key] = expandTemplateWithContext(derived.Template, values, templateContext)
+	}
+
+	return values, warnings, credentials, nil
+}
+
+func resolveRequestedEnvValues(
+	root, home string,
+	resourceManifest manifestpkg.ResourceManifest,
+	requested []string,
+	baseValues map[string]string,
+) (map[string]string, []string, error) {
+	values := map[string]string{}
+	warnings := []string{}
+
+	templateContext := buildTemplateContext(root, home, resourceManifest.Name)
+	runtimeEnvironment := declaredRuntimeEnvironment(resourceManifest)
+
+	for _, key := range requested {
+		name := strings.TrimSpace(key)
+		if name == "" {
+			continue
+		}
+		if value, ok := runtimeEnvironment[name]; ok {
+			values[name] = expandTemplateWithContext(value, baseValues, templateContext)
+			continue
+		}
+		warnings = append(warnings, fmt.Sprintf("%s environment export %s was requested but no runtime or secret value was found", resourceManifest.Name, name))
+	}
+
+	return values, warnings, nil
+}
+
+//nolint:gocyclo // resource manifest validation aggregates independent environment and dependency rules.
+func ValidateResourceManifest(root string, resourceManifest manifestpkg.ResourceManifest) []string {
+	issues := []string{}
+	portNames := map[string]struct{}{}
+	hostPorts := map[string]string{}
+	for _, port := range resourceManifest.Ports {
+		if name := strings.TrimSpace(port.Name); name != "" {
+			if _, exists := portNames[name]; exists {
+				issues = append(issues, fmt.Sprintf("duplicate port name %q", name))
+			}
+			portNames[name] = struct{}{}
+		}
+		if port.Host > 0 {
+			key := hostPortProtocolKey(port)
+			if prior, exists := hostPorts[key]; exists {
+				issues = append(issues, fmt.Sprintf("duplicate host port %s for %s and %s", key, prior, defaultPortLabel(port)))
+			}
+			hostPorts[key] = defaultPortLabel(port)
+		}
+	}
+
+	exports := map[string]string{}
+	for key := range resourceManifest.EnvironmentExports.Static {
+		exports[key] = "static"
+	}
+	for key, portName := range resourceManifest.EnvironmentExports.FromPorts {
+		if previous, exists := exports[key]; exists {
+			issues = append(issues, fmt.Sprintf("environment export %s declared in both %s and from_ports", key, previous))
+		}
+		exports[key] = "from_ports"
+		if _, exists := portNames[strings.TrimSpace(portName)]; !exists {
+			issues = append(issues, fmt.Sprintf("environment_exports.from_ports[%s] references missing port %q", key, portName))
+		}
+	}
+	for _, key := range resourceManifest.EnvironmentExports.FromRuntimeEnv {
+		if previous, exists := exports[key]; exists {
+			issues = append(issues, fmt.Sprintf("environment export %s declared in both %s and from_runtime_env", key, previous))
+		}
+		exports[key] = "from_runtime_env"
+	}
+	baseValues := map[string]string{}
+	for key, value := range resourceManifest.EnvironmentExports.Static {
+		baseValues[key] = value
+	}
+	hostPortValues, err := loadHostPorts(root, resourceManifest)
+	if err == nil {
+		for key, portName := range resourceManifest.EnvironmentExports.FromPorts {
+			if port, ok := hostPortValues[portName]; ok {
+				baseValues[key] = strconv.Itoa(port)
+			}
+		}
+	}
+	runtimeEnvironment := declaredRuntimeEnvironment(resourceManifest)
+	for _, key := range resourceManifest.EnvironmentExports.FromRuntimeEnv {
+		if value, ok := runtimeEnvironment[key]; ok {
+			baseValues[key] = value
+		}
+	}
+	for key, derived := range resourceManifest.EnvironmentExports.Derived {
+		if previous, exists := exports[key]; exists {
+			issues = append(issues, fmt.Sprintf("environment export %s declared in both %s and derived", key, previous))
+		}
+		matches := templatePattern.FindAllStringSubmatch(derived.Template, -1)
+		for _, match := range matches {
+			if len(match) < resolverParameterA {
+				continue
+			}
+			if _, exists := baseValues[match[1]]; !exists &&
+				!mapsContainsKey(resourceManifest.EnvironmentExports.Derived, match[1]) &&
+				!isKnownTemplateContextVariable(root, resourceManifest.Name, match[1]) {
+				issues = append(issues, fmt.Sprintf("environment_exports.derived[%s] references unknown variable %s", key, match[1]))
+			}
+		}
+		exports[key] = "derived"
+	}
+	issues = append(issues, validateResourceStorageSources(root, resourceManifest)...)
+	return issues
+}
+
+func declaredRuntimeEnvironment(manifest manifestpkg.ResourceManifest) map[string]string {
+	managedEnvironmentSize := 0
+	if manifest.ManagedService != nil {
+		managedEnvironmentSize = len(manifest.ManagedService.Environment)
+	}
+	values := make(map[string]string, len(manifest.Runtime.Env)+managedEnvironmentSize)
+	for key, value := range manifest.Runtime.Env {
+		values[key] = value
+	}
+	if manifest.ManagedService != nil {
+		for key, value := range manifest.ManagedService.Environment {
+			values[key] = value
+		}
+	}
+	return values
+}
+
+func hostPortProtocolKey(port manifestpkg.ResourcePort) string {
+	hostIP := strings.TrimSpace(port.HostIP)
+	if hostIP == "" {
+		hostIP = "*"
+	}
+	return fmt.Sprintf("%s:%d/%s", hostIP, port.Host, portProtocol(port))
+}
+
+func portProtocol(port manifestpkg.ResourcePort) string {
+	protocol := strings.ToLower(strings.TrimSpace(port.Protocol))
+	if protocol == "" {
+		return "tcp"
+	}
+	return protocol
+}
+
+func validateResourceStorageSources(root string, resourceManifest manifestpkg.ResourceManifest) []string {
+	issues := []string{}
+	for _, volume := range resourceManifest.Runtime.Volumes {
+		source := strings.TrimSpace(volume.Source)
+		if source == "" {
+			continue
+		}
+		if !isLegacyRepoDataPath(root, resourceManifest.Name, source) {
+			continue
+		}
+		if resourceManifest.LegacyRepoDataAllowed {
+			continue
+		}
+		issues = append(issues, fmt.Sprintf("runtime volume source %q uses repo-local data; migrate to ${RESOURCE_*_DIR} or set legacy_repo_data_allowed=true while retained shell-era paths are being removed", source))
+	}
+	return issues
+}
+
+func isLegacyRepoDataPath(root, resourceName, source string) bool {
+	normalized := filepath.ToSlash(strings.TrimSpace(source))
+	if normalized == "" {
+		return false
+	}
+	resourceName = strings.Trim(strings.TrimSpace(resourceName), `/\`)
+	for _, prefix := range []string{
+		"./data",
+		"data/",
+		"../data",
+		"${ROOT}/data",
+		"${" + buildinfo.SourceRootFallbackEnvVar + "}/data",
+		"./instances",
+		"instances/",
+		"${RESOURCE_ROOT}/instances",
+	} {
+		if normalized == prefix || strings.HasPrefix(normalized, prefix+"/") {
+			return true
+		}
+	}
+	if resourceName != "" {
+		for _, prefix := range []string{
+			"resources/" + resourceName + "/instances",
+			"${ROOT}/resources/" + resourceName + "/instances",
+			"${" + buildinfo.SourceRootFallbackEnvVar + "}/resources/" + resourceName + "/instances",
+		} {
+			if normalized == prefix || strings.HasPrefix(normalized, prefix+"/") {
+				return true
+			}
+		}
+	}
+	if strings.TrimSpace(root) == "" {
+		return false
+	}
+	cleanSource := filepath.Clean(source)
+	for _, legacyRoot := range []string{
+		filepath.Join(root, "data"),
+		filepath.Join(root, "resources", resourceName, "instances"),
+	} {
+		if strings.TrimSpace(legacyRoot) == "" {
+			continue
+		}
+		rel, err := filepath.Rel(filepath.Clean(legacyRoot), cleanSource)
+		if err != nil {
+			continue
+		}
+		if rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))) {
+			return true
+		}
+	}
+	return false
+}
+
+func ValidateScenario(root, home, scenarioName string, manifest scenario.ServiceManifest) (ScenarioResolution, []string, error) {
+	// Validation resolves against the canonical (live) namespace.
+	resolution, err := ResolveScenario(root, home, scenarioName, "", manifest)
+	if err != nil {
+		return ScenarioResolution{}, nil, err
+	}
+	issues := []string{}
+	for key := range manifest.Environment {
+		if _, exists := resolution.Values[key]; exists {
+			issues = append(issues, fmt.Sprintf("scenario environment key %s overrides a resource-provided value", key))
+		}
+	}
+	return resolution, issues, nil
+}
+
+func loadHostPorts(root string, resourceManifest manifestpkg.ResourceManifest) (map[string]int, error) {
+	hostPorts := map[string]int{}
+	for _, port := range resourceManifest.Ports {
+		if strings.TrimSpace(port.Name) == "" {
+			continue
+		}
+		hostPort := port.Host
+		if hostPort <= 0 {
+			hostPort = port.Container
+		}
+		if hostPort > 0 {
+			hostPorts[strings.TrimSpace(port.Name)] = hostPort
+		}
+	}
+
+	return hostPorts, nil
+}
+
+// LoadResourcePorts reads the host port authority from resource manifests.
+// This lookup keeps resource.json as the single production source of truth.
+func LoadResourcePorts(root string) (map[string]int, error) {
+	resourcesRoot := filepath.Join(root, "resources")
+	entries, err := os.ReadDir(resourcesRoot)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return map[string]int{}, nil
+		}
+		return nil, fmt.Errorf("read resources directory: %w", err)
+	}
+	ports := map[string]int{}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		manifestPath := filepath.Join(resourcesRoot, entry.Name(), "resource.json")
+		if _, err := os.Stat(manifestPath); os.IsNotExist(err) {
+			// Resource discovery intentionally ignores manifest-less directories.
+			// Keep port allocation aligned with that contract so resource-local
+			// prototypes and documentation cannot make unrelated scenarios fail
+			// during lifecycle startup.
+			continue
+		} else if err != nil {
+			return nil, fmt.Errorf("inspect resource %s manifest for port allocation: %w", entry.Name(), err)
+		}
+		manifest, err := manifestpkg.Load(manifestPath)
+		if err != nil {
+			return nil, fmt.Errorf("load resource %s for port allocation: %w", entry.Name(), err)
+		}
+		for _, port := range manifest.Ports {
+			hostPort := port.Host
+			if hostPort <= 0 {
+				hostPort = port.Container
+			}
+			if hostPort > 0 {
+				ports[manifest.Name] = hostPort
+				break
+			}
+		}
+	}
+	return ports, nil
+}
+
+func LoadPortRegistry(root string) (PortRegistry, error) {
+	path := filepath.Join(root, filepath.FromSlash(testPortRegistryPath))
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return PortRegistry{}, fmt.Errorf("read %s: %w", path, err)
+	}
+
+	var registry PortRegistry
+	if err := json.Unmarshal(data, &registry); err != nil {
+		return PortRegistry{}, fmt.Errorf("parse %s: %w", path, err)
+	}
+	if registry.ResourcePorts == nil {
+		registry.ResourcePorts = map[string]int{}
+	}
+	if registry.ReservedRanges == nil {
+		registry.ReservedRanges = map[string]string{}
+	}
+	return registry, nil
+}
+
+func applyFallbackDefaults(resourceName string, values map[string]string, hostPorts map[string]int) {
+	switch resourceName {
+	case "postgres":
+		if strings.TrimSpace(values["POSTGRES_HOST"]) == "" {
+			values["POSTGRES_HOST"] = resolverLocalhost
+		}
+		if strings.TrimSpace(values["POSTGRES_SSLMODE"]) == "" {
+			values["POSTGRES_SSLMODE"] = "disable"
+		}
+		if strings.TrimSpace(values["POSTGRES_PORT"]) == "" {
+			if port, ok := hostPorts["postgresql"]; ok {
+				values["POSTGRES_PORT"] = strconv.Itoa(port)
+			}
+		}
+	case "redis":
+		if strings.TrimSpace(values["REDIS_HOST"]) == "" {
+			values["REDIS_HOST"] = resolverLocalhost
+		}
+	case "qdrant":
+		if strings.TrimSpace(values["QDRANT_HOST"]) == "" {
+			values["QDRANT_HOST"] = resolverLocalhost
+		}
+	case "ollama":
+		if strings.TrimSpace(values["OLLAMA_HOST"]) == "" {
+			values["OLLAMA_HOST"] = resolverLocalhost
+		}
+	}
+}
+
+func applyDependencyOverrides(resourceName string, opts ResolveOptions, values map[string]string) {
+	if resourceName != "postgres" {
+		return
+	}
+	dbName := strings.TrimSpace(opts.Dependency.Database)
+	if dbName == "" && strings.TrimSpace(opts.ScenarioName) != "" {
+		// SSOT: live ⇒ "vrooli_<scenario>" (unchanged); shadow ⇒
+		// "vrooli_<scenario>_<variant>" so a shadow never writes live's database.
+		dbName = scenarioruntime.InstanceKey{
+			Scenario: opts.ScenarioName,
+			Variant:  opts.Variant,
+		}.Namespace().PostgresDB
+	}
+	if dbName != "" {
+		values["POSTGRES_DB"] = dbName
+	}
+}
+
+func expandTemplateWithContext(value string, env map[string]string, extra map[string]string) string {
+	expanded := value
+	keys := make([]string, 0, len(env))
+	for key := range env {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	for _, key := range keys {
+		expanded = strings.ReplaceAll(expanded, "${"+key+"}", env[key])
+		expanded = strings.ReplaceAll(expanded, "$"+key, env[key])
+	}
+	extraKeys := make([]string, 0, len(extra))
+	for key := range extra {
+		if _, exists := env[key]; exists {
+			continue
+		}
+		extraKeys = append(extraKeys, key)
+	}
+	slices.Sort(extraKeys)
+	for _, key := range extraKeys {
+		expanded = strings.ReplaceAll(expanded, "${"+key+"}", extra[key])
+		expanded = strings.ReplaceAll(expanded, "$"+key, extra[key])
+	}
+	return expanded
+}
+
+func buildTemplateContext(root, home, resourceName string) map[string]string {
+	dataRoot := strings.TrimSpace(os.Getenv("VROOLI_DATA"))
+	if dataRoot == "" && home != "" {
+		// Resource-env output var: the data root name comes from the runtime_home
+		// authority, not a hard-coded literal.
+		if resolved, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyData); err == nil {
+			dataRoot = resolved
+		}
+	}
+
+	context := map[string]string{
+		"ROOT": filepath.Clean(root),
+	}
+	if home != "" {
+		context["HOME"] = home
+	}
+	if dataRoot != "" {
+		context["VROOLI_DATA"] = dataRoot
+	}
+	if root != "" {
+		context[buildinfo.SourceRootFallbackEnvVar] = filepath.Clean(root)
+		context["RESOURCE_ROOT"] = filepath.Join(filepath.Clean(root), "resources", resourceName)
+	}
+	if paths, err := resolveResourceStoragePaths(home, resourceName); err == nil {
+		context["RESOURCE_CONFIG_DIR"] = paths.ConfigDir
+		context["RESOURCE_DATA_DIR"] = paths.DataDir
+		context["RESOURCE_CACHE_DIR"] = paths.CacheDir
+		context["RESOURCE_LOGS_DIR"] = paths.LogsDir
+		context["RESOURCE_STATE_DIR"] = paths.StateDir
+	}
+	return context
+}
+
+func resolveResourceStoragePaths(home, resourceName string) (runtimestorage.Paths, error) {
+	cfg := runtimestorage.ResolverConfig{AppID: "vrooli"}
+	if strings.TrimSpace(home) != "" {
+		cfg.UserHomeDir = func() (string, error) { return home, nil }
+		cfg.UserConfigDir = func() (string, error) { return filepath.Join(home, ".config"), nil }
+		cfg.UserCacheDir = func() (string, error) { return filepath.Join(home, ".cache"), nil }
+	}
+	resolver, err := runtimestorage.NewResolver(cfg)
+	if err != nil {
+		return runtimestorage.Paths{}, err
+	}
+	return resolver.Resolve(runtimestorage.Options{ResourceID: resourceName})
+}
+
+func defaultPortLabel(port manifestpkg.ResourcePort) string {
+	if strings.TrimSpace(port.Name) != "" {
+		return port.Name
+	}
+	if port.Container > 0 {
+		return strconv.Itoa(port.Container)
+	}
+	return "unnamed"
+}
+
+func mapsContainsKey(m map[string]manifestpkg.ResourceDerivedTemplate, key string) bool {
+	_, ok := m[key]
+	return ok
+}
+
+func isKnownTemplateContextVariable(root, resourceName, key string) bool {
+	switch key {
+	case "HOME", "ROOT", buildinfo.SourceRootFallbackEnvVar, "VROOLI_DATA", "RESOURCE_ROOT",
+		"RESOURCE_CONFIG_DIR", "RESOURCE_DATA_DIR", "RESOURCE_CACHE_DIR", "RESOURCE_LOGS_DIR", "RESOURCE_STATE_DIR":
+		return true
+	default:
+		_, ok := buildTemplateContext(root, "", resourceName)[key]
+		return ok
+	}
+}

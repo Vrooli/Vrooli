@@ -257,7 +257,7 @@ docker logs qdrant --tail 50
 docker inspect qdrant
 
 # Check volume permissions
-ls -la ~/.qdrant/
+ls -la "${QDRANT_DATA_DIR}/"
 ```
 
 **Solutions:**
@@ -265,7 +265,7 @@ ls -la ~/.qdrant/
 1. **Fix permissions:**
 ```bash
 # Fix volume ownership
-sudo chown -R $(id -u):$(id -g) ~/.qdrant/
+sudo chown -R "$(id -u):$(id -g)" "${QDRANT_DATA_DIR}" "${QDRANT_CONFIG_DIR}" "${QDRANT_SNAPSHOTS_DIR}"
 
 # Recreate with correct permissions
 docker rm -f qdrant
@@ -275,10 +275,10 @@ resource-qdrant manage install
 2. **Clear corrupted data:**
 ```bash
 # Backup if needed
-cp -r ~/.qdrant/data ~/.qdrant/data.backup
+cp -r "${QDRANT_DATA_DIR}" "${QDRANT_DATA_DIR}.backup"
 
 # Clear and restart
-rm -rf ~/.qdrant/data/*
+rm -rf "${QDRANT_DATA_DIR}/"*
 docker restart qdrant
 ```
 
@@ -301,7 +301,7 @@ docker run -d \
   --name qdrant \
   -p 6333:6333 \
   -p 6334:6334 \
-  -v ~/.qdrant/data:/qdrant/storage \
+  -v "${QDRANT_DATA_DIR}:/qdrant/storage" \
   qdrant/qdrant
 ```
 
@@ -422,10 +422,10 @@ done
 docker stop qdrant
 
 # 2. Backup current data
-cp -r ~/.qdrant/data ~/.qdrant/data.backup.$(date +%Y%m%d)
+cp -r "${QDRANT_DATA_DIR}" "${QDRANT_DATA_DIR}.backup.$(date +%Y%m%d)"
 
 # 3. Clear problematic data
-rm -rf ~/.qdrant/data/collections/problematic_collection
+rm -rf "${QDRANT_DATA_DIR}/collections/problematic_collection"
 
 # 4. Start Qdrant
 docker start qdrant
@@ -449,7 +449,7 @@ docker rm qdrant
 docker run -d \
   --name qdrant \
   -p 6333:6333 \
-  -v ~/.qdrant/data:/qdrant/storage \
+  -v "${QDRANT_DATA_DIR}:/qdrant/storage" \
   qdrant/qdrant:v1.7.0  # Previous working version
 
 # Verify functionality
@@ -483,7 +483,7 @@ echo "=== Resource Usage ==="
 docker stats qdrant --no-stream
 echo ""
 echo "=== Disk Usage ==="
-du -sh ~/.qdrant/
+du -sh "${QDRANT_DATA_DIR}/"
 EOF
 
 bash qdrant-diagnostics.sh > qdrant-diagnostics.txt

@@ -1,0 +1,368 @@
+syntax = "proto3";
+
+package vrooli.test_genie.v1.validation;
+
+import "common/v1/validation_target.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation;validation_v1";
+
+// ValidationService is the sole first-party lifecycle authority for validation
+// intent. Callers declare the evidence they need; Test Genie owns admission,
+// coalescing, scheduling, execution, retry, waiting, and terminalization.
+service ValidationService {
+  rpc CreateValidation(CreateValidationRequest) returns (CreateValidationResponse);
+  rpc GetValidation(GetValidationRequest) returns (GetValidationResponse);
+  rpc WaitValidation(WaitValidationRequest) returns (WaitValidationResponse);
+  rpc ListValidations(ListValidationsRequest) returns (ListValidationsResponse);
+  // CancelValidationWait detaches one named observer. It never cancels work.
+  rpc CancelValidationWait(CancelValidationWaitRequest) returns (CancelValidationWaitResponse);
+  // AbortValidationWork asks the receipt owner to stop underlying work.
+  rpc AbortValidationWork(AbortValidationWorkRequest) returns (AbortValidationWorkResponse);
+  rpc ExplainValidation(ExplainValidationRequest) returns (ExplainValidationResponse);
+  rpc ListValidationShadows(ListValidationShadowsRequest) returns (ListValidationShadowsResponse);
+}
+
+enum ValidationPurpose {
+  VALIDATION_PURPOSE_UNSPECIFIED = 0;
+  VALIDATION_PURPOSE_PHASE = 1;
+  VALIDATION_PURPOSE_REGRESSION_BEFORE = 2;
+  VALIDATION_PURPOSE_REGRESSION_CURRENT = 3;
+  VALIDATION_PURPOSE_CERTIFICATION = 4;
+  VALIDATION_PURPOSE_INVESTIGATION = 5;
+}
+
+enum ValidationStrength {
+  VALIDATION_STRENGTH_UNSPECIFIED = 0;
+  VALIDATION_STRENGTH_SMOKE = 1;
+  VALIDATION_STRENGTH_TARGETED = 2;
+  VALIDATION_STRENGTH_COMPREHENSIVE = 3;
+  VALIDATION_STRENGTH_CERTIFICATION = 4;
+}
+
+enum ReuseMode {
+  REUSE_MODE_UNSPECIFIED = 0;
+  REUSE_MODE_NEVER = 1;
+  REUSE_MODE_ATTACH_ACTIVE = 2;
+  REUSE_MODE_COMPATIBLE_TERMINAL = 3;
+  REUSE_MODE_ATTACH_OR_TERMINAL = 4;
+}
+
+enum ConcurrencyMode {
+  CONCURRENCY_MODE_UNSPECIFIED = 0;
+  CONCURRENCY_MODE_SHARED_COMPATIBLE = 1;
+  CONCURRENCY_MODE_EXCLUSIVE = 2;
+}
+
+enum ReceiptState {
+  RECEIPT_STATE_UNSPECIFIED = 0;
+  RECEIPT_STATE_ADMITTED = 1;
+  RECEIPT_STATE_ATTACHED = 2;
+  RECEIPT_STATE_QUEUED = 3;
+  RECEIPT_STATE_RUNNING = 4;
+  RECEIPT_STATE_RETRY_PENDING = 5;
+  RECEIPT_STATE_SUCCEEDED = 6;
+  RECEIPT_STATE_FAILED = 7;
+  RECEIPT_STATE_DEGRADED = 8;
+  RECEIPT_STATE_CANCELLED = 9;
+  RECEIPT_STATE_SUPERSEDED = 10;
+}
+
+enum CompatibilityKind {
+  COMPATIBILITY_KIND_UNSPECIFIED = 0;
+  COMPATIBILITY_KIND_NEW_WORK = 1;
+  COMPATIBILITY_KIND_ATTACHED_ACTIVE = 2;
+  COMPATIBILITY_KIND_REUSED_TERMINAL = 3;
+  COMPATIBILITY_KIND_INCOMPATIBLE = 4;
+}
+
+enum RetryKind {
+  RETRY_KIND_UNSPECIFIED = 0;
+  RETRY_KIND_NOT_NEEDED = 1;
+  RETRY_KIND_PENDING = 2;
+  RETRY_KIND_SCHEDULED = 3;
+  RETRY_KIND_EXHAUSTED = 4;
+  RETRY_KIND_PROHIBITED = 5;
+}
+
+// ValidationReasonCode is stable across transports and prose changes.
+enum ValidationReasonCode {
+  VALIDATION_REASON_CODE_UNSPECIFIED = 0;
+  VALIDATION_REASON_CODE_NONE = 1;
+  VALIDATION_REASON_CODE_INVALID_INTENT = 2;
+  VALIDATION_REASON_CODE_INVALID_TARGET = 3;
+  VALIDATION_REASON_CODE_UNSUPPORTED_STRENGTH = 4;
+  VALIDATION_REASON_CODE_UNRESOLVED_INPUT = 5;
+  VALIDATION_REASON_CODE_IDENTITY_CHANGED = 6;
+  VALIDATION_REASON_CODE_CAPACITY_UNAVAILABLE = 7;
+  VALIDATION_REASON_CODE_PROVIDER_UNAVAILABLE = 8;
+  VALIDATION_REASON_CODE_DEADLINE_EXCEEDED = 9;
+  VALIDATION_REASON_CODE_REQUIRED_EVIDENCE_FAILED = 10;
+  VALIDATION_REASON_CODE_REQUIRED_EVIDENCE_MISSING = 11;
+  VALIDATION_REASON_CODE_ABORT_REQUESTED = 12;
+  VALIDATION_REASON_CODE_ABORTED = 13;
+  VALIDATION_REASON_CODE_SUPERSEDED = 14;
+  VALIDATION_REASON_CODE_RETRY_EXHAUSTED = 15;
+  VALIDATION_REASON_CODE_POLICY_REJECTED = 16;
+  VALIDATION_REASON_CODE_CURSOR_EXPIRED = 17;
+  VALIDATION_REASON_CODE_INTERNAL = 18;
+}
+
+enum ChildOperationKind {
+  CHILD_OPERATION_KIND_UNSPECIFIED = 0;
+  CHILD_OPERATION_KIND_TEST_RUN = 1;
+  CHILD_OPERATION_KIND_GCT_BASELINE_COLLECTION = 2;
+  CHILD_OPERATION_KIND_GCT_COLLECTION_DIFF = 3;
+  CHILD_OPERATION_KIND_SOURCE_SNAPSHOT = 4;
+}
+
+enum ChildOperationState {
+  CHILD_OPERATION_STATE_UNSPECIFIED = 0;
+  CHILD_OPERATION_STATE_PENDING = 1;
+  CHILD_OPERATION_STATE_RUNNING = 2;
+  CHILD_OPERATION_STATE_SUCCEEDED = 3;
+  CHILD_OPERATION_STATE_FAILED = 4;
+  CHILD_OPERATION_STATE_CANCELLED = 5;
+}
+
+message ReusePolicy {
+  ReuseMode mode = 1;
+  google.protobuf.Duration maximum_age = 2;
+}
+
+message ConcurrencyPolicy {
+  ConcurrencyMode mode = 1;
+  uint32 maximum_parallelism = 2;
+}
+
+message DeadlinePolicy {
+  google.protobuf.Duration queue_budget = 1;
+  google.protobuf.Duration execution_budget = 2;
+  uint32 maximum_attempts = 3;
+}
+
+message EvidencePolicy {
+  bool require_behavioral_before = 1;
+  bool require_source_snapshot = 2;
+  bool allow_authorized_degradation = 3;
+  repeated string required_evidence_kinds = 4;
+}
+
+message ContentRootIdentity {
+  string name = 1;
+  string identity = 2;
+  repeated ContentFileIdentity files = 3;
+}
+
+// Immutable admitted manifest entries; paths are relative to their content root.
+message ContentFileIdentity {
+  string path = 1;
+  string digest = 2;
+  int64 size = 3;
+}
+
+// SourceIdentity is the wire projection of freshness-go's versioned content
+// identity. Attribution fields never participate in identity equality.
+message SourceIdentity {
+  uint32 schema_version = 1;
+  string identity = 2;
+  repeated ContentRootIdentity roots = 3;
+  map<string, string> configuration = 4;
+  map<string, string> toolchain = 5;
+  string commit = 6;
+  string branch = 7;
+  bool dirty = 8;
+}
+
+// InputSelection declares one portable, root-relative file glob. A required
+// selection that resolves to no eligible regular file fails closed.
+message InputSelection {
+  string glob = 1;
+  bool required = 2;
+}
+
+// ContentInputRoot declares bytes that may affect validation. root is relative
+// to Test Genie's configured repository root and is attribution, not identity.
+message ContentInputRoot {
+  string name = 1;
+  string root = 2;
+  repeated InputSelection selections = 3;
+  bool dependency = 4;
+}
+
+message ValidationIntent {
+  uint32 schema_version = 1;
+  string intent_id = 2;
+  string idempotency_key = 3;
+  string caller_scenario = 4;
+  string caller_execution_id = 5;
+  string plan_id = 6;
+  string phase_id = 7;
+  repeated common.v1.ValidationTarget targets = 8;
+  ValidationPurpose purpose = 9;
+  ValidationStrength required_strength = 10;
+  ReusePolicy reuse_policy = 11;
+  ConcurrencyPolicy concurrency_policy = 12;
+  SourceIdentity expected_identity = 13;
+  EvidencePolicy evidence_policy = 14;
+  DeadlinePolicy deadline_policy = 15;
+  map<string, string> caller_attributes = 16;
+  repeated ContentInputRoot content_inputs = 17;
+  // Behavioral evidence selection participates in compatibility, unlike attribution.
+  string behavioral_prior = 18;
+  // Explicit Test Genie phases. Empty preserves the requested strength preset.
+  repeated string phases = 19;
+}
+
+message EvidenceReference {
+  string evidence_id = 1;
+  string kind = 2;
+  string owner = 3;
+  string subject_id = 4;
+  string uri = 5;
+  string digest = 6;
+}
+
+message ChildOperation {
+  string child_id = 1;
+  ChildOperationKind kind = 2;
+  ChildOperationState state = 3;
+  string owner = 4;
+  string operation_id = 5;
+  ValidationReasonCode reason_code = 6;
+  string detail = 7;
+}
+
+message CompatibilityDecision {
+  CompatibilityKind kind = 1;
+  string compatible_receipt_id = 2;
+  string execution_key = 3;
+  ValidationReasonCode reason_code = 4;
+  string detail = 5;
+}
+
+message RetryDisposition {
+  RetryKind kind = 1;
+  uint32 attempt = 2;
+  uint32 maximum_attempts = 3;
+  ValidationReasonCode reason_code = 4;
+  google.protobuf.Timestamp retry_at = 5;
+}
+
+message Degradation {
+  bool authorized = 1;
+  string authorized_by = 2;
+  string authorization_reason = 3;
+  repeated string missing_evidence_kinds = 4;
+  ValidationReasonCode reason_code = 5;
+}
+
+message ValidationReceipt {
+  uint32 schema_version = 1;
+  string receipt_id = 2;
+  string lineage_id = 3;
+  string intent_id = 4;
+  ReceiptState state = 5;
+  ValidationStrength achieved_strength = 6;
+  SourceIdentity admitted_identity = 7;
+  SourceIdentity observed_identity = 8;
+  repeated EvidenceReference evidence = 9;
+  repeated ChildOperation children = 10;
+  CompatibilityDecision compatibility = 11;
+  RetryDisposition retry = 12;
+  Degradation degradation = 13;
+  ValidationReasonCode reason_code = 14;
+  string detail = 15;
+  google.protobuf.Timestamp created_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  google.protobuf.Timestamp terminal_at = 18;
+  uint64 revision = 19;
+}
+
+message CreateValidationRequest {
+  ValidationIntent intent = 1;
+}
+message CreateValidationResponse {
+  ValidationReceipt receipt = 1;
+}
+message GetValidationRequest {
+  string receipt_id = 1;
+}
+message GetValidationResponse {
+  ValidationReceipt receipt = 1;
+}
+
+message WaitValidationRequest {
+  string receipt_id = 1;
+  string wait_id = 2;
+  google.protobuf.Duration timeout = 3;
+  uint64 after_revision = 4;
+}
+message WaitValidationResponse {
+  ValidationReceipt receipt = 1;
+  bool timed_out = 2;
+  bool wait_cancelled = 3;
+}
+
+message ListValidationsRequest {
+  string caller_scenario = 1;
+  string caller_execution_id = 2;
+  string plan_id = 3;
+  ReceiptState state = 4;
+  uint32 page_size = 5;
+  string page_token = 6;
+}
+message ListValidationsResponse {
+  repeated ValidationReceipt receipts = 1;
+  string next_page_token = 2;
+}
+
+message CancelValidationWaitRequest {
+  string receipt_id = 1;
+  string wait_id = 2;
+}
+message CancelValidationWaitResponse {
+  bool cancelled = 1;
+  ValidationReceipt receipt = 2;
+}
+
+message AbortValidationWorkRequest {
+  string receipt_id = 1;
+  string reason = 2;
+  string requested_by = 3;
+}
+message AbortValidationWorkResponse {
+  ValidationReceipt receipt = 1;
+}
+
+message ExplainValidationRequest {
+  string receipt_id = 1;
+}
+message ExplainValidationResponse {
+  ValidationReceipt receipt = 1;
+  repeated string decisions = 2;
+  repeated string next_actions = 3;
+}
+
+message ListValidationShadowsRequest {
+  uint32 page_size = 1;
+}
+message ListValidationShadowsResponse {
+  repeated ValidationShadowComparison comparisons = 1;
+}
+
+message ValidationShadowComparison {
+  string comparison_id = 1;
+  string source_kind = 2;
+  string source_id = 3;
+  string receipt_id = 4;
+  uint64 receipt_revision = 5;
+  string legacy_state = 6;
+  ReceiptState receipt_state = 7;
+  bool matched = 8;
+  string reason_code = 9;
+  uint32 legacy_evidence_count = 10;
+  uint32 receipt_evidence_count = 11;
+  google.protobuf.Timestamp observed_at = 12;
+}

@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": [
+      "/settings"
+    ],
+    "purpose": "Expose the minimum configuration surface needed to understand and operate Prose Studio safely.",
+    "prd_refs": [
+      "OT-P1-001"
+    ]
+  },
+  "states": [
+    {
+      "id": "loading",
+      "description": "Data for this surface is in flight; skeleton structure is shown rather than a blank frame.",
+      "setup": {
+        "route": "/settings"
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No records exist yet for this surface; guidance names the action that creates the first one.",
+      "setup": {
+        "route": "/settings"
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some data resolved and some did not; what resolved stays usable and what failed is named rather than silently omitted.",
+      "setup": {
+        "route": "/settings"
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is known to be out of date relative to its source; the surface says so rather than presenting it as current.",
+      "setup": {
+        "route": "/settings"
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the specific cause is stated inline and the surface offers the action that retries it.",
+      "setup": {
+        "route": "/settings"
+      }
+    }
+  ]
+}

@@ -14,6 +14,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/config"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	credentialusev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/credential_use"
 )
 
 // Request wires together the dependencies required to run a compiled plan.
@@ -30,6 +31,11 @@ type Request struct {
 	MaxSubflowDepth   int              // Optional; defaults to 5.
 	SubflowStack      []uuid.UUID      // Internal: call stack to avoid recursion.
 	EngineCaps        *contracts.EngineCapabilities
+
+	// CredentialPolicy switches execution into the authority-bound browser
+	// mode. The policy contains no secret value and causes every action to pass
+	// the credential-use guard before reaching the normal engine.
+	CredentialPolicy *credentialusev1.BrowserSessionPolicy
 
 	// Resume support: when set, execution starts from the step after StartFromStepIndex.
 	// InitialVariables provides state accumulated from previously completed steps.

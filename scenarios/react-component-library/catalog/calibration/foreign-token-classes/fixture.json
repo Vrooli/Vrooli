@@ -1,0 +1,10 @@
+{
+  "gate": "foreign-token-classes",
+  "assetId": "calibration.foreign-token-classes",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.foreign-token-classes",
+  "source": "broken.tsx",
+  "catalogAsset": "asset.json",
+  "description": "Emits a consumer-specific app palette class."
+}

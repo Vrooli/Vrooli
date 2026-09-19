@@ -30,13 +30,11 @@ func TestAppVersionSemver(t *testing.T) {
 	}
 }
 
-// [REQ:P2-002] DefaultOllamaURL points to the standard local Ollama port
-func TestDefaultOllamaURL(t *testing.T) {
-	if !strings.HasPrefix(DefaultOllamaURL, "http://") {
-		t.Errorf("DefaultOllamaURL should be HTTP, got %q", DefaultOllamaURL)
-	}
-	if !strings.Contains(DefaultOllamaURL, "11434") {
-		t.Errorf("DefaultOllamaURL should use standard Ollama port 11434, got %q", DefaultOllamaURL)
+// [REQ:P2-002] OllamaProviderTransport identifies the resource-ollama gateway
+// (Ollama daemon traffic is routed through that CLI, not direct HTTP).
+func TestOllamaProviderTransport(t *testing.T) {
+	if !strings.HasPrefix(OllamaProviderTransport, "resource-ollama://") {
+		t.Errorf("OllamaProviderTransport should reference the resource-ollama CLI, got %q", OllamaProviderTransport)
 	}
 }
 
@@ -50,8 +48,9 @@ func TestOpenRouterURL(t *testing.T) {
 	}
 }
 
-// [REQ:P2-002] SuggestionService wires DefaultOllamaURL when OLLAMA_URL is unset
-func TestSuggestionServiceUsesDefaultOllamaURL(t *testing.T) {
+// [REQ:P2-002] SuggestionService advertises the Ollama provider via the
+// resource-ollama gateway transport (no per-call URL toggle).
+func TestSuggestionServiceUsesOllamaTransport(t *testing.T) {
 	svc := NewSuggestionServiceWithEnv(nil, func(key string) string { return "" })
 	providers := svc.GetProviders()
 	var ollamaURL string
@@ -61,8 +60,8 @@ func TestSuggestionServiceUsesDefaultOllamaURL(t *testing.T) {
 			break
 		}
 	}
-	if ollamaURL != DefaultOllamaURL {
-		t.Errorf("expected ollama URL %q, got %q", DefaultOllamaURL, ollamaURL)
+	if ollamaURL != OllamaProviderTransport {
+		t.Errorf("expected ollama URL %q, got %q", OllamaProviderTransport, ollamaURL)
 	}
 }
 

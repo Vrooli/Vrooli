@@ -1,0 +1,159 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-09-09T16:26:32-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-005",
+      "title": "Delegated Owner Authentication via scenario-authenticator",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "security",
+      "description": "All owner identity verification, JWT access token issuance, refresh token issuance, and token validation are delegated to the scenario-authenticator service over HTTP. The device-sync-hub scenario holds no local password store or token-signing keys. On every protected request, the hub validates the bearer token with scenario-authenticator before proceeding. If scenario-authenticator is unavailable, the hub fails closed: all protected requests are denied with HTTP 503 and no cached auth state is used as a bypass.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: auth middleware calls scenario-authenticator validate endpoint for every protected route and denies access when the call returns non-200"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: auth middleware returns HTTP 503 (not 200 or 401) when scenario-authenticator HTTP client times out or returns connection refused"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: no code path exists that short-circuits auth validation without calling scenario-authenticator (static analysis / coverage gate)"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: JWT claims extracted from scenario-authenticator response are correctly mapped to owner_id and device context"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: valid JWT issued by scenario-authenticator grants access to protected hub endpoints"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: expired JWT is rejected with HTTP 401"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: simulate scenario-authenticator downtime; assert hub returns HTTP 503 on all protected endpoints with no data leakage"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: no test-mode bypass flag exists in the production binary (build-tag or env-var scan)"
+        },
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "planned",
+          "notes": "Auth validation round-trip to scenario-authenticator adds no more than 50 ms p99 overhead per request under normal conditions"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "notes": "Security review: confirm no local credential store or signing key is present in the hub service"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "notes": "Ops runbook: verify that hub health-check endpoint distinguishes 'auth service degraded' from 'hub healthy'"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-006",
+      "title": "Immediate Device Revocation with Session Invalidation",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "security",
+      "description": "When an owner revokes a device, the hub immediately calls scenario-authenticator to invalidate all active sessions and refresh tokens associated with that device, removes the device from the trust group atomically, and closes any open WebSocket connections from that device. From the moment of revocation, the revoked device receives HTTP 403 on all endpoints. In-flight requests that arrived before revocation but are validated after revocation are also denied. The revoked device must not be able to complete a download or receive a relay delivery after revocation.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: revocation handler calls scenario-authenticator session-invalidate endpoint before removing from trust table"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: trust-group membership check evaluates revocation state atomically within the same transaction as any read or write"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: WebSocket presence hub closes connection for a device_id immediately upon revocation event"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: in-flight request with a token that was valid at arrival but device was revoked mid-flight is denied before response is written"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: Device B is connected and receives items; owner revokes Device B; Device B's subsequent list/pull request returns HTTP 403"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: Device B's WebSocket connection is closed within 1 second of revocation"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: Device B attempts to reconnect WebSocket after revocation with old token; connection is refused"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: Device B is removed from device management list immediately after revocation"
+        },
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "planned",
+          "notes": "Revocation takes effect (403 enforced) within 1 second of owner action"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "notes": "Playbook: revoke a device in Device Management UI; confirm device disappears from list and a confirmation toast is shown"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "notes": "Playbook: attempt to use revoked device; confirm access denied message is presented"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,267 @@
+syntax = "proto3";
+
+package vrooli.system_monitor.v1.scripts;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/scripts;scripts";
+
+// =============================================================================
+// SCRIPTS DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Investigation script types for manual and automated script execution.
+//
+// USAGE CONTEXTS:
+//   - API responses for script CRUD and execution endpoints
+//   - UI data models (script list, execution results)
+//
+// =============================================================================
+
+// InvestigationScript represents a reusable investigation script.
+message InvestigationScript {
+  // Unique script identifier.
+  string id = 1;
+
+  // Display name.
+  string name = 2;
+
+  // Human-readable description.
+  string description = 3;
+
+  // Script category (e.g. "cpu", "memory", "network", "disk", "process").
+  string category = 4;
+
+  // When the script was created.
+  google.protobuf.Timestamp created_at = 5;
+
+  // When the script was last updated.
+  google.protobuf.Timestamp updated_at = 6;
+
+  // Author of the script.
+  string author = 7;
+
+  // Whether this script is enabled for execution.
+  bool enabled = 8;
+
+  // Execution path used by the investigation service: native query or shell
+  // escape hatch. Consumers must not infer portability from the file suffix.
+  string execution_mode = 13;
+
+  // Tools required by a shell-gated investigation on the current host.
+  repeated string required_tools = 14;
+
+  // Populated when the declared execution path is unavailable on this host.
+  string skip_reason = 15;
+
+  // Host platforms on which the entry has a native backend or shell contract.
+  repeated string platforms = 16;
+
+  // builtin or operator.
+  string source = 17;
+}
+
+// ScriptExecutionStatus represents the state of a script execution.
+enum ScriptExecutionStatus {
+  // Default/unspecified.
+  SCRIPT_EXECUTION_STATUS_UNSPECIFIED = 0;
+
+  // Script is currently running.
+  SCRIPT_EXECUTION_STATUS_RUNNING = 1;
+
+  // Script completed successfully.
+  SCRIPT_EXECUTION_STATUS_COMPLETED = 2;
+
+  // Script failed with error.
+  SCRIPT_EXECUTION_STATUS_FAILED = 3;
+
+  // The declared shell tools or native backend are unavailable on this host.
+  SCRIPT_EXECUTION_STATUS_SKIPPED = 4;
+}
+
+// ScriptExecution represents the result of executing an investigation script.
+message ScriptExecution {
+  // ID of the script that was executed.
+  string script_id = 1;
+
+  // Unique execution identifier.
+  string execution_id = 2;
+
+  // Execution status.
+  ScriptExecutionStatus status = 3;
+
+  // When execution started.
+  google.protobuf.Timestamp started_at = 4;
+
+  // When execution completed (if finished).
+  optional google.protobuf.Timestamp completed_at = 5;
+
+  // Combined standard output.
+  string output = 6;
+
+  // Error message (if failed).
+  string error = 7;
+
+  // Process exit code.
+  optional int32 exit_code = 8;
+
+  // Standard output stream.
+  string stdout = 9;
+
+  // Standard error stream.
+  string stderr = 10;
+
+  // Whether the execution timed out.
+  bool timed_out = 11;
+
+  // Duration of execution in seconds.
+  optional double duration_seconds = 12;
+
+  // Native query or shell escape hatch used for this run.
+  string execution_mode = 13;
+
+  // Why execution was skipped, when status is SKIPPED.
+  string skip_reason = 14;
+}
+
+// =============================================================================
+// SCRIPTS API MESSAGES
+// =============================================================================
+//
+// @stability beta
+//
+// Request/response wrappers for investigation script endpoints.
+//
+// =============================================================================
+
+// ListScriptsRequest is empty - no parameters needed.
+message ListScriptsRequest {}
+
+// ListScriptsResponse returns available investigation scripts.
+message ListScriptsResponse {
+  // Available scripts.
+  repeated InvestigationScript scripts = 1;
+}
+
+// GetScriptRequest retrieves a specific script.
+message GetScriptRequest {
+  // Script ID.
+  string id = 1;
+}
+
+// GetScriptResponse returns a single script with its content.
+message GetScriptResponse {
+  // The script metadata.
+  InvestigationScript script = 1;
+
+  // The script body/source code.
+  string content = 2;
+}
+
+// UpdateScriptRequest persists the source of an existing investigation script.
+message UpdateScriptRequest {
+  // Script ID.
+  string id = 1;
+
+  // Complete script body/source code.
+  string content = 2;
+}
+
+// ExecuteScriptRequest triggers execution of a script.
+message ExecuteScriptRequest {
+  // Script ID to execute.
+  string id = 1;
+
+  // Optional user-provided script content override.
+  optional string content = 2;
+}
+
+// ExecuteScriptResponse returns the execution result.
+message ExecuteScriptResponse {
+  // Execution result.
+  ScriptExecution execution = 1;
+}
+
+message InvestigationFinding {
+  string severity = 1;
+  string code = 2;
+  string summary = 3;
+  string detail_json = 4;
+}
+
+message InvestigationRun {
+  string id = 1;
+  string entry_id = 2;
+  string execution_mode = 3;
+  string status = 4;
+  string skip_reason = 5;
+  int32 exit_code = 6;
+  bool timed_out = 7;
+  google.protobuf.Timestamp started_at = 8;
+  google.protobuf.Timestamp completed_at = 9;
+  double duration_seconds = 10;
+  string host_os = 11;
+  string host_arch = 12;
+  string result_json = 13;
+  string stderr_tail = 14;
+  string anomaly_id = 15;
+  repeated InvestigationFinding findings = 16;
+}
+
+message ListRunsRequest {
+  string entry_id = 1;
+  string since = 2;
+  int32 limit = 3;
+}
+
+message ListRunsResponse { repeated InvestigationRun runs = 1; }
+
+message GetRunRequest { string id = 1; }
+message GetRunResponse { InvestigationRun run = 1; }
+
+message PruneRunsRequest { bool dry_run = 1; }
+message PruneRunsResponse { int64 deleted = 1; bool dry_run = 2; }
+
+// ScriptsService provides the scripts RPC surface.
+service ScriptsService {
+  // ListScripts returns available investigation scripts.
+  rpc ListScripts(ListScriptsRequest) returns (ListScriptsResponse) {
+    option (google.api.http) = {get: "/api/v1/investigations/scripts"};
+  }
+
+  // GetScript retrieves a specific script.
+  rpc GetScript(GetScriptRequest) returns (GetScriptResponse) {
+    option (google.api.http) = {get: "/api/v1/investigations/scripts/{id}"};
+  }
+
+  // UpdateScript persists an existing investigation script.
+  rpc UpdateScript(UpdateScriptRequest) returns (GetScriptResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/investigations/scripts/{id}"
+      body: "*"
+    };
+  }
+
+  // ExecuteScript executes an investigation script.
+  rpc ExecuteScript(ExecuteScriptRequest) returns (ExecuteScriptResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/investigations/scripts/{id}/execute"
+      body: "*"
+    };
+  }
+
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse) {
+    option (google.api.http) = {get: "/api/v1/investigations/runs"};
+  }
+
+  rpc GetRun(GetRunRequest) returns (GetRunResponse) {
+    option (google.api.http) = {get: "/api/v1/investigations/runs/{id}"};
+  }
+
+  rpc PruneRuns(PruneRunsRequest) returns (PruneRunsResponse) {
+    option (google.api.http) = {post: "/api/v1/investigations/runs/prune" body: "*"};
+  }
+}

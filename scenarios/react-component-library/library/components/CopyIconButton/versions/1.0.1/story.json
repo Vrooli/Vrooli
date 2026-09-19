@@ -1,0 +1,221 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {},
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "A ghost icon button named for what it copies.",
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Copy command",
+          "role": "button"
+        },
+        {
+          "attribute": "data-rcl-copy-state",
+          "kind": "attribute",
+          "selector": "[data-rcl-copy-button]",
+          "value": "idle"
+        },
+        {
+          "attribute": "data-rcl-surface",
+          "kind": "attribute",
+          "selector": "[data-rcl-copy-button]",
+          "value": "ghost"
+        }
+      ],
+      "id": "default",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Copy, at rest",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "A press copies, and the icon morphs to a check in the success colour.",
+      "expect": [
+        {
+          "attribute": "data-rcl-copy-state",
+          "kind": "attribute",
+          "selector": "[data-rcl-copy-button]",
+          "value": "copied"
+        }
+      ],
+      "id": "success",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Copy command",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Copied",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Failed",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "A write that fails shows a cross in the danger colour and announces the failure.",
+      "expect": [
+        {
+          "attribute": "data-rcl-copy-state",
+          "kind": "attribute",
+          "selector": "[data-rcl-copy-button]",
+          "value": "failed"
+        }
+      ],
+      "id": "request-error",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Copy command",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Copy failed",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Controlled",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "Shown as copied without a press here, as when a menu row copied the same text.",
+      "expect": [
+        {
+          "attribute": "data-rcl-copy-state",
+          "kind": "attribute",
+          "selector": "[data-rcl-copy-button]",
+          "value": "copied"
+        }
+      ],
+      "id": "controlled",
+      "mode": "pinned",
+      "name": "Copied elsewhere",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "SizeXSmall",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "attribute": "data-rcl-size",
+          "kind": "attribute",
+          "selector": "[data-rcl-copy-button]",
+          "value": "xs"
+        }
+      ],
+      "id": "size-xs",
+      "mode": "pinned",
+      "name": "Extra small",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Copy command",
+          "role": "button"
+        }
+      ],
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty label",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Failed",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Copy command",
+          "role": "button"
+        }
+      ],
+      "id": "error",
+      "mode": "pinned",
+      "name": "Error action",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Copy command",
+          "role": "button"
+        }
+      ],
+      "id": "overflow",
+      "mode": "pinned",
+      "name": "Overflow label",
+      "role": "boundary"
+    }
+  ],
+  "title": "CopyIconButton 1.0"
+}

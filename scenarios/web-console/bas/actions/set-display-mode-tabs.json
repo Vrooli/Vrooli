@@ -1,0 +1,29 @@
+{
+  "id": "set-display-mode-tabs",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "set-display-mode-tabs",
+  "folder_path": "/bas/actions",
+  "description": "Pin tabs display mode through the Workspace settings control and remember the prior mode for restoration.",
+  "metadata": {
+    "name": "set-display-mode-tabs",
+    "description": "Pin tabs display mode through the Workspace settings control and remember the prior mode for restoration.",
+    "execution_mode": "mutating",
+    "reset": "none",
+    "labels": { "reset": "none", "requires_confirmation": "true", "routed_isolation": "true" }
+  },
+  "tags": ["reset:none", "display-mode"],
+  "version": 1,
+  "flow_definition": {
+    "nodes": [
+      { "id": "remember-mode", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(() => { const root = document.querySelector('[data-display-mode]'); if (root) sessionStorage.setItem('__bas_previous_display_mode', root.getAttribute('data-display-mode') || 'sidebar'); })()" } } },
+      { "id": "open-settings", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/workspace.settings" } } },
+      { "id": "choose-tabs", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "[data-testid='display-mode-tabs']" } } },
+      { "id": "assert-tabs", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "[data-display-mode='tabs']", "failure_message": "Expected the product Workspace settings control to select tabs mode", "timeout_ms": 5000 } } }
+    ],
+    "edges": [
+      { "id": "e1", "source": "remember-mode", "target": "open-settings", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e2", "source": "open-settings", "target": "choose-tabs", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e3", "source": "choose-tabs", "target": "assert-tabs", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" }
+    ]
+  }
+}

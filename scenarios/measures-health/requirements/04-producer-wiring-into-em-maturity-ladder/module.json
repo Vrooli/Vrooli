@@ -1,0 +1,127 @@
+{
+  "description": "Expose a Connect RPC `MeasuresService.ValidateScenario`; add a test-genie `measures` phase that shells the validate verb and maps results to a new `FINDING_SOURCE_MEASURES`; introduce a soft `measures` dimension in the EM ladder dimensions SSOT gated at a soft rung (R3/R4) so a scenario remains runnable without measures but cannot reach top maturity without full coverage.",
+  "module_id": "MOD-P1-004",
+  "prd_ref": "OT-P1-002",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "Expose a proto-first Connect RPC `MeasuresService.ValidateScenario` that accepts a scenario name and returns the same structured coverage report produced by the CLI validate verb. The CLI command must be implemented as a thin shell over this RPC. The RPC must be defined in a .proto file and the Connect handler must delegate to the same validator logic used by the CLI, ensuring CLI and API are consistent.",
+      "id": "REQ-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "draft",
+      "title": "MeasuresService.ValidateScenario Connect RPC Endpoint",
+      "validation": [
+        {
+          "notes": "Go unit test: ValidateScenario RPC handler returns the same coverage report structure as the CLI validate function for a fixture scenario",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Go unit test: RPC handler returns gRPC/Connect NOT_FOUND status for an unknown scenario name",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Boot the measures-health API; call MeasuresService.ValidateScenario via Connect client for a fixture scenario; assert response matches the expected JSON shape with expected/covered/waived/tier/verdict fields",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Shell `measures-health validate scenario \u003cname\u003e --json` and call MeasuresService.ValidateScenario for the same scenario; assert both outputs are semantically identical",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "ValidateScenario RPC responds within 5 seconds for a single scenario",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Proto file is the single source of truth for the response shape; CLI output is derived from proto marshalling, not a separate struct",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P1-002",
+        "REQ-P0-001"
+      ],
+      "description": "Add a `measures` phase to test-genie that shells `measures-health validate scenario \u003cname\u003e --json` and maps the results to a new `FINDING_SOURCE_MEASURES` finding source. Introduce a soft `measures` dimension in the EM ladder dimensions SSOT, gated at a soft rung (R3/R4), such that a scenario remains runnable without measures coverage but cannot reach top maturity (R5+) without full coverage. The EM ladder must treat missing measures coverage as a soft gate, not a hard blocker for execution.",
+      "id": "REQ-P1-003",
+      "prd_ref": "OT-P1-002",
+      "status": "draft",
+      "title": "Test-Genie Measures Phase and EM Ladder Measures Dimension",
+      "validation": [
+        {
+          "notes": "Go unit test: test-genie measures phase correctly parses `measures-health validate scenario --json` stdout and maps ERROR findings to FINDING_SOURCE_MEASURES findings",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Go unit test: EM ladder dimension calculator returns a rung below R5 for a scenario with zero measures coverage, and returns R5 for a scenario with full coverage",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Go unit test: EM ladder allows a scenario with no measures to be executed (runnable=true) but sets maturity_blocked=true with reason MEASURES_COVERAGE_INCOMPLETE",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run test-genie measures phase against a fixture scenario with full measures coverage; assert FINDING_SOURCE_MEASURES findings list is empty and EM rung is R5",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run test-genie measures phase against a fixture scenario with zero measures coverage; assert at least one FINDING_SOURCE_MEASURES finding is present and EM rung is below R5",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Assert that a scenario with no measures passes test-genie execution phase but its EM ladder report shows soft gate blocked at R3/R4 boundary",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "EM ladder dimensions SSOT file contains the `measures` dimension entry with soft_rung=R3 (or R4 as configured) and is the single authoritative source for all EM rung calculators",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Producer Wiring into EM Maturity Ladder"
+}

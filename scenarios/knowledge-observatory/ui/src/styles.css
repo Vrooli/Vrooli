@@ -462,6 +462,76 @@ body {
     background-color: rgb(var(--ko-tone-poor-bg) / 0.25);
   }
 
+  .ko-kicker {
+    @apply text-[0.68rem] font-semibold uppercase tracking-[0.16em];
+    color: rgb(var(--ko-accent-strong));
+  }
+
+  .ko-page-title {
+    @apply text-2xl font-bold tracking-tight sm:text-3xl;
+    color: rgb(var(--ko-text-strong));
+  }
+
+  .ko-field {
+    @apply flex min-w-[9rem] flex-1 flex-col gap-1 text-xs font-semibold;
+    color: rgb(var(--ko-text-muted));
+  }
+
+  .ko-field em {
+    color: rgb(var(--ko-danger-strong));
+    font-style: normal;
+  }
+
+  .ko-field input,
+  .ko-field select,
+  .ko-field textarea {
+    @apply rounded border px-3 py-2 text-sm font-normal;
+    border-color: rgb(var(--ko-border) / 0.45);
+    background-color: rgb(var(--ko-surface-strong) / 0.75);
+    color: rgb(var(--ko-text));
+  }
+
+  .ko-field textarea {
+    min-height: 4.5rem;
+    resize: vertical;
+  }
+
+  .ko-field input:focus,
+  .ko-field select:focus,
+  .ko-field textarea:focus {
+    outline: none;
+    border-color: rgb(var(--ko-accent) / 0.8);
+    box-shadow: 0 0 0 2px rgb(var(--ko-accent) / 0.18);
+  }
+
+  .ko-status-pill {
+    @apply inline-flex rounded-full border px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-wide;
+  }
+
+  .ko-table {
+    @apply w-full min-w-[42rem] text-left text-sm;
+  }
+
+  .ko-table th {
+    @apply border-b px-4 py-3 text-[0.68rem] font-semibold uppercase tracking-wider;
+    border-color: rgb(var(--ko-border) / 0.35);
+    color: rgb(var(--ko-text-subtle));
+  }
+
+  .ko-table td {
+    @apply border-b px-4 py-3 align-top;
+    border-color: rgb(var(--ko-border) / 0.2);
+  }
+
+  .ko-table tbody tr {
+    @apply cursor-pointer transition-colors;
+  }
+
+  .ko-table tbody tr:hover,
+  .ko-table-row-active {
+    background-color: rgb(var(--ko-accent) / 0.08);
+  }
+
   .ko-stack {
     @apply space-y-6;
   }

@@ -615,6 +615,7 @@ export function ProjectDetailHeader({
       {viewMode === "tree" && (
         <button
           onClick={handleResyncFiles}
+          data-testid={selectors.projects.resyncFilesButton}
           className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
         >
           <RefreshCw size={16} />
@@ -661,6 +662,7 @@ export function ProjectDetailHeader({
           key={type}
           onClick={() => handleCreateWorkflowFile(type)}
           data-testid={selectors.projects.fileTree.createWorkflowButton}
+          data-workflow-type={type}
           className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
         >
           <FileCode size={16} />
@@ -749,8 +751,12 @@ export function ProjectDetailHeader({
               <Breadcrumbs
                 items={[
                   { label: "Dashboard", onClick: onBack },
-                  { label: "Projects", onClick: onBack },
-                  { label: project.name, current: true },
+                  {
+                    label: "Projects",
+                    onClick: onBack,
+                    testId: selectors.header.buttons.backToProject,
+                  },
+                  { label: project.name, current: true, testId: selectors.breadcrumbs.project },
                 ]}
               />
               {/* Info Button */}
@@ -771,6 +777,7 @@ export function ProjectDetailHeader({
               <div className="relative flex-shrink-0">
                 <button
                   ref={moreMenuButtonRef}
+                  data-testid={selectors.projects.moreMenuButton}
                   onClick={() => setShowMoreMenu(!showMoreMenu)}
                   className="p-1.5 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
                   aria-label="More options"
@@ -813,6 +820,7 @@ export function ProjectDetailHeader({
             {/* Back Button */}
             <button
               onClick={onBack}
+              data-testid={selectors.header.buttons.backToProject}
               className="p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors flex-shrink-0"
               aria-label="Go back"
             >

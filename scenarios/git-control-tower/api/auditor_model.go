@@ -148,9 +148,3 @@ type AuditorFixResponse struct {
 type AuditorViolationsResponse struct {
 	Violations []AuditorViolation `json:"violations"`
 }
-
-// AuditorRunCheckProxyRequest is the GCT proxy request for starting a check.
-type AuditorRunCheckProxyRequest struct {
-	ScenarioName string `json:"scenario_name"`
-	CheckType    string `json:"check_type,omitempty"`
-}

@@ -1,0 +1,12 @@
+{
+  "scenario": "go-cycles",
+  "conflicts": [
+    {
+      "detector": "cycle",
+      "type": "cycle",
+      "severity": "error",
+      "locations_min": 2,
+      "evidence_kinds_include": ["scc_member"]
+    }
+  ]
+}

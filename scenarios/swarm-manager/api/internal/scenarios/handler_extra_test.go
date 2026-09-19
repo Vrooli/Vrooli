@@ -5,8 +5,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gorilla/mux"
 	"swarm-manager/internal/testutil"
+
+	"github.com/gorilla/mux"
 )
 
 func TestHandler_LoadAllAndLoad(t *testing.T) {

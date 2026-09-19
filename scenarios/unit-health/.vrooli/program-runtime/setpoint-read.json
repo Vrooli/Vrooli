@@ -1,0 +1,179 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "unit-health.setpoint-read",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Read every unit-health-improve setpoint row from governed validation and calibration reads; declare rows with no governed sensor by their permanent reason instead of estimating them.",
+  "inputs": {
+    "target": {
+      "type": "string",
+      "default": "unit-health",
+      "description": "Exact scenario id whose validation feeds the sensor-backed rows. The improve loop regulates unit-health itself; another target reads the same rows for that scenario."
+    },
+    "execution": {
+      "type": "boolean",
+      "default": false,
+      "description": "Execute the planned test commands during the read. Off by default because an executed run for an arbitrary target can exceed the invoke budget; self-execution is declined with kernel_invoke_budget until the caller accepts it."
+    },
+    "reviewed_cohort_id": {
+      "type": "string",
+      "default": "",
+      "description": "Optional sampled-review cohort attached to the validation sensor read."
+    },
+    "reviewed_source_identity": {
+      "type": "string",
+      "default": "",
+      "description": "Source identity for the optional reviewed cohort."
+    },
+    "reviewed_observation_count": {
+      "type": "integer",
+      "default": 0,
+      "description": "Observed label count for the optional reviewed cohort."
+    },
+    "mutation_package": {
+      "type": "string",
+      "default": "./internal/testquality/...",
+      "description": "Owner package passed to the optional mutation sensor."
+    },
+    "mutation_seed": {
+      "type": "string",
+      "default": "pilot-1",
+      "description": "Recorded comparable mutation-pilot seed."
+    },
+    "mutation_floor": {
+      "type": "number",
+      "default": 0.95,
+      "description": "Floor derived from two comparable mutation runs."
+    },
+    "roster": {
+      "type": "array",
+      "default": ["unit-health"],
+      "description": "Bounded explicit scenario roster used when the registry sweep binding is unavailable."
+    }
+  },
+  "assumptions": [
+    "Unit Health owns the validation read and its maturity assessment",
+    "Rows without a governed sensor are declared, never computed by hand inside the program"
+  ],
+  "invariants": [
+    "Read only; no test, source, catalog, or corpus edits",
+    "Every row is present with keys row, reading, target, in_band, unavailable, reason",
+    "A row with a permanent reason never lowers the status; only a failed or unreliable read makes the board partial",
+    "A reading is a value the sensor returned or null; unknown is never counted as clean"
+  ],
+  "bindings": [
+    {
+      "id": "unit-health/validate/scenario",
+      "effect": "read"
+    },
+    {
+      "id": "unit-health/calibrate/run",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "unit-health/mutation/pilot",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "test-genie/validation/list",
+      "effect": "read",
+      "optional": true,
+      "via": "lib",
+      "note": "Transitive binding set of lib.test_genie.validation_digest; the child contract owns the digest composition."
+    },
+    {
+      "id": "agent-manager/run/episodes",
+      "effect": "read",
+      "optional": true,
+      "via": "lib",
+      "note": "Transitive binding set of lib.agent_manager.friction_digest."
+    },
+    {
+      "id": "agent-manager/run/list",
+      "effect": "read",
+      "optional": true,
+      "via": "lib",
+      "note": "Transitive binding set of lib.agent_manager.friction_digest."
+    },
+    {
+      "id": "agent-manager/watch/policy-outcomes",
+      "effect": "read",
+      "optional": true,
+      "via": "lib",
+      "note": "Transitive binding set of lib.agent_manager.friction_digest."
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "rows": "Setpoint rows in improve-skill order: self-maturity, self-execution, unknown-share, rules-promoted, reviewed-evidence, requirement-traceability, calibration-floor, corpus-implemented-share, holdout-agreement, declared-vs-emitted, mutation-signal, fleet-adoption, external-friction",
+      "readable": "count of rows with a reading",
+      "unavailable": "count of rows declined with a reason"
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "scenario_unreachable",
+        "remote_error",
+        "binding_error",
+        "kernel_runtime",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "validation run identity, evidence stages, and the binding that answered or failed"
+  },
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 1,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "live-plan-only",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "unit-health"
+      ]
+    },
+    {
+      "id": "invalid-target",
+      "inputs": {
+        "target": "Not A Scenario"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "unit-health-improve",
+  "verbs": ["gather", "lib"]
+}

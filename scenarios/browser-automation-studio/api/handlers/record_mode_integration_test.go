@@ -16,31 +16,33 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/recording"
 	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
 // TestRecordingHub is a test hub that captures broadcasts for verification.
 type TestRecordingHub struct {
 	mu              sync.RWMutex
-	clients         map[string]chan *wsHub.UnifiedTimelineEntry
+	clients         map[string]chan *bastimeline.TimelineEntry
 	broadcastCounts map[string]int
-	lastEntry       map[string]*wsHub.UnifiedTimelineEntry
+	lastEntry       map[string]*bastimeline.TimelineEntry
 	logger          *logrus.Logger
 }
 
 func NewTestRecordingHub(logger *logrus.Logger) *TestRecordingHub {
 	return &TestRecordingHub{
-		clients:         make(map[string]chan *wsHub.UnifiedTimelineEntry),
+		clients:         make(map[string]chan *bastimeline.TimelineEntry),
 		broadcastCounts: make(map[string]int),
-		lastEntry:       make(map[string]*wsHub.UnifiedTimelineEntry),
+		lastEntry:       make(map[string]*bastimeline.TimelineEntry),
 		logger:          logger,
 	}
 }
 
 // Subscribe adds a test client for a session.
-func (h *TestRecordingHub) Subscribe(sessionID string) chan *wsHub.UnifiedTimelineEntry {
+func (h *TestRecordingHub) Subscribe(sessionID string) chan *bastimeline.TimelineEntry {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	ch := make(chan *wsHub.UnifiedTimelineEntry, 100)
+	ch := make(chan *bastimeline.TimelineEntry, 100)
 	h.clients[sessionID] = ch
 	return ch
 }
@@ -63,7 +65,7 @@ func (h *TestRecordingHub) GetBroadcastCount(sessionID string) int {
 }
 
 // GetLastEntry returns the last broadcast entry for a session.
-func (h *TestRecordingHub) GetLastEntry(sessionID string) *wsHub.UnifiedTimelineEntry {
+func (h *TestRecordingHub) GetLastEntry(sessionID string) *bastimeline.TimelineEntry {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return h.lastEntry[sessionID]
@@ -75,7 +77,7 @@ func (h *TestRecordingHub) ServeWS(conn *websocket.Conn, executionID *uuid.UUID)
 
 func (h *TestRecordingHub) BroadcastEnvelope(event any) {}
 
-func (h *TestRecordingHub) BroadcastRecordingEntry(sessionID string, entry *wsHub.UnifiedTimelineEntry) wsHub.BroadcastResult {
+func (h *TestRecordingHub) BroadcastTimelineEntry(sessionID string, entry *bastimeline.TimelineEntry) wsHub.BroadcastResult {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -103,7 +105,7 @@ func (h *TestRecordingHub) BroadcastRecordingEntry(sessionID string, entry *wsHu
 }
 
 func (h *TestRecordingHub) BroadcastRecordingFrame(sessionID string, frame *wsHub.RecordingFrame) {}
-func (h *TestRecordingHub) BroadcastBinaryFrame(sessionID string, jpegData []byte)               {}
+func (h *TestRecordingHub) BroadcastBinaryFrame(sessionID string, jpegData []byte)                {}
 func (h *TestRecordingHub) HasRecordingSubscribers(sessionID string) bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
@@ -116,6 +118,7 @@ func (h *TestRecordingHub) BroadcastPageSwitch(sessionID, activePageID string) {
 func (h *TestRecordingHub) HasExecutionFrameSubscribers(executionID string) bool {
 	return false
 }
+
 func (h *TestRecordingHub) BroadcastExecutionFrame(executionID string, frame *wsHub.ExecutionFrame) {
 }
 func (h *TestRecordingHub) BroadcastExportProgress(progress *wsHub.ExportProgress) {}
@@ -124,8 +127,8 @@ func (h *TestRecordingHub) GetClientCount() int {
 	defer h.mu.RUnlock()
 	return len(h.clients)
 }
-func (h *TestRecordingHub) Run()                        {}
-func (h *TestRecordingHub) CloseExecution(_ uuid.UUID)  {}
+func (h *TestRecordingHub) Run()                       {}
+func (h *TestRecordingHub) CloseExecution(_ uuid.UUID) {}
 
 // Compile-time interface check
 var _ wsHub.HubInterface = (*TestRecordingHub)(nil)
@@ -186,8 +189,9 @@ func TestRecordingPipeline_EndToEnd(t *testing.T) {
 	select {
 	case entry := <-clientCh:
 		assert.NotNil(t, entry, "Should receive entry")
-		assert.Equal(t, "action", entry.Type)
-		assert.Equal(t, "click", entry.Action.ActionType)
+		assert.Equal(t, action.ID, entry.Id)
+		assert.NotNil(t, entry.Action)
+		assert.Equal(t, basactions.ActionType_ACTION_TYPE_CLICK, entry.Action.Type)
 	case <-time.After(time.Second):
 		t.Fatal("Action did not appear in WebSocket within timeout")
 	}
@@ -412,14 +416,10 @@ func TestBroadcastResult_Metrics(t *testing.T) {
 	hub := NewTestRecordingHub(logger)
 
 	sessionID := "test-session"
-	entry := &wsHub.UnifiedTimelineEntry{
-		ID:        uuid.NewString(),
-		Type:      "action",
-		Timestamp: time.Now().Format(time.RFC3339Nano),
-	}
+	entry := &bastimeline.TimelineEntry{Id: uuid.NewString()}
 
 	// Test with no subscribers
-	result1 := hub.BroadcastRecordingEntry(sessionID, entry)
+	result1 := hub.BroadcastTimelineEntry(sessionID, entry)
 	assert.Equal(t, 0, result1.SubscriberCount)
 	assert.Equal(t, 0, result1.SentCount)
 	assert.Equal(t, 0, result1.DroppedCount)
@@ -428,13 +428,13 @@ func TestBroadcastResult_Metrics(t *testing.T) {
 	_ = hub.Subscribe(sessionID)
 
 	// Test with subscriber
-	result2 := hub.BroadcastRecordingEntry(sessionID, entry)
+	result2 := hub.BroadcastTimelineEntry(sessionID, entry)
 	assert.Equal(t, 1, result2.SubscriberCount)
 	assert.Equal(t, 1, result2.SentCount)
 	assert.Equal(t, 0, result2.DroppedCount)
 
 	// Test with nil entry
-	result3 := hub.BroadcastRecordingEntry(sessionID, nil)
+	result3 := hub.BroadcastTimelineEntry(sessionID, nil)
 	assert.Equal(t, 0, result3.SubscriberCount)
 	assert.Equal(t, 0, result3.SentCount)
 }

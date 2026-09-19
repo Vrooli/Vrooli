@@ -39,11 +39,15 @@
   ],
   "metadata": {
     "description": "Validates deleting selected nodes using toolbar delete button",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "full"
+      "requires_confirmation": "true",
+      "reset": "full",
+      "routed_isolation": "true",
+      "seed": "bas/seeds/seed.go"
     },
-    "version": "1",
-    "execution_mode": "mutating"
+    "name": "Toolbar Delete Nodes",
+    "version": "1"
   },
   "nodes": [
     {
@@ -101,9 +105,6 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 1000
-      },
       "id": "click-first-node"
     },
     {
@@ -115,9 +116,6 @@
           "label": "Click toolbar delete button"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 1500
       },
       "id": "click-delete-button"
     },
@@ -137,7 +135,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() => { const initial = parseInt(localStorage.getItem('initialNodeCount') || '0'); const final = parseInt(localStorage.getItem('finalNodeCount') || '0'); return final < initial; })()",
+          "expression": "(() =\u003e { const initial = parseInt(localStorage.getItem('initialNodeCount') || '0'); const final = parseInt(localStorage.getItem('finalNodeCount') || '0'); return final \u003c initial; })()",
           "store_result": "nodeWasDeleted"
         },
         "metadata": {

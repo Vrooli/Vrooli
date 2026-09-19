@@ -5,6 +5,11 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
 
+// The installed plugin exposes the strict typed rules under a kebab-case key.
+// Keep this named adapter so the required strictTypeChecked profile is explicit
+// without depending on an incompatible plugin export shape.
+const strictTypeCheckedRules = tseslint.configs["strict-type-checked"].rules;
+
 // Node.js configuration files (eslint.config.js, server.js, scripts/, etc.)
 const nodeConfig = {
   files: ["*.js", "*.mjs", "scripts/**/*.{js,mjs}"],
@@ -53,6 +58,7 @@ const baseTypeScriptConfig = {
     },
   },
   rules: {
+    ...strictTypeCheckedRules,
     ...tseslint.configs.recommended.rules,
     "no-undef": "off",
 
@@ -71,7 +77,7 @@ const baseTypeScriptConfig = {
     // Detects early returns before hooks, conditional hook calls, etc.
     "react-hooks/rules-of-hooks": "error",
 
-    // CRITICAL: Prevents non-null assertion (!) which bypasses TypeScript's null checks
+    // CRITICAL: @typescript-eslint/no-non-null-assertion prevents non-null assertion (!) which bypasses TypeScript's null checks
     // Using ! hides bugs that will crash at runtime with "X is not a function"
     // Instead of arr[0]!, use: arr[0] ?? defaultValue or if (arr[0]) { ... }
     "@typescript-eslint/no-non-null-assertion": "error",
@@ -87,7 +93,7 @@ const baseTypeScriptConfig = {
     // Prevents explicit 'any' which disables all type checking for that value
     "@typescript-eslint/no-explicit-any": "error",
 
-    // CRITICAL: Detects circular dependencies that cause "Cannot access X before initialization"
+    // CRITICAL: import/no-cycle detects circular dependencies that cause "Cannot access X before initialization"
     // errors at runtime. These are difficult to debug in production bundles where variable
     // names are minified. The rule checks import chains for cycles.
     "import/no-cycle": "error",
@@ -104,6 +110,13 @@ const baseTypeScriptConfig = {
 
     // Allow unused vars prefixed with underscore (common pattern for ignored params)
     "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+    // Test fixtures must not become production dependencies. Tests are exempted
+    // below, where importing the canonical test renderer is expected.
+    "no-restricted-imports": ["error", {
+      patterns: [
+        { group: ["**/test-utils", "**/test-utils/*", "@/test-utils", "@/test-utils/*", "**/features/*/mocks", "**/features/*/mocks/*", "@/features/*/mocks", "@/features/*/mocks/*"], message: "Test helpers and feature mocks are test-only." },
+      ],
+    }],
   },
 };
 
@@ -125,6 +138,7 @@ const testOverrides = {
     "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/no-unused-vars": "off",
     "@typescript-eslint/no-non-null-assertion": "off",
+    "no-restricted-imports": "off",
   },
 };
 

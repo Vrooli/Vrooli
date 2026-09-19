@@ -21,11 +21,14 @@
   ],
   "metadata": {
     "description": "Validates that execution heartbeat monitoring detects stalls and displays appropriate warnings",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Heartbeat Stall",
+    "version": "1"
   },
   "nodes": [
     {
@@ -56,9 +59,6 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 1000
-      },
       "id": "click-execute-workflow"
     },
     {
@@ -70,9 +70,6 @@
           "full_page": true
         },
         "type": "ACTION_TYPE_SCREENSHOT"
-      },
-      "execution_settings": {
-        "wait_after_ms": 2000
       },
       "id": "capture-after-execute"
     },

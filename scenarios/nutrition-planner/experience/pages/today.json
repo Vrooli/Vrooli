@@ -1,0 +1,466 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "today",
+    "title": "Today",
+    "routes": [
+      "/today",
+      "/"
+    ],
+    "purpose": "Answer 'what should I eat next, and what do I do?' with the next uncompleted meal, a calculation-backed reason, honest unknown states, and a one-action easy-night alternative.",
+    "prd_refs": [
+      "OT-P0-008",
+      "OT-P0-010",
+      "OT-P0-007",
+      "OT-P0-015",
+      "OT-P1-006"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The next meal to eat, with its calculation-backed reason, leads before any supporting detail."
+    },
+    {
+      "statement": "Energy, protein, portion cost, and effort each carry their own known or unknown state rather than a fabricated zero."
+    },
+    {
+      "statement": "The easy-night alternative is one action away and is scoped to the selected future occurrence, never to history."
+    },
+    {
+      "statement": "Planned and recorded intake stay visibly separate and a dinner-only plan never claims full-day compliance."
+    },
+    {
+      "statement": "An empty or incomplete plan is described honestly with a recovery action instead of a filled-slot badge."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The surface at rest with data present; the state a journey step assumes when it names none.",
+      "setup": {
+        "route": "/today"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "First read of the page's data; layout is reserved so nothing shifts on arrival.",
+      "setup": {
+        "route": "/today",
+        "query": {
+          "fixture": "loading"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "The read succeeded and there is genuinely nothing, which is distinct from not-yet-loaded.",
+      "setup": {
+        "route": "/today",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some contributing data could not be read; what is missing is named rather than shown as zero.",
+      "setup": {
+        "route": "/today",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "setup": {
+        "route": "/today",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next available action are stated.",
+      "setup": {
+        "route": "/today",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "validation-error",
+      "description": "Input was rejected before submission; the offending field is identified next to it.",
+      "setup": {
+        "route": "/today",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
+    },
+    {
+      "id": "saving",
+      "description": "A write is in flight; the affected control says why it is unavailable.",
+      "setup": {
+        "route": "/today",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
+      "id": "offline",
+      "description": "The client cannot reach the API; read-only or queued behavior is explained.",
+      "setup": {
+        "route": "/today",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    },
+    {
+      "id": "no-eligible-meals",
+      "description": "No recipe satisfies the active required rules; the page names the conflict and offers Add a meal or Review restrictions without relaxing a rule.",
+      "setup": {
+        "route": "/today",
+        "query": {
+          "fixture": "no-eligible-meals"
+        }
+      }
+    },
+    {
+      "id": "unknown-cost",
+      "description": "One or more contributing prices are missing; the cost is shown as a known subtotal plus unpriced items, never as a complete total.",
+      "setup": {
+        "route": "/today",
+        "query": {
+          "fixture": "unknown-cost"
+        }
+      }
+    },
+    {
+      "id": "incomplete-data",
+      "description": "A metric is unavailable because a quantity, price, or nutrient value is missing while the meal itself remains usable.",
+      "setup": {
+        "route": "/today",
+        "query": {
+          "fixture": "incomplete-data"
+        }
+      }
+    },
+    {
+      "id": "swap-open",
+      "description": "The 'What sounds better?' dialog is open with reason chips and eligible alternatives for the selected occurrence.",
+      "setup": {
+        "route": "/today",
+        "query": {
+          "fixture": "swap-open"
+        }
+      }
+    },
+    {
+      "id": "meal-consumed",
+      "description": "The selected occurrence has already been recorded as eaten, so the next slot is offered instead of editing history.",
+      "setup": {
+        "route": "/today",
+        "query": {
+          "fixture": "meal-consumed"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "next-meal-card",
+      "role": "region",
+      "name": "Next meal",
+      "description": "The meal the person should eat next, with its context and actions."
+    },
+    {
+      "id": "meal-title",
+      "role": "heading",
+      "description": "The selected meal's readable name and local date/slot context."
+    },
+    {
+      "id": "meal-reason",
+      "role": "status",
+      "description": "A concise, calculation-backed reason such as 'Uses your opened rice; 6 minutes of active prep.'"
+    },
+    {
+      "id": "metric-energy",
+      "role": "status",
+      "description": "Energy for the selected scope, with its own unknown state."
+    },
+    {
+      "id": "metric-protein",
+      "role": "status",
+      "description": "Protein for the selected scope, with its own unknown state."
+    },
+    {
+      "id": "metric-cost",
+      "role": "status",
+      "description": "Allocated portion cost for the selected scope, with its own unknown state."
+    },
+    {
+      "id": "metric-effort",
+      "role": "status",
+      "description": "Active preparation time and effort, kept distinct from elapsed cooking time."
+    },
+    {
+      "id": "unknown-metric-note",
+      "role": "note",
+      "description": "States which metric is unknown and why, so a missing value is never read as zero."
+    },
+    {
+      "id": "make-action",
+      "role": "button",
+      "name": "Let's make it",
+      "description": "The one dominant action to begin the selected meal."
+    },
+    {
+      "id": "swap-action",
+      "role": "button",
+      "name": "Swap meal",
+      "description": "Opens the effort-aware swap for the selected future occurrence."
+    },
+    {
+      "id": "easy-night-action",
+      "role": "button",
+      "name": "Not a cooking kind of night?",
+      "description": "The one-action entry to a low-effort swap scoped to the selected meal."
+    },
+    {
+      "id": "swap-dialog",
+      "role": "dialog",
+      "name": "What sounds better?",
+      "description": "Reason chips and up to four useful eligible alternatives."
+    },
+    {
+      "id": "swap-alternatives",
+      "role": "list",
+      "description": "Candidate alternatives, each with name, active time, known metrics, and a short reason."
+    },
+    {
+      "id": "swap-reason-chips",
+      "role": "group",
+      "description": "Something different, Less effort, Lower cost, and Missing ingredients; no reason is mandatory."
+    },
+    {
+      "id": "incomplete-note",
+      "role": "note",
+      "description": "Explains that the meal remains usable while specific data is unknown."
+    },
+    {
+      "id": "no-eligible-note",
+      "role": "alert",
+      "description": "Rule-conflict summary with counts and no automatic relaxation of a restriction."
+    },
+    {
+      "id": "consumed-banner",
+      "role": "status",
+      "description": "States that the occurrence is already recorded and points at the next slot."
+    }
+  ],
+  "claims": [
+    {
+      "id": "reason-explains-the-choice",
+      "type": "element-present",
+      "statement": "The next meal carries a calculation-backed reason drawn from the evaluated result, not a restated ingredient list.",
+      "tier": "aspirational",
+      "elements": [
+        "next-meal-card",
+        "meal-reason"
+      ]
+    },
+    {
+      "id": "metrics-own-unknown-state",
+      "type": "element-present",
+      "statement": "Each of energy, protein, portion cost, and effort reports its own known or unknown state, and an unknown value is never rendered as zero.",
+      "tier": "aspirational",
+      "elements": [
+        "metric-energy",
+        "metric-protein",
+        "metric-cost",
+        "metric-effort",
+        "unknown-metric-note"
+      ],
+      "states": [
+        "partial",
+        "incomplete-data",
+        "unknown-cost"
+      ]
+    },
+    {
+      "id": "unknown-cost-distinct-from-zero",
+      "type": "state-distinct",
+      "statement": "A meal with an unpriced item is perceivably different from a meal with a known zero cost, because the two support opposite conclusions.",
+      "tier": "aspirational",
+      "elements": [
+        "metric-cost",
+        "unknown-metric-note"
+      ],
+      "states": [
+        "unknown-cost",
+        "default"
+      ]
+    },
+    {
+      "id": "single-dominant-next-action",
+      "type": "single-dominant-action",
+      "statement": "Beginning the meal is the one visually dominant action, with swap and easy-night alternatives subordinate.",
+      "tier": "aspirational",
+      "elements": [
+        "make-action",
+        "swap-action",
+        "easy-night-action"
+      ]
+    },
+    {
+      "id": "easy-night-scoped-to-future",
+      "type": "affordance-present",
+      "statement": "The easy-night swap is reachable in one action, scoped to the selected future occurrence, and prevents editing a consumed occurrence.",
+      "tier": "aspirational",
+      "elements": [
+        "easy-night-action",
+        "swap-dialog",
+        "swap-alternatives"
+      ],
+      "states": [
+        "swap-open"
+      ]
+    },
+    {
+      "id": "no-eligible-is-named-not-relaxed",
+      "type": "element-present",
+      "statement": "When no meal satisfies the required rules the page names the conflict and offers recovery actions, and never relaxes a restriction to produce a recommendation.",
+      "tier": "aspirational",
+      "elements": [
+        "no-eligible-note"
+      ],
+      "states": [
+        "no-eligible-meals"
+      ]
+    },
+    {
+      "id": "consumed-history-is-not-editable",
+      "type": "element-present",
+      "statement": "An already eaten occurrence is reported as recorded and the next slot is offered instead of a replacement for history.",
+      "tier": "aspirational",
+      "elements": [
+        "consumed-banner"
+      ],
+      "states": [
+        "meal-consumed"
+      ]
+    },
+    {
+      "id": "swap-controls-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "The swap and easy-night controls are keyboard reachable and the dialog returns focus to its trigger on close.",
+      "tier": "aspirational",
+      "elements": [
+        "swap-action",
+        "easy-night-action",
+        "swap-dialog"
+      ],
+      "states": [
+        "swap-open"
+      ]
+    },
+    {
+      "id": "next-meal-visible-without-scroll",
+      "type": "visible-without-scroll",
+      "statement": "The next meal and its primary action are visible at phone width without scrolling past an analytics panel.",
+      "tier": "aspirational",
+      "elements": [
+        "next-meal-card",
+        "make-action"
+      ],
+      "viewports": [
+        "mobile"
+      ]
+    },
+    {
+      "id": "today-no-horizontal-overflow",
+      "type": "no-document-horizontal-overflow",
+      "statement": "The Today page never scrolls the whole document sideways at any supported viewport.",
+      "tier": "aspirational",
+      "elements": [
+        "next-meal-card"
+      ]
+    },
+    {
+      "id": "incomplete-remains-usable",
+      "type": "element-present",
+      "statement": "A meal with incomplete data stays usable and the page says what is missing rather than blocking on completeness.",
+      "tier": "aspirational",
+      "elements": [
+        "incomplete-note",
+        "next-meal-card"
+      ],
+      "states": [
+        "incomplete-data"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "next-meal-card": {
+        "testid": "today-next-meal-card"
+      },
+      "meal-title": {
+        "testid": "today-meal-title"
+      },
+      "meal-reason": {
+        "testid": "today-meal-reason"
+      },
+      "metric-energy": {
+        "testid": "today-metric-energy"
+      },
+      "metric-protein": {
+        "testid": "today-metric-protein"
+      },
+      "metric-cost": {
+        "testid": "today-metric-cost"
+      },
+      "metric-effort": {
+        "testid": "today-metric-effort"
+      },
+      "unknown-metric-note": {
+        "testid": "today-unknown-metric-note"
+      },
+      "make-action": {
+        "testid": "today-make-action"
+      },
+      "swap-action": {
+        "testid": "today-swap-action"
+      },
+      "easy-night-action": {
+        "testid": "today-easy-night-action"
+      },
+      "swap-dialog": {
+        "testid": "today-swap-dialog"
+      },
+      "swap-alternatives": {
+        "testid": "today-swap-alternatives"
+      },
+      "swap-reason-chips": {
+        "testid": "today-swap-reason-chips"
+      },
+      "incomplete-note": {
+        "testid": "today-incomplete-note"
+      },
+      "no-eligible-note": {
+        "testid": "today-no-eligible-note"
+      },
+      "consumed-banner": {
+        "testid": "today-consumed-banner"
+      }
+    }
+  }
+}

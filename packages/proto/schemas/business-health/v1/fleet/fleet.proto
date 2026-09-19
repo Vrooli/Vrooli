@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package vrooli.business_health.v1.fleet;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/business-health/v1/fleet;fleet_v1";
+
+// =============================================================================
+// BUSINESS FLEET SERVICE
+// =============================================================================
+//
+// @layer 0
+// @domain business-health
+// @stability beta
+//
+// FleetService answers deterministic business-contract debt queries across the
+// whole fleet: which scenarios still run starter registries, whose contracts
+// lag the template version, who carries unproven claims. Compute-on-read with
+// as-of stamps (mirroring test-genie fleet-status honesty rules) — no cached
+// verdicts presented as current.
+// =============================================================================
+
+service FleetService {
+  // ScanFleet statically grades every discovered scenario (or the requested
+  // subset) and returns one business-contract rollup per scenario, worst-first.
+  rpc ScanFleet(ScanFleetRequest) returns (ScanFleetResponse);
+}
+
+message ScanFleetRequest {
+  // Restrict the scan to these scenario slugs; empty means every discovered
+  // scenario (a directory under scenarios/ carrying .vrooli/service.json).
+  repeated string scenarios = 1;
+}
+
+message ScanFleetResponse {
+  // One rollup per scanned scenario, sorted worst-first by debt score.
+  repeated FleetScenarioEntry entries = 1;
+  // When the scan ran (all entries computed at this stamp).
+  google.protobuf.Timestamp as_of = 2;
+  int32 scenario_count = 3;
+  // Scenarios with no error-severity business findings.
+  int32 passing_count = 4;
+  // Scenarios still carrying starter-template registries.
+  int32 starter_registry_count = 5;
+  // Scenarios whose generation.template.version lags the current template.
+  int32 template_laggard_count = 6;
+  // Scenarios that could not be graded, with a short reason each.
+  repeated FleetScanError errors = 7;
+}
+
+// FleetScenarioEntry is one scenario's business-contract rollup.
+message FleetScenarioEntry {
+  string scenario = 1;
+  // True when the scenario has no error-severity business findings.
+  bool passed = 2;
+  int32 error_count = 3;
+  int32 warning_count = 4;
+  int32 total_findings = 5;
+  // Auto-fixable findings in this scenario.
+  int32 autofixable_count = 6;
+  // True when the registry still carries starter-template residue.
+  bool starter_registry = 7;
+  // Template version the scenario was generated from ("" when unstamped).
+  string template_version = 8;
+  // True when template_version lags the current template contract version.
+  bool template_laggard = 9;
+  // Operational targets with no requirement (intent.ot_orphan count).
+  int32 orphaned_targets = 10;
+  // Unproven claims (checked OTs without passing evidence, unearned statuses).
+  int32 unproven_claims = 11;
+  // Composite worst-first ranking key (higher = more debt).
+  int32 debt_score = 12;
+  // Non-empty when the scenario was graded in a degraded mode.
+  string degraded_reason = 13;
+}
+
+// FleetScanError records a scenario that was enumerated but could not be graded.
+message FleetScanError {
+  string scenario = 1;
+  string reason = 2;
+}

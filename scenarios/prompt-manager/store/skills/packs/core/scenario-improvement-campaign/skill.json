@@ -1,0 +1,38 @@
+{
+  "createdAt": "2026-05-29T00:00:00Z",
+  "description": "Implement successive improvements toward an approved scenario contract or explicit maturity target within one engagement, using scenario improve judgment and provider evidence rather than per-repair backlog approvals.",
+  "entry": "SKILL.md",
+  "icon": "list-checks",
+  "id": "scenario-improvement-campaign",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "practice"
+  ],
+  "name": "Scenario Improvement Campaign",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill read",
+      "test-genie runs",
+      "vrooli scenario test"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "test-genie"
+    ]
+  },
+  "revision": 6,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "scenario",
+    "development",
+    "maturity",
+    "self-improvement"
+  ],
+  "targetToolId": "run-agent",
+  "updatedAt": "2026-09-11T12:00:00Z"
+}

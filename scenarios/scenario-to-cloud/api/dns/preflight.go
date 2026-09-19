@@ -5,15 +5,47 @@ import (
 	"fmt"
 	"strings"
 
-	"golang.org/x/net/publicsuffix"
-
+	maildns "github.com/vrooli/vrooli/packages/maildns-go"
 	"scenario-to-cloud/domain"
+
+	"golang.org/x/net/publicsuffix"
 )
 
 // PreflightChecks evaluates DNS validation checks for a deployment preflight.
 func PreflightChecks(ctx context.Context, svc Service, domainName, vpsHost string, policy domain.DNSPolicy) []domain.PreflightCheck {
 	eval := Evaluate(ctx, svc, domainName, vpsHost)
 	return PreflightChecksFromEvaluation(eval, policy)
+}
+
+// MailDNSChecks verifies reviewed provider requirements without forcing
+// web-only deployments to declare a mail configuration.
+func MailDNSChecks(ctx context.Context, domainName string, requirements []maildns.ProviderRequirement, policy domain.DNSPolicy) []domain.PreflightCheck {
+	if len(requirements) == 0 {
+		return nil
+	}
+	return MailDNSChecksFromReport(VerifyMailDNS(ctx, domainName, requirements), policy)
+}
+
+// MailDNSChecksFromReport converts a verified mail-DNS report into deployment
+// checks. Keeping this mapping separate makes the required-versus-warn policy
+// explicit and testable without depending on the live DNS resolver.
+func MailDNSChecksFromReport(report maildns.Report, policy domain.DNSPolicy) []domain.PreflightCheck {
+	checks := make([]domain.PreflightCheck, 0, len(report.Providers))
+	for _, verdict := range report.Providers {
+		status := domain.PreflightFail
+		if verdict.Status == maildns.Pass {
+			status = domain.PreflightPass
+		} else if policy != domain.DNSPolicyRequired {
+			status = domain.PreflightWarn
+		}
+		checks = append(checks, domain.PreflightCheck{
+			ID: domain.PreflightDNSMailID, Title: "Mail DNS authorization", Status: status,
+			Details: fmt.Sprintf("%s: %s", verdict.Provider, verdict.Detail),
+			Hint:    "Publish the provider's SPF/DKIM records, then rerun preflight.",
+			Data:    map[string]string{"provider": verdict.Provider, "record": verdict.Record, "lookup_cost": fmt.Sprint(verdict.Cost)},
+		})
+	}
+	return checks
 }
 
 // PreflightChecksFromEvaluation maps a DNS evaluation to preflight checks.

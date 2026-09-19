@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -20,6 +21,79 @@ import (
 // ErrorCode is a machine-readable error identifier.
 // Format: CATEGORY_SPECIFIC (e.g., "NOT_FOUND_TASK", "VALIDATION_FIELD")
 type ErrorCode string
+
+// preEffectRefusal is an owner admission receipt, not an error-code category.
+// The same provider error may occur before admission or after dispatch.
+type preEffectRefusal struct{ cause error }
+
+func (e *preEffectRefusal) Error() string { return e.cause.Error() }
+func (e *preEffectRefusal) Unwrap() error { return e.cause }
+
+// RefuseBeforeEffects marks only a failure for which the owner knows no
+// dispatch or other execution effect could have occurred.
+func RefuseBeforeEffects(err error) error {
+	if err == nil || IsPreEffectRefusal(err) {
+		return err
+	}
+	return &preEffectRefusal{cause: err}
+}
+
+func IsPreEffectRefusal(err error) bool {
+	var refusal *preEffectRefusal
+	return errors.As(err, &refusal)
+}
+
+// ModelPolicyUnavailable is a reserved current-policy overlay marker. It is
+// never persisted in an execution snapshot; it prevents a fallback from
+// running when its resource policy could not be re-read during recovery.
+const ModelPolicyUnavailable = "__vrooli_model_policy_unavailable__"
+
+// IsModelExcluded applies a resource-owned, exact model deny list. Both the
+// runner-facing alias and its canonical pricing identity are checked so an
+// alias cannot bypass the same configured exclusion.
+func IsModelExcluded(model, canonical string, excluded []string) bool {
+	model = strings.TrimSpace(model)
+	canonical = strings.TrimSpace(canonical)
+	if model == "" && canonical == "" {
+		return false
+	}
+	for _, value := range excluded {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if value == ModelPolicyUnavailable {
+			return true
+		}
+		if modelIdentityMatches(value, model) || modelIdentityMatches(value, canonical) {
+			return true
+		}
+	}
+	return false
+}
+
+// modelIdentityMatches accepts a resource's bare model alias together with a
+// provider-prefixed spelling of that same model. A configured provider prefix
+// remains exact; only a deny value without a slash may match a final model
+// segment, which prevents a caller from bypassing a bare operator exclusion
+// by adding an unlisted provider prefix.
+func modelIdentityMatches(excluded, candidate string) bool {
+	if excluded == "" || candidate == "" {
+		return false
+	}
+	if strings.EqualFold(excluded, candidate) {
+		return true
+	}
+	if strings.Contains(excluded, "/") {
+		return false
+	}
+	_, candidateModel, ok := strings.Cut(candidate, "/")
+	for ok {
+		candidate = candidateModel
+		_, candidateModel, ok = strings.Cut(candidate, "/")
+	}
+	return strings.EqualFold(excluded, candidate)
+}
 
 const (
 	// --- Not Found Errors (404) ---
@@ -63,14 +137,54 @@ const (
 	ErrCodeRunnerTimeout       ErrorCode = "RUNNER_TIMEOUT"
 	ErrCodeRunnerExecution     ErrorCode = "RUNNER_EXECUTION"
 	ErrCodeRunnerCommunication ErrorCode = "RUNNER_COMMUNICATION"
-	ErrCodeSandboxCreate       ErrorCode = "SANDBOX_CREATE"
-	ErrCodeSandboxApprove      ErrorCode = "SANDBOX_APPROVE"
-	ErrCodeSandboxReject       ErrorCode = "SANDBOX_REJECT"
-	ErrCodeSandboxOperation    ErrorCode = "SANDBOX_OPERATION"
-	ErrCodeDatabaseConnection  ErrorCode = "DATABASE_CONNECTION"
-	ErrCodeDatabaseQuery       ErrorCode = "DATABASE_QUERY"
-	ErrCodeConfigInvalid       ErrorCode = "CONFIG_INVALID"
-	ErrCodeConfigMissing       ErrorCode = "CONFIG_MISSING"
+	// ErrCodeRunnerSessionExpired marks a continuation that failed
+	// because the runner-side session/thread no longer exists. The
+	// canonical example is codex on resume after the in-process thread
+	// state has been GC'd (or the thread id is wrong). Recovery: start
+	// a fresh run instead of resuming. Retryable=false at the same
+	// session id; the operator must restart.
+	ErrCodeRunnerSessionExpired ErrorCode = "RUNNER_SESSION_EXPIRED"
+	// ErrCodeRunnerSessionStateLost marks a *live* runner whose
+	// in-memory session-state writer dropped the thread mid-run — e.g.
+	// codex's `record_rollout_items: thread … not found` race during
+	// rollout-file writeback. The session id is still valid in the
+	// database but the runner's writer goroutine bailed; the run can't
+	// continue from where it stopped. Recovery: start a fresh run;
+	// the partially-written transcript is preserved for inspection.
+	// Retryable=false; not auto-retried.
+	ErrCodeRunnerSessionStateLost ErrorCode = "RUNNER_SESSION_STATE_LOST"
+	ErrCodeSandboxCreate          ErrorCode = "SANDBOX_CREATE"
+	ErrCodeSandboxApprove         ErrorCode = "SANDBOX_APPROVE"
+	ErrCodeSandboxReject          ErrorCode = "SANDBOX_REJECT"
+	ErrCodeSandboxOperation       ErrorCode = "SANDBOX_OPERATION"
+	// ErrCodeSandboxLaunchFailed marks a protected-sandbox run that
+	// produced no assistant output and exited too fast to have
+	// genuinely run the agent. The validateRunOutcome categorizer in
+	// orchestration emits it when bwrap-side launch failures (chdir,
+	// missing executable, namespace setup errors) would otherwise be
+	// indistinguishable from a clean success. Recovery: operator
+	// inspects the captured stderr → fixes config → retries. NOT
+	// auto-retried.
+	ErrCodeSandboxLaunchFailed ErrorCode = "SANDBOX_LAUNCH_FAILED"
+	// ErrCodeSandboxNoExitInfo marks a sandbox run where both SSE log
+	// streams closed without the server emitting `event: exit`. After
+	// the workspace-sandbox WaitForExit fix, this should not happen
+	// for a real exit; callers must surface it as a hard failure
+	// rather than a clean success.
+	ErrCodeSandboxNoExitInfo ErrorCode = "SANDBOX_NO_EXIT_INFO"
+	// ErrCodeSandboxHomeOverlayUnavailable marks a sandbox-launch attempt
+	// where the agent CLI lives under $HOME/.local/... but the sandbox's
+	// per-run home overlay is not Present. Surfaced when
+	// SandboxLauncher.translateCommandToNamespace returns
+	// ErrCommandHomeOverlayUnavailable; replaces the silent
+	// `env: …/claude: No such file or directory` exec-time failure.
+	// Retryable=true: transient mount failures usually resolve on a
+	// fresh sandbox.
+	ErrCodeSandboxHomeOverlayUnavailable ErrorCode = "SANDBOX_HOME_OVERLAY_UNAVAILABLE"
+	ErrCodeDatabaseConnection            ErrorCode = "DATABASE_CONNECTION"
+	ErrCodeDatabaseQuery                 ErrorCode = "DATABASE_QUERY"
+	ErrCodeConfigInvalid                 ErrorCode = "CONFIG_INVALID"
+	ErrCodeConfigMissing                 ErrorCode = "CONFIG_MISSING"
 
 	// --- Internal Errors (500) ---
 	ErrCodeInternal          ErrorCode = "INTERNAL"
@@ -577,6 +691,10 @@ func (e *RunnerError) Code() ErrorCode {
 		return ErrCodeRunnerCommunication
 	case "timeout":
 		return ErrCodeRunnerTimeout
+	case "session_expired":
+		return ErrCodeRunnerSessionExpired
+	case "session_state_lost":
+		return ErrCodeRunnerSessionStateLost
 	default:
 		return ErrCodeRunnerUnavailable
 	}
@@ -621,6 +739,44 @@ func (e *RunnerError) Details() map[string]interface{} {
 	return d
 }
 
+// NewRunnerSessionExpiredError marks a continuation that the runner
+// rejected because the session/thread no longer exists. Construct it
+// with the runner type and the underlying stderr message that the
+// codec used to identify the condition. The orchestration layer
+// surfaces it on the run timeline as ErrCodeRunnerSessionExpired —
+// distinct from a generic INTERNAL so operators can filter.
+//
+// IsTransient is false: the session id will not exist again. Recovery
+// is "start a fresh run", not "retry the continuation."
+func NewRunnerSessionExpiredError(runnerType RunnerType, cause error) *RunnerError {
+	return &RunnerError{
+		RunnerType:  runnerType,
+		Operation:   "session_expired",
+		Cause:       cause,
+		IsTransient: false,
+	}
+}
+
+// NewRunnerSessionStateLostError marks a *live* runner whose
+// in-memory session-state writer dropped the thread mid-run (the
+// canonical case is codex's `record_rollout_items: thread … not
+// found` race during rollout-file writeback). The session was valid
+// when the run started; it became invalid before the run finished.
+// Recovery is "start a fresh run" — the partially-written transcript
+// is preserved for inspection.
+//
+// IsTransient is false: the failure is structural (a writer goroutine
+// race), not load-related; immediate retry would just hit the same
+// race window again.
+func NewRunnerSessionStateLostError(runnerType RunnerType, cause error) *RunnerError {
+	return &RunnerError{
+		RunnerType:  runnerType,
+		Operation:   "session_state_lost",
+		Cause:       cause,
+		IsTransient: false,
+	}
+}
+
 // =============================================================================
 // SANDBOX ERROR
 // =============================================================================
@@ -654,8 +810,46 @@ func (e *SandboxError) Code() ErrorCode {
 		return ErrCodeSandboxApprove
 	case "reject":
 		return ErrCodeSandboxReject
+	case "launch_failed":
+		return ErrCodeSandboxLaunchFailed
+	case "no_exit_info":
+		return ErrCodeSandboxNoExitInfo
 	default:
 		return ErrCodeSandboxOperation
+	}
+}
+
+// NewSandboxLaunchFailedError marks a protected-sandbox run that
+// produced no assistant output before exit and almost certainly failed
+// inside bwrap (chdir, missing executable, namespace setup error). The
+// orchestration layer constructs this from validateRunOutcome and the
+// classifier surfaces it as ErrCodeSandboxLaunchFailed. Recovery is
+// "fix the configuration → retry"; not auto-retried.
+func NewSandboxLaunchFailedError(message string) *SandboxError {
+	return &SandboxError{
+		Operation:   "launch_failed",
+		Cause:       errors.New(message),
+		IsTransient: false,
+		CanRetry:    false,
+	}
+}
+
+// NewSandboxNoExitInfoError marks a sandbox run whose log streams closed
+// without the workspace-sandbox server emitting `event: exit`. After the
+// 2026-04-28 WaitForExit fix server-side, the only remaining causes are
+// (a) the log-stream HTTP endpoint failed before SSE started — e.g. a
+// middleware regression that breaks http.Flusher, the original symptom —
+// or (b) the connection dropped between exit and notify. Either way the
+// run is NOT a clean success; recovery is operator inspection followed
+// by a fresh dispatch. The classifier surfaces this as
+// ErrCodeSandboxNoExitInfo. Wraps the launcher's underlying error so
+// errors.Is(err, sandbox.ErrSandboxNoExitInfo) keeps working.
+func NewSandboxNoExitInfoError(cause error) *SandboxError {
+	return &SandboxError{
+		Operation:   "no_exit_info",
+		Cause:       cause,
+		IsTransient: false,
+		CanRetry:    false,
 	}
 }
 
@@ -676,11 +870,33 @@ func (e *SandboxError) Retryable() bool {
 func (e *SandboxError) UserMessage() string {
 	switch e.Operation {
 	case "create":
+		if e.Cause != nil {
+			return fmt.Sprintf("Workspace sandbox unavailable during create: %v. agent-manager attempted run-time recovery; inspect workspace-sandbox status and logs if this persists.", e.Cause)
+		}
 		return "Unable to create isolated workspace. The sandbox service may be unavailable."
 	case "approve", "apply":
 		return "Unable to apply changes. Please verify the sandbox still exists and try again."
+	case "apply_at_run_end":
+		if e.Cause != nil {
+			return fmt.Sprintf("Workspace sandbox unavailable during apply-at-run-end: %v. Inspect workspace-sandbox status and logs.", e.Cause)
+		}
+		return "Unable to apply run-end sandbox changes. Please verify workspace-sandbox is healthy and try again."
+	case "turn_checkpoint":
+		if e.Cause != nil {
+			return fmt.Sprintf("Workspace sandbox unavailable during turn checkpoint: %v. Inspect workspace-sandbox status and logs.", e.Cause)
+		}
+		return "Unable to checkpoint sandbox changes. Please verify workspace-sandbox is healthy and try again."
+	case "workspace_sandbox_ensure":
+		if e.Cause != nil {
+			return fmt.Sprintf("Unable to ensure workspace-sandbox is running: %v. Inspect workspace-sandbox lifecycle logs.", e.Cause)
+		}
+		return "Unable to ensure workspace-sandbox is running. Inspect workspace-sandbox lifecycle logs."
 	case "reject":
 		return "Unable to discard changes. Please try again."
+	case "launch_failed":
+		return "The agent's sandbox failed to launch and produced no output. This usually indicates a configuration error inside the sandbox (missing executable, bad working directory, or namespace setup). Check the workspace-sandbox stderr log and re-dispatch."
+	case "no_exit_info":
+		return "The sandbox process ended without reporting exit information. Check workspace-sandbox health and re-dispatch."
 	default:
 		return "A sandbox operation failed. Please try again."
 	}

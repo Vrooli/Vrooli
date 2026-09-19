@@ -1,0 +1,464 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "kitchen",
+    "title": "Your kitchen",
+    "routes": [
+      "/kitchen"
+    ],
+    "purpose": "Run setup and preferences: diet approach, exclusions with stated evidence limits, appliances, priorities, targets, and supplements, all as a draft until applied atomically.",
+    "prd_refs": [
+      "OT-P0-002",
+      "OT-P0-006",
+      "OT-P0-010",
+      "OT-P2-003",
+      "OT-P1-005"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Setup edits are a labeled draft until the final atomic apply, and a resume restores the draft without activating it."
+    },
+    {
+      "statement": "Allergen and exclusion evidence is stated as limited, and a missing tag is unknown rather than proof of absence."
+    },
+    {
+      "statement": "The matching-meal count comes from the same eligibility service the planner uses, with no automatic relaxation to force a nonzero count."
+    },
+    {
+      "statement": "Applying modified rules previews conflicts with existing plans, locks, and consumed history before any write."
+    },
+    {
+      "statement": "Custom priority values remain distinct from presets and the planner's fixed dietary and kitchen rules are never overridden by a preference."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The surface at rest with data present; the state a journey step assumes when it names none.",
+      "setup": {
+        "route": "/kitchen"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "First read of the page's data; layout is reserved so nothing shifts on arrival.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "loading"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "The read succeeded and there is genuinely nothing, which is distinct from not-yet-loaded.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some contributing data could not be read; what is missing is named rather than shown as zero.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next available action are stated.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "validation-error",
+      "description": "Input was rejected before submission; the offending field is identified next to it.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
+    },
+    {
+      "id": "saving",
+      "description": "A write is in flight; the affected control says why it is unavailable.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
+      "id": "offline",
+      "description": "The client cannot reach the API; read-only or queued behavior is explained.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    },
+    {
+      "id": "apply-preview",
+      "description": "The review-and-apply step shows the summarized rules, the eligibility counts, and any plan conflicts before the atomic apply.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "apply-preview"
+        }
+      }
+    },
+    {
+      "id": "no-eligible-meals",
+      "description": "No stored meal satisfies the proposed rules; the page offers Add a meal or Adjust setup instead of weakening a restriction.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "no-eligible-meals"
+        }
+      }
+    },
+    {
+      "id": "zero-appliances",
+      "description": "No appliances are selected; the product states that it will start with meals that can be assembled rather than assuming equipment.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "zero-appliances"
+        }
+      }
+    },
+    {
+      "id": "custom-priority",
+      "description": "The cost, effort, and variety sliders do not exactly match a preset, so the page reports Custom balance.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "custom-priority"
+        }
+      }
+    },
+    {
+      "id": "routine-setup",
+      "description": "Recurring baseline slots and nutrition targets are being reviewed or edited as part of setup.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "routine-setup"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "setup-steps",
+      "role": "list",
+      "name": "Your food, Your kitchen, Your rhythm, Ready",
+      "description": "The four-step setup progress with a resumable draft."
+    },
+    {
+      "id": "draft-banner",
+      "role": "status",
+      "description": "States that edits are a draft and not active until applied."
+    },
+    {
+      "id": "food-approach-cards",
+      "role": "radiogroup",
+      "description": "Vegan, Vegetarian, Pescatarian, Everything, Plant-forward, and My own way."
+    },
+    {
+      "id": "diet-exclusions",
+      "role": "group",
+      "description": "Composable exclusion chips, each separate from the diet name."
+    },
+    {
+      "id": "exclusion-freeform",
+      "role": "textbox",
+      "description": "The 'Anything else off the menu?' input that preserves the user's own wording."
+    },
+    {
+      "id": "evidence-scope-note",
+      "role": "note",
+      "description": "States the evidence limit: a missing tag is unknown, not proof of absence."
+    },
+    {
+      "id": "appliance-grid",
+      "role": "group",
+      "description": "The appliance picker, with zero appliances allowed."
+    },
+    {
+      "id": "appliance-tile",
+      "role": "checkbox",
+      "description": "A clickable, keyboard-operable appliance with a visible selected state."
+    },
+    {
+      "id": "priority-questions",
+      "role": "group",
+      "description": "Three ordinary-language questions for budget, weekday effort, and repeat meals."
+    },
+    {
+      "id": "priority-slider",
+      "role": "slider",
+      "description": "A relative-importance control that reports Custom balance when it matches no preset."
+    },
+    {
+      "id": "review-summary",
+      "role": "table",
+      "description": "Diet, exclusions, appliances, and priority bars summarized before apply."
+    },
+    {
+      "id": "matching-count",
+      "role": "status",
+      "description": "The matching-meal count from the shared eligibility service, with fits, needs review, and excluded counts available."
+    },
+    {
+      "id": "conflict-note",
+      "role": "alert",
+      "description": "Names an apply conflict with an existing plan, lock, or consumed record and what would resolve it."
+    },
+    {
+      "id": "apply-action",
+      "role": "button",
+      "name": "Apply",
+      "description": "The final atomic apply of profile and rules; staged plan effects remain explicit."
+    },
+    {
+      "id": "apply-dialog",
+      "role": "dialog",
+      "name": "Apply changes",
+      "description": "The conflict preview shown before the atomic apply."
+    },
+    {
+      "id": "target-editor",
+      "role": "table",
+      "description": "Nutrient, unit, lower bound, upper bound, period, and required/preferred/informational setting."
+    },
+    {
+      "id": "supplement-editor",
+      "role": "form",
+      "description": "Selects a supplement product, dose unit, label basis, and the user's schedule."
+    },
+    {
+      "id": "zero-appliance-note",
+      "role": "note",
+      "description": "States that the product will start with meals that can be assembled when no appliance is selected."
+    }
+  ],
+  "claims": [
+    {
+      "id": "edits-are-a-draft",
+      "type": "element-present",
+      "statement": "Setup edits are labeled as a draft and are not active until the explicit atomic apply.",
+      "tier": "aspirational",
+      "elements": [
+        "draft-banner",
+        "apply-action",
+        "setup-steps"
+      ]
+    },
+    {
+      "id": "evidence-is-not-absence",
+      "type": "element-present",
+      "statement": "The page states that a missing allergen tag is unknown and that recognition from coarse tags is not certification.",
+      "tier": "aspirational",
+      "elements": [
+        "evidence-scope-note",
+        "diet-exclusions"
+      ]
+    },
+    {
+      "id": "zero-appliances-is-honest",
+      "type": "element-present",
+      "statement": "With zero appliances selected the page states that it will start with assemble-only meals rather than assuming equipment.",
+      "tier": "aspirational",
+      "elements": [
+        "zero-appliance-note",
+        "appliance-grid"
+      ],
+      "states": [
+        "zero-appliances"
+      ]
+    },
+    {
+      "id": "apply-previews-conflicts",
+      "type": "affordance-present",
+      "statement": "Applying modified rules previews conflicts with existing plans, locks, and consumed history before any write.",
+      "tier": "aspirational",
+      "elements": [
+        "apply-dialog",
+        "conflict-note",
+        "apply-action"
+      ],
+      "states": [
+        "apply-preview"
+      ]
+    },
+    {
+      "id": "count-uses-shared-eligibility",
+      "type": "element-present",
+      "statement": "The matching-meal count is produced by the same eligibility service the planner uses and is never inflated by relaxing a rule.",
+      "tier": "aspirational",
+      "elements": [
+        "matching-count",
+        "review-summary"
+      ],
+      "states": [
+        "apply-preview"
+      ]
+    },
+    {
+      "id": "no-eligible-offers-recovery",
+      "type": "element-present",
+      "statement": "When nothing matches, the page says so and offers Add a meal or Adjust setup instead of weakening a restriction.",
+      "tier": "aspirational",
+      "elements": [
+        "matching-count",
+        "conflict-note"
+      ],
+      "states": [
+        "no-eligible-meals"
+      ]
+    },
+    {
+      "id": "custom-priority-is-distinct",
+      "type": "state-distinct",
+      "statement": "A custom priority vector is reported as Custom balance and is never shown as an exactly selected preset.",
+      "tier": "aspirational",
+      "elements": [
+        "priority-slider",
+        "priority-questions"
+      ],
+      "states": [
+        "custom-priority",
+        "default"
+      ]
+    },
+    {
+      "id": "target-bounds-are-validated",
+      "type": "element-present",
+      "statement": "A nutrition target requires at least one bound and rejects a lower bound above its upper bound with the field identified.",
+      "tier": "aspirational",
+      "elements": [
+        "target-editor"
+      ],
+      "states": [
+        "validation-error"
+      ]
+    },
+    {
+      "id": "appliance-tiles-keyboard",
+      "type": "keyboard-reachable",
+      "statement": "Every appliance tile is keyboard operable and reports its selected state without relying on colour alone.",
+      "tier": "aspirational",
+      "elements": [
+        "appliance-tile",
+        "appliance-grid"
+      ]
+    },
+    {
+      "id": "kitchen-no-horizontal-overflow",
+      "type": "no-document-horizontal-overflow",
+      "statement": "Setup and the review summary never scroll the whole document sideways at any supported viewport.",
+      "tier": "aspirational",
+      "elements": [
+        "review-summary"
+      ]
+    },
+    {
+      "id": "routine-and-targets-editable",
+      "type": "element-present",
+      "statement": "Recurring slots and nutrition targets are editable in setup and expressed separately from dated occurrences.",
+      "tier": "aspirational",
+      "elements": [
+        "target-editor",
+        "supplement-editor",
+        "setup-steps"
+      ],
+      "states": [
+        "routine-setup"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "setup-steps": {
+        "testid": "kitchen-setup-steps"
+      },
+      "draft-banner": {
+        "testid": "kitchen-draft-banner"
+      },
+      "food-approach-cards": {
+        "testid": "kitchen-food-approach-cards"
+      },
+      "diet-exclusions": {
+        "testid": "kitchen-diet-exclusions"
+      },
+      "exclusion-freeform": {
+        "testid": "kitchen-exclusion-freeform"
+      },
+      "evidence-scope-note": {
+        "testid": "kitchen-evidence-scope-note"
+      },
+      "appliance-grid": {
+        "testid": "kitchen-appliance-grid"
+      },
+      "appliance-tile": {
+        "testid": "kitchen-appliance-tile"
+      },
+      "priority-questions": {
+        "testid": "kitchen-priority-questions"
+      },
+      "priority-slider": {
+        "testid": "kitchen-priority-slider"
+      },
+      "review-summary": {
+        "testid": "kitchen-review-summary"
+      },
+      "matching-count": {
+        "testid": "kitchen-matching-count"
+      },
+      "conflict-note": {
+        "testid": "kitchen-conflict-note"
+      },
+      "apply-action": {
+        "testid": "kitchen-apply-action"
+      },
+      "apply-dialog": {
+        "testid": "kitchen-apply-dialog"
+      },
+      "target-editor": {
+        "testid": "kitchen-target-editor"
+      },
+      "supplement-editor": {
+        "testid": "kitchen-supplement-editor"
+      },
+      "zero-appliance-note": {
+        "testid": "kitchen-zero-appliance-note"
+      }
+    }
+  }
+}

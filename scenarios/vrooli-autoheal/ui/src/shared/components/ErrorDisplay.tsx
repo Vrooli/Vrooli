@@ -47,9 +47,9 @@ function getErrorIcon(error: Error | null) {
 
 function getErrorColor(error: Error | null): string {
   if (isAPIError(error) && error.isRetryable) {
-    return "text-amber-400"; // Retryable errors are warnings
+    return "text-accent-warning";
   }
-  return "text-red-400"; // Non-retryable errors are red
+  return "text-accent-danger";
 }
 
 export function ErrorDisplay({ error, onRetry, compact = false, title }: ErrorDisplayProps) {
@@ -76,12 +76,12 @@ export function ErrorDisplay({ error, onRetry, compact = false, title }: ErrorDi
       <div className="flex items-center justify-between gap-2 py-2">
         <div className="flex items-center gap-2">
           <Icon size={14} className={colorClass} />
-          <span className="text-sm text-slate-400">{message}</span>
+          <span className="text-sm text-text-muted">{message}</span>
         </div>
         {onRetry && (
           <button
             onClick={onRetry}
-            className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+            className="flex items-center gap-1 text-xs text-accent-primary hover:text-accent-primary/80"
           >
             <RefreshCw size={12} />
             Retry
@@ -92,14 +92,14 @@ export function ErrorDisplay({ error, onRetry, compact = false, title }: ErrorDi
   }
 
   return (
-    <div className="text-center py-4">
+    <div className="py-4 text-center">
       <Icon className={`mx-auto mb-3 ${colorClass}`} size={32} />
-      {title && <h3 className="font-medium text-slate-200 mb-1">{title}</h3>}
-      <p className="text-sm text-slate-400 mb-2">{message}</p>
-      {action && <p className="text-xs text-slate-500 mb-3">{action}</p>}
+      {title && <h3 className="mb-1 font-medium text-text-primary">{title}</h3>}
+      <p className="mb-2 text-sm text-text-muted">{message}</p>
+      {action && <p className="mb-3 text-xs text-text-muted/80">{action}</p>}
       {requestId && (
-        <p className="text-xs text-slate-600 mb-3">
-          Request ID: <code className="bg-slate-800 px-1 rounded">{requestId}</code>
+        <p className="mb-3 text-xs text-text-muted/70">
+          Request ID: <code className="rounded bg-surface-overlay px-1">{requestId}</code>
         </p>
       )}
       {onRetry && (
@@ -127,11 +127,11 @@ export function InlineError({
 }) {
   return (
     <div className="flex items-center justify-between text-sm">
-      <span className="text-red-400">{message}</span>
+      <span className="text-accent-danger">{message}</span>
       {onRetry && (
         <button
           onClick={onRetry}
-          className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
+          className="flex items-center gap-1 text-accent-primary hover:text-accent-primary/80"
         >
           <RefreshCw size={12} />
           <span>Retry</span>
@@ -173,16 +173,16 @@ export class ReactErrorBoundary extends Component<ReactErrorBoundaryProps, React
   render(): ReactNode {
     if (this.state.hasError) {
       return (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
-          <p className="text-sm font-medium text-red-300">
+        <div className="rounded-xl border border-accent-danger/20 bg-accent-danger/10 p-4">
+          <p className="text-sm font-medium text-accent-danger">
             {this.props.sectionName ?? "This section"} failed to render.
           </p>
-          <p className="mt-1 text-xs text-red-200/80">
+          <p className="mt-1 text-xs text-accent-danger/80">
             Try reloading this section. If it keeps failing, refresh the page.
           </p>
           <button
             onClick={this.handleRetry}
-            className="mt-3 rounded border border-red-400/30 px-3 py-1 text-xs text-red-200 hover:bg-red-500/10"
+            className="mt-3 rounded border border-accent-danger/30 px-3 py-1 text-xs text-accent-danger hover:bg-accent-danger/10"
           >
             Retry Section
           </button>

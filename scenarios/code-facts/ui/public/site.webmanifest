@@ -1,0 +1,25 @@
+{
+  "name": "Code Facts",
+  "short_name": "code-facts",
+  "id": "/code-facts/",
+  "description": "Target-aware code evidence service for Vrooli scenarios and generic code roots",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "manifest-icon-192.maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "manifest-icon-512.maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

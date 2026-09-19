@@ -1,0 +1,20 @@
+{
+  "service": {
+    "name": "system-core",
+    "version": "3.0.0",
+    "system_required": true
+  },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": true
+  },
+  "dependencies": {
+    "resources": {
+      "cache": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start"
+      }
+    }
+  }
+}

@@ -1,0 +1,120 @@
+{
+  "name": "authoring.primary",
+  "version": 3,
+  "floor": 9,
+  "floor_reason": "Phase 5 eligible run 1 (2026-08-19T01:30Z) and Phase 5 eligible run 2 (2026-08-19T01:31Z) were complete 12-case measurements against authoring-brief@9(19 rules), corpus version 3, model z-ai/glm-5.2 via the governed author.generator role. Run 1 met=11/12 with bounded-surface-shapes=1. Run 2 met=10/12 with gather-takes-callables=1 and unattributed=1. In both runs the per-rule miss counts sum to the failing-case count. The observed minimum is 10, so the floor is re-derived one below it at 9; the previous floor was 8 and was not lowered to make a gate pass. Earlier stamp-8 measurements are excluded because they exposed and were confounded by a stale control-plane API and a false null-verdict oracle; they remain recorded in the Phase 5 execution log. The Phase 1 authoring-brief@6 pair (9/12 and 10/12) is cross-stamp and directional only, not a like-for-like comparison.",
+  "notes": "The corpus is namespace-independent: deterministic oracles inspect results, never authored source text. Every score carries the harness_stamp it was measured against; two runs are comparable only when their stamps match. Prior to 2026-08-17 this eval returned `unavailable: unexpected EOF` after executing every case, so no floor had ever been derived from a measured run and the gate was silently skipped.",
+  "cases": [
+    {
+      "id": "single-binding-read",
+      "task": "Call program_runtime.bindings.list() and print a small object with the key rows set to the handle count.",
+      "oracle": {
+        "kind": "stdout_json_keys",
+        "keys": [
+          "rows"
+        ]
+      },
+      "notes": "Exercises the flat scenario root."
+    },
+    {
+      "id": "fanout-gather",
+      "task": "Use gather with three zero-argument calls to program_runtime.bindings.list(), preserve all returned handles, and print the number of handles (a number greater than one).",
+      "oracle": {
+        "kind": "row_count_relation",
+        "relation": "gt",
+        "value": 1
+      },
+      "notes": "Exercises bounded concurrency."
+    },
+    {
+      "id": "group-count",
+      "task": "Call program_runtime.bindings.list(), group the rows by scenario, and print the total grouped count using group_by(...).count() without materializing the rows.",
+      "oracle": {
+        "kind": "row_count_min",
+        "min": 1
+      },
+      "notes": "Exercises Handle group_by."
+    },
+    {
+      "id": "cross-scenario-join",
+      "task": "Read program_runtime.bindings.list() twice, join the two bounded handles on the id field, and print joined.count().",
+      "oracle": {
+        "kind": "row_count_relation",
+        "relation": "gte",
+        "value": 1
+      },
+      "notes": "Exercises composition across namespace roots."
+    },
+    {
+      "id": "typed-classification",
+      "task": "Classify a small list of two strings with ai.classify(source=[...], labels=[\"bug\", \"feature\"]), then print the handle metadata so the governed role is visible.",
+      "oracle": {
+        "kind": "handle_metadata",
+        "key": "role"
+      },
+      "notes": "Exercises the governed inference facade."
+    },
+    {
+      "id": "discover-then-call",
+      "task": "Discover the capability for read test run verdicts in fast mode, inspect its first row, and print the selected binding_id when one is returned.",
+      "oracle": {
+        "kind": "null_verdict_or_success"
+      },
+      "notes": "Exercises the discovery null-verdict stop rule."
+    },
+    {
+      "id": "null-verdict",
+      "task": "Ask fast discovery about the intentionally nonsensical capability transmute lead into gold; print no capability when binding_id is empty and never invoke a guessed binding.",
+      "oracle": {
+        "kind": "null_verdict"
+      },
+      "notes": "A safe negative discovery case."
+    },
+    {
+      "id": "ambiguous-response",
+      "task": "Call search_hub.query.query(query=\"retention\") without a rows= projection and let its governed ambiguous-response failure surface.",
+      "oracle": {
+        "kind": "cause_equals",
+        "cause": "ambiguous_response"
+      },
+      "notes": "Exercises caller-side rows selection and fail-closed behavior."
+    },
+    {
+      "id": "destructive-refusal",
+      "task": "Attempt git_control_tower.worktree.prune() without an explicit grant and let the governed refused_no_grant failure surface.",
+      "oracle": {
+        "kind": "cause_equals",
+        "cause": "refused_no_grant"
+      },
+      "notes": "Exercises governance refusal evidence."
+    },
+    {
+      "id": "session-reuse",
+      "task": "Reuse the value named prior_result from the setup submission in the same session and print prior_result[\"value\"].",
+      "setup": "prior_result = {\"value\": \"reused\"}",
+      "oracle": {
+        "kind": "stdout_contains",
+        "value": "reused"
+      },
+      "notes": "Exercises persistent session state."
+    },
+    {
+      "id": "project-cli",
+      "task": "Call vrooli.scenario.status(name=\"program-runtime\") and print the returned row's scenario field.",
+      "oracle": {
+        "kind": "stdout_contains",
+        "value": "program-runtime"
+      },
+      "notes": "Exercises the distinct project namespace."
+    },
+    {
+      "id": "describe-before-call",
+      "task": "Call describe(binding_id=\"test-genie/runs/list\"); it returns argument rows, so print the first row's name field.",
+      "oracle": {
+        "kind": "stdout_contains",
+        "value": "scenario"
+      },
+      "notes": "Exercises typed contract discovery."
+    }
+  ]
+}

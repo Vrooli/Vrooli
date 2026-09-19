@@ -48,7 +48,8 @@
       "@stores/*": ["src/stores/*"],
       "@utils/*": ["src/utils/*"],
       "@constants/*": ["src/constants/*"],
-      "@lib/*": ["src/lib/*"]
+      "@lib/*": ["src/lib/*"],
+      "@components/*": ["src/components/*"]
     }
   },
   "include": ["src"],

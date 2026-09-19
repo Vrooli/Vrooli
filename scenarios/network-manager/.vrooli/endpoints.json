@@ -1,0 +1,745 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.network_manager.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.network_manager.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "adapters_capabilities",
+      "path": "/vrooli.network_manager.v1.adapters.AdapterService/ListCapabilities",
+      "method": "POST",
+      "summary": "List adapter capabilities",
+      "description": "",
+      "category": "adapters",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "capabilities": "array<Capability>"
+        }
+      }
+    },
+    {
+      "id": "adapters_explain_unsupported",
+      "path": "/vrooli.network_manager.v1.adapters.AdapterService/ExplainUnsupportedAction",
+      "method": "POST",
+      "summary": "Explain unsupported adapter action",
+      "description": "",
+      "category": "adapters",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "capabilities": "array<Capability>"
+        }
+      }
+    },
+    {
+      "id": "adapters_platform",
+      "path": "/vrooli.network_manager.v1.adapters.AdapterService/GetPlatformSummary",
+      "method": "POST",
+      "summary": "Get platform summary",
+      "description": "",
+      "category": "adapters",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "capabilities": "array<Capability>"
+        }
+      }
+    },
+    {
+      "id": "home_actions_list",
+      "path": "/vrooli.network_manager.v1.home_integration.HomeIntegrationService/ListActions",
+      "method": "POST",
+      "summary": "List Home Automation actions",
+      "description": "",
+      "category": "home_integration",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "events": "array<HomeEvent>"
+        }
+      }
+    },
+    {
+      "id": "home_action_invoke",
+      "path": "/vrooli.network_manager.v1.home_integration.HomeIntegrationService/InvokeAction",
+      "method": "POST",
+      "summary": "Invoke Home Automation action",
+      "description": "",
+      "category": "home_integration",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "events": "array<HomeEvent>"
+        }
+      }
+    },
+    {
+      "id": "home_events_list",
+      "path": "/vrooli.network_manager.v1.home_integration.HomeIntegrationService/ListRecentEvents",
+      "method": "POST",
+      "summary": "List recent Home Automation events",
+      "description": "",
+      "category": "home_integration",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "events": "array<HomeEvent>"
+        }
+      }
+    },
+    {
+      "id": "inventory_refresh",
+      "path": "/vrooli.network_manager.v1.inventory.InventoryService/RefreshInventory",
+      "method": "POST",
+      "summary": "Refresh device inventory",
+      "description": "",
+      "category": "inventory",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "devices": "array<Device>"
+        }
+      }
+    },
+    {
+      "id": "inventory_list",
+      "path": "/vrooli.network_manager.v1.inventory.InventoryService/ListDevices",
+      "method": "POST",
+      "summary": "List devices",
+      "description": "",
+      "category": "inventory",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "devices": "array<Device>"
+        }
+      }
+    },
+    {
+      "id": "inventory_group_update",
+      "path": "/vrooli.network_manager.v1.inventory.InventoryService/UpdateDeviceGroup",
+      "method": "POST",
+      "summary": "Update device group",
+      "description": "",
+      "category": "inventory",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "devices": "array<Device>"
+        }
+      }
+    },
+    {
+      "id": "inventory_identity_explain",
+      "path": "/vrooli.network_manager.v1.inventory.InventoryService/ExplainDeviceIdentity",
+      "method": "POST",
+      "summary": "Explain device identity",
+      "description": "",
+      "category": "inventory",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "devices": "array<Device>"
+        }
+      }
+    },
+    {
+      "id": "monitoring_schedules_list",
+      "path": "/vrooli.network_manager.v1.monitoring.MonitoringService/ListMonitoringSchedules",
+      "method": "POST",
+      "summary": "List monitoring schedules",
+      "description": "",
+      "category": "monitoring",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "monitoring": "proto response"
+        }
+      }
+    },
+    {
+      "id": "monitoring_schedules_upsert",
+      "path": "/vrooli.network_manager.v1.monitoring.MonitoringService/UpsertMonitoringSchedule",
+      "method": "POST",
+      "summary": "Create or update a monitoring schedule",
+      "description": "",
+      "category": "monitoring",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "monitoring": "proto response"
+        }
+      }
+    },
+    {
+      "id": "monitoring_run_check",
+      "path": "/vrooli.network_manager.v1.monitoring.MonitoringService/RunMonitoringCheck",
+      "method": "POST",
+      "summary": "Run monitoring check",
+      "description": "",
+      "category": "monitoring",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "monitoring": "proto response"
+        }
+      }
+    },
+    {
+      "id": "monitoring_alerts_list",
+      "path": "/vrooli.network_manager.v1.monitoring.MonitoringService/ListMonitoringAlerts",
+      "method": "POST",
+      "summary": "List monitoring alerts",
+      "description": "",
+      "category": "monitoring",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "monitoring": "proto response"
+        }
+      }
+    },
+    {
+      "id": "optimization_create",
+      "path": "/vrooli.network_manager.v1.optimization.OptimizationService/CreateOptimizationRun",
+      "method": "POST",
+      "summary": "Create optimization run",
+      "description": "",
+      "category": "optimization",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "run": "OptimizationRun"
+        }
+      }
+    },
+    {
+      "id": "optimization_candidate_run",
+      "path": "/vrooli.network_manager.v1.optimization.OptimizationService/RunCandidate",
+      "method": "POST",
+      "summary": "Run optimization candidate",
+      "description": "",
+      "category": "optimization",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "run": "OptimizationRun"
+        }
+      }
+    },
+    {
+      "id": "optimization_score",
+      "path": "/vrooli.network_manager.v1.optimization.OptimizationService/ScoreCandidates",
+      "method": "POST",
+      "summary": "Score optimization candidates",
+      "description": "",
+      "category": "optimization",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "run": "OptimizationRun"
+        }
+      }
+    },
+    {
+      "id": "optimization_approve",
+      "path": "/vrooli.network_manager.v1.optimization.OptimizationService/ApproveCandidate",
+      "method": "POST",
+      "summary": "Approve optimization candidate",
+      "description": "",
+      "category": "optimization",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "run": "OptimizationRun"
+        }
+      }
+    },
+    {
+      "id": "optimization_rollback",
+      "path": "/vrooli.network_manager.v1.optimization.OptimizationService/RollbackOptimization",
+      "method": "POST",
+      "summary": "Rollback optimization",
+      "description": "",
+      "category": "optimization",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "run": "OptimizationRun"
+        }
+      }
+    },
+    {
+      "id": "policy_preview",
+      "path": "/vrooli.network_manager.v1.policy.PolicyService/PreviewPolicyChange",
+      "method": "POST",
+      "summary": "Preview filtering policy change",
+      "description": "",
+      "category": "policy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "change": "PolicyChange"
+        }
+      }
+    },
+    {
+      "id": "policy_apply",
+      "path": "/vrooli.network_manager.v1.policy.PolicyService/ApplyPolicyChange",
+      "method": "POST",
+      "summary": "Apply approved filtering policy change",
+      "description": "",
+      "category": "policy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "change": "PolicyChange"
+        }
+      }
+    },
+    {
+      "id": "policy_rollback",
+      "path": "/vrooli.network_manager.v1.policy.PolicyService/RollbackPolicyChange",
+      "method": "POST",
+      "summary": "Rollback filtering policy change",
+      "description": "",
+      "category": "policy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "change": "PolicyChange"
+        }
+      }
+    },
+    {
+      "id": "policy_pause",
+      "path": "/vrooli.network_manager.v1.policy.PolicyService/PauseFiltering",
+      "method": "POST",
+      "summary": "Pause filtering",
+      "description": "",
+      "category": "policy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "change": "PolicyChange"
+        }
+      }
+    },
+    {
+      "id": "policy_resume",
+      "path": "/vrooli.network_manager.v1.policy.PolicyService/ResumeFiltering",
+      "method": "POST",
+      "summary": "Resume filtering",
+      "description": "",
+      "category": "policy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "change": "PolicyChange"
+        }
+      }
+    },
+    {
+      "id": "policy_profiles_list",
+      "path": "/vrooli.network_manager.v1.policy.PolicyService/ListPolicyProfiles",
+      "method": "POST",
+      "summary": "List household policy profiles",
+      "description": "",
+      "category": "policy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "change": "PolicyChange"
+        }
+      }
+    },
+    {
+      "id": "policy_profiles_upsert",
+      "path": "/vrooli.network_manager.v1.policy.PolicyService/UpsertPolicyProfile",
+      "method": "POST",
+      "summary": "Create or update a household policy profile",
+      "description": "",
+      "category": "policy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "change": "PolicyChange"
+        }
+      }
+    },
+    {
+      "id": "policy_schedule_evaluate",
+      "path": "/vrooli.network_manager.v1.policy.PolicyService/EvaluatePolicySchedule",
+      "method": "POST",
+      "summary": "Evaluate a policy schedule window",
+      "description": "",
+      "category": "policy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "change": "PolicyChange"
+        }
+      }
+    },
+    {
+      "id": "policy_encrypted_dns_bypass",
+      "path": "/vrooli.network_manager.v1.policy.PolicyService/DiagnoseEncryptedDnsBypass",
+      "method": "POST",
+      "summary": "Diagnose IPv6 and encrypted-DNS bypass guidance",
+      "description": "",
+      "category": "policy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "change": "PolicyChange"
+        }
+      }
+    },
+    {
+      "id": "policy_endpoint_doh_guidance",
+      "path": "/vrooli.network_manager.v1.policy.PolicyService/GetEndpointDohGuidance",
+      "method": "POST",
+      "summary": "Generate endpoint DoH guidance",
+      "description": "",
+      "category": "policy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "change": "PolicyChange"
+        }
+      }
+    },
+    {
+      "id": "privacy_retention_get",
+      "path": "/vrooli.network_manager.v1.privacy.PrivacyService/GetRetentionSettings",
+      "method": "POST",
+      "summary": "Get retention settings",
+      "description": "",
+      "category": "privacy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "settings": "privacy settings"
+        }
+      }
+    },
+    {
+      "id": "privacy_retention_update",
+      "path": "/vrooli.network_manager.v1.privacy.PrivacyService/UpdateRetentionSettings",
+      "method": "POST",
+      "summary": "Update retention settings",
+      "description": "",
+      "category": "privacy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "settings": "privacy settings"
+        }
+      }
+    },
+    {
+      "id": "privacy_visibility_get",
+      "path": "/vrooli.network_manager.v1.privacy.PrivacyService/GetVisibilitySettings",
+      "method": "POST",
+      "summary": "Get visibility settings",
+      "description": "",
+      "category": "privacy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "settings": "privacy settings"
+        }
+      }
+    },
+    {
+      "id": "resolver_status",
+      "path": "/vrooli.network_manager.v1.resolver.ResolverService/GetResolverStatus",
+      "method": "POST",
+      "summary": "Get resolver status",
+      "description": "",
+      "category": "resolver",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "proto response"
+        }
+      }
+    },
+    {
+      "id": "resolver_configure_adguard",
+      "path": "/vrooli.network_manager.v1.resolver.ResolverService/ConfigureAdGuardHome",
+      "method": "POST",
+      "summary": "Configure AdGuard Home",
+      "description": "",
+      "category": "resolver",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "proto response"
+        }
+      }
+    },
+    {
+      "id": "resolver_update_upstreams",
+      "path": "/vrooli.network_manager.v1.resolver.ResolverService/UpdateUpstreams",
+      "method": "POST",
+      "summary": "Update resolver upstreams",
+      "description": "",
+      "category": "resolver",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "proto response"
+        }
+      }
+    },
+    {
+      "id": "resolver_health",
+      "path": "/vrooli.network_manager.v1.resolver.ResolverService/CheckResolverHealth",
+      "method": "POST",
+      "summary": "Check resolver health",
+      "description": "",
+      "category": "resolver",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "proto response"
+        }
+      }
+    },
+    {
+      "id": "resolver_adguard_rollout",
+      "path": "/vrooli.network_manager.v1.resolver.ResolverService/GetAdGuardRollout",
+      "method": "POST",
+      "summary": "Get AdGuard household rollout status",
+      "description": "",
+      "category": "resolver",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "proto response"
+        }
+      }
+    },
+    {
+      "id": "snapshot_run",
+      "path": "/vrooli.network_manager.v1.snapshot.SnapshotService/RunSnapshot",
+      "method": "POST",
+      "summary": "Run network health snapshot",
+      "description": "",
+      "category": "snapshot",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "proto response"
+        }
+      }
+    },
+    {
+      "id": "snapshot_list",
+      "path": "/vrooli.network_manager.v1.snapshot.SnapshotService/ListSnapshots",
+      "method": "POST",
+      "summary": "List network health snapshots",
+      "description": "",
+      "category": "snapshot",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "proto response"
+        }
+      }
+    },
+    {
+      "id": "snapshot_get",
+      "path": "/vrooli.network_manager.v1.snapshot.SnapshotService/GetSnapshot",
+      "method": "POST",
+      "summary": "Get network health snapshot",
+      "description": "",
+      "category": "snapshot",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "proto response"
+        }
+      }
+    },
+    {
+      "id": "snapshot_export",
+      "path": "/vrooli.network_manager.v1.snapshot.SnapshotService/ExportSnapshotReport",
+      "method": "POST",
+      "summary": "Export network health report",
+      "description": "",
+      "category": "snapshot",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "proto response"
+        }
+      }
+    }
+  ]
+}

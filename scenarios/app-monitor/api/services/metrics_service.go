@@ -188,28 +188,16 @@ func (s *MetricsService) getMemoryUsage(ctx context.Context) (float64, error) {
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
-	// Use /proc/meminfo for more accurate memory calculation
-	cmd := exec.CommandContext(ctxWithTimeout, "bash", "-c", `
-		awk '/MemTotal:/ {total=$2} /MemAvailable:/ {available=$2} END {
-			if (total > 0) printf "%.1f", 100*(1-available/total)
-		}' /proc/meminfo
-	`)
-
-	output, err := cmd.Output()
+	inv, err := cliClient.HostInventory(ctxWithTimeout)
 	if err != nil {
-		// Fallback to free command (reuse timeout context)
-		cmd = exec.CommandContext(ctxWithTimeout, "bash", "-c", "free -m | awk 'NR==2{printf \"%.1f\", $3*100/$2}'")
-		output, err = cmd.Output()
-		if err != nil {
-			return 0, fmt.Errorf("failed to get memory usage: %w", err)
-		}
+		return 0, fmt.Errorf("failed to get host inventory: %w", err)
 	}
-
-	memStr := strings.TrimSpace(string(output))
-	mem, err := strconv.ParseFloat(memStr, 64)
-	if err != nil {
-		return 0, fmt.Errorf("failed to parse memory usage: %w", err)
+	memory := inv.GetMemory()
+	if memory.GetTotalBytes() == 0 {
+		return 0, fmt.Errorf("host inventory did not report total memory")
 	}
+	used := memory.GetTotalBytes() - memory.GetAvailableBytes()
+	mem := (float64(used) / float64(memory.GetTotalBytes())) * 100
 
 	// Ensure value is within valid range
 	if mem < 0 {

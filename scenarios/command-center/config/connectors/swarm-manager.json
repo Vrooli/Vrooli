@@ -1,0 +1,10 @@
+{
+  "id": "swarm-manager",
+  "name": "swarm-manager",
+  "enabled": true,
+  "transport": "http-json",
+  "baseUrlEnv": "SWARM_MANAGER_BASE_URL",
+  "paths": [
+    "/api/v1/stats"
+  ]
+}

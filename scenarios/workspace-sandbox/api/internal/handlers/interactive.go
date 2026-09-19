@@ -3,20 +3,21 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"sync"
-	"syscall"
 	"time"
 
-	"github.com/creack/pty/v2"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
-	"workspace-sandbox/internal/driver"
+	driverexec "workspace-sandbox/internal/driver/exec"
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // WebSocket message types for interactive sessions
@@ -45,6 +46,7 @@ type InteractiveStartRequest struct {
 	Command        string            `json:"command"`
 	Args           []string          `json:"args,omitempty"`
 	IsolationLevel string            `json:"isolationLevel,omitempty"`
+	ExecutionMode  string            `json:"executionMode,omitempty"`
 	AllowNetwork   bool              `json:"allowNetwork,omitempty"`
 	Env            map[string]string `json:"env,omitempty"`
 	WorkingDir     string            `json:"workingDir,omitempty"`
@@ -116,6 +118,10 @@ func (h *Handlers) ExecInteractive(w http.ResponseWriter, r *http.Request) {
 		sendErrorMessage(conn, "command is required")
 		return
 	}
+	if err := h.validateExecutionMode(r.Context(), startReq.ExecutionMode); err != nil {
+		sendErrorMessage(conn, err.Error())
+		return
+	}
 
 	// Set default terminal size
 	if startReq.Cols <= 0 {
@@ -125,8 +131,9 @@ func (h *Handlers) ExecInteractive(w http.ResponseWriter, r *http.Request) {
 		startReq.Rows = 24
 	}
 
-	// Build bwrap config
-	cfg := driver.DefaultBwrapConfig()
+	// Build bwrap config: defaults → host env → isolation profile.
+	cfg := driverexec.DefaultBwrapConfig()
+	driverexec.CaptureEnv().ApplyTo(&cfg)
 	if startReq.WorkingDir != "" {
 		cfg.WorkingDir = startReq.WorkingDir
 	}
@@ -134,15 +141,17 @@ func (h *Handlers) ExecInteractive(w http.ResponseWriter, r *http.Request) {
 		cfg.Env[k] = v
 	}
 
-	// Set isolation level and related config
-	if startReq.IsolationLevel == "vrooli-aware" {
-		driver.ApplyVrooliAwareConfig(&cfg)
-	} else if startReq.AllowNetwork {
+	if err := h.applyIsolationProfile(sb, &cfg, startReq.IsolationLevel); err != nil {
+		sendErrorMessage(conn, err.Error())
+		return
+	}
+
+	if startReq.AllowNetwork {
 		cfg.AllowNetwork = true
 	}
 
 	// Set resource limits
-	cfg.ResourceLimits = driver.ResourceLimits{
+	cfg.ResourceLimits = driverexec.ResourceLimits{
 		MemoryLimitMB: startReq.MemoryLimitMB,
 		CPUTimeSec:    startReq.CPUTimeSec,
 		MaxProcesses:  startReq.MaxProcesses,
@@ -150,25 +159,26 @@ func (h *Handlers) ExecInteractive(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Run the interactive session
-	runInteractiveSession(conn, sb, cfg, startReq)
+	runInteractiveSession(conn, sb, cfg, startReq, h.Clock)
 }
 
-// runInteractiveSession runs a command with PTY and streams I/O over WebSocket.
-func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driver.BwrapConfig, req InteractiveStartRequest) {
+// runInteractiveSession runs a command with PTY and streams I/O over
+// WebSocket. PTY allocation routes through process.PTYStart so the
+// os/exec dependency stays confined to the canonical PTY seam.
+func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driverexec.BwrapConfig, req InteractiveStartRequest, clk schedule.Clock) {
 	// Build the command
-	executable, args := driver.BuildExecCommand(sb, cfg, req.Command, req.Args...)
+	executable, args := driverexec.BuildExecCommand(sb, cfg, req.Command, req.Args...)
 
-	cmd := exec.Command(executable, args...)
-	cmd.Dir = sb.MergedDir
-
-	// Set up environment
-	cmd.Env = os.Environ()
+	env := os.Environ()
 	for k, v := range cfg.Env {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	// Start with PTY
-	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{
+	handle, err := process.PTYStart(process.PTYOpts{
+		Path: executable,
+		Args: args,
+		Dir:  sb.MergedDir,
+		Env:  env,
 		Rows: uint16(req.Rows),
 		Cols: uint16(req.Cols),
 	})
@@ -176,11 +186,22 @@ func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driver.B
 		sendErrorMessage(conn, fmt.Sprintf("failed to start process: %v", err))
 		return
 	}
-	defer ptmx.Close()
+	ptmx := handle.PTY()
 
-	// Use a context to manage shutdown
+	// Use a context to manage shutdown. Any party (PTY pump, WebSocket
+	// reader, or the process reaper below) may cancel it; cancellation
+	// closes the PTY master so a Read blocked in the pump is released
+	// rather than left parked (or, worse, spinning) forever.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	var closePTYOnce sync.Once
+	closePTY := func() { closePTYOnce.Do(func() { _ = ptmx.Close() }) }
+	defer closePTY()
+	go func() {
+		<-ctx.Done()
+		closePTY()
+	}()
 
 	var wg sync.WaitGroup
 
@@ -191,31 +212,14 @@ func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driver.B
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		buf := make([]byte, 4096)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-
-			n, err := ptmx.Read(buf)
-			if err != nil {
-				// PTY closed (process exited)
-				return
-			}
-			if n > 0 {
-				writeMu.Lock()
-				err := conn.WriteJSON(InteractiveMessage{
-					Type: MsgTypeStdout,
-					Data: string(buf[:n]),
-				})
-				writeMu.Unlock()
-				if err != nil {
-					return
-				}
-			}
-		}
+		pumpPTY(cancel, ptmx, func(chunk []byte) error {
+			writeMu.Lock()
+			defer writeMu.Unlock()
+			return conn.WriteJSON(InteractiveMessage{
+				Type: MsgTypeStdout,
+				Data: string(chunk),
+			})
+		})
 	}()
 
 	// Read from WebSocket and handle messages
@@ -238,10 +242,7 @@ func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driver.B
 				}
 			case MsgTypeResize:
 				if msg.Cols > 0 && msg.Rows > 0 {
-					if err := pty.Setsize(ptmx, &pty.Winsize{
-						Rows: uint16(msg.Rows),
-						Cols: uint16(msg.Cols),
-					}); err != nil {
+					if err := handle.SetPTYSize(uint16(msg.Rows), uint16(msg.Cols)); err != nil {
 						return
 					}
 				}
@@ -258,13 +259,9 @@ func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driver.B
 
 	// Wait for process to exit
 	exitCode := 0
-	if err := cmd.Wait(); err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
-				exitCode = status.ExitStatus()
-			}
-		}
-	}
+	waitErr := handle.Wait()
+	exit := handle.ExitInfo(waitErr)
+	exitCode = exit.ExitCode
 
 	// Cancel context to stop goroutines
 	cancel()
@@ -281,7 +278,7 @@ func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driver.B
 	}
 
 	// Give a moment for the message to be sent
-	time.Sleep(100 * time.Millisecond)
+	clk.Sleep(100 * time.Millisecond)
 
 	// Wait for goroutines to finish (with timeout)
 	done := make(chan struct{})
@@ -294,6 +291,54 @@ func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driver.B
 	case <-done:
 	case <-time.After(time.Second):
 		// Timeout waiting for goroutines
+	}
+}
+
+// maxConsecutiveEmptyPTYReads bounds how many back-to-back (0, nil)
+// reads the PTY pump tolerates before treating the PTY as closed. A
+// well-behaved *os.File never returns (0, nil) for a non-empty buffer,
+// but a misbehaving reader must not be able to turn the pump into a
+// scheduler-thrashing busy loop.
+const maxConsecutiveEmptyPTYReads = 3
+
+// pumpPTY copies PTY output to send until the PTY is closed or send
+// fails, then calls done so the rest of the session is torn down. It
+// returns the number of Read calls it made.
+//
+// Exit conditions (all of them terminal — the pump never retries):
+//   - any read error, including io.EOF, os.ErrClosed and the EIO that
+//     Linux returns from a pty master once the slave side hangs up;
+//   - maxConsecutiveEmptyPTYReads reads in a row that return (0, nil);
+//   - a send failure (the WebSocket is gone).
+//
+// The pump deliberately has no non-blocking ctx poll: Read is the
+// blocking point, and the owner unblocks it by closing the PTY on
+// cancellation. Polling ctx with a `select { default: }` would re-enter
+// the scheduler on every iteration without adding a real exit path.
+func pumpPTY(done context.CancelFunc, r io.Reader, send func([]byte) error) (reads int) {
+	defer done()
+	buf := make([]byte, 4096)
+	empty := 0
+	for {
+		n, err := r.Read(buf)
+		reads++
+		if n > 0 {
+			empty = 0
+			if sendErr := send(buf[:n]); sendErr != nil {
+				return reads
+			}
+		}
+		if err != nil {
+			// PTY closed (process exited, slave hung up, or owner
+			// closed the master on cancellation).
+			return reads
+		}
+		if n == 0 {
+			empty++
+			if empty >= maxConsecutiveEmptyPTYReads {
+				return reads
+			}
+		}
 	}
 }
 

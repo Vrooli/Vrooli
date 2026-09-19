@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package vrooli.react_component_library.v1.page;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/page;page_v1";
+
+// PageService observes a running scenario through the shared BAS capture boundary.
+service PageService {
+  // Inspect returns one browser observation and source attribution for its nodes.
+  rpc Inspect(InspectRequest) returns (InspectResponse);
+}
+message InspectRequest {
+  string scenario = 1;
+  // Concrete same-origin route, including an optional query or fragment.
+  string route = 2;
+  // Optional visible selector identifying the page state to observe.
+  string wait_selector = 3;
+}
+message AssetSource {
+  // resolved, unresolved, or unstamped. Unresolved always carries a reason.
+  string status = 1;
+  string stamped_asset = 2;
+  string stamped_version = 3;
+  string library_id = 4;
+  string resolved_version = 5;
+  string source_path = 6;
+  // exact-release or consumer-major-alias. An alias is not proof of a historical build.
+  string resolution_rule = 7;
+  string reason = 8;
+}
+message PageNode {
+  // BAS-owned node fields, including data, computed styles, selector and rect.
+  // Children are removed here and represented recursively below.
+  google.protobuf.Struct observation = 1;
+  AssetSource source = 2;
+  repeated PageNode children = 3;
+}
+message InspectResponse {
+  string scenario = 1;
+  string route = 2;
+  string url = 3;
+  string execution_id = 4;
+  string screenshot_path = 5;
+  string screenshot_url = 6;
+  PageNode tree = 7;
+  uint32 node_count = 8;
+  uint32 stamped_count = 9;
+  uint32 resolved_count = 10;
+  repeated string warnings = 11;
+}

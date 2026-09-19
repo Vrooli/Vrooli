@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+
 	"github.com/google/uuid"
 )
 
@@ -36,6 +37,20 @@ type Store interface {
 
 	// Delete removes all events for a run (for cleanup).
 	Delete(ctx context.Context, runID uuid.UUID) error
+}
+
+// RetentionStore removes historical events in bounded batches. It is kept
+// separate from Store because normal execution only appends and reads events;
+// destructive retention is a reconciler capability with its own cadence.
+type RetentionStore interface {
+	DeleteBefore(ctx context.Context, cutoff time.Time, limit int) (int, error)
+}
+
+// PayloadCompactor bounds bulky historical payloads in place without deleting
+// events. Imported transcripts are the conversation-recall corpus and their
+// source files may no longer exist, so they are compacted, never age-deleted.
+type PayloadCompactor interface {
+	CompactImportedToolPayloads(ctx context.Context, cutoff time.Time, minBytes, limit int) (int, error)
 }
 
 // GetOptions specifies criteria for retrieving events.

@@ -29,9 +29,9 @@ export function createEmptyLensSnapshot(): GraphLensSnapshot {
 
 export function createEmptyGraphsByLens(): Record<GraphLens, GraphLensSnapshot> {
   return {
+    plan: createEmptyLensSnapshot(),
     focus: createEmptyLensSnapshot(),
     topology: createEmptyLensSnapshot(),
-    operations: createEmptyLensSnapshot(),
   };
 }
 
@@ -50,8 +50,8 @@ export function cloneGraphsByLens(
   graphsByLens: Record<GraphLens, GraphLensSnapshot>,
 ): Record<GraphLens, GraphLensSnapshot> {
   return {
+    plan: cloneLensSnapshot(graphsByLens.plan),
     focus: cloneLensSnapshot(graphsByLens.focus),
     topology: cloneLensSnapshot(graphsByLens.topology),
-    operations: cloneLensSnapshot(graphsByLens.operations),
   };
 }

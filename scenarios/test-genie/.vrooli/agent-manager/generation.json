@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "test-genie-agent",
+  "profileKey": "test-genie/generation",
+  "description": "Portable profile for Test Genie agent-assisted generation and repair",
+  "roleRef": "code.smart",
+  "roleReason": "Agent-assisted test generation and repair spans multiple artifacts and requires deep reasoning about expected behavior.",
+  "maxTurns": 50,
+  "timeout": "900s",
+  "allowedTools": ["read", "write", "edit", "glob", "grep", "shell"],
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_PROTECTED"
+  },
+  "createdBy": "test-genie",
+  "effort": "medium"
+}

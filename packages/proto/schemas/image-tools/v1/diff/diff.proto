@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package vrooli.image_tools.v1.diff;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/diff;diff_v1";
+
+// =============================================================================
+// DIFF DOMAIN — general-purpose image diff / visual comparison (IMG-P1-009)
+// =============================================================================
+//
+// @stability alpha
+//
+// Wire contract for DiffService: compare two images and report what changed,
+// both numerically (pixel + perceptual metrics) and visually (a heat-map
+// overlay highlighting the changed regions). This is a FIRST-CLASS capability —
+// pure-Go, no model, runs on ANY host (the headless-completeness floor) — built
+// deliberately so test-genie's future visual-diff phase can adopt it without
+// re-implementing image comparison. branding-manager / AI-UGC compose it the
+// same way to gate "did this edit actually change the right thing?".
+//
+// Two comparison modes:
+//   - PIXEL — exact per-channel difference with a tolerance band. Reports the
+//     fraction of pixels that differ beyond the tolerance, plus MAE / RMSE /
+//     PSNR. Sensitive to any change; the right tool for "are these byte-for-byte
+//     equivalent after a deterministic op?".
+//   - PERCEPTUAL — a difference (DCT-based perceptual) hash on both images and
+//     their Hamming distance, plus a structural-similarity estimate. Robust to
+//     re-encode / minor noise; the right tool for "are these the SAME PICTURE?".
+// Both modes always run; `mode` selects which verdict drives the headline
+// `verdict` field. Mismatched dimensions are reported honestly (the compare
+// image is resized to the base for the metrics, flagged in `warnings`).
+//
+// Transport split (mirrors the selection / analysis domains):
+//   - DISCOVERY is Connect-RPC (typed): ListDiffModes executes nothing.
+//   - COMPARISON rides a REST multipart edge (POST /api/v1/diff/compare): the
+//     `base` and `compare` parts carry the two images, the `params` part carries
+//     DiffParams (protojson). The heat-map is stored as a blob and the response
+//     (DiffResult) carries its key plus the full metric set.
+//
+// Consumed by:
+//   - API: handlers/diff/connect_handler.go (ListDiffModes) +
+//          handlers/diff/rest.go (the multipart compare edge).
+//   - CLI: cli/domains/diff (compare via the REST edge; modes via the client).
+//   - UI:  ui/src/api/diff.ts wraps the discovery client + the compare edge;
+//          the Library/Workspace compare view overlays the heat-map.
+// =============================================================================
+
+service DiffService {
+  // ListDiffModes returns the comparison modes the engine supports, each with a
+  // human summary. Pure discovery (executes nothing).
+  rpc ListDiffModes(ListDiffModesRequest) returns (ListDiffModesResponse);
+}
+
+// DiffMode selects which comparison verdict drives the headline result. Both
+// metric families are always computed; the mode picks the one that matters.
+enum DiffMode {
+  DIFF_MODE_UNSPECIFIED = 0;
+  // PIXEL — exact per-channel difference with a tolerance band (byte-level).
+  DIFF_MODE_PIXEL = 1;
+  // PERCEPTUAL — perceptual-hash distance + structural similarity (same-picture).
+  DIFF_MODE_PERCEPTUAL = 2;
+}
+
+// DiffParams is the typed `params` envelope for the compare edge (protojson).
+message DiffParams {
+  DiffMode mode = 1;
+  // Tolerance is the per-channel pixel-difference threshold 0..1 (PIXEL mode);
+  // a channel delta within tolerance is treated as unchanged. 0/unset = exact.
+  double tolerance = 2;
+  // IncludeHeatmap controls whether the heat-map overlay is generated + stored
+  // (true by default at the edge when unset). Set false for a metrics-only run.
+  bool include_heatmap = 3;
+  // HighlightHex is the heat-map highlight colour (#rrggbb); empty = a default
+  // magenta. Changed pixels are tinted toward this colour over a dimmed base.
+  string highlight_hex = 4;
+}
+
+// DiffModeInfo describes one comparison mode for discovery.
+message DiffModeInfo {
+  // Mode name: "pixel" or "perceptual".
+  string name = 1;
+  // One-line human summary.
+  string summary = 2;
+}
+
+message ListDiffModesRequest {}
+
+message ListDiffModesResponse {
+  repeated DiffModeInfo modes = 1;
+}
+
+// DiffResult is the protojson body returned by the compare edge: every metric
+// plus the heat-map blob key. One round-trip from two images to a full verdict.
+message DiffResult {
+  // Durable job id recording the comparison (uniform observability).
+  string job_id = 1;
+  // Headline verdict driven by `mode`: "identical" (no change beyond
+  // tolerance / hash distance 0), "similar" (small change), or "different".
+  string verdict = 2;
+  // DimensionsMatch is false when the two images differ in size; the compare
+  // image was resized to the base for the pixel metrics (see warnings).
+  bool dimensions_match = 3;
+  int32 base_width = 4;
+  int32 base_height = 5;
+  int32 compare_width = 6;
+  int32 compare_height = 7;
+  // --- PIXEL metrics (computed at the base resolution) ---
+  // ChangedPixels is the count of pixels differing beyond the tolerance band.
+  int64 changed_pixels = 8;
+  int64 total_pixels = 9;
+  // ChangedFraction is changed_pixels / total_pixels, 0..1.
+  double changed_fraction = 10;
+  // MAE is the mean absolute per-channel difference, 0..255.
+  double mae = 11;
+  // RMSE is the root-mean-square per-channel difference, 0..255.
+  double rmse = 12;
+  // PSNR is the peak signal-to-noise ratio in dB (higher = more similar;
+  // +Inf is reported as a large sentinel when the images are identical).
+  double psnr = 13;
+  // --- PERCEPTUAL metrics ---
+  // PhashDistance is the Hamming distance between the two perceptual hashes
+  // (0 = visually identical; ~10+ = different picture). 64-bit hash → 0..64.
+  int32 phash_distance = 14;
+  // PhashSimilarity is 1 - phash_distance/64, 0..1.
+  double phash_similarity = 15;
+  // Ssim is a structural-similarity estimate 0..1 (1 = identical structure).
+  double ssim = 16;
+  // --- heat-map ---
+  // HeatmapRef is the blob key of the generated heat-map overlay (PNG), or empty
+  // when include_heatmap was false. Fetch via GET /api/v1/blobs/{key}.
+  string heatmap_ref = 17;
+  // warnings carries non-fatal cautions (e.g. "images differ in size — compare
+  // resized to base for pixel metrics").
+  repeated string warnings = 18;
+}

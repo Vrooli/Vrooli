@@ -5,7 +5,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-export type ViewMode = "generator" | "inventory" | "docs" | "records" | "signing";
+export type ViewMode =
+  | "generator"
+  | "inventory"
+  | "docs"
+  | "records"
+  | "signing"
+  | "validation";
 
 interface UrlParams {
   view?: ViewMode;
@@ -48,36 +54,54 @@ interface UseUrlStateReturn {
  * Hook that synchronizes state with URL search parameters.
  * Provides shareable URLs and handles browser navigation.
  */
-export function useUrlState(options: UseUrlStateOptions = {}): UseUrlStateReturn {
-  const { defaultView = "inventory", defaultScenario = "", defaultDoc = null, onViewChange, onScenarioChange, onDocChange } = options;
+export function useUrlState(
+  options: UseUrlStateOptions = {},
+): UseUrlStateReturn {
+  const {
+    defaultView = "inventory",
+    defaultScenario = "",
+    defaultDoc = null,
+    onViewChange,
+    onScenarioChange,
+    onDocChange,
+  } = options;
 
   const initialParams = useMemo(() => parseSearchParams(), []);
 
   const [viewMode, setViewModeState] = useState<ViewMode>(
-    initialParams.view ?? defaultView
+    initialParams.view ?? defaultView,
   );
   const [scenarioName, setScenarioNameState] = useState(
-    initialParams.scenario ?? defaultScenario
+    initialParams.scenario ?? defaultScenario,
   );
   const [docPath, setDocPathState] = useState<string | null>(
-    initialParams.doc ?? defaultDoc
+    initialParams.doc ?? defaultDoc,
   );
 
   // Wrapped setters that also trigger callbacks
-  const setViewMode = useCallback((view: ViewMode) => {
-    setViewModeState(view);
-    onViewChange?.(view);
-  }, [onViewChange]);
+  const setViewMode = useCallback(
+    (view: ViewMode) => {
+      setViewModeState(view);
+      onViewChange?.(view);
+    },
+    [onViewChange],
+  );
 
-  const setScenarioName = useCallback((name: string) => {
-    setScenarioNameState(name);
-    onScenarioChange?.(name);
-  }, [onScenarioChange]);
+  const setScenarioName = useCallback(
+    (name: string) => {
+      setScenarioNameState(name);
+      onScenarioChange?.(name);
+    },
+    [onScenarioChange],
+  );
 
-  const setDocPath = useCallback((path: string | null) => {
-    setDocPathState(path);
-    onDocChange?.(path);
-  }, [onDocChange]);
+  const setDocPath = useCallback(
+    (path: string | null) => {
+      setDocPathState(path);
+      onDocChange?.(path);
+    },
+    [onDocChange],
+  );
 
   // Sync state from URL on popstate (back/forward)
   useEffect(() => {
@@ -87,12 +111,14 @@ export function useUrlState(options: UseUrlStateOptions = {}): UseUrlStateReturn
       const { view, scenario, doc } = parseSearchParams();
       if (view) setViewModeState(view);
       if (scenario !== undefined) setScenarioNameState(scenario);
-      if (doc !== undefined) setDocPathState(doc ?? null);
+      if (doc !== undefined) setDocPathState(doc);
     };
 
     syncFromLocation();
     window.addEventListener("popstate", syncFromLocation);
-    return () => window.removeEventListener("popstate", syncFromLocation);
+    return () => {
+      window.removeEventListener("popstate", syncFromLocation);
+    };
   }, []);
 
   // Persist state to URL for shareable routing

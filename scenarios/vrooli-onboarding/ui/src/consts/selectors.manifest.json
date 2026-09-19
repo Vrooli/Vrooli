@@ -1,0 +1,331 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.skipToContent": {
+      "testId": "skip-to-content",
+      "selector": "[data-testid=\"skip-to-content\"]"
+    },
+    "app.nav": {
+      "testId": "app-nav",
+      "selector": "[data-testid=\"app-nav\"]"
+    },
+    "nav.wizard": {
+      "testId": "nav-wizard",
+      "selector": "[data-testid=\"nav-wizard\"]"
+    },
+    "nav.wizardBadge": {
+      "testId": "nav-wizard-badge",
+      "selector": "[data-testid=\"nav-wizard-badge\"]"
+    },
+    "nav.dashboard": {
+      "testId": "nav-dashboard",
+      "selector": "[data-testid=\"nav-dashboard\"]"
+    },
+    "nav.glossary": {
+      "testId": "nav-glossary",
+      "selector": "[data-testid=\"nav-glossary\"]"
+    },
+    "wizard.shell": {
+      "testId": "wizard-shell",
+      "selector": "[data-testid=\"wizard-shell\"]"
+    },
+    "wizard.prev": {
+      "testId": "wizard-prev",
+      "selector": "[data-testid=\"wizard-prev\"]"
+    },
+    "wizard.next": {
+      "testId": "wizard-next",
+      "selector": "[data-testid=\"wizard-next\"]"
+    },
+    "wizard.welcome": {
+      "testId": "step-welcome",
+      "selector": "[data-testid=\"step-welcome\"]"
+    },
+    "wizard.scenarios": {
+      "testId": "step-select-scenarios",
+      "selector": "[data-testid=\"step-select-scenarios\"]"
+    },
+    "wizard.integrations": {
+      "testId": "step-integrations-deferred",
+      "selector": "[data-testid=\"step-integrations-deferred\"]"
+    },
+    "wizard.operatingMode": {
+      "testId": "step-operating-mode",
+      "selector": "[data-testid=\"step-operating-mode\"]"
+    },
+    "wizard.resources": {
+      "testId": "step-derived-resources",
+      "selector": "[data-testid=\"step-derived-resources\"]"
+    },
+    "wizard.host": {
+      "testId": "step-host-requirements",
+      "selector": "[data-testid=\"step-host-requirements\"]"
+    },
+    "wizard.readiness": {
+      "testId": "step-readiness",
+      "selector": "[data-testid=\"step-readiness\"]"
+    },
+    "wizard.stepAnnouncement": {
+      "testId": "step-announcement",
+      "selector": "[data-testid=\"step-announcement\"]"
+    },
+    "operatingMode.toggle": {
+      "testId": "keep-running-toggle",
+      "selector": "[data-testid=\"keep-running-toggle\"]"
+    },
+    "apply.plan": {
+      "testId": "apply-plan",
+      "selector": "[data-testid=\"apply-plan\"]"
+    },
+    "apply.summary": {
+      "testId": "plan-summary",
+      "selector": "[data-testid=\"plan-summary\"]"
+    },
+    "apply.privilegeWarning": {
+      "testId": "privilege-warning",
+      "selector": "[data-testid=\"privilege-warning\"]"
+    },
+    "apply.skippedNote": {
+      "testId": "skipped-note",
+      "selector": "[data-testid=\"skipped-note\"]"
+    },
+    "apply.retry": {
+      "testId": "retry",
+      "selector": "[data-testid=\"retry\"]"
+    },
+    "readiness.summary": {
+      "testId": "readiness-summary",
+      "selector": "[data-testid=\"readiness-summary\"]"
+    },
+    "readiness.item": {
+      "testId": "readiness-item",
+      "selector": "[data-testid=\"readiness-item\"]"
+    },
+    "readiness.remediation": {
+      "testId": "remediation",
+      "selector": "[data-testid=\"remediation\"]"
+    },
+    "readiness.recheck": {
+      "testId": "recheck",
+      "selector": "[data-testid=\"recheck\"]"
+    },
+    "readiness.continueDegraded": {
+      "testId": "readiness-continue-degraded",
+      "selector": "[data-testid=\"readiness-continue-degraded\"]"
+    },
+    "run.ladder": {
+      "testId": "run-ladder",
+      "selector": "[data-testid=\"run-ladder\"]"
+    },
+    "run.id": {
+      "testId": "run-id",
+      "selector": "[data-testid=\"run-id\"]"
+    },
+    "host.tools": {
+      "testId": "host-tools",
+      "selector": "[data-testid=\"host-tools\"]"
+    },
+    "host.safeguards": {
+      "testId": "host-safeguards",
+      "selector": "[data-testid=\"host-safeguards\"]"
+    },
+    "host.requirementEntry": {
+      "testId": "requirement-entry",
+      "selector": "[data-testid=\"requirement-entry\"]"
+    },
+    "host.riskIndicator": {
+      "testId": "risk-indicator",
+      "selector": "[data-testid=\"risk-indicator\"]"
+    },
+    "host.privilegeIndicator": {
+      "testId": "privilege-indicator",
+      "selector": "[data-testid=\"privilege-indicator\"]"
+    },
+    "host.changeSummary": {
+      "testId": "change-summary",
+      "selector": "[data-testid=\"change-summary\"]"
+    },
+    "credentials.card": {
+      "testId": "credential-card",
+      "selector": "[data-testid=\"credential-card\"]"
+    },
+    "credentials.purpose": {
+      "testId": "credential-purpose",
+      "selector": "[data-testid=\"credential-purpose\"]"
+    },
+    "credentials.status": {
+      "testId": "credential-status",
+      "selector": "[data-testid=\"credential-status\"]"
+    },
+    "credentials.input": {
+      "testId": "credential-input",
+      "selector": "[data-testid=\"credential-input\"]"
+    },
+    "credentials.save": {
+      "testId": "credential-save",
+      "selector": "[data-testid=\"credential-save\"]"
+    },
+    "credentials.obtainLink": {
+      "testId": "credential-obtain-link",
+      "selector": "[data-testid=\"credential-obtain-link\"]"
+    },
+    "capabilities.actions": {
+      "testId": "capability-actions",
+      "selector": "[data-testid=\"capability-actions\"]"
+    },
+    "scenario.list": {
+      "testId": "scenario-list",
+      "selector": "[data-testid=\"scenario-list\"]"
+    },
+    "scenario.search": {
+      "testId": "scenario-search",
+      "selector": "[data-testid=\"scenario-search\"]"
+    },
+    "scenario.cascadeNote": {
+      "testId": "cascade-note",
+      "selector": "[data-testid=\"cascade-note\"]"
+    },
+    "scenario.resourceRollup": {
+      "testId": "resource-rollup",
+      "selector": "[data-testid=\"resource-rollup\"]"
+    },
+    "scenario.catalogError": {
+      "testId": "catalog-error",
+      "selector": "[data-testid=\"catalog-error\"]"
+    },
+    "scenario.lockedBadge": {
+      "testId": "locked-badge",
+      "selector": "[data-testid=\"locked-badge\"]"
+    },
+    "dashboard.root": {
+      "testId": "health-dashboard",
+      "selector": "[data-testid=\"health-dashboard\"]"
+    },
+    "dashboard.summary": {
+      "testId": "health-summary",
+      "selector": "[data-testid=\"health-summary\"]"
+    },
+    "dashboard.grid": {
+      "testId": "health-grid",
+      "selector": "[data-testid=\"health-grid\"]"
+    },
+    "dashboard.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "dashboard.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "dashboard.lastChecked": {
+      "testId": "health-last-checked",
+      "selector": "[data-testid=\"health-last-checked\"]"
+    },
+    "dashboard.goToWizard": {
+      "testId": "health-go-to-wizard",
+      "selector": "[data-testid=\"health-go-to-wizard\"]"
+    },
+    "glossary.root": {
+      "testId": "glossary-panel",
+      "selector": "[data-testid=\"glossary-panel\"]"
+    },
+    "glossary.search": {
+      "testId": "glossary-search",
+      "selector": "[data-testid=\"glossary-search\"]"
+    },
+    "glossary.clearSearch": {
+      "testId": "glossary-clear-search",
+      "selector": "[data-testid=\"glossary-clear-search\"]"
+    },
+    "glossary.debounceIndicator": {
+      "testId": "glossary-debounce-indicator",
+      "selector": "[data-testid=\"glossary-debounce-indicator\"]"
+    },
+    "glossary.count": {
+      "testId": "glossary-count",
+      "selector": "[data-testid=\"glossary-count\"]"
+    },
+    "glossary.loading": {
+      "testId": "glossary-loading",
+      "selector": "[data-testid=\"glossary-loading\"]"
+    },
+    "glossary.empty": {
+      "testId": "glossary-empty",
+      "selector": "[data-testid=\"glossary-empty\"]"
+    },
+    "glossary.list": {
+      "testId": "glossary-list",
+      "selector": "[data-testid=\"glossary-list\"]"
+    },
+    "library.forms.search-input.root": {
+      "testId": "forms.search-input",
+      "selector": "[data-testid=\"forms.search-input\"]"
+    },
+    "library.controls.button.root": {
+      "testId": "controls.button",
+      "selector": "[data-testid=\"controls.button\"]"
+    },
+    "library.controls.button.icon": {
+      "testId": "controls.button.icon",
+      "selector": "[data-testid=\"controls.button.icon\"]"
+    },
+    "library.controls.button.label": {
+      "testId": "controls.button.label",
+      "selector": "[data-testid=\"controls.button.label\"]"
+    },
+    "library.react-component-library:StatusBadge.root": {
+      "testId": "react-component-library:StatusBadge",
+      "selector": "[data-testid=\"react-component-library:StatusBadge\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "wizard.scenarioCard": {
+      "description": "Scenario card by scenario name",
+      "selectorPattern": "[data-testid=\"scenario-card-${name}\"]",
+      "testIdPattern": "scenario-card-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "dashboard.healthCard": {
+      "description": "Health card by resource name",
+      "selectorPattern": "[data-testid=\"health-card-${name}\"]",
+      "testIdPattern": "health-card-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "dashboard.statusIndicator": {
+      "description": "Status indicator by resource name",
+      "selectorPattern": "[data-testid=\"status-indicator-${name}\"]",
+      "testIdPattern": "status-indicator-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "glossary.entry": {
+      "description": "Glossary entry by term",
+      "selectorPattern": "[data-testid=\"glossary-entry-${term}\"]",
+      "testIdPattern": "glossary-entry-${term}",
+      "params": [
+        {
+          "name": "term",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b7078154c77daecffe58b09e5962e7da641479427050dd7dcb31c491b03dde1e",
+    "ui/src/consts/selectors.ts": "e119d5bb878e601c23c3216d0361364fd7cedbac1729c46233092b4382cc29b4"
+  }
+}

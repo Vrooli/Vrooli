@@ -14,25 +14,26 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // TestCoupon_PaymentTimeEligibilityRecheck verifies that a second eligibility check
 // is performed at invoice.paid time for subscription_create events with intro coupons.
 func TestCoupon_PaymentTimeEligibilityRecheck(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Set up bundle product for ConfigureStripeService
 	upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_test", "production", 100, 0.001, "credits")
 
-	// Create all required tables including intro_anomaly_log
+	// Recreate the minimum tables the scenario needs; payment_anomaly_log is
+	// created by setupTestDB via the declarative runtime schema.
 	_, err := db.Exec(`
-		DROP TABLE IF EXISTS intro_anomaly_log CASCADE;
 		DROP TABLE IF EXISTS intro_coupon_usage CASCADE;
 		DROP TABLE IF EXISTS subscriptions CASCADE;
 		DROP TABLE IF EXISTS users CASCADE;
-
+		DELETE FROM payment_anomaly_log;
+ 
 		CREATE TABLE users (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			email VARCHAR(255) UNIQUE NOT NULL,
@@ -63,15 +64,6 @@ func TestCoupon_PaymentTimeEligibilityRecheck(t *testing.T) {
 			coupon_id VARCHAR(255) NOT NULL,
 			plan_tier VARCHAR(50),
 			subscription_id VARCHAR(255),
-			created_at TIMESTAMP DEFAULT NOW()
-		);
-		CREATE TABLE intro_anomaly_log (
-			id SERIAL PRIMARY KEY,
-			email VARCHAR(255) NOT NULL,
-			customer_id VARCHAR(255),
-			coupon_id VARCHAR(255),
-			anomaly_type VARCHAR(50) NOT NULL,
-			details JSONB DEFAULT '{}'::jsonb,
 			created_at TIMESTAMP DEFAULT NOW()
 		);
 	`)
@@ -120,7 +112,7 @@ func TestCoupon_PaymentTimeEligibilityRecheck(t *testing.T) {
 	// Verify that an anomaly was logged for ineligible user at payment time
 	var anomalyCount int
 	var anomalyType string
-	err = db.QueryRow(`SELECT COUNT(*), MAX(anomaly_type) FROM intro_anomaly_log WHERE email = $1`, "ineligible@example.com").Scan(&anomalyCount, &anomalyType)
+	err = db.QueryRow(`SELECT COUNT(*), MAX(anomaly_type) FROM payment_anomaly_log WHERE email = $1 AND subject_kind = 'intro_coupon'`, "ineligible@example.com").Scan(&anomalyCount, &anomalyType)
 	require.NoError(t, err)
 	assert.Equal(t, 1, anomalyCount, "should log exactly one anomaly")
 	assert.Equal(t, "ineligible_at_payment", anomalyType, "anomaly type should be 'ineligible_at_payment'")
@@ -129,19 +121,18 @@ func TestCoupon_PaymentTimeEligibilityRecheck(t *testing.T) {
 // TestCoupon_EligibleUser_NoAnomalyLogged verifies that eligible users don't get anomaly logged.
 func TestCoupon_EligibleUser_NoAnomalyLogged(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Set up bundle product for ConfigureStripeService
 	upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_test", "production", 100, 0.001, "credits")
 
-	// Create tables
+	// Create tables (payment_anomaly_log is provided by setupTestDB's runtime schema).
 	_, err := db.Exec(`
-		DROP TABLE IF EXISTS intro_anomaly_log CASCADE;
 		DROP TABLE IF EXISTS intro_coupon_usage CASCADE;
 		DROP TABLE IF EXISTS subscriptions CASCADE;
 		DROP TABLE IF EXISTS users CASCADE;
-
+		DELETE FROM payment_anomaly_log;
+ 
 		CREATE TABLE users (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			email VARCHAR(255) UNIQUE NOT NULL,
@@ -171,15 +162,6 @@ func TestCoupon_EligibleUser_NoAnomalyLogged(t *testing.T) {
 			coupon_id VARCHAR(255) NOT NULL,
 			plan_tier VARCHAR(50),
 			subscription_id VARCHAR(255),
-			created_at TIMESTAMP DEFAULT NOW()
-		);
-		CREATE TABLE intro_anomaly_log (
-			id SERIAL PRIMARY KEY,
-			email VARCHAR(255) NOT NULL,
-			customer_id VARCHAR(255),
-			coupon_id VARCHAR(255),
-			anomaly_type VARCHAR(50) NOT NULL,
-			details JSONB DEFAULT '{}'::jsonb,
 			created_at TIMESTAMP DEFAULT NOW()
 		);
 	`)
@@ -225,7 +207,7 @@ func TestCoupon_EligibleUser_NoAnomalyLogged(t *testing.T) {
 
 	// Verify no anomaly was logged
 	var anomalyCount int
-	err = db.QueryRow(`SELECT COUNT(*) FROM intro_anomaly_log WHERE email = $1`, "eligible@example.com").Scan(&anomalyCount)
+	err = db.QueryRow(`SELECT COUNT(*) FROM payment_anomaly_log WHERE email = $1 AND subject_kind = 'intro_coupon'`, "eligible@example.com").Scan(&anomalyCount)
 	require.NoError(t, err)
 	assert.Equal(t, 0, anomalyCount, "should not log anomaly for eligible user")
 }
@@ -234,7 +216,6 @@ func TestCoupon_EligibleUser_NoAnomalyLogged(t *testing.T) {
 // flag is properly carried over when a customer changes their email.
 func TestCoupon_EmailMigration_IntroFlagCarriesOver(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create tables
@@ -244,7 +225,7 @@ func TestCoupon_EmailMigration_IntroFlagCarriesOver(t *testing.T) {
 		DROP TABLE IF EXISTS credit_wallets CASCADE;
 		DROP TABLE IF EXISTS subscriptions CASCADE;
 		DROP TABLE IF EXISTS users CASCADE;
-
+ 
 		CREATE TABLE users (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			email VARCHAR(255) UNIQUE NOT NULL,
@@ -302,7 +283,7 @@ func TestCoupon_EmailMigration_IntroFlagCarriesOver(t *testing.T) {
 	service := NewStripeService(db)
 
 	// Migrate email
-	err = service.MigrateCustomerEmail(context.Background(), oldEmail, newEmail, customerID)
+	err = commerce.NewAccountLinkService(service.db).MigrateCustomerEmail(context.Background(), oldEmail, newEmail, customerID)
 	require.NoError(t, err)
 
 	// Verify the new email now has has_used_intro = TRUE (carried over from old)
@@ -316,7 +297,6 @@ func TestCoupon_EmailMigration_IntroFlagCarriesOver(t *testing.T) {
 // when both emails have used intro.
 func TestCoupon_EmailMigration_BothUsedIntro(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create tables
@@ -326,7 +306,7 @@ func TestCoupon_EmailMigration_BothUsedIntro(t *testing.T) {
 		DROP TABLE IF EXISTS credit_wallets CASCADE;
 		DROP TABLE IF EXISTS subscriptions CASCADE;
 		DROP TABLE IF EXISTS users CASCADE;
-
+ 
 		CREATE TABLE users (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			email VARCHAR(255) UNIQUE NOT NULL,
@@ -381,7 +361,7 @@ func TestCoupon_EmailMigration_BothUsedIntro(t *testing.T) {
 
 	service := NewStripeService(db)
 
-	err = service.MigrateCustomerEmail(context.Background(), oldEmail, newEmail, customerID)
+	err = commerce.NewAccountLinkService(service.db).MigrateCustomerEmail(context.Background(), oldEmail, newEmail, customerID)
 	require.NoError(t, err)
 
 	var hasUsedIntro bool
@@ -394,7 +374,6 @@ func TestCoupon_EmailMigration_BothUsedIntro(t *testing.T) {
 // only deducts credits once.
 func TestConsumeCredits_Idempotent_SameKey(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create tables
@@ -428,7 +407,7 @@ func TestConsumeCredits_Idempotent_SameKey(t *testing.T) {
 	service := NewStripeService(db)
 
 	// First consumption
-	err = service.ConsumeCreditsIdempotent(context.Background(), "consume@example.com", 100, "test_consume", "evt_consume_123", nil)
+	err = service.creditWallet.ConsumeCreditsIdempotent(context.Background(), "consume@example.com", 100, "test_consume", "evt_consume_123", nil)
 	require.NoError(t, err)
 
 	// Check balance
@@ -438,7 +417,7 @@ func TestConsumeCredits_Idempotent_SameKey(t *testing.T) {
 	assert.Equal(t, int64(900), balance, "balance should be 900 after first deduction")
 
 	// Second consumption with same key - should be idempotent
-	err = service.ConsumeCreditsIdempotent(context.Background(), "consume@example.com", 100, "test_consume", "evt_consume_123", nil)
+	err = service.creditWallet.ConsumeCreditsIdempotent(context.Background(), "consume@example.com", 100, "test_consume", "evt_consume_123", nil)
 	require.NoError(t, err)
 
 	// Balance should still be 900
@@ -457,7 +436,6 @@ func TestConsumeCredits_Idempotent_SameKey(t *testing.T) {
 // keys result in separate deductions.
 func TestConsumeCredits_DifferentKeys_BothDeduct(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create tables
@@ -491,11 +469,11 @@ func TestConsumeCredits_DifferentKeys_BothDeduct(t *testing.T) {
 	service := NewStripeService(db)
 
 	// First consumption
-	err = service.ConsumeCreditsIdempotent(context.Background(), "multi@example.com", 100, "test_consume", "evt_multi_1", nil)
+	err = service.creditWallet.ConsumeCreditsIdempotent(context.Background(), "multi@example.com", 100, "test_consume", "evt_multi_1", nil)
 	require.NoError(t, err)
 
 	// Second consumption with different key
-	err = service.ConsumeCreditsIdempotent(context.Background(), "multi@example.com", 100, "test_consume", "evt_multi_2", nil)
+	err = service.creditWallet.ConsumeCreditsIdempotent(context.Background(), "multi@example.com", 100, "test_consume", "evt_multi_2", nil)
 	require.NoError(t, err)
 
 	// Balance should be 800
@@ -509,7 +487,6 @@ func TestConsumeCredits_DifferentKeys_BothDeduct(t *testing.T) {
 // is not updated when Stripe API fails.
 func TestCancelSubscription_StripeFailure_NoLocalUpdate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Set up bundle product for ConfigureStripeService
@@ -563,7 +540,6 @@ func TestCancelSubscription_StripeFailure_NoLocalUpdate(t *testing.T) {
 // updates both Stripe and local DB.
 func TestCancelSubscription_StripeSuccess_BothUpdated(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Set up bundle product for ConfigureStripeService
@@ -616,7 +592,6 @@ func TestCancelSubscription_StripeSuccess_BothUpdated(t *testing.T) {
 // TestWebhookTimestampValidation_OldTimestamp verifies that old timestamps are rejected.
 func TestWebhookTimestampValidation_OldTimestamp(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Set up bundle product for ConfigureStripeService
@@ -643,7 +618,6 @@ func TestWebhookTimestampValidation_OldTimestamp(t *testing.T) {
 // TestWebhookTimestampValidation_CurrentTimestamp verifies that current timestamps pass.
 func TestWebhookTimestampValidation_CurrentTimestamp(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Set up bundle product for ConfigureStripeService
@@ -670,7 +644,6 @@ func TestWebhookTimestampValidation_CurrentTimestamp(t *testing.T) {
 // TestWebhookTimestampValidation_FutureTimestamp verifies that future timestamps are rejected.
 func TestWebhookTimestampValidation_FutureTimestamp(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Set up bundle product for ConfigureStripeService
@@ -694,28 +667,18 @@ func TestWebhookTimestampValidation_FutureTimestamp(t *testing.T) {
 	assert.False(t, valid, "future timestamp should be rejected")
 }
 
-// TestLogIntroAnomaly_RecordsCorrectly verifies that anomalies are logged to the database.
+// TestLogIntroAnomaly_RecordsCorrectly verifies that anomalies are forwarded
+// through PaymentAnomalyService into payment_anomaly_log.
 func TestLogIntroAnomaly_RecordsCorrectly(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
-	// Create table
-	_, err := db.Exec(`
-		DROP TABLE IF EXISTS intro_anomaly_log CASCADE;
-		CREATE TABLE intro_anomaly_log (
-			id SERIAL PRIMARY KEY,
-			email VARCHAR(255) NOT NULL,
-			customer_id VARCHAR(255),
-			coupon_id VARCHAR(255),
-			anomaly_type VARCHAR(50) NOT NULL,
-			details JSONB DEFAULT '{}'::jsonb,
-			created_at TIMESTAMP DEFAULT NOW()
-		);
-	`)
-	require.NoError(t, err)
+	if _, err := db.Exec(`DELETE FROM payment_anomaly_log`); err != nil {
+		t.Fatalf("reset payment_anomaly_log: %v", err)
+	}
 
 	service := NewStripeService(db)
+	service.SetPaymentAnomaly(newPaymentAnomalyServiceForTest(context.Background(), db, context.Background()))
 
 	// Log an anomaly
 	details := map[string]interface{}{
@@ -724,13 +687,17 @@ func TestLogIntroAnomaly_RecordsCorrectly(t *testing.T) {
 	}
 	service.logIntroAnomaly("anomaly@example.com", "cus_anomaly_123", "coupon_test", "test_anomaly_type", details)
 
-	// Verify it was recorded
-	var email, customerID, couponID, anomalyType, detailsJSON string
-	err = db.QueryRow(`SELECT email, customer_id, coupon_id, anomaly_type, details::text FROM intro_anomaly_log WHERE email = $1`, "anomaly@example.com").Scan(&email, &customerID, &couponID, &anomalyType, &detailsJSON)
+	// Verify it was recorded under the unified pipeline.
+	var email, customerID, subjectID, anomalyType, detailsJSON string
+	err := db.QueryRow(`
+		SELECT email, customer_id, subject_id, anomaly_type, details::text
+		FROM payment_anomaly_log
+		WHERE email = $1 AND subject_kind = 'intro_coupon'
+	`, "anomaly@example.com").Scan(&email, &customerID, &subjectID, &anomalyType, &detailsJSON)
 	require.NoError(t, err)
 	assert.Equal(t, "anomaly@example.com", email)
 	assert.Equal(t, "cus_anomaly_123", customerID)
-	assert.Equal(t, "coupon_test", couponID)
+	assert.Equal(t, "coupon_test", subjectID)
 	assert.Equal(t, "test_anomaly_type", anomalyType)
 	assert.Contains(t, detailsJSON, "sub_test_123")
 }

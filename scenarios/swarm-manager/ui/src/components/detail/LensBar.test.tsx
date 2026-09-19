@@ -6,8 +6,8 @@ import { LensBar } from "./LensBar";
 import type { LensOption } from "./lens-options";
 
 const testLenses: LensOption[] = [
-  { lens: "topology", label: "View Topology", icon: Network, iconColorClass: "text-indigo-400" },
-  { lens: "operations", label: "View Operations", icon: Activity, iconColorClass: "text-amber-400" },
+  { lens: "plan", label: "View Plan", icon: Network, iconColorClass: "text-indigo-400" },
+  { lens: "focus", label: "View Focus", icon: Activity, iconColorClass: "text-amber-400" },
 ];
 
 describe("LensBar", () => {
@@ -15,8 +15,8 @@ describe("LensBar", () => {
     render(<LensBar nodeId="node-1" lenses={testLenses} onDrillToLens={vi.fn()} />);
 
     expect(screen.getByTestId("lens-bar")).toBeInTheDocument();
-    expect(screen.getByTestId("lens-bar-topology")).toBeInTheDocument();
-    expect(screen.getByTestId("lens-bar-operations")).toBeInTheDocument();
+    expect(screen.getByTestId("lens-bar-plan")).toBeInTheDocument();
+    expect(screen.getByTestId("lens-bar-focus")).toBeInTheDocument();
   });
 
   it("renders nothing when lenses array is empty", () => {
@@ -30,11 +30,11 @@ describe("LensBar", () => {
     const user = userEvent.setup();
     render(<LensBar nodeId="node-42" lenses={testLenses} onDrillToLens={onDrill} />);
 
-    await user.click(screen.getByTestId("lens-bar-topology"));
-    expect(onDrill).toHaveBeenCalledWith("node-42", "topology");
+    await user.click(screen.getByTestId("lens-bar-plan"));
+    expect(onDrill).toHaveBeenCalledWith("node-42", "plan");
 
-    await user.click(screen.getByTestId("lens-bar-operations"));
-    expect(onDrill).toHaveBeenCalledWith("node-42", "operations");
+    await user.click(screen.getByTestId("lens-bar-focus"));
+    expect(onDrill).toHaveBeenCalledWith("node-42", "focus");
 
     expect(onDrill).toHaveBeenCalledTimes(2);
   });
@@ -42,15 +42,15 @@ describe("LensBar", () => {
   it("renders button labels", () => {
     render(<LensBar nodeId="node-1" lenses={testLenses} onDrillToLens={vi.fn()} />);
 
-    expect(screen.getByText("View Topology")).toBeInTheDocument();
-    expect(screen.getByText("View Operations")).toBeInTheDocument();
+    expect(screen.getByText("View Plan")).toBeInTheDocument();
+    expect(screen.getByText("View Focus")).toBeInTheDocument();
   });
 
   it("renders subset of lenses", () => {
     const subset = testLenses.slice(0, 1);
     render(<LensBar nodeId="node-1" lenses={subset} onDrillToLens={vi.fn()} />);
 
-    expect(screen.getByTestId("lens-bar-topology")).toBeInTheDocument();
-    expect(screen.queryByTestId("lens-bar-operations")).not.toBeInTheDocument();
+    expect(screen.getByTestId("lens-bar-plan")).toBeInTheDocument();
+    expect(screen.queryByTestId("lens-bar-focus")).not.toBeInTheDocument();
   });
 });

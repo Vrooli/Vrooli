@@ -1,0 +1,1 @@
+-- Intentionally empty: identity holds no durable data and caches no claims.

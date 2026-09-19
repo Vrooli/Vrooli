@@ -8,366 +8,33 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"workspace-sandbox/internal/driver"
-	"workspace-sandbox/internal/repository"
+
+	"workspace-sandbox/internal/audit"
+	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
-// MockRepository implements repository.Repository for testing
-type MockRepository struct {
-	sandboxes    []*types.Sandbox
-	stats        *types.SandboxStats
-	deletedIDs   []uuid.UUID
-	auditEvents  []*types.AuditEvent
-	gcCandidates []*types.Sandbox
+// gcRepo builds a FakeRepository pre-seeded with the given sandboxes
+// as GC candidates AND in the Sandboxes map (so Delete finds them).
+// The local helper keeps each test concise; the equivalent inline
+// construction would be five lines.
+func gcRepo(sandboxes []*types.Sandbox) *mocks.FakeRepository {
+	r := mocks.NewFakeRepository()
+	seedCandidates(r, sandboxes)
+	return r
 }
 
-func (m *MockRepository) GetGCCandidates(ctx context.Context, policy *types.GCPolicy, limit int) ([]*types.Sandbox, error) {
-	if m.gcCandidates != nil {
-		return m.gcCandidates, nil
-	}
-	return m.sandboxes, nil
-}
-
-func (m *MockRepository) GetStats(ctx context.Context) (*types.SandboxStats, error) {
-	if m.stats != nil {
-		return m.stats, nil
-	}
-	return &types.SandboxStats{
-		TotalCount:     int64(len(m.sandboxes)),
-		TotalSizeBytes: 1000,
-	}, nil
-}
-
-func (m *MockRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	m.deletedIDs = append(m.deletedIDs, id)
-	return nil
-}
-
-func (m *MockRepository) LogAuditEvent(ctx context.Context, event *types.AuditEvent) error {
-	m.auditEvents = append(m.auditEvents, event)
-	return nil
-}
-
-func (m *MockRepository) GetAuditLog(ctx context.Context, sandboxID *uuid.UUID, limit, offset int) ([]*types.AuditEvent, int, error) {
-	return m.auditEvents, len(m.auditEvents), nil
-}
-
-// Unused methods - implement interface
-func (m *MockRepository) Create(ctx context.Context, s *types.Sandbox) error { return nil }
-
-func (m *MockRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
-	return nil, nil
-}
-func (m *MockRepository) Update(ctx context.Context, s *types.Sandbox) error { return nil }
-func (m *MockRepository) List(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error) {
-	return nil, nil
-}
-
-func (m *MockRepository) CheckScopeOverlap(ctx context.Context, scopePath, projectRoot string, excludeID *uuid.UUID) ([]types.PathConflict, error) {
-	return nil, nil
-}
-
-func (m *MockRepository) GetActiveSandboxes(ctx context.Context, projectRoot string) ([]*types.Sandbox, error) {
-	return nil, nil
-}
-
-func (m *MockRepository) FindByIdempotencyKey(ctx context.Context, key string) (*types.Sandbox, error) {
-	return nil, nil
-}
-
-func (m *MockRepository) UpdateWithVersionCheck(ctx context.Context, s *types.Sandbox, expectedVersion int64) error {
-	return nil
-}
-
-func (m *MockRepository) RecordAppliedChanges(ctx context.Context, changes []*types.AppliedChange) error {
-	return nil
-}
-
-func (m *MockRepository) GetPendingChanges(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error) {
-	return &types.PendingChangesResult{}, nil
-}
-
-func (m *MockRepository) GetPendingChangeFiles(ctx context.Context, projectRoot string, sandboxIDs []uuid.UUID) ([]*types.AppliedChange, error) {
-	return nil, nil
-}
-
-func (m *MockRepository) GetFileProvenance(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error) {
-	return nil, nil
-}
-
-func (m *MockRepository) MarkChangesCommitted(ctx context.Context, ids []uuid.UUID, commitHash, commitMessage string) error {
-	return nil
-}
-
-func (m *MockRepository) MarkChangesCommittedByPath(ctx context.Context, projectRoot string, filePaths []string, commitHash, commitMessage string) (int, int, error) {
-	return 0, 0, nil
-}
-
-func (m *MockRepository) GetPendingChangesByRun(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error) {
-	return nil, nil
-}
-
-func (m *MockRepository) BeginTx(ctx context.Context) (repository.TxRepository, error) {
-	return &MockTxRepository{MockRepository: m}, nil
-}
-
-// MockTxRepository implements TxRepository for testing
-type MockTxRepository struct {
-	*MockRepository
-}
-
-func (m *MockTxRepository) Commit() error   { return nil }
-func (m *MockTxRepository) Rollback() error { return nil }
-func (m *MockTxRepository) GetAuditLog(ctx context.Context, sandboxID *uuid.UUID, limit, offset int) ([]*types.AuditEvent, int, error) {
-	return nil, 0, nil
-}
-
-// Ensure MockRepository implements Repository
-var _ repository.Repository = (*MockRepository)(nil)
-
-// MockDriverWithError implements driver.Driver for testing with error injection.
-type MockDriverWithError struct {
-	cleanupCalled  []uuid.UUID
-	cleanupErr     error              // If set, Cleanup returns this error
-	cleanupFailIDs map[uuid.UUID]bool // IDs that should fail cleanup
-}
-
-func NewMockDriverWithError() *MockDriverWithError {
-	return &MockDriverWithError{
-		cleanupCalled:  []uuid.UUID{},
-		cleanupFailIDs: make(map[uuid.UUID]bool),
+// seedCandidates installs sandboxes as GCCandidates AND populates the
+// Sandboxes map. Tests that need to mutate other repo fields (errors,
+// etc.) construct the repo directly and call this helper.
+func seedCandidates(r *mocks.FakeRepository, sandboxes []*types.Sandbox) {
+	r.GCCandidates = sandboxes
+	for _, sb := range sandboxes {
+		r.Sandboxes[sb.ID] = sb
 	}
 }
-
-func (m *MockDriverWithError) Type() driver.DriverType { return "mock" }
-func (m *MockDriverWithError) Version() string         { return "1.0.0" }
-func (m *MockDriverWithError) IsAvailable(ctx context.Context) (bool, error) {
-	return true, nil
-}
-
-func (m *MockDriverWithError) Mount(ctx context.Context, sandbox *types.Sandbox) (*driver.MountPaths, error) {
-	return &driver.MountPaths{}, nil
-}
-
-func (m *MockDriverWithError) Unmount(ctx context.Context, sandbox *types.Sandbox) error {
-	return nil
-}
-
-func (m *MockDriverWithError) Cleanup(ctx context.Context, sandbox *types.Sandbox) error {
-	m.cleanupCalled = append(m.cleanupCalled, sandbox.ID)
-	// Only fail for specific IDs if cleanupFailIDs is set
-	if len(m.cleanupFailIDs) > 0 && m.cleanupFailIDs[sandbox.ID] {
-		return m.cleanupErr
-	}
-	// If no specific fail IDs, fail all if cleanupErr is set
-	if len(m.cleanupFailIDs) == 0 && m.cleanupErr != nil {
-		return m.cleanupErr
-	}
-	return nil
-}
-
-func (m *MockDriverWithError) GetChangedFiles(ctx context.Context, sandbox *types.Sandbox) ([]*types.FileChange, error) {
-	return nil, nil
-}
-
-func (m *MockDriverWithError) IsMounted(ctx context.Context, sandbox *types.Sandbox) (bool, error) {
-	return false, nil
-}
-
-func (m *MockDriverWithError) VerifyMountIntegrity(ctx context.Context, sandbox *types.Sandbox) error {
-	return nil
-}
-
-func (m *MockDriverWithError) Exec(ctx context.Context, sandbox *types.Sandbox, cfg driver.BwrapConfig, command string, args ...string) (*driver.ExecResult, error) {
-	return &driver.ExecResult{}, nil
-}
-
-func (m *MockDriverWithError) StartProcess(ctx context.Context, sandbox *types.Sandbox, cfg driver.BwrapConfig, command string, args ...string) (int, error) {
-	return 0, nil
-}
-
-func (m *MockDriverWithError) RemoveFromUpper(ctx context.Context, sandbox *types.Sandbox, filePath string) error {
-	return nil
-}
-
-var _ driver.Driver = (*MockDriverWithError)(nil)
-
-// MockRepositoryWithError implements repository.Repository with error injection.
-type MockRepositoryWithError struct {
-	sandboxes          []*types.Sandbox
-	stats              *types.SandboxStats
-	deletedIDs         []uuid.UUID
-	auditEvents        []*types.AuditEvent
-	gcCandidates       []*types.Sandbox
-	getGCCandidatesErr error
-	getStatsErr        error
-	deleteErr          error
-	deleteFailIDs      map[uuid.UUID]bool // IDs that should fail delete
-}
-
-func NewMockRepositoryWithError() *MockRepositoryWithError {
-	return &MockRepositoryWithError{
-		sandboxes:     []*types.Sandbox{},
-		auditEvents:   []*types.AuditEvent{},
-		deleteFailIDs: make(map[uuid.UUID]bool),
-	}
-}
-
-func (m *MockRepositoryWithError) GetGCCandidates(ctx context.Context, policy *types.GCPolicy, limit int) ([]*types.Sandbox, error) {
-	if m.getGCCandidatesErr != nil {
-		return nil, m.getGCCandidatesErr
-	}
-	if m.gcCandidates != nil {
-		return m.gcCandidates, nil
-	}
-	return m.sandboxes, nil
-}
-
-func (m *MockRepositoryWithError) GetStats(ctx context.Context) (*types.SandboxStats, error) {
-	if m.getStatsErr != nil {
-		return nil, m.getStatsErr
-	}
-	if m.stats != nil {
-		return m.stats, nil
-	}
-	return &types.SandboxStats{
-		TotalCount:     int64(len(m.sandboxes)),
-		TotalSizeBytes: 1000,
-	}, nil
-}
-
-func (m *MockRepositoryWithError) Delete(ctx context.Context, id uuid.UUID) error {
-	// Only fail for specific IDs if deleteFailIDs is set
-	if len(m.deleteFailIDs) > 0 && m.deleteFailIDs[id] {
-		return m.deleteErr
-	}
-	// If no specific fail IDs, fail all if deleteErr is set
-	if len(m.deleteFailIDs) == 0 && m.deleteErr != nil {
-		return m.deleteErr
-	}
-	m.deletedIDs = append(m.deletedIDs, id)
-	return nil
-}
-
-func (m *MockRepositoryWithError) LogAuditEvent(ctx context.Context, event *types.AuditEvent) error {
-	m.auditEvents = append(m.auditEvents, event)
-	return nil
-}
-
-func (m *MockRepositoryWithError) GetAuditLog(ctx context.Context, sandboxID *uuid.UUID, limit, offset int) ([]*types.AuditEvent, int, error) {
-	return m.auditEvents, len(m.auditEvents), nil
-}
-
-func (m *MockRepositoryWithError) Create(ctx context.Context, s *types.Sandbox) error { return nil }
-func (m *MockRepositoryWithError) Get(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
-	return nil, nil
-}
-func (m *MockRepositoryWithError) Update(ctx context.Context, s *types.Sandbox) error { return nil }
-func (m *MockRepositoryWithError) List(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error) {
-	return nil, nil
-}
-
-func (m *MockRepositoryWithError) CheckScopeOverlap(ctx context.Context, scopePath, projectRoot string, excludeID *uuid.UUID) ([]types.PathConflict, error) {
-	return nil, nil
-}
-
-func (m *MockRepositoryWithError) GetActiveSandboxes(ctx context.Context, projectRoot string) ([]*types.Sandbox, error) {
-	return nil, nil
-}
-
-func (m *MockRepositoryWithError) FindByIdempotencyKey(ctx context.Context, key string) (*types.Sandbox, error) {
-	return nil, nil
-}
-
-func (m *MockRepositoryWithError) UpdateWithVersionCheck(ctx context.Context, s *types.Sandbox, expectedVersion int64) error {
-	return nil
-}
-
-func (m *MockRepositoryWithError) RecordAppliedChanges(ctx context.Context, changes []*types.AppliedChange) error {
-	return nil
-}
-
-func (m *MockRepositoryWithError) GetPendingChanges(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error) {
-	return &types.PendingChangesResult{}, nil
-}
-
-func (m *MockRepositoryWithError) GetPendingChangeFiles(ctx context.Context, projectRoot string, sandboxIDs []uuid.UUID) ([]*types.AppliedChange, error) {
-	return nil, nil
-}
-
-func (m *MockRepositoryWithError) GetFileProvenance(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error) {
-	return nil, nil
-}
-
-func (m *MockRepositoryWithError) MarkChangesCommitted(ctx context.Context, ids []uuid.UUID, commitHash, commitMessage string) error {
-	return nil
-}
-
-func (m *MockRepositoryWithError) MarkChangesCommittedByPath(ctx context.Context, projectRoot string, filePaths []string, commitHash, commitMessage string) (int, int, error) {
-	return 0, 0, nil
-}
-
-func (m *MockRepositoryWithError) GetPendingChangesByRun(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error) {
-	return nil, nil
-}
-
-func (m *MockRepositoryWithError) BeginTx(ctx context.Context) (repository.TxRepository, error) {
-	return nil, nil
-}
-
-var _ repository.Repository = (*MockRepositoryWithError)(nil)
-
-// MockDriver implements driver.Driver for testing
-type MockDriver struct {
-	cleanupCalled []uuid.UUID
-}
-
-func (m *MockDriver) Type() driver.DriverType { return "mock" }
-func (m *MockDriver) Version() string         { return "1.0.0" }
-func (m *MockDriver) IsAvailable(ctx context.Context) (bool, error) {
-	return true, nil
-}
-
-func (m *MockDriver) Mount(ctx context.Context, sandbox *types.Sandbox) (*driver.MountPaths, error) {
-	return &driver.MountPaths{}, nil
-}
-
-func (m *MockDriver) Unmount(ctx context.Context, sandbox *types.Sandbox) error {
-	return nil
-}
-
-func (m *MockDriver) Cleanup(ctx context.Context, sandbox *types.Sandbox) error {
-	m.cleanupCalled = append(m.cleanupCalled, sandbox.ID)
-	return nil
-}
-
-func (m *MockDriver) GetChangedFiles(ctx context.Context, sandbox *types.Sandbox) ([]*types.FileChange, error) {
-	return nil, nil
-}
-
-func (m *MockDriver) IsMounted(ctx context.Context, sandbox *types.Sandbox) (bool, error) {
-	return false, nil
-}
-
-func (m *MockDriver) VerifyMountIntegrity(ctx context.Context, sandbox *types.Sandbox) error {
-	return nil
-}
-
-func (m *MockDriver) Exec(ctx context.Context, sandbox *types.Sandbox, cfg driver.BwrapConfig, command string, args ...string) (*driver.ExecResult, error) {
-	return &driver.ExecResult{}, nil
-}
-
-func (m *MockDriver) StartProcess(ctx context.Context, sandbox *types.Sandbox, cfg driver.BwrapConfig, command string, args ...string) (int, error) {
-	return 0, nil
-}
-
-func (m *MockDriver) RemoveFromUpper(ctx context.Context, sandbox *types.Sandbox, filePath string) error {
-	return nil
-}
-
-// Ensure MockDriver implements Driver
-var _ driver.Driver = (*MockDriver)(nil)
 
 // Tests
 
@@ -382,9 +49,10 @@ func TestGCService_DryRun_ReturnsWithoutDeleting(t *testing.T) {
 		CreatedAt: now.Add(-48 * time.Hour), // 2 days old
 	}
 
-	repo := &MockRepository{sandboxes: []*types.Sandbox{oldSandbox}}
-	drv := &MockDriver{}
-	svc := NewService(repo, drv, DefaultConfig())
+	repo := gcRepo([]*types.Sandbox{oldSandbox})
+	drv := mocks.NewFakeDriver()
+	clk := schedule.System()
+	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
 		DryRun: true,
@@ -405,12 +73,12 @@ func TestGCService_DryRun_ReturnsWithoutDeleting(t *testing.T) {
 	}
 
 	// Verify nothing was actually deleted
-	if len(repo.deletedIDs) != 0 {
-		t.Errorf("expected no deletions in dry run, got %d", len(repo.deletedIDs))
+	if len(repo.DeletedIDs) != 0 {
+		t.Errorf("expected no deletions in dry run, got %d", len(repo.DeletedIDs))
 	}
 
-	if len(drv.cleanupCalled) != 0 {
-		t.Errorf("expected no cleanup in dry run, got %d", len(drv.cleanupCalled))
+	if len(drv.CleanedSandboxes) != 0 {
+		t.Errorf("expected no cleanup in dry run, got %d", len(drv.CleanedSandboxes))
 	}
 }
 
@@ -425,9 +93,10 @@ func TestGCService_ActualRun_DeletesSandboxes(t *testing.T) {
 		CreatedAt: now.Add(-48 * time.Hour),
 	}
 
-	repo := &MockRepository{sandboxes: []*types.Sandbox{oldSandbox}}
-	drv := &MockDriver{}
-	svc := NewService(repo, drv, DefaultConfig())
+	repo := gcRepo([]*types.Sandbox{oldSandbox})
+	drv := mocks.NewFakeDriver()
+	clk := schedule.System()
+	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
 		DryRun: false,
@@ -452,29 +121,30 @@ func TestGCService_ActualRun_DeletesSandboxes(t *testing.T) {
 	}
 
 	// Verify sandbox was deleted
-	if len(repo.deletedIDs) != 1 {
-		t.Errorf("expected 1 deletion, got %d", len(repo.deletedIDs))
+	if len(repo.DeletedIDs) != 1 {
+		t.Errorf("expected 1 deletion, got %d", len(repo.DeletedIDs))
 	}
 
 	// Verify cleanup was called
-	if len(drv.cleanupCalled) != 1 {
-		t.Errorf("expected 1 cleanup call, got %d", len(drv.cleanupCalled))
+	if len(drv.CleanedSandboxes) != 1 {
+		t.Errorf("expected 1 cleanup call, got %d", len(drv.CleanedSandboxes))
 	}
 
 	// Verify audit event was logged
-	if len(repo.auditEvents) != 1 {
-		t.Errorf("expected 1 audit event, got %d", len(repo.auditEvents))
+	if len(repo.AuditEvents) != 1 {
+		t.Errorf("expected 1 audit event, got %d", len(repo.AuditEvents))
 	}
-	if repo.auditEvents[0].EventType != "gc_collected" {
-		t.Errorf("expected event type gc_collected, got %s", repo.auditEvents[0].EventType)
+	if repo.AuditEvents[0].EventType != "gc_collected" {
+		t.Errorf("expected event type gc_collected, got %s", repo.AuditEvents[0].EventType)
 	}
 }
 
 func TestGCService_NoCandidates_ReturnsEmpty(t *testing.T) {
 	// [REQ:P1-003] GC with no eligible sandboxes
-	repo := &MockRepository{sandboxes: []*types.Sandbox{}}
-	drv := &MockDriver{}
-	svc := NewService(repo, drv, DefaultConfig())
+	repo := gcRepo([]*types.Sandbox{})
+	drv := mocks.NewFakeDriver()
+	clk := schedule.System()
+	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
 		Policy: &types.GCPolicy{
@@ -502,9 +172,10 @@ func TestGCService_IdleTimeout_CollectsIdleSandboxes(t *testing.T) {
 		LastUsedAt: now.Add(-5 * time.Hour), // But idle for 5 hours
 	}
 
-	repo := &MockRepository{sandboxes: []*types.Sandbox{idleSandbox}}
-	drv := &MockDriver{}
-	svc := NewService(repo, drv, DefaultConfig())
+	repo := gcRepo([]*types.Sandbox{idleSandbox})
+	drv := mocks.NewFakeDriver()
+	clk := schedule.System()
+	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
 		DryRun: true,
@@ -534,9 +205,10 @@ func TestGCService_TerminalState_CollectsApprovedRejected(t *testing.T) {
 		ApprovedAt: &approvedTime,
 	}
 
-	repo := &MockRepository{sandboxes: []*types.Sandbox{approvedSandbox}}
-	drv := &MockDriver{}
-	svc := NewService(repo, drv, DefaultConfig())
+	repo := gcRepo([]*types.Sandbox{approvedSandbox})
+	drv := mocks.NewFakeDriver()
+	clk := schedule.System()
+	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
 		DryRun: true,
@@ -568,9 +240,10 @@ func TestGCService_Limit_RespectsMaxCount(t *testing.T) {
 		}
 	}
 
-	repo := &MockRepository{sandboxes: sandboxes}
-	drv := &MockDriver{}
-	svc := NewService(repo, drv, DefaultConfig())
+	repo := gcRepo(sandboxes)
+	drv := mocks.NewFakeDriver()
+	clk := schedule.System()
+	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
 		DryRun: true,
@@ -601,9 +274,10 @@ func TestGCService_DefaultPolicy_UsedWhenNil(t *testing.T) {
 		CreatedAt: now.Add(-48 * time.Hour),
 	}
 
-	repo := &MockRepository{sandboxes: []*types.Sandbox{oldSandbox}}
-	drv := &MockDriver{}
-	svc := NewService(repo, drv, DefaultConfig())
+	repo := gcRepo([]*types.Sandbox{oldSandbox})
+	drv := mocks.NewFakeDriver()
+	clk := schedule.System()
+	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
 		DryRun: true,
@@ -629,9 +303,10 @@ func TestGCService_Preview_IsDryRun(t *testing.T) {
 		CreatedAt: now.Add(-48 * time.Hour),
 	}
 
-	repo := &MockRepository{sandboxes: []*types.Sandbox{sandbox}}
-	drv := &MockDriver{}
-	svc := NewService(repo, drv, DefaultConfig())
+	repo := gcRepo([]*types.Sandbox{sandbox})
+	drv := mocks.NewFakeDriver()
+	clk := schedule.System()
+	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	policy := types.DefaultGCPolicy()
 	result, err := svc.Preview(context.Background(), &policy, 100)
@@ -643,7 +318,7 @@ func TestGCService_Preview_IsDryRun(t *testing.T) {
 		t.Error("Preview should always be dry run")
 	}
 
-	if len(repo.deletedIDs) != 0 {
+	if len(repo.DeletedIDs) != 0 {
 		t.Error("Preview should not delete anything")
 	}
 }
@@ -659,9 +334,10 @@ func TestGCService_Reasons_ArePopulated(t *testing.T) {
 		LastUsedAt: now.Add(-48 * time.Hour),
 	}
 
-	repo := &MockRepository{sandboxes: []*types.Sandbox{sandbox}}
-	drv := &MockDriver{}
-	svc := NewService(repo, drv, DefaultConfig())
+	repo := gcRepo([]*types.Sandbox{sandbox})
+	drv := mocks.NewFakeDriver()
+	clk := schedule.System()
+	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
 		DryRun: true,
@@ -692,10 +368,11 @@ func TestGCService_Reasons_ArePopulated(t *testing.T) {
 
 func TestGCService_GetGCCandidatesError(t *testing.T) {
 	// [REQ:P1-003] GC handles repository error for GetGCCandidates
-	repo := NewMockRepositoryWithError()
-	repo.getGCCandidatesErr = fmt.Errorf("database connection failed")
-	drv := &MockDriver{}
-	svc := NewService(repo, drv, DefaultConfig())
+	repo := mocks.NewFakeRepository()
+	repo.GetGCCandidatesErr = fmt.Errorf("database connection failed")
+	drv := mocks.NewFakeDriver()
+	clk := schedule.System()
+	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	_, err := svc.Run(context.Background(), &types.GCRequest{
 		Policy: &types.GCPolicy{
@@ -723,11 +400,12 @@ func TestGCService_GetStatsError(t *testing.T) {
 		CreatedAt: now.Add(-48 * time.Hour),
 	}
 
-	repo := NewMockRepositoryWithError()
-	repo.sandboxes = []*types.Sandbox{sandbox}
-	repo.getStatsErr = fmt.Errorf("stats query failed")
-	drv := &MockDriver{}
-	svc := NewService(repo, drv, DefaultConfig())
+	repo := mocks.NewFakeRepository()
+	seedCandidates(repo, []*types.Sandbox{sandbox})
+	repo.GetStatsErr = fmt.Errorf("stats query failed")
+	drv := mocks.NewFakeDriver()
+	clk := schedule.System()
+	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	_, err := svc.Run(context.Background(), &types.GCRequest{
 		Policy: &types.GCPolicy{
@@ -756,11 +434,12 @@ func TestGCService_CleanupError_ContinuesDeleting(t *testing.T) {
 		CreatedAt: now.Add(-48 * time.Hour),
 	}
 
-	repo := NewMockRepositoryWithError()
-	repo.sandboxes = []*types.Sandbox{sandbox}
-	drv := NewMockDriverWithError()
-	drv.cleanupErr = fmt.Errorf("cleanup failed: resource busy")
-	svc := NewService(repo, drv, DefaultConfig())
+	repo := mocks.NewFakeRepository()
+	seedCandidates(repo, []*types.Sandbox{sandbox})
+	drv := mocks.NewFakeDriver()
+	drv.CleanupErr = fmt.Errorf("cleanup failed: resource busy")
+	clk := schedule.System()
+	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
 		DryRun: false,
@@ -774,13 +453,13 @@ func TestGCService_CleanupError_ContinuesDeleting(t *testing.T) {
 	}
 
 	// Cleanup should have been called
-	if len(drv.cleanupCalled) != 1 {
-		t.Errorf("expected 1 cleanup call, got %d", len(drv.cleanupCalled))
+	if len(drv.CleanedSandboxes) != 1 {
+		t.Errorf("expected 1 cleanup call, got %d", len(drv.CleanedSandboxes))
 	}
 
 	// Deletion should have succeeded
-	if len(repo.deletedIDs) != 1 {
-		t.Errorf("expected 1 deletion despite cleanup error, got %d", len(repo.deletedIDs))
+	if len(repo.DeletedIDs) != 1 {
+		t.Errorf("expected 1 deletion despite cleanup error, got %d", len(repo.DeletedIDs))
 	}
 
 	// Error should be recorded in result
@@ -811,12 +490,13 @@ func TestGCService_DeleteError_ContinuesToNextSandbox(t *testing.T) {
 		CreatedAt: now.Add(-48 * time.Hour),
 	}
 
-	repo := NewMockRepositoryWithError()
-	repo.sandboxes = []*types.Sandbox{sandbox1, sandbox2}
-	repo.deleteFailIDs = map[uuid.UUID]bool{sandbox1.ID: true}
-	repo.deleteErr = fmt.Errorf("delete failed: constraint violation")
-	drv := &MockDriver{}
-	svc := NewService(repo, drv, DefaultConfig())
+	repo := mocks.NewFakeRepository()
+	seedCandidates(repo, []*types.Sandbox{sandbox1, sandbox2})
+	repo.DeleteFailIDs = map[uuid.UUID]bool{sandbox1.ID: true}
+	repo.DeleteErr = fmt.Errorf("delete failed: constraint violation")
+	drv := mocks.NewFakeDriver()
+	clk := schedule.System()
+	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
 		DryRun: false,
@@ -830,12 +510,12 @@ func TestGCService_DeleteError_ContinuesToNextSandbox(t *testing.T) {
 	}
 
 	// First deletion failed, second succeeded
-	if len(repo.deletedIDs) != 1 {
-		t.Errorf("expected 1 successful deletion, got %d", len(repo.deletedIDs))
+	if len(repo.DeletedIDs) != 1 {
+		t.Errorf("expected 1 successful deletion, got %d", len(repo.DeletedIDs))
 	}
 
 	// Only sandbox2 should be in deletedIDs
-	if len(repo.deletedIDs) > 0 && repo.deletedIDs[0] != sandbox2.ID {
+	if len(repo.DeletedIDs) > 0 && repo.DeletedIDs[0] != sandbox2.ID {
 		t.Error("wrong sandbox was deleted")
 	}
 
@@ -880,17 +560,18 @@ func TestGCService_MultipleErrors_AllRecorded(t *testing.T) {
 		}
 	}
 
-	repo := NewMockRepositoryWithError()
-	repo.sandboxes = sandboxes
-	repo.deleteFailIDs = map[uuid.UUID]bool{
+	repo := mocks.NewFakeRepository()
+	seedCandidates(repo, sandboxes)
+	repo.DeleteFailIDs = map[uuid.UUID]bool{
 		sandboxes[0].ID: true,
 		sandboxes[2].ID: true,
 	}
-	repo.deleteErr = fmt.Errorf("delete failed")
-	drv := NewMockDriverWithError()
-	drv.cleanupFailIDs = map[uuid.UUID]bool{sandboxes[1].ID: true}
-	drv.cleanupErr = fmt.Errorf("cleanup failed")
-	svc := NewService(repo, drv, DefaultConfig())
+	repo.DeleteErr = fmt.Errorf("delete failed")
+	drv := mocks.NewFakeDriver()
+	drv.CleanupFailIDs = map[uuid.UUID]bool{sandboxes[1].ID: true}
+	drv.CleanupErr = fmt.Errorf("cleanup failed")
+	clk := schedule.System()
+	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
 		DryRun: false,

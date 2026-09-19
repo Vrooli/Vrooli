@@ -1,0 +1,103 @@
+{
+  "description": "Persist conflict detection events, resolution methods/outcomes, auto-placement verdicts and overrides, and build status deltas; suppress historical success rates until N≥5 observations; override tracking is the primary signal for ladder calibration and recipe candidate identification.",
+  "module_id": "MOD-P0-009",
+  "prd_ref": "OT-P0-009",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Cartographer must persist analytics events to a local SQLite database from v0.1 (AC-ANALYTICS-SCHEMA). Events captured must include: conflict detection (AC-ANALYTICS-EVENTS), resolution method and outcome, auto-placement verdicts and overrides, build status deltas, and --force notes. CLI commands arch-cart history (AC-ANALYTICS-HISTORY) and arch-cart stats (AC-ANALYTICS-STATS) must query the store. Historical success rates must be suppressed until N≥5 observations exist for a given pattern (AC-ANALYTICS-THRESHOLD). Override tracking must be the primary signal for signal-weight calibration (AC-ANALYTICS-OVERRIDES). No external resource dependency is permitted for analytics storage.",
+      "id": "REQ-P0-009",
+      "prd_ref": "OT-P0-009",
+      "status": "draft",
+      "title": "Analytics Persistence from Day One — SQLite Event Store",
+      "validation": [
+        {
+          "notes": "AC-ANALYTICS-SCHEMA: SQLite schema migrations are idempotent and versioned",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-ANALYTICS-EVENTS: Detection event is inserted with conflict_id, type, severity, scenario, and timestamp",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-ANALYTICS-EVENTS: Resolution event is inserted with conflict_id, method, outcome, and timestamp",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-ANALYTICS-EVENTS: Override event is inserted with signal_name, original_domain, overridden_domain, and timestamp",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-ANALYTICS-THRESHOLD: arch-cart stats for a conflict type with \u003c5 observations returns 'insufficient data' instead of a success rate",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-ANALYTICS-THRESHOLD: arch-cart stats for a conflict type with ≥5 observations returns a calculated success rate",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-ANALYTICS-OVERRIDES: arch-cart stats --overrides lists signals ordered by override frequency",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end: run detection → resolve → apply cycle; all three event types appear in arch-cart history output",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "arch-cart history filters by scenario, conflict type, and date range and returns only matching events",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "SQLite database file is created in the scenario's local directory with no network calls during any analytics operation",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Override history is sufficient to propose signal weight adjustments in the calibration command (REQ-P2-005)",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A scenario owner can audit the full decision history for a migration using arch-cart history without external tooling",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Analytics from Day One"
+}

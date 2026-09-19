@@ -1,0 +1,56 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.global-command-system",
+    "name": "GlobalCommandSystem",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The command infrastructure combining registry, palette, shortcut hints, menu surfacing, scope and availability, argument prompting, execution, and history.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "services.command-registry",
+        "reason": "Registrations are shared across every consuming surface."
+      },
+      {
+        "asset": "services.shortcut-registry",
+        "reason": "Key bindings resolve through one collision-aware registry."
+      },
+      {
+        "asset": "overlays.command-palette",
+        "reason": "The palette is the visible front end of the registry."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "recovery-path",
+    "input-preservation",
+    "status-announced",
+    "error-honesty",
+    "error-message-usefulness",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "partial-degradation"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "request-error"
+  ],
+  "rationale": "Built as infrastructure rather than a modal so one registration drives the palette, menus, toolbars, shortcut hints, and agent-invoked actions. Separate command lists per surface is how shortcuts silently diverge from menus."
+}

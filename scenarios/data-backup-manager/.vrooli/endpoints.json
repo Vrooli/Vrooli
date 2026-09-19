@@ -1,0 +1,1619 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
+      }
+    },
+    {
+      "id": "audits_run_snapshot",
+      "path": "/vrooli.data_backup_manager.v1.audits.AuditsService/RunSnapshotAudit",
+      "method": "POST",
+      "summary": "Run a generic snapshot audit",
+      "description": "Restores a snapshot to scratch, captures the live target to scratch (read-only on live), walks both trees, and compares them by generic signals only (counts, bytes, path-list/content hashes, per-SQLite integrity/schema). Asynchronous: returns the requested record; poll GetAudit for the verdict.",
+      "category": "audits",
+      "request": {
+        "type": "object",
+        "properties": {
+          "destination_id": "string (required)",
+          "include_content_hash": "bool (clients default true)",
+          "include_sqlite_checks": "bool (clients default true)",
+          "snapshot_id": "string (required)",
+          "target_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "audit": "Audit"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing required field"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown target or destination"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Engine or persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Run a snapshot audit",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.audits.AuditsService/RunSnapshotAudit -H 'Content-Type: application/json' -d '{\"targetId\":\"t-1\",\"destinationId\":\"dst-1\",\"snapshotId\":\"snap-1\",\"includeContentHash\":true,\"includeSqliteChecks\":true}'"
+        }
+      ]
+    },
+    {
+      "id": "audits_get",
+      "path": "/vrooli.data_backup_manager.v1.audits.AuditsService/GetAudit",
+      "method": "POST",
+      "summary": "Get an audit by id",
+      "description": "Returns a single snapshot audit record (status, inventories, comparison) by id.",
+      "category": "audits",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "audit": "Audit"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No audit with that id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get an audit",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.audits.AuditsService/GetAudit -H 'Content-Type: application/json' -d '{\"id\":\"audit-1\"}'"
+        }
+      ]
+    },
+    {
+      "id": "audits_list",
+      "path": "/vrooli.data_backup_manager.v1.audits.AuditsService/ListAudits",
+      "method": "POST",
+      "summary": "List audits",
+      "description": "Lists snapshot audit records newest-first, optionally filtered by target id.",
+      "category": "audits",
+      "request": {
+        "type": "object",
+        "properties": {
+          "page_size": "int32",
+          "page_token": "string",
+          "target_id": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "audits": "array<Audit>",
+          "next_page_token": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "List audits",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.audits.AuditsService/ListAudits -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "coverage_report",
+      "path": "/vrooli.data_backup_manager.v1.coverage.CoverageService/GetCoverageReport",
+      "method": "POST",
+      "summary": "Get the backup coverage report",
+      "description": "Derives, live, the first-real-backup readiness picture: registered targets annotated with planned/backed-up/verified state, the non-sensitive discovered targets recommended for default coverage but not yet registered, and the sensitive (credential/token) suggestions held for review. Composes the discovery, targets, plans, runs and restores seams; reads no file contents and persists nothing.",
+      "category": "coverage",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "report": "CoverageReport"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Suggestion scan or catalog read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get coverage report",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.coverage.CoverageService/GetCoverageReport -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "coverage_accept_defaults",
+      "path": "/vrooli.data_backup_manager.v1.coverage.CoverageService/AcceptDefaultTargets",
+      "method": "POST",
+      "summary": "Accept default coverage targets",
+      "description": "Bulk-registers every non-sensitive discovered durable target so default coverage protects all known regenerable-once state. Sensitive credential/token suggestions are skipped unless include_sensitive is set. dry_run registers nothing and reports what would be registered. Idempotent — already-registered targets are not re-suggested, so re-running accepts nothing new. Registration stores locators only; file contents are never read.",
+      "category": "coverage",
+      "request": {
+        "type": "object",
+        "properties": {
+          "dry_run": "bool (default false)",
+          "include_sensitive": "bool (default false)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "accepted": "array<AcceptedTarget>",
+          "dry_run": "boolean",
+          "failed": "array<AcceptError>",
+          "skipped_sensitive": "array<SuggestedTarget>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Suggestion scan failure before any registration"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Preview default acceptance",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.coverage.CoverageService/AcceptDefaultTargets -H 'Content-Type: application/json' -d '{\"dryRun\":true}'"
+        },
+        {
+          "name": "Register non-sensitive defaults",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.coverage.CoverageService/AcceptDefaultTargets -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "destinations_create",
+      "path": "/vrooli.data_backup_manager.v1.destinations.DestinationsService/CreateDestination",
+      "method": "POST",
+      "summary": "Create a backup destination",
+      "description": "Provisions a new kopia repository (filesystem or S3). Encryption is always on; the repository passphrase and S3/backend credentials are stored in the credential authority. A filesystem destination must not point under the protected root.",
+      "category": "destinations",
+      "request": {
+        "type": "object",
+        "properties": {
+          "backend_kind": "BackendKind (required, non-unspecified)",
+          "cap_bytes": "int64 (optional, 0 = no cap)",
+          "cap_policy": "CapPolicy (optional, defaults to ALERT_BLOCK)",
+          "location": "string (required)",
+          "name": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "destination": "Destination"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing name/location, unspecified backend, or separate-root violation"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository creation failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Create a filesystem destination",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/CreateDestination -H 'Content-Type: application/json' -d '{\"name\":\"local-backup\",\"backendKind\":\"BACKEND_KIND_FILESYSTEM\",\"location\":\"/mnt/backup\"}'"
+        }
+      ]
+    },
+    {
+      "id": "destinations_get",
+      "path": "/vrooli.data_backup_manager.v1.destinations.DestinationsService/GetDestination",
+      "method": "POST",
+      "summary": "Get a destination by id",
+      "description": "Returns the destination matching the request id.",
+      "category": "destinations",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "destination": "Destination"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No destination with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get a destination",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/GetDestination -H 'Content-Type: application/json' -d '{\"id\":\"dst-1\"}'"
+        }
+      ]
+    },
+    {
+      "id": "destinations_list",
+      "path": "/vrooli.data_backup_manager.v1.destinations.DestinationsService/ListDestinations",
+      "method": "POST",
+      "summary": "List backup destinations",
+      "description": "Lists registered destinations ordered by name with cursor pagination.",
+      "category": "destinations",
+      "request": {
+        "type": "object",
+        "properties": {
+          "page_size": "int32",
+          "page_token": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "destinations": "array<Destination>",
+          "next_page_token": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List all destinations",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/ListDestinations -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "destinations_update",
+      "path": "/vrooli.data_backup_manager.v1.destinations.DestinationsService/UpdateDestination",
+      "method": "POST",
+      "summary": "Update a destination's cap settings",
+      "description": "Updates cap_bytes and/or cap_policy for the given destination. Other fields are immutable after creation.",
+      "category": "destinations",
+      "request": {
+        "type": "object",
+        "properties": {
+          "cap_bytes": "int64 (0 = no cap)",
+          "cap_policy": "CapPolicy",
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "destination": "Destination"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No destination with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Set a 10 GiB cap",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/UpdateDestination -H 'Content-Type: application/json' -d '{\"id\":\"dst-1\",\"capBytes\":10737418240}'"
+        }
+      ]
+    },
+    {
+      "id": "destinations_delete",
+      "path": "/vrooli.data_backup_manager.v1.destinations.DestinationsService/DeleteDestination",
+      "method": "POST",
+      "summary": "Delete a destination",
+      "description": "Removes the destination catalog row. When delete_repository is explicitly set, also removes local resource-kopia metadata and credential-authority refs for the repository.",
+      "category": "destinations",
+      "request": {
+        "type": "object",
+        "properties": {
+          "delete_repository": "bool (also remove local resource-kopia metadata and credential-authority refs)",
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "removed": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository delete failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Delete a destination",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/DeleteDestination -H 'Content-Type: application/json' -d '{\"id\":\"dst-1\"}'"
+        }
+      ]
+    },
+    {
+      "id": "destinations_get_usage",
+      "path": "/vrooli.data_backup_manager.v1.destinations.DestinationsService/GetDestinationUsage",
+      "method": "POST",
+      "summary": "Get destination usage",
+      "description": "Returns current usage bytes, cap, usage state (WITHIN/NEAR/OVER), and cap policy for the given destination.",
+      "category": "destinations",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "cap_bytes": "int64",
+          "cap_policy": "CapPolicy",
+          "usage_bytes": "int64",
+          "usage_state": "UsageState"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No destination with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Engine stats failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get destination usage",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/GetDestinationUsage -H 'Content-Type: application/json' -d '{\"id\":\"dst-1\"}'"
+        }
+      ]
+    },
+    {
+      "id": "destinations_analyze",
+      "path": "/vrooli.data_backup_manager.v1.destinations.DestinationsService/AnalyzeDestination",
+      "method": "POST",
+      "summary": "Analyze destination readiness",
+      "description": "Inspects a mounted filesystem location read-only and returns structured readiness checks, device identity, filesystem suitability, content warnings, and a recommended backup subdirectory.",
+      "category": "destinations",
+      "request": {
+        "type": "object",
+        "properties": {
+          "cross_platform_required": "boolean",
+          "location": "string (required)",
+          "proposed_subdir": "string (optional)",
+          "retention_copies": "int32 (optional)",
+          "selected_target_bytes": "int64 (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "report": "DestinationReadinessReport"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing location or location is not under a mounted volume"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Read-only inspection failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Analyze a mounted USB drive",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/AnalyzeDestination -H 'Content-Type: application/json' -d '{\"location\":\"/media/user/USB\"}'"
+        }
+      ]
+    },
+    {
+      "id": "destinations_prepare_plan",
+      "path": "/vrooli.data_backup_manager.v1.destinations.DestinationsService/PlanDestinationPreparation",
+      "method": "POST",
+      "summary": "Plan destination preparation",
+      "description": "Creates a non-mutating preparation plan bound to the observed device identity. The plan includes the exact confirmation phrase and whether the action is supported by this platform.",
+      "category": "destinations",
+      "request": {
+        "type": "object",
+        "properties": {
+          "action": "PreparationAction (required)",
+          "desired_filesystem": "string",
+          "desired_label": "string",
+          "desired_subdir": "string",
+          "expected_identity": "DestinationDeviceIdentity",
+          "location": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "plan": "DestinationPreparationPlan"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing location/action or invalid subdirectory"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Device identity mismatch or protected-path overlap"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Read-only inspection failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Plan a backup subdirectory",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/PlanDestinationPreparation -H 'Content-Type: application/json' -d '{\"location\":\"/media/user/USB\",\"action\":\"PREPARATION_ACTION_CREATE_SUBDIR\",\"desiredSubdir\":\"vrooli-backups\"}'"
+        }
+      ]
+    },
+    {
+      "id": "destinations_prepare_execute",
+      "path": "/vrooli.data_backup_manager.v1.destinations.DestinationsService/ExecuteDestinationPreparation",
+      "method": "POST",
+      "summary": "Execute destination preparation",
+      "description": "Runs or dry-runs a preparation plan only after confirmation and identity guards pass. Destructive actions additionally require an explicit data-loss acknowledgement.",
+      "category": "destinations",
+      "request": {
+        "type": "object",
+        "properties": {
+          "acknowledge_data_loss": "boolean",
+          "confirmation": "string",
+          "dry_run": "boolean",
+          "plan": "DestinationPreparationPlan (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "action": "PreparationAction",
+          "dry_run": "boolean",
+          "location": "string",
+          "post_action_report": "DestinationReadinessReport"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing plan"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Unsupported action, missing confirmation, data-loss acknowledgement missing, or device identity changed"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Preparation execution failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Dry-run a preparation plan",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/ExecuteDestinationPreparation -H 'Content-Type: application/json' -d '{\"plan\":{\"id\":\"plan-id\"},\"dryRun\":true}'"
+        }
+      ]
+    },
+    {
+      "id": "drills_preview",
+      "path": "/vrooli.data_backup_manager.v1.drills.RecoveryDrillsService/PreviewDrill",
+      "method": "POST",
+      "summary": "Preview a recovery drill",
+      "description": "Read-only eligibility and latest-snapshot preview; does not restore or mutate data.",
+      "category": "drills"
+    },
+    {
+      "id": "drills_run",
+      "path": "/vrooli.data_backup_manager.v1.drills.RecoveryDrillsService/RunDrill",
+      "method": "POST",
+      "summary": "Run a recovery drill",
+      "description": "Durably records and asynchronously verifies the latest successful snapshot in scratch.",
+      "category": "drills"
+    },
+    {
+      "id": "drills_get",
+      "path": "/vrooli.data_backup_manager.v1.drills.RecoveryDrillsService/GetDrill",
+      "method": "POST",
+      "summary": "Get a recovery drill",
+      "description": "Returns persisted drill status and linked restore evidence.",
+      "category": "drills"
+    },
+    {
+      "id": "drills_list",
+      "path": "/vrooli.data_backup_manager.v1.drills.RecoveryDrillsService/ListDrills",
+      "method": "POST",
+      "summary": "List recovery drills",
+      "description": "Lists persisted recovery-drill evidence newest first.",
+      "category": "drills"
+    },
+    {
+      "id": "discovery_target_suggestions",
+      "path": "/vrooli.data_backup_manager.v1.discovery.DiscoveryService/ListTargetSuggestions",
+      "method": "POST",
+      "summary": "List target suggestions",
+      "description": "Scans well-known Vrooli runtime state (~/.vrooli) read-only and returns ranked, non-dismissed sources worth protecting that are not yet registered. Accept one by calling TargetsService.RegisterTarget with its owner/name/source_kind/locator.",
+      "category": "discovery",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "suggestions": "array<TargetSuggestion>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Scan or catalog read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List target suggestions",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.discovery.DiscoveryService/ListTargetSuggestions -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "discovery_destination_suggestions",
+      "path": "/vrooli.data_backup_manager.v1.discovery.DiscoveryService/ListDestinationSuggestions",
+      "method": "POST",
+      "summary": "List destination suggestions",
+      "description": "Enumerates mounted volumes (OS-agnostic) and returns ranked, non-dismissed places to back up to, removable/external drives first, with the separate-root rule applied. Accept one by calling DestinationsService.CreateDestination with a filesystem backend at its location.",
+      "category": "discovery",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "suggestions": "array<DestinationSuggestion>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Volume scan or catalog read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List destination suggestions",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.discovery.DiscoveryService/ListDestinationSuggestions -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "discovery_dismiss",
+      "path": "/vrooli.data_backup_manager.v1.discovery.DiscoveryService/DismissSuggestion",
+      "method": "POST",
+      "summary": "Dismiss a suggestion",
+      "description": "Hides a suggestion permanently by its stable id. Idempotent — re-dismissing is a no-op success. Dismissed suggestions never reappear on rescans.",
+      "category": "discovery",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "dismissed": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Dismissal write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Dismiss a suggestion",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.discovery.DiscoveryService/DismissSuggestion -H 'Content-Type: application/json' -d '{\"id\":\"b0e3a8fa79aefd10\"}'"
+        }
+      ]
+    },
+    {
+      "id": "plans_create",
+      "path": "/vrooli.data_backup_manager.v1.plans.PlansService/CreatePlan",
+      "method": "POST",
+      "summary": "Create a backup plan",
+      "description": "Creates a new plan binding targets to destinations with a schedule and retention policy.",
+      "category": "plans",
+      "request": {
+        "type": "object",
+        "properties": {
+          "destination_ids": "array<string> (required, ≥1)",
+          "name": "string (required)",
+          "retention": "RetentionPolicy (optional)",
+          "schedule": "string (duration, optional)",
+          "target_ids": "array<string> (required, ≥1)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "plan": "Plan"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing name, target_ids, or destination_ids"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Create a nightly plan",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.plans.PlansService/CreatePlan -H 'Content-Type: application/json' -d '{\"name\":\"nightly\",\"targetIds\":[\"tgt-1\"],\"destinationIds\":[\"dst-1\"],\"schedule\":\"24h\"}'"
+        }
+      ]
+    },
+    {
+      "id": "plans_get",
+      "path": "/vrooli.data_backup_manager.v1.plans.PlansService/GetPlan",
+      "method": "POST",
+      "summary": "Get a plan by id",
+      "description": "Returns the plan including its target and destination membership lists.",
+      "category": "plans",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "plan": "Plan"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No plan with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get a plan",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.plans.PlansService/GetPlan -H 'Content-Type: application/json' -d '{\"id\":\"plan-1\"}'"
+        }
+      ]
+    },
+    {
+      "id": "plans_list",
+      "path": "/vrooli.data_backup_manager.v1.plans.PlansService/ListPlans",
+      "method": "POST",
+      "summary": "List backup plans",
+      "description": "Lists all plans with their membership lists, with cursor pagination.",
+      "category": "plans",
+      "request": {
+        "type": "object",
+        "properties": {
+          "page_size": "int32",
+          "page_token": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "next_page_token": "string",
+          "plans": "array<Plan>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List all plans",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.plans.PlansService/ListPlans -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "plans_update",
+      "path": "/vrooli.data_backup_manager.v1.plans.PlansService/UpdatePlan",
+      "method": "POST",
+      "summary": "Update a backup plan",
+      "description": "Replaces the plan's fields and membership lists in full.",
+      "category": "plans",
+      "request": {
+        "type": "object",
+        "properties": {
+          "destination_ids": "array<string>",
+          "enabled": "bool",
+          "id": "string (required)",
+          "name": "string",
+          "retention": "RetentionPolicy",
+          "schedule": "string",
+          "target_ids": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "plan": "Plan"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id, name, target_ids, or destination_ids"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No plan with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Update a plan",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.plans.PlansService/UpdatePlan -H 'Content-Type: application/json' -d '{\"id\":\"plan-1\",\"name\":\"nightly-v2\",\"targetIds\":[\"tgt-1\"],\"destinationIds\":[\"dst-1\"]}'"
+        }
+      ]
+    },
+    {
+      "id": "plans_delete",
+      "path": "/vrooli.data_backup_manager.v1.plans.PlansService/DeletePlan",
+      "method": "POST",
+      "summary": "Delete a backup plan",
+      "description": "Removes a plan and its membership rows by id.",
+      "category": "plans",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "removed": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository delete failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Delete a plan",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.plans.PlansService/DeletePlan -H 'Content-Type: application/json' -d '{\"id\":\"plan-1\"}'"
+        }
+      ]
+    },
+    {
+      "id": "restores_restore_target",
+      "path": "/vrooli.data_backup_manager.v1.restores.RestoresService/RestoreTarget",
+      "method": "POST",
+      "summary": "Restore a snapshot to a location",
+      "description": "Restores a snapshot to a caller-chosen filesystem location, then applies the source-kind restore step. Returns the closed restore record.",
+      "category": "restores",
+      "request": {
+        "type": "object",
+        "properties": {
+          "destination_id": "string (required)",
+          "location": "string (required)",
+          "snapshot_id": "string (required)",
+          "target_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "restore": "Restore"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing required field"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown target or destination"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Engine or persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Restore a snapshot",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.restores.RestoresService/RestoreTarget -H 'Content-Type: application/json' -d '{\"targetId\":\"t-1\",\"destinationId\":\"dst-1\",\"snapshotId\":\"snap-1\",\"location\":\"/restore/dest\"}'"
+        }
+      ]
+    },
+    {
+      "id": "restores_verify_target",
+      "path": "/vrooli.data_backup_manager.v1.restores.RestoresService/VerifyTarget",
+      "method": "POST",
+      "summary": "Verify a snapshot's restorability",
+      "description": "Test-restores a snapshot to a scratch directory, checksums the result, records last-verified-at on success, and cleans up scratch. The verify gate must pass before committed runtime data is removed.",
+      "category": "restores",
+      "request": {
+        "type": "object",
+        "properties": {
+          "destination_id": "string (required)",
+          "snapshot_id": "string (required)",
+          "target_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "restore": "Restore"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing required field"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown target or destination"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Engine or persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Verify a snapshot",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.restores.RestoresService/VerifyTarget -H 'Content-Type: application/json' -d '{\"targetId\":\"t-1\",\"destinationId\":\"dst-1\",\"snapshotId\":\"snap-1\"}'"
+        }
+      ]
+    },
+    {
+      "id": "restores_get",
+      "path": "/vrooli.data_backup_manager.v1.restores.RestoresService/GetRestore",
+      "method": "POST",
+      "summary": "Get a restore by id",
+      "description": "Returns a single restore/verify record by id.",
+      "category": "restores",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "restore": "Restore"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No restore with that id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get a restore",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.restores.RestoresService/GetRestore -H 'Content-Type: application/json' -d '{\"id\":\"restore-1\"}'"
+        }
+      ]
+    },
+    {
+      "id": "restores_list",
+      "path": "/vrooli.data_backup_manager.v1.restores.RestoresService/ListRestores",
+      "method": "POST",
+      "summary": "List restores",
+      "description": "Lists restore/verify records newest-first, optionally filtered by target id.",
+      "category": "restores",
+      "request": {
+        "type": "object",
+        "properties": {
+          "page_size": "int32",
+          "page_token": "string",
+          "target_id": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "next_page_token": "string",
+          "restores": "array<Restore>"
+        }
+      },
+      "examples": [
+        {
+          "name": "List restores",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.restores.RestoresService/ListRestores -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "runs_preflight",
+      "path": "/vrooli.data_backup_manager.v1.runs.RunsService/PreflightRun",
+      "method": "POST",
+      "summary": "Check backup plan readiness",
+      "description": "Performs read-only destination, credential, source-adapter, and source-path checks before any backup fan-out.",
+      "category": "runs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "plan_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "incidents": "array<FailureCause>",
+          "ready": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing plan_id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No plan with that id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Preflight a plan",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.runs.RunsService/PreflightRun -H 'Content-Type: application/json' -d '{\"planId\":\"plan-1\"}'"
+        }
+      ]
+    },
+    {
+      "id": "runs_trigger",
+      "path": "/vrooli.data_backup_manager.v1.runs.RunsService/TriggerRun",
+      "method": "POST",
+      "summary": "Trigger a backup run for a plan",
+      "description": "Executes a plan now: per target × destination, capture → cap-check → snapshot → retention → record outcome. Returns the closed run with per-target outcomes.",
+      "category": "runs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "plan_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "run": "Run"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing plan_id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No plan with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Run persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Trigger a run",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.runs.RunsService/TriggerRun -H 'Content-Type: application/json' -d '{\"planId\":\"plan-1\"}'"
+        }
+      ]
+    },
+    {
+      "id": "runs_get",
+      "path": "/vrooli.data_backup_manager.v1.runs.RunsService/GetRun",
+      "method": "POST",
+      "summary": "Get a run by id",
+      "description": "Returns a run with its per-target outcomes.",
+      "category": "runs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "run": "Run"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No run with that id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get a run",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.runs.RunsService/GetRun -H 'Content-Type: application/json' -d '{\"id\":\"run-1\"}'"
+        }
+      ]
+    },
+    {
+      "id": "runs_list",
+      "path": "/vrooli.data_backup_manager.v1.runs.RunsService/ListRuns",
+      "method": "POST",
+      "summary": "List runs",
+      "description": "Lists runs newest-first, optionally filtered by plan id.",
+      "category": "runs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "page_size": "int32",
+          "page_token": "string",
+          "plan_id": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "next_page_token": "string",
+          "runs": "array<Run>"
+        }
+      },
+      "examples": [
+        {
+          "name": "List runs",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.runs.RunsService/ListRuns -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "runs_target_status",
+      "path": "/vrooli.data_backup_manager.v1.runs.RunsService/ListTargetStatus",
+      "method": "POST",
+      "summary": "List last-success per target",
+      "description": "Returns the last-success and last-run rollup per target, the catalog's recovery-readiness view.",
+      "category": "runs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "owner": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "statuses": "array<TargetStatus>"
+        }
+      },
+      "examples": [
+        {
+          "name": "Target status",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.runs.RunsService/ListTargetStatus -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "runs_browse_snapshot",
+      "path": "/vrooli.data_backup_manager.v1.runs.RunsService/BrowseSnapshot",
+      "method": "POST",
+      "summary": "Browse a snapshot's contents",
+      "description": "Lists entries within a snapshot in a destination repository.",
+      "category": "runs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "destination_id": "string (required)",
+          "path": "string (optional)",
+          "snapshot_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "entries": "array<SnapshotEntry>"
+        }
+      },
+      "examples": [
+        {
+          "name": "Browse snapshot",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.runs.RunsService/BrowseSnapshot -H 'Content-Type: application/json' -d '{\"destinationId\":\"dst-1\",\"snapshotId\":\"snap-1\"}'"
+        }
+      ]
+    },
+    {
+      "id": "runs_stats",
+      "path": "/vrooli.data_backup_manager.v1.runs.RunsService/GetRunStats",
+      "method": "POST",
+      "summary": "Aggregate run performance metrics",
+      "description": "Reports counts, success rate, p50/p95 wall-clock duration, logical bytes per run, and throughput over the recent run-history window, optionally scoped to one plan.",
+      "category": "runs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "plan_id": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "stats": "RunStats"
+        }
+      },
+      "examples": [
+        {
+          "name": "Run stats",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.runs.RunsService/GetRunStats -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "safety_ensure_destination",
+      "path": "/vrooli.data_backup_manager.v1.safety.SafetyService/EnsureSafetyDestination",
+      "method": "POST",
+      "summary": "Ensure the Baseline Modes safety destination",
+      "description": "Idempotently provisions (or returns the existing) reserved baseline-safety filesystem destination used only for pre-promote safety snapshots. Returns created=true only when this call created it.",
+      "category": "safety",
+      "request": {
+        "type": "object",
+        "properties": {
+          "cap_bytes": "int64 (optional; 0 = no cap)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "created": "bool",
+          "destination": "SafetyDestination"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Runtime root unresolved or destination create failed"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Ensure safety destination",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.safety.SafetyService/EnsureSafetyDestination -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "safety_backup_scenario_now",
+      "path": "/vrooli.data_backup_manager.v1.safety.SafetyService/BackupScenarioNow",
+      "method": "POST",
+      "summary": "Back up a scenario's targets now",
+      "description": "Backs up every target registered under owner=scenario to the safety destination immediately, by building-or-reusing a manual-only ephemeral per-scenario plan and triggering a run. The run executes asynchronously; poll `runs get <id>`.",
+      "category": "safety",
+      "request": {
+        "type": "object",
+        "properties": {
+          "keep_latest": "int32 (optional)",
+          "scenario": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "destination_id": "string",
+          "plan_id": "string",
+          "run_id": "string",
+          "status": "string",
+          "target_count": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Scenario has no registered targets"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Plan/run orchestration failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Back up a scenario now",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.safety.SafetyService/BackupScenarioNow -H 'Content-Type: application/json' -d '{\"scenario\":\"swarm-manager\"}'"
+        }
+      ]
+    },
+    {
+      "id": "safety_register_scenario_targets",
+      "path": "/vrooli.data_backup_manager.v1.safety.SafetyService/RegisterScenarioTargets",
+      "method": "POST",
+      "summary": "Derive and register a scenario's backup targets",
+      "description": "Derives a scenario's reliably-conventional backup targets from its .vrooli/service.json + on-disk layout (Postgres `vrooli_<scenario>` when declared; the filesystem data dir when present) and idempotently registers them under owner=scenario, so `safety backup-now` works without a hand-run `targets register`. Redis/Qdrant/SQLite are not derivable and are returned in `skipped`.",
+      "category": "safety",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "registered": "RegisteredTarget[]",
+          "scenario": "string",
+          "skipped": "SkippedTarget[]"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Manifest/data-dir inspection or target registration failed"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Register a scenario's targets",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.safety.SafetyService/RegisterScenarioTargets -H 'Content-Type: application/json' -d '{\"scenario\":\"swarm-manager\"}'"
+        }
+      ]
+    },
+    {
+      "id": "safety_populate_shadow",
+      "path": "/vrooli.data_backup_manager.v1.safety.SafetyService/PopulateShadow",
+      "method": "POST",
+      "summary": "Populate a shadow with a scenario's safety snapshots",
+      "description": "Restores a scenario's already-captured safety snapshots into caller-chosen shadow namespaces (the data half of `baseline start` in shadow mode). Resolves the safety run (explicit run_id, or the latest terminal run), and for each mapping restores the target's latest successful snapshot into its shadow location. Restores run asynchronously; poll `restores get <id>`. Mappings with no target or no snapshot are returned in `skipped`.",
+      "category": "safety",
+      "request": {
+        "type": "object",
+        "properties": {
+          "mappings": "ShadowTargetMapping[] (required; {target_name, location})",
+          "run_id": "string (optional)",
+          "scenario": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "restores": "ShadowRestore[]",
+          "run_id": "string",
+          "scenario": "string",
+          "skipped": "ShadowPopulateSkip[]"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario or no mappings"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "No completed safety backup, or the requested run is unfinished"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Target/run lookup or restore orchestration failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Populate a shadow's postgres + data",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.safety.SafetyService/PopulateShadow -H 'Content-Type: application/json' -d '{\"scenario\":\"swarm-manager\",\"mappings\":[{\"target_name\":\"postgres\",\"location\":\"vrooli_swarm-manager_shadow\"}]}'"
+        }
+      ]
+    },
+    {
+      "id": "targets_register",
+      "path": "/vrooli.data_backup_manager.v1.targets.TargetsService/RegisterTarget",
+      "method": "POST",
+      "summary": "Register (upsert) a backup target",
+      "description": "Idempotently registers a backup source keyed by (owner, name). Re-registering with the same spec is a no-op; a changed spec updates in place. Scenarios call this at their lifecycle.",
+      "category": "targets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "locator": "string (required)",
+          "name": "string (required)",
+          "owner": "string (required)",
+          "source_kind": "SourceKind (required, non-unspecified)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "target": "Target"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing owner/name/locator or unspecified source kind"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Register a filesystem target",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.targets.TargetsService/RegisterTarget -H 'Content-Type: application/json' -d '{\"owner\":\"prompt-manager\",\"name\":\"store\",\"sourceKind\":\"SOURCE_KIND_FILESYSTEM\",\"locator\":\"store/teams\"}'"
+        }
+      ]
+    },
+    {
+      "id": "targets_deregister",
+      "path": "/vrooli.data_backup_manager.v1.targets.TargetsService/DeregisterTarget",
+      "method": "POST",
+      "summary": "Deregister a backup target",
+      "description": "Removes a target by (owner, name). The catalog stays reconstructable because owning scenarios re-register on boot.",
+      "category": "targets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "name": "string (required)",
+          "owner": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "removed": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing owner or name"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository delete failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Deregister a target",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.targets.TargetsService/DeregisterTarget -H 'Content-Type: application/json' -d '{\"owner\":\"prompt-manager\",\"name\":\"store\"}'"
+        }
+      ]
+    },
+    {
+      "id": "targets_get",
+      "path": "/vrooli.data_backup_manager.v1.targets.TargetsService/GetTarget",
+      "method": "POST",
+      "summary": "Get a target by id",
+      "description": "Returns the target matching the request id.",
+      "category": "targets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "target": "Target"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No target with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get a target",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.targets.TargetsService/GetTarget -H 'Content-Type: application/json' -d '{\"id\":\"tgt-1\"}'"
+        }
+      ]
+    },
+    {
+      "id": "targets_list",
+      "path": "/vrooli.data_backup_manager.v1.targets.TargetsService/ListTargets",
+      "method": "POST",
+      "summary": "List backup targets",
+      "description": "Lists registered targets, optionally filtered by owner, with cursor pagination.",
+      "category": "targets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "owner": "string (optional filter)",
+          "page_size": "int32",
+          "page_token": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "next_page_token": "string",
+          "targets": "array<Target>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List all targets",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.targets.TargetsService/ListTargets -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    }
+  ]
+}

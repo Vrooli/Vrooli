@@ -3,6 +3,7 @@ package backlog
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -262,7 +263,7 @@ func ReadReviewState(itemDir string) (map[string]ReviewState, error) {
 func WriteReviewState(itemDir string, state map[string]ReviewState) error {
 	path := reviewStatePath(itemDir)
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create archive dir: %w", err)
 	}
 	return storage.WriteJSONAtomic(path, state)
@@ -280,7 +281,7 @@ func PruneReviewState(state map[string]ReviewState, targetIDs map[string]bool) {
 // writeFileAtomic writes content to a file atomically via temp+rename.
 func writeFileAtomic(path, content string) error {
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create directory: %w", err)
 	}
 
@@ -289,14 +290,22 @@ func writeFileAtomic(path, content string) error {
 		return fmt.Errorf("create temp file: %w", err)
 	}
 	tmpName := tmp.Name()
-	defer func() { _ = os.Remove(tmpName) }()
+	defer func() {
+		if rmErr := os.Remove(tmpName); rmErr != nil && !os.IsNotExist(rmErr) {
+			slog.Debug("backlog: remove temp target file failed", "err", rmErr, "path", tmpName)
+		}
+	}()
 
 	if _, err := tmp.WriteString(content); err != nil {
-		_ = tmp.Close()
+		if closeErr := tmp.Close(); closeErr != nil {
+			slog.Debug("backlog: close temp target file failed", "err", closeErr)
+		}
 		return fmt.Errorf("write temp file: %w", err)
 	}
 	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
+		if closeErr := tmp.Close(); closeErr != nil {
+			slog.Debug("backlog: close temp target file failed", "err", closeErr)
+		}
 		return fmt.Errorf("sync temp file: %w", err)
 	}
 	if err := tmp.Close(); err != nil {

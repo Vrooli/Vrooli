@@ -39,7 +39,7 @@ interface UseResizableSplitPanelResult {
   /** Whether the panel is snapped closed (width === 0) */
   isCollapsed: boolean
   /** Ref to attach to the container element for ResizeObserver */
-  containerRef: React.RefObject<HTMLDivElement>
+  containerRef: React.RefObject<HTMLDivElement | null>
   /** Mouse down handler for the resize handle */
   handleResizeStart: (e: React.MouseEvent) => void
   /** Expand panel to its previous width (or defaultWidth) */

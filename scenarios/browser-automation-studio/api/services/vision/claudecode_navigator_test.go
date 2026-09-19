@@ -40,7 +40,7 @@ func (m *mockCommandRunner) CommandContext(ctx context.Context, name string, arg
 	m.lastArgs = args
 
 	// For version check, create a real command that outputs the version
-	if len(args) == 1 && args[0] == "--version" {
+	if len(args) > 0 && args[len(args)-1] == "--version" {
 		output := m.versionOutput
 		if output == "" {
 			output = "claude-code 1.0.18"

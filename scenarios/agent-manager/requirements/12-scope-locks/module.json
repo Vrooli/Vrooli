@@ -9,7 +9,7 @@
       "description": "Implement exclusive locks on file system paths to prevent conflicts",
       "id": "REQ-P1-001",
       "prd_ref": "OT-P1-001",
-      "status": "draft",
+      "status": "planned",
       "title": "Path-Scoped Locking",
       "validation": [
         {

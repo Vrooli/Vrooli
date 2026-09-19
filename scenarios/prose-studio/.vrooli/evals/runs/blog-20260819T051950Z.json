@@ -1,0 +1,639 @@
+{
+  "run_id": "20260819T051950Z",
+  "passed": true,
+  "gates": {
+    "word_count": true,
+    "sentence_count": true,
+    "section_count": true,
+    "paragraph_duplication": true,
+    "adjacent_paragraph_novelty": true,
+    "distinct_artifacts_used": true,
+    "required_claim_terms": true,
+    "evidence_grounding": true,
+    "evidence_claim_coverage": true,
+    "semantic_measured": true,
+    "semantic_section_repetition": true,
+    "coherence": true,
+    "blind_judge_calibrated": true,
+    "blind_comparison": true
+  },
+  "measurements": {
+    "word_count": 1004,
+    "sentence_count": 53,
+    "paragraph_count": 16,
+    "max_paragraph_duplication": 0.219,
+    "most_duplicated_pair": [
+      2,
+      7
+    ],
+    "artifacts_declared": 4,
+    "artifacts_used": [
+      "vrooli scenario test",
+      "test-genie runs wait --json",
+      "vrooli scenario test abort",
+      "docs/TESTING.md"
+    ],
+    "artifacts_missing": [],
+    "distinct_artifacts_used": 4,
+    "adjacent_paragraph_novelty": [
+      0.92,
+      0.898,
+      0.8,
+      1.0,
+      0.7647,
+      0.8333,
+      0.875,
+      0.8039,
+      0.8302,
+      0.7692,
+      0.8378,
+      0.9231,
+      0.9474,
+      0.7727,
+      0.9434
+    ],
+    "min_adjacent_novelty": 0.7647,
+    "median_adjacent_novelty": 0.8378,
+    "unsupported_numbers": [],
+    "required_terms_present": {
+      "server-owned": true,
+      "test-genie": true,
+      "wait": true
+    },
+    "evidence_claims": [
+      {
+        "claim": "test-genie owns a scenario test run after the command returns",
+        "best_score": 1.0,
+        "covered": true,
+        "sentence": "Because test-genie owns a scenario test run after the command returns, the lifecycle of the suite is no longer tethered to whatever machine invoked it.",
+        "span": [
+          1838,
+          1989
+        ]
+      },
+      {
+        "claim": "operators start the suite, record its run identifier, and wait once on the server-owned run",
+        "best_score": 0.6667,
+        "covered": true,
+        "sentence": "In our continuous verification loop, an initiating agent can invoke vrooli scenario test and immediately record the identifier before exiting. A second, downstream agent running in a fresh environment can later invoke test-genie runs wait --json to wait on that exact server-owned run.",
+        "span": [
+          5138,
+          5423
+        ]
+      },
+      {
+        "claim": "a cancelled client is not the same thing as an aborted run",
+        "best_score": 1.0,
+        "covered": true,
+        "sentence": "A cancelled client is not the same thing as an aborted run.",
+        "span": [
+          3645,
+          3704
+        ]
+      }
+    ],
+    "evidence_claim_coverage": 1.0,
+    "basis": "independent measurement in evals/run-blog.sh; shares no implementation with packages/textmetrics"
+  },
+  "generated_text": "When I watch an automated verification pipeline fail, I want to inspect a real regression, not a severed network socket. For a long time, standard test suites suffered from a subtle failure path: tying validation lifetime directly to the terminal session that triggered it. Whenever an interactive caller dropped, the validation run vanished with it. That left the builder with corrupted evidence, forcing operators to treat every disconnected terminal as if it were a defect in the product itself.\n\nThat ambiguity destroys trust in test results. If an agent loses its connection mid-flight, we cannot tell whether our code broke or the client simply disappeared. We needed validation that persists regardless of who stays attached to the console.\n\nTo fix this, we shipped a standard protocol documented in docs/TESTING.md that decouples the suite lifecycle from caller sessions. Instead of relying on client-bound processes, our backend test runner, test-genie, takes full control of the execution state. Under this design, validation becomes server-owned rather than client-dependent. An operator or agent does not have to maintain an open socket just to keep work alive; they can simply trigger the workload and wait on the durable execution record.\n\nThis change anchors validation in verified telemetry rather than brittle connections, ensuring that interrupted sessions no longer distort our operational evidence.\n\nWhen I kick off a test suite today, I execute vrooli scenario test, which starts a scenario suite and returns once the run is registered. Instead of holding an active terminal hostage while steps execute, the CLI immediately yields back control to the caller. At that exact moment, our execution runner, test-genie, assumes complete authority over the workload.\n\nThis handoff is where the architectural shift happens. Because test-genie owns a scenario test run after the command returns, the lifecycle of the suite is no longer tethered to whatever machine invoked it. An automated agent or human builder can trigger the process, record the assigned run identifier, and immediately disconnect without interrupting ongoing execution.\n\nMaking test execution server-owned solves a classic failure path in automated workflows. Previously, if an agent session timed out, crashed, or rotated during a long-running suite, the entire run perished with the caller. Now, the suite keeps running in the background, logging every transition and preserving its state inside the platform. The work does not stop simply because the interactive session concluded.\n\nBy separating the initiation step from the monitoring step, we treat test runs as durable platform entities rather than ephemeral client side-effects. An operator who triggers a suite can step away, pass the execution context to another process, or wait for the outcome when convenient. The evidence remains addressable on the server throughout its full lifespan, insulating our validation runs from flaky networks and transient client boundaries.\n\nOnce an operator records the run identifier, keeping track of execution does not require brittle client-side polling loops. Instead of repeatedly querying an endpoint to see if work finished, we rely on a single blocking synchronization step. Running test-genie runs wait --json blocks once on a server-owned run; the documented alternative to polling. This lets an operator or automated workflow wait efficiently for execution to wrap up, receiving structured output without hammering the platform with repetitive status checks.\n\nThis blocking mechanism cleanly separates local caller states from remote workload lifecycles. A cancelled client is not the same thing as an aborted run. If a network blip severs your shell, or if an automated agent shuts down while waiting, the underlying suite does not crash or mark itself as broken. Because the process is server-owned, test-genie keeps driving the validation steps forward. Dropping the connection merely disconnects the listener; it leaves the actual run intact and operating as intended.\n\nWhen an operator intentionally needs to kill an active suite, they must do so through a direct platform command rather than by terminating their local terminal window. Executing vrooli scenario test abort ends the run itself, as opposed to cancelling the client. This sends an explicit signal to test-genie to stop the scenario, tear down resources, and document that the workload was deliberately terminated.\n\nBy distinguishing between client disconnections and explicit stops, we protect the validity of our operational history. An interrupted shell is treated as an infrastructure event, while a stopped run is recorded as an intentional user action. This clarity gives builders confidence that our test logs reflect genuine validation outcomes rather than the health of a local socket connection.\n\nThis brings us to the core benefit for automated workflows: reliable handoffs between autonomous agents. When long validation suites generate continuous telemetry, decoupling that execution from any single terminal transforms waiting into a governed platform capability.\n\nIn our continuous verification loop, an initiating agent can invoke vrooli scenario test and immediately record the identifier before exiting. A second, downstream agent running in a fresh environment can later invoke test-genie runs wait --json to wait on that exact server-owned run. Because test-genie manages the workload remotely, the second agent receives the complete, uncorrupted log record the moment validation concludes.\n\nThis shared record prevents false triage loops. Instead of diagnosing a phantom failure caused by an agent rotation or client reset, the downstream agent inspects the definitive run artifact. It can verify whether the workload completed cleanly or if another operator sent vrooli scenario test abort to halt execution. Every status transition remains attached to the server-owned record rather than vanishing with an ephemeral runner.\n\nBy formalizing this flow in docs/TESTING.md, we ensure that our control plane improves validation reliability without demanding persistent terminal attachments. An agent can start a run, hand off responsibility, and allow a peer to evaluate the final evidence. We shipped this approach so builders never have to guess whether a broken suite stems from a real regression or a lost connection. Durable runs preserve the full context, giving every automated actor the exact evidence needed to make grounded operational decisions.",
+  "baseline_text": "When you trigger a complex test suite and your terminal connection drops, what happens to the validation you just started? If your testing harness couples the lifecycle of the execution to the active client connection, that validation vanishes into thin air. We built our execution model around the premise that durable validation is a product capability, ensuring that long-running tests persist, stay addressable, and finish cleanly regardless of what happens to the caller.\n\nIn this post, I want to walk through how we approach long-running validation in Vrooli, why server-owned runs matter for day-to-day engineering, and how our architecture decouples test orchestration from transient client sessions. The protocol this article summarises is recorded in our central documentation at docs/TESTING.md, and it reflects our conviction that reliable validation requires reliable state.\n\nTo understand the shift we made, consider what validation looks like when a test run is tied strictly to an open client session. An engineer or automated agent triggers a suite, the process attaches to the local terminal, and the client waits. If the session terminates, the process dies with it. This coupling introduces real friction: the suite takes longer than an agent session, work is interrupted, logs disappear, and operators are left guessing whether a failure was caused by a genuine software defect or a severed connection.\n\nTo solve this, we rely on test-genie, our internal backend service responsible for managing, executing, and tracking test runs. When we invoke the command vrooli scenario test to kick off validation, vrooli scenario test starts a scenario suite and returns once the run is registered. Crucially, test-genie owns a scenario test run after the command returns.\n\nBecause test-genie owns a scenario test run after the command returns, the test run maintains its own identity, its own logs, and its own execution lifecycle on the server. The client that initiated the run can safely exit without affecting the validation itself. The run does not disappear with the caller; instead, it continues uninterrupted within test-genie.\n\nThis architecture establishes a clean, governed workflow for operators. The workflow is simple: operators start the suite, record its run identifier, and wait once on the server-owned run. When an operator or automation system wants to collect the final outcome, they use test-genie runs wait --json, which blocks once on a server-owned run and serves as the documented alternative to polling.\n\nBy using test-genie runs wait --json, an operator does not need to constantly query or poll the system to see if the run has completed. They simply invoke test-genie runs wait --json to block once on the server-owned run until execution finishes. The client receives the complete result in a structured format as soon as test-genie finishes processing the suite.\n\nOne of the most important operational distinctions in this design is how we handle cancellations and interruptions. In our system, a cancelled client is not the same thing as an aborted run. If an operator closes their terminal, disconnects an agent, or interrupts the client process that was waiting on a run, only the local client connection is cancelled. The scenario test run itself remains active and intact within test-genie.\n\nIf an operator genuinely intends to terminate the execution on the server, they must explicitly issue the abort command. Specifically, vrooli scenario test abort ends the run itself, as opposed to cancelling the client. This explicit separation ensures that an accidental client disconnection never inadvertently destroys an active test run.\n\nThis distinction is operational, not cosmetic. A system that treats every disconnected terminal as a failed test loses the difference between infrastructure interruption and a product defect. When a transient network hiccup kills an interactive session, treating that event as a test failure pollutes test metrics and wastes engineering time chasing phantom bugs. Server-owned runs preserve that distinction so the next operator can inspect the evidence and make a grounded decision.\n\nBecause the run identifier persists and the state lives inside test-genie, durable evidence for long-running validation is preserved automatically. When a suite takes longer than an agent session, the initial agent can record the run identifier and conclude its session. A later agent or human operator can then pick up that exact run identifier, query test-genie, and resume observation or inspect the completed results. This makes a later handoff possible across different operators, systems, or automated workflows.\n\nHaving an addressable, server-owned run fundamentally transforms how we think about test infrastructure. Instead of viewing testing as a synchronous script running inside a fragile local process, we treat testing as an asynchronous, stateful workload managed by a dedicated control plane. The result is a control plane that can improve itself without asking every agent to stay attached to a terminal.\n\nWhen we look at the complete lifecycle defined in docs/TESTING.md, the benefits compound across our entire development workflow. When an operator runs vrooli scenario test, they get an immediate confirmation and a run identifier. The run is registered, test-genie takes ownership, and the operator is free to disconnect. When it is time to check the outcome, test-genie runs wait --json provides the necessary blocking call to retrieve the output once. And if a run must truly be stopped before completion, vrooli scenario test abort provides the explicit mechanism to end the run itself.\n\nDurable runs turn waiting into a governed capability: the work continues, the evidence remains addressable, and the final decision can be made from the same record that produced it. By ensuring that test-genie owns the execution lifecycle and separating client cancellation from run abortion, we have built a resilient foundation for long-running validation that keeps our engineering decisions grounded in durable, reliable facts.",
+  "evidence_source": "/home/matthalloran8/Vrooli/scenarios/prose-studio/evals/baselines/server-owned-test-runs.md",
+  "content_desk_draft_id": "48f2e267-61d6-4fe2-9841-7a6f62fa7af4",
+  "document": {
+    "id": "4b051e19-933a-48dd-9be6-efa7ddb79963",
+    "title": "How Vrooli's server-owned test runs make long-running validation durable Use only factual claims supported by this evidence brief. Do not invent metrics, infrastructure, failure incidents, or outcomes. Every number, command, path, and identifier you write must appear either in the brief or in the artifact list below; anything else is invention. Show the artifacts rather than describing them: quote them verbatim inside the sentence that explains what they do. Artifacts: vrooli scenario test -- starts a scenario suite and returns once the run is registered; test-genie runs wait --json -- blocks once on a server-owned run; the documented alternative to polling; vrooli scenario test abort -- ends the run itself, as opposed to cancelling the client; docs/TESTING.md -- the protocol this article summarises. Explain each evidence claim once, with distinct section purposes; do not restate the same workflow or conclusion in multiple sections. Evidence claims: test-genie owns a scenario test run after the command returns; operators start the suite, record its run identifier, and wait once on the server-owned run; a cancelled client is not the same thing as an aborted run. Evidence source: # Durable validation is a product capability\n\nVrooli's test-genie owns a scenario test run after the command returns. That matters when a suite takes longer than an agent session: the run keeps its identity, logs, and result instead of disappearing with the caller.\n\nThe workflow is simple. Start the scenario suite, record the run identifier, and wait once on the server-owned run. A cancelled client is not the same thing as an aborted run. This gives operators durable evidence for long-running validation and makes a later handoff possible.\n\nThe distinction is operational, not cosmetic. A system that treats every disconnected terminal as a failed test loses the difference between infrastructure interruption and a product defect. Server-owned runs preserve that distinction so the next operator can inspect the evidence and make a grounded decision.\n\nThe result is a control plane that can improve itself without asking every agent to stay attached to a terminal. Durable runs turn waiting into a governed capability: the work continues, the evidence remains addressable, and the final decision can be made from the same record that produced it.. Explicitly use these exact terms where they fit naturally: server-owned, test-genie, wait.",
+    "profile_key": "content-desk/marketing-dev-log-profile",
+    "outline_profile_key": "content-desk/marketing-dev-log-profile",
+    "style_key": "content-desk/marketing-dev-log-style",
+    "outline_id": "2d3ed551-73f2-49b0-84b5-5b1848ca36d9",
+    "outline_text": "[{\"intent\":\"Hook the reader by showing why fragile client connections corrupt validation evidence and introduce the protocol\",\"summary\":\"I frame the operational failure path where disconnected terminals look like broken software, introducing the standard described in docs/TESTING.md to establish why test-genie must anchor long-running validation in a durable state.\",\"target_words\":240},{\"intent\":\"Detail how server-owned test execution decouples suite lifecycles from interactive sessions\",\"summary\":\"I walk through initiating runs using vrooli scenario test, demonstrating how test-genie takes ownership immediately after the command returns so the suite continues running independently of any single caller.\",\"target_words\":280},{\"intent\":\"Differentiate between dropped client sessions and deliberate run aborts using blocking synchronization\",\"summary\":\"I show how operators synchronize with active workloads by executing test-genie runs wait --json to wait once instead of polling, while contrasting client disconnection with an explicit termination via vrooli scenario test abort.\",\"target_words\":310},{\"intent\":\"Conclude on how server-owned runs preserve evidence integrity for automated agent handoffs\",\"summary\":\"I explain why keeping the execution identifier and telemetry intact across sessions turns waiting into a reliable platform capability, allowing downstream agents to inspect authoritative evidence and make grounded decisions.\",\"target_words\":270}]",
+    "outline": [
+      {
+        "intent": "Hook the reader by showing why fragile client connections corrupt validation evidence and introduce the protocol",
+        "summary": "I frame the operational failure path where disconnected terminals look like broken software, introducing the standard described in docs/TESTING.md to establish why test-genie must anchor long-running validation in a durable state.",
+        "target_words": 240
+      },
+      {
+        "intent": "Detail how server-owned test execution decouples suite lifecycles from interactive sessions",
+        "summary": "I walk through initiating runs using vrooli scenario test, demonstrating how test-genie takes ownership immediately after the command returns so the suite continues running independently of any single caller.",
+        "target_words": 280
+      },
+      {
+        "intent": "Differentiate between dropped client sessions and deliberate run aborts using blocking synchronization",
+        "summary": "I show how operators synchronize with active workloads by executing test-genie runs wait --json to wait once instead of polling, while contrasting client disconnection with an explicit termination via vrooli scenario test abort.",
+        "target_words": 310
+      },
+      {
+        "intent": "Conclude on how server-owned runs preserve evidence integrity for automated agent handoffs",
+        "summary": "I explain why keeping the execution identifier and telemetry intact across sessions turns waiting into a reliable platform capability, allowing downstream agents to inspect authoritative evidence and make grounded decisions.",
+        "target_words": 270
+      }
+    ],
+    "artifacts": [
+      "vrooli scenario test",
+      "test-genie runs wait --json",
+      "vrooli scenario test abort",
+      "docs/TESTING.md"
+    ],
+    "outline_profile_version": "content-desk/marketing-dev-log-profile@42",
+    "section_count": 4,
+    "section_profile_version": "content-desk/marketing-dev-log-profile@42",
+    "section_ids": [
+      "4b37b179-551a-46f0-b01a-7cb932981fb8",
+      "dd2de7fd-0c0e-4f7b-ba89-b5e47fcde737",
+      "e329b22e-f454-4c7f-abba-640bbd4385de",
+      "39651fc4-6cb0-4f1a-8fb7-631498e24865"
+    ],
+    "status": "assembled",
+    "assembled_text": "When I watch an automated verification pipeline fail, I want to inspect a real regression, not a severed network socket. For a long time, standard test suites suffered from a subtle failure path: tying validation lifetime directly to the terminal session that triggered it. Whenever an interactive caller dropped, the validation run vanished with it. That left the builder with corrupted evidence, forcing operators to treat every disconnected terminal as if it were a defect in the product itself.\n\nThat ambiguity destroys trust in test results. If an agent loses its connection mid-flight, we cannot tell whether our code broke or the client simply disappeared. We needed validation that persists regardless of who stays attached to the console.\n\nTo fix this, we shipped a standard protocol documented in docs/TESTING.md that decouples the suite lifecycle from caller sessions. Instead of relying on client-bound processes, our backend test runner, test-genie, takes full control of the execution state. Under this design, validation becomes server-owned rather than client-dependent. An operator or agent does not have to maintain an open socket just to keep work alive; they can simply trigger the workload and wait on the durable execution record.\n\nThis change anchors validation in verified telemetry rather than brittle connections, ensuring that interrupted sessions no longer distort our operational evidence.\n\nWhen I kick off a test suite today, I execute vrooli scenario test, which starts a scenario suite and returns once the run is registered. Instead of holding an active terminal hostage while steps execute, the CLI immediately yields back control to the caller. At that exact moment, our execution runner, test-genie, assumes complete authority over the workload.\n\nThis handoff is where the architectural shift happens. Because test-genie owns a scenario test run after the command returns, the lifecycle of the suite is no longer tethered to whatever machine invoked it. An automated agent or human builder can trigger the process, record the assigned run identifier, and immediately disconnect without interrupting ongoing execution.\n\nMaking test execution server-owned solves a classic failure path in automated workflows. Previously, if an agent session timed out, crashed, or rotated during a long-running suite, the entire run perished with the caller. Now, the suite keeps running in the background, logging every transition and preserving its state inside the platform. The work does not stop simply because the interactive session concluded.\n\nBy separating the initiation step from the monitoring step, we treat test runs as durable platform entities rather than ephemeral client side-effects. An operator who triggers a suite can step away, pass the execution context to another process, or wait for the outcome when convenient. The evidence remains addressable on the server throughout its full lifespan, insulating our validation runs from flaky networks and transient client boundaries.\n\nOnce an operator records the run identifier, keeping track of execution does not require brittle client-side polling loops. Instead of repeatedly querying an endpoint to see if work finished, we rely on a single blocking synchronization step. Running test-genie runs wait --json blocks once on a server-owned run; the documented alternative to polling. This lets an operator or automated workflow wait efficiently for execution to wrap up, receiving structured output without hammering the platform with repetitive status checks.\n\nThis blocking mechanism cleanly separates local caller states from remote workload lifecycles. A cancelled client is not the same thing as an aborted run. If a network blip severs your shell, or if an automated agent shuts down while waiting, the underlying suite does not crash or mark itself as broken. Because the process is server-owned, test-genie keeps driving the validation steps forward. Dropping the connection merely disconnects the listener; it leaves the actual run intact and operating as intended.\n\nWhen an operator intentionally needs to kill an active suite, they must do so through a direct platform command rather than by terminating their local terminal window. Executing vrooli scenario test abort ends the run itself, as opposed to cancelling the client. This sends an explicit signal to test-genie to stop the scenario, tear down resources, and document that the workload was deliberately terminated.\n\nBy distinguishing between client disconnections and explicit stops, we protect the validity of our operational history. An interrupted shell is treated as an infrastructure event, while a stopped run is recorded as an intentional user action. This clarity gives builders confidence that our test logs reflect genuine validation outcomes rather than the health of a local socket connection.\n\nThis brings us to the core benefit for automated workflows: reliable handoffs between autonomous agents. When long validation suites generate continuous telemetry, decoupling that execution from any single terminal transforms waiting into a governed platform capability.\n\nIn our continuous verification loop, an initiating agent can invoke vrooli scenario test and immediately record the identifier before exiting. A second, downstream agent running in a fresh environment can later invoke test-genie runs wait --json to wait on that exact server-owned run. Because test-genie manages the workload remotely, the second agent receives the complete, uncorrupted log record the moment validation concludes.\n\nThis shared record prevents false triage loops. Instead of diagnosing a phantom failure caused by an agent rotation or client reset, the downstream agent inspects the definitive run artifact. It can verify whether the workload completed cleanly or if another operator sent vrooli scenario test abort to halt execution. Every status transition remains attached to the server-owned record rather than vanishing with an ephemeral runner.\n\nBy formalizing this flow in docs/TESTING.md, we ensure that our control plane improves validation reliability without demanding persistent terminal attachments. An agent can start a run, hand off responsibility, and allow a peer to evaluate the final evidence. We shipped this approach so builders never have to guess whether a broken suite stems from a real regression or a lost connection. Durable runs preserve the full context, giving every automated actor the exact evidence needed to make grounded operational decisions.",
+    "coherence": {
+      "basis": "textmetrics.CrossSectionRepetition and textmetrics.StyleDrift over committed section text",
+      "cross_section_repetition": 0.46287174613439724,
+      "semantic_basis": "semantic cosine similarity over gateway embeddings (dimension 768)",
+      "semantic_measured": true,
+      "semantic_section_repetition": 0.8374371249942764,
+      "style_drift": 0.1875,
+      "thresholds": {
+        "max_cross_section_repetition": 0.55,
+        "max_style_drift": 0.35,
+        "min_section_novelty": 0.65,
+        "max_semantic_section_repetition": 0.86
+      },
+      "verdict": {
+        "coherent": true,
+        "cross_section_repetition": true,
+        "semantic_section_repetition": true,
+        "style_drift": true
+      }
+    },
+    "sections": [
+      {
+        "id": "4b37b179-551a-46f0-b01a-7cb932981fb8",
+        "document_id": "4b051e19-933a-48dd-9be6-efa7ddb79963",
+        "position": 0,
+        "intent": "Hook the reader by showing why fragile client connections corrupt validation evidence and introduce the protocol",
+        "summary": "I frame the operational failure path where disconnected terminals look like broken software, introducing the standard described in docs/TESTING.md to establish why test-genie must anchor long-running validation in a durable state.",
+        "target_words": 240,
+        "profile_key": "content-desk/marketing-dev-log-profile",
+        "session_id": "ba41d06b-3201-41c9-a599-4d446b646e18",
+        "committed_candidate_id": "ef800bff-269a-4aec-9f5c-f7bcff954527",
+        "context_snapshot": {
+          "outline_ref": "2d3ed551-73f2-49b0-84b5-5b1848ca36d9",
+          "outline_text": "[{\"intent\":\"Hook the reader by showing why fragile client connections corrupt validation evidence and introduce the protocol\",\"summary\":\"I frame the operational failure path where disconnected terminals look like broken software, introducing the standard described in docs/TESTING.md to establish why test-genie must anchor long-running validation in a durable state.\",\"target_words\":240},{\"intent\":\"Detail how server-owned test execution decouples suite lifecycles from interactive sessions\",\"summary\":\"I walk through initiating runs using vrooli scenario test, demonstrating how test-genie takes ownership immediately after the command returns so the suite continues running independently of any single caller.\",\"target_words\":280},{\"intent\":\"Differentiate between dropped client sessions and deliberate run aborts using blocking synchronization\",\"summary\":\"I show how operators synchronize with active workloads by executing test-genie runs wait --json to wait once instead of polling, while contrasting client disconnection with an explicit termination via vrooli scenario test abort.\",\"target_words\":310},{\"intent\":\"Conclude on how server-owned runs preserve evidence integrity for automated agent handoffs\",\"summary\":\"I explain why keeping the execution identifier and telemetry intact across sessions turns waiting into a reliable platform capability, allowing downstream agents to inspect authoritative evidence and make grounded decisions.\",\"target_words\":270}]",
+          "following_intents": [
+            "Detail how server-owned test execution decouples suite lifecycles from interactive sessions",
+            "Differentiate between dropped client sessions and deliberate run aborts using blocking synchronization",
+            "Conclude on how server-owned runs preserve evidence integrity for automated agent handoffs"
+          ],
+          "estimated_tokens": 0
+        }
+      },
+      {
+        "id": "dd2de7fd-0c0e-4f7b-ba89-b5e47fcde737",
+        "document_id": "4b051e19-933a-48dd-9be6-efa7ddb79963",
+        "position": 1,
+        "intent": "Detail how server-owned test execution decouples suite lifecycles from interactive sessions",
+        "summary": "I walk through initiating runs using vrooli scenario test, demonstrating how test-genie takes ownership immediately after the command returns so the suite continues running independently of any single caller.",
+        "target_words": 280,
+        "profile_key": "content-desk/marketing-dev-log-profile",
+        "session_id": "4a11b147-0466-4df0-b0b7-955a1a1a43d9",
+        "committed_candidate_id": "52f9afa6-6887-4b19-924b-59d4847e1db5",
+        "context_snapshot": {
+          "outline_ref": "2d3ed551-73f2-49b0-84b5-5b1848ca36d9",
+          "outline_text": "[{\"intent\":\"Hook the reader by showing why fragile client connections corrupt validation evidence and introduce the protocol\",\"summary\":\"I frame the operational failure path where disconnected terminals look like broken software, introducing the standard described in docs/TESTING.md to establish why test-genie must anchor long-running validation in a durable state.\",\"target_words\":240},{\"intent\":\"Detail how server-owned test execution decouples suite lifecycles from interactive sessions\",\"summary\":\"I walk through initiating runs using vrooli scenario test, demonstrating how test-genie takes ownership immediately after the command returns so the suite continues running independently of any single caller.\",\"target_words\":280},{\"intent\":\"Differentiate between dropped client sessions and deliberate run aborts using blocking synchronization\",\"summary\":\"I show how operators synchronize with active workloads by executing test-genie runs wait --json to wait once instead of polling, while contrasting client disconnection with an explicit termination via vrooli scenario test abort.\",\"target_words\":310},{\"intent\":\"Conclude on how server-owned runs preserve evidence integrity for automated agent handoffs\",\"summary\":\"I explain why keeping the execution identifier and telemetry intact across sessions turns waiting into a reliable platform capability, allowing downstream agents to inspect authoritative evidence and make grounded decisions.\",\"target_words\":270}]",
+          "prior_section_refs": [
+            "4b37b179-551a-46f0-b01a-7cb932981fb8"
+          ],
+          "full_text_section_refs": [
+            "4b37b179-551a-46f0-b01a-7cb932981fb8"
+          ],
+          "following_intents": [
+            "Differentiate between dropped client sessions and deliberate run aborts using blocking synchronization",
+            "Conclude on how server-owned runs preserve evidence integrity for automated agent handoffs"
+          ],
+          "estimated_tokens": 354
+        }
+      },
+      {
+        "id": "e329b22e-f454-4c7f-abba-640bbd4385de",
+        "document_id": "4b051e19-933a-48dd-9be6-efa7ddb79963",
+        "position": 2,
+        "intent": "Differentiate between dropped client sessions and deliberate run aborts using blocking synchronization",
+        "summary": "I show how operators synchronize with active workloads by executing test-genie runs wait --json to wait once instead of polling, while contrasting client disconnection with an explicit termination via vrooli scenario test abort.",
+        "target_words": 310,
+        "profile_key": "content-desk/marketing-dev-log-profile",
+        "session_id": "6c58d29e-5586-4449-970a-d233fc2e9bc0",
+        "committed_candidate_id": "9c161ab3-0db9-419d-890f-a941d253a292",
+        "context_snapshot": {
+          "outline_ref": "2d3ed551-73f2-49b0-84b5-5b1848ca36d9",
+          "outline_text": "[{\"intent\":\"Hook the reader by showing why fragile client connections corrupt validation evidence and introduce the protocol\",\"summary\":\"I frame the operational failure path where disconnected terminals look like broken software, introducing the standard described in docs/TESTING.md to establish why test-genie must anchor long-running validation in a durable state.\",\"target_words\":240},{\"intent\":\"Detail how server-owned test execution decouples suite lifecycles from interactive sessions\",\"summary\":\"I walk through initiating runs using vrooli scenario test, demonstrating how test-genie takes ownership immediately after the command returns so the suite continues running independently of any single caller.\",\"target_words\":280},{\"intent\":\"Differentiate between dropped client sessions and deliberate run aborts using blocking synchronization\",\"summary\":\"I show how operators synchronize with active workloads by executing test-genie runs wait --json to wait once instead of polling, while contrasting client disconnection with an explicit termination via vrooli scenario test abort.\",\"target_words\":310},{\"intent\":\"Conclude on how server-owned runs preserve evidence integrity for automated agent handoffs\",\"summary\":\"I explain why keeping the execution identifier and telemetry intact across sessions turns waiting into a reliable platform capability, allowing downstream agents to inspect authoritative evidence and make grounded decisions.\",\"target_words\":270}]",
+          "prior_section_refs": [
+            "4b37b179-551a-46f0-b01a-7cb932981fb8",
+            "dd2de7fd-0c0e-4f7b-ba89-b5e47fcde737"
+          ],
+          "full_text_section_refs": [
+            "4b37b179-551a-46f0-b01a-7cb932981fb8",
+            "dd2de7fd-0c0e-4f7b-ba89-b5e47fcde737"
+          ],
+          "following_intents": [
+            "Conclude on how server-owned runs preserve evidence integrity for automated agent handoffs"
+          ],
+          "estimated_tokens": 753
+        }
+      },
+      {
+        "id": "39651fc4-6cb0-4f1a-8fb7-631498e24865",
+        "document_id": "4b051e19-933a-48dd-9be6-efa7ddb79963",
+        "position": 3,
+        "intent": "Conclude on how server-owned runs preserve evidence integrity for automated agent handoffs",
+        "summary": "I explain why keeping the execution identifier and telemetry intact across sessions turns waiting into a reliable platform capability, allowing downstream agents to inspect authoritative evidence and make grounded decisions.",
+        "target_words": 270,
+        "profile_key": "content-desk/marketing-dev-log-profile",
+        "session_id": "fa16c02b-9fb3-47b8-99a0-d2d0acc3996e",
+        "committed_candidate_id": "3255b11f-3da7-49a2-af2a-625343918eec",
+        "context_snapshot": {
+          "outline_ref": "2d3ed551-73f2-49b0-84b5-5b1848ca36d9",
+          "outline_text": "[{\"intent\":\"Hook the reader by showing why fragile client connections corrupt validation evidence and introduce the protocol\",\"summary\":\"I frame the operational failure path where disconnected terminals look like broken software, introducing the standard described in docs/TESTING.md to establish why test-genie must anchor long-running validation in a durable state.\",\"target_words\":240},{\"intent\":\"Detail how server-owned test execution decouples suite lifecycles from interactive sessions\",\"summary\":\"I walk through initiating runs using vrooli scenario test, demonstrating how test-genie takes ownership immediately after the command returns so the suite continues running independently of any single caller.\",\"target_words\":280},{\"intent\":\"Differentiate between dropped client sessions and deliberate run aborts using blocking synchronization\",\"summary\":\"I show how operators synchronize with active workloads by executing test-genie runs wait --json to wait once instead of polling, while contrasting client disconnection with an explicit termination via vrooli scenario test abort.\",\"target_words\":310},{\"intent\":\"Conclude on how server-owned runs preserve evidence integrity for automated agent handoffs\",\"summary\":\"I explain why keeping the execution identifier and telemetry intact across sessions turns waiting into a reliable platform capability, allowing downstream agents to inspect authoritative evidence and make grounded decisions.\",\"target_words\":270}]",
+          "prior_section_refs": [
+            "4b37b179-551a-46f0-b01a-7cb932981fb8",
+            "dd2de7fd-0c0e-4f7b-ba89-b5e47fcde737",
+            "e329b22e-f454-4c7f-abba-640bbd4385de"
+          ],
+          "full_text_section_refs": [
+            "4b37b179-551a-46f0-b01a-7cb932981fb8",
+            "dd2de7fd-0c0e-4f7b-ba89-b5e47fcde737",
+            "e329b22e-f454-4c7f-abba-640bbd4385de"
+          ],
+          "estimated_tokens": 1214
+        }
+      }
+    ],
+    "created_at": "2026-08-19T05:20:16.547070951Z",
+    "document_provenance": {
+      "section_count": 4,
+      "word_count": 1004,
+      "total_cost_micros": 18669,
+      "input_tokens": 11660,
+      "output_tokens": 7091,
+      "providers": [
+        "openrouter"
+      ],
+      "models": [
+        "google/gemini-3.7-flash"
+      ]
+    }
+  },
+  "document_provenance": {
+    "section_count": 4,
+    "word_count": 1004,
+    "total_cost_micros": 18669,
+    "input_tokens": 11660,
+    "output_tokens": 7091,
+    "providers": [
+      "openrouter"
+    ],
+    "models": [
+      "google/gemini-3.7-flash"
+    ]
+  },
+  "claim_coverage": {
+    "supportedSpans": [
+      {
+        "start": 1838,
+        "end": 1989,
+        "claimId": "94eb8fce-545e-49dd-9d33-9ccd84438c2b",
+        "supported": true
+      },
+      {
+        "start": 3645,
+        "end": 3704,
+        "claimId": "3f6f1ffe-cede-4e27-86eb-7ec6f8bfee53",
+        "supported": true
+      },
+      {
+        "start": 5138,
+        "end": 5423,
+        "claimId": "6a590235-2c9b-46da-885d-b83c0b234351",
+        "supported": true
+      }
+    ],
+    "uncoveredSpans": [
+      {
+        "end": 1838
+      },
+      {
+        "start": 1989,
+        "end": 3645
+      },
+      {
+        "start": 3704,
+        "end": 5138
+      },
+      {
+        "start": 5423,
+        "end": 6533
+      }
+    ]
+  },
+  "blind_comparison": {
+    "status": "judged",
+    "control": "unaided agent: same model, same brief, one call, none of the machinery",
+    "baseline_path": "evals/baselines/unaided-agent-draft.md",
+    "baseline_sha256": "b63c76b07836b0ec6f352f9d2297e8d067717f78a6511c44ba903199b825c5c2",
+    "judge": {
+      "provider": "openrouter",
+      "model": "google/gemini-3.1-flash-lite-preview",
+      "temperature": 0,
+      "basis": "role judge.default; fixed temperature makes repeated identical requests redundant"
+    },
+    "tally_basis": "The verdict is the independent-scoring channel, counted over calibrated rubrics only. A rubric is calibrated when the judge scored the restatement-maximal anchor strictly below both real articles on it. The pairwise channel is recorded as a diagnostic and does not decide the gate.",
+    "scoring": {
+      "per_rubric": [
+        {
+          "rubric": "argument",
+          "scenario": 3,
+          "baseline": 3,
+          "degraded": 1,
+          "calibrated": true,
+          "winner": "tie"
+        },
+        {
+          "rubric": "concreteness",
+          "scenario": 5,
+          "baseline": 5,
+          "degraded": 1,
+          "calibrated": true,
+          "winner": "tie"
+        },
+        {
+          "rubric": "readability",
+          "scenario": 5,
+          "baseline": 4,
+          "degraded": 4,
+          "calibrated": true,
+          "winner": "scenario"
+        }
+      ],
+      "calibrated_rubrics": [
+        "argument",
+        "concreteness",
+        "readability"
+      ],
+      "uncalibrated_rubrics": [],
+      "scenario_wins": 1,
+      "baseline_wins": 0,
+      "ties": 2
+    },
+    "scores": [
+      {
+        "rubric": "argument",
+        "subject": "scenario",
+        "score": 3,
+        "quote": "The work does not stop simply because the interactive session concluded.",
+        "rationale": "The article effectively explains the shift to server-owned test execution, but it repeats the core concept of decoupling execution from terminal sessions multiple times throughout the text."
+      },
+      {
+        "rubric": "argument",
+        "subject": "baseline",
+        "score": 3,
+        "quote": "When we look at the complete lifecycle defined in docs/TESTING.md, the benefits compound across our entire development workflow. When an operator runs vrooli scenario test, they get an immediate confirmation and a run identifier.",
+        "rationale": "The article effectively explains the technical shift to server-owned test runs, but it repeats the operational steps and benefits of the 'vrooli scenario test' command and the 'test-genie' service multiple times throughout the text."
+      },
+      {
+        "rubric": "argument",
+        "subject": "degraded",
+        "score": 1,
+        "quote": "When I watch an automated verification pipeline fail, I want to inspect a real regression, not a severed network socket.",
+        "rationale": "The article consists entirely of the same paragraph repeated multiple times, failing to develop any argument or advance beyond its initial statement."
+      },
+      {
+        "rubric": "concreteness",
+        "subject": "scenario",
+        "score": 5,
+        "quote": "When I kick off a test suite today, I execute vrooli scenario test, which starts a scenario suite and returns once the run is registered.",
+        "rationale": "The article provides specific command-line instructions and tool names that a reader can directly execute to implement the described server-owned testing workflow."
+      },
+      {
+        "rubric": "concreteness",
+        "subject": "baseline",
+        "score": 5,
+        "quote": "When an operator or automation system wants to collect the final outcome, they use test-genie runs wait --json, which blocks once on a server-owned run and serves as the documented alternative to polling.",
+        "rationale": "The article provides specific command-line instructions and clear operational workflows that a reader could directly implement or use to interact with the described system."
+      },
+      {
+        "rubric": "concreteness",
+        "subject": "degraded",
+        "score": 1,
+        "quote": "We needed validation that persists regardless of who stays attached to the console.",
+        "rationale": "The article identifies a problem with terminal-dependent test suites but fails to provide any specific tools, commands, or technical implementation steps to resolve the issue."
+      },
+      {
+        "rubric": "readability",
+        "subject": "scenario",
+        "score": 5,
+        "quote": "Instead of holding an active terminal hostage while steps execute, the CLI immediately yields back control to the caller.",
+        "rationale": "The writing employs a strong, professional voice with precise, active verbs and a clear narrative arc that effectively explains a technical architectural shift."
+      },
+      {
+        "rubric": "readability",
+        "subject": "baseline",
+        "score": 4,
+        "quote": "If your testing harness couples the lifecycle of the execution to the active client connection, that validation vanishes into thin air.",
+        "rationale": "The writing is clear, professional, and avoids filler, utilizing a strong, identifiable voice that effectively explains technical architectural decisions."
+      },
+      {
+        "rubric": "readability",
+        "subject": "degraded",
+        "score": 4,
+        "quote": "That ambiguity destroys trust in test results.",
+        "rationale": "The writing is sharp, technically precise, and avoids filler, though the repetitive nature of the provided text prevents a perfect score."
+      }
+    ],
+    "pairwise_diagnostic": {
+      "position_biased_rubrics": [
+        "argument",
+        "concreteness"
+      ],
+      "informative_rubrics": [
+        "readability"
+      ],
+      "raw_scenario_wins": 4,
+      "raw_baseline_wins": 2,
+      "scenario_wins": 2,
+      "baseline_wins": 0,
+      "trials": [
+        {
+          "rubric": "argument",
+          "order": "scenario_first",
+          "position_a": "scenario",
+          "chose_position": "A",
+          "verdict": "scenario",
+          "rationale": "Article A provides a more concise and focused explanation of the architectural shift, whereas Article B suffers from significant repetition of phrases and concepts throughout its sections."
+        },
+        {
+          "rubric": "argument",
+          "order": "baseline_first",
+          "position_a": "baseline",
+          "chose_position": "A",
+          "verdict": "baseline",
+          "rationale": "Article A maintains a more consistent focus on the architectural shift and its operational implications without the repetitive, summary-heavy structure found in Article B."
+        },
+        {
+          "rubric": "concreteness",
+          "order": "scenario_first",
+          "position_a": "scenario",
+          "chose_position": "A",
+          "verdict": "scenario",
+          "rationale": "Article A provides a more concrete explanation of the workflow by explicitly detailing the handoff process between agents and the specific operational benefits of decoupling, whereas Article B relies more heavily on repetitive summaries of the same concepts."
+        },
+        {
+          "rubric": "concreteness",
+          "order": "baseline_first",
+          "position_a": "baseline",
+          "chose_position": "A",
+          "verdict": "baseline",
+          "rationale": "Article A provides a more concrete explanation of the operational workflow by explicitly detailing the sequence of commands and the specific state-management benefits of the test-genie service."
+        },
+        {
+          "rubric": "readability",
+          "order": "scenario_first",
+          "position_a": "scenario",
+          "chose_position": "A",
+          "verdict": "scenario",
+          "rationale": "Article A maintains a more professional, concise, and authoritative tone, whereas Article B relies on repetitive phrasing and a more conversational, instructional style that feels less suited to a technical audience."
+        },
+        {
+          "rubric": "readability",
+          "order": "baseline_first",
+          "position_a": "baseline",
+          "chose_position": "B",
+          "verdict": "scenario",
+          "rationale": "Article B maintains a more professional, concise, and authoritative tone, avoiding the repetitive and slightly redundant phrasing found in Article A."
+        }
+      ]
+    },
+    "channels_agree": true
+  },
+  "single_call_probe": {
+    "round": {
+      "id": "66d18a93-459e-435a-b033-4397a40035f3",
+      "session_id": "38e6d4e7-1e35-4626-906c-dec0afb8a7d5",
+      "strategy": {
+        "kind": "vs_standard",
+        "k": 5,
+        "tau": 0.7,
+        "temperature_stance": "role_default",
+        "max_output_tokens": 1400
+      },
+      "candidate_ids": [
+        "e8c36029-5401-41ef-840c-63645e402169",
+        "0734c4b2-6100-4f89-a61d-2ddccf313bd0",
+        "9c13a0bb-75b9-45b9-8510-4c89d8086aec",
+        "d94981a7-fc21-4d1b-a845-1ef7f2de97b2",
+        "829a44bc-35dc-4321-a228-044d47635a72"
+      ],
+      "sampling_key": {
+        "k": 5,
+        "temperature_stance": "role_default",
+        "max_output_tokens_effective": 7000,
+        "max_output_tokens_source": "OUTPUT_CAP_SOURCE_REQUEST",
+        "measurement_tier": "deterministic_and_semantic"
+      },
+      "selection_seed": 1787116816341649989,
+      "total_cost_micros": 29785,
+      "negative_context": {},
+      "lexical_set_measurements": {
+        "candidate_count": 5,
+        "pairwise_similarity": [
+          [
+            0,
+            0.5805976395562021,
+            0.5945184354976946,
+            0.5706504277339066,
+            0.5804778461732704
+          ],
+          [
+            0.5805976395562021,
+            0,
+            0.5710222069551113,
+            0.5865119963365566,
+            0.5558527810233331
+          ],
+          [
+            0.5945184354976946,
+            0.5710222069551113,
+            0,
+            0.5623840129518656,
+            0.5955299532593533
+          ],
+          [
+            0.5706504277339066,
+            0.5865119963365566,
+            0.5623840129518656,
+            0,
+            0.574142111751868
+          ],
+          [
+            0.5804778461732704,
+            0.5558527810233331,
+            0.5955299532593533,
+            0.574142111751868,
+            0
+          ]
+        ],
+        "mean_similarity": 0.5771687411239161,
+        "diversity": 0.42283125887608386,
+        "coverage": 0.5614248031368607,
+        "basis": "lexical token 1-3 gram cosine/Jaccard blend; no embeddings available"
+      },
+      "semantic_set_measurements": {
+        "candidate_count": 5,
+        "pairwise_similarity": [
+          [
+            0,
+            0.928700602409215,
+            0.9273395611612423,
+            0.902026605019197,
+            0.9286458154861802
+          ],
+          [
+            0.928700602409215,
+            0,
+            0.9487392294539835,
+            0.9365790287239824,
+            0.9565311005109319
+          ],
+          [
+            0.9273395611612423,
+            0.9487392294539835,
+            0,
+            0.9465137641463653,
+            0.9439837107525619
+          ],
+          [
+            0.902026605019197,
+            0.9365790287239824,
+            0.9465137641463653,
+            0,
+            0.9376660041875131
+          ],
+          [
+            0.9286458154861802,
+            0.9565311005109319,
+            0.9439837107525619,
+            0.9376660041875131,
+            0
+          ]
+        ],
+        "mean_similarity": 0.9356725421851173,
+        "diversity": 0.0643274578148827,
+        "coverage": 0.9177478378190063,
+        "basis": "semantic cosine similarity over gateway embeddings (dimension 768)"
+      },
+      "measurement_basis": "semantic cosine similarity over gateway embeddings (dimension 768)"
+    },
+    "provider": "openrouter",
+    "model": "google/gemini-3.7-flash",
+    "cost_micros": 29785
+  }
+}

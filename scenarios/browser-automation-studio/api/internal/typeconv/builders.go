@@ -170,13 +170,12 @@ func BuildInputParams(data map[string]any) *basactions.InputParams {
 }
 
 // BuildWaitParams converts a data map to WaitParams proto.
-// Supports "duration" as alias for "durationMs".
+// Supports "duration" as alias for "durationMs", and snake_case spellings
+// ("duration_ms", "timeout_ms") from UseProtoNames-marshaled definitions.
 func BuildWaitParams(data map[string]any) *basactions.WaitParams {
 	p := &basactions.WaitParams{}
-	if dm, ok := ToInt32(data["durationMs"]); ok {
+	if dm, ok := firstInt32(data, "durationMs", "duration_ms", "duration"); ok {
 		p.WaitFor = &basactions.WaitParams_DurationMs{DurationMs: dm}
-	} else if dur, ok := ToInt32(data["duration"]); ok {
-		p.WaitFor = &basactions.WaitParams_DurationMs{DurationMs: dur} // "duration" alias
 	} else if selector, ok := data["selector"].(string); ok && selector != "" {
 		p.WaitFor = &basactions.WaitParams_Selector{Selector: selector}
 	}
@@ -184,7 +183,7 @@ func BuildWaitParams(data map[string]any) *basactions.WaitParams {
 		ws := StringToWaitState(state)
 		p.State = &ws
 	}
-	if tm, ok := ToInt32(data["timeoutMs"]); ok {
+	if tm, ok := firstInt32(data, "timeoutMs", "timeout_ms"); ok {
 		p.TimeoutMs = &tm
 	}
 	return p
@@ -544,4 +543,123 @@ func BuildShortcutParams(data map[string]any) *basactions.ShortcutParams {
 		p.Selector = &selector
 	}
 	return p
+}
+
+// BuildGestureParams converts a data map to GestureParams proto.
+func BuildGestureParams(data map[string]any) *basactions.GestureParams {
+	p := &basactions.GestureParams{}
+	if gestureType, ok := firstString(data, "gesture_type", "gestureType", "type"); ok {
+		p.GestureType = StringToGestureType(gestureType)
+	}
+	if selector, ok := firstString(data, "selector"); ok {
+		p.Selector = &selector
+	}
+	if direction, ok := firstString(data, "direction"); ok {
+		parsed := StringToSwipeDirection(direction)
+		p.Direction = &parsed
+	}
+	if distance, ok := firstInt32(data, "distance"); ok {
+		p.Distance = &distance
+	}
+	if scale, ok := firstFloat64(data, "scale"); ok {
+		p.Scale = &scale
+	}
+	if duration, ok := firstInt32(data, "duration_ms", "durationMs"); ok {
+		p.DurationMs = &duration
+	}
+	if steps, ok := firstInt32(data, "steps"); ok {
+		p.Steps = &steps
+	}
+	if delay, ok := firstInt32(data, "step_delay_ms", "stepDelayMs"); ok {
+		p.StepDelayMs = &delay
+	}
+	if label, ok := firstString(data, "trace_label", "traceLabel"); ok {
+		p.TraceLabel = &label
+	}
+	if idle, ok := firstInt32(data, "idle_after_ms", "idleAfterMs"); ok {
+		p.IdleAfterMs = &idle
+	}
+	if delta, ok := firstInt32(data, "wheel_delta_y", "wheelDeltaY"); ok {
+		p.WheelDeltaY = &delta
+	}
+	if ctrlKey, ok := firstBool(data, "ctrl_key", "ctrlKey"); ok {
+		p.CtrlKey = &ctrlKey
+	}
+	return p
+}
+
+// StringToGestureType converts proto and shorthand gesture labels.
+func StringToGestureType(s string) basactions.GestureType {
+	normalized := strings.TrimSpace(strings.ToLower(s))
+	normalized = strings.TrimPrefix(normalized, "gesture_type_")
+	switch normalized {
+	case "swipe":
+		return basactions.GestureType_GESTURE_TYPE_SWIPE
+	case "pinch":
+		return basactions.GestureType_GESTURE_TYPE_PINCH
+	case "zoom":
+		return basactions.GestureType_GESTURE_TYPE_ZOOM
+	case "long_press", "longpress":
+		return basactions.GestureType_GESTURE_TYPE_LONG_PRESS
+	case "double_tap", "doubletap":
+		return basactions.GestureType_GESTURE_TYPE_DOUBLE_TAP
+	default:
+		return basactions.GestureType_GESTURE_TYPE_UNSPECIFIED
+	}
+}
+
+// StringToSwipeDirection converts proto and shorthand swipe directions.
+func StringToSwipeDirection(s string) basactions.SwipeDirection {
+	normalized := strings.TrimSpace(strings.ToLower(s))
+	normalized = strings.TrimPrefix(normalized, "swipe_direction_")
+	switch normalized {
+	case "up":
+		return basactions.SwipeDirection_SWIPE_DIRECTION_UP
+	case "down":
+		return basactions.SwipeDirection_SWIPE_DIRECTION_DOWN
+	case "left":
+		return basactions.SwipeDirection_SWIPE_DIRECTION_LEFT
+	case "right":
+		return basactions.SwipeDirection_SWIPE_DIRECTION_RIGHT
+	default:
+		return basactions.SwipeDirection_SWIPE_DIRECTION_UNSPECIFIED
+	}
+}
+
+func firstString(data map[string]any, keys ...string) (string, bool) {
+	for _, key := range keys {
+		if value, ok := data[key]; ok {
+			if str := strings.TrimSpace(ToString(value)); str != "" {
+				return str, true
+			}
+		}
+	}
+	return "", false
+}
+
+func firstInt32(data map[string]any, keys ...string) (int32, bool) {
+	for _, key := range keys {
+		if value, ok := data[key]; ok {
+			return int32(ToInt(value)), true
+		}
+	}
+	return 0, false
+}
+
+func firstFloat64(data map[string]any, keys ...string) (float64, bool) {
+	for _, key := range keys {
+		if value, ok := data[key]; ok {
+			return ToFloat(value), true
+		}
+	}
+	return 0, false
+}
+
+func firstBool(data map[string]any, keys ...string) (bool, bool) {
+	for _, key := range keys {
+		if value, ok := data[key]; ok {
+			return ToBool(value), true
+		}
+	}
+	return false, false
 }

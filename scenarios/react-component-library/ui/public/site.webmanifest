@@ -1,0 +1,30 @@
+{
+  "id": ".",
+  "name": "React Component Library",
+  "short_name": "RCL",
+  "description": "Central UI for designing, previewing, editing, and tracking shared React UI components across Vrooli scenarios.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "shortcuts": [
+    { "name": "Extract into library", "short_name": "Extract", "description": "Start an extract-assist workflow.", "url": "./?action=extract", "icons": [{ "src": "manifest-icon-192.maskable.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Adopt into scenarios", "short_name": "Adopt", "description": "Start adopt-assist workflows.", "url": "./?action=adopt", "icons": [{ "src": "manifest-icon-192.maskable.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Create component", "short_name": "Create", "description": "Create a library component.", "url": "./?action=create", "icons": [{ "src": "manifest-icon-192.maskable.png", "sizes": "192x192", "type": "image/png" }] }
+  ],
+  "icons": [
+    {
+      "src": "manifest-icon-192.maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "manifest-icon-512.maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

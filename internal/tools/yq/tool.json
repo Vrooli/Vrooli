@@ -1,0 +1,63 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "yq",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
+  "description": "YAML processor for shell workflows and configuration parsing",
+  "commands": [
+    "yq"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "packages": {
+    "brew": "yq",
+    "winget": "MikeF.yq"
+  },
+  "installHint": "Linux installs the pinned Mike Farah yq v4.53.2 release into ~/.vrooli/bin with SHA-256 verification; macOS and Windows fall back to the declared Homebrew and winget packages. apt's yq is a different tool and is intentionally not used.",
+  "notes": "Linux release checksums were verified against the official v4.53.2 checksums asset.",
+  "bundling": "vendorable",
+  "capability": "data-query",
+  "capability_role": "primary",
+  "acquisition": {
+    "kind": "url",
+    "targets": [
+      {
+        "when": {
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "url": "https://github.com/mikefarah/yq/releases/download/v4.53.2/yq_linux_amd64",
+        "sha256": "d56bf5c6819e8e696340c312bd70f849dc1678a7cda9c2ad63eebd906371d56b",
+        "layout": "file",
+        "mode": "0755"
+      },
+      {
+        "when": {
+          "os": "linux",
+          "arch": "arm64"
+        },
+        "url": "https://github.com/mikefarah/yq/releases/download/v4.53.2/yq_linux_arm64",
+        "sha256": "03061b2a50c7a498de2bbb92d7cb078ce433011f085a4994117c2726be4106ea",
+        "layout": "file",
+        "mode": "0755"
+      }
+    ]
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  }
+}

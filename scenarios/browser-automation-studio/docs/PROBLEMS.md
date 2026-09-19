@@ -2,6 +2,26 @@
 
 This file tracks unresolved issues, technical debt, and planned improvements for the browser-automation-studio scenario.
 
+## Capture (proto-first, partial)
+
+### CaptureService is the first Connect-RPC domain (2026-05-18)
+
+`api/handlers/capture/` mounts `CaptureService.Capture` next to the existing chi REST router. This is the **canonical example** other BAS domains should follow when migrating off REST. Capture's wire shape lives at `packages/proto/schemas/browser-automation-studio/v1/capture/capture.proto`; CLI surface at `cli/capture/`; prompt-manager actions under `scenarios/prompt-manager/store/actions/packs/core/bas.*/`.
+
+**Remaining REST domains** stay on chi and are migrated per-domain at the author's discretion. There is no big-bang migration plan; the side-by-side mount lets capture establish the pattern and others adopt it incrementally.
+
+### Capture executor fan-out (RESOLVED 2026-05-18)
+
+The Connect handler now produces real artifacts end-to-end:
+
+1. `ExecutionParameters.artifact_config` defaults to "full" profile, so the executor collects screenshots/console/network at every step automatically — no per-type DAG nodes needed for the single-location case.
+2. The capture handler waits for execution completion (substrate fix: `ExecuteAdhocWorkflowAPIWithOptions` now honors `WaitForCompletion` the same way `ExecuteWorkflowAPIWithOptions` already did), then delegates artifact write-out to `WorkflowService.ExportToFolder` via the `Executor` seam.
+3. `harvestArtifacts` walks the resolved output directory and reports real paths + sizes + metadata. `screenshots/step-NN-*.png`, `console-logs.md`, `network-activity.md` map to `CAPTURE_TYPE_SCREENSHOT`, `CAPTURE_TYPE_CONSOLE_LOGS`, `CAPTURE_TYPE_NETWORK`.
+
+Tests: `handlers/capture/service_test.go::TestCapture_HarvestArtifacts_ReadsExporterOutput` and `…_MarksUnsupportedTypesUnavailable`.
+
+**Remaining gap:** `CAPTURE_TYPE_VIDEO`, `CAPTURE_TYPE_DOM`, and `CAPTURE_TYPE_PERFORMANCE` are not produced by the executor's folder export today. Requests for those types receive a single artifact with `metadata.unavailable=true` and `metadata.reason="executor folder export does not produce this artifact type yet"`. Wiring video/DOM/performance into the folder export is a separate, smaller substrate fix in `services/workflow/export_folder.go` plus the corresponding playwright-driver collection paths.
+
 ## API Refactoring (In Progress)
 
 ### Completed
@@ -337,3 +357,65 @@ export DISPLAY=:99
 ### Action Items
 - Document whether MinIO and OpenRouter are required for core functionality
 - If required, add to setup instructions; if optional, document graceful degradation
+
+## Workflow Health Execution Evidence Gap (2026-07-27)
+
+Workflow Health run `2d7cec0e-ff8a-448a-ae85-7642eb15adac` completed with
+25/57 cases passing and 32 failing. The execution and replay cases timed out
+waiting for `execution-viewer`. Driver logs identified the root cause: the UI
+issued `POST /api/v1/workflows/{id}/execute`, a removed REST route that returned
+404, instead of the typed Connect `WorkflowsService.ExecuteWorkflow` contract.
+The execution store now uses the generated Connect client.
+
+The failed-run artifact format still retains only `latest.json` and
+`timeline.json`; it does not retain a browser screenshot, console log, or
+network trace. Preserve richer browser evidence for future Workflow Health
+failures when its artifact contract is extended. The exact historical run
+artifacts are under
+`coverage/workflow-health/runs/2d7cec0e-ff8a-448a-ae85-7642eb15adac/`.
+
+
+## Agent reuse validation boundary — 2026-09-04
+
+W0: the operator explicitly requested usage/improvement implementation; the PRD
+now records the agent-reuse target. W1: the corresponding AGENT-REUSE requirement
+links the owner and program regression tests. W2: targeted and live evidence is
+retained in `.vrooli/program-runtime/tests/validation-evidence.json`; broad Test
+Genie evidence still has provider failures. W3: owner APIs, persistence/programs,
+and registered skills implement the target; no estimated speed floor is asserted.
+
+Provider follow-up: Scenario QA `knw-1788561851141947801` records the missing UI
+surface/command-execution discrepancies and the diagnostic localhost:2026 failure.
+Device requirement-evidence follow-up: `knw-1788561878575592107` records the 21
+older complete claims without requirements-sync snapshots. The new AGENT-REUSE
+requirement remains in_progress until its provider evidence can be earned.
+Do not lower acceptance gates or erase existing evidence to make these checks pass.
+
+
+## Work ladder — evidence retention, 2026-09-05
+
+W0: Existing governed architecture and evidence-retention intent supports bounded recording/capture storage; no product-goal change. W1: `business-health validate scenario browser-automation-studio --json` PASSED after this change. W2: `vrooli scenario requirements validate browser-automation-studio --json` PASSED. W3: shared api-core retention tests and focused browser owner, capture, export-activity and retention tests PASS. Full unit run 20260905-045513-015abd04 exposed a namespace API mismatch (fixed) and an unrelated UI coverage-floor failure (QA report knw-1788585032231019821). A new unit run could not start because server-owned comprehensive run 20260905-050026-4bd31908 was already queued; it has been left intact.
+
+Storage validation still reports pre-existing direct-writer, permission-proof, cross-domain FK and uncovered database findings. The two regenerable-data classification conflicts discovered in this audit were corrected: recordings/captures remain data with explicit custom owner retention, not regenerable caches. This is a scoped retention repair, not certification of every persistence domain. Policies and limitations are documented in `docs/internal/STORAGE_AUDIT.md`. No live cleanup or service restart was performed in this work.
+
+
+## Activation verified — 2026-09-05 05:41 UTC
+
+Supersedes the earlier not-activated note. The owner services and storage-manager were restarted through the control-plane lifecycle. Initial catch-up used 30-second intervals and a 100,000-entry browser batch; these temporary overrides were removed afterward. Browser now uses its default 15-minute interval and 2,000-entry scheduled batch; desktop logs confirm the normal 15-minute interval.
+
+Allocated disk measurements (GiB): recordings 430.90 → 20.15; captures 95.73 → 5.13; desktop staging 74.60 → 8.77. Total allocated space reclaimed: 567.19GiB. Filesystem use fell from 91% to 58%, with approximately 732GiB available. Allocated bytes include filesystem block overhead; policy uses logical file sizes. Final successful receipts recorded approximately 19.98GiB recordings, 4.93GiB captures and 8.29GiB staging, within their respective 20/5/20GiB budgets.
+
+Activation uncovered and fixed three additional causes: repository-working-directory manifest discovery, the missing executions.resumed_from_id foreign-key index, and nested recordings/artifacts execution bundles excluded from the recording budget. Regression tests cover the lifecycle layout, idempotent index upgrade/query plan, mixed recording layouts and active nested-bundle protection. Focused API/shared-pruner checks pass. One full shared suite encountered a temporary-directory cleanup race in TestManagerStartAndStopAreIdempotent; its focused rerun passed.
+
+Live verification: browser and desktop health returned HTTP 200/healthy; storage-manager reports healthy/ready; the live execution database passes PRAGMA quick_check. A delayed capture completed during reclamation, a contemporaneous running execution retained its directory, and the completed capture screenshot still returned HTTP 200 with a valid PNG signature after normal scheduling was restored. Storage-manager's generated-proto dependency checksum was repaired through scenario-dependency-analyzer; dependency governance validation passed.
+
+## 2026-09-07 — Shared selector consolidation
+
+W3 implementation review under the existing selector contract; no W0–W2 maturity promotion is claimed. Shared selector resolution now uses api-core/uiselectors and explicit project UI manifests. Deferred parameters validate after strict interpolation; quoted expressions receive JavaScript escaping. Recordings adopt only unambiguous selectors on the project origin. Focused compiler, executor, validator, handler and CLI workflow tests pass. Unit run 20260907-213021-8ea867d2 remains FAIL for UI role discovery and the existing 85% coverage floor (observed statements 28.41%). Shared evidence and limitations: `packages/ui-selectors/README.md`.
+
+## Work ladder — adaptive browser programs (2026-09-09)
+
+- Rung: W3, scoped implementation under the user's approved shared learning proposal.
+- Evidence: navigation previously synthesized a body-exists assertion and do-task replayed completed navigation twice; author-flow persisted without complete assertion evidence.
+- Repair: final-page caller postconditions/extraction, enforced action policy, candidate-only recorded traces, evidence-gated persistence, context-scoped selection and durable feedback references.
+- Validation: Python program contract regressions, driver vision-agent regressions and TypeScript checking, focused Go navigation/workflow owner tests. Full scenario certification is not claimed.

@@ -1,0 +1,220 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Network Manager のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Network Manager",
+    "eyebrow": "Local network control",
+    "description": "Operational snapshots, DNS policy, devices, optimization evidence, and privacy controls for the current network."
+  },
+  "layout": {
+    "sidebarLabel": "サイドバーナビゲーション",
+    "bottomNavLabel": "下部ナビゲーション",
+    "mainLabel": "Main content",
+    "nav": {
+      "dashboard": "ダッシュボード",
+      "snapshots": "Snapshots",
+      "resolver": "Resolver",
+      "devices": "Devices",
+      "optimization": "Optimize",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ダッシュボード",
+      "description": "Current operational posture across snapshots, resolver, adapters, devices, policy readiness, and privacy.",
+      "latestSnapshot": "Latest snapshot",
+      "resolverStatus": "Resolver status",
+      "adapterCapabilities": "Adapter capabilities",
+      "optimizationReadiness": "Optimization readiness",
+      "privacyPosture": "Privacy posture",
+      "monitoring": "Continuous monitoring",
+      "monitoringSchedule": "Schedule",
+      "monitoringRun": "Run check",
+      "monitoringAlerts": "Alerts",
+      "monitoringEmpty": "No monitoring schedules yet.",
+      "monitoringBaselineRequired": "Capture a baseline snapshot before creating a schedule.",
+      "noSnapshots": "No snapshots yet. Run a snapshot before optimization.",
+      "supported": "supported",
+      "unsupported": "unsupported",
+      "ready": "Ready when a baseline snapshot exists.",
+      "blocked": "Blocked until a baseline snapshot is captured."
+    },
+    "snapshots": {
+      "title": "Snapshots",
+      "description": "Run read-only measurements, inspect support status, findings, and export evidence.",
+      "run": "Run snapshot",
+      "export": "Export latest report",
+      "metrics": "Metrics",
+      "findings": "Findings",
+      "empty": "No stored snapshots yet.",
+      "report": "Report preview"
+    },
+    "resolver": {
+      "title": "Resolver and policy",
+      "description": "Inspect AdGuard status, preview DNS changes, require approval, and keep rollback visible.",
+      "upstreams": "Upstreams",
+      "previewUpstreams": "Preview upstream update",
+      "policyTarget": "Policy target",
+      "policyAction": "Policy action",
+      "policyValues": "Policy values",
+      "previewPolicy": "Preview policy",
+      "approveApply": "Approve and apply",
+      "rollback": "Rollback",
+      "previewRequired": "Preview a policy change before apply.",
+      "confirmation": "Approval required before persistent DNS policy changes.",
+      "profiles": "Household profiles",
+      "profileName": "Profile name",
+      "profileGroup": "Device group",
+      "profileStrength": "Filtering strength",
+      "profileSchedule": "Schedule",
+      "profileOverride": "Override behavior",
+      "saveProfile": "Save profile",
+      "evaluateSchedule": "Evaluate schedule",
+      "scheduleEvaluation": "Schedule evaluation",
+      "guidance": "Bypass and endpoint guidance",
+      "guidanceTarget": "Guidance target",
+      "endpointPlatform": "Endpoint platform",
+      "endpointBrowser": "Endpoint browser",
+      "managementMode": "Management mode",
+      "bypassGuidance": "Bypass guidance",
+      "dohGuidance": "DoH guidance",
+      "adguardProtection": "AdGuard protection",
+      "networkWideEnforcement": "Network-wide enforcement",
+      "enforcementUnverified": "Router/client DNS not verified",
+      "enforcementClientEvidence": "Client evidence observed",
+      "enforcementVerified": "Verified",
+      "enforcementEvidence": "Enforcement evidence",
+      "adguardRollout": "AdGuard rollout",
+      "rolloutUnavailable": "AdGuard rollout status is unavailable.",
+      "dnsBindIp": "DNS bind IP",
+      "routerSettings": "Router settings",
+      "nextSteps": "Next steps",
+      "warnings": "Warnings",
+      "strength": {
+        "light": "Light",
+        "standard": "Standard",
+        "strict": "Strict",
+        "off": "Off"
+      },
+      "override": {
+        "manualRequired": "Manual required",
+        "parentOverride": "Parent override",
+        "temporaryPause": "Temporary pause"
+      },
+      "actions": {
+        "allowlist": "Allowlist",
+        "denylist": "Denylist",
+        "blocklist": "Blocklist",
+        "pause": "Pause",
+        "resume": "Resume"
+      }
+    },
+    "devices": {
+      "title": "Devices",
+      "description": "Inventory LAN-visible clients with identity confidence, group labels, and privacy cues.",
+      "refresh": "Refresh inventory",
+      "empty": "No devices are currently stored.",
+      "hostname": "Hostname",
+      "address": "Address",
+      "group": "Group",
+      "confidence": "Confidence",
+      "notes": "Notes"
+    },
+    "optimization": {
+      "title": "Optimization",
+      "description": "Create baseline-backed safe experiments, score candidates, and require approval before apply.",
+      "start": "Start safe run",
+      "score": "Score candidates",
+      "approve": "Approve top candidate",
+      "empty": "No optimization run in this session.",
+      "comparison": "Baseline, candidate, and after evidence stay together before any approval."
+    },
+    "settings": {
+      "title": "設定",
+      "description": "Control display preferences and verify privacy defaults before exposing sensitive network detail.",
+      "themeHeading": "外観",
+      "localeHeading": "言語",
+      "retentionHeading": "Retention",
+      "visibilityHeading": "Visibility",
+      "queryLogDays": "Query log days",
+      "snapshotDays": "Snapshot days",
+      "experimentDays": "Experiment days",
+      "showQueryDomains": "Show query domains",
+      "showDeviceHistory": "Show device history",
+      "householdMode": "Household mode"
+    }
+  },
+  "network": {
+    "loading": "Loading network state…",
+    "error": "Unable to load network state. Check that Network Manager is running.",
+    "unknown": "Unknown",
+    "none": "None",
+    "status": "Status",
+    "created": "Created",
+    "profile": "Profile",
+    "backend": "Backend",
+    "filtering": "Filtering",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "metric": "Metric",
+    "value": "Value",
+    "unit": "Unit",
+    "approvalRequired": "Approval required",
+    "rollbackSupported": "Rollback supported",
+    "baseline": "Baseline",
+    "interval": "Interval",
+    "minutes": "{{count}} min",
+    "timeline": {
+      "baseline": "Baseline",
+      "candidate": "Candidate",
+      "after": "After"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "statusLabel": "ステータス:",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

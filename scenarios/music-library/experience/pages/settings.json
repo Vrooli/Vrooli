@@ -1,0 +1,68 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": ["/settings"],
+    "purpose": "Own the decisions that change what the application does to the listener's disk and hardware: which folders are watched, how much space generated and derived audio may take, and whether background generation runs.",
+    "prd_refs": ["OT-P0-001", "OT-P1-003"]
+  },
+  "priorities": [
+    { "statement": "The read-only promise is stated where source folders are configured, not buried in documentation." },
+    { "statement": "Storage usage is shown against its limit, so eviction of generated music is never a surprise." },
+    { "statement": "Background generation can be paused, and its GPU impact is stated before it is enabled." }
+  ],
+  "states": [
+    { "id": "no-sources", "example": "empty", "description": "No source folders configured." },
+    { "id": "sources-configured", "example": "configured", "description": "One or more source folders watched." },
+    { "id": "generation-on", "example": "generation-on", "description": "Background generation enabled." },
+    { "id": "generation-paused", "example": "generation-paused", "description": "Background generation paused." },
+    { "id": "budget-evicting", "example": "evicting", "description": "Storage budget reached; candidates being evicted." }
+  ],
+  "elements": [
+    { "id": "source-list", "role": "list", "description": "Watched source folders." },
+    { "id": "readonly-notice", "role": "status", "description": "States that source files are never modified or moved." },
+    { "id": "storage-meter", "role": "meter", "description": "Managed storage usage against budget." },
+    { "id": "generation-toggle", "role": "switch", "description": "Enable or pause background generation." },
+    { "id": "generation-impact", "role": "status", "description": "GPU and storage impact of background generation." },
+    { "id": "locale-control", "role": "combobox", "description": "Interface locale." }
+  ],
+  "claims": [
+    {
+      "id": "readonly-promise-is-stated",
+      "type": "element-present",
+      "statement": "The source-folder surface states that files are never modified or moved.",
+      "tier": "machine",
+      "elements": ["source-list", "readonly-notice"],
+      "states": ["no-sources", "sources-configured"]
+    },
+    {
+      "id": "storage-usage-visible",
+      "type": "element-present",
+      "statement": "Managed storage usage is shown against its limit.",
+      "tier": "machine",
+      "elements": ["storage-meter"],
+      "states": ["sources-configured", "budget-evicting"]
+    },
+    {
+      "id": "generation-impact-stated-before-enabling",
+      "type": "element-present",
+      "statement": "The GPU and storage impact of background generation is stated alongside its control.",
+      "tier": "machine",
+      "elements": ["generation-toggle", "generation-impact"],
+      "states": ["generation-on", "generation-paused"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "source-list": { "testid": "settings-source-list" },
+      "readonly-notice": { "testid": "settings-readonly-notice" },
+      "storage-meter": { "testid": "settings-storage-meter" },
+      "generation-toggle": { "testid": "settings-generation-toggle" },
+      "generation-impact": { "testid": "settings-generation-impact" },
+      "locale-control": { "testid": "settings-locale" }
+    }
+  }
+}

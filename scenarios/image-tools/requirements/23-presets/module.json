@@ -1,0 +1,24 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-06-18T16:53:22-04:00"
+  },
+  "requirements": [
+    {
+      "id": "IMG-P1-010",
+      "title": "Meme \u0026 Preset Templates",
+      "status": "complete",
+      "prd_ref": "OT-P1-010",
+      "category": "feature",
+      "description": "Small set of compositing presets and meme-style text-overlay templates from UI and CLI.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/presets/presets_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Planned (not yet implemented; automated test pending): Preset renders deterministic composite output"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "runtime-hook",
+  "catalogId": "hooks.use-network-status",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "draft": "",
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:useNetworkStatus"
+}

@@ -1,0 +1,305 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
+    "content_sha": "b016b9e7a5d7a21f40712aee481354ba02720d3bc8ae2aa0b2fa94655c240c56",
+    "adopted": true
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "web-console",
+    "displayName": "Web Console",
+    "description": "Standalone browser terminal with pane-based workspaces, PTY-backed session durability, AI command generation, configurable launch shortcuts, and mobile-first floating toolbar",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/web-console"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
+    "system_required": true
+  },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": true
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "port": 21233
+    }
+  },
+  "hostTools": [
+    {
+      "name": "tmux",
+      "required": false,
+      "reason": "Enable persistent detachable sessions that survive web-console restarts",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "notes": "Web console falls back to the standard PTY backend when tmux is unavailable"
+    }
+  ],
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "startup_grace_period": 15000,
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
+        }
+      ]
+    },
+    "setup": {
+      "description": "Build API & UI, install CLI",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/web-console-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "web-console"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o web-console-api .",
+          "description": "Build Go API server"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && pnpm install --ignore-workspace",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && pnpm run build",
+          "description": "Build production UI bundle"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Launch API and Vite dev server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && WC_BROADCAST_TRACE=1 ./web-console-api",
+          "background": true,
+          "description": "Start Go API server in background",
+          "condition": {
+            "file_exists": "api/web-console-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "background": true,
+          "description": "Serve production UI bundle",
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "register-tts-hook",
+          "run": "bash -c 'source lib/tts-hooks.sh && wc::register_tts_hook'",
+          "description": "Register Claude Code Stop hook for auto-TTS"
+        }
+      ]
+    },
+    "test": {
+      "description": "Execute phased test suite via test-genie",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "test-genie execute web-console --preset comprehensive",
+          "description": "Run all test phases via test-genie"
+        },
+        {
+          "name": "sync-validation",
+          "run": "scripts/sync-validation-results.sh",
+          "description": "Sync requirement validations to phase-results for scoring"
+        }
+      ]
+    },
+    "production": {
+      "description": "Build and run production services",
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && GOWORK=off go build -o web-console-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && pnpm run build",
+          "description": "Build production UI bundle"
+        },
+        {
+          "name": "start-api",
+          "run": "cd api && WC_BROADCAST_TRACE=1 ./web-console-api",
+          "background": true,
+          "description": "Start Go API server"
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "background": true,
+          "description": "Serve production UI bundle"
+        },
+        {
+          "name": "register-tts-hook",
+          "run": "bash -c 'source lib/tts-hooks.sh && wc::register_tts_hook'",
+          "description": "Register Claude Code Stop hook for auto-TTS"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop background processes",
+      "steps": [
+        {
+          "name": "deregister-tts-hook",
+          "run": "bash -c 'source lib/tts-hooks.sh && wc::deregister_tts_hook'",
+          "description": "Deregister Claude Code Stop hook before shutdown"
+        },
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'web-console-api' || true",
+          "description": "Stop Go API"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
+        }
+      ]
+    }
+  },
+  "capabilities": {
+    "offline_capable": false,
+    "offline_limitations": "AI features require Ollama (local) or OpenRouter (cloud); audio features are owned by audio-tools",
+    "ai_providers": [
+      "ollama",
+      "openrouter"
+    ],
+    "ai_fallback": "openrouter",
+    "ai_note": "Ollama preferred (free+local); OpenRouter used when Ollama unavailable"
+  },
+  "dependencies": {
+    "resources": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Local LLM provider for AI command generation (primary; falls back to OpenRouter)",
+        "degraded_behavior": "AI generation falls back to OpenRouter when Ollama is unavailable",
+        "model_roles": [
+          "chat.default"
+        ]
+      },
+      "openrouter": {
+        "type": "openrouter",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Cloud LLM provider (BYOK) for AI command generation; used as the fallback when Ollama is unavailable. Model selection resolves through resource-openrouter policy roles.",
+        "degraded_behavior": "AI generation is unavailable only if both Ollama and OpenRouter are unreachable; OpenRouter requires OPENROUTER_API_KEY.",
+        "model_roles": [
+          "chat.default"
+        ]
+      }
+    },
+    "scenarios": {
+      "audio-tools": {
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "All audio capabilities (TTS synthesis, voice listing, summarization, STT/transcription, speaker verification, wake word) flow through audio-tools via audioports.Remote* and the shared browser capture package. web-console contains zero audio synthesis or transcription code.",
+        "degraded_behavior": "Terminal workspace boots without audio-tools. Voice, TTS, summarization, speaker verification, and wake word features show degraded/unavailable until audio-tools is reachable, then recover on the next lazy resolution or capability refresh."
+      }
+    }
+  },
+  "notes": {
+    "storage_strategy": "Embedded SQLite in the API process for workspace layout, shortcuts, and AI provider config"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "web-console",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "web-console"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  }
+}

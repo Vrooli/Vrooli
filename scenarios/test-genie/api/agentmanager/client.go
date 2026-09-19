@@ -52,33 +52,29 @@ func (c *Client) Health(ctx context.Context) (bool, error) {
 	return resp.StatusCode == http.StatusOK, nil
 }
 
-// =============================================================================
-// PROFILES
-// =============================================================================
-
-// EnsureProfile resolves a profile by key, creating it with defaults if needed.
-func (c *Client) EnsureProfile(ctx context.Context, req *apipb.EnsureProfileRequest) (*apipb.EnsureProfileResponse, error) {
-	body, err := c.jsonOpts.Marshal(req)
+func (c *Client) ReconcileScenarioProfiles(ctx context.Context, scenario string) (*apipb.ReconcileScenarioProfilesResponse, error) {
+	body, err := c.jsonOpts.Marshal(&apipb.ReconcileScenarioProfilesRequest{Scenario: scenario})
 	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
+		return nil, fmt.Errorf("marshal reconcile request: %w", err)
 	}
-
-	resp, err := c.doRequest(ctx, "POST", "/api/v1/profiles/ensure", body)
+	resp, err := c.doRequest(ctx, "POST", "/api/v1/profiles/reconcile-scenario", body)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+	if resp.StatusCode != http.StatusOK {
 		return nil, c.parseError(resp)
 	}
-
-	var result apipb.EnsureProfileResponse
+	var result apipb.ReconcileScenarioProfilesResponse
 	if err := c.parseResponse(resp, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
 }
+
+// =============================================================================
+// PROFILES
+// =============================================================================
 
 // GetProfile retrieves a profile by ID.
 func (c *Client) GetProfile(ctx context.Context, profileID string) (*domainpb.AgentProfile, error) {
@@ -108,6 +104,24 @@ func (c *Client) GetProfileResponse(ctx context.Context, profileID string) (*api
 	}
 
 	var result apipb.GetProfileResponse
+	if err := c.parseResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// GetRolePolicyCatalog returns portable role choices. Concrete models remain
+// resource-owned execution evidence and are never returned as user input.
+func (c *Client) GetRolePolicyCatalog(ctx context.Context) (*apipb.GetRolePolicyCatalogResponse, error) {
+	resp, err := c.doRequest(ctx, "GET", "/api/v1/role-policy/catalog", nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, c.parseError(resp)
+	}
+	var result apipb.GetRolePolicyCatalogResponse
 	if err := c.parseResponse(resp, &result); err != nil {
 		return nil, err
 	}

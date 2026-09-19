@@ -1,0 +1,281 @@
+#!/usr/bin/env python3
+"""Create and inspect effort artifacts; never launch work or grant authority."""
+import argparse
+import collections
+import json
+import re
+import uuid
+from pathlib import Path
+
+
+class Invalid(ValueError):
+    pass
+
+
+def read_json(path):
+    return json.loads(path.read_text())
+
+
+def require(condition, message):
+    if not condition:
+        raise Invalid(message)
+
+
+def init(repo, slug):
+    require(re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", slug), "invalid effort slug")
+    contract = read_json(repo / ".vrooli/repo-contract.json")["runtime_home"]
+    root = Path.home() / contract["dir_name"] / contract["entries"]["plan_artifacts"]["path"] / "efforts"
+    folder = root / slug
+    folder.mkdir(parents=True, exist_ok=True)
+    files = {
+        "effort.json": {"schema_version": 1, "slug": slug, "repository": str(repo.resolve()),
+                        "effort_ref": "effort:" + str(uuid.uuid4()),
+                        "destination_ref": "", "target_revision": "", "work_shape": "",
+                        "stage": "intake", "owners": {},
+                        "execution": {"status": "not-approved", "approval_ref": None,
+                                      "schedule": {"enabled": False}},
+                        "policy": {"repair_limits": {"fingerprint": 2, "component": 4, "effort": 12},
+                                   "max_probe_attempts": 2, "max_transport_attempts": 2,
+                                   "max_status_reads": 2}},
+        "requirements.json": [], "capabilities.json": [],
+    }
+    for name, value in files.items():
+        path = folder / name
+        if not path.exists():
+            path.write_text(json.dumps(value, indent=2) + "\n")
+    (folder / "recovery.jsonl").touch(exist_ok=True)
+    (folder / "sources").mkdir(exist_ok=True)
+    return folder
+
+
+def recovery(folder, policy):
+    starts, finishes, observations, identities = {}, {}, {}, {}
+    for line_number, line in enumerate((folder / "recovery.jsonl").read_text().splitlines(), 1):
+        if not line.strip():
+            continue
+        event = json.loads(line)
+        kind = event.get("event")
+        require(kind in {"repair_started", "repair_finished", "probe", "transport_retry", "status_read", "workaround", "note", "route-note"},
+                f"recovery line {line_number}: unknown event")
+        require(event.get("at") and (event.get("evidence") or event.get("new_evidence")),
+                f"recovery line {line_number}: missing time/evidence")
+        if kind in {"note", "workaround", "route-note"}:
+            continue
+        for key in ("attempt_id", "component", "fingerprint"):
+            require(event.get(key), f"recovery line {line_number}: missing {key}")
+        identity = event["attempt_id"]
+        identity_kind = "repair" if kind.startswith("repair_") else kind
+        signature = (identity_kind, event["component"], event["fingerprint"])
+        if identity in identities:
+            require(identities[identity] == signature, f"conflicting operation identity: {identity}")
+        identities[identity] = signature
+        if kind in {"probe", "transport_retry", "status_read"}:
+            observations[identity] = signature
+            continue
+        if kind == "repair_started":
+            require(event.get("hypothesis") and event.get("new_evidence"),
+                    f"repair {identity}: missing falsifiable hypothesis or evidence cut")
+            signature = tuple(event[key] for key in ("component", "fingerprint", "hypothesis", "new_evidence"))
+            if identity in starts:
+                require(starts[identity]["signature"] == signature, f"conflicting attempt identity: {identity}")
+            else:
+                starts[identity] = {"signature": signature, "event": event}
+        else:
+            require(identity in starts, f"finish without persisted start: {identity}")
+            start = starts[identity]["event"]
+            require(all(event[key] == start[key] for key in ("component", "fingerprint")),
+                    f"finish identity differs from start: {identity}")
+            require(event.get("outcome") in {"verified_success", "failed", "unavailable", "unknown"},
+                    f"invalid repair outcome: {identity}")
+            if identity in finishes:
+                require(finishes[identity] == event["outcome"], f"conflicting repair result: {identity}")
+            finishes[identity] = event["outcome"]
+    components, fingerprints = collections.Counter(), collections.Counter()
+    evidence_cuts = collections.defaultdict(set)
+    repeated_evidence = set()
+    for attempt in starts.values():
+        event = attempt["event"]
+        component, fingerprint = event["component"], event["fingerprint"]
+        components[component] += 1
+        fingerprints[(component, fingerprint)] += 1
+        key = (component, fingerprint)
+        if event["new_evidence"] in evidence_cuts[key]:
+            repeated_evidence.add(key)
+        evidence_cuts[key].add(event["new_evidence"])
+    limits = policy["repair_limits"]
+    open_circuits = []
+    if len(starts) >= limits["effort"]:
+        open_circuits.append({"scope": "effort", "reason": "repair_limit", "used": len(starts)})
+    for component, count in components.items():
+        if count >= limits["component"]:
+            open_circuits.append({"scope": "component", "component": component, "reason": "repair_limit", "used": count})
+    for key, count in fingerprints.items():
+        if count >= limits["fingerprint"] or key in repeated_evidence:
+            open_circuits.append({"scope": "fingerprint", "component": key[0], "fingerprint": key[1],
+                                  "reason": "unchanged_evidence" if key in repeated_evidence else "repair_limit", "used": count})
+    observation_totals = collections.Counter(observations.values())
+    observation_limits = {"probe": policy["max_probe_attempts"],
+                          "transport_retry": policy.get("max_transport_attempts", 2),
+                          "status_read": policy.get("max_status_reads", 2)}
+    for (kind, component, fingerprint), count in observation_totals.items():
+        if count >= observation_limits[kind]:
+            open_circuits.append({"scope": kind, "component": component, "fingerprint": fingerprint,
+                                  "reason": kind + "_limit", "used": count})
+    return {"repair_attempts": len(starts), "unfinished_attempts": sorted(set(starts) - set(finishes)),
+            "component_attempts": dict(components), "open_circuits": open_circuits,
+            "enforcement": "local_admission_input_only"}
+
+
+def inspect(folder):
+    manifest = read_json(folder / "effort.json")
+    require(manifest.get("schema_version") == 1, "unsupported effort schema")
+    require(manifest.get("slug") == folder.name, "effort slug does not match folder")
+    if "effort_ref" in manifest:
+        require(isinstance(manifest["effort_ref"], str) and
+                0 < len(manifest["effort_ref"].strip()) <= 512,
+                "effort_ref must be a bounded stable owner reference")
+    execution = manifest["execution"]
+    require(execution["status"] in {"not-approved", "approved", "revoked", "complete"}, "invalid execution authority")
+    if manifest["stage"] != "intake":
+        require((folder / "README.md").is_file(), "reviewable effort needs README.md")
+        require((folder / "sources").is_dir() and any((folder / "sources").iterdir()),
+                "reviewable effort needs preserved source material")
+        require(manifest.get("destination_ref"), "reviewable effort needs destination_ref")
+        require(manifest.get("target_revision"), "reviewable effort needs target_revision")
+        require(manifest.get("work_shape"), "reviewable effort needs work_shape")
+        require(manifest.get("owners", {}).get("coordinator"), "reviewable effort needs a coordinator owner")
+        require((folder / "team").is_dir() and any((folder / "team").iterdir()),
+                "reviewable effort needs a team handoff record")
+    if execution["status"] in {"approved", "complete"}:
+        require(execution.get("approval_ref") and execution.get("approved_source_digest"), "missing approval evidence/digest")
+    if execution["schedule"].get("enabled"):
+        require(execution["status"] == "approved", "schedule enabled without active approval")
+        require(execution["schedule"].get("qualification_ref"), "schedule enabled without qualification evidence")
+    policy = manifest["policy"]
+    for name in ("fingerprint", "component", "effort"):
+        value = policy["repair_limits"][name]
+        require(type(value) is int and value > 0, f"invalid repair limit: {name}")
+    require(type(policy["max_probe_attempts"]) is int and policy["max_probe_attempts"] > 0, "invalid probe limit")
+    for name in ("max_transport_attempts", "max_status_reads"):
+        require(type(policy.get(name, 2)) is int and policy.get(name, 2) > 0, f"invalid observation limit: {name}")
+    rows = read_json(folder / "requirements.json")
+    require(isinstance(rows, list), "requirements must be a list")
+    if manifest["stage"] != "intake":
+        require(rows, "reviewable effort needs requirements")
+    ids = [row["id"] for row in rows]
+    require(len(ids) == len(set(ids)), "duplicate requirement IDs")
+    assessments = collections.Counter()
+    graph = {}
+    for row in rows:
+        for key in ("source", "statement", "deliverable", "acceptance", "assessment"):
+            require(row.get(key), f"{row['id']}: missing {key}")
+        owner_ref = row.get("owner_ref") or row.get("owner_plan")
+        require(owner_ref, f"{row['id']}: missing owner_ref or owner_plan")
+        if row.get("owner_ref"):
+            require(row.get("owner_kind") in {"plan", "mandate", "task", "investigation", "action"},
+                    f"{row['id']}: invalid owner_kind")
+        require(row["assessment"] in {"unverified", "met", "unmet", "waived"}, f"{row['id']}: invalid assessment")
+        if row["assessment"] == "met":
+            require(row.get("evidence"), f"{row['id']}: met without evidence")
+        if row["assessment"] == "waived":
+            require(row.get("waiver_ref"), f"{row['id']}: waiver without decision")
+        graph[row["id"]] = row.get("depends_on", [])
+        require(all(ref in ids for ref in graph[row["id"]]), f"{row['id']}: unknown requirement dependency")
+        assessments[row["assessment"]] += 1
+    visiting, visited = set(), set()
+    def visit(node):
+        require(node not in visiting, f"requirement dependency cycle at {node}")
+        if node in visited:
+            return
+        visiting.add(node)
+        for child in graph[node]:
+            visit(child)
+        visiting.remove(node)
+        visited.add(node)
+    for node in graph:
+        visit(node)
+    capabilities = read_json(folder / "capabilities.json")
+    for row in capabilities:
+        require(row.get("operation") and row.get("owner"), "capability observation missing operation/owner")
+        require(row.get("assessment") in {"usable", "insufficient", "unavailable", "unverified"}, "invalid capability assessment")
+        if row["assessment"] != "unverified":
+            require(row.get("evidence"), "capability assessment missing evidence")
+    recovery_report = recovery(folder, policy)
+    if execution["status"] == "complete":
+        require(rows, "complete without accepted requirements")
+        require(not any(row["assessment"] in {"unverified", "unmet"} for row in rows), "complete with unmet/unverified requirements")
+        require(not execution["schedule"].get("enabled"), "complete with active schedule")
+        require(execution.get("closure_ref"), "missing closure evidence")
+        require(not recovery_report["unfinished_attempts"], "complete with unfinished repair attempts")
+        require(not manifest.get("pending_operations"), "complete with pending or uncertain owner operations")
+    return {"slug": manifest["slug"], "stage": manifest["stage"], "execution": execution["status"],
+            "requirements": len(rows), "assessments": dict(assessments), "owners": manifest.get("owners", {}),
+            "recovery": recovery_report, "validation": "structural_only"}
+
+
+def preflight(folder):
+    """Return review and execution gates without granting authority."""
+    manifest = read_json(folder / "effort.json")
+    requirements = read_json(folder / "requirements.json")
+    capabilities = read_json(folder / "capabilities.json")
+    execution = manifest.get("execution", {})
+    gates = {
+        "workspace_complete": False,
+        "team_configured": False,
+        "source_material_preserved": False,
+        "owner_capabilities_qualified": False,
+        "independent_reviewer_assigned": False,
+        "execution_approval": execution.get("status") == "approved",
+        "safe_to_enable": False,
+    }
+    reasons = []
+    try:
+        inspect(folder)
+        gates["workspace_complete"] = True
+    except (ValueError, KeyError, OSError, TypeError) as error:
+        reasons.append(str(error))
+    gates["team_configured"] = (folder / "team").is_dir() and any((folder / "team").iterdir()) and bool(manifest.get("owners", {}).get("coordinator"))
+    gates["source_material_preserved"] = (folder / "sources").is_dir() and any((folder / "sources").iterdir())
+    gates["owner_capabilities_qualified"] = bool(capabilities) and all(row.get("assessment") == "usable" for row in capabilities)
+    gates["independent_reviewer_assigned"] = manifest.get("owners", {}).get("review", "").startswith("scenario:")
+    if not gates["team_configured"]:
+        reasons.append("team handoff or coordinator is missing")
+    if not gates["source_material_preserved"]:
+        reasons.append("preserved source material is missing")
+    if not gates["owner_capabilities_qualified"]:
+        reasons.append("one or more owner capabilities remain unqualified")
+    if not gates["independent_reviewer_assigned"]:
+        reasons.append("independent reviewer is not assigned")
+    if not gates["execution_approval"]:
+        reasons.append("execution is not approved")
+    gates["safe_to_enable"] = all(gates[name] for name in (
+        "workspace_complete", "team_configured", "source_material_preserved",
+        "owner_capabilities_qualified", "independent_reviewer_assigned", "execution_approval"))
+    return {"slug": manifest.get("slug"), "gates": gates, "reasons": reasons,
+            "requirements": len(requirements), "assessment": "read_only_preflight"}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+    create = commands.add_parser("init")
+    create.add_argument("--repo", type=Path, required=True)
+    create.add_argument("--slug", required=True)
+    for name in ("validate", "report", "preflight"):
+        command = commands.add_parser(name)
+        command.add_argument("folder", type=Path)
+    args = parser.parse_args()
+    try:
+        if args.command == "init":
+            print(init(args.repo, args.slug))
+        elif args.command == "preflight":
+            print(json.dumps(preflight(args.folder), indent=2))
+        else:
+            result = inspect(args.folder)
+            print(json.dumps(result, indent=2))
+    except (ValueError, KeyError, OSError, TypeError) as error:
+        parser.exit(1, f"Invalid effort workspace: {error}\n")
+
+
+if __name__ == "__main__":
+    main()

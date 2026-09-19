@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "name": "world-2d-state-matrix",
+    "description": "The deterministic 2D world preserves populated, selected, dark-weather, snapshot, and empty/filter-empty states",
+    "labels": { "reset": "none", "safety": "fixture-only", "routed_isolation": "true", "requires_confirmation": "true" },
+    "requirement": "UX-CAMPAIGN-007",
+    "execution_mode": "EXECUTION_MODE_MUTATING"
+  },
+  "settings": { "viewport_width": 1600, "viewport_height": 1000 },
+  "nodes": [
+    { "id": "populated", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/world?view=2d&intro=0&actors=25&seed=7&period=day", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 }, "metadata": { "label": "Open the populated day map" } } },
+    { "id": "populated-ready", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/world.hud.twoDMode", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Wait for the authoritative 2D map" } } },
+    { "id": "populated-list", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/world.hud.actorList", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 15000, "failure_message": "Populated 2D state lost the agent list" }, "metadata": { "label": "Populated roster visible" } } },
+    { "id": "focus", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/world.hud.actorRow" }, "metadata": { "label": "Select an agent" } } },
+    { "id": "selected", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/world.hud.agentCard", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 15000, "failure_message": "Selected state did not open the agent card" }, "metadata": { "label": "Selected agent state visible" } } },
+    { "id": "dark-weather", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/world?view=2d&intro=0&actors=25&seed=7&period=night&weather=rain&pressure=0.9", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 }, "metadata": { "label": "Open the dark weather variant" } } },
+    { "id": "dark-weather-ready", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/world.hud.twoDMode", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Wait for the dark map" } } },
+    { "id": "dark-weather-assert", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/world.hud.weather", "mode": "ASSERTION_MODE_TEXT_CONTAINS", "timeout_ms": 15000, "expected": { "string_value": "Rain" }, "failure_message": "Dark weather state did not expose its health pressure" }, "metadata": { "label": "Dark weather truth visible" } } },
+    { "id": "snapshot", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/world.hud.snapshotStatus", "mode": "ASSERTION_MODE_TEXT_CONTAINS", "timeout_ms": 15000, "expected": { "string_value": "Deterministic snapshot" }, "failure_message": "Synthetic roster did not disclose its snapshot boundary" }, "metadata": { "label": "Snapshot boundary visible" } } },
+    { "id": "empty", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/world?view=2d&intro=0&actors=0&seed=7&period=day", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 }, "metadata": { "label": "Open the empty roster" } } },
+    { "id": "empty-ready", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/world.hud.twoDMode", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Wait for the empty map" } } },
+    { "id": "empty-assert", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/world.hud.emptyState", "mode": "ASSERTION_MODE_TEXT_CONTAINS", "timeout_ms": 15000, "expected": { "string_value": "No agents are connected yet" }, "failure_message": "Empty roster state is ambiguous" }, "metadata": { "label": "Empty roster truth visible" } } },
+    { "id": "filter-empty", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/world?view=2d&intro=0&actors=25&seed=7&period=day", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 }, "metadata": { "label": "Return to the populated map for filtering" } } },
+    { "id": "filter-ready", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/world.hud.twoDMode", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Wait for the filter fixture" } } },
+    { "id": "filter-input", "action": { "type": "ACTION_TYPE_INPUT", "input": { "selector": "@selector/world.hud.search", "value": "no-match-agent", "clear_first": true }, "metadata": { "label": "Filter to no matches" } } },
+    { "id": "filter-empty-assert", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/world.hud.emptyState", "mode": "ASSERTION_MODE_TEXT_CONTAINS", "timeout_ms": 15000, "expected": { "string_value": "No agents match these filters" }, "failure_message": "Active filter empty state is ambiguous" }, "metadata": { "label": "Filtered-empty truth visible" } } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "populated", "target": "populated-ready", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "populated-ready", "target": "populated-list", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "populated-list", "target": "focus", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "focus", "target": "selected", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "selected", "target": "dark-weather", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "dark-weather", "target": "dark-weather-ready", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e7", "source": "dark-weather-ready", "target": "dark-weather-assert", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e8", "source": "dark-weather-assert", "target": "snapshot", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e9", "source": "snapshot", "target": "empty", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e10", "source": "empty", "target": "empty-ready", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e11", "source": "empty-ready", "target": "empty-assert", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e12", "source": "empty-assert", "target": "filter-empty", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e13", "source": "filter-empty", "target": "filter-ready", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e14", "source": "filter-ready", "target": "filter-input", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e15", "source": "filter-input", "target": "filter-empty-assert", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "burst": "systemd-run --user --scope --slice=vrooli-test.slice -p TasksMax=512 sh -c 'for i in $(seq 1 200); do sleep 20 \u0026 done; wait'",
+  "capture_timestamp": "2026-09-02T18:15:52Z",
+  "core_count": 32,
+  "fork_counters": {
+    "t0": 8828803,
+    "t1": 8829009
+  },
+  "host_name": "swarminator",
+  "intervals_seconds": {
+    "proc_stat": 0.103698571
+  }
+}

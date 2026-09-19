@@ -30,53 +30,74 @@ export function RuntimeInfoPanel({ runtimeInfo }: RuntimeInfoPanelProps) {
       <div className="space-y-1 text-[11px] text-slate-300">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-slate-400">Instance</span>
-          <span className="text-slate-200" title={runtimeInfo.instance_id || ""}>
+          <span
+            className="text-slate-200"
+            title={runtimeInfo.instance_id || ""}
+          >
             {runtimeInfo.instance_id?.slice(0, 12) || "Unknown"}
           </span>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-slate-400">Started</span>
-          <span className="text-slate-200">{runtimeInfo.started_at ? formatTimestamp(runtimeInfo.started_at) : "Unknown"}</span>
+          <span className="text-slate-200">
+            {runtimeInfo.started_at
+              ? formatTimestamp(runtimeInfo.started_at)
+              : "Unknown"}
+          </span>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-slate-400">Dry run</span>
-          <span className="text-slate-200">{runtimeInfo.dry_run ? "yes" : "no"}</span>
+          <span className="text-slate-200">
+            {runtimeInfo.dry_run ? "yes" : "no"}
+          </span>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-slate-400">Manifest hash</span>
-          <span className="text-slate-200" title={runtimeInfo.manifest_hash || ""}>
+          <span
+            className="text-slate-200"
+            title={runtimeInfo.manifest_hash || ""}
+          >
             {runtimeInfo.manifest_hash?.slice(0, 12) || "Unknown"}
           </span>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-slate-400">App</span>
           <span className="text-slate-200">
-            {(runtimeInfo.app_name || "Unknown")} {runtimeInfo.app_version ? `v${runtimeInfo.app_version}` : ""}
+            {runtimeInfo.app_name || "Unknown"}{" "}
+            {runtimeInfo.app_version ? `v${runtimeInfo.app_version}` : ""}
           </span>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-slate-400">IPC</span>
           <span className="text-slate-200">
-            {runtimeInfo.ipc_host ? `${runtimeInfo.ipc_host}:${runtimeInfo.ipc_port ?? ""}` : "Unknown"}
+            {runtimeInfo.ipc_host
+              ? `${runtimeInfo.ipc_host}:${String(runtimeInfo.ipc_port ?? "")}`
+              : "Unknown"}
           </span>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-slate-400">Runtime</span>
           <span className="text-slate-200">
             {runtimeInfo.runtime_version || "Unknown"}
-            {runtimeInfo.build_version ? ` · build ${runtimeInfo.build_version}` : ""}
+            {runtimeInfo.build_version
+              ? ` · build ${runtimeInfo.build_version}`
+              : ""}
           </span>
         </div>
         {runtimeInfo.bundle_root && (
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-slate-400">Bundle root</span>
-            <span className="text-slate-200" title={runtimeInfo.bundle_root}>{runtimeInfo.bundle_root}</span>
+            <span className="text-slate-200" title={runtimeInfo.bundle_root}>
+              {runtimeInfo.bundle_root}
+            </span>
           </div>
         )}
         {runtimeInfo.app_data_dir && (
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-slate-400">App data</span>
-            <span className="text-slate-200" title={runtimeInfo.app_data_dir}>{runtimeInfo.app_data_dir}</span>
+            <span className="text-slate-200" title={runtimeInfo.app_data_dir}>
+              {runtimeInfo.app_data_dir}
+            </span>
           </div>
         )}
       </div>

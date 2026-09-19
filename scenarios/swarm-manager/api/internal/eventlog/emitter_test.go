@@ -4,22 +4,25 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"reflect"
 	"testing"
 
-	_ "modernc.org/sqlite"
-
 	"swarm-manager/internal/eventlog"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/provenance"
+	_ "modernc.org/sqlite"
 )
 
 func setupEmitter(t *testing.T) (*eventlog.Emitter, *eventlog.SQLiteRepository) {
 	t.Helper()
-	db, err := sql.Open("sqlite", ":memory:")
+	sqldb, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { sqldb.Close() })
 
-	repo := eventlog.NewSQLiteRepository(db)
+	repo := eventlog.NewSQLiteRepository(database.NewFromPrimary(sqldb))
 	if err := repo.InitSchema(context.Background()); err != nil {
 		t.Fatalf("init schema: %v", err)
 	}
@@ -58,27 +61,86 @@ func TestEmitBacklogCreated(t *testing.T) {
 	if err := json.Unmarshal(e.Metadata, &p); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if p.Kind != "execute" || p.Priority != 5 || p.Initiative != "init-a" || p.Effort != "M" {
+	if p.Kind != "execute" || p.Priority != 5 || p.Milestone != "init-a" || p.Effort != "M" {
 		t.Errorf("payload: %+v", p)
 	}
 }
 
-func TestEmitBacklogStatusChanged(t *testing.T) {
+func TestEmitBacklogCreatedFromContextPersistsVerifiedRunAttribution(t *testing.T) {
+	emitter, repo := setupEmitter(t)
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-event", ProfileKey: "team/member"})
+	emitter.EmitBacklogCreatedFromContext(ctx, "execute/attributed", "execute", "backlog", 5, "", "", "user", "")
+
+	e := lastEvent(t, repo)
+	if e.ActorType != provenance.ActorAgent || e.ActorID != "team/member" || e.RunID != "run-event" || e.VerificationStatus != provenance.VerificationVerified {
+		t.Fatalf("verified event attribution = %q/%q/%q/%q", e.ActorType, e.ActorID, e.RunID, e.VerificationStatus)
+	}
+}
+
+func TestEmitBacklogCreatedFromContextRejectsHarnessObservationWithoutActor(t *testing.T) {
+	emitter, repo := setupEmitter(t)
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Invocation: provenance.Invocation{HarnessSessionID: "codex-thread-1", HarnessKind: "codex"}})
+	emitter.EmitBacklogCreatedFromContext(ctx, "execute/observed", "execute", "backlog", 5, "", "", "user", "")
+
+	events, err := repo.All(context.Background())
+	if err != nil {
+		t.Fatalf("all: %v", err)
+	}
+	if len(events) != 0 {
+		t.Fatalf("unattributed harness observation was persisted: %+v", events[0])
+	}
+}
+
+func TestEmitBacklogStatusChangedRejectsMissingActor(t *testing.T) {
 	emitter, repo := setupEmitter(t)
 
-	emitter.EmitBacklogStatusChanged("fix/bug-1", "backlog", "in_progress")
+	emitter.EmitBacklogStatusChanged(context.Background(), "fix/bug-1", "backlog", "in_progress")
+
+	events, err := repo.All(context.Background())
+	if err != nil {
+		t.Fatalf("all: %v", err)
+	}
+	if len(events) != 0 {
+		t.Fatalf("status change without actor was persisted: %+v", events[0])
+	}
+}
+
+func TestEmitBacklogStatusChangedFromSource(t *testing.T) {
+	emitter, repo := setupEmitter(t)
+
+	emitter.EmitBacklogStatusChangedFromSource(context.Background(), "execute/do-thing", "ready", "completed", eventlog.BacklogMutationSourcePayload{
+		Entrypoint:     "initiative.operating_mode.complete_items",
+		InitiativeName: "init-a",
+		Mode:           "holistic-loop",
+		Phase:          "execute",
+		Round:          3,
+		RunID:          "run-123",
+		RequestedBy:    "operator",
+	}, []string{"execute/do-thing"})
 
 	e := lastEvent(t, repo)
 	if e.EventType != eventlog.EventBacklogStatusChanged {
 		t.Errorf("event_type: got %q", e.EventType)
+	}
+	if e.ActorType != "operating_mode" || e.ActorID != "run-123" {
+		t.Errorf("actor: got %q/%q", e.ActorType, e.ActorID)
 	}
 
 	var p eventlog.StatusChangePayload
 	if err := json.Unmarshal(e.Metadata, &p); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if p.From != "backlog" || p.To != "in_progress" {
-		t.Errorf("payload: %+v", p)
+	if p.From != "ready" || p.To != "completed" {
+		t.Fatalf("status payload = %+v", p)
+	}
+	if p.Source == nil {
+		t.Fatalf("source missing from payload: %+v", p)
+	}
+	if p.Source.Mode != "holistic-loop" || p.Source.Phase != "execute" || p.Source.Round != 3 || p.Source.RunID != "run-123" || p.Source.RequestedBy != "operator" {
+		t.Fatalf("source payload = %+v", p.Source)
+	}
+	if !reflect.DeepEqual(p.ItemRefs, []string{"execute/do-thing"}) {
+		t.Fatalf("item refs = %+v", p.ItemRefs)
 	}
 }
 
@@ -100,28 +162,6 @@ func TestEmitExecutionCompleted(t *testing.T) {
 		t.Fatalf("unmarshal: %v", err)
 	}
 	if p.DurationSeconds != 45.5 || !p.HadFixups {
-		t.Errorf("payload: %+v", p)
-	}
-}
-
-func TestEmitInitiativeItemAdded(t *testing.T) {
-	emitter, repo := setupEmitter(t)
-
-	emitter.EmitInitiativeItemAdded("init-a", "execute/my-item")
-
-	e := lastEvent(t, repo)
-	if e.EntityType != eventlog.EntityInitiative {
-		t.Errorf("entity_type: got %q", e.EntityType)
-	}
-	if e.EventType != eventlog.EventInitiativeItemAdded {
-		t.Errorf("event_type: got %q", e.EventType)
-	}
-
-	var p eventlog.InitiativeItemPayload
-	if err := json.Unmarshal(e.Metadata, &p); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	if p.Item != "execute/my-item" {
 		t.Errorf("payload: %+v", p)
 	}
 }
@@ -166,80 +206,134 @@ func TestEmitNilPayload(t *testing.T) {
 	}
 }
 
-func TestEmitInitiativeArchived(t *testing.T) {
+func TestEmitBacklogProposalApplied_FeedbackRoundAttribution(t *testing.T) {
 	emitter, repo := setupEmitter(t)
 
-	emitter.EmitInitiativeArchived("init-old", "active", "2026-04-06T00:00:00Z")
-
-	e := lastEvent(t, repo)
-	if e.EventType != eventlog.EventInitiativeArchived {
-		t.Errorf("event_type: got %q", e.EventType)
+	payload := eventlog.ProposalAppliedPayload{
+		InitiativeName:  "ui-rewrite",
+		FeedbackRoundID: "ui-rewrite/round-001",
+		RoundNumber:     1,
+		RoundSlug:       "first-pass",
+		Entrypoint:      "initiative.feedback",
+		DecidedBy:       "matt",
+		MutationID:      "m1",
+		Op:              "add_item",
+		Target:          "execute/baz",
 	}
-	var p eventlog.ArchivePayload
-	if err := json.Unmarshal(e.Metadata, &p); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	if p.PreviousStatus != "active" || p.ArchivedAt != "2026-04-06T00:00:00Z" {
-		t.Errorf("payload: %+v", p)
-	}
-}
-
-func TestEmitClarificationStarted(t *testing.T) {
-	emitter, repo := setupEmitter(t)
-
-	emitter.EmitClarificationStarted("idea/my-item", 2, "d1", true)
+	emitter.EmitBacklogProposalApplied("execute/baz", payload)
 
 	e := lastEvent(t, repo)
 	if e.EntityType != eventlog.EntityBacklogItem {
 		t.Errorf("entity_type: got %q", e.EntityType)
 	}
-	if e.EventType != eventlog.EventClarificationStarted {
+	if e.EntityID != "execute/baz" {
+		t.Errorf("entity_id: got %q", e.EntityID)
+	}
+	if e.EventType != eventlog.EventBacklogProposalApplied {
 		t.Errorf("event_type: got %q", e.EventType)
 	}
-
-	var p eventlog.ClarificationStartedPayload
-	if err := json.Unmarshal(e.Metadata, &p); err != nil {
+	if e.ActorType != "feedback_round" {
+		t.Errorf("actor_type: got %q", e.ActorType)
+	}
+	if e.ActorID != "ui-rewrite/round-001" {
+		t.Errorf("actor_id: got %q", e.ActorID)
+	}
+	var got eventlog.ProposalAppliedPayload
+	if err := json.Unmarshal(e.Metadata, &got); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if p.RoundNumber != 2 || p.ItemID != "d1" || !p.HasMessage {
-		t.Errorf("payload: %+v", p)
+	if !reflect.DeepEqual(got, payload) {
+		t.Errorf("payload roundtrip: got %+v want %+v", got, payload)
 	}
 }
 
-func TestEmitClarificationResolved(t *testing.T) {
+func TestEmitBacklogProposalApplied_ReviewRoundTakesPrecedence(t *testing.T) {
 	emitter, repo := setupEmitter(t)
 
-	emitter.EmitClarificationResolved("fix/bug-1", 1, "d3", 4, "decision")
-
+	emitter.EmitBacklogProposalApplied("execute/foo", eventlog.ProposalAppliedPayload{
+		InitiativeName:  "ui-rewrite",
+		FeedbackRoundID: "ui-rewrite/round-001",
+		ReviewRoundID:   "ui-rewrite/review-002",
+		MutationID:      "m1",
+		Op:              "change_status",
+		Target:          "execute/foo",
+	})
 	e := lastEvent(t, repo)
-	if e.EventType != eventlog.EventClarificationResolved {
-		t.Errorf("event_type: got %q", e.EventType)
+	if e.ActorType != "milestone_review" {
+		t.Errorf("review must dominate feedback: actor_type=%q", e.ActorType)
 	}
-
-	var p eventlog.ClarificationResolvedPayload
-	if err := json.Unmarshal(e.Metadata, &p); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	if p.RoundNumber != 1 || p.ItemID != "d3" || p.MessageCount != 4 || p.ImpactLevel != "decision" {
-		t.Errorf("payload: %+v", p)
+	if e.ActorID != "ui-rewrite/review-002" {
+		t.Errorf("actor_id: got %q", e.ActorID)
 	}
 }
 
-func TestEmitClarificationAction(t *testing.T) {
+// TestDurabilityEventSeamsCarryProvenance is the guard for the durability read
+// lane. The three event types swarm-manager's durability handler reads must all
+// persist verified attribution; if any of them regresses to the context-free
+// emit helper the whole lane silently reports verification_status=absent and
+// every verdict becomes unlinked. Add a case here whenever the durability
+// handler starts reading a new event type.
+func TestDurabilityEventSeamsCarryProvenance(t *testing.T) {
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{
+		Actor:              provenance.ActorAgent,
+		VerificationStatus: provenance.VerificationVerified,
+		RunID:              "run-durability",
+		ProfileKey:         "team/member",
+	})
+
+	cases := []struct {
+		name  string
+		emit  func(*eventlog.Emitter)
+		event eventlog.EventType
+	}{
+		{
+			name:  "backlog status changed",
+			emit:  func(e *eventlog.Emitter) { e.EmitBacklogStatusChanged(ctx, "fix/bug-1", "failed", "completed") },
+			event: eventlog.EventBacklogStatusChanged,
+		},
+		{
+			name:  "record superseded",
+			emit:  func(e *eventlog.Emitter) { e.EmitRecordSuperseded(ctx, "rec-new", "rec-old", "rework") },
+			event: eventlog.EventRecordSuperseded,
+		},
+		{
+			name:  "review failed",
+			emit:  func(e *eventlog.Emitter) { e.EmitReviewFailed(ctx, "exec-1", "insufficient evidence", 12) },
+			event: eventlog.EventReviewFailed,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			emitter, repo := setupEmitter(t)
+			tc.emit(emitter)
+
+			e := lastEvent(t, repo)
+			if e.EventType != tc.event {
+				t.Fatalf("event_type = %q, want %q", e.EventType, tc.event)
+			}
+			if e.VerificationStatus != provenance.VerificationVerified {
+				t.Errorf("verification_status = %q, want %q", e.VerificationStatus, provenance.VerificationVerified)
+			}
+			if e.ActorType != provenance.ActorAgent || e.ActorID != "team/member" || e.RunID != "run-durability" {
+				t.Errorf("actor = %q/%q run=%q, want %q/%q run=%q", e.ActorType, e.ActorID, e.RunID, provenance.ActorAgent, "team/member", "run-durability")
+			}
+		})
+	}
+}
+
+func TestEmitter_AutonomyGateModeChangeIsAttributed(t *testing.T) {
 	emitter, repo := setupEmitter(t)
-
-	emitter.EmitClarificationAction("chore/cleanup", 3, "d2", "invalidate_round")
-
+	emitter.EmitAutonomyGateModeChanged("slice-approval", "manual", "auto", "operator-1")
 	e := lastEvent(t, repo)
-	if e.EventType != eventlog.EventClarificationAction {
-		t.Errorf("event_type: got %q", e.EventType)
+	if e.EventType != eventlog.EventAutonomyGateModeChanged || e.ActorID != "operator-1" {
+		t.Fatalf("mode change event = %#v", e)
 	}
-
-	var p eventlog.ClarificationActionPayload
-	if err := json.Unmarshal(e.Metadata, &p); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+	var payload eventlog.AutonomyGateModeChangedPayload
+	if err := json.Unmarshal(e.Metadata, &payload); err != nil {
+		t.Fatal(err)
 	}
-	if p.RoundNumber != 3 || p.ItemID != "d2" || p.Action != "invalidate_round" {
-		t.Errorf("payload: %+v", p)
+	if payload.GateID != "slice-approval" || payload.From != "manual" || payload.To != "auto" {
+		t.Fatalf("mode change payload = %#v", payload)
 	}
 }

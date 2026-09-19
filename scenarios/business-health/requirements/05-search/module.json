@@ -1,0 +1,119 @@
+{
+  "_metadata": {
+    "description": "The business-health.intent search leaf: one type-faceted corpus over PRD purpose/value-prop/OTs + requirements, federated to search-hub.",
+    "last_validated_at": "2026-07-02T05:26:48-04:00",
+    "module": "search",
+    "prd_ref": "OT-P1-003",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BH-SRCH-001",
+      "title": "One corpus, type facet, uniform embed recipe",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "api",
+      "criticality": "P1",
+      "description": "internal/aisearch emits one SourceDoc per PRD overview, per OT, and per requirement with a type facet (prd_overview | operational_target | requirement) and scenario + prd_ref metadata, using one uniform embed recipe across the corpus (multi-corpus invariant); identity chunker.",
+      "tags": [
+        "aisearch",
+        "corpus",
+        "d5"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/aisearch/intent_index.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "SourceDoc emission + embed-text composition; SSOT guard in recall_test.go covers the tuning contract."
+        }
+      ]
+    },
+    {
+      "id": "BH-SRCH-002",
+      "title": "Gold-standard eval green before ACTIVE",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "api",
+      "criticality": "P1",
+      "description": "A ≥13-query gold-standard eval (capability-dedup phrasings, intent phrasings, gibberish rejections) passes at the SDA leaves' bar (top-1 accuracy thresholds, gibberish ~0) with reranking enabled by hand, before the provider is registered ACTIVE.",
+      "tags": [
+        "evals",
+        "rerank"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/aisearch/recall_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "TestSearchSSOTWellFormed (per-build) + TestIntentRecall (live gate, BUSINESS_HEALTH_AISEARCH_LIVE=1)."
+        }
+      ]
+    },
+    {
+      "id": "BH-SRCH-003",
+      "title": "Per-provider SearchControl token",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "api",
+      "criticality": "P1",
+      "description": "handlers/searchcontrol exposes the SearchControlService with a per-provider token (cli-health pattern); a shared token is a mismatch failure.",
+      "tags": [
+        "searchcontrol",
+        "token"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/searchcontrol/connect_handler.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Gate uses constant-time compare; empty token always denies (shared control-plane contract, mirrored from cli-health)."
+        }
+      ]
+    },
+    {
+      "id": "BH-SRCH-004",
+      "title": "Cells #34/#22 ownership, pointer-only answers",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "api",
+      "criticality": "P1",
+      "description": "The provider registration declares answer-space cells #34 (capability map) and #22 (intent), re-homes the product-manager-agent.requirements stub, and answers 'why' questions with PRD anchors only — never synthesized rationale.",
+      "tags": [
+        "answer-space",
+        "registration"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "search-hub providers list shows business-health.intent ACTIVE and no product-manager-agent.requirements stub; 5 spot-check queries route with correct top-1."
+        }
+      ]
+    },
+    {
+      "id": "BH-SRCH-005",
+      "title": "Declared search substrate",
+      "status": "complete",
+      "prd_ref": "OT-P1-003",
+      "category": "api",
+      "criticality": "P2",
+      "description": "The search substrate stays out of measures-health's undeclared-substrate cross-check: the intent index lives in Qdrant (collection business-health-intent, declared in .vrooli/search.json + service.json qdrant dependency) and adds NO scenario SQL tables — the search module's Schema() returns empty by design, so the SQL-scanning substrate detector has nothing undeclared to flag.",
+      "tags": [
+        "measures",
+        "substrate"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "implemented",
+          "notes": "Verified 2026-07-02: handlers/search Schema() returns \"\"; measures-health substrate detection scans scenario SQL only (measures-health/api/internal/validation/substrate.go); the collection is declared in .vrooli/search.json and the qdrant dependency in service.json."
+        }
+      ]
+    }
+  ]
+}

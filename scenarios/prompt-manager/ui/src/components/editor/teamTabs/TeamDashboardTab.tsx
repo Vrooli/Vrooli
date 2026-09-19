@@ -10,7 +10,8 @@
  */
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { Clock, Cpu, Target, ExternalLink, ChevronDown } from 'lucide-react'
+import { Activity, AlertTriangle, ArrowUpRight, CheckCircle2, Clock, Cpu, ExternalLink, ChevronDown, HelpCircle, PauseCircle, Target, Users } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import type {
   TeamDetails,
   TeamRole,
@@ -28,11 +29,13 @@ import type { Agent } from '@/types/agent'
 import { cn } from '@/lib/utils'
 import { selectors } from '@/constants/selectors'
 import * as heartbeatService from '@/services/heartbeatService'
-import type { HeartbeatConfig, TeamLogEntry } from '@/services/heartbeatService'
+import type { HeartbeatConfig, TeamLogEntry, TeamRunAccounting } from '@/services/heartbeatService'
 import { ExpandableDescription } from '@/components/shared/ExpandableDescription'
 import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
-import { useSelectionStore } from '@/stores/selectionStore'
-import { formatRelativeTime, formatRelativePastTime, formatDate, formatDuration } from '@/lib/timeUtils'
+import { TeamPurposePanel } from '@/components/team/TeamPurposePanel'
+import { TeamEffortsPanel } from '@/components/team/TeamEffortsPanel'
+import { runDetailPath } from '@/app/routes/route-paths'
+import { formatRelativeTime, formatRelativePastTime, formatDate } from '@/lib/timeUtils'
 import { formatScheduleSummary } from '@/lib/scheduleUtils'
 import {
   buildBoundedParallelExecution,
@@ -60,6 +63,37 @@ interface TeamDashboardTabProps {
 
 const LOGS_PAGE_SIZE = 25
 
+type DashboardStatus = 'loading' | 'unknown' | 'idle' | 'healthy' | 'attention' | 'blocked' | 'paused'
+
+type DashboardFixture = {
+  status: Exclude<DashboardStatus, 'loading'>
+  coverage: 'complete' | 'partial'
+  label: string
+}
+
+const dashboardFixtures: Record<string, DashboardFixture> = {
+  active: { status: 'healthy', coverage: 'complete', label: 'Active state' },
+  paused: { status: 'paused', coverage: 'complete', label: 'Paused state' },
+  blocked: { status: 'blocked', coverage: 'complete', label: 'Blocked state' },
+  idle: { status: 'idle', coverage: 'complete', label: 'Idle state' },
+  partial: { status: 'healthy', coverage: 'partial', label: 'Partial-coverage state' },
+  unknown: { status: 'unknown', coverage: 'partial', label: 'Unknown-health state' },
+}
+
+const dashboardStatusCopy: Record<DashboardStatus, { label: string; tone: string; description: string }> = {
+  loading: { label: 'Loading health', tone: 'text-muted-foreground', description: 'Reading current owner evidence.' },
+  unknown: { label: 'Health unknown', tone: 'text-muted-foreground', description: 'No recent execution evidence is available.' },
+  idle: { label: 'Idle', tone: 'text-muted-foreground', description: 'The team is configured, but no owner execution has started yet.' },
+  healthy: { label: 'Healthy', tone: 'text-emerald-500', description: 'Recent owner evidence is current.' },
+  attention: { label: 'Needs attention', tone: 'text-amber-500', description: 'Recent owner evidence includes a failed execution.' },
+  blocked: { label: 'Blocked', tone: 'text-red-500', description: 'Work cannot advance until the next action is completed.' },
+  paused: { label: 'Paused', tone: 'text-amber-500', description: 'Heartbeats are disabled; current execution is unknown.' },
+}
+
+function initials(value: string): string {
+  return value.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || '?'
+}
+
 /**
  * Team dashboard tab - identity, schedule, and activity in one view.
  */
@@ -72,17 +106,60 @@ export function TeamDashboardTab({
   onHealthChange,
   onLastActiveChange,
 }: TeamDashboardTabProps) {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const dashboardFixture = dashboardFixtures[searchParams.get('ux-state') ?? '']
   // --- Heartbeat polling state ---
   const [heartbeatConfigs, setHeartbeatConfigs] = useState<HeartbeatConfig[]>([])
   const [isLoadingHeartbeats, setIsLoadingHeartbeats] = useState(false)
   const [heartbeatError, setHeartbeatError] = useState<string | null>(null)
+  const [heartbeatsLoaded, setHeartbeatsLoaded] = useState(false)
+
+  const observedEffortRefs = useMemo(() => [...new Set(heartbeatConfigs.flatMap(config =>
+    Object.entries(config.supervisionState?.efforts ?? {}).filter(([, effort]) => !effort.retired).map(([ref]) => ref),
+  ))], [heartbeatConfigs])
+  const leaderEffortRefs = useMemo(() => [...new Set(heartbeatConfigs.flatMap(config =>
+    config.finiteLeader?.effortRef && !config.finiteLeader.retired ? [config.finiteLeader.effortRef] : [],
+  ))], [heartbeatConfigs])
+  const supervisionConfigs = heartbeatConfigs.filter(config => config.supervision || config.supervisionState || config.supervisionError)
+  const supervisionObservationAvailable = heartbeatsLoaded && !heartbeatError
+    && supervisionConfigs.every(config => !config.supervisionError && !!config.supervisionState)
+    && (team.purpose !== 'supervision' || supervisionConfigs.length > 0)
+  const supervisionObservationError = supervisionConfigs.flatMap(config => config.supervisionError
+    ? [`${config.agentId}: ${config.supervisionError}`]
+    : !config.supervisionState ? [`${config.agentId}: supervision state unavailable`] : []).join('; ')
 
   // --- Activity feed state ---
   const [teamLogs, setTeamLogs] = useState<TeamLogEntry[]>([])
   const [logsOffset, setLogsOffset] = useState(0)
   const [hasMoreLogs, setHasMoreLogs] = useState(false)
   const [isLoadingLogs, setIsLoadingLogs] = useState(false)
+  const [logsError, setLogsError] = useState<string | null>(null)
   const [memberFilter, setMemberFilter] = useState('')
+  const [openWorkCount, setOpenWorkCount] = useState<number | null>(null)
+  const [accountingResult, setAccounting] = useState<TeamRunAccounting | null>(null)
+  const [accountingError, setAccountingError] = useState<string | null>(null)
+  const accounting = accountingResult?.teamId === team.id && (accountingResult.agentId ?? '') === memberFilter ? accountingResult : null
+
+  useEffect(() => {
+    let active = true
+    let loading = false
+    setAccounting(null)
+    setAccountingError(null)
+    const load = async () => {
+      if (loading) return
+      loading = true
+      try {
+        const result = await heartbeatService.getTeamRunAccounting(team.id, memberFilter || undefined)
+        if (active) { setAccounting(result); setAccountingError(null) }
+      } catch {
+        if (active) { setAccounting(null); setAccountingError('Owner run accounting unavailable.') }
+      } finally { loading = false }
+    }
+    void load()
+    const interval = setInterval(() => void load(), 60_000)
+    return () => { active = false; clearInterval(interval) }
+  }, [team.id, memberFilter])
 
   // --- Agents lookup ---
   const agentsById = useMemo(() => {
@@ -104,6 +181,39 @@ export function TeamDashboardTab({
   const resolvedLeadAgentId = useMemo(() => {
     return team.coordination.leadAgentId || team.members[0]?.agentId || ''
   }, [team.coordination.leadAgentId, team.members])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadOpenWorkCount = async () => {
+      try {
+        const response = await fetch('/embedded/swarm-manager/api/v1/backlog?archived=false')
+        if (!response.ok) throw new Error(`Swarm Manager responded with ${response.status}`)
+        const payload = (await response.json()) as {
+          items?: Array<{
+            status?: string
+            tags?: string[]
+            created_by?: { profile_key?: string }
+          }>
+        }
+        const terminalStatuses = new Set(['done', 'completed', 'cancelled', 'dropped', 'archived'])
+        const teamPrefix = `${team.id}/`
+        const count = (payload.items ?? []).filter((item) => {
+          const belongsToTeam =
+            (item.tags ?? []).includes(team.id) || item.created_by?.profile_key?.startsWith(teamPrefix)
+          return belongsToTeam && !terminalStatuses.has((item.status ?? '').toLowerCase())
+        }).length
+        if (!cancelled) setOpenWorkCount(count)
+      } catch {
+        if (!cancelled) setOpenWorkCount(null)
+      }
+    }
+
+    void loadOpenWorkCount()
+    return () => {
+      cancelled = true
+    }
+  }, [team.id])
 
   const buildCoordinationPreset = useCallback(
     (pattern: CoordinationPattern, runtimeMode: RuntimeMode): Coordination => {
@@ -298,7 +408,7 @@ export function TeamDashboardTab({
     const membersById = new Map(team.members.map((m) => [m.agentId, m]))
     const entries: { config: HeartbeatConfig; memberName: string; nextRun: Date }[] = []
     for (const config of heartbeatConfigs) {
-      if (!config.enabled) continue
+      if (config.effectiveState !== 'scheduled') continue
       const memberName = membersById.get(config.agentId)?.displayName ?? config.agentId
       const times = config.nextExecutions ?? (config.nextExecution ? [config.nextExecution] : [])
       for (const iso of times) {
@@ -321,39 +431,24 @@ export function TeamDashboardTab({
     return heartbeatConfigs.filter((c) => c.enabled).length
   }, [heartbeatConfigs])
 
-  // --- Summary stats ---
+  // Local files are not an AM run ledger. In particular, standing supervision
+  // produces owner runs without local logs, and lastExecution is one snapshot.
   const summaryStats = useMemo(() => {
-    // Success rate from heartbeat configs with last executions
-    const withExec = heartbeatConfigs.filter(
-      (c): c is HeartbeatConfig & { lastExecution: NonNullable<HeartbeatConfig['lastExecution']> } =>
-        !!c.lastExecution,
-    )
-    const total = withExec.length
-    const completed = withExec.filter((c) => c.lastExecution.status === 'completed').length
-    const successRate = total > 0 ? Math.round((completed / total) * 100) : -1
-
-    // Run count in 24h from teamLogs
-    const oneDayAgo = Date.now() - 86_400_000
-    const recentLogs = teamLogs.filter((l) => new Date(l.timestamp).getTime() >= oneDayAgo)
-    const runCount24h = recentLogs.length
-
-    // Average duration from heartbeat configs that have both startedAt and endedAt
-    const durations: number[] = []
-    for (const c of withExec) {
-      if (c.lastExecution.startedAt && c.lastExecution.endedAt) {
-        const d = new Date(c.lastExecution.endedAt).getTime() - new Date(c.lastExecution.startedAt).getTime()
-        if (d > 0) durations.push(d)
-      }
-    }
-    const avgDuration = durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : -1
-
-    return { successRate, runCount24h, avgDuration }
-  }, [heartbeatConfigs, teamLogs])
+    const now = Date.now()
+    const oneDayAgo = now - 86_400_000
+    const recentLogs = teamLogs.filter((l) => {
+      const timestamp = new Date(l.timestamp).getTime()
+      return timestamp >= oneDayAgo && timestamp <= now
+    })
+    return { localLogCount24h: recentLogs.length }
+  }, [teamLogs])
 
   // --- Heartbeat polling (10s) ---
   useEffect(() => {
     let isActive = true
     let isFirstLoad = true
+    setHeartbeatsLoaded(false)
+    setHeartbeatConfigs([])
     const loadHeartbeats = async () => {
       if (isFirstLoad) {
         setIsLoadingHeartbeats(true)
@@ -363,14 +458,14 @@ export function TeamDashboardTab({
         const configs = await heartbeatService.listHeartbeats(team.id)
         if (!isActive) return
         setHeartbeatConfigs(configs)
-        if (isFirstLoad) setHeartbeatError(null)
+        setHeartbeatError(null)
+        setHeartbeatsLoaded(true)
       } catch (error) {
         if (!isActive) return
-        if (isFirstLoad) {
-          console.warn('Failed to load heartbeat schedule:', error)
-          setHeartbeatConfigs([])
-          setHeartbeatError('Unable to load heartbeat schedule.')
-        }
+        if (isFirstLoad) console.warn('Failed to load heartbeat schedule:', error)
+        setHeartbeatConfigs([])
+        setHeartbeatError('Unable to load heartbeat schedule.')
+        setHeartbeatsLoaded(false)
       } finally {
         if (isActive && isFirstLoad) setIsLoadingHeartbeats(false)
         isFirstLoad = false
@@ -390,6 +485,7 @@ export function TeamDashboardTab({
     let isActive = true
     const loadLogs = async () => {
       setIsLoadingLogs(true)
+      setLogsError(null)
       try {
         const response = await heartbeatService.listTeamLogs(team.id, {
           limit: LOGS_PAGE_SIZE,
@@ -406,6 +502,7 @@ export function TeamDashboardTab({
       } catch (error) {
         if (!isActive) return
         console.warn('Failed to load team logs:', error)
+        setLogsError('Local logs unavailable.')
         if (logsOffset === 0) setTeamLogs([])
       } finally {
         if (isActive) setIsLoadingLogs(false)
@@ -426,7 +523,7 @@ export function TeamDashboardTab({
 
   // --- Health computation ---
   useEffect(() => {
-    if (!team.enabled) {
+    if (!team.enabled || heartbeatError || !heartbeatsLoaded) {
       onHealthChange?.('gray')
     } else {
       const withExec = heartbeatConfigs.filter(
@@ -434,7 +531,7 @@ export function TeamDashboardTab({
           !!c.lastExecution,
       )
       if (withExec.length === 0) {
-        onHealthChange?.('green')
+        onHealthChange?.('gray')
       } else {
         const failed = withExec.filter((c) => c.lastExecution.status === 'failed')
         // Most recent execution across all configs
@@ -446,8 +543,10 @@ export function TeamDashboardTab({
           onHealthChange?.('red')
         } else if (failed.length > 0) {
           onHealthChange?.('yellow')
-        } else {
+        } else if (mostRecent?.lastExecution.status === 'completed') {
           onHealthChange?.('green')
+        } else {
+          onHealthChange?.('gray')
         }
       }
     }
@@ -462,7 +561,7 @@ export function TeamDashboardTab({
     } else {
       onLastActiveChange?.(null)
     }
-  }, [heartbeatConfigs, team.enabled, onHealthChange, onLastActiveChange])
+  }, [heartbeatConfigs, heartbeatError, heartbeatsLoaded, team.enabled, onHealthChange, onLastActiveChange])
 
   // --- Load more handler ---
   const handleLoadMore = useCallback(() => {
@@ -487,82 +586,154 @@ export function TeamDashboardTab({
     return map
   }, [team.roles])
 
+  // RCL applicability: the library's collection/navigation primitives do not
+  // model this domain-specific overview. Keep the mission, evidence states,
+  // and operator guidance local; reuse existing Prompt Manager primitives and
+  // hooks for editing, rows, and data loading rather than forcing a generic
+  // library asset to own dashboard semantics.
+  const computedDashboardStatus = useMemo<DashboardStatus>(() => {
+    if (!team.enabled) return 'paused'
+    if (heartbeatError) return 'unknown'
+    if (isLoadingHeartbeats || !heartbeatsLoaded) return 'loading'
+    const executions = heartbeatConfigs.flatMap((config) => config.lastExecution ? [config.lastExecution] : [])
+    if (executions.some((execution) => execution.status === 'failed')) return 'attention'
+    if (accounting?.terminalReasons.blocked) return 'blocked'
+    if (executions.length === 0) return 'idle'
+    return 'healthy'
+  }, [accounting?.terminalReasons.blocked, heartbeatConfigs, heartbeatError, heartbeatsLoaded, isLoadingHeartbeats, team.enabled])
+  const dashboardStatus = dashboardFixture?.status ?? computedDashboardStatus
+  const dashboardCoverage = dashboardFixture?.coverage ?? (accounting?.coverage.partial ? 'partial' : 'complete')
+  const statusCopy = dashboardStatusCopy[dashboardStatus]
+  const nextHeartbeat = upcoming24h[0]
+  const lastActivity = heartbeatConfigs
+    .map((config) => config.lastExecution?.startedAt)
+    .filter((value): value is string => Boolean(value))
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0]
+  const workSummary = openWorkCount === null
+    ? 'Open work unavailable'
+    : `${openWorkCount} open item${openWorkCount === 1 ? '' : 's'}`
+  const statusIcon = dashboardStatus === 'paused'
+    ? <PauseCircle aria-hidden="true" className="h-4 w-4" />
+    : dashboardStatus === 'blocked' || dashboardStatus === 'attention'
+      ? <AlertTriangle aria-hidden="true" className="h-4 w-4" />
+      : dashboardStatus === 'idle'
+        ? <Clock aria-hidden="true" className="h-4 w-4" />
+        : dashboardStatus === 'unknown' || dashboardStatus === 'loading'
+        ? <HelpCircle aria-hidden="true" className="h-4 w-4" />
+        : <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+
   return (
-    <div className="space-y-6">
-      {/* ================================================================ */}
-      {/* Section 1: "What" - Team Identity                                */}
-      {/* ================================================================ */}
-      <section>
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Mission</h3>
-        <div className="flex items-start gap-3 p-3 bg-muted rounded-lg border border-border">
-          <Target className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-          <ExpandableDescription
-            value={team.mission ?? ''}
-            onChange={handleMissionChange}
-            placeholder="Add a mission statement..."
-            className="flex-1"
-            maxLines={3}
-          />
+    <div className="space-y-6 pb-6 sm:pb-0" data-testid="team-dashboard" data-dashboard-status={dashboardStatus} data-dashboard-coverage={dashboardCoverage} data-dashboard-fixture={dashboardFixture ? 'true' : 'false'}>
+      {dashboardFixture && <div role="note" data-testid={selectors.teamDashboard.fixtureNotice} className="flex items-start gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-700 dark:text-sky-300"><span className="font-semibold">Fixture preview:</span><span>{dashboardFixture.label} rendered against the current team shell. This is isolated visual evidence, not live execution health.</span></div>}
+      <header className="space-y-4" aria-label="Team overview">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-primary/30 bg-primary/10 text-primary" aria-hidden="true">
+              <Users className="h-6 w-6" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Team overview</p>
+              <h2 id="team-dashboard-title" className="mt-1 line-clamp-2 break-words text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{team.displayName}</h2>
+              <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Team summary">
+                <span className="rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground">{team.purpose ?? 'Team'}</span>
+                <span className="rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground">{team.runtime.mode === 'single-process' ? 'Single-process' : 'Multi-process'}</span>
+                <span className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px]', statusCopy.tone, 'border-current/30')}>
+                  {statusIcon}<span>{statusCopy.label}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+          <a href="/swarm-manager" target="_blank" rel="noreferrer" className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 text-sm font-medium text-primary hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:w-auto">
+            Review work feed <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
+          </a>
+        </div>
+
+        {dashboardStatus === 'paused' && (
+          <div role="status" className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
+            <PauseCircle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+            <div><strong className="font-medium text-amber-500">Team is paused.</strong><p className="mt-0.5 text-muted-foreground">Existing activity is retained, but no current execution should be inferred.</p><p className="mt-1 text-foreground"><strong>Next:</strong> review retained evidence and resume only when explicitly authorized; then verify the next scheduled heartbeat.</p><a className="mt-2 inline-flex min-h-10 items-center rounded-lg border border-amber-500/40 px-3 text-xs font-medium text-amber-700 hover:bg-amber-500/10 dark:text-amber-300" href="#dashboard-activity">Review retained evidence</a></div>
+          </div>
+        )}
+
+        <section className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/15 via-primary/5 to-muted/30 p-4 shadow-sm sm:p-5" aria-labelledby="mission-heading" role="region" data-testid={selectors.teamDashboard.mission}>
+          <div className="flex items-start gap-3">
+            <Target aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+            <div className="min-w-0 flex-1">
+              <p id="mission-heading" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Mission</p>
+              <ExpandableDescription value={team.mission ?? ''} onChange={handleMissionChange} placeholder="Add a mission statement..." className="mt-2 text-base leading-snug text-foreground sm:text-xl" maxLines={0} />
+              <p className="mt-2 text-xs text-muted-foreground">Tap or click to edit · saves automatically</p>
+            </div>
+          </div>
+        </section>
+
+        <nav aria-label="Dashboard sections" className="sticky top-2 z-10 mb-1 grid grid-cols-4 gap-1 rounded-xl border border-border bg-background/95 p-1 shadow-lg backdrop-blur sm:hidden">
+          {[['dashboard-work', 'Work'], ['dashboard-schedule', 'Schedule'], ['dashboard-people', 'People'], ['dashboard-activity', 'Activity']].map(([href, label]) => (
+            <a key={href} href={`#${href}`} className="flex min-h-11 items-center justify-center rounded-lg px-2 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{label}</a>
+          ))}
+        </nav>
+
+        <div role="region" className="grid grid-cols-2 gap-2 px-1 pb-1 sm:grid-cols-2 lg:grid-cols-5" aria-label="Team metrics">
+          {[
+            { label: 'Team health', value: statusCopy.label, note: statusCopy.description, tone: statusCopy.tone },
+            { label: 'Members', value: String(team.members.length), note: 'registered members', tone: 'text-foreground' },
+            { label: 'Next activity', value: team.enabled && nextHeartbeat ? formatRelativeTime(nextHeartbeat.nextRun) : '—', note: team.enabled && nextHeartbeat ? nextHeartbeat.memberName : team.enabled ? 'No schedule observed' : 'heartbeats paused', tone: 'text-foreground' },
+            { label: 'Open work', value: workSummary, note: openWorkCount === null ? 'read unavailable' : 'from unified work feed', tone: 'text-foreground' },
+            { label: 'Last activity', value: lastActivity ? formatRelativePastTime(new Date(lastActivity)) : 'Unknown', note: lastActivity ? 'latest owner evidence' : 'no execution record', tone: 'text-foreground' },
+          ].map((metric) => (
+            <div key={metric.label} className="min-w-0 rounded-xl border border-border bg-muted/30 p-3">
+              <p className="text-[11px] text-muted-foreground">{metric.label}</p>
+              <p className={cn('mt-2 min-h-[2.5rem] break-words text-base font-semibold', metric.tone)}>{metric.value}</p>
+              <p className="mt-1 line-clamp-2 min-h-[2rem] text-[11px] text-muted-foreground">{metric.note}</p>
+            </div>
+          ))}
+        </div>
+      </header>
+
+      <section id="dashboard-work" aria-labelledby="current-work-heading" className="space-y-3">
+        <div className="flex items-baseline justify-between gap-3"><h3 id="current-work-heading" className="text-base font-semibold text-foreground">Current work</h3><a href="/swarm-manager" className="text-xs font-medium text-primary hover:underline">View all work <ArrowUpRight aria-hidden="true" className="inline h-3 w-3" /></a></div>
+        <div className={cn('grid gap-3', dashboardStatus === 'paused' ? 'lg:grid-cols-1' : 'lg:grid-cols-2')}>
+          {dashboardStatus !== 'paused' && <article className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+            <div className="flex items-start justify-between gap-3"><div><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">Operator guidance</p><h4 className="mt-1 font-semibold text-foreground">{statusCopy.label === 'Healthy' ? 'Keep the next handoff moving' : statusCopy.label === 'Paused' ? 'Resolve the pause intentionally' : statusCopy.label}</h4></div><span className={cn('rounded-full border border-current/30 px-2 py-1 text-[11px]', statusCopy.tone)}>{statusCopy.label}</span></div>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{statusCopy.description} {accounting?.terminalReasons.blocked ? 'A blocked owner run is present in the latest accounting read.' : 'Open the work feed for the authoritative task disposition.'}</p>
+            <p className="mt-3 text-sm text-foreground"><strong className="text-primary">Next:</strong> {statusCopy.label === 'Paused' ? 'Review retained evidence and resume only when explicitly authorized; then verify the next scheduled heartbeat.' : statusCopy.label === 'Health unknown' || statusCopy.label === 'Loading health' ? 'Wait for an authoritative owner read before making a health decision.' : statusCopy.label === 'Idle' ? 'Wait for the first scheduled owner execution, then review its outcome evidence.' : 'Review the next open work item and its evidence.'}</p>
+          </article>}
+          <article className="rounded-xl border border-border bg-muted/20 p-4">
+            <div className="flex items-start justify-between gap-3"><div><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Coverage</p><h4 className="mt-1 font-semibold text-foreground">Evidence stays honest</h4></div><Activity aria-hidden="true" className="h-5 w-5 text-muted-foreground" /></div>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{accounting ? `${accounting.observedRuns} observed owner run${accounting.observedRuns === 1 ? '' : 's'} · ${accounting.unavailableRuns} unavailable` : accountingError ? 'Accounting read unavailable; see Activity for the exact limitation.' : 'Loading owner run accounting…'}</p>
+            <details className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground"><summary className="cursor-pointer select-none">Show evidence and limitations</summary><p className="mt-2">Successful runtime completion still needs outcome acceptance. Partial or unavailable reads remain labeled below in Activity.</p></details>
+          </article>
         </div>
       </section>
 
-      {/* Member Roster */}
-      <section>
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-          Members ({team.members.length})
-        </h3>
-        {team.members.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No members yet.</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {team.members.map((member) => {
-              const agent = agentsById.get(member.agentId)
-              const isActive = member.status === 'active'
-              return (
-                <button
-                  key={member.agentId}
-                  type="button"
-                  onClick={() => onNavigateToMember?.(member.agentId)}
-                  className={cn(
-                    'flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-colors text-left',
-                    'bg-muted border-border hover:bg-muted/70 hover:border-foreground/20',
-                    onNavigateToMember && 'cursor-pointer',
-                  )}
-                >
-                  <AgentColorBadge appearance={agent?.appearance} size="xs" />
-                  <span className="text-sm font-medium text-foreground truncate max-w-[120px]">
-                    {member.displayName}
-                  </span>
-                  {member.roles.length > 0 && (
-                    <span className="flex gap-1">
-                      {member.roles.slice(0, 2).map((roleId) => (
-                        <span
-                          key={roleId}
-                          className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium truncate max-w-[60px]"
-                        >
-                          {roleNameMap.get(roleId) ?? roleId}
-                        </span>
-                      ))}
-                      {member.roles.length > 2 && (
-                        <span className="text-[10px] px-1 text-muted-foreground">
-                          +{member.roles.length - 2}
-                        </span>
-                      )}
-                    </span>
-                  )}
-                  <span
-                    className={cn(
-                      'inline-block h-2 w-2 rounded-full flex-shrink-0',
-                      isActive ? 'bg-emerald-500' : 'bg-slate-400',
-                    )}
-                    title={member.status}
-                  />
-                </button>
-              )
-            })}
-          </div>
-        )}
+      <section id="dashboard-people" aria-labelledby="people-heading" className="space-y-3">
+        <div className="flex items-baseline justify-between gap-3"><h3 id="people-heading" className="text-base font-semibold text-foreground">People <span className="font-normal text-muted-foreground">({team.members.length})</span></h3><span className="text-xs text-muted-foreground">{team.members.length ? 'Registered members' : 'No members yet'}</span></div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {team.members.slice(0, 6).map((member) => <button key={member.agentId} type="button" onClick={() => onNavigateToMember?.(member.agentId)} className="flex min-h-12 items-start gap-3 rounded-xl border border-border bg-muted/20 px-3 py-2 text-left hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" className="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/15 text-xs font-semibold text-primary">{initials(member.displayName)}</span><span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium text-foreground">{member.displayName}</span><span className="block break-words text-xs text-muted-foreground">{member.status} · {member.roles.length ? member.roles.map((roleId) => roleNameMap.get(roleId) ?? roleId).join(', ') : 'registered member'}</span></span><span className={cn('mt-1 h-2 w-2 shrink-0 rounded-full', member.status === 'active' ? 'bg-emerald-500' : 'bg-slate-400')} title={member.status} /></button>)}
+          {team.members.length === 0 && <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground"><p>No members yet.</p><p className="mt-1">Add a member before expecting schedule or execution coverage.</p></div>}
+        </div>
       </section>
+      <details className="rounded-2xl border border-border bg-muted/10 p-4">
+        <summary className="cursor-pointer list-none font-semibold text-foreground marker:hidden">
+          <span className="flex flex-wrap items-center justify-between gap-3">
+            <span>Team configuration</span>
+            <span className="text-xs font-normal text-muted-foreground">Runtime, coordination, scheduling, and governance</span>
+          </span>
+        </summary>
+        <div className="mt-5 space-y-6">
+      <TeamPurposePanel key={team.id} team={team} onUpdate={onUpdate} />
+      <TeamEffortsPanel
+        team={team}
+        observedEffortRefs={observedEffortRefs}
+        leaderEffortRefs={leaderEffortRefs}
+        observationAvailable={supervisionObservationAvailable}
+        observationError={supervisionObservationError || undefined}
+        scheduled={heartbeatsLoaded && !heartbeatError ? {
+          enabled: team.enabled && heartbeatConfigs.some(config => config.enabled),
+          summary: !team.enabled ? 'Team scheduling disabled' : heartbeatConfigs.length
+            ? heartbeatConfigs.map(config => `${config.agentId}: ${config.enabled ? config.lifecycleState || 'schedule enabled' : 'disabled'}`).join('; ')
+            : 'No member heartbeats configured',
+        } : undefined}
+      />
 
       <section data-testid={selectors.teamEditor.runtimeMode}>
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Runtime</h3>
@@ -706,7 +877,6 @@ export function TeamDashboardTab({
                 ['injectInbox', 'Inject inbox into prompt'],
                 ['allowPeerTriggers', 'Allow peer triggers'],
                 ['showTaskBoardGuidance', 'Show task board guidance'],
-                ['showDecisionLogGuidance', 'Show decision log guidance'],
                 ['showKnowledgeLogGuidance', 'Show knowledge log guidance'],
                 ['requireHandoff', 'Require handoff'],
               ] as const
@@ -774,42 +944,34 @@ export function TeamDashboardTab({
         </div>
       </section>
 
-      {/* Decision Mode */}
-      <section data-testid={selectors.teamEditor.decisionMode}>
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Decision Approval</h3>
-        <div className="space-y-3">
-          <div className="flex gap-2">
-            {(['yolo', 'approval'] as const).map((mode) => {
-              const selected = team.decisionMode === mode
-              return (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => void onUpdate({ decisionMode: mode })}
-                  className={cn(
-                    'flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-colors',
-                    selected
-                      ? 'bg-primary/15 border-primary/40 text-primary'
-                      : 'bg-muted border-border text-muted-foreground hover:text-foreground hover:border-foreground/20',
-                  )}
-                >
-                  {mode === 'yolo' ? 'Auto-approve' : 'Require Approval'}
-                </button>
-              )
-            })}
+      <section className="rounded-lg border border-border bg-muted/20 p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Swarm Manager work</h3>
+            <p className="mt-1 text-sm text-foreground">Team requests and operator dispositions live in the unified work feed.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {openWorkCount === null ? 'Open work count unavailable.' : `${openWorkCount} open work item${openWorkCount === 1 ? '' : 's'}.`}{' '}
+              Open the feed to review this team&apos;s filed work and its current disposition.
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground">
-            {(team.decisionMode === 'approval')
-              ? 'Decisions require human approval before agents can act on them.'
-              : 'Agents can freely approve and act on their own decisions.'}
-          </p>
+          <a
+            href="/swarm-manager"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10"
+          >
+            Open work feed <ExternalLink className="h-3 w-3" />
+          </a>
         </div>
       </section>
+
+        </div>
+      </details>
 
       {/* ================================================================ */}
       {/* Section 2: "When" - Schedule                                     */}
       {/* ================================================================ */}
-      <section>
+      <section id="dashboard-schedule">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Schedule</h3>
 
         {/* Team-off warning */}
@@ -817,10 +979,10 @@ export function TeamDashboardTab({
           <div className="flex items-start gap-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
             <Clock className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-sm text-amber-500 font-medium">Team is turned off</p>
+                <p className="text-sm text-amber-500 font-medium">Scheduling is paused</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Heartbeats are paused
-                {enabledHeartbeatCount > 0 ? ` (${enabledHeartbeatCount} configured)` : ''}. Turn the team on to resume.
+                No new heartbeats will run
+                {enabledHeartbeatCount > 0 ? ` (${enabledHeartbeatCount} configured)` : ''} while the team is paused.
               </p>
             </div>
           </div>
@@ -846,7 +1008,7 @@ export function TeamDashboardTab({
                 type="button"
                 onClick={() => onNavigateToMemberHeartbeat?.(upcoming24h[0]?.config.agentId ?? '')}
                 className={cn(
-                  'w-full flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg text-left',
+                  'w-full flex min-h-11 items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg text-left',
                   onNavigateToMemberHeartbeat && 'cursor-pointer hover:bg-primary/10 transition-colors',
                 )}
               >
@@ -855,10 +1017,10 @@ export function TeamDashboardTab({
                   size="sm"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground truncate">
+                  <p className="break-words text-sm font-medium text-foreground">
                     {upcoming24h[0].memberName}
                   </p>
-                  <p className="text-xs text-muted-foreground truncate">
+                  <p className="break-words text-xs text-muted-foreground">
                     {formatScheduleSummary(upcoming24h[0].config.schedule)}
                   </p>
                 </div>
@@ -879,7 +1041,7 @@ export function TeamDashboardTab({
                       type="button"
                       onClick={() => onNavigateToMemberHeartbeat?.(entry.config.agentId)}
                       className={cn(
-                        'w-full flex items-center gap-2.5 px-3 py-2 bg-muted rounded-lg text-left',
+                        'w-full flex min-h-11 items-center gap-2.5 px-3 py-2 bg-muted rounded-lg text-left',
                         onNavigateToMemberHeartbeat && 'cursor-pointer hover:bg-muted/70 transition-colors',
                       )}
                     >
@@ -887,10 +1049,10 @@ export function TeamDashboardTab({
                         appearance={agentsById.get(entry.config.agentId)?.appearance}
                         size="xs"
                       />
-                      <span className="text-sm text-foreground truncate min-w-0 flex-1">
+                      <span className="min-w-0 flex-1 break-words text-sm text-foreground">
                         {entry.memberName}
                       </span>
-                      <span className="text-xs text-muted-foreground truncate max-w-[140px]">
+                      <span className="max-w-[140px] break-words text-xs text-muted-foreground">
                         {formatScheduleSummary(entry.config.schedule)}
                       </span>
                       <span className="text-xs text-muted-foreground flex-shrink-0">
@@ -908,32 +1070,45 @@ export function TeamDashboardTab({
       {/* ================================================================ */}
       {/* Section 3: "What happened" - Activity Feed                       */}
       {/* ================================================================ */}
-      <section>
+      <section id="dashboard-activity">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Activity</h3>
 
-        {/* Summary stats bar */}
-        <div className="flex gap-4 mb-3 text-sm">
-          {summaryStats.successRate >= 0 && (
-            <span
-              className={cn(
-                'font-medium',
-                summaryStats.successRate > 80 && 'text-emerald-500',
-                summaryStats.successRate >= 50 && summaryStats.successRate <= 80 && 'text-amber-500',
-                summaryStats.successRate < 50 && 'text-red-500',
-              )}
-            >
-              {summaryStats.successRate}% success
-            </span>
-          )}
-          <span className="text-muted-foreground">
-            {summaryStats.runCount24h} run{summaryStats.runCount24h !== 1 ? 's' : ''} in 24h
-          </span>
-          {summaryStats.avgDuration >= 0 && (
-            <span className="text-muted-foreground">
-              avg {formatDuration(summaryStats.avgDuration)}
-            </span>
-          )}
+        <div aria-label="Owner run accounting" className="mb-4 space-y-2 text-sm">
+          {!accounting && <p role="status" className="text-muted-foreground">{accountingError ?? 'Loading owner run accounting…'}</p>}
+          {accounting && <>
+            <p>{accounting.knownRuns} known owner run ID{accounting.knownRuns === 1 ? '' : 's'} from PM declarations in 24h</p>
+            <p className="text-muted-foreground">
+              {accounting.observedRuns} observed · {accounting.unavailableRuns} unavailable · {accounting.unqueriedRuns} not queried
+            </p>
+            <p>{accounting.observedExecutions} distinct observed execution{accounting.observedExecutions === 1 ? '' : 's'} · {accounting.duplicateExecutions} resumed/imported duplicate{accounting.duplicateExecutions === 1 ? '' : 's'} excluded</p>
+            <p>Runtime: {Object.entries(accounting.runtimeStates).map(([state, count]) => `${state}: ${count}`).join(' · ') || 'unknown'}</p>
+            <p>Actual models: {Object.entries(accounting.actualModels).map(([model, count]) => `${model}: ${count}`).join(' · ') || 'unknown'} · {accounting.unknownModelExecutions} unknown</p>
+            {Object.keys(accounting.terminalReasons).length > 0 && <p>Terminal reasons: {Object.entries(accounting.terminalReasons).map(([reason, count]) => `${reason}: ${count}`).join(' · ')}</p>}
+            <p>Token usage: {accounting.usage.tokens == null ? 'unknown' : accounting.usage.tokens.toLocaleString()} · Actual charge: {accounting.usage.costUSD == null ? 'unknown' : `$${accounting.usage.costUSD.toFixed(2)}`}</p>
+            <p className="text-muted-foreground">Usage coverage: {accounting.usage.qualifiedRuns}/{accounting.observedRuns} owner runs qualified; {accounting.usage.reportedTokenRuns} report tokens, {accounting.usage.reportedCostRuns} report cost estimates.</p>
+            <p className="text-muted-foreground">{accounting.coverage.partial ? 'Partial history coverage; these are known runs, not a complete team total.' : 'Complete declared history coverage.'} Runtime completion does not establish outcome acceptance.</p>
+            <details className="text-xs text-muted-foreground">
+              <summary>Coverage and owner evidence</summary>
+              <p>Observed <time dateTime={accounting.observedAt}>{formatDate(accounting.observedAt)}</time>; {accounting.coverage.declarationsRead}/{accounting.coverage.declarationLimit} declaration rows read; at most {accounting.coverage.ownerReadLimit} owner reads.</p>
+              {accounting.coverage.invalidTimestamps > 0 && <p>{accounting.coverage.invalidTimestamps} declarations excluded because their window timestamp is unavailable.</p>}
+              {accounting.coverage.limitations.map((reason) => <p key={reason}>{reason}</p>)}
+              <ul>{accounting.runs.map((run) => <li key={run.runId}>
+                <a className="text-primary underline" href={runDetailPath(run.runId)}>{run.runId}</a> · {run.agentIds.join(', ')} · {run.availability}
+              </li>)}</ul>
+            </details>
+          </>}
         </div>
+
+        {/* Summary stats bar */}
+        {!isLoadingLogs && !logsError && <div className="flex gap-4 mb-3 text-sm">
+          <span className="text-muted-foreground">
+            {hasMoreLogs ? 'At least ' : ''}{summaryStats.localLogCount24h} local log{summaryStats.localLogCount24h !== 1 ? 's' : ''} in 24h
+          </span>
+        </div>}
+        <p className="text-xs text-muted-foreground mb-3">
+          Run totals and success rate are unavailable from local logs.{' '}
+          <a className="text-primary underline" href="/embedded/agent-manager/">Agent Manager run history</a>
+        </p>
 
         {/* Member filter */}
         {team.members.length > 1 && (
@@ -955,10 +1130,11 @@ export function TeamDashboardTab({
         )}
 
         {/* Activity entries */}
-        {teamLogs.length === 0 && !isLoadingLogs ? (
+        {logsError && <p className="text-sm text-muted-foreground" role="status">{logsError}</p>}
+        {teamLogs.length === 0 && !isLoadingLogs && !logsError ? (
           <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
             <Clock className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-muted-foreground">No recent activity.</p>
+            <p className="text-sm text-muted-foreground">No local logs.</p>
           </div>
         ) : (
           <ul className="space-y-1.5">
@@ -980,7 +1156,7 @@ export function TeamDashboardTab({
                       !['completed', 'failed', 'cancelled', 'running'].includes(statusNormalized) && 'bg-slate-400',
                     )}
                   />
-                  <span className="text-sm text-foreground truncate min-w-0 flex-1">
+                  <span className="min-w-0 flex-1 break-words text-sm text-foreground">
                     {resolveMemberName(entry.agentId)}
                   </span>
                   <span className="text-xs text-muted-foreground flex-shrink-0">
@@ -998,7 +1174,7 @@ export function TeamDashboardTab({
                     onClick={() => {
                       const stem = entry.filename.replace(/\.[^.]+$/, '')
                       if (stem) {
-                        useSelectionStore.getState().setSelectedRunId(stem)
+                        navigate(runDetailPath(stem))
                       }
                     }}
                   >

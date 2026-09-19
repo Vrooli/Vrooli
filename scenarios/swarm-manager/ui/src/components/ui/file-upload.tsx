@@ -15,7 +15,9 @@
  */
 
 import { useCallback, useState, useRef } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
+import { useActionMutation } from "../../hooks/useActionMutation";
+import { errorMessageOf } from "../../lib/error-utils";
 import { Upload, X, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { cn, formatFileSize } from "../../lib";
 import { useFileService } from "../../contexts/FileServiceContext";
@@ -54,7 +56,7 @@ export function FileUpload({
   const queryClient = useQueryClient();
 
   // Mutation for uploading a single file
-  const uploadMutation = useMutation({
+  const uploadMutation = useActionMutation({
     mutationFn: async ({ file, index }: { file: File; index: number }) => {
       setUploads((prev) =>
         prev.map((u, i) => (i === index ? { ...u, status: "uploading" } : u))
@@ -69,11 +71,16 @@ export function FileUpload({
       queryClient.invalidateQueries({ queryKey: [...fileService.queryKeyPrefix, "files"] });
       onUploadComplete?.();
     },
+    errorMessage: "Couldn't upload that file",
+    // Each row carries its own status and reason, so a toast per failed file
+    // in a multi-file drop would bury the list it duplicates.
+    silentError: true,
+    source: "FileUpload.upload",
     onError: (error, { index }) => {
-      const errorMessage = error instanceof Error ? error.message : "Upload failed";
+      const message = errorMessageOf(error, "Upload failed");
       setUploads((prev) =>
         prev.map((u, i) =>
-          i === index ? { ...u, status: "error", error: errorMessage } : u
+          i === index ? { ...u, status: "error", error: message } : u
         )
       );
     },

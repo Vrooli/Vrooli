@@ -293,6 +293,9 @@ type MockRepository struct {
 
 	// DeleteError is returned by Delete
 	DeleteError error
+
+	// ListError is returned by ListScenarios
+	ListError error
 }
 
 // NewMockRepository creates a new mock repository.
@@ -418,6 +421,18 @@ func (m *MockRepository) DeleteForPlatform(ctx context.Context, scenario string,
 	}
 
 	return nil
+}
+
+// ListScenarios returns the scenarios held by the mock repository.
+func (m *MockRepository) ListScenarios() ([]string, error) {
+	if m.ListError != nil {
+		return nil, m.ListError
+	}
+	names := make([]string, 0, len(m.Configs))
+	for name := range m.Configs {
+		names = append(names, name)
+	}
+	return names, nil
 }
 
 // MockScenarioLocator implements signing.ScenarioLocator for testing.

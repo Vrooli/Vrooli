@@ -1,0 +1,270 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "conformance-findings",
+    "title": "Conformance Findings",
+    "routes": [
+      "/packages/:packageId/conformance"
+    ],
+    "purpose": "Explain exactly why a conformance run failed: every finding with its rule, file, and offset, and the drift detail with the CLI manifest revision it compared against.",
+    "prd_refs": [
+      "OT-P0-002",
+      "OT-P0-003",
+      "OT-P0-004"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The author can locate and fix each finding from what is on screen \u2014 rule, file, and offset.",
+      "notes": "Hidden Unicode findings are useless without an offset, because the character is invisible in an editor."
+    },
+    {
+      "statement": "A drift failure makes clear whether the skill regressed or the CLI moved.",
+      "notes": "The pinned manifest revision is what disambiguates; without it the remediation is a guess."
+    },
+    {
+      "statement": "The complete finding list from one run is visible, so remediation is one pass rather than a loop."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "A failed run with findings across several rules."
+    },
+    {
+      "id": "loading",
+      "description": "The conformance run is loading."
+    },
+    {
+      "id": "success",
+      "description": "The run passed with no findings."
+    },
+    {
+      "id": "empty",
+      "description": "The run has not been executed yet."
+    },
+    {
+      "id": "partial",
+      "description": "Some rules could not be evaluated and are marked unevaluated."
+    },
+    {
+      "id": "request-error",
+      "description": "The run could not be loaded."
+    },
+    {
+      "id": "stale",
+      "description": "Findings are from a run that predates the latest package build."
+    }
+  ],
+  "elements": [
+    {
+      "id": "findings-list",
+      "role": "list",
+      "name": "Conformance findings"
+    },
+    {
+      "id": "finding-item",
+      "role": "listitem",
+      "name": "Finding"
+    },
+    {
+      "id": "finding-rule",
+      "role": "note",
+      "name": "Rule"
+    },
+    {
+      "id": "finding-location",
+      "role": "note",
+      "name": "File and offset"
+    },
+    {
+      "id": "finding-remedy",
+      "role": "note",
+      "name": "How to fix"
+    },
+    {
+      "id": "severity-badge",
+      "role": "status",
+      "name": "Severity"
+    },
+    {
+      "id": "rule-filter",
+      "role": "button",
+      "name": "Filter by rule"
+    },
+    {
+      "id": "findings-search",
+      "role": "searchbox",
+      "name": "Search findings"
+    },
+    {
+      "id": "drift-panel",
+      "role": "region",
+      "name": "Drift detail"
+    },
+    {
+      "id": "unresolved-command",
+      "role": "note",
+      "name": "Unresolved command"
+    },
+    {
+      "id": "pinned-manifest-revision",
+      "role": "note",
+      "name": "CLI manifest revision compared against"
+    },
+    {
+      "id": "success-explainer",
+      "role": "note",
+      "name": "What passed"
+    }
+  ],
+  "claims": [
+    {
+      "id": "findings-list-present",
+      "type": "element-present",
+      "statement": "The findings list is present.",
+      "tier": "aspirational",
+      "elements": [
+        "findings-list"
+      ]
+    },
+    {
+      "id": "finding-carries-location",
+      "type": "element-present",
+      "statement": "Every finding shows its rule and its file-and-offset location.",
+      "tier": "aspirational",
+      "elements": [
+        "finding-rule",
+        "finding-location"
+      ],
+      "rationale": "An offset is the only actionable locator for an invisible character."
+    },
+    {
+      "id": "finding-carries-remedy",
+      "type": "element-present",
+      "statement": "Every finding states how to fix it.",
+      "tier": "aspirational",
+      "elements": [
+        "finding-remedy"
+      ]
+    },
+    {
+      "id": "findings-affordances",
+      "type": "affordance-present",
+      "statement": "The findings list offers search and filter by rule.",
+      "tier": "aspirational",
+      "elements": [
+        "findings-list"
+      ],
+      "params": {
+        "affordances": [
+          "search",
+          "filter"
+        ],
+        "targetRole": "list"
+      }
+    },
+    {
+      "id": "drift-shows-pinned-revision",
+      "type": "element-present",
+      "statement": "The drift panel shows both the unresolved command and the CLI manifest revision it was compared against.",
+      "tier": "aspirational",
+      "elements": [
+        "unresolved-command",
+        "pinned-manifest-revision"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "Without the revision the operator cannot tell a skill regression from a CLI change."
+    },
+    {
+      "id": "severity-not-color-only",
+      "type": "element-present",
+      "statement": "Severity is conveyed by text as well as color.",
+      "tier": "aspirational",
+      "elements": [
+        "severity-badge"
+      ]
+    },
+    {
+      "id": "success-is-explicit",
+      "type": "state-covered",
+      "statement": "A passing run states what was checked rather than rendering an empty list.",
+      "tier": "aspirational",
+      "elements": [
+        "success-explainer"
+      ],
+      "states": [
+        "success"
+      ],
+      "rationale": "An empty list is ambiguous between 'passed' and 'never ran'."
+    },
+    {
+      "id": "success-distinct-from-not-run",
+      "type": "state-distinct",
+      "statement": "A passing run is distinguishable from a run that has not executed.",
+      "tier": "aspirational",
+      "elements": [
+        "success-explainer",
+        "findings-list"
+      ],
+      "states": [
+        "success",
+        "empty"
+      ]
+    },
+    {
+      "id": "findings-body-not-echoed",
+      "type": "element-absent",
+      "statement": "No finding renders the full skill body.",
+      "tier": "aspirational",
+      "elements": [
+        "findings-list"
+      ],
+      "rationale": "A skill under review may be adversarial; echoing its body would relocate a prompt-injection payload into this page."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "findings-list": {
+        "testid": "findings-list"
+      },
+      "finding-item": {
+        "testid": "finding-item"
+      },
+      "finding-rule": {
+        "testid": "finding-rule"
+      },
+      "finding-location": {
+        "testid": "finding-location"
+      },
+      "finding-remedy": {
+        "testid": "finding-remedy"
+      },
+      "severity-badge": {
+        "testid": "severity-badge"
+      },
+      "rule-filter": {
+        "testid": "rule-filter"
+      },
+      "findings-search": {
+        "testid": "findings-search"
+      },
+      "drift-panel": {
+        "testid": "drift-panel"
+      },
+      "unresolved-command": {
+        "testid": "unresolved-command"
+      },
+      "pinned-manifest-revision": {
+        "testid": "pinned-manifest-revision"
+      },
+      "success-explainer": {
+        "testid": "success-explainer"
+      }
+    }
+  }
+}

@@ -6,20 +6,20 @@
  */
 
 import { useCallback, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
-import { useGraphDataStore } from "../stores/graph-data-store";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { graphPath, isGraphMode, type AppGraphLens } from "../../../app/routes/route-paths";
+import { useGraphDataStore, type GraphLens } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import { clearVisualFocus } from "../lib/visual-focus";
 import { getGraphNodeLabel } from "../types";
-import type { GraphLens } from "../stores/graph-data-store";
 
-export function isGraphLens(value: string | null): value is GraphLens {
-  return value === "focus" || value === "topology" || value === "operations";
+export function isGraphLens(value: string | null): value is AppGraphLens {
+  return value === "plan" || value === "graph" || value === "focus";
 }
 
 export interface UseGraphStateSyncResult {
-  urlLens: GraphLens;
-  handleLensChange: (newLens: GraphLens) => void;
+  urlLens: AppGraphLens;
+  handleLensChange: (newLens: AppGraphLens) => void;
   handleReturnToAtlas: () => void;
   handleDeselectNode: () => void;
 }
@@ -32,15 +32,20 @@ export interface UseGraphStateSyncResult {
  * - Handles URL ↔ store selection sync
  */
 export function useGraphStateSync(): UseGraphStateSyncResult {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const searchLens = searchParams.get("lens");
-  const urlLens: GraphLens = isGraphLens(searchLens) ? searchLens : "topology";
+  const isPlanRoute = location.pathname === "/plan";
+  const isStatsRoute = location.pathname === "/stats";
+  const urlMode = searchParams.get("mode");
+  const graphMode: GraphLens = isGraphMode(urlMode ?? undefined) ? (urlMode as GraphLens) : "topology";
+  const urlDataLens: GraphLens = isPlanRoute ? "plan" : graphMode;
+  const urlLens: AppGraphLens = isPlanRoute ? "plan" : isStatsRoute ? "stats" : urlDataLens === "focus" ? "focus" : "graph";
   const urlSelect = searchParams.get("select");
   const urlFocus = searchParams.get("focus");
   const urlReturnLens = searchParams.get("returnLens");
 
-  const _lens = useGraphDataStore((s) => s.lens);
   const fetchGraph = useGraphDataStore((s) => s.fetchGraph);
   const nodes = useGraphDataStore((s) => s.nodes);
   const setLens = useGraphDataStore((s) => s.setLens);
@@ -49,7 +54,6 @@ export function useGraphStateSync(): UseGraphStateSyncResult {
   const returnLens = useGraphDataStore((s) => s.returnLens);
   const setReturnLens = useGraphDataStore((s) => s.setReturnLens);
 
-  const _focusNodeLabel = useGraphUIStore((s) => s.focusNodeLabel);
   const setFocusNodeLabel = useGraphUIStore((s) => s.setFocusNodeLabel);
   const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
   const selectNode = useGraphUIStore((s) => s.selectNode);
@@ -58,15 +62,22 @@ export function useGraphStateSync(): UseGraphStateSyncResult {
 
   // Sync URL lens → store
   useEffect(() => {
-    setLens(urlLens);
-    applyLayoutForLens(urlLens);
-    void fetchGraph(urlLens);
-  }, [applyLayoutForLens, fetchGraph, setLens, urlLens]);
+    if (isStatsRoute) {
+      return;
+    }
+    setLens(urlDataLens);
+    applyLayoutForLens(urlDataLens);
+    void fetchGraph(urlDataLens);
+  }, [applyLayoutForLens, fetchGraph, isStatsRoute, setLens, urlDataLens]);
 
   // Sync URL focus/returnLens → store
   useEffect(() => {
     setFocusNode(urlFocus ?? null);
-    setReturnLens(isGraphLens(urlReturnLens) ? urlReturnLens : null);
+    setReturnLens(
+      urlReturnLens === "plan" || urlReturnLens === "focus" || urlReturnLens === "topology"
+        ? urlReturnLens
+        : null,
+    );
   }, [urlFocus, urlReturnLens, setFocusNode, setReturnLens]);
 
   // Sync focus node label
@@ -101,26 +112,22 @@ export function useGraphStateSync(): UseGraphStateSyncResult {
   }, [selectedNodeId, selectNode, urlSelect]);
 
   const handleLensChange = useCallback(
-    (newLens: GraphLens) => {
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.set("lens", newLens);
-        return next;
-      });
+    (newLens: AppGraphLens) => {
+      navigate(graphPath({
+        lens: newLens,
+        focus: searchParams.get("focus"),
+        returnLens: searchParams.get("returnLens"),
+        select: searchParams.get("select"),
+      }));
     },
-    [setSearchParams],
+    [navigate, searchParams],
   );
 
   const handleReturnToAtlas = useCallback(() => {
-    const target = returnLens ?? "topology";
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set("lens", target);
-      next.delete("focus");
-      next.delete("returnLens");
-      return next;
-    });
-  }, [returnLens, setSearchParams]);
+    const target: AppGraphLens =
+      returnLens === "plan" ? "plan" : returnLens === "focus" ? "focus" : "graph";
+    navigate(graphPath({ lens: target }));
+  }, [navigate, returnLens]);
 
   const handleDeselectNode = useCallback(() => {
     const cleared = clearVisualFocus();

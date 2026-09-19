@@ -1,0 +1,104 @@
+{
+  "metadata": {
+    "name": "home-launchpad",
+    "description": "Stage-4 Home-launchpad journey driving the dual-mode front door end-to-end against the real backend: navigates to / and asserts the launchpad composes — the hero, the universal entry dropzone, and the intent-tile groups all render (the tile groups are built from the static op catalogs, while the recent rail + health chip exercise the live ListJobs and /health queries). It then clicks the 'Crop' Quick-edit tile and asserts the app routes into the unified Workspace (the mode switcher + canvas dropzone appear), proving the Home->Workspace intent handoff (setWorkspaceIntent -> navigate -> Workspace consumes it on mount) works against the live app. A launchpad that fails to compose, a broken tile, or an intent handoff that drops the navigation all fail here. Tile-level intent staging and the recent-rail/Library reopen are unit-covered by HomeLaunchpad.test/workspaceIntent.test.",
+    "requirement": "IMG-P0-013",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "purpose": "home-launchpad-smoke"
+    },
+    "execution_mode": "read_only"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-home",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "@scenario/self",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Navigate to Home" }
+      }
+    },
+    {
+      "id": "wait-home-root",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/home.root",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Home launchpad composed" }
+      }
+    },
+    {
+      "id": "wait-home-dropzone",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/home.dropzone",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Universal entry dropzone visible" }
+      }
+    },
+    {
+      "id": "wait-home-groups",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/home.groups",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Intent-tile groups visible" }
+      }
+    },
+    {
+      "id": "click-crop-tile",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/home.tile(name=\"crop\")"
+        },
+        "metadata": { "label": "Open the Crop quick-edit task" }
+      }
+    },
+    {
+      "id": "wait-workspace-switcher",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.modeSwitcher",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Routed into the Workspace (mode switcher visible)" }
+      }
+    },
+    {
+      "id": "assert-workspace-canvas",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.dropzone",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 10000,
+          "failure_message": "Workspace canvas dropzone not visible after a Home tile click — the Home->Workspace intent handoff did not land on a working Workspace (check setWorkspaceIntent/takeWorkspaceIntent and the Workspace mount effect)."
+        },
+        "metadata": { "label": "Assert the Workspace canvas composed (intent handoff complete)" }
+      }
+    }
+  ]
+}

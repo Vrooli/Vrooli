@@ -22,6 +22,8 @@ export interface RequirementResult {
  * Complete requirement coverage report output
  */
 export interface RequirementReport {
+  /** Separate run observations; append never collapses retry or runner provenance. */
+  native_observations?: import('./native-observations.js').NativeObservationReport[];
   /** ISO timestamp when report was generated */
   generated_at: string;
 

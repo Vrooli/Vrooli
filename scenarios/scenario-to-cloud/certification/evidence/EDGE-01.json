@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "case_id": "EDGE-01",
+  "verdict": "passed",
+  "lane": "package",
+  "requirement_refs": [
+    "STC-P0-036"
+  ],
+  "candidate": {
+    "release_digest": "sha256:package-lane-fixture",
+    "configuration_digest": "fixture-configuration",
+    "closure_digest": "sha256:fixture-stateless-web"
+  },
+  "target": {
+    "machine_id": "package-lane-fixture",
+    "architecture": "amd64",
+    "os": "linux"
+  },
+  "operation_refs": [],
+  "validation_receipt_ref": "go test ./edge/ -run TestBindDNSHandlesFamiliesIndependently; go test . -run TestEdgeObservationWrongDNSCannotClaimExternalReadiness",
+  "artifact_refs": [],
+  "assertions": [
+    "DNS A/AAAA are bound independently to the target locator; a mismatch is reported as dns_mismatch",
+    "wrong DNS keeps external readiness unproven (external check blocked on DNS)"
+  ],
+  "observed_at": "2026-09-09T15:43:05Z",
+  "limitations": [
+    "package lane only: QEMU (EXT-06) and real-VPS (EXT-01/EXT-03/EXT-04) lanes pending"
+  ]
+}

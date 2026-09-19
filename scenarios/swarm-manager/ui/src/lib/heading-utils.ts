@@ -1,9 +1,8 @@
 /**
  * Heading extraction and slug utilities for markdown TOC generation.
  *
- * Used by both renderMarkdown (to generate anchor IDs) and PlanPanel TOC popover
- * (to build the navigation list). Both consumers MUST produce identical IDs, which
- * is guaranteed by sharing slugify() and the same dedup counter logic.
+ * Used by the PlanPanel TOC popover to build a stable navigation list. Heading IDs
+ * are derived with the shared slugify() and dedup counter logic.
  */
 
 export interface HeadingEntry {
@@ -41,7 +40,7 @@ const CODE_FENCE_RE = /^```/;
 
 /**
  * Extract headings (h1–h3) from raw markdown, skipping code fences.
- * Returns entries with deduplicated anchor IDs matching renderMarkdown output.
+ * Returns entries with deterministic, deduplicated anchor IDs.
  */
 export function extractHeadings(markdown: string): HeadingEntry[] {
   const lines = markdown.split("\n");

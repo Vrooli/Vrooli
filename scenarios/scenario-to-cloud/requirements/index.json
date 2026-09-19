@@ -12,7 +12,17 @@
     "05-deploy-start/module.json",
     "06-observability/module.json",
     "07-deployment-manager-integration/module.json",
-    "08-p1-targets/module.json"
+    "08-p1-targets/module.json",
+    "09-p2-expansion/module.json",
+    "10-management-authority/module.json",
+    "11-plan-and-operations/module.json",
+    "12-durable-operations/module.json",
+    "13-closure-and-reach/module.json",
+    "14-release-and-activation/module.json",
+    "15-data-and-credentials/module.json",
+    "16-health-and-governance/module.json",
+    "17-operator-surfaces/module.json",
+    "18-certification/module.json"
   ],
   "requirements": []
 }

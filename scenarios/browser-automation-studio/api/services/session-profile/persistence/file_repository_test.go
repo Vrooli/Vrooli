@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
+	"strings"
 	"testing"
 	"time"
 )
@@ -66,6 +67,40 @@ func TestFileRepository_Get(t *testing.T) {
 			t.Error("expected error for corrupt JSON")
 		}
 	})
+}
+
+func TestFileRepositoryKeepsSensitiveStateOutOfProfileJSON(t *testing.T) {
+	mockFS := NewMockFileSystem()
+	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{FileSystem: mockFS})
+	profile := &SessionProfile{
+		ID:             "protected",
+		Name:           "Protected",
+		StorageState:   []byte(`{"cookies":[{"value":"cookie-secret"}]}`),
+		BrowserProfile: &BrowserProfile{Proxy: &ProxySettings{Password: "proxy-secret"}},
+		History:        []HistoryEntry{{ID: "history", URL: "https://private.example"}},
+	}
+	if err := repo.Create(profile); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	metadata, ok := mockFS.GetFile("/data/protected.json")
+	if !ok {
+		t.Fatal("metadata file missing")
+	}
+	for _, secret := range []string{"cookie-secret", "proxy-secret", "private.example"} {
+		if strings.Contains(string(metadata), secret) {
+			t.Fatalf("metadata leaks %q", secret)
+		}
+	}
+	if payload, ok := mockFS.GetFile("/data/protected.protected"); !ok || len(payload) == 0 {
+		t.Fatal("encrypted payload missing")
+	}
+	loaded, err := repo.Get("protected")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if string(loaded.StorageState) != string(profile.StorageState) || loaded.BrowserProfile.Proxy.Password != "proxy-secret" {
+		t.Fatal("protected state did not round trip")
+	}
 }
 
 func TestFileRepository_List(t *testing.T) {
@@ -392,7 +427,9 @@ func TestFileRepository_SaveSetsDefaultTimestamps(t *testing.T) {
 	// Read it back
 	data, _ := mockFS.GetFile("/data/timestamps.json")
 	var saved SessionProfile
-	json.Unmarshal(data, &saved)
+	if err := json.Unmarshal(data, &saved); err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
 
 	// CreatedAt and LastUsedAt should be set from UpdatedAt
 	if saved.CreatedAt.IsZero() {
@@ -447,7 +484,9 @@ func TestMockFileSystem_Stat(t *testing.T) {
 	}
 
 	// Test directory stat
-	mockFS.MkdirAll("/data/mydir", 0755)
+	if err := mockFS.MkdirAll("/data/mydir", 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
 	info, err = mockFS.Stat("/data/mydir")
 	if err != nil {
 		t.Fatalf("Stat failed: %v", err)

@@ -1,7 +1,7 @@
-import "@testing-library/jest-dom";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import { ChangeMetricsModal } from "./ChangeMetricsModal";
+import { renderWithProviders } from "../test-utils/renderWithProviders";
 import type { DiffStats, RepoFileStats } from "../lib/api";
 
 // Mock useIsMobile to test both modes
@@ -61,7 +61,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("does not render when isOpen is false", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={false}
         onClose={() => {}}
@@ -73,7 +73,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("renders file-level metrics", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -92,7 +92,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("shows rename info when applicable", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -107,7 +107,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("shows binary indicator when applicable", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -119,7 +119,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("renders aggregate metrics with breakdown", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -137,7 +137,7 @@ describe("ChangeMetricsModal", () => {
 
   it("closes on escape key", () => {
     const onClose = vi.fn();
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={onClose}
@@ -151,7 +151,7 @@ describe("ChangeMetricsModal", () => {
 
   it("closes on backdrop click (desktop)", () => {
     const onClose = vi.fn();
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={onClose}
@@ -167,7 +167,7 @@ describe("ChangeMetricsModal", () => {
 
   it("renders mobile layout when on mobile", () => {
     mockIsMobile = true;
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -182,7 +182,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("renders custom title when provided", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -195,7 +195,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("does not show density bar when density is zero", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -207,7 +207,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("renders file type breakdown in aggregate mode", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -222,7 +222,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("renders test file count when > 0 in aggregate mode", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -237,7 +237,7 @@ describe("ChangeMetricsModal", () => {
     const noTests: RepoFileStats = {
       staged: { "a.ts": { additions: 10, deletions: 3, files: 1 } },
     };
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -249,7 +249,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("renders churn ratio when > 0 in aggregate mode", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -262,7 +262,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("renders concentration when 3+ files in aggregate mode", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -276,7 +276,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("renders comment lines in file mode when present", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -290,7 +290,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("does not render comment lines when absent", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -303,7 +303,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("renders test file badge for test files in file mode", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -316,7 +316,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("does not render test file badge for non-test files", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -329,7 +329,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("shows loading spinner when enhancedLoading is true", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -356,7 +356,7 @@ describe("ChangeMetricsModal", () => {
       comment_additions: 3,
       comment_deletions: 1,
     };
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -373,7 +373,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("hides enhanced metrics section for untracked files", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -392,7 +392,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("shows basic stats immediately without enhanced stats", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -413,7 +413,7 @@ describe("ChangeMetricsModal", () => {
       is_rename: true,
       old_path: "old-name.ts",
     };
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -429,7 +429,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("toggles density help text on info icon click", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -450,7 +450,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("renders per-file churn ratio when > 0", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -465,7 +465,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("hides per-file churn ratio when 0", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -478,7 +478,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("renders avg lines per hunk when hunks > 0", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -491,7 +491,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("renders risk score when hunks > 0", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -506,7 +506,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("renders hotspot count when > 1", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -521,7 +521,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("hides hotspot when count is 1", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -535,7 +535,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("renders new file badge", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -548,7 +548,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("renders new file badge for untracked files", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -562,7 +562,7 @@ describe("ChangeMetricsModal", () => {
   });
 
   it("renders deleted file badge", () => {
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -581,7 +581,7 @@ describe("ChangeMetricsModal", () => {
         "app_test.go": { additions: 30, deletions: 5, files: 1 },
       },
     };
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -599,7 +599,7 @@ describe("ChangeMetricsModal", () => {
         "mod.go": { additions: 5, deletions: 2, files: 1 },
       },
     };
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}
@@ -617,7 +617,7 @@ describe("ChangeMetricsModal", () => {
         "mod.go": { additions: 5, deletions: 2, files: 1 },
       },
     };
-    render(
+    renderWithProviders(
       <ChangeMetricsModal
         isOpen={true}
         onClose={() => {}}

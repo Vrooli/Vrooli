@@ -25,14 +25,6 @@ describe("backlog-detail-ui-store", () => {
     expect(store.getState().showDelete).toBe(false);
   });
 
-  it("opens and closes agent dialog", () => {
-    const store = useBacklogDetailUIStore;
-    store.getState().openAgent();
-    expect(store.getState().showAgentDialog).toBe(true);
-    store.getState().closeAgent();
-    expect(store.getState().showAgentDialog).toBe(false);
-  });
-
   it("opens and closes run modal", () => {
     const store = useBacklogDetailUIStore;
     store.getState().openRunModal();
@@ -148,7 +140,6 @@ describe("backlog-detail-ui-store", () => {
   it("resets all state", () => {
     const store = useBacklogDetailUIStore;
     store.getState().openEdit();
-    store.getState().openAgent();
     store.getState().toggleTargetId("t1");
     store.getState().toggleReviewMode();
     store.getState().setRoundToDelete(2);
@@ -158,7 +149,6 @@ describe("backlog-detail-ui-store", () => {
 
     const state = store.getState();
     expect(state.showEdit).toBe(false);
-    expect(state.showAgentDialog).toBe(false);
     expect(state.selectedTargetIds.size).toBe(0);
     expect(state.reviewMode).toBe(false);
     expect(state.roundToDelete).toBeNull();

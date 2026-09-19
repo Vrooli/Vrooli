@@ -1,0 +1,1187 @@
+{
+  "schema_version": 1,
+  "lane": "qemu",
+  "matrix_revision": "cloud-launch-v1",
+  "matrix_source": {
+    "path": "certification/matrix.json",
+    "sha256": "e277d70d9b25d128892c650abd46f37bd783a01dff798664cf2eedf1e8026af9",
+    "case_count": 94
+  },
+  "provider": "local-qemu",
+  "recorded_at": "2026-09-09T18:00:00Z",
+  "rule": "Every matrix case whose lanes include qemu is a required cell here and nowhere else; api/certification/lanes_test.go refuses drift in either direction. A cell is satisfied only by a passed receipt with lane qemu for the exact candidate release digest.",
+  "operator_prerequisites": [
+    {
+      "id": "EXT-06",
+      "requirement": "host tools qemu (qemu-system-x86_64, qemu-system-aarch64, qemu-img) and cloud-localds",
+      "declared_in": ".vrooli/service.json hostTools",
+      "install_through": "vrooli setup --scenarios scenario-to-cloud",
+      "standing_on_recording_host": "absent"
+    },
+    {
+      "id": "EXT-06",
+      "requirement": "approved pristine Ubuntu 24.04 base image per architecture with recorded sha256",
+      "declared_in": "certification/lanes/qemu-images.json",
+      "install_through": "operator acquires the image and records path + digest; the provider never downloads",
+      "standing_on_recording_host": "none recorded"
+    },
+    {
+      "id": "EXT-05",
+      "requirement": "arm64 execution: qemu-system-aarch64 under TCG on the amd64 host, or an arm64 host with KVM",
+      "declared_in": "GET /api/v1/instances/readiness architectures.arm64",
+      "install_through": "vrooli setup (qemu declaration) or an arm64 host",
+      "standing_on_recording_host": "unavailable"
+    },
+    {
+      "id": "kvm",
+      "requirement": "/dev/kvm openable by the service user (kvm group) for accelerated amd64 guests; otherwise TCG",
+      "declared_in": "GET /api/v1/instances/readiness kvm_available",
+      "install_through": "vrooli setup host requirements",
+      "standing_on_recording_host": "device present, service user not in the kvm group"
+    },
+    {
+      "id": "ssh-key",
+      "requirement": "an SSH public key for the non-root guest user (vps instance create --authorized-key)",
+      "declared_in": "docs/local-qemu.md",
+      "install_through": "operator-supplied",
+      "standing_on_recording_host": "operator-supplied at run time"
+    }
+  ],
+  "architectures": [
+    {
+      "arch": "amd64",
+      "execution": "kvm when /dev/kvm is usable, else tcg",
+      "state_on_recording_host": "unavailable",
+      "reason": "qemu-system-x86_64 absent (EXT-06)"
+    },
+    {
+      "arch": "arm64",
+      "execution": "tcg on an amd64 host; kvm only on an arm64 host",
+      "state_on_recording_host": "unavailable",
+      "reason": "qemu-system-aarch64 absent (EXT-05/EXT-06); certification stays incomplete for arm64 until this lane runs (P20-A06)"
+    }
+  ],
+  "image_provenance": {
+    "manifest": "certification/lanes/qemu-images.json",
+    "required": [
+      {
+        "arch": "amd64",
+        "os": "ubuntu-24.04",
+        "path": null,
+        "sha256": null,
+        "standing": "pending EXT-06"
+      },
+      {
+        "arch": "arm64",
+        "os": "ubuntu-24.04",
+        "path": null,
+        "sha256": null,
+        "standing": "pending EXT-05/EXT-06"
+      }
+    ],
+    "preservation_rule": "The source image sha256 is verified before the owned copy-on-write disk is created and again after destroy; a difference fails P20-A05 for every cell of that run."
+  },
+  "budgets": {
+    "policy_ref": "docs/reference/support-policy.md#numeric-budgets-minimal-seeded-fixture",
+    "lane_timeout_seconds": 7200,
+    "machine_profile": {
+      "vcpu": 2,
+      "memory_gib": 4,
+      "disk_gib": 40,
+      "public_ipv4": 1,
+      "ipv6": "optional"
+    },
+    "owned_targets_per_qualification_max": 1,
+    "fault_injections_per_run_max": 8,
+    "spend_ceiling_minor_units": 0,
+    "fresh_host_restore_seconds_max": 900,
+    "planned_maintenance_unavailability_seconds_max": 60,
+    "residual_unexplained_owned_resources_max": 0,
+    "owned_ephemeral_targets_after_terminal_hours": 1,
+    "cleanup_policy": "retain_failed_evidence_then_remove_owned_ephemeral_resources"
+  },
+  "fault_capabilities": {
+    "worker_restart": {
+      "points": [
+        "worker_before_commit",
+        "worker_after_effect",
+        "activation_before_switch"
+      ],
+      "kind": "crash",
+      "blast_radius": "cloud owner process on the controller host"
+    },
+    "lease_expiry": {
+      "points": [
+        "worker_after_effect"
+      ],
+      "kind": "delay",
+      "blast_radius": "one operation lease; successor fence proves the stale one cannot commit"
+    },
+    "lost_reply": {
+      "points": [
+        "transport_reply"
+      ],
+      "kind": "drop_reply",
+      "blast_radius": "one remote step reply"
+    },
+    "transport_disconnect": {
+      "points": [
+        "transport_send",
+        "transport_reply"
+      ],
+      "kind": "fail",
+      "blast_radius": "one reach call to the owned guest"
+    },
+    "target_reboot": {
+      "points": [],
+      "kind": "guest_reset",
+      "blast_radius": "the owned QEMU guest only (vps instance stop then start); never a faultinject point"
+    },
+    "data_interruption": {
+      "points": [
+        "data_before_backup",
+        "data_after_restore"
+      ],
+      "kind": "fail",
+      "blast_radius": "one backup or restore step inside the owned guest"
+    }
+  },
+  "fault_rule": "Fault injection arms api/faultinject points only inside routed test mode and only against the owned guest; target_reboot is a guest reset through the instance owner. A capability not listed here is refused at admission.",
+  "journey": [
+    "readiness (GET /api/v1/instances/readiness) must be ready for the requested architecture",
+    "verify source image digest against qemu-images.json",
+    "vps instance create (owned copy-on-write disk) -> start -> wait-for-ssh -> snapshot clean",
+    "deploy the cell fixture through the operations API: plan -> apply(plan_digest, request_key) -> operation wait",
+    "per cell: arm the declared fault in test mode, exercise the trigger, collect target receipts (vrooli cloud-target receipt get) and the health observation",
+    "reset to clean and repeat every repeat_after_reset cell for the same release digest (P20-A04)",
+    "destroy the owned disk; verify the source image digest is unchanged and the neighbor inventory matches (P20-A05)",
+    "write certification/evidence/<CASE>.qemu.json receipts"
+  ],
+  "cells": [
+    {
+      "case_id": "RUN-01",
+      "family": "RUN",
+      "primary_phase": 7,
+      "trigger": "Duplicate admission same key",
+      "assertion": "One durable operation and one effective mutation",
+      "fixture": "stateless-web",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": true,
+      "requirement_refs": [
+        "STC-P0-018",
+        "STC-P0-019",
+        "STC-P0-020"
+      ],
+      "receipt_ref": "certification/evidence/RUN-01.qemu.json"
+    },
+    {
+      "case_id": "RUN-02",
+      "family": "RUN",
+      "primary_phase": 7,
+      "trigger": "Same key with different request",
+      "assertion": "Conflict; original intent remains unchanged",
+      "fixture": "stateless-web",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-018",
+        "STC-P0-019",
+        "STC-P0-020"
+      ],
+      "receipt_ref": "certification/evidence/RUN-02.qemu.json"
+    },
+    {
+      "case_id": "RUN-03",
+      "family": "RUN",
+      "primary_phase": 7,
+      "trigger": "Worker restart after intent persistence",
+      "assertion": "Recorded intent resumes or reconciles without lost work",
+      "fixture": "stateless-web",
+      "fault": {
+        "capability": "worker_restart",
+        "point": "worker_before_commit",
+        "kind": "crash"
+      },
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": true,
+      "requirement_refs": [
+        "STC-P0-018",
+        "STC-P0-019",
+        "STC-P0-020"
+      ],
+      "receipt_ref": "certification/evidence/RUN-03.qemu.json"
+    },
+    {
+      "case_id": "RUN-04",
+      "family": "RUN",
+      "primary_phase": 7,
+      "trigger": "Worker lease expires during remote effect",
+      "assertion": "Stale fence cannot commit; target result reconciled",
+      "fixture": "stateless-web",
+      "fault": {
+        "capability": "lease_expiry",
+        "point": "worker_after_effect",
+        "kind": "delay"
+      },
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-018",
+        "STC-P0-019",
+        "STC-P0-020"
+      ],
+      "receipt_ref": "certification/evidence/RUN-04.qemu.json"
+    },
+    {
+      "case_id": "RUN-05",
+      "family": "RUN",
+      "primary_phase": 7,
+      "trigger": "Remote success reply lost",
+      "assertion": "No blind replay; owner obtains authoritative standing",
+      "fixture": "stateless-web",
+      "fault": {
+        "capability": "lost_reply",
+        "point": "transport_reply",
+        "kind": "drop_reply"
+      },
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-018",
+        "STC-P0-019",
+        "STC-P0-020"
+      ],
+      "receipt_ref": "certification/evidence/RUN-05.qemu.json"
+    },
+    {
+      "case_id": "RUN-06",
+      "family": "RUN",
+      "primary_phase": 7,
+      "trigger": "Target disconnect mid-step",
+      "assertion": "Unknown or waiting state with one durable next action",
+      "fixture": "stateless-web",
+      "fault": {
+        "capability": "transport_disconnect",
+        "point": "transport_send",
+        "kind": "fail"
+      },
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-018",
+        "STC-P0-019",
+        "STC-P0-020"
+      ],
+      "receipt_ref": "certification/evidence/RUN-06.qemu.json"
+    },
+    {
+      "case_id": "RUN-07",
+      "family": "RUN",
+      "primary_phase": 7,
+      "trigger": "Client timeout or cancellation",
+      "assertion": "Server operation remains correctly owned",
+      "fixture": "stateless-web",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-018",
+        "STC-P0-019",
+        "STC-P0-020"
+      ],
+      "receipt_ref": "certification/evidence/RUN-07.qemu.json"
+    },
+    {
+      "case_id": "RUN-08",
+      "family": "RUN",
+      "primary_phase": 7,
+      "trigger": "Competing operation on same deployment",
+      "assertion": "Serialization or explicit conflict protects invariants",
+      "fixture": "stateless-web",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-018",
+        "STC-P0-019",
+        "STC-P0-020"
+      ],
+      "receipt_ref": "certification/evidence/RUN-08.qemu.json"
+    },
+    {
+      "case_id": "RUN-09",
+      "family": "RUN",
+      "primary_phase": 7,
+      "trigger": "Target restart during activation",
+      "assertion": "Reconciles actual active release and durable data",
+      "fixture": "stateless-web",
+      "fault": {
+        "capability": "target_reboot",
+        "point": null,
+        "kind": "guest_reset"
+      },
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-018",
+        "STC-P0-019",
+        "STC-P0-020"
+      ],
+      "receipt_ref": "certification/evidence/RUN-09.qemu.json"
+    },
+    {
+      "case_id": "RUN-10",
+      "family": "RUN",
+      "primary_phase": 7,
+      "trigger": "Stored operation has unknown version",
+      "assertion": "Explicit incompatibility; no guessed success",
+      "fixture": "stateless-web",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-018",
+        "STC-P0-019",
+        "STC-P0-020"
+      ],
+      "receipt_ref": "certification/evidence/RUN-10.qemu.json"
+    },
+    {
+      "case_id": "REACH-01",
+      "family": "REACH",
+      "primary_phase": 9,
+      "trigger": "Enroll previously unknown target",
+      "assertion": "Trust and scoped onboarding receipt before privileged use",
+      "fixture": "stateless-web",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-024"
+      ],
+      "receipt_ref": "certification/evidence/REACH-01.qemu.json"
+    },
+    {
+      "case_id": "REACH-02",
+      "family": "REACH",
+      "primary_phase": 9,
+      "trigger": "Machine identity changes",
+      "assertion": "Re-enrollment policy; old identity not silently accepted",
+      "fixture": "stateless-web",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-024"
+      ],
+      "receipt_ref": "certification/evidence/REACH-02.qemu.json"
+    },
+    {
+      "case_id": "REACH-03",
+      "family": "REACH",
+      "primary_phase": 9,
+      "trigger": "Direct adapter and Bridge path",
+      "assertion": "Equivalent policy authorization results and correlation",
+      "fixture": "stateless-web",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-024"
+      ],
+      "receipt_ref": "certification/evidence/REACH-03.qemu.json"
+    },
+    {
+      "case_id": "REACH-04",
+      "family": "REACH",
+      "primary_phase": 9,
+      "trigger": "Transport interruption during artifact transfer",
+      "assertion": "Bounded resume or restart with final digest verification",
+      "fixture": "stateless-web",
+      "fault": {
+        "capability": "transport_disconnect",
+        "point": "transport_send",
+        "kind": "fail"
+      },
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-024"
+      ],
+      "receipt_ref": "certification/evidence/REACH-04.qemu.json"
+    },
+    {
+      "case_id": "REACH-05",
+      "family": "REACH",
+      "primary_phase": 9,
+      "trigger": "Controller reconnect",
+      "assertion": "Existing durable target operation reattached",
+      "fixture": "stateless-web",
+      "fault": {
+        "capability": "transport_disconnect",
+        "point": "transport_reply",
+        "kind": "fail"
+      },
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-024"
+      ],
+      "receipt_ref": "certification/evidence/REACH-05.qemu.json"
+    },
+    {
+      "case_id": "REACH-06",
+      "family": "REACH",
+      "primary_phase": 9,
+      "trigger": "Shared reach unavailable",
+      "assertion": "Typed unavailable standing; no hidden private SSH fallback",
+      "fixture": "stateless-web",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-024"
+      ],
+      "receipt_ref": "certification/evidence/REACH-06.qemu.json"
+    },
+    {
+      "case_id": "REACH-07",
+      "family": "REACH",
+      "primary_phase": 9,
+      "trigger": "Target configuration subset",
+      "assertion": "Analyzer closure matches onboarding installed/running selection",
+      "fixture": "dependent-chain",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-024"
+      ],
+      "receipt_ref": "certification/evidence/REACH-07.qemu.json"
+    },
+    {
+      "case_id": "REACH-08",
+      "family": "REACH",
+      "primary_phase": 9,
+      "trigger": "Coexisting unrelated workload",
+      "assertion": "Bootstrap and repair preserve its processes files and network rules",
+      "fixture": "coexistence/existing-full-install",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-024"
+      ],
+      "receipt_ref": "certification/evidence/REACH-08.qemu.json"
+    },
+    {
+      "case_id": "RELEASE-01",
+      "family": "RELEASE",
+      "primary_phase": 10,
+      "trigger": "Corrupt bundle byte",
+      "assertion": "Rejected before extraction or activation",
+      "fixture": "headless-api",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-026",
+        "STC-P0-027"
+      ],
+      "receipt_ref": "certification/evidence/RELEASE-01.qemu.json"
+    },
+    {
+      "case_id": "RELEASE-02",
+      "family": "RELEASE",
+      "primary_phase": 10,
+      "trigger": "Valid digest from untrusted producer",
+      "assertion": "Trust policy rejects artifact",
+      "fixture": "headless-api",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-026",
+        "STC-P0-027"
+      ],
+      "receipt_ref": "certification/evidence/RELEASE-02.qemu.json"
+    },
+    {
+      "case_id": "RELEASE-03",
+      "family": "RELEASE",
+      "primary_phase": 10,
+      "trigger": "Archive traversal or unsafe link",
+      "assertion": "Rejected without writes outside owned staging",
+      "fixture": "headless-api",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-026",
+        "STC-P0-027"
+      ],
+      "receipt_ref": "certification/evidence/RELEASE-03.qemu.json"
+    },
+    {
+      "case_id": "RELEASE-04",
+      "family": "RELEASE",
+      "primary_phase": 10,
+      "trigger": "Wrong architecture or ABI",
+      "assertion": "Preflight rejects before active release changes",
+      "fixture": "headless-api",
+      "fault": null,
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-026",
+        "STC-P0-027"
+      ],
+      "receipt_ref": "certification/evidence/RELEASE-04.qemu.json"
+    },
+    {
+      "case_id": "RELEASE-05",
+      "family": "RELEASE",
+      "primary_phase": 10,
+      "trigger": "Target CLI differs from approved manifest",
+      "assertion": "Rejected rather than rebuilt from mutable source",
+      "fixture": "headless-api",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-026",
+        "STC-P0-027"
+      ],
+      "receipt_ref": "certification/evidence/RELEASE-05.qemu.json"
+    },
+    {
+      "case_id": "RELEASE-06",
+      "family": "RELEASE",
+      "primary_phase": 10,
+      "trigger": "Interrupted staging",
+      "assertion": "Active release remains serviceable; staged residue owned",
+      "fixture": "headless-api",
+      "fault": {
+        "capability": "worker_restart",
+        "point": "activation_before_switch",
+        "kind": "crash"
+      },
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-026",
+        "STC-P0-027"
+      ],
+      "receipt_ref": "certification/evidence/RELEASE-06.qemu.json"
+    },
+    {
+      "case_id": "RELEASE-07",
+      "family": "RELEASE",
+      "primary_phase": 10,
+      "trigger": "Healthy compatible update",
+      "assertion": "External endpoint serves exact new release",
+      "fixture": "headless-api",
+      "fault": null,
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "repeat_after_reset": true,
+      "requirement_refs": [
+        "STC-P0-026",
+        "STC-P0-027"
+      ],
+      "receipt_ref": "certification/evidence/RELEASE-07.qemu.json"
+    },
+    {
+      "case_id": "RELEASE-08",
+      "family": "RELEASE",
+      "primary_phase": 10,
+      "trigger": "Unhealthy candidate",
+      "assertion": "Activation withheld or recovery restores verified healthy standing",
+      "fixture": "headless-api",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-026",
+        "STC-P0-027"
+      ],
+      "receipt_ref": "certification/evidence/RELEASE-08.qemu.json"
+    },
+    {
+      "case_id": "RELEASE-09",
+      "family": "RELEASE",
+      "primary_phase": 10,
+      "trigger": "Artifact garbage collection race",
+      "assertion": "Active and recovery leases prevent deletion",
+      "fixture": "headless-api",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-026",
+        "STC-P0-027"
+      ],
+      "receipt_ref": "certification/evidence/RELEASE-09.qemu.json"
+    },
+    {
+      "case_id": "RELEASE-10",
+      "family": "RELEASE",
+      "primary_phase": 10,
+      "trigger": "Old release compatibility boundary",
+      "assertion": "Explicit rollback eligibility tied to schema and config",
+      "fixture": "headless-api",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-026",
+        "STC-P0-027"
+      ],
+      "receipt_ref": "certification/evidence/RELEASE-10.qemu.json"
+    },
+    {
+      "case_id": "DATA-01",
+      "family": "DATA",
+      "primary_phase": 12,
+      "trigger": "Backup under acknowledged writes",
+      "assertion": "Consistent restore with measured recovery point",
+      "fixture": "sql-uploads",
+      "fault": {
+        "capability": "data_interruption",
+        "point": "data_before_backup",
+        "kind": "fail"
+      },
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-029",
+        "STC-P0-030",
+        "STC-P0-031"
+      ],
+      "receipt_ref": "certification/evidence/DATA-01.qemu.json"
+    },
+    {
+      "case_id": "DATA-02",
+      "family": "DATA",
+      "primary_phase": 12,
+      "trigger": "Corrupted or incomplete backup",
+      "assertion": "Rejected; existing data remains protected",
+      "fixture": "sql-uploads",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-029",
+        "STC-P0-030",
+        "STC-P0-031"
+      ],
+      "receipt_ref": "certification/evidence/DATA-02.qemu.json"
+    },
+    {
+      "case_id": "DATA-03",
+      "family": "DATA",
+      "primary_phase": 12,
+      "trigger": "Backup encryption key unavailable",
+      "assertion": "Actionable recovery failure without false completion",
+      "fixture": "sql-uploads",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-029",
+        "STC-P0-030",
+        "STC-P0-031"
+      ],
+      "receipt_ref": "certification/evidence/DATA-03.qemu.json"
+    },
+    {
+      "case_id": "DATA-04",
+      "family": "DATA",
+      "primary_phase": 12,
+      "trigger": "Compatible code rollback",
+      "assertion": "Data preserved and external functionality verified",
+      "fixture": "sql-uploads",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-029",
+        "STC-P0-030",
+        "STC-P0-031"
+      ],
+      "receipt_ref": "certification/evidence/DATA-04.qemu.json"
+    },
+    {
+      "case_id": "DATA-05",
+      "family": "DATA",
+      "primary_phase": 12,
+      "trigger": "Fresh-host restore",
+      "assertion": "Service and logical data verified within frozen RTO",
+      "fixture": "sql-uploads",
+      "fault": null,
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "repeat_after_reset": true,
+      "requirement_refs": [
+        "STC-P0-029",
+        "STC-P0-030",
+        "STC-P0-031"
+      ],
+      "receipt_ref": "certification/evidence/DATA-05.qemu.json"
+    },
+    {
+      "case_id": "DATA-06",
+      "family": "DATA",
+      "primary_phase": 12,
+      "trigger": "Incompatible schema rollback",
+      "assertion": "Blocked with supported recovery path",
+      "fixture": "sql-uploads",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-029",
+        "STC-P0-030",
+        "STC-P0-031"
+      ],
+      "receipt_ref": "certification/evidence/DATA-06.qemu.json"
+    },
+    {
+      "case_id": "DATA-07",
+      "family": "DATA",
+      "primary_phase": 12,
+      "trigger": "Migration fails partway",
+      "assertion": "Declared transactional or recovery semantics proven",
+      "fixture": "sql-uploads",
+      "fault": {
+        "capability": "worker_restart",
+        "point": "worker_before_commit",
+        "kind": "crash"
+      },
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-029",
+        "STC-P0-030",
+        "STC-P0-031"
+      ],
+      "receipt_ref": "certification/evidence/DATA-07.qemu.json"
+    },
+    {
+      "case_id": "DATA-08",
+      "family": "DATA",
+      "primary_phase": 12,
+      "trigger": "Volume belongs to another deployment",
+      "assertion": "No adopt delete or overwrite without explicit authority",
+      "fixture": "coexistence/two-deployments",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-029",
+        "STC-P0-030",
+        "STC-P0-031"
+      ],
+      "receipt_ref": "certification/evidence/DATA-08.qemu.json"
+    },
+    {
+      "case_id": "DATA-09",
+      "family": "DATA",
+      "primary_phase": 12,
+      "trigger": "Retention pruning",
+      "assertion": "Protected recovery points and active operation leases preserved",
+      "fixture": "sql-uploads",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-029",
+        "STC-P0-030",
+        "STC-P0-031"
+      ],
+      "receipt_ref": "certification/evidence/DATA-09.qemu.json"
+    },
+    {
+      "case_id": "DATA-10",
+      "family": "DATA",
+      "primary_phase": 12,
+      "trigger": "Restore credential prerequisites",
+      "assertion": "Recovery identity works without original controller session",
+      "fixture": "sql-uploads",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-029",
+        "STC-P0-030",
+        "STC-P0-031"
+      ],
+      "receipt_ref": "certification/evidence/DATA-10.qemu.json"
+    },
+    {
+      "case_id": "EDGE-01",
+      "family": "EDGE",
+      "primary_phase": 14,
+      "trigger": "DNS wrong or stale",
+      "assertion": "Independent observation reports mismatch",
+      "fixture": "stateless-web",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-036"
+      ],
+      "receipt_ref": "certification/evidence/EDGE-01.qemu.json"
+    },
+    {
+      "case_id": "EDGE-02",
+      "family": "EDGE",
+      "primary_phase": 14,
+      "trigger": "Certificate issue and renewal",
+      "assertion": "Correct hostname chain and renewal outcome verified",
+      "fixture": "stateless-web",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-036"
+      ],
+      "receipt_ref": "certification/evidence/EDGE-02.qemu.json"
+    },
+    {
+      "case_id": "EDGE-03",
+      "family": "EDGE",
+      "primary_phase": 14,
+      "trigger": "Public ingress scan",
+      "assertion": "Only declared endpoints accessible",
+      "fixture": "stateless-web",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-036"
+      ],
+      "receipt_ref": "certification/evidence/EDGE-03.qemu.json"
+    },
+    {
+      "case_id": "EDGE-04",
+      "family": "EDGE",
+      "primary_phase": 14,
+      "trigger": "Private backend direct access",
+      "assertion": "Unauthenticated public reach is denied",
+      "fixture": "stateless-web",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-036"
+      ],
+      "receipt_ref": "certification/evidence/EDGE-04.qemu.json"
+    },
+    {
+      "case_id": "EDGE-05",
+      "family": "EDGE",
+      "primary_phase": 14,
+      "trigger": "Firewall remediation",
+      "assertion": "Typed least-privilege effects; unrelated rules preserved",
+      "fixture": "stateless-web",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-036"
+      ],
+      "receipt_ref": "certification/evidence/EDGE-05.qemu.json"
+    },
+    {
+      "case_id": "EDGE-06",
+      "family": "EDGE",
+      "primary_phase": 14,
+      "trigger": "Target reboot",
+      "assertion": "Declared services and endpoint recover under owner policy",
+      "fixture": "stateless-web",
+      "fault": {
+        "capability": "target_reboot",
+        "point": null,
+        "kind": "guest_reset"
+      },
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "repeat_after_reset": true,
+      "requirement_refs": [
+        "STC-P0-036"
+      ],
+      "receipt_ref": "certification/evidence/EDGE-06.json"
+    },
+    {
+      "case_id": "EDGE-07",
+      "family": "EDGE",
+      "primary_phase": 14,
+      "trigger": "Health HTTP 200 with unhealthy body",
+      "assertion": "Consumer rejects healthy verdict",
+      "fixture": "stateless-web",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-036"
+      ],
+      "receipt_ref": "certification/evidence/EDGE-07.qemu.json"
+    },
+    {
+      "case_id": "EDGE-08",
+      "family": "EDGE",
+      "primary_phase": 14,
+      "trigger": "Stale or wrong-release health receipt",
+      "assertion": "Cannot satisfy candidate gate",
+      "fixture": "stateless-web",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-036"
+      ],
+      "receipt_ref": "certification/evidence/EDGE-08.qemu.json"
+    },
+    {
+      "case_id": "OPS-01",
+      "family": "OPS",
+      "primary_phase": 23,
+      "trigger": "Sustained healthy traffic",
+      "assertion": "Availability and latency remain within frozen budgets",
+      "fixture": "stateless-web",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-043"
+      ],
+      "receipt_ref": "certification/evidence/OPS-01.qemu.json"
+    },
+    {
+      "case_id": "OPS-02",
+      "family": "OPS",
+      "primary_phase": 23,
+      "trigger": "Scheduled failure and alert",
+      "assertion": "Actionable alert arrives within detection budget",
+      "fixture": "stateless-web",
+      "fault": {
+        "capability": "transport_disconnect",
+        "point": "transport_send",
+        "kind": "fail"
+      },
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-043"
+      ],
+      "receipt_ref": "certification/evidence/OPS-02.qemu.json"
+    },
+    {
+      "case_id": "OPS-03",
+      "family": "OPS",
+      "primary_phase": 23,
+      "trigger": "Disk and resource pressure",
+      "assertion": "Bounded degradation and owner remediation; no broad destructive cleanup",
+      "fixture": "resource-heavy",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-043"
+      ],
+      "receipt_ref": "certification/evidence/OPS-03.qemu.json"
+    },
+    {
+      "case_id": "OPS-04",
+      "family": "OPS",
+      "primary_phase": 23,
+      "trigger": "Repeated update and recovery cycles",
+      "assertion": "No accumulating processes leases files or operations",
+      "fixture": "stateless-web",
+      "fault": {
+        "capability": "target_reboot",
+        "point": null,
+        "kind": "guest_reset"
+      },
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-043"
+      ],
+      "receipt_ref": "certification/evidence/OPS-04.qemu.json"
+    },
+    {
+      "case_id": "OPS-05",
+      "family": "OPS",
+      "primary_phase": 23,
+      "trigger": "Workload retirement",
+      "assertion": "Data disposition explicit; access revoked; public route removed",
+      "fixture": "coexistence/two-deployments",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-043"
+      ],
+      "receipt_ref": "certification/evidence/OPS-05.qemu.json"
+    },
+    {
+      "case_id": "OPS-06",
+      "family": "OPS",
+      "primary_phase": 23,
+      "trigger": "Qualification cleanup",
+      "assertion": "Zero unexplained owned residual resources or spend",
+      "fixture": "stateless-web",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-043"
+      ],
+      "receipt_ref": "certification/evidence/OPS-06.qemu.json"
+    },
+    {
+      "case_id": "OPS-07",
+      "family": "OPS",
+      "primary_phase": 23,
+      "trigger": "Minimal fixture on amd64 and arm64",
+      "assertion": "Both identities qualify or required support remains incomplete",
+      "fixture": "stateless-web",
+      "fault": null,
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "repeat_after_reset": true,
+      "requirement_refs": [
+        "STC-P0-043"
+      ],
+      "receipt_ref": "certification/evidence/OPS-07.qemu.json"
+    },
+    {
+      "case_id": "OPS-08",
+      "family": "OPS",
+      "primary_phase": 23,
+      "trigger": "Representative hosted consumer",
+      "assertion": "Generic deployment and update boundary succeeds without product-specific code",
+      "fixture": "dependent-chain",
+      "fault": null,
+      "architectures": [
+        "amd64"
+      ],
+      "repeat_after_reset": false,
+      "requirement_refs": [
+        "STC-P0-043"
+      ],
+      "receipt_ref": "certification/evidence/OPS-08.qemu.json"
+    }
+  ]
+}

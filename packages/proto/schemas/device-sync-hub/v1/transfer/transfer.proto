@@ -1,0 +1,190 @@
+syntax = "proto3";
+
+package vrooli.device_sync_hub.v1.transfer;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-hub/v1/transfer;transfer_v1";
+
+// =============================================================================
+// TRANSFER DOMAIN — server-relayed file and text transfer between trusted
+// devices
+// =============================================================================
+//
+// @stability stable
+//
+// Wire contract for the TransferService Connect-RPC service. This is the heart
+// of Device Sync Hub: the owner's trusted devices push files and text snippets
+// and pull what others have pushed, all relayed through the always-on server
+// (device -> server -> device; no peer-to-peer in v1).
+//
+// Two item kinds are first-class: TEXT (the snippet body rides inline) and FILE
+// (opaque bytes live in api-core/blobstore; metadata lives in the items table).
+//
+// Authentication here is by DEVICE TOKEN, not the owner JWT: a device presents
+// the opaque hub token it received at pairing (RedeemPairingCode /
+// ApprovePairing) in the `X-Device-Token` header. Only a TRUSTED device of the
+// owner may create, list, get, download, or delete items. A device that is
+// merely on the network/tunnel — unpaired, PENDING, or REVOKED — sees nothing.
+//
+// Retention is the only knob on the relay pipe:
+//   - LIVE:   deliver to currently-connected trusted devices, then purge.
+//   - HELD:   keep for a bounded window (24h default), then auto-purge.
+//   - PINNED: keep until the owner manually deletes it.
+//
+// Delivery defaults to BROADCAST (every trusted device may pull); an item may
+// instead be DIRECTED to a single target device (only that device + the origin
+// device may pull it).
+//
+// Transports:
+//   - Connect-RPC: CreateTextItem / ListItems / GetItem / DeleteItem (JSON or
+//     binary protobuf payloads — small, structured).
+//   - REST exceptions (documented in handlers/transfer + .vrooli/endpoints.json):
+//       * POST   /api/v1/transfer/items            multipart file upload
+//       * GET    /api/v1/transfer/items/{id}/content   streaming download
+//     Both keep Item as the proto-typed metadata shape; only the byte transport
+//     is REST because multipart/streaming bytes cannot ride a proto message.
+//
+// Consumed by:
+//   - API: handlers/transfer/connect_handler.go implements TransferServiceHandler.
+//   - UI:  ui/src/features/send/ + ui/src/features/receive/.
+//   - CLI: cli/domains/transfer/ (upload | list | download | delete | send-text).
+// =============================================================================
+
+service TransferService {
+  // CreateTextItem stores a text snippet as an item visible to the trust group
+  // (or a single directed device). Device-token authed.
+  rpc CreateTextItem(CreateTextItemRequest) returns (CreateTextItemResponse);
+
+  // ListItems returns the items the calling device may pull (broadcast items
+  // plus items directed to it plus items it originated), newest first.
+  rpc ListItems(ListItemsRequest) returns (ListItemsResponse);
+
+  // GetItem returns a single item's metadata if the calling device may see it.
+  rpc GetItem(GetItemRequest) returns (GetItemResponse);
+
+  // DeleteItem removes an item and its blob. The origin device or any trusted
+  // device of the owner may delete (single-owner trust group).
+  rpc DeleteItem(DeleteItemRequest) returns (DeleteItemResponse);
+}
+
+// ItemKind distinguishes the two first-class payload types.
+enum ItemKind {
+  ITEM_KIND_UNSPECIFIED = 0;
+  // A text snippet; the body rides inline in the item (Item.text).
+  ITEM_KIND_TEXT = 1;
+  // An opaque file; bytes are streamed via the REST upload/download endpoints.
+  ITEM_KIND_FILE = 2;
+}
+
+// Retention is the per-item lifetime policy. A global default applies when an
+// item is created without an explicit choice.
+enum Retention {
+  RETENTION_UNSPECIFIED = 0;
+  // Deliver to connected trusted devices, then purge once delivered.
+  RETENTION_LIVE = 1;
+  // Keep for a bounded window (24h default), then auto-purge.
+  RETENTION_HELD = 2;
+  // Keep until the owner manually deletes it.
+  RETENTION_PINNED = 3;
+}
+
+// Item is the canonical wire shape for one transferred payload (file or text).
+message Item {
+  // UUID assigned by the hub on create.
+  string id = 1;
+
+  // Authenticator user id of the owner whose trust group this item belongs to.
+  string owner_id = 2;
+
+  // Id of the device that pushed this item.
+  string origin_device_id = 3;
+
+  // Whether this is a text snippet or a file.
+  ItemKind kind = 4;
+
+  // Human-facing name: the original filename for a file, or a short label for
+  // a text snippet (may be empty for text).
+  string name = 5;
+
+  // MIME type of the payload (e.g. "text/plain", "image/png").
+  string mime = 6;
+
+  // Payload size in bytes (the inline text length for TEXT items).
+  int64 size_bytes = 7;
+
+  // Inline body for ITEM_KIND_TEXT items. Empty for files. For very large text
+  // the hub may truncate the preview but the download endpoint always returns
+  // the full body.
+  string text = 8;
+
+  // Whether the hub generated an image thumbnail for this item (files only).
+  bool has_thumbnail = 9;
+
+  // Lifetime policy.
+  Retention retention = 10;
+
+  // Empty for a broadcast item (any trusted device may pull). When set, the
+  // item is directed: only this device (and the origin) may pull it.
+  string target_device_id = 11;
+
+  // When the item auto-purges. Zero/absent for PINNED items.
+  google.protobuf.Timestamp expires_at = 12;
+
+  google.protobuf.Timestamp created_at = 13;
+}
+
+message CreateTextItemRequest {
+  // The snippet body (required, non-empty).
+  string text = 1;
+
+  // Optional short label for the snippet.
+  string name = 2;
+
+  // Lifetime policy; RETENTION_UNSPECIFIED applies the global default.
+  Retention retention = 3;
+
+  // Empty for broadcast; a device id to direct the snippet to one device.
+  string target_device_id = 4;
+}
+
+message CreateTextItemResponse {
+  Item item = 1;
+}
+
+message ListItemsRequest {
+  // Optional case-insensitive substring filter over item name / text.
+  string query = 1;
+
+  // Optional kind filter; ITEM_KIND_UNSPECIFIED returns both kinds.
+  ItemKind kind = 2;
+}
+
+message ListItemsResponse {
+  repeated Item items = 1;
+}
+
+message GetItemRequest {
+  string id = 1;
+}
+
+message GetItemResponse {
+  Item item = 1;
+}
+
+message DeleteItemRequest {
+  string id = 1;
+}
+
+message DeleteItemResponse {
+  // Id of the deleted item (echoed for confirmation).
+  string id = 1;
+}
+
+// UploadItemResponse is the proto-typed metadata returned by the REST multipart
+// file-upload endpoint. The request transport is multipart/form-data (it cannot
+// ride a proto message), but the response payload stays proto-typed so the Go
+// and TypeScript clients deserialize the same Item shape as the Connect calls.
+message UploadItemResponse {
+  Item item = 1;
+}

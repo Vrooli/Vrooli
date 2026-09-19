@@ -1,6 +1,22 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "name": "vrooli-assistant",
     "displayName": "Vrooli Assistant",
@@ -67,132 +83,6 @@
       "timeout": 5000,
       "interval": 30000,
       "startup_grace_period": 10000
-    },
-    "setup": {
-      "description": "Initialize Vrooli Assistant with Electron app",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/vrooli-assistant-api",
-              "ui/electron/dist/vrooli-assistant"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "vrooli-assistant",
-            "targets": [
-              "vrooli-assistant"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-electron-deps",
-          "run": "cd ui/electron && npm install",
-          "description": "Install Electron dependencies"
-        },
-        {
-          "name": "build-electron-app",
-          "run": "cd ui/electron && npm run build",
-          "description": "Build Electron application"
-        },
-        {
-          "name": "install-web-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install browser UI dependencies"
-        },
-        {
-          "name": "build-web-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build browser UI assets"
-        },
-        {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add app data to resources"
-        },
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o vrooli-assistant-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Vrooli Assistant initialized\\n  API and Web UI: http://localhost:${API_PORT}\\n  CLI: vrooli-assistant --help\\n  Electron overlay: set ENABLE_ELECTRON_OVERLAY=1 before start to enable\\n  Hotkey: Cmd+Shift+Space (Mac) / Ctrl+Shift+Space (Win/Linux)'",
-          "description": "Display service access info"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start Vrooli Assistant with Electron overlay and API server",
-      "steps": [
-        {
-          "name": "prepare-web-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build browser UI assets for preview"
-        },
-        {
-          "name": "start-api",
-          "run": "cd api && ./vrooli-assistant-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/vrooli-assistant-api"
-          }
-        },
-        {
-          "name": "start-electron-daemon",
-          "run": "cd ui/electron && if [ \"${ENABLE_ELECTRON_OVERLAY:-0}\" = \"1\" ]; then npm run start:daemon; else echo 'Electron overlay disabled (set ENABLE_ELECTRON_OVERLAY=1 to enable).'; fi",
-          "description": "Start Electron overlay daemon when explicitly enabled"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Vrooli Assistant running:\\n  API and Web UI: http://localhost:$API_PORT\\n  Electron overlay: enable by setting ENABLE_ELECTRON_OVERLAY=1 before start\\n  Hotkey: Cmd+Shift+Space (Mac) / Ctrl+Shift+Space (Win/Linux)'",
-          "description": "Display running service info"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for vrooli-assistant",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute vrooli-assistant --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"vrooli-assistant-api\" || true; sleep 1; pkill -9 -f \"vrooli-assistant-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "# WARNING: Could not determine UI technology, using generic pattern\npkill -f \"scenarios/vrooli-assistant/ui\" || true; sleep 1; pkill -9 -f \"scenarios/vrooli-assistant/ui\" 2>/dev/null || true",
-          "description": "Stop UI process"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -202,25 +92,77 @@
         "enabled": true,
         "required": true,
         "purpose": "Store issue history, patterns, and agent sessions",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
+        "startup_policy": "must_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": false,
-        "purpose": "Vector search for similar issues and pattern matching"
-      },
-      "browserless": {
-        "type": "browserless",
-        "enabled": true,
-        "required": false,
-        "purpose": "Enhanced DOM capture for web scenarios"
+        "purpose": "Vector search for similar issues and pattern matching",
+        "startup_policy": "try_start"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "vrooli-assistant",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "vrooli-assistant"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "electron-daemon": {
+      "role": "sidecar",
+      "build": {
+        "kind": "node_bundle",
+        "dir": "ui/electron",
+        "output": "ui/electron/main.js"
+      },
+      "run": {
+        "argv": [
+          "npm",
+          "run",
+          "start:daemon"
+        ],
+        "cwd": "ui/electron",
+        "supervised_by": "api",
+        "condition": {
+          "env_set": "ENABLE_ELECTRON_OVERLAY"
+        }
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

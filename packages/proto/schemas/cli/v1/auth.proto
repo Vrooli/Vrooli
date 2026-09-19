@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — `auth status` output contract
+// =============================================================================
+//
+// @stability experimental
+//
+// Canonical wire shape of the auth-status JSON output (the `data` envelope key
+// produced by cliout.WriteSuccessJSON). Marshaled with protojson
+// (UseProtoNames=true, EmitUnpopulated=true).
+// =============================================================================
+
+// AuthStatusResponse is the top-level envelope of the auth-status JSON output.
+message AuthStatusResponse {
+  // True when the status sweep completed.
+  bool success = 1;
+
+  // The auth-status payload (the `data` envelope key).
+  AuthStatusData data = 2;
+}
+
+// AuthStatusData carries per-tool sign-in status.
+message AuthStatusData {
+  // One entry per probed auth tool.
+  repeated AuthToolStatus statuses = 1;
+}
+
+// AuthToolStatus is one tool's sign-in probe result.
+message AuthToolStatus {
+  // Tool name (e.g. "claude", "gh").
+  string name = 1;
+
+  // Probe result for the tool.
+  AuthProbeResult result = 2;
+}
+
+// AuthProbeResult is the outcome of probing a tool's sign-in state.
+message AuthProbeResult {
+  // Sign-in state (e.g. "signed_in", "signed_out", "expired").
+  string state = 1;
+
+  // Human-readable detail; empty if none.
+  string detail = 2;
+
+  // Command argv to sign in, when applicable; empty otherwise.
+  repeated string sign_in_command = 3;
+}

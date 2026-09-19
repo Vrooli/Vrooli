@@ -1,0 +1,82 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "overlays.command-palette",
+    "name": "CommandPalette",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "overlays",
+    "description": "The global or scoped command interface with fuzzy search, recent actions, categories, keyboard navigation, argument collection, async execution, and command history.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "overlays.dialog",
+        "reason": "Modal presentation, focus, and dismissal are shared."
+      },
+      {
+        "asset": "services.command-registry",
+        "reason": "Commands come from one registry shared with menus and toolbars."
+      },
+      {
+        "asset": "services.shortcut-registry",
+        "reason": "Invocation and per-command shortcuts resolve through one collision-aware registry."
+      },
+      {
+        "asset": "forms.search-input",
+        "reason": "Query entry, debouncing, and cancellation are shared."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "layered-dismissal",
+    "contrast-floor",
+    "dark-parity",
+    "reduced-motion",
+    "transition-class-conformance",
+    "no-layout-animation",
+    "responsive-transformation",
+    "focus-containment",
+    "focus-restoration",
+    "status-announced",
+    "tap-target-size",
+    "focus-order",
+    "recovery-path"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "request-error",
+    "retry"
+  ],
+  "beauty": {
+    "signatureMoment": {
+      "description": "The palette opens already focused with recent commands present, so a returning user completes a frequent action in two keystrokes without reading the list."
+    }
+  },
+  "rationale": "Worth building as the visible front end of the shared command registry rather than an isolated modal: the same registrations should drive menus, toolbars, shortcut hints, and agent-invoked actions."
+}

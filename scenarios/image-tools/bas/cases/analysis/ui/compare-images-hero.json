@@ -1,0 +1,109 @@
+{
+  "metadata": {
+    "name": "compare-images-hero",
+    "description": "Phase-4 image-diff journey driving the visual-comparison surface end-to-end against the real backend: navigates to /compare, loads two DISTINCT generated images into the base and compare file inputs (the keyboard/no-pointer path), and runs the comparison. Because the diff engine is pure-Go (no model, no GPU — like probe), the run resolves SYNCHRONOUSLY to a real verdict + metrics + heat-map with NO install gate. Asserting the verdict and metrics render proves the full file-input -> multipart compare edge (POST /api/v1/diff/compare) -> DiffResult parse -> structured-result + heat-map render wiring works against the live API. A broken DiffService, a regressed compare edge, a heat-map blob that never stores/fetches, or a result that never renders all fail here. This is a TRUE green success path (not an install gate), the strongest kind of headless journey.",
+    "requirement": "IMG-P1-009",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "purpose": "compare-images-hero"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-compare",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "@scenario/self",
+          "scenario_path": "/compare",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Navigate to the Compare surface" }
+      }
+    },
+    {
+      "id": "wait-compare-root",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/compare.root",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Compare view composes" }
+      }
+    },
+    {
+      "id": "load-base-image",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const c = document.createElement('canvas'); c.width = 200; c.height = 200; const g = c.getContext('2d'); g.fillStyle = '#1a1a1a'; g.fillRect(0,0,200,200); return new Promise((resolve) => { c.toBlob((blob) => { const file = new File([blob], 'base.png', { type: 'image/png' }); const input = document.querySelector('[data-testid=\"compare-base-file-input\"]'); const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files; input.dispatchEvent(new Event('change', { bubbles: true })); resolve('base'); }, 'image/png'); }); })()",
+          "store_result": "baseLoaded"
+        },
+        "metadata": { "label": "Load the base image (dark) via the file input" }
+      }
+    },
+    {
+      "id": "load-compare-image",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const c = document.createElement('canvas'); c.width = 200; c.height = 200; const g = c.getContext('2d'); g.fillStyle = '#f0f0f0'; g.fillRect(0,0,200,200); g.fillStyle = '#c0392b'; g.fillRect(60,60,80,80); return new Promise((resolve) => { c.toBlob((blob) => { const file = new File([blob], 'compare.png', { type: 'image/png' }); const input = document.querySelector('[data-testid=\"compare-compare-file-input\"]'); const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files; input.dispatchEvent(new Event('change', { bubbles: true })); resolve('compare'); }, 'image/png'); }); })()",
+          "store_result": "compareLoaded"
+        },
+        "metadata": { "label": "Load the compare image (light + box) via the file input" }
+      }
+    },
+    {
+      "id": "run-compare",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/compare.runButton" },
+        "metadata": { "label": "Run the comparison" }
+      }
+    },
+    {
+      "id": "assert-verdict",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/compare.verdict",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 20000,
+          "failure_message": "The comparison verdict did not render after running compare — the multipart compare edge (POST /api/v1/diff/compare), the DiffResult parse, or the result view regressed. (diff is pure-Go and needs no model, so this path must succeed headless.)"
+        },
+        "metadata": { "label": "Verdict renders (real sync result, no model gate)" }
+      }
+    },
+    {
+      "id": "assert-metrics",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/compare.metrics",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 20000,
+          "failure_message": "The metrics readout did not render — the pixel/perceptual metric translation regressed."
+        },
+        "metadata": { "label": "Metrics readout renders" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-compare", "target": "wait-compare-root", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-compare-root", "target": "load-base-image", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "load-base-image", "target": "load-compare-image", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "load-compare-image", "target": "run-compare", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "run-compare", "target": "assert-verdict", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "assert-verdict", "target": "assert-metrics", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

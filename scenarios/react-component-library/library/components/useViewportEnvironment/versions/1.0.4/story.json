@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "Viewport environment",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [{
+    "id": "default",
+    "name": "Browser snapshot",
+    "role": "anatomy",
+    "mode": "live",
+    "args": {},
+    "composition": { "specimen": { "module": "./story.tsx", "export": "Default" } },
+    "expect": [{ "kind": "visible", "selector": "[data-rcl-viewport-environment]" }]
+  }, { "id": "empty", "name": "Empty viewport data", "role": "boundary", "mode": "pinned", "args": {}, "expect": [{ "kind": "visible", "selector": "[data-rcl-viewport-environment]" }] }, { "id": "loading", "name": "Loading viewport", "role": "boundary", "mode": "pinned", "args": { "state": "loading" }, "expect": [{ "kind": "visible", "selector": "[data-rcl-viewport-environment]" }] }, { "id": "error", "name": "Viewport error", "role": "boundary", "mode": "pinned", "args": { "state": "error" }, "expect": [{ "kind": "visible", "selector": "[data-rcl-viewport-environment]" }] }, { "id": "overflow", "name": "Long viewport description", "role": "boundary", "mode": "pinned", "args": { "label": "A deliberately long viewport environment description that must wrap cleanly" }, "expect": [{ "kind": "visible", "selector": "[data-rcl-viewport-environment]" }] }]
+}

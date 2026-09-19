@@ -1,0 +1,79 @@
+{
+  "metadata": {
+    "description": "Generated observer smoke for active experience page activity.",
+    "execution_mode": "observer",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "activity",
+      "surface": "experience-activity"
+    },
+    "name": "experience-activity-spec-smoke",
+    "requirement": "OT-P1-001",
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open Activity"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "secrets-manager",
+          "scenario_path": "/activity",
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-activity"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Primary binding visible"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/navigation.activity",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-activity-primary-binding"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Activity timeline exposes its authored lifecycle" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-experience-surface=\"activity-timeline\"][data-experience-state=\"loading\"], [data-experience-surface=\"activity-timeline\"][data-experience-state=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-activity-lifecycle"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Activity timeline reaches ready" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-experience-surface=\"activity-timeline\"][data-experience-state=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-activity-ready"
+    }
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate-activity", "target": "wait-activity-primary-binding"},
+    {"id": "e2", "source": "wait-activity-primary-binding", "target": "wait-activity-lifecycle"},
+    {"id": "e3", "source": "wait-activity-lifecycle", "target": "wait-activity-ready"}
+  ],
+  "settings": {
+    "viewport_height": 800,
+    "viewport_width": 1280
+  }
+}

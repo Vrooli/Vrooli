@@ -623,7 +623,7 @@ After setting up the foundation:
 5. **Set up HTTP routes** (`src/routes/*.ts`)
 6. **Create main server** (`src/server.ts`)
 
-See the detailed plan in `docs/plans/playwright-driver-completion.md` for full implementation details.
+See the detailed plan in `docs/plans/README.md#historical-source-files` for full implementation details.
 
 ## Verification
 

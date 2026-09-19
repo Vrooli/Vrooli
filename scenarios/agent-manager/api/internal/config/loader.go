@@ -21,7 +21,7 @@ func LoadLevers() (*Levers, error) {
 	levers := DefaultLevers()
 
 	// Load from config file if specified
-	if configPath := os.Getenv("AGENT_MANAGER_CONFIG"); configPath != "" {
+	if configPath, configured := os.LookupEnv("AGENT_MANAGER_CONFIG"); configured && configPath != "" {
 		if err := loadFromFile(&levers, configPath); err != nil {
 			return nil, err
 		}
@@ -128,6 +128,9 @@ func applyEnvOverrides(l *Levers) {
 	if v := getEnvDuration("AGENT_MANAGER_RUNNERS_STARTUP_GRACE_PERIOD"); v >= 0 {
 		l.Runners.StartupGracePeriod = v
 	}
+	if v, ok := envBoolOpt("AGENT_MANAGER_RUNNERS_USE_CLI_DEFAULT_MODEL"); ok {
+		l.Runners.UseCliDefaultModel = v
+	}
 
 	// Server levers
 	if v := getEnv("AGENT_MANAGER_SERVER_PORT"); v != "" {
@@ -173,6 +176,15 @@ func applyEnvOverrides(l *Levers) {
 	if v := getEnvInt("AGENT_MANAGER_STORAGE_ARTIFACT_RETENTION_DAYS"); v > 0 {
 		l.Storage.ArtifactRetentionDays = v
 	}
+	if v := getEnvInt("AGENT_MANAGER_STORAGE_STALE_RUN_STATE_RETENTION_DAYS"); v > 0 {
+		l.Storage.StaleRunStateRetentionDays = v
+	}
+	if v := getEnvInt("AGENT_MANAGER_STORAGE_IMPORTED_TOOL_COMPACTION_DAYS"); v > 0 {
+		l.Storage.ImportedToolCompactionDays = v
+	}
+	if v := getEnvInt("AGENT_MANAGER_STORAGE_IMPORTED_TOOL_COMPACTION_MIN_BYTES"); v > 0 {
+		l.Storage.ImportedToolCompactionMinBytes = v
+	}
 }
 
 // =============================================================================
@@ -180,7 +192,8 @@ func applyEnvOverrides(l *Levers) {
 // =============================================================================
 
 func getEnv(key string) string {
-	return strings.TrimSpace(os.Getenv(key))
+	value, _ := os.LookupEnv(key)
+	return strings.TrimSpace(value)
 }
 
 func getEnvInt(key string) int {

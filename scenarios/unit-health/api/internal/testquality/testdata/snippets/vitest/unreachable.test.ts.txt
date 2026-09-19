@@ -1,0 +1,1 @@
+test("unreachable", () => { if (false) expect(2).toBe(2); });

@@ -4,13 +4,39 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
+
+vi.mock("../lib/api", () => ({
+  fetchChats: vi.fn(),
+  fetchChat: vi.fn(),
+  fetchModels: vi.fn(),
+  createChat: vi.fn(),
+  deleteChat: vi.fn(),
+  deleteAllChats: vi.fn(),
+  updateChat: vi.fn(),
+  addMessage: vi.fn(),
+  toggleRead: vi.fn(),
+  toggleArchive: vi.fn(),
+  toggleStar: vi.fn(),
+  autoNameChat: vi.fn(),
+  regenerateMessage: vi.fn(),
+  editMessage: vi.fn(),
+  selectBranch: vi.fn(),
+  bulkOperateChats: vi.fn(),
+  forkChat: vi.fn(),
+}));
+vi.mock("./useCompletion", () => ({ useCompletion: vi.fn() }));
+vi.mock("./useLabels", () => ({ useLabels: vi.fn() }));
+vi.mock("../components/settings/Settings", () => ({
+  getDefaultModel: vi.fn(() => "gpt-4"),
+}));
+
 import { useChats } from "./useChats";
 import * as api from "../lib/api";
 import * as completionHook from "./useCompletion";
 import * as labelsHook from "./useLabels";
 import {
   mockChat,
-  mockMessage,
+  mockMessage as _mockMessage,
   mockChatWithMessages,
   mockCompletionState,
   mockLabelsState,
@@ -100,9 +126,7 @@ describe("useChats - operations", () => {
         "msg-1",
         expect.objectContaining({
           stream: true,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           onChunk: expect.any(Function),
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           onEvent: expect.any(Function),
         })
       );
@@ -128,11 +152,11 @@ describe("useChats - operations", () => {
       });
 
       act(() => {
-        result.current.regenerateMessage("chat-1", "msg-1");
+        void result.current.regenerateMessage("chat-1", "msg-1");
       });
 
       act(() => {
-        result.current.regenerateMessage("chat-1", "msg-2");
+        void result.current.regenerateMessage("chat-1", "msg-2");
       });
 
       expect(api.regenerateMessage).toHaveBeenCalledTimes(1);

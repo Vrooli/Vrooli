@@ -11,64 +11,152 @@ package captures
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
-
-	"github.com/gorilla/mux"
+	"sync"
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/httputil"
-	"swarm-manager/internal/promptmanager"
+	"swarm-manager/internal/transitionrun"
+	"swarm-manager/internal/transitionrunner"
+	"swarm-manager/internal/transitions"
+
+	"github.com/gorilla/mux"
 )
-
-type AgentSpawner interface {
-	IsEnabled() bool
-	SpawnBacklog(ctx context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error)
-}
-
-// BacklogItemCreator abstracts backlog item creation for the create-item endpoint.
-type BacklogItemCreator interface {
-	ItemDir(kind string, name string) string
-	SaveItem(kind, name, title, description string, tags []string) error
-}
 
 // EventLogger records view events for analytics.
 type EventLogger interface {
 	EmitCaptureViewed(captureID string)
 }
 
-// Handler provides HTTP handlers for capture operations.
-type Handler struct {
-	rootDir         string
-	agentService    AgentSpawner
-	promptClient    promptmanager.Client
-	backlogCreator  BacklogItemCreator
-	eventDispatcher dispatch.Invalidator
-	eventLogger     EventLogger
+// CaptureIndexer is an optional write-through semantic projection. The
+// capture domain remains independent of aisearch; composition supplies the
+// implementation when the embedding stack is configured.
+type CaptureIndexer interface {
+	IndexCapture(context.Context, string, string, string) error
+	DeleteCapture(context.Context, string) error
 }
 
-// NewHandler creates a new captures handler.
-func NewHandler(rootDir string, agentService AgentSpawner, promptClient promptmanager.Client) *Handler {
+// GroundingProvider builds read-only context for the classify workflow. A
+// provider failure is deliberately non-fatal: the input still carries an
+// explicit degraded marker so the contract skill can choose the conservative
+// research landing.
+type GroundingProvider interface {
+	BuildCaptureGrounding(context.Context, string) (map[string]any, error)
+}
+
+// ProposalRecorder is the durable handoff from the disposable capture event
+// to the agent-session decision rail. Composition supplies the recorder so
+// capture intake does not own session storage.
+type ProposalRecorder interface {
+	RecordCaptureProposals(context.Context, string, string, string, string, string, string, []byte) error
+}
+
+// Handler provides HTTP handlers for capture operations.
+//
+// cacheRoot is the runtime-home cache directory (captures are disposable
+// per the cache-class invariant: paths_test.go T-R2). Captures live at
+// `<cacheRoot>/captures/<id>/`.
+type Handler struct {
+	cacheRoot              string
+	transitionRoot         string
+	classificationWorkflow agentmanager.WorkflowInvoker
+	transitionRegistry     transitions.Registry
+	transitionRunner       *transitionrunner.Runner
+	classificationMu       sync.Mutex
+	eventDispatcher        dispatch.Invalidator
+	eventLogger            EventLogger
+	aiIndexer              CaptureIndexer
+	groundingProvider      GroundingProvider
+	proposalRecorder       ProposalRecorder
+}
+
+func (h *Handler) SetAIIndexer(indexer CaptureIndexer) { h.aiIndexer = indexer }
+
+func (h *Handler) SetGroundingProvider(provider GroundingProvider) { h.groundingProvider = provider }
+
+func (h *Handler) SetProposalRecorder(recorder ProposalRecorder) { h.proposalRecorder = recorder }
+
+func (h *Handler) indexCapture(cap *capture) {
+	if h.aiIndexer == nil {
+		return
+	}
+	go func(id, text, note string) {
+		if err := h.aiIndexer.IndexCapture(context.Background(), id, text, note); err != nil {
+			slog.Debug("captures: semantic index upsert failed", "capture_id", id, "err", err)
+		}
+	}(cap.ID, cap.Text, cap.Note)
+}
+
+// NewHandler creates a new captures handler. transitionRoot is where the
+// correlation journal lives; it is deliberately separate from cacheRoot because
+// captures themselves are disposable cache content while a pending transition
+// result is durable state that must survive a cache eviction.
+//
+// The runner built here is a standalone fallback for tests. Production
+// composition replaces it through SetTransitionRunner so every subject shares
+// one runner and one journal.
+func NewHandler(cacheRoot, transitionRoot string, registry transitions.Registry) *Handler {
 	h := &Handler{
-		rootDir:      rootDir,
-		agentService: agentService,
-		promptClient: promptClient,
+		cacheRoot:              cacheRoot,
+		transitionRoot:         transitionRoot,
+		classificationWorkflow: agentmanager.NewWorkflowService(),
+		transitionRegistry:     registry,
 	}
-	if h.promptClient == nil {
-		h.promptClient = promptmanager.NewHTTPClient()
-	}
+	h.configureTransitionRunner()
 	return h
 }
 
-// SetBacklogCreator sets the backlog item creator for the create-item endpoint.
-func (h *Handler) SetBacklogCreator(creator BacklogItemCreator) {
-	h.backlogCreator = creator
+// SetClassificationWorkflow injects the Agent Manager workflow transport.
+func (h *Handler) SetClassificationWorkflow(workflow agentmanager.WorkflowInvoker) {
+	h.classificationWorkflow = workflow
+	h.configureTransitionRunner()
+}
+
+func (h *Handler) configureTransitionRunner() {
+	if h.classificationWorkflow == nil {
+		h.transitionRunner = nil
+		return
+	}
+	h.transitionRunner = transitionrunner.New(h.transitionRegistry, h.classificationWorkflow, transitionrun.NewFileStore(filepath.Join(h.transitionRoot, "transition-runs")), nil)
+	h.transitionRunner.RegisterInput("capture.classify", h.buildClassificationInput)
+	h.transitionRunner.RegisterApply("apply_capture_classification", h.applyClassificationOutcome)
+}
+
+// RegisterTransitionAdapter contributes capture's two domain functions to a
+// server-owned runner. Composition owns the runner and its durable store;
+// captures only owns its immutable snapshot and mutation implementation.
+func (h *Handler) RegisterTransitionAdapter(registrar transitionrunner.Registrar) {
+	registrar.RegisterInput("capture.classify", h.buildClassificationInput)
+	registrar.RegisterApply("apply_capture_classification", h.applyClassificationOutcome)
+}
+
+// SetTransitionRunner replaces the handler-local test runner with the shared
+// server-owned runner used in production.
+func (h *Handler) SetTransitionRunner(runner *transitionrunner.Runner) {
+	h.transitionRunner = runner
+}
+
+// SetWorkflowStartGuard applies transition-registry preflight policy at the
+// composition edge without leaking it into capture domain code.
+func (h *Handler) SetWorkflowStartGuard(guard agentmanager.WorkflowStartGuard) {
+	if workflow, ok := h.classificationWorkflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetStartGuard(guard)
+	}
+}
+
+// SetWorkflowActivityRecorder makes capture classification launches visible in
+// the common activity ledger at the WorkflowService transport boundary.
+func (h *Handler) SetWorkflowActivityRecorder(recorder agentmanager.WorkflowActivityRecorder) {
+	if workflow, ok := h.classificationWorkflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetWorkflowActivityRecorder(recorder)
+	}
 }
 
 // SetEventLogger injects an optional event logger for analytics tracking.
@@ -85,14 +173,14 @@ func (h *Handler) invalidateTopologyGraph() {
 	if h.eventDispatcher == nil {
 		return
 	}
-	h.eventDispatcher.DispatchInvalidate("topology")
+	h.eventDispatcher.DispatchInvalidate("topology", "plan")
 }
 
 func (h *Handler) invalidateAllGraphLenses() {
 	if h.eventDispatcher == nil {
 		return
 	}
-	h.eventDispatcher.DispatchInvalidate("topology", "flow", "operations")
+	h.eventDispatcher.DispatchInvalidate("topology", "plan")
 }
 
 // RegisterRoutes registers capture endpoints on the given router.
@@ -102,8 +190,6 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/captures/{id}", h.Get).Methods("GET")
 	r.HandleFunc("/api/v1/captures/{id}", h.Update).Methods("PATCH")
 	r.HandleFunc("/api/v1/captures/{id}", h.Delete).Methods("DELETE")
-	r.HandleFunc("/api/v1/captures/{id}/classify", h.Classify).Methods("POST")
-	r.HandleFunc("/api/v1/captures/{id}/create-item", h.CreateItem).Methods("POST")
 }
 
 // List returns all captures, newest first.
@@ -192,6 +278,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[captures] update", apierr.Internal("failed to save capture"))
 		return
 	}
+	h.indexCapture(cap)
 	_ = httputil.JSON(w, map[string]any{"capture": cap})
 }
 
@@ -208,89 +295,13 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[captures] delete", apierr.Internal("failed to delete capture"))
 		return
 	}
+	if h.aiIndexer != nil {
+		if err := h.aiIndexer.DeleteCapture(r.Context(), id); err != nil {
+			slog.Debug("captures: semantic index delete failed", "capture_id", id, "err", err)
+		}
+	}
 	h.invalidateTopologyGraph()
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// createItemRequest is the JSON body for CreateItem.
-type createItemRequest struct {
-	Kind string `json:"kind"`
-}
-
-// CreateItem creates a backlog item from a classified capture.
-// It pre-fills the item with text from the capture and tags from the classification.
-func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
-	if h.backlogCreator == nil {
-		apierr.MapError(w, "[captures] create-item", apierr.Internal("backlog creator not configured"))
-		return
-	}
-
-	id := mux.Vars(r)["id"]
-	cap, err := h.loadCapture(id)
-	if err != nil {
-		if os.IsNotExist(err) {
-			apierr.MapError(w, "[captures] create-item", apierr.NotFound("capture not found"))
-			return
-		}
-		apierr.MapError(w, "[captures] create-item", apierr.Internal("failed to load capture"))
-		return
-	}
-
-	// Parse optional kind override from request body.
-	kind := "execute"
-	var req createItemRequest
-	if r.Body != nil {
-		if decErr := json.NewDecoder(r.Body).Decode(&req); decErr == nil && req.Kind != "" {
-			kind = strings.ToLower(strings.TrimSpace(req.Kind))
-		}
-	}
-
-	// Build item title from capture text (truncated).
-	title := truncate(cap.Text, 80)
-
-	// Collect tags from classification items.
-	var tags []string
-	if cap.Classification != nil {
-		for _, ci := range cap.Classification.Items {
-			tags = append(tags, ci.Tags...)
-		}
-	}
-	// Deduplicate tags.
-	seen := make(map[string]bool, len(tags))
-	dedupTags := make([]string, 0, len(tags))
-	for _, t := range tags {
-		if !seen[t] {
-			seen[t] = true
-			dedupTags = append(dedupTags, t)
-		}
-	}
-
-	// Generate a name from the title.
-	name := sanitizeCaptureItemName(title)
-	if name == "" {
-		name = "capture-item-" + id
-	}
-
-	if err := h.backlogCreator.SaveItem(kind, name, title, cap.Text, dedupTags); err != nil {
-		if strings.Contains(err.Error(), "already exists") {
-			apierr.MapError(w, "[captures] create-item", apierr.Conflict("backlog item already exists"))
-			return
-		}
-		slog.Error("failed to create backlog item from capture", "error", err)
-		apierr.MapError(w, "[captures] create-item", apierr.Internal("failed to create backlog item"))
-		return
-	}
-
-	// Mark capture as classified.
-	cap.Status = "classified"
-	_ = h.writeCapture(cap)
-
-	slog.Info("created backlog item from capture", "kind", kind, "name", name, "capture_id", id)
-	h.invalidateAllGraphLenses()
-	_ = httputil.JSONWithStatus(w, http.StatusCreated, map[string]any{
-		"kind": kind,
-		"name": name,
-	})
 }
 
 // sanitizeCaptureItemName converts a title to a folder-safe name.

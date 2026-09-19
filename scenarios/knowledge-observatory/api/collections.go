@@ -242,7 +242,7 @@ func (s *Server) handleDeleteCollection(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Server) queryCollectionProvenance(ctx context.Context, collection string) (collectionProvenance, error) {
-	if s == nil || s.db == nil {
+	if s == nil || s.stores == nil {
 		return collectionProvenance{}, nil
 	}
 	collection = strings.TrimSpace(collection)
@@ -250,28 +250,22 @@ func (s *Server) queryCollectionProvenance(ctx context.Context, collection strin
 		return collectionProvenance{}, nil
 	}
 
-	var out collectionProvenance
-	var lastIngestAt sqlNullTime
-	err := s.db.QueryRowContext(ctx, `
-SELECT
-	COUNT(*)::int,
-	COUNT(DISTINCT namespace)::int,
-	MAX(created_at)
-FROM knowledge_observatory.ingest_history
-WHERE collection_name = $1
-`, collection).Scan(&out.IngestAttempts, &out.DistinctNamespaces, &lastIngestAt)
+	provenance, err := s.stores.Ingest.ProvenanceForCollection(ctx, collection)
 	if err != nil {
 		return collectionProvenance{}, err
 	}
-	if lastIngestAt.Valid {
-		out.LastIngestAt = lastIngestAt.Time.UTC().Format(time.RFC3339)
-	}
-	if err := s.db.QueryRowContext(ctx, `
-SELECT COUNT(*)::int
-FROM knowledge_observatory.knowledge_metadata
-WHERE collection_name = $1
-`, collection).Scan(&out.MetadataRows); err != nil {
+	metadataRows, err := s.stores.Metadata.CountByCollection(ctx, collection)
+	if err != nil {
 		return collectionProvenance{}, err
+	}
+
+	out := collectionProvenance{
+		IngestAttempts:     provenance.IngestAttempts,
+		DistinctNamespaces: provenance.DistinctNamespaces,
+		MetadataRows:       metadataRows,
+	}
+	if provenance.LastIngestAt != nil {
+		out.LastIngestAt = provenance.LastIngestAt.Format(time.RFC3339)
 	}
 	return out, nil
 }
@@ -291,7 +285,7 @@ func classifyCollectionOwnership(collection string, ingestAttempts, metadataRows
 }
 
 func (s *Server) deleteCollectionProvenance(ctx context.Context, collection string) (metadataRowsDeleted int64, ingestRowsDeleted int64, err error) {
-	if s == nil || s.db == nil {
+	if s == nil || s.stores == nil {
 		return 0, 0, nil
 	}
 	collection = strings.TrimSpace(collection)
@@ -299,23 +293,15 @@ func (s *Server) deleteCollectionProvenance(ctx context.Context, collection stri
 		return 0, 0, nil
 	}
 
-	metadataResult, metadataErr := s.db.ExecContext(ctx, `
-DELETE FROM knowledge_observatory.knowledge_metadata
-WHERE collection_name = $1
-`, collection)
-	if metadataErr != nil {
-		return 0, 0, metadataErr
+	metadataRowsDeleted, err = s.stores.Metadata.DeleteByCollection(ctx, collection)
+	if err != nil {
+		return 0, 0, err
 	}
-	metadataRowsDeleted, _ = metadataResult.RowsAffected()
 
-	ingestResult, ingestErr := s.db.ExecContext(ctx, `
-DELETE FROM knowledge_observatory.ingest_history
-WHERE collection_name = $1
-`, collection)
-	if ingestErr != nil {
-		return metadataRowsDeleted, 0, ingestErr
+	ingestRowsDeleted, err = s.stores.Ingest.DeleteHistoryByCollection(ctx, collection)
+	if err != nil {
+		return metadataRowsDeleted, 0, err
 	}
-	ingestRowsDeleted, _ = ingestResult.RowsAffected()
 	return metadataRowsDeleted, ingestRowsDeleted, nil
 }
 

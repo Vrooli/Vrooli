@@ -5,10 +5,14 @@ import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { LoadingSpinner } from '@shared/ui';
 import { selectors } from '@constants/selectors';
-import { useProjectStore, type Project } from '@/domains/projects';
+import { useProjectStore, type Project } from '@/domains/projects/store';
+import { useStartWorkflow } from '@/domains/executions/hooks/useStartWorkflow';
+import { InlineExecutionViewer } from '@/domains/executions/InlineExecutionViewer';
+import { useExecutionStore } from '@/domains/executions/store';
 import { useWorkflowStore } from '@stores/workflowStore';
 import { useDashboardStore, type RecentWorkflow } from '@stores/dashboardStore';
 import { useModals } from '@shared/modals';
+import { PromptDialog } from '@shared/ui';
 import { logger } from '@utils/logger';
 import toast from 'react-hot-toast';
 
@@ -27,20 +31,31 @@ export default function WorkflowEditorView() {
   const { projects, getProject, setCurrentProject } = useProjectStore();
   const { loadWorkflow, currentWorkflow } = useWorkflowStore();
   const { setLastEditedWorkflow } = useDashboardStore();
+  const currentExecution = useExecutionStore((state) => state.currentExecution);
+  const closeExecutionViewer = useExecutionStore((state) => state.closeViewer);
+  const { startWorkflow, promptDialogProps } = useStartWorkflow({
+    onSuccess: () => toast.success('Workflow execution started'),
+    onError: () => toast.error('Failed to start workflow execution'),
+  });
 
   const { showAIModal, openAIModal, closeAIModal, openDocs } = useModals();
 
-  // Handle execute-workflow event: navigate to Record page
-  useEffect(() => {
-    const handleExecuteWorkflow = () => {
-      if (workflowId && projectId) {
-        navigate(`/record/new?mode=execution&workflow_id=${workflowId}&project_id=${projectId}`);
-      }
-    };
+  const handleExecuteWorkflow = useCallback(() => {
+    if (!workflowId) {
+      toast.error('Select a workflow before executing it.');
+      return;
+    }
+    void startWorkflow({ workflowId });
+  }, [startWorkflow, workflowId]);
 
-    window.addEventListener('execute-workflow', handleExecuteWorkflow);
-    return () => window.removeEventListener('execute-workflow', handleExecuteWorkflow);
-  }, [workflowId, projectId, navigate]);
+  // The keyboard shortcut dispatches this event. Header clicks call the typed
+  // callback below, avoiding a route-only global event path.
+  useEffect(() => {
+    const handleShortcutExecution = () => handleExecuteWorkflow();
+
+    window.addEventListener('execute-workflow', handleShortcutExecution);
+    return () => window.removeEventListener('execute-workflow', handleShortcutExecution);
+  }, [handleExecuteWorkflow]);
 
   // Load project and workflow on mount
   useEffect(() => {
@@ -165,14 +180,14 @@ export default function WorkflowEditorView() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-flow-bg">
+      <div className="h-full flex items-center justify-center bg-flow-bg">
         <LoadingSpinner variant="default" size={24} message="Loading workflow..." />
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-flow-bg" data-testid={selectors.app.shell.ready}>
+    <div className="h-full flex flex-col bg-flow-bg" data-testid={selectors.app.shell.ready}>
       <Suspense
         fallback={
           <div className="h-[72px] border-b border-gray-800 bg-flow-bg/95 backdrop-blur supports-[backdrop-filter]:bg-flow-bg/90" />
@@ -185,6 +200,7 @@ export default function WorkflowEditorView() {
           currentProject={project}
           currentWorkflow={currentWorkflow}
           showBackToProject={true}
+          onExecuteWorkflow={handleExecuteWorkflow}
           onOpenHelp={() => openDocs('shortcuts')}
         />
       </Suspense>
@@ -207,7 +223,20 @@ export default function WorkflowEditorView() {
         >
           <WorkflowBuilder projectId={project?.id} onStartRecording={handleStartRecording} />
         </Suspense>
+        {currentExecution && projectId && (
+          <aside className="w-1/2 min-w-[360px] border-l border-gray-800 bg-flow-bg overflow-hidden">
+            <InlineExecutionViewer
+              executionId={currentExecution.id}
+              workflowId={currentExecution.workflowId}
+              projectId={projectId}
+              onClose={closeExecutionViewer}
+              onRerun={handleExecuteWorkflow}
+            />
+          </aside>
+        )}
       </div>
+
+      <PromptDialog {...promptDialogProps} />
 
       {showAIModal && (
         <Suspense

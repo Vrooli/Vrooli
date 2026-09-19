@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "$text": "Blocked",
+  "clsx": "^2.1.1",
+  "default": "Content",
+  "description": "Record a scenario adoption to track drift.",
+  "export": "WithAction",
+  "id": "compact",
+  "kind": "text",
+  "label": "Action",
+  "mode": "pinned",
+  "module": "./story.tsx",
+  "name": "Compact",
+  "path": "action",
+  "react": "^18",
+  "role": "button",
+  "tailwind-merge": "^2.3.0",
+  "title": "EmptyState",
+  "tone": "danger",
+  "value": "Nothing to review"
+}

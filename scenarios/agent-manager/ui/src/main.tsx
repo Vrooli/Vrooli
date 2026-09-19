@@ -1,10 +1,19 @@
+import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
 import { BrowserRouter } from "react-router-dom";
-import { getProxyInfo } from "@vrooli/api-base";
+import { getProxyInfo, installChunkReloadGuard } from "@vrooli/api-base";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge/child";
+import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
+import { onProfilerRender } from "./lib/profiler";
 import "./styles/global.css";
+
+// Code-split routes use lazy(); after a rebuild the old hashed chunks are
+// gone, so a tab opened before the deploy would crash on its next
+// navigation. This guard reloads once (rate-limited) instead.
+installChunkReloadGuard();
 
 declare global {
   interface Window {
@@ -44,10 +53,18 @@ if (
   window.__agentManagerBridgeInitialized = true;
 }
 
+const spatialNav = initSpatialNav();
+if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <BrowserRouter basename={routerBasename}>
-      <App />
-    </BrowserRouter>
+    <SpatialNavProvider controller={spatialNav}>
+      <BaseStyles />
+      <BrowserRouter basename={routerBasename}>
+        <React.Profiler id="App" onRender={onProfilerRender}>
+          <App />
+        </React.Profiler>
+      </BrowserRouter>
+    </SpatialNavProvider>
   </React.StrictMode>
 );

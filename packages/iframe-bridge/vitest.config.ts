@@ -12,6 +12,7 @@ export default defineConfig({
         'src/spatialNav.ts',
         'src/spatialNavStyles.ts',
         'src/spatialNavBridge.ts',
+        'src/react.ts',
         'src/activationOverlay.ts',
       ],
       exclude: [

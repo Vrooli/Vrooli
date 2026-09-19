@@ -1,0 +1,138 @@
+syntax = "proto3";
+package vrooli.vrooli_memory.v1.learning;
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/learning;learningv1";
+
+// Agent learning is a projection over Source Ledger, not a second journal.
+service LearningService {
+  rpc RecordAttempt(RecordAttemptRequest) returns (RecordAttemptResponse);
+  rpc RecordObservation(RecordObservationRequest) returns (RecordObservationResponse);
+  rpc MeasureLearning(MeasureLearningRequest) returns (MeasureLearningResponse);
+}
+message AdviceUse {
+  string entry_id = 1;
+  // applied, rejected, or unassessed. Unassessed records exposure only:
+  // decision_change and evidence_refs must be empty and verdict must be unknown.
+  string decision = 2;
+  string decision_change = 3;
+  // supported, contradicted, or unknown; support is observational, not causal.
+  string verdict = 4;
+	repeated string evidence_refs = 5;
+	optional bool derived = 6;
+}
+message Attempt {
+  string attempt_id = 1;
+  string task_id = 2;
+  string operation = 3;
+  // Stable comparison identity: target/profile/mode and relevant capability/policy versions.
+  string context_key = 4;
+  string started_at = 5;
+  string finished_at = 6;
+  // verified_success, failed, unavailable, or unknown.
+  string outcome = 7;
+  string failure_fingerprint = 8;
+  repeated string evidence_refs = 9;
+  repeated AdviceUse advice = 10;
+  // matched, no_match, unavailable, or not_requested (the attempt never asked memory).
+  string recall_status = 11;
+  // operator, test, or agent. This is caller-declared, not authenticated provenance.
+  string provenance = 12;
+  string trigger = 13;
+  string approach = 14;
+  string task_started_at = 15;
+  int32 attempt_number = 16;
+  // Observed first useful action; omitted when no action or timing is unknown.
+  optional string first_action_at = 17;
+  // Caller-observed counts; absence is unknown, never an observed zero.
+  optional int32 tool_round_trips = 18;
+  optional int32 visual_reasoning_calls = 19;
+  optional bool reused_workflow = 20;
+  optional string parent_attempt_id = 21;
+  optional string step_name = 22;
+}
+message RecordAttemptRequest { string scope = 1; Attempt attempt = 2; }
+message RecordAttemptResponse { string entry_id = 1; bool existing = 2; }
+message Observation {
+  string observation_id = 1;
+  string attempt_id = 2;
+  // supported, contradicted, insufficient, unavailable, unresolved, or unknown.
+  string disposition = 3;
+  repeated string evidence_refs = 4;
+  string method_revision = 5;
+  string correction = 6;
+  // operator, test, or agent; caller-declared and retained separately from actor metadata.
+  string provenance = 7;
+  string observed_at = 8;
+}
+message RecordObservationRequest { string scope = 1; Observation observation = 2; }
+message RecordObservationResponse { string entry_id = 1; bool existing = 2; }
+message MeasureLearningRequest {
+  string scope = 1;
+  // RFC3339 half-open completion window; defaults to the last seven days.
+  string from = 2;
+  string to = 3;
+  string operation = 4;
+  string context_key = 5;
+}
+message Cohort {
+  string operation = 1;
+  string context_key = 2;
+  int32 attempts = 3;
+  int32 tasks = 4;
+  int32 verified_successes = 5;
+  int32 failed = 6;
+  int32 unavailable = 7;
+  int32 unknown = 8;
+  int32 recurring_failure_fingerprints = 9;
+  int32 repeated_failures = 10;
+  int32 applied_advice = 11;
+  int32 rejected_advice = 12;
+  int32 supported_advice = 13;
+  int32 contradicted_advice = 14;
+  int32 unassessed_advice = 15;
+  optional double contradiction_rate = 16;
+  int32 completed_tasks = 17;
+  int32 unresolved_tasks = 18;
+  // Observed within the window; excludes tasks whose earliest attempt predates it.
+  optional double median_attempts_to_success = 19;
+  optional double median_seconds_to_success = 20;
+  int32 left_censored_tasks = 21;
+  int32 no_match = 22;
+  int32 recall_unavailable = 23;
+  optional double median_seconds_to_first_action = 24;
+  optional double median_tool_round_trips = 25;
+  optional double median_visual_reasoning_calls = 26;
+  optional double workflow_reuse_rate = 27;
+  int32 first_action_samples = 28;
+  int32 tool_round_trip_samples = 29;
+  int32 visual_reasoning_samples = 30;
+  int32 reuse_samples = 31;
+  int32 supported_feedback = 32;
+  int32 contradicted_feedback = 33;
+	int32 unresolved_feedback = 34;
+  // Attempts that never asked memory; distinct from recall_unavailable (memory asked and failed).
+  int32 recall_not_requested = 35;
+	int32 derived_advice = 36;
+	int32 explicit_advice = 37;
+	// Cohort identity dimension; test attempts remain excluded from measures.
+	// Tag 35 is taken by recall_not_requested; both were added locally in the
+	// same uncommitted change and collided.
+	string provenance = 38;
+}
+message MeasureLearningResponse {
+  string scope = 1;
+  string from = 2;
+  string to = 3;
+  repeated Cohort cohorts = 4;
+  int32 scanned_entries = 5;
+  int32 eligible_attempts = 6;
+  int32 excluded_test_attempts = 7;
+  int32 legacy_task_records = 8;
+  int32 invalid_records = 9;
+  int32 duplicate_attempts = 10;
+  bool truncated = 11;
+  bool reliable = 12;
+  string reason = 13;
+  repeated string evidence_refs = 14;
+  // These are evidence-linked reports, not independently verified causal effects.
+  string interpretation = 15;
+}

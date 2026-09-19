@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   listVariants,
   getStripeSettings,
@@ -7,9 +7,14 @@ import {
   getBranding,
   listDownloadAppsAdmin,
   type StripeSettingsResponse,
+  getEmailReadiness,
+  type EmailReadinessReport,
+  getSignInDeliveryAdminReport,
+  type SignInDeliveryAdminReport,
 } from '../../../shared/api';
 import { getAdminExperienceSnapshot, type AdminExperienceSnapshot } from '../../../shared/lib/adminExperience';
 import { buildDateRange, fetchAnalyticsSummary } from '../controllers/analyticsController';
+import { presentationEditorPath } from '../config/navigation.utils';
 import {
   HEALTH_SNAPSHOT_DAYS,
   buildHealthSnapshot,
@@ -46,6 +51,9 @@ export interface UseAdminHomeReturn {
   stripeError: string | null;
   /** Refresh stripe status */
   refreshStripeStatus: () => Promise<void>;
+  emailReadiness: EmailReadinessReport | null;
+  emailReadinessLoading: boolean;
+  deliveryReport: SignInDeliveryAdminReport | null;
 
   /** Branding health status */
   brandingHealth: BrandingHealthStatus | null;
@@ -103,6 +111,9 @@ export function useAdminHome(): UseAdminHomeReturn {
   const [stripeSettings, setStripeSettings] = useState<StripeSettingsResponse | null>(null);
   const [stripeLoading, setStripeLoading] = useState(true);
   const [stripeError, setStripeError] = useState<string | null>(null);
+  const [emailReadiness, setEmailReadiness] = useState<EmailReadinessReport | null>(null);
+  const [emailReadinessLoading, setEmailReadinessLoading] = useState(true);
+  const [deliveryReport, setDeliveryReport] = useState<SignInDeliveryAdminReport | null>(null);
 
   // Branding health state
   const [brandingHealth, setBrandingHealth] = useState<BrandingHealthStatus | null>(null);
@@ -117,6 +128,18 @@ export function useAdminHome(): UseAdminHomeReturn {
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [resetError, setResetError] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    void getSignInDeliveryAdminReport().then((report) => { if (mountedRef.current) setDeliveryReport(report); }).catch(() => { if (mountedRef.current) setDeliveryReport(null); });
+  }, []);
 
   // Load experience snapshot on mount
   useEffect(() => {
@@ -139,6 +162,10 @@ export function useAdminHome(): UseAdminHomeReturn {
           .catch((error: unknown) => ({ ok: false as const, error })),
       ]);
 
+      if (!mountedRef.current) {
+        return;
+      }
+
       if (!analyticsPayload.ok) {
         console.warn('Admin health analytics unavailable:', analyticsPayload.error);
         setHealthMetricsDegraded(true);
@@ -151,16 +178,21 @@ export function useAdminHome(): UseAdminHomeReturn {
         )
       );
     } catch (error) {
+      if (!mountedRef.current) {
+        return;
+      }
       setHealthError(error instanceof Error ? error.message : 'Failed to load admin health snapshot');
       setHealthSnapshot(null);
     } finally {
-      setHealthLoading(false);
+      if (mountedRef.current) {
+        setHealthLoading(false);
+      }
     }
   }, []);
 
   // Load health snapshot on mount
   useEffect(() => {
-    refreshHealthSnapshot();
+    void refreshHealthSnapshot();
   }, [refreshHealthSnapshot]);
 
   /**
@@ -171,19 +203,31 @@ export function useAdminHome(): UseAdminHomeReturn {
     setStripeError(null);
     try {
       const data = await getStripeSettings();
+      if (!mountedRef.current) {
+        return;
+      }
       setStripeSettings(data);
     } catch (error) {
+      if (!mountedRef.current) {
+        return;
+      }
       setStripeSettings(null);
       setStripeError(getApiErrorMessage(error, 'Failed to load monetization status'));
     } finally {
-      setStripeLoading(false);
+      if (mountedRef.current) {
+        setStripeLoading(false);
+      }
     }
   }, []);
 
   // Load Stripe status on mount
   useEffect(() => {
-    refreshStripeStatus();
+    void refreshStripeStatus();
   }, [refreshStripeStatus]);
+
+  useEffect(() => {
+    void getEmailReadiness().then((report) => { if (mountedRef.current) setEmailReadiness(report); }).catch(() => { if (mountedRef.current) setEmailReadiness(null); }).finally(() => { if (mountedRef.current) setEmailReadinessLoading(false); });
+  }, []);
 
   /**
    * Refresh branding health
@@ -192,17 +236,25 @@ export function useAdminHome(): UseAdminHomeReturn {
     setBrandingLoading(true);
     try {
       const branding = await getBranding();
+      if (!mountedRef.current) {
+        return;
+      }
       setBrandingHealth(computeBrandingHealth(branding));
     } catch {
+      if (!mountedRef.current) {
+        return;
+      }
       setBrandingHealth(null);
     } finally {
-      setBrandingLoading(false);
+      if (mountedRef.current) {
+        setBrandingLoading(false);
+      }
     }
   }, []);
 
   // Load branding health on mount
   useEffect(() => {
-    refreshBrandingHealth();
+    void refreshBrandingHealth();
   }, [refreshBrandingHealth]);
 
   /**
@@ -212,17 +264,25 @@ export function useAdminHome(): UseAdminHomeReturn {
     setDownloadsLoading(true);
     try {
       const { apps } = await listDownloadAppsAdmin();
+      if (!mountedRef.current) {
+        return;
+      }
       setDownloadsHealth(computeDownloadsHealth(apps));
     } catch {
+      if (!mountedRef.current) {
+        return;
+      }
       setDownloadsHealth(null);
     } finally {
-      setDownloadsLoading(false);
+      if (mountedRef.current) {
+        setDownloadsLoading(false);
+      }
     }
   }, []);
 
   // Load downloads health on mount
   useEffect(() => {
-    refreshDownloadsHealth();
+    void refreshDownloadsHealth();
   }, [refreshDownloadsHealth]);
 
   /**
@@ -235,12 +295,20 @@ export function useAdminHome(): UseAdminHomeReturn {
     setShowResetConfirm(false);
     try {
       await resetDemoData();
+      if (!mountedRef.current) {
+        return;
+      }
       setResetMessage('Demo data restored to template defaults.');
       await Promise.all([refreshHealthSnapshot(), refreshStripeStatus()]);
     } catch (error) {
+      if (!mountedRef.current) {
+        return;
+      }
       setResetError(error instanceof Error ? error.message : 'Failed to reset demo data');
     } finally {
-      setResettingDemoData(false);
+      if (mountedRef.current) {
+        setResettingDemoData(false);
+      }
     }
   }, [refreshHealthSnapshot, refreshStripeStatus]);
 
@@ -251,9 +319,9 @@ export function useAdminHome(): UseAdminHomeReturn {
     const resumeVariant = experience?.lastVariant;
     if (!resumeVariant) return null;
 
-    return resumeVariant.surface === 'section' && resumeVariant.sectionId
-      ? `/admin/customization/variants/${resumeVariant.slug}/sections/${resumeVariant.sectionId}`
-      : `/admin/customization/variants/${resumeVariant.slug}`;
+    return resumeVariant.surface === 'section'
+      ? presentationEditorPath(resumeVariant.slug)
+      : `/admin/customization/variants/${encodeURIComponent(resumeVariant.slug)}`;
   }, [experience]);
 
   /**
@@ -285,6 +353,9 @@ export function useAdminHome(): UseAdminHomeReturn {
     stripeLoading,
     stripeError,
     refreshStripeStatus,
+    emailReadiness,
+    emailReadinessLoading,
+    deliveryReport,
     brandingHealth,
     brandingLoading,
     refreshBrandingHealth,

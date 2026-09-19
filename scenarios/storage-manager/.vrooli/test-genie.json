@@ -1,0 +1,1110 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "storage-manager",
+  "phase": "storage",
+  "displayName": "Storage",
+  "description": "Validates storage conventions, migration hygiene, persistence seams, and test isolation through storage-manager.",
+  "source": "validation-provider",
+  "dbIsolationProvider": true,
+  "orderHint": 11,
+  "timeout": "120s",
+  "findingSource": "storage",
+  "validation": {
+    "contract": "scenario-validation/v1"
+  },
+  "targets": {
+    "kinds": [
+      "scenario",
+      "resource",
+      "tool",
+      "safeguard",
+      "package",
+      "control-plane",
+      "project"
+    ],
+    "selection": "enumerate"
+  },
+  "applicability": {
+    "default": "applies"
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "runnability": {},
+  "docs": {
+    "path": "scenarios/test-genie/docs/phases/storage/README.md"
+  },
+  "maturity": {
+    "version": "2.1.0",
+    "capabilities": [
+      {
+        "id": "target_classification",
+        "label": "Target Classification",
+        "description": "Scenario resolution, service metadata, API surface language, and storage applicability classification.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Storage target unavailable",
+            "status_label": "Unavailable",
+            "description": "The target scenario cannot be resolved or its storage surface cannot be classified.",
+            "capability_summary": "Storage Health cannot classify the target scenario.",
+            "next_unlock": "A readable scenario with service metadata and classifiable API/storage surfaces."
+          },
+          {
+            "id": "L1",
+            "name": "Target classified",
+            "status_label": "Foundation",
+            "description": "The scenario and its storage applicability are readable enough for storage checks.",
+            "capability_summary": "The target storage surface is classified.",
+            "next_unlock": "Maximum target-classification maturity."
+          },
+          {
+            "id": "L2",
+            "name": "Classification clean",
+            "status_label": "Complete",
+            "description": "Storage applicability is known and downstream checks can run without fallback classification.",
+            "capability_summary": "Storage target classification is clean."
+          }
+        ]
+      },
+      {
+        "id": "schema_substrate",
+        "label": "Schema Substrate",
+        "description": "Declared storage engines, embedded schema placement, idempotent DDL, and schema wiring.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Substrate unknown",
+            "status_label": "Unavailable",
+            "description": "The storage substrate or schema location cannot be evaluated.",
+            "capability_summary": "Schema substrate cannot be trusted yet.",
+            "next_unlock": "Recognized storage substrate and readable embedded schema."
+          },
+          {
+            "id": "L1",
+            "name": "Substrate recognized",
+            "status_label": "Foundation",
+            "description": "Declared storage engines are recognized and schema files can be inspected.",
+            "capability_summary": "The storage substrate is recognized.",
+            "next_unlock": "Schema is embedded, idempotent, CREATE-only, and wired through the supported seam."
+          },
+          {
+            "id": "L2",
+            "name": "Schema coherent",
+            "status_label": "Ready",
+            "description": "Embedded schemas are idempotent, ALTER-free, and wired through the supported schema seam.",
+            "capability_summary": "Schema structure is coherent for local lifecycle and tests.",
+            "next_unlock": "Maximum schema-substrate maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Schema clean",
+            "status_label": "Complete",
+            "description": "Storage substrate and embedded schema checks are clean.",
+            "capability_summary": "Storage schema substrate is clean."
+          }
+        ]
+      },
+      {
+        "id": "isolation_safety",
+        "label": "Isolation Safety",
+        "description": "Routed database seams, variant-aware namespaces, and fail-closed destructive-test isolation.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Isolation unknown",
+            "status_label": "Unavailable",
+            "description": "Storage isolation cannot be evaluated.",
+            "capability_summary": "Destructive-test storage isolation is unknown.",
+            "next_unlock": "Routed storage seams can be inspected."
+          },
+          {
+            "id": "L1",
+            "name": "Isolation inspectable",
+            "status_label": "Foundation",
+            "description": "Storage isolation seams and namespace usage can be inspected.",
+            "capability_summary": "Storage isolation can be checked.",
+            "next_unlock": "Routed seams and variant-aware namespaces are proven."
+          },
+          {
+            "id": "L2",
+            "name": "Isolation safe",
+            "status_label": "Ready",
+            "description": "Destructive E2E playbooks are statically routed to isolated test storage and variant-aware namespaces.",
+            "capability_summary": "Storage isolation is safe for destructive test workflows.",
+            "next_unlock": "Maximum isolation-safety maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Isolation clean",
+            "status_label": "Complete",
+            "description": "Storage isolation checks are clean.",
+            "capability_summary": "Storage isolation is clean."
+          }
+        ]
+      },
+      {
+        "id": "persistence_hygiene",
+        "label": "Persistence Hygiene",
+        "description": "Repository-layer storage access, per-domain schema ownership, rows lifecycle, and deadlock-resistant SQLite usage.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Persistence surface unknown",
+            "status_label": "Unavailable",
+            "description": "Persistence access cannot be evaluated.",
+            "capability_summary": "Persistence hygiene cannot be checked yet.",
+            "next_unlock": "Persistence access patterns can be inspected."
+          },
+          {
+            "id": "L1",
+            "name": "Persistence inspectable",
+            "status_label": "Foundation",
+            "description": "Persistence access and schema ownership patterns can be inspected.",
+            "capability_summary": "Persistence hygiene checks can run.",
+            "next_unlock": "Repository-layer seam usage, per-domain schema ownership, rows closure, and deadlock safety."
+          },
+          {
+            "id": "L2",
+            "name": "Persistence hygienic",
+            "status_label": "Ready",
+            "description": "Persistence access follows storage seam conventions and avoids known deadlock/resource leaks.",
+            "capability_summary": "Persistence access is hygienic enough for maintained local operation.",
+            "next_unlock": "Maximum persistence-hygiene maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Persistence clean",
+            "status_label": "Complete",
+            "description": "Persistence hygiene checks are clean.",
+            "capability_summary": "Persistence hygiene is clean."
+          }
+        ]
+      },
+      {
+        "id": "operational_readiness",
+        "label": "Operational Readiness",
+        "description": "Backup target registration and stage-appropriate migration debt visibility.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Operational posture unknown",
+            "status_label": "Unavailable",
+            "description": "Operational storage readiness cannot be evaluated.",
+            "capability_summary": "Storage operational posture is unknown.",
+            "next_unlock": "Scenario maturity stage and durable-data dependencies are readable."
+          },
+          {
+            "id": "L1",
+            "name": "Operational posture visible",
+            "status_label": "Advisory",
+            "description": "Backup and migration posture can be reported.",
+            "capability_summary": "Storage operational readiness is visible.",
+            "next_unlock": "Backup target and migration debt advisories are resolved where applicable."
+          },
+          {
+            "id": "L2",
+            "name": "Operationally ready",
+            "status_label": "Complete",
+            "description": "Backup and migration advisories are clean or intentionally not applicable.",
+            "capability_summary": "Storage operational readiness is clean."
+          }
+        ]
+      },
+      {
+        "id": "declaration_accountability",
+        "label": "Declaration Accountability",
+        "description": "Whether declared storage matches observed writers, paths, sidecars, budgets, and enforcement.",
+        "appliesTo": [
+          "scenario",
+          "resource",
+          "tool",
+          "safeguard"
+        ],
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Declaration unknown",
+            "status_label": "Unavailable",
+            "description": "Storage declarations cannot be evaluated.",
+            "capability_summary": "Declaration accountability is unknown.",
+            "next_unlock": "A readable owner manifest and storage surface."
+          },
+          {
+            "id": "L1",
+            "name": "Declared",
+            "status_label": "Foundation",
+            "description": "The owner has a readable declaration, but reconciliation is incomplete.",
+            "capability_summary": "Storage intent is declared.",
+            "next_unlock": "Reconcile declared paths with writers and observed bytes."
+          },
+          {
+            "id": "L2",
+            "name": "Reconciled",
+            "status_label": "Ready",
+            "description": "Declared paths, writers, sidecars, and observed storage agree.",
+            "capability_summary": "Storage declarations match reality.",
+            "next_unlock": "Bound and enforce every durable surface."
+          },
+          {
+            "id": "L3",
+            "name": "Governed",
+            "status_label": "Complete",
+            "description": "Reconciled storage is bounded and enforcement is visible.",
+            "capability_summary": "Storage declarations are governed end to end."
+          }
+        ]
+      },
+      {
+        "id": "filesystem_portability",
+        "label": "Filesystem Portability",
+        "description": "Portable runtime roots, separators, temporary files, and path containment across supported platforms.",
+        "appliesTo": ["scenario", "resource", "tool", "safeguard", "package", "control-plane", "project"],
+        "levels": [
+          {"id": "L0", "name": "Filesystem portability unknown", "status_label": "Unavailable", "description": "Filesystem portability cannot be evaluated.", "capability_summary": "Filesystem portability is unknown.", "next_unlock": "A readable owner root and portable path contract."},
+          {"id": "L1", "name": "Filesystem portability inspectable", "status_label": "Foundation", "description": "Filesystem paths and writer surfaces can be inspected.", "capability_summary": "Filesystem portability can be checked.", "next_unlock": "Portable resolver roots and safe temporary/rename behavior."},
+          {"id": "L2", "name": "Filesystem portability safe", "status_label": "Ready", "description": "Managed paths use portable roots and containment-safe writes.", "capability_summary": "Filesystem paths are portable and bounded.", "next_unlock": "Maximum filesystem-portability maturity."},
+          {"id": "L3", "name": "Filesystem portability clean", "status_label": "Complete", "description": "Filesystem portability checks are clean.", "capability_summary": "Filesystem portability is clean."}
+        ]
+      },
+      {
+        "id": "filesystem_safety",
+        "label": "Filesystem Safety",
+        "description": "Ownership, modes, atomic replacement, symlink safety, and managed cleanup boundaries.",
+        "appliesTo": ["scenario", "resource", "tool", "safeguard", "package", "control-plane", "project"],
+        "levels": [
+          {"id": "L0", "name": "Filesystem safety unknown", "status_label": "Unavailable", "description": "Filesystem safety cannot be evaluated.", "capability_summary": "Filesystem safety is unknown.", "next_unlock": "A readable owner root and writer surface."},
+          {"id": "L1", "name": "Filesystem safety inspectable", "status_label": "Foundation", "description": "Ownership and writer behavior can be inspected.", "capability_summary": "Filesystem safety can be checked.", "next_unlock": "Explicit modes, atomic writes, and symlink-safe boundaries."},
+          {"id": "L2", "name": "Filesystem safety governed", "status_label": "Ready", "description": "Managed writes and cleanup use reviewed safety seams.", "capability_summary": "Filesystem mutations are governed.", "next_unlock": "Maximum filesystem-safety maturity."},
+          {"id": "L3", "name": "Filesystem safety clean", "status_label": "Complete", "description": "Filesystem safety checks are clean.", "capability_summary": "Filesystem safety is clean."}
+        ]
+      },
+      {
+        "id": "retention_governance",
+        "label": "Retention Governance",
+        "description": "Retention policy, active-use protection, durable-data protection, cleanup authority, and auditable enforcement.",
+        "appliesTo": ["scenario", "resource", "tool", "safeguard", "package", "control-plane", "project"],
+        "levels": [
+          {"id": "L0", "name": "Retention governance unknown", "status_label": "Unavailable", "description": "Retention policy cannot be evaluated.", "capability_summary": "Retention governance is unknown.", "next_unlock": "A readable owner policy and cleanup authority."},
+          {"id": "L1", "name": "Retention policy visible", "status_label": "Foundation", "description": "Retention and protection rules can be inspected.", "capability_summary": "Retention intent is visible.", "next_unlock": "Eligible candidates, active protection, and durable protection."},
+          {"id": "L2", "name": "Retention governed", "status_label": "Ready", "description": "Cleanup is bounded by policy, protection, approval, and audit seams.", "capability_summary": "Retention is safely enforceable.", "next_unlock": "Maximum retention-governance maturity."},
+          {"id": "L3", "name": "Retention clean", "status_label": "Complete", "description": "Retention governance checks are clean.", "capability_summary": "Retention governance is clean."}
+        ]
+      }
+    ],
+    "findings": {
+      "STORAGE_TARGET_UNRESOLVABLE": {
+        "capability_id": "target_classification",
+        "local_level_impact": "L0",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "uncheckable",
+        "recommended_skill_ids": [
+          "storage-steer",
+          "ecosystem-fit"
+        ]
+      },
+      "SCHEMA_CENTRALIZED": {
+        "capability_id": "schema_substrate",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "auto",
+        "fixer_status": "pending"
+      },
+      "SCHEMA_NOT_IDEMPOTENT": {
+        "capability_id": "schema_substrate",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Adding IF NOT EXISTS or restructuring non-idempotent DDL can change semantics; needs author judgment."
+      },
+      "SCHEMA_HAS_ALTER": {
+        "capability_id": "schema_substrate",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "ALTER belongs in a migration, not the embedded schema; relocating it requires deciding migration ordering."
+      },
+      "ENSURE_SCHEMAS_NOT_WIRED": {
+        "capability_id": "schema_substrate",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "auto",
+        "fixer_status": "implemented"
+      },
+      "ROUTED_SEAMS_UNWIRED": {
+        "capability_id": "isolation_safety",
+        "local_level_impact": "L2",
+        "global_impact": "safety_blocker",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "auto",
+        "fixer_status": "pending"
+      },
+      "FILE_ROUTED_SEAMS_UNWIRED": {
+        "capability_id": "isolation_safety",
+        "local_level_impact": "L2",
+        "global_impact": "safety_blocker",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Routing file persistence through request-context roots requires adapting each store's path construction and write accounting."
+      },
+      "STORAGE_NAMESPACE_HARDCODED": {
+        "capability_id": "isolation_safety",
+        "local_level_impact": "L2",
+        "global_impact": "safety_blocker",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "auto",
+        "fixer_status": "pending"
+      },
+      "STORAGE_ISOLATION_UNVERIFIED": {
+        "capability_id": "isolation_safety",
+        "local_level_impact": "L2",
+        "global_impact": "safety_blocker",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Isolation cannot be statically proven for a non-Go API; porting to the Go seams or adding an equivalent mechanism needs author judgment."
+      },
+      "SCHEMA_NOT_PER_DOMAIN": {
+        "capability_id": "persistence_hygiene",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Splitting a shared schema into per-domain files requires deciding which domain owns each table."
+      },
+      "SYSTEM_SQL_NOT_EMPTY": {
+        "capability_id": "persistence_hygiene",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Tables in the system schema must be re-homed to a domain the author selects."
+      },
+      "CROSS_DOMAIN_HARD_FK": {
+        "capability_id": "persistence_hygiene",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Relaxing a cross-domain foreign key requires a deliberate ownership/consistency decision."
+      },
+      "RAW_SQL_OPEN": {
+        "capability_id": "persistence_hygiene",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Replacing a raw sql.Open with the routed database.Open seam is a repository-layer refactor needing judgment."
+      },
+      "ROUTED_DRIVER_IMPORT": {
+        "capability_id": "persistence_hygiene",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Removing a direct SQL-driver import means routing through api-core/database, a repository-layer change."
+      },
+      "SQL_DB_HANDLE_CAPTURE": {
+        "capability_id": "persistence_hygiene",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "A captured *sql.DB struct field must be replaced with context-routed access; the call sites need rework."
+      },
+      "DB_ROWS_NOT_CLOSED": {
+        "capability_id": "persistence_hygiene",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "auto",
+        "fixer_status": "implemented"
+      },
+      "DIRECT_SQL_IN_HANDLERS": {
+        "capability_id": "persistence_hygiene",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Moving SQL out of a transport handler into a repository function is a structural refactor."
+      },
+      "SQLITE_POOL_DEADLOCK": {
+        "capability_id": "persistence_hygiene",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer",
+          "scientific-debugging"
+        ],
+        "fix_class": "manual",
+        "reason": "Resolving a MaxOpenConns:1 nested-query deadlock means restructuring the query flow, not a mechanical edit."
+      },
+      "BACKUP_TARGET_MISSING": {
+        "capability_id": "operational_readiness",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Registering a data-backup-manager target is an operational decision about what data is durable."
+      },
+      "MIGRATION_DEBT": {
+        "capability_id": "operational_readiness",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Migration debt is informational; authoring a migration is a deliberate, stage-dependent act."
+      },
+      "STORAGE_ENTRY_NO_WRITER": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "A writer may be missing, generated, or intentionally suppressed; remediation needs owner judgment."
+      },
+      "STORAGE_OWNER_GATE_FAILED": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L2",
+        "global_impact": "safety_blocker",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "The storage-manager suite gates resource, tool, and safeguard declaration errors and blockers."
+      },
+      "STORAGE_OWNER_GATE_ADVISORY_TREND": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Advisory drift is reported by the suite without blocking adoption."
+      },
+      "STORAGE_ENTRY_CLASS_CONFLICT": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "The owner must choose the correct class for durable versus regenerable data."
+      },
+      "STORAGE_ENTRY_UNRECLAIMABLE": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "The owner must provide a reclaim command or measured budget."
+      },
+      "STORAGE_SQLITE_SIDECAR_UNDECLARED": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "The owner must declare live SQLite sidecars alongside the database."
+      },
+      "STORAGE_BUDGET_BELOW_OBSERVED": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "The owner must reconcile observed bytes with its declared ceiling."
+      },
+      "CEILING_NOT_BINDING": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "A measured-value ceiling cannot detect growth; the owner must state a workload-derived limit."
+      },
+      "RETENTION_CEILING_UNBOUNDED": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Regenerable storage must have a workload-derived age or byte ceiling before it can grow without bound."
+      },
+      "STORAGE_RETENTION_CONFLICT": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "The owner must make retention and durable-data declarations agree."
+      },
+      "STORAGE_PATH_UNACCOUNTED": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "The owner must adopt observed bytes into an accountable declaration."
+      },
+      "STORAGE_PATH_ORPHANED": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L0",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "The stale scenario directory must be removed or given a canonical owner manifest."
+      },
+      "STORAGE_PATH_NOT_PORTABLE": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Choosing a portable token or an explicit per-platform map requires owner knowledge of the upstream layout."
+      },
+      "STORAGE_PATH_PLATFORM_MISMATCH": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Correcting a platform mismatch requires deciding whether the declaration or its applicability is wrong."
+      },
+      "STORAGE_PATH_BRANCH_MISSING": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "The owner must add a branch or explicitly declare absence with null."
+      },
+      "STORAGE_TOKEN_SUPERSEDABLE": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Replacing repeated platform branches with one token requires confirming the logical location."
+      },
+      "STORAGE_ACCOUNTABILITY_UNDECLARED": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Without a storage.entries declaration the durable surface cannot be evaluated, so no higher rung can be claimed. Blocks L1; the owner sits at L0."
+      },
+      "STORAGE_ACCOUNTABILITY_UNRECONCILED": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "A declaration that disagrees with observed writers, paths, sidecars, or ceilings is declared but not reconciled. Blocks L2; the owner sits at L1."
+      },
+      "STORAGE_ACCOUNTABILITY_UNGOVERNED": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L3",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Reconciled storage with no budget and no reclaim command has no visible enforcement. Blocks L3; the owner sits at L2."
+      },
+      "FILESYSTEM_DIRECT_WRITER": {
+        "capability_id": "filesystem_safety",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["cross-platform-readiness"],
+        "fix_class": "manual",
+        "reason": "A direct filesystem mutation can recreate ownership, mode, atomicity, or symlink defects."
+      },
+      "FILESYSTEM_MODE_UNPROVEN": {
+        "capability_id": "filesystem_safety",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["cross-platform-readiness"],
+        "fix_class": "manual",
+        "reason": "A writer with an implicit or dynamic mode cannot prove restrictive permissions across platforms."
+      },
+      "FILESYSTEM_NONPORTABLE_PATH": {
+        "capability_id": "filesystem_portability",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["cross-platform-readiness"],
+        "fix_class": "manual",
+        "reason": "An absolute or platform-specific writer path does not survive portable deployment."
+      },
+      "RETENTION_AUTHORITY_MISSING": {
+        "capability_id": "retention_governance",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "Regenerable data without bounded retention or an owner provider cannot be reclaimed safely."
+      },
+      "RETENTION_POLICY_MISSING": {
+        "capability_id": "retention_governance",
+        "local_level_impact": "L0",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "Missing policy is conservative: cleanup is refused until the owner surface is declared."
+      },
+      "STORAGE_TARGET_UNRESOLVABLE": {
+        "capability_id": "target_classification",
+        "local_level_impact": "L0",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "uncheckable",
+        "recommended_skill_ids": ["storage-steer", "ecosystem-fit"],
+        "fix_class": "manual",
+        "reason": "An unresolved target cannot be inspected; resolution must be restored before storage maturity can be assessed."
+      },
+      "STORAGE_TARGET_UNCLASSIFIED": {
+        "capability_id": "target_classification",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "A target that cannot be classified cannot safely select storage checks or ownership policy."
+      },
+      "STORAGE_CLASSIFICATION_INCOMPLETE": {
+        "capability_id": "target_classification",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "A partially classified target cannot provide a stable owner and storage contract."
+      },
+      "SCHEMA_SUBSTRATE_UNRECOGNIZED": {
+        "capability_id": "schema_substrate",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "An unrecognized storage substrate cannot be checked for embedded schema ownership or lifecycle safety."
+      },
+      "SCHEMA_SUBSTRATE_UNCLEAN": {
+        "capability_id": "schema_substrate",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "The schema substrate is not ready for clean maturity until embedded, idempotent, per-domain schema checks are satisfied."
+      },
+      "STORAGE_ISOLATION_UNINSPECTABLE": {
+        "capability_id": "isolation_safety",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "Uninspectable storage routing cannot prove destructive tests are isolated."
+      },
+      "STORAGE_ISOLATION_UNCLEAN": {
+        "capability_id": "isolation_safety",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "Isolation is not clean until every destructive storage path is routed and verified as fail-closed."
+      },
+      "PERSISTENCE_SURFACE_UNINSPECTABLE": {
+        "capability_id": "persistence_hygiene",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "Uninspectable persistence access cannot prove repository ownership, schema placement, or resource closure."
+      },
+      "PERSISTENCE_HYGIENE_UNCLEAN": {
+        "capability_id": "persistence_hygiene",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "Persistence hygiene is not clean until repository access, schema ownership, row closure, and deadlock safety are proven."
+      },
+      "OPERATIONAL_POSTURE_UNREADABLE": {
+        "capability_id": "operational_readiness",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "Unreadable backup and migration posture prevents safe operational storage decisions."
+      },
+      "OPERATIONAL_READINESS_UNPROVEN": {
+        "capability_id": "operational_readiness",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "Operational readiness requires an explicit, resolved backup and migration posture."
+      },
+      "FILESYSTEM_ROOT_UNINSPECTABLE": {
+        "capability_id": "filesystem_portability",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["cross-platform-readiness"],
+        "fix_class": "manual",
+        "reason": "Without a readable managed root, path portability and containment cannot be verified."
+      },
+      "FILESYSTEM_PORTABILITY_UNGOVERNED": {
+        "capability_id": "filesystem_portability",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["cross-platform-readiness"],
+        "fix_class": "manual",
+        "reason": "Portable paths require resolver-owned roots and containment-safe write and rename behavior."
+      },
+      "FILESYSTEM_PORTABILITY_UNCLEAN": {
+        "capability_id": "filesystem_portability",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["cross-platform-readiness"],
+        "fix_class": "manual",
+        "reason": "Filesystem portability is not clean until supported-platform roots, separators, temporary files, renames, and containment are verified."
+      },
+      "FILESYSTEM_SAFETY_UNINSPECTABLE": {
+        "capability_id": "filesystem_safety",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["cross-platform-readiness"],
+        "fix_class": "manual",
+        "reason": "Without writer and ownership evidence, filesystem safety cannot be evaluated."
+      },
+      "FILESYSTEM_SAFETY_UNGOVERNED": {
+        "capability_id": "filesystem_safety",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["cross-platform-readiness"],
+        "fix_class": "manual",
+        "reason": "Safe filesystem mutation requires explicit modes, atomic replacement, symlink-safe boundaries, and ownership repair."
+      },
+      "FILESYSTEM_SAFETY_UNCLEAN": {
+        "capability_id": "filesystem_safety",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["cross-platform-readiness"],
+        "fix_class": "manual",
+        "reason": "Filesystem safety is not clean until ownership, modes, atomic replacement, symlink handling, and cleanup denial tests are green."
+      },
+      "RETENTION_GOVERNANCE_UNINSPECTABLE": {
+        "capability_id": "retention_governance",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "Retention cannot be safe when owner policy and cleanup authority are unreadable."
+      },
+      "RETENTION_GOVERNANCE_UNBOUNDED": {
+        "capability_id": "retention_governance",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "Enforceable retention requires bounded candidates, active and durable protection, approval, and audit evidence."
+      },
+      "RETENTION_GOVERNANCE_UNCLEAN": {
+        "capability_id": "retention_governance",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "Retention governance is not clean until policy precedence, protected data, active leases, cleanup authority, audit, and repair retry are proven."
+      }
+    },
+    "fallback": {
+      "capability_id": "persistence_hygiene",
+      "local_level_impact": "L2",
+      "global_impact": "evolvability_gap",
+      "dimension": "storage",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "required",
+      "fix_class": "manual",
+      "reason": "When no specialized storage finding applies, the owner remains at the conservative persistence-hygiene level until evidence is available."
+    }
+  },
+  "profileMembership": [],
+  "freshnessRequirement": "never",
+  "phaseClass": "architecture",
+  "runtimeClass": "lifecycle",
+  "concurrency": {
+    "mode": "provider-serial"
+  },
+  "determinism": {
+    "default": "observational",
+    "reason": "Storage validation measures observed on-disk usage against declared budgets and inspects live databases for migration and isolation hygiene. Both read host filesystem and database state that changes without any file in the scenario changing."
+  },
+  "dimensions": [
+    "storage"
+  ]
+}

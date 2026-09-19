@@ -13,9 +13,9 @@ type FetchAdminProfileFn = typeof fetchAdminProfile;
 type UpdateAdminEmailFn = typeof updateAdminEmail;
 type UpdateAdminPasswordFn = typeof updateAdminPassword;
 
-const fetchAdminProfileMock = vi.fn<Parameters<FetchAdminProfileFn>, ReturnType<FetchAdminProfileFn>>();
-const updateAdminEmailMock = vi.fn<Parameters<UpdateAdminEmailFn>, ReturnType<UpdateAdminEmailFn>>();
-const updateAdminPasswordMock = vi.fn<Parameters<UpdateAdminPasswordFn>, ReturnType<UpdateAdminPasswordFn>>();
+const fetchAdminProfileMock = vi.fn<FetchAdminProfileFn>();
+const updateAdminEmailMock = vi.fn<UpdateAdminEmailFn>();
+const updateAdminPasswordMock = vi.fn<UpdateAdminPasswordFn>();
 
 vi.mock('../services/profile.service', async () => {
   const actual = await vi.importActual<typeof import('../services/profile.service')>(
@@ -52,6 +52,12 @@ describe('useProfileForm', () => {
   });
 
   describe('initial state', () => {
+    beforeEach(() => {
+      // Keep the mount request pending so assertions exercise the synchronous
+      // initial state without an asynchronous state update escaping React act.
+      fetchAdminProfileMock.mockReturnValue(new Promise<AdminProfile>(() => undefined));
+    });
+
     it('starts with loading state', () => {
       const { result } = renderHook(() => useProfileForm());
 
@@ -319,14 +325,16 @@ describe('useProfileForm', () => {
         result.current.updateEmailForm('currentPassword', 'password123');
       });
 
+      let submission: Promise<void>;
       act(() => {
-        result.current.handleEmailSubmit(createMockEvent());
+        submission = result.current.handleEmailSubmit(createMockEvent());
       });
 
       expect(result.current.emailStatus.saving).toBe(true);
 
       await act(async () => {
         resolveUpdate!(mockProfile);
+        await submission;
       });
 
       expect(result.current.emailStatus.saving).toBe(false);
@@ -491,14 +499,16 @@ describe('useProfileForm', () => {
         result.current.updatePasswordForm('currentPassword', 'oldPassword');
       });
 
+      let submission: Promise<void>;
       act(() => {
-        result.current.handlePasswordSubmit(createMockEvent());
+        submission = result.current.handlePasswordSubmit(createMockEvent());
       });
 
       expect(result.current.passwordStatus.saving).toBe(true);
 
       await act(async () => {
         resolveUpdate!(mockProfile);
+        await submission;
       });
 
       expect(result.current.passwordStatus.saving).toBe(false);
@@ -547,6 +557,10 @@ describe('useProfileForm', () => {
   });
 
   describe('constants', () => {
+    beforeEach(() => {
+      fetchAdminProfileMock.mockReturnValue(new Promise<AdminProfile>(() => undefined));
+    });
+
     it('exposes MIN_PASSWORD_LENGTH', () => {
       const { result } = renderHook(() => useProfileForm());
 
@@ -562,13 +576,14 @@ describe('useProfileForm', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const mockEvent = createMockEvent();
+      const preventDefault = vi.fn();
+      const mockEvent = { preventDefault } as unknown as React.FormEvent;
 
       await act(async () => {
         await result.current.handleEmailSubmit(mockEvent);
       });
 
-      expect(mockEvent.preventDefault).toHaveBeenCalled();
+      expect(preventDefault).toHaveBeenCalled();
     });
 
     it('prevents default on password submit', async () => {
@@ -578,13 +593,14 @@ describe('useProfileForm', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const mockEvent = createMockEvent();
+      const preventDefault = vi.fn();
+      const mockEvent = { preventDefault } as unknown as React.FormEvent;
 
       await act(async () => {
         await result.current.handlePasswordSubmit(mockEvent);
       });
 
-      expect(mockEvent.preventDefault).toHaveBeenCalled();
+      expect(preventDefault).toHaveBeenCalled();
     });
   });
 });

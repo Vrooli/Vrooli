@@ -1,6 +1,12 @@
 import { useMemo, useState, type ComponentType } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Aperture, LayoutTemplate, PanelsTopLeft, ShieldCheck, Sparkles } from "lucide-react";
+import {
+  Aperture,
+  LayoutTemplate,
+  PanelsTopLeft,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import { fetchTemplates, type TemplateInfo } from "../../lib/api";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -28,54 +34,65 @@ const visuals: Record<
   basic: {
     icon: Aperture,
     gradient: "from-blue-700/80 via-blue-600/60 to-indigo-600/80",
-    tagline: "Balanced single window wrapper"
+    tagline: "Balanced single window wrapper",
   },
   advanced: {
     icon: Sparkles,
     gradient: "from-emerald-600/80 via-teal-600/70 to-blue-600/80",
-    tagline: "Tray, shortcuts, deep OS touches"
+    tagline: "Tray, shortcuts, deep OS touches",
   },
   multi_window: {
     icon: PanelsTopLeft,
     gradient: "from-purple-700/80 via-indigo-700/70 to-blue-700/70",
-    tagline: "Multiple coordinated windows"
+    tagline: "Multiple coordinated windows",
   },
   kiosk: {
     icon: ShieldCheck,
     gradient: "from-amber-700/80 via-orange-600/80 to-red-600/80",
-    tagline: "Locked-down fullscreen kiosk"
+    tagline: "Locked-down fullscreen kiosk",
   },
   universal: {
     icon: LayoutTemplate,
     gradient: "from-slate-700/80 via-slate-600/70 to-blue-700/70",
-    tagline: "All-purpose desktop wrapper"
-  }
+    tagline: "All-purpose desktop wrapper",
+  },
 };
 
-export function TemplateGrid({ selectedTemplate, onSelect }: TemplateGridProps) {
+export function TemplateGrid({
+  selectedTemplate,
+  onSelect,
+}: TemplateGridProps) {
   const [showHelper, setShowHelper] = useState(false);
   const [answers, setAnswers] = useState<HelperAnswers>({
     needsTray: null,
     needsMultiWindow: null,
     kiosk: null,
-    lockedHardware: null
+    lockedHardware: null,
   });
   const { data, isLoading, error } = useQuery({
     queryKey: ["templates"],
-    queryFn: fetchTemplates
+    queryFn: fetchTemplates,
   });
 
   const recommended = useMemo(() => {
-    if (answers.kiosk === "yes" || answers.lockedHardware === "yes") return "kiosk";
+    if (answers.kiosk === "yes" || answers.lockedHardware === "yes")
+      return "kiosk";
     if (answers.needsMultiWindow === "yes") return "multi_window";
     if (answers.needsTray === "yes") return "advanced";
-    if (answers.kiosk === "no" && answers.needsMultiWindow === "no" && answers.needsTray === "no") return "basic";
+    if (
+      answers.kiosk === "no" &&
+      answers.needsMultiWindow === "no" &&
+      answers.needsTray === "no"
+    )
+      return "basic";
     return null;
   }, [answers]);
 
   const recommendedLabel = useMemo(() => {
     if (!recommended) return null;
-    return data?.templates.find((t) => t.type === recommended)?.name || "Recommended";
+    return (
+      data?.templates.find((t) => t.type === recommended)?.name || "Recommended"
+    );
   }, [data?.templates, recommended]);
 
   if (isLoading) {
@@ -88,16 +105,18 @@ export function TemplateGrid({ selectedTemplate, onSelect }: TemplateGridProps) 
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-        <div className="sm:col-span-2 flex items-center justify-between gap-3 rounded-lg border border-slate-800/80 bg-slate-950/60 p-3">
-          <div className="flex items-center gap-2 text-sm text-slate-200">
-            <LayoutTemplate className="h-4 w-4 text-blue-300" />
-            <span>Choose a template, or let us suggest one.</span>
-          </div>
+      <div className="sm:col-span-2 flex items-center justify-between gap-3 rounded-lg border border-slate-800/80 bg-slate-950/60 p-3">
+        <div className="flex items-center gap-2 text-sm text-slate-200">
+          <LayoutTemplate className="h-4 w-4 text-blue-300" />
+          <span>Choose a template, or let us suggest one.</span>
+        </div>
         <Button
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => setShowHelper((prev) => !prev)}
+          onClick={() => {
+            setShowHelper((prev) => !prev);
+          }}
           className="gap-2"
         >
           <Sparkles className="h-4 w-4" />
@@ -109,23 +128,26 @@ export function TemplateGrid({ selectedTemplate, onSelect }: TemplateGridProps) 
         <div className="sm:col-span-2 rounded-lg border border-blue-800/70 bg-blue-950/30 p-4 space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-slate-100">Quick questionnaire</p>
+              <p className="text-sm font-semibold text-slate-100">
+                Quick questionnaire
+              </p>
               <p className="text-sm text-slate-200">
-                Answer a few questions to get a recommendation. You can override anytime.
+                Answer a few questions to get a recommendation. You can override
+                anytime.
               </p>
             </div>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() =>
+              onClick={() => {
                 setAnswers({
                   needsTray: null,
                   needsMultiWindow: null,
                   kiosk: null,
-                  lockedHardware: null
-                })
-              }
+                  lockedHardware: null,
+                });
+              }}
             >
               Reset
             </Button>
@@ -135,22 +157,30 @@ export function TemplateGrid({ selectedTemplate, onSelect }: TemplateGridProps) 
             <Question
               prompt="Do you need a system tray icon or global shortcuts?"
               value={answers.needsTray}
-              onChange={(value) => setAnswers((prev) => ({ ...prev, needsTray: value }))}
+              onChange={(value) => {
+                setAnswers((prev) => ({ ...prev, needsTray: value }));
+              }}
             />
             <Question
               prompt="Will users open multiple windows or panels at once?"
               value={answers.needsMultiWindow}
-              onChange={(value) => setAnswers((prev) => ({ ...prev, needsMultiWindow: value }))}
+              onChange={(value) => {
+                setAnswers((prev) => ({ ...prev, needsMultiWindow: value }));
+              }}
             />
             <Question
               prompt="Is this a locked-down kiosk or unattended terminal?"
               value={answers.kiosk}
-              onChange={(value) => setAnswers((prev) => ({ ...prev, kiosk: value }))}
+              onChange={(value) => {
+                setAnswers((prev) => ({ ...prev, kiosk: value }));
+              }}
             />
             <Question
               prompt="Are you targeting controlled hardware (retail, signage, factory)?"
               value={answers.lockedHardware}
-              onChange={(value) => setAnswers((prev) => ({ ...prev, lockedHardware: value }))}
+              onChange={(value) => {
+                setAnswers((prev) => ({ ...prev, lockedHardware: value }));
+              }}
             />
           </div>
 
@@ -158,9 +188,9 @@ export function TemplateGrid({ selectedTemplate, onSelect }: TemplateGridProps) 
             <div className="text-sm text-slate-100">
               {recommended ? (
                 <span>
-                  Recommended: <span className="font-semibold">{recommendedLabel}</span>
-                  {" "}
-                  ({recommended === "basic"
+                  Recommended:{" "}
+                  <span className="font-semibold">{recommendedLabel}</span> (
+                  {recommended === "basic"
                     ? "single window"
                     : recommended === "advanced"
                       ? "tray + shortcuts"
@@ -177,7 +207,11 @@ export function TemplateGrid({ selectedTemplate, onSelect }: TemplateGridProps) 
               type="button"
               size="sm"
               disabled={!recommended}
-              onClick={() => recommended && onSelect(recommended)}
+              onClick={() => {
+                if (recommended) {
+                  onSelect(recommended);
+                }
+              }}
             >
               Apply recommendation
             </Button>
@@ -190,7 +224,9 @@ export function TemplateGrid({ selectedTemplate, onSelect }: TemplateGridProps) 
           key={template.type}
           template={template}
           selected={selectedTemplate === template.type}
-          onSelect={() => onSelect(template.type)}
+          onSelect={() => {
+            onSelect(template.type);
+          }}
         />
       ))}
     </div>
@@ -208,7 +244,7 @@ function TemplateCard({ template, selected, onSelect }: TemplateCardProps) {
   if (!visual) {
     return null; // Should never happen, but makes TypeScript happy
   }
-  const tagline = visual.tagline ?? template.use_cases?.[0];
+  const tagline = visual.tagline;
 
   return (
     <button
@@ -220,7 +256,9 @@ function TemplateCard({ template, selected, onSelect }: TemplateCardProps) {
           : "bg-white/5 hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.35)]"
       }`}
     >
-      <div className={`mb-3 flex items-center gap-3 rounded-md bg-gradient-to-r ${visual.gradient} p-3`}>
+      <div
+        className={`mb-3 flex items-center gap-3 rounded-md bg-gradient-to-r ${visual.gradient} p-3`}
+      >
         <visual.icon className="h-6 w-6 text-white/90" />
         <div>
           <p className="text-sm font-semibold text-white">{template.name}</p>
@@ -228,11 +266,13 @@ function TemplateCard({ template, selected, onSelect }: TemplateCardProps) {
         </div>
       </div>
 
-      <h3 className="mb-2 text-lg font-semibold text-slate-50">{template.name}</h3>
+      <h3 className="mb-2 text-lg font-semibold text-slate-50">
+        {template.name}
+      </h3>
       <p className="mb-3 text-sm text-slate-400">{template.description}</p>
-      {template.use_cases && template.use_cases.length > 0 && (
+      {template.useCases.length > 0 && (
         <p className="mb-3 text-xs text-slate-300">
-          Best for: {template.use_cases.slice(0, 2).join(" · ")}
+          Best for: {template.useCases.slice(0, 2).join(" · ")}
         </p>
       )}
       <div className="flex flex-wrap gap-1.5">
@@ -266,7 +306,9 @@ function Question({ prompt, value, onChange }: QuestionProps) {
           type="button"
           variant={value === "yes" ? "default" : "outline"}
           size="sm"
-          onClick={() => onChange("yes")}
+          onClick={() => {
+            onChange("yes");
+          }}
         >
           Yes
         </Button>
@@ -274,7 +316,9 @@ function Question({ prompt, value, onChange }: QuestionProps) {
           type="button"
           variant={value === "no" ? "default" : "outline"}
           size="sm"
-          onClick={() => onChange("no")}
+          onClick={() => {
+            onChange("no");
+          }}
         >
           No
         </Button>

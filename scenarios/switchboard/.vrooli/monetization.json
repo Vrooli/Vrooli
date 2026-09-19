@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../.vrooli/schemas/monetization.schema.json",
+  "version": 2,
+  "bundle_key": "business_suite",
+  "app_key": "switchboard",
+  "requires_entitlement": true,
+  "features": [],
+  "meters": [
+    {
+      "limit_key": "ai_credits",
+      "class": "A",
+      "enforcement_paths": ["api/internal/metering/meter.go"]
+    }
+  ]
+}

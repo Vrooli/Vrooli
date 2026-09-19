@@ -1,0 +1,6 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": { "id": "calibration.provenance-stamp", "name": "ProvenanceStampCalibration", "kind": "component", "domain": "calibration", "targets": ["react-vite"], "slot": "ui-primitive", "delivery": "adopted", "target": { "priority": "P0", "maturity": "verified" } }
+}

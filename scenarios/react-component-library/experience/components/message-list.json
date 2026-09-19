@@ -1,0 +1,93 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "message-list",
+    "title": "MessageList",
+    "purpose": "Read and navigate conversation history while preserving scroll and recovery behavior.",
+    "storyRef": "../../library/components/MessageList/versions/1.1.1/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Default specimen."
+    },
+    {
+      "id": "loading",
+      "example": "loading",
+      "description": "Loading specimen."
+    },
+    {
+      "id": "refreshing",
+      "example": "refreshing",
+      "description": "Refreshing specimen."
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "Empty specimen."
+    },
+    {
+      "id": "partial",
+      "example": "partial",
+      "description": "Partial specimen."
+    },
+    {
+      "id": "stale",
+      "example": "stale",
+      "description": "Stale specimen."
+    },
+    {
+      "id": "request-error",
+      "example": "request-error",
+      "description": "Request error specimen."
+    },
+    {
+      "id": "offline",
+      "example": "offline",
+      "description": "Offline specimen."
+    },
+    {
+      "id": "retry",
+      "example": "retry",
+      "description": "Retry specimen."
+    },
+    {
+      "id": "live-history",
+      "example": "live-history",
+      "description": "History and new messages specimen."
+    },
+    {
+      "id": "transcript",
+      "example": "transcript",
+      "description": "Unframed conversation transcript specimen."
+    }
+  ],
+  "elements": [
+    {
+      "id": "surface",
+      "role": "region",
+      "description": "The component surface and its semantic descendants."
+    }
+  ],
+  "claims": [
+    {
+      "id": "composition-preserves-behavior",
+      "type": "manual-review",
+      "statement": "Transcript presentation composes the shared unframed message child and preserves history navigation and independent message recovery.",
+      "tier": "manual",
+      "states": [
+        "transcript"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "surface": {
+        "selector": "[data-rcl-message-list]"
+      }
+    }
+  }
+}

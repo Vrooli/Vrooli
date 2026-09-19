@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gorilla/mux"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/investigation"
+
+	"github.com/gorilla/mux"
 )
 
 // handleInvestigateDeployment triggers a new investigation for a failed deployment.

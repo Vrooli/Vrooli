@@ -2,6 +2,7 @@
   "$schema": "../../../.vrooli/schemas/lighthouse.schema.json",
   "version": "1.0.0",
   "scenario": "secrets-manager",
+  "enabled": true,
   "pages": [
     {
       "id": "dashboard",
@@ -9,15 +10,15 @@
       "path": "/",
       "description": "Main secrets manager dashboard",
       "thresholds": {
-        "performance": 0.8,
-        "accessibility": 0.9,
-        "best-practices": 0.85,
-        "seo": 0.7,
-        "first-contentful-paint": 2000,
-        "largest-contentful-paint": 3000,
-        "time-to-interactive": 4000,
-        "cumulative-layout-shift": 0.1,
-        "total-blocking-time": 500
+        "performance": {"error": 0.8, "warn": 0.9},
+        "accessibility": {"error": 0.9, "warn": 0.95},
+        "best-practices": {"error": 0.85, "warn": 0.9},
+        "seo": {"error": 0.7, "warn": 0.8},
+        "first-contentful-paint": {"error": 2000, "warn": 2500},
+        "largest-contentful-paint": {"error": 3000, "warn": 3500},
+        "time-to-interactive": {"error": 4000, "warn": 4500},
+        "cumulative-layout-shift": {"error": 0.1, "warn": 0.15},
+        "total-blocking-time": {"error": 500, "warn": 600}
       }
     }
   ],

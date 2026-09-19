@@ -1,0 +1,290 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "persona",
+  "generator": "v1.0.0",
+  "manifest_hash": "49bcb4287b6e47f8462cc5209c5a0c4183e1f61b85519373dddfe1099e1936c8",
+  "commands": [
+    {
+      "path": "access act-as",
+      "group": "access",
+      "command": "act-as",
+      "binding": "AccessService.ActAs",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "access attest",
+      "group": "access",
+      "command": "attest",
+      "binding": "AccessService.IssueAttestation",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "access grant",
+      "group": "access",
+      "command": "grant",
+      "binding": "AccessService.CreateGrant",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "access list-grants",
+      "group": "access",
+      "command": "list-grants",
+      "binding": "AccessService.ListGrants",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "access remove-grant",
+      "group": "access",
+      "command": "remove-grant",
+      "binding": "AccessService.RemoveGrant",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "access resolve",
+      "group": "access",
+      "command": "resolve",
+      "binding": "AccessService.ResolvePersona",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "accounts add-address",
+      "group": "accounts",
+      "command": "add-address",
+      "binding": "AccountsService.AddAddress",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "accounts add-obligation",
+      "group": "accounts",
+      "command": "add-obligation",
+      "binding": "AccountsService.AddObligation",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "accounts cancel-obligation",
+      "group": "accounts",
+      "command": "cancel-obligation",
+      "binding": "AccountsService.CancelObligation",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "accounts link",
+      "group": "accounts",
+      "command": "link",
+      "binding": "AccountsService.LinkAccount",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "accounts list",
+      "group": "accounts",
+      "command": "list",
+      "binding": "AccountsService.ListAccounts",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "accounts list-addresses",
+      "group": "accounts",
+      "command": "list-addresses",
+      "binding": "AccountsService.ListAddresses",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "accounts list-obligations",
+      "group": "accounts",
+      "command": "list-obligations",
+      "binding": "AccountsService.ListObligations",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "accounts release-address",
+      "group": "accounts",
+      "command": "release-address",
+      "binding": "AccountsService.ReleaseAddress",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "channels bind",
+      "group": "channels",
+      "command": "bind",
+      "binding": "ChannelsService.BindChannel",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "channels list",
+      "group": "channels",
+      "command": "list",
+      "binding": "ChannelsService.ListChannels",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "channels retrieve-code",
+      "group": "channels",
+      "command": "retrieve-code",
+      "binding": "ChannelsService.RetrieveCode",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "channels send",
+      "group": "channels",
+      "command": "send",
+      "binding": "ChannelsService.SendMessage",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "documents bind",
+      "group": "documents",
+      "command": "bind",
+      "binding": "DocumentsService.BindDocument",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "documents list",
+      "group": "documents",
+      "command": "list",
+      "binding": "DocumentsService.ListBindings",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "documents release",
+      "group": "documents",
+      "command": "release",
+      "binding": "DocumentsService.ReleaseIntoHandoff",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "handoffs cancel",
+      "group": "handoffs",
+      "command": "cancel",
+      "binding": "HandoffsService.CancelHandoff",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "handoffs complete",
+      "group": "handoffs",
+      "command": "complete",
+      "binding": "HandoffsService.CompleteHandoff",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "handoffs get",
+      "group": "handoffs",
+      "command": "get",
+      "binding": "HandoffsService.GetHandoff",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "handoffs list",
+      "group": "handoffs",
+      "command": "list",
+      "binding": "HandoffsService.ListHandoffs",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "handoffs open",
+      "group": "handoffs",
+      "command": "open",
+      "binding": "HandoffsService.OpenHandoff",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "handoffs prepare-enrolment",
+      "group": "handoffs",
+      "command": "prepare-enrolment",
+      "binding": "HandoffsService.PrepareEnrolment",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "handoffs resume",
+      "group": "handoffs",
+      "command": "resume",
+      "binding": "HandoffsService.ResumeHandoff",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "journal append",
+      "group": "journal",
+      "command": "append",
+      "binding": "JournalService.Append",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "journal list",
+      "group": "journal",
+      "command": "list",
+      "binding": "JournalService.List",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "personas archive",
+      "group": "personas",
+      "command": "archive",
+      "binding": "PersonasService.ArchivePersona",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "personas create",
+      "group": "personas",
+      "command": "create",
+      "binding": "PersonasService.CreatePersona",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "personas get",
+      "group": "personas",
+      "command": "get",
+      "binding": "PersonasService.GetPersona",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "personas health",
+      "group": "personas",
+      "command": "health",
+      "binding": "PersonasService.CheckHealth",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "personas list",
+      "group": "personas",
+      "command": "list",
+      "binding": "PersonasService.ListPersonas",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    }
+  ]
+}

@@ -1,0 +1,2215 @@
+// This file creates runs and their initial persisted execution state.
+package orchestration
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"time"
+
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/identity"
+	"agent-manager/internal/metrics"
+	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/orchestration/phases"
+	"agent-manager/internal/orchestration/spawn"
+	"agent-manager/internal/policy"
+	"agent-manager/internal/repository"
+	"agent-manager/internal/rolepolicy"
+	"agent-manager/internal/structuredresult"
+	"agent-manager/internal/tokenaccounting"
+
+	"github.com/google/uuid"
+	coreidentity "github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/scopecatalog"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
+	"google.golang.org/protobuf/proto"
+)
+
+func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*domain.Run, error) {
+	return o.createRun(ctx, req, nil)
+}
+
+// createRun accepts invocation-local recovery context while retaining the
+// original task and the normal admission, identity, policy and dispatch gates.
+type runRecoveryContext struct {
+	attachments []domain.ContextAttachment
+	config      *domain.RunConfig
+}
+
+func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, recovery *runRecoveryContext) (*domain.Run, error) {
+	if len(req.WorkReferences) > 100 {
+		return nil, domain.NewValidationErrorWithHint("work_references", "at most 100 declarations are allowed", "supply a bounded selected workload")
+	}
+	req.WorkReferences = append([]*eventpb.WorkReference(nil), req.WorkReferences...)
+	for i, ref := range req.WorkReferences {
+		if ref == nil || ref.GetKind() == "" || ref.GetId() == "" || proto.Size(ref) > 4096 {
+			return nil, domain.NewValidationErrorWithHint("work_references", "references need bounded kind and identity", "supply canonical workload references")
+		}
+		req.WorkReferences[i] = proto.Clone(ref).(*eventpb.WorkReference)
+	}
+	if err := o.resolveCreateRunIdentity(ctx, &req); err != nil {
+		return nil, err
+	}
+	// Accepted identity outlives the one-hour cache and the deletable run row.
+	// Only a proven absence of durable acceptance may enter new admission.
+	if req.IdempotencyKey != "" && o.runs != nil {
+		original, err := o.runs.GetByIdempotencyKey(ctx, req.IdempotencyKey)
+		if err != nil {
+			return nil, err
+		}
+		if original != nil {
+			if err := validateRunIdentityReplay(original, req); err != nil {
+				return nil, err
+			}
+			o.markIdempotencyComplete(ctx, req.IdempotencyKey, original.ID, "Run")
+			return o.GetRun(ctx, original.ID)
+		}
+	}
+
+	// IDEMPOTENCY: Check if this request has already been processed
+	if req.IdempotencyKey != "" && o.idempotency != nil {
+		existing, err := o.idempotency.Check(ctx, req.IdempotencyKey)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			// Request already processed - return cached result
+			if existing.Status == domain.IdempotencyStatusComplete && existing.EntityID != nil {
+				return o.getIdentityBoundRunReplay(ctx, *existing.EntityID, req)
+			}
+			if existing.Status == domain.IdempotencyStatusPending {
+				// A prior accepted dispatch may have persisted its run before
+				// the caller lost the response. Reconcile from durable owner
+				// state by the run's idempotency key before refusing the
+				// replay, so a lost response is not mistaken for an in-flight
+				// duplicate. Only when no durable run exists yet is another
+				// creation genuinely in progress with this key.
+				if o.runs != nil {
+					reconciled, err := o.runs.GetByIdempotencyKey(ctx, req.IdempotencyKey)
+					if err != nil {
+						return nil, err
+					}
+					if reconciled != nil {
+						if err := validateRunIdentityReplay(reconciled, req); err != nil {
+							return nil, err
+						}
+						o.markIdempotencyComplete(ctx, req.IdempotencyKey, reconciled.ID, "Run")
+						return o.GetRun(ctx, reconciled.ID)
+					}
+				}
+				return nil, domain.NewStateError("Run", "creating", "create",
+					"a run creation with this idempotency key is already in progress")
+			}
+			// Failed status - allow retry by falling through
+		}
+
+	}
+	releaseAdmission, err := o.admitMaintenance(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer releaseAdmission()
+	if req.IdempotencyKey != "" && o.idempotency != nil {
+		// Reserve only after owner admission; accepted replays above remain reads.
+		if _, err := o.idempotency.Reserve(ctx, req.IdempotencyKey, 1*time.Hour); err != nil {
+			// If reservation fails, another request beat us to it
+			return nil, domain.NewStateError("Run", "creating", "create",
+				"a run creation with this idempotency key is already in progress")
+		}
+	}
+
+	// SLOT ENFORCEMENT: Check capacity unless Force is set
+	if !req.Force && o.config.MaxConcurrentRuns > 0 && o.runs != nil {
+		// Count active runs (both Running and Starting count against the limit)
+		runningCount, err := o.runs.CountByStatus(ctx, domain.RunStatusRunning)
+		if err != nil {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, err
+		}
+		startingCount, err := o.runs.CountByStatus(ctx, domain.RunStatusStarting)
+		if err != nil {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, err
+		}
+
+		activeCount := runningCount + startingCount
+		if activeCount >= o.config.MaxConcurrentRuns {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, &domain.CapacityExceededError{
+				Resource: "concurrent_runs",
+				Current:  activeCount,
+				Maximum:  o.config.MaxConcurrentRuns,
+			}
+		}
+	}
+
+	// Get task
+	task, err := o.GetTask(ctx, req.TaskID)
+	if err != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		return nil, err
+	}
+
+	// Resolve relative project root to absolute (workspace-sandbox requires absolute paths).
+	// Fall back to DefaultProjectRoot when the task has no project root set.
+	if pr := strings.TrimSpace(task.ProjectRoot); pr == "" || !filepath.IsAbs(pr) {
+		resolved := pr
+		if resolved == "" {
+			resolved = strings.TrimSpace(o.config.DefaultProjectRoot)
+		}
+		if resolved != "" && !filepath.IsAbs(resolved) {
+			if abs, err := filepath.Abs(resolved); err == nil {
+				resolved = abs
+			}
+		}
+		if resolved != task.ProjectRoot {
+			task.ProjectRoot = resolved
+			if o.tasks != nil {
+				task.UpdatedAt = o.now()
+				_ = o.tasks.Update(ctx, task)
+			}
+		}
+	}
+
+	if req.AgentProfileID != nil && req.ProfileRef != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		return nil, domain.NewValidationErrorWithHint("agentProfileId/profileRef", "only one profile reference is allowed",
+			"provide either agentProfileId or profileRef")
+	}
+
+	// Resolve configuration: profile (if provided) + inline overrides
+	if recovery != nil {
+		copy := *task
+		copy.ContextAttachments = recovery.attachments
+		task = &copy
+	}
+	runID := uuid.New()
+	resolvedConfig, profile, err := o.resolveRunConfig(ctx, req)
+	if err != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		return nil, err
+	}
+	if resolvedConfig == nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		return nil, domain.NewInternalError("run configuration resolver returned nil configuration", nil)
+	}
+	if recovery != nil && recovery.config != nil {
+		// Recovery is not a new profile selection. Copy the complete immutable
+		// execution contract, including empty deny/allow lists, features, skill
+		// experiment, extra flags, sandbox policy and candidate order. Current
+		// admission/policy gates below may refuse it, never silently broaden it.
+		data, err := json.Marshal(recovery.config)
+		if err != nil {
+			return nil, err
+		}
+		pinned := new(domain.RunConfig)
+		if err := json.Unmarshal(data, pinned); err != nil {
+			return nil, err
+		}
+		if pinned.PolicySnapshot == nil {
+			pinned.PolicySnapshot = resolvedConfig.PolicySnapshot
+		}
+		if err := validateExecutionModel(pinned); err != nil {
+			return nil, domain.RefuseBeforeEffects(err)
+		}
+		pinned.Admission = nil // The replacement earns its own admission receipt.
+		resolvedConfig = pinned
+		if err := o.validateToolRestriction(resolvedConfig); err != nil {
+			return nil, err
+		}
+	}
+	// `until` acceptance is unconditional: native delivery is gated by the
+	// resolved spawn capability (NativeObjective) at execution time, not by a
+	// coarse runner capability flag. A runner without native support still
+	// receives the completion contract as a prompt suffix.
+	if recovery == nil {
+		applyCanary(resolvedConfig.PolicySnapshot, runID.String(), resolvedConfig.Model)
+	}
+
+	sandboxConfig, err := o.resolveSandboxConfig(req, profile)
+	if err != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		return nil, err
+	}
+	if recovery != nil && resolvedConfig.SandboxConfig != nil {
+		sandboxConfig = resolvedConfig.SandboxConfig
+	}
+
+	// Evaluate policies
+	var policyDecision *policy.Decision
+	if o.policy != nil {
+		policyDecision, err = o.policy.EvaluateRunRequest(ctx, policy.EvaluateRequest{
+			Task:          task,
+			Profile:       profile,
+			RequestedMode: valueOrDefault(req.RunMode, domain.RunModeSandboxed),
+			ForceInPlace:  req.ForceInPlace,
+		})
+		if err != nil {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, domain.NewInternalError("policy evaluation failed", err)
+		}
+		if !policyDecision.Allowed {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, &domain.PolicyViolationError{
+				PolicyID:   policyDecision.DenialPolicy.ID,
+				PolicyName: policyDecision.DenialPolicy.Name,
+				Rule:       "run_request",
+				Message:    policyDecision.DenialReason,
+			}
+		}
+	}
+
+	// Determine run mode.
+	//
+	// SandboxConfig.Mode is the single source of truth; DeriveRunMode
+	// translates the resolved Mode to a RunMode without consulting any
+	// other input. See docs/internal/SEAMS.md (RunMode decision boundary)
+	// and docs/internal/INVARIANTS.md.
+	//
+	// Decision priority (highest first):
+	//   1. Explicit caller override via req.RunMode
+	//   2. ForceInPlace (policy must permit; orchestrator validates that
+	//      the resolved sandbox mode is at or above policy's required
+	//      minimum below)
+	//   3. Derived from sandboxConfig.Mode
+	runMode := domain.DeriveRunMode(sandboxConfig)
+	if req.RunMode != nil {
+		runMode = *req.RunMode
+	} else if req.ForceInPlace {
+		runMode = domain.RunModeInPlace
+	}
+
+	// Resolve declaration-only spawn preferences against the selected runner's
+	// published capabilities before the run becomes immutable.
+	var spawnSkips []SpawnPreferenceSkip
+	if recovery == nil && profile != nil && profile.SpawnPolicy != nil {
+		selected, err := o.runners.Get(resolvedConfig.RunnerType)
+		if err != nil {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, domain.NewValidationError("spawnPolicy", "selected runner is unavailable: "+err.Error())
+		}
+		resolution, err := ResolveSpawnPolicy(profile.SpawnPolicy, selected.Capabilities())
+		if err != nil {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, domain.NewValidationError("spawnPolicy", err.Error())
+		}
+		req.ExecutionMode = domain.ExecutionMode(resolution.ExecutionMode)
+		sandboxConfig.Mode = domain.SandboxMode(resolution.SandboxMode)
+		runMode = domain.DeriveRunMode(sandboxConfig)
+		spawnSkips = resolution.Skipped
+		if resolution.Fallback != "" {
+			// A declared capability was used because no preferred combination was
+			// feasible. Surface it on the run's policy snapshot so run get and the
+			// execution record show why a non-preferred substrate was used.
+			if resolvedConfig.PolicySnapshot != nil {
+				reason := "spawn_fallback:" + resolution.Fallback
+				if resolvedConfig.PolicySnapshot.SelectionReason == "" {
+					resolvedConfig.PolicySnapshot.SelectionReason = reason
+				} else {
+					resolvedConfig.PolicySnapshot.SelectionReason += ";" + reason
+				}
+			}
+		}
+	}
+
+	// Validate the resolved execution/sandbox pair at the creation boundary.
+	// Spawn-policy resolution is data-driven; this check only validates the
+	// resulting domain values and does not encode runner-specific combinations.
+	if err := domain.ValidateInteractiveRunMode(req.ExecutionMode, sandboxConfig.Mode); err != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		return nil, err
+	}
+
+	// Enforce the policy-declared minimum sandbox mode. The policy layer
+	// expresses sandbox requirements as a minimum SandboxMode rather
+	// than a bool so a higher-strictness policy can require Protected
+	// while still allowing Tracking-mode runs through other paths.
+	if policyDecision != nil && policyDecision.RequiredSandboxMode != domain.SandboxModeUnspecified {
+		resolvedMode := domain.SandboxModeOff
+		if sandboxConfig != nil {
+			resolvedMode = sandboxConfig.Mode.Effective()
+		}
+		if !resolvedMode.AtLeast(policyDecision.RequiredSandboxMode) {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, domain.NewValidationErrorWithHint(
+				"sandboxConfig.mode",
+				"resolved sandbox mode is below the policy-required minimum",
+				fmt.Sprintf("policy requires Mode >= %q; resolved Mode is %q",
+					policyDecision.RequiredSandboxMode, resolvedMode),
+			)
+		}
+	}
+
+	if err := o.preflightScopePath(task, runMode, req.ExistingSandboxID); err != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		return nil, err
+	}
+
+	existingSandboxWorkDir := ""
+	if req.ExistingSandboxID != nil {
+		if runMode != domain.RunModeSandboxed {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, domain.NewValidationErrorWithHint("existingSandboxId", "existing sandbox requires sandboxed run mode",
+				"set runMode to sandboxed or set sandboxConfig.mode to a sandbox-enabled value (tracking/protected)")
+		}
+		if o.sandbox == nil {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, domain.NewConfigMissingError("sandbox", "provider not configured", nil)
+		}
+
+		sbx, err := o.sandbox.Get(ctx, *req.ExistingSandboxID)
+		if err != nil {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, err
+		}
+		switch sbx.Status {
+		case sandbox.SandboxStatusDeleted, sandbox.SandboxStatusRejected, sandbox.SandboxStatusApproved, sandbox.SandboxStatusError:
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, domain.NewValidationErrorWithHint("existingSandboxId", "sandbox is not reusable",
+				fmt.Sprintf("sandbox status is %s", sbx.Status))
+		case sandbox.SandboxStatusStopped:
+			if err := o.sandbox.Start(ctx, sbx.ID); err != nil {
+				o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+				return nil, err
+			}
+		}
+
+		if trimmed := strings.TrimSpace(task.ProjectRoot); trimmed != "" && strings.TrimSpace(sbx.ProjectRoot) != "" && trimmed != sbx.ProjectRoot {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, domain.NewValidationErrorWithHint("existingSandboxId", "sandbox project root does not match task",
+				fmt.Sprintf("task projectRoot=%q, sandbox projectRoot=%q", trimmed, sbx.ProjectRoot))
+		}
+		if trimmed := strings.TrimSpace(task.ScopePath); trimmed != "" && strings.TrimSpace(sbx.ScopePath) != "" && trimmed != sbx.ScopePath {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, domain.NewValidationErrorWithHint("existingSandboxId", "sandbox scope path does not match task",
+				fmt.Sprintf("task scopePath=%q, sandbox scopePath=%q", trimmed, sbx.ScopePath))
+		}
+
+		if sbx.WorkDir != "" {
+			existingSandboxWorkDir = sbx.WorkDir
+		} else {
+			workDir, err := o.sandbox.GetWorkspacePath(ctx, sbx.ID)
+			if err != nil {
+				o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+				return nil, err
+			}
+			existingSandboxWorkDir = workDir
+		}
+	}
+
+	// Create the run with progress tracking initialized
+	profileID := req.AgentProfileID
+	if profile != nil {
+		profileID = &profile.ID
+	}
+	workload := domain.WorkloadRef{Kind: req.WorkloadKind, Key: strings.TrimSpace(req.WorkloadKey), Instance: strings.TrimSpace(req.WorkloadInstance)}
+	if workload.Kind == "" {
+		workload.Kind = domain.WorkloadKindAdhoc
+	}
+	if workload.Key != "" {
+		if req.WorkloadKind == "" {
+			workload.Kind = domain.WorkloadKindInteractive
+		}
+	}
+	if !workload.Kind.IsValid() {
+		return nil, fmt.Errorf("invalid workload kind %q", workload.Kind)
+	}
+	tag := strings.TrimSpace(req.Tag)
+	if tag == "" && workload.Key != "" {
+		tag = workload.Key
+		if workload.Instance != "" {
+			tag += "#" + workload.Instance
+		}
+	}
+	billing := domain.BillingSnapshot{Mode: domain.BillingModeUnknown}
+	if resolvedConfig.PolicySnapshot != nil {
+		billing = resolvedConfig.PolicySnapshot.SelectedCandidate.Billing
+		if billing.Mode == "" {
+			billing.Mode = domain.BillingModeUnknown
+		}
+	}
+	if billing.Basis == "" {
+		billing.Basis = billing.EffectiveBasis()
+	}
+	if billing.ObservedAt.IsZero() {
+		billing.ObservedAt = time.Now().UTC()
+	}
+	resolvedConfig.Billing = billing
+	// Split the prompt before persisting the immutable resolved config so the
+	// known injected instruction estimate survives event pruning and replay.
+	systemPrompt, userMessage := domain.BuildSplitPrompt(task.Description, task.ContextAttachments, req.Prompt)
+	if strings.TrimSpace(systemPrompt) != "" {
+		estimate := tokenaccounting.EstimateText(systemPrompt)
+		resolvedConfig.PreambleInjectedTokens = estimate.Tokens
+		resolvedConfig.PreambleTokenBasis = estimate.Basis
+	}
+	// Bind the caller's requested settings to the owner-resolved effective
+	// settings before persistence so a fresh reader can tell requested from
+	// effective without consulting mutable policy or a transcript.
+	resolvedConfig.Admission = buildRunAdmission(req, resolvedConfig)
+	// Record the runner-native control arguments the selected codec emits for
+	// the resolved configuration, so the "passed" layer is durable alongside
+	// the requested and effective layers.
+	o.recordPassedInvocation(ctx, resolvedConfig.Admission, resolvedConfig)
+	// Dependent-delegation prerequisite gate: a run created as a child of an
+	// admitted parent is delegated work. It may proceed only when the parent
+	// carries a live qualification receipt whose effective identity matches this
+	// run's resolved identity exactly. The qualification probe itself has no
+	// parent and is never blocked by this gate.
+	if err := o.admitDependentDelegation(ctx, req, resolvedConfig); err != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		return nil, err
+	}
+	run := &domain.Run{
+		ID:                       runID,
+		TaskID:                   task.ID,
+		AgentProfileID:           profileID, // May be nil if inline config used
+		Tag:                      tag,       // Custom tag for identification
+		Label:                    strings.TrimSpace(task.Title),
+		LabelSource:              domain.RunLabelSourceDerived,
+		OwnerSubject:             req.OwnerSubject,
+		OwnerScopes:              slices.Clone(req.OwnerScopes),
+		RequestedScopes:          slices.Clone(req.RequestedScopes),
+		OwnerExpiresAt:           req.OwnerExpiresAt,
+		DispatchBinding:          req.DispatchBinding,
+		Workload:                 workload,
+		Billing:                  billing,
+		SourceRunIDs:             req.SourceRunIDs,
+		WorkReferences:           req.WorkReferences,
+		SourceInvestigationRunID: req.SourceInvestigationRunID,
+		RunMode:                  runMode,
+		ExecutionMode:            req.ExecutionMode,
+		Status:                   domain.RunStatusPending,
+		Phase:                    domain.RunPhaseQueued,
+		ProgressPercent:          0,
+		IdempotencyKey:           req.IdempotencyKey,
+		ApprovalState:            domain.ApprovalStateNone,
+		ResolvedConfig:           resolvedConfig,
+		SandboxConfig:            sandboxConfig,
+		ConversationID:           req.ConversationID,
+		ParentRunID:              req.ParentRunID,
+		// Persist caller-supplied custom env so the continue/wake path can
+		// re-inject it. Already VROOLI_*-validated at the API boundary.
+		CustomEnv: req.Environment,
+		// Provenance: requested is the primary model the preset expanded to at creation.
+		// Actual is blank until the executor records the model that actually ran.
+		RequestedModel: resolvedConfig.Model,
+		CanaryArm:      resolvedConfig.PolicySnapshot.CanaryArm,
+		CreatedAt:      o.now(),
+		UpdatedAt:      o.now(),
+	}
+	if run.Label == "" {
+		run.Label = "Agent run"
+	}
+	// Apply Decision D7 precedence (spawner > parent inheritance > fresh
+	// UUID). When the spawn surface populates ConversationID directly,
+	// step (1) wins; otherwise we inherit from ParentRunID's run when set,
+	// or mint a fresh UUID.
+	run.ConversationID = domain.ResolveConversationID(run, func(parentID uuid.UUID) (string, bool) {
+		parent, perr := o.runs.Get(ctx, parentID)
+		if perr != nil || parent == nil {
+			return "", false
+		}
+		return parent.ConversationID, true
+	})
+	// Populate PromptPreview so WebSocket broadcasts include display text.
+	// This is normally a computed field from the List query JOIN, but we need it
+	// for real-time broadcasts during execution.
+	if len(task.Description) > 120 {
+		run.PromptPreview = task.Description[:120]
+	} else {
+		run.PromptPreview = task.Description
+	}
+	if run.ResolvedConfig != nil {
+		run.ResolvedConfig.SandboxConfig = sandboxConfig
+	}
+	if req.ExistingSandboxID != nil {
+		run.SandboxID = req.ExistingSandboxID
+	}
+
+	if err := o.runs.Create(ctx, run); err != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		return nil, err
+	}
+	if o.toolRestrictionIsAdvisory(resolvedConfig) && o.events != nil {
+		declared := "allowedTools"
+		if len(resolvedConfig.AllowedTools) == 0 {
+			declared = "deniedTools"
+		}
+		if err := o.events.Append(ctx, run.ID, domain.NewLogEvent(run.ID, "warn",
+			fmt.Sprintf("runner %q cannot enforce %s; advisory policy accepted the launch", resolvedConfig.RunnerType, declared))); err != nil {
+			obs.Component("orchestrator").Warn("failed to append advisory tool-restriction event", obs.KeyRunID, run.ID.String(), "eventType", "log", obs.KeyError, err.Error())
+		}
+	}
+	if o.events != nil {
+		for _, skipped := range spawnSkips {
+			message := fmt.Sprintf("spawn preference skipped: executionMode=%s sandboxMode=%s reason=%s", skipped.ExecutionMode, skipped.SandboxMode, skipped.Reason)
+			if err := o.events.Append(ctx, run.ID, domain.NewLogEvent(run.ID, "info", message)); err != nil {
+				obs.Component("orchestrator").Warn("failed to append spawn-preference event", obs.KeyRunID, run.ID.String(), "eventType", "log", obs.KeyError, err.Error())
+			}
+		}
+	}
+
+	// Mark idempotency as complete
+	o.markIdempotencyComplete(ctx, req.IdempotencyKey, run.ID, "Run")
+
+	// Sandbox-default rollout adoption metrics (Phase D of
+	// agent-sandbox-audit-foundation). Three labels capture the rollout
+	// state per run: run_mode, sandbox_mode, manual_review.
+	sandboxModeLabel := "n/a"
+	manualReviewLabel := "false"
+	if run.SandboxConfig != nil {
+		sandboxModeLabel = string(run.SandboxConfig.Mode.Effective())
+		if run.SandboxConfig.ManualReview {
+			manualReviewLabel = "true"
+		}
+	}
+	metrics.Get().RecordRunCreated(string(resolvedConfig.RunnerType), string(run.RunMode))
+	metrics.Get().RecordSandboxAdoption(string(run.RunMode), sandboxModeLabel, manualReviewLabel)
+
+	// Split instructions (system prompt) from context data (user message).
+	// Task description contains methodology/instructions → system prompt.
+	// Context attachments contain data/evidence → user message.
+	// If an override prompt is provided, it replaces the task description as system prompt.
+	// Resolve image attachments from storage so runners receive file paths
+	var imageAttachments []runner.Attachment
+	if o.storage != nil {
+		for _, att := range task.ContextAttachments {
+			if att.Type == "image" && att.AttachmentID != "" {
+				meta, err := o.storage.Get(ctx, att.AttachmentID)
+				if err != nil {
+					continue // skip unresolvable attachments
+				}
+				imageAttachments = append(imageAttachments, runner.Attachment{
+					ID:          meta.ID,
+					FileName:    meta.FileName,
+					ContentType: meta.ContentType,
+					FilePath:    o.storage.GetFilePath(meta.StoragePath),
+				})
+			}
+		}
+	}
+
+	// Emit the initial user prompt as the first message event.
+	// We emit the user message (context + task), not the system prompt,
+	// since the system prompt is runner-internal instructions.
+	if o.events != nil && strings.TrimSpace(userMessage) != "" {
+		// Build attachment metadata for the event so the UI can render image thumbnails
+		var attInfo []domain.MessageAttachmentInfo
+		for _, att := range imageAttachments {
+			meta, err := o.storage.Get(ctx, att.ID)
+			if err == nil {
+				attInfo = append(attInfo, domain.MessageAttachmentInfo{
+					ID:          meta.ID,
+					FileName:    meta.FileName,
+					ContentType: meta.ContentType,
+					URL:         o.storage.GetServingURL(meta.StoragePath),
+				})
+			}
+		}
+		var userEvent *domain.RunEvent
+		if len(attInfo) > 0 {
+			userEvent = domain.NewMessageEventWithAttachments(run.ID, "user", userMessage, attInfo)
+		} else {
+			userEvent = domain.NewMessageEvent(run.ID, "user", userMessage)
+		}
+		if err := o.appendAndBroadcastEvents(ctx, run.ID, userEvent); err != nil {
+			obs.Component("orchestrator").Warn("failed to append initial user message", obs.KeyRunID, run.ID.String(), "eventType", "message", obs.KeyError, err.Error())
+		}
+	}
+
+	// Hand the executor body to the spawn dispatcher. Enqueue is the
+	// only path through which a run begins — direct goroutine spawning
+	// would skip startup serialization (codex SQLite WAL contention)
+	// and queue-depth surfacing.
+	// Snapshot before enqueue: attachRunActions projects the caller's record
+	// immediately after enqueue, while the dispatcher may start execution at
+	// once. The asynchronous executor must not copy that record concurrently.
+	executionRun := *run
+	if err := o.dispatcher.Enqueue(&spawn.Job{
+		RunID:      run.ID,
+		RunMode:    run.RunMode,
+		RunnerType: runnerTypeOrEmpty(run),
+		Sink:       o.dispatcherSink(run.ID),
+		Fn: func(started spawn.StartedFn) {
+			defer obs.RecoverToFailure("run execution dispatch", func(failure obs.PanicFailure) {
+				o.recoverPanickedRun(run, failure)
+			})
+			executionRunCopy := executionRun
+			o.executeRun(context.WithoutCancel(ctx), &executionRunCopy, task, profile, userMessage, systemPrompt, existingSandboxWorkDir, imageAttachments, req.Environment, started)
+		},
+		OnPanic: func(failure obs.PanicFailure) {
+			o.recoverPanickedRun(run, failure)
+		},
+	}); err != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		return nil, err
+	}
+
+	return o.attachRunActions(ctx, run), nil
+}
+
+// validateExecutionModel is the retained-run admission fence. It evaluates
+// only the immutable policy evidence copied into a run; it never reloads or
+// rewrites historical configuration. This is used before continuation,
+// recovery, and replacement admission can touch a session, sandbox, or
+// executor.
+func validateExecutionModel(cfg *domain.RunConfig) error {
+	if cfg == nil || cfg.PolicySnapshot == nil || strings.TrimSpace(cfg.Model) == "" {
+		return nil
+	}
+	candidate := cfg.PolicySnapshot.SelectedCandidate
+	if candidate.RunnerType != cfg.RunnerType && cfg.PolicySnapshot.SelectedIndex >= 0 && cfg.PolicySnapshot.SelectedIndex < len(cfg.PolicySnapshot.Candidates) {
+		candidate = cfg.PolicySnapshot.Candidates[cfg.PolicySnapshot.SelectedIndex]
+	}
+	canonical := ""
+	if strings.EqualFold(strings.TrimSpace(candidate.Model), strings.TrimSpace(cfg.Model)) {
+		canonical = candidate.CanonicalModel
+	}
+	if domain.IsModelExcluded(cfg.Model, canonical, candidate.ExcludedModels) {
+		return domain.NewValidationErrorWithHint("model", "retained model is excluded by resource policy", "stop the old run or use an allowed model in a new run")
+	}
+	return nil
+}
+
+// currentModelExclusions reads the current resource-owned deny overlay for a
+// retained config. It is deliberately separate from the immutable run
+// snapshot: policy tightening must fence future work without rewriting the
+// historical execution contract or receipts.
+func currentModelExclusions(ctx context.Context, cfg *domain.RunConfig, state *rolepolicy.State, resolver rolepolicy.Resolver) (map[domain.RunnerType][]string, error) {
+	if cfg == nil {
+		return nil, domain.NewValidationErrorWithHint("runConfig", "retained run configuration is unavailable", "stop the old run and create a new run with a complete execution policy")
+	}
+	if state == nil || resolver == nil {
+		return nil, domain.NewValidationErrorWithHint("rolePolicyCatalog", "current resource model policy is unavailable", "restore the required resource policy before continuing this run")
+	}
+	role := strings.TrimSpace(cfg.RoleRef)
+	if role == "" && cfg.PolicySnapshot != nil {
+		role = strings.TrimSpace(cfg.PolicySnapshot.SelectedCandidate.ResourceRole)
+	}
+	if role == "" {
+		if active := state.Active(); active != nil && active.Catalog() != nil {
+			role = strings.TrimSpace(active.Catalog().DefaultRole)
+		}
+		if role == "" {
+			return nil, domain.NewValidationErrorWithHint("rolePolicyCatalog", "retained run has no resource policy role", "stop the old run and create a new run with a portable role")
+		}
+	}
+	resolution, err := state.ResolvePreferred(ctx, resolver, role, string(cfg.RunnerType))
+	if err != nil {
+		return nil, domain.NewValidationErrorWithHint("rolePolicyCatalog", "current resource model policy could not be read", err.Error())
+	}
+	exclusions := make(map[domain.RunnerType][]string)
+	observed := make(map[string]bool)
+	addExclusions := func(runnerType domain.RunnerType, values []string) {
+		// Keep an explicit empty entry for an observed runner. The map is also
+		// admission evidence: a missing key means that this fallback's current
+		// policy was never read, whereas an empty slice means it was read and
+		// currently permits every model.
+		if _, exists := exclusions[runnerType]; !exists {
+			exclusions[runnerType] = []string{}
+		}
+		seen := make(map[string]bool, len(exclusions[runnerType]))
+		for _, value := range exclusions[runnerType] {
+			seen[strings.ToLower(strings.TrimSpace(value))] = true
+		}
+		for _, value := range values {
+			key := strings.ToLower(strings.TrimSpace(value))
+			if key != "" && !seen[key] {
+				exclusions[runnerType] = append(exclusions[runnerType], strings.TrimSpace(value))
+				seen[key] = true
+			}
+		}
+	}
+	found := false
+	for _, candidate := range resolution.Candidates {
+		if !candidate.Available {
+			// Keep the selected/current candidate usable when its own policy was
+			// read successfully, but fence this candidate from fallback execution
+			// until its resource policy becomes readable again. The immutable run
+			// snapshot remains historical evidence; this marker is only a current
+			// admission overlay and is never persisted into that snapshot.
+			addExclusions(candidate.Runner, []string{domain.ModelPolicyUnavailable})
+			continue
+		}
+		if candidate.Runner == cfg.RunnerType {
+			found = true
+		}
+		observed[string(candidate.Runner)+"\x00"+candidate.ResourceRole] = true
+		addExclusions(candidate.Runner, candidate.ExcludedModels)
+	}
+	// A retained snapshot can contain a runner/resource role that a later AM
+	// catalog revision removed. Resolve those historical fallback identities
+	// directly so an omitted current catalog entry cannot become an un-fenced
+	// executable fallback.
+	if cfg.PolicySnapshot != nil {
+		for _, historical := range cfg.PolicySnapshot.Candidates {
+			if !historical.RunnerType.IsValid() {
+				return nil, domain.NewValidationErrorWithHint("rolePolicyCatalog", "retained fallback runner identity is invalid", "stop the old run and create a new run with a current execution policy")
+			}
+			historicalRole := strings.TrimSpace(historical.ResourceRole)
+			if historicalRole == "" {
+				historicalRole = role
+			}
+			if historicalRole == "" {
+				return nil, domain.NewValidationErrorWithHint("rolePolicyCatalog", "retained fallback resource role is unavailable", "stop the old run and create a new run with a current execution policy")
+			}
+			identity := string(historical.RunnerType) + "\x00" + historicalRole
+			if observed[identity] {
+				continue
+			}
+			candidate, resolveErr := resolver.Resolve(ctx, historical.RunnerType, historicalRole)
+			if resolveErr != nil {
+				addExclusions(historical.RunnerType, []string{domain.ModelPolicyUnavailable})
+				observed[identity] = true
+				continue
+			}
+			observed[identity] = true
+			addExclusions(historical.RunnerType, candidate.ExcludedModels)
+		}
+	}
+	if strings.TrimSpace(string(cfg.RunnerType)) != "" && !found {
+		// Historical runs can retain a runner that a later AM catalog revision no
+		// longer lists. The resource policy is still authoritative for its own
+		// vocabulary, so resolve that runner directly with the retained role.
+		candidate, resolveErr := resolver.Resolve(ctx, cfg.RunnerType, role)
+		if resolveErr != nil {
+			addExclusions(cfg.RunnerType, []string{domain.ModelPolicyUnavailable})
+			return exclusions, nil
+		}
+		addExclusions(cfg.RunnerType, candidate.ExcludedModels)
+	}
+	return exclusions, nil
+}
+
+func (o *Orchestrator) validateCurrentExecutionModel(ctx context.Context, cfg *domain.RunConfig) error {
+	exclusions, err := currentModelExclusions(ctx, cfg, o.rolePolicy, o.roleResolver)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(string(cfg.RunnerType)) == "" {
+		return domain.NewValidationErrorWithHint("runnerType", "retained run has no effective runner", "stop the old run and create a new run with a complete execution policy")
+	}
+	if strings.TrimSpace(cfg.Model) == "" {
+		for _, denied := range exclusions {
+			if len(denied) > 0 {
+				return domain.NewValidationErrorWithHint("model", "retained run has an unknown native model and current resource policy contains exclusions", "stop the old run and create a new run with an explicit allowed model")
+			}
+		}
+		return nil
+	}
+	var candidate domain.ExecutionCandidate
+	if cfg.PolicySnapshot != nil {
+		candidate = cfg.PolicySnapshot.SelectedCandidate
+	}
+	canonical := ""
+	if strings.EqualFold(strings.TrimSpace(candidate.Model), strings.TrimSpace(cfg.Model)) {
+		canonical = candidate.CanonicalModel
+	}
+	if domain.IsModelExcluded(cfg.Model, canonical, exclusions[cfg.RunnerType]) {
+		return domain.NewValidationErrorWithHint("model", "model is excluded by current resource policy", "stop the old run or use an allowed model in a new run")
+	}
+	return nil
+}
+
+// currentCandidateAllowed refreshes the resource-owned deny overlay at the
+// final fallback launch boundary. It does not mutate the retained snapshot.
+func (o *Orchestrator) currentCandidateAllowed(ctx context.Context, cfg *domain.RunConfig, candidate domain.ExecutionCandidate, model string) (bool, error) {
+	exclusions, err := currentModelExclusions(ctx, cfg, o.rolePolicy, o.roleResolver)
+	if err != nil {
+		return false, err
+	}
+	canonical := ""
+	if strings.EqualFold(strings.TrimSpace(candidate.Model), strings.TrimSpace(model)) {
+		canonical = candidate.CanonicalModel
+	}
+	if strings.TrimSpace(model) == "" {
+		return len(exclusions[candidate.RunnerType]) == 0, nil
+	}
+	return !domain.IsModelExcluded(model, canonical, exclusions[candidate.RunnerType]), nil
+}
+
+// buildRunAdmission captures the immutable requested-versus-effective
+// configuration record for a newly admitted run. Requested values come from the
+// caller request before resolution; effective values mirror the resolved config
+// and its pinned policy snapshot. Unrequested fields stay empty rather than
+// being backfilled with defaults, so a reader can distinguish "not requested"
+// from "requested and resolved".
+// resolveCreateRunIdentity authenticates before any reservation or dispatch.
+// Narrowing is never accepted as a substitute for verified authority.
+func (o *Orchestrator) resolveCreateRunIdentity(ctx context.Context, req *CreateRunRequest) error {
+	if req.DispatchBinding != nil {
+		if req.OwnerExpiresAt == nil || req.AgentProfileID == nil || o.supervisorDispatch == nil {
+			return domain.NewValidationError("authorization", "supervisor binding unavailable")
+		}
+		profile, err := o.profiles.Get(ctx, *req.AgentProfileID)
+		if err != nil || profile == nil {
+			return domain.NewValidationError("authorization", "supervisor profile unavailable")
+		}
+		if err := o.supervisorDispatch.CheckDispatchIdentity(ctx, &identity.Claims{DispatchEffortRef: req.DispatchBinding.EffortRef, DispatchAuthorizationID: req.DispatchBinding.AuthorizationID, Subject: req.OwnerSubject, Scopes: req.RequestedScopes, ProfileKey: profile.ProfileKey, ExpiresAt: req.OwnerExpiresAt.Unix()}); err != nil {
+			return err
+		}
+	}
+	if strings.TrimSpace(req.OwnerToken) != "" {
+		if o.ownerIdentity == nil {
+			return domain.NewConfigMissingError("owner_identity", "verifier not configured", nil)
+		}
+		owner, err := o.ownerIdentity.Verify(ctx, req.OwnerToken)
+		if err != nil || !owner.Verified || owner.Kind != coreidentity.ActorHuman || strings.TrimSpace(owner.Subject) == "" || owner.ExpiresAt.IsZero() || !owner.ExpiresAt.After(o.now()) {
+			return domain.NewValidationErrorWithCode("authorization", "owner credential is invalid, expired or unavailable", domain.ErrCodePolicyScope)
+		}
+		req.OwnerSubject = strings.TrimSpace(owner.Subject)
+		req.OwnerScopes = append([]string{}, owner.Scopes...)
+		expires := owner.ExpiresAt
+		req.OwnerExpiresAt = &expires
+	}
+	if req.ExpectedOwnerSubject != "" && req.ExpectedOwnerSubject != req.OwnerSubject {
+		return domain.NewValidationErrorWithCode("authorization", "verified owner does not match the requested owner", domain.ErrCodePolicyScope)
+	}
+	if req.RequestedScopes == nil {
+		return nil
+	}
+	if req.OwnerSubject == "" || req.OwnerScopes == nil {
+		return domain.NewValidationErrorWithCode("authorization", "scope narrowing requires verified owner authority", domain.ErrCodePolicyScope)
+	}
+	if len(req.RequestedScopes) > 100 {
+		return domain.NewValidationError("requested_scopes", "at most 100 scopes are allowed")
+	}
+	for _, scope := range req.RequestedScopes {
+		if scope != strings.TrimSpace(scope) || scope == "" || len(scope) > 256 || scopecatalog.IsWildcard(scope) || !scopecatalog.MatchCapability(req.OwnerScopes, scope) {
+			return domain.NewValidationErrorWithCode("requested_scopes", "requested scope is not an exact capability held by the owner", domain.ErrCodePolicyScope)
+		}
+	}
+	req.RequestedScopes = identity.IntersectScopes(req.OwnerScopes, nil, req.RequestedScopes)
+	return nil
+}
+
+func (o *Orchestrator) getIdentityBoundRunReplay(ctx context.Context, id uuid.UUID, req CreateRunRequest) (*domain.Run, error) {
+	run, err := o.GetRun(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateRunIdentityReplay(run, req); err != nil {
+		return nil, err
+	}
+	return run, nil
+}
+
+func validateRunIdentityReplay(run *domain.Run, req CreateRunRequest) error {
+	if run == nil {
+		return domain.NewValidationError("idempotency_key", "original run unavailable")
+	}
+	if (run.DispatchBinding == nil) != (req.DispatchBinding == nil) || (run.DispatchBinding != nil && *run.DispatchBinding != *req.DispatchBinding) {
+		return domain.NewValidationError("idempotency_key", "supervisor dispatch binding differs from original admission")
+	}
+	// Historical unauthenticated requests persisted absent narrowing as [].
+	// They carry no owner grant; keep their ordinary recovery compatible.
+	if run.OwnerSubject == "" && req.OwnerSubject == "" && req.RequestedScopes == nil {
+		return nil
+	}
+	if run.OwnerSubject != req.OwnerSubject || (run.RequestedScopes == nil) != (req.RequestedScopes == nil) || !slices.Equal(run.RequestedScopes, req.RequestedScopes) {
+		return domain.NewValidationErrorWithCode("idempotency_key", "run identity differs from the original dispatch", domain.ErrCodePolicyScope)
+	}
+	return nil
+}
+
+func buildRunAdmission(req CreateRunRequest, cfg *domain.RunConfig) *domain.RunAdmission {
+	if cfg == nil {
+		return nil
+	}
+	admission := &domain.RunAdmission{
+		RequestedRunner:   strings.TrimSpace(req.PreferredRunner),
+		EffectiveRunner:   string(cfg.RunnerType),
+		EffectiveModel:    cfg.Model,
+		EffectiveEffort:   string(cfg.Effort),
+		EffectiveTimeout:  cfg.Timeout,
+		EffectiveMaxTurns: cfg.MaxTurns,
+		EffectiveUntil:    cfg.Until,
+	}
+	if req.RoleRef != nil {
+		admission.RequestedRoleRef = strings.TrimSpace(*req.RoleRef)
+	}
+	if req.Model != nil {
+		admission.RequestedModel = strings.TrimSpace(*req.Model)
+	}
+	if req.Effort != nil {
+		admission.RequestedEffort = string(*req.Effort)
+	}
+	if req.Timeout != nil {
+		admission.RequestedTimeout = *req.Timeout
+	}
+	if req.MaxTurns != nil {
+		admission.RequestedMaxTurns = *req.MaxTurns
+	}
+	if strings.TrimSpace(req.Until) != "" {
+		admission.RequestedGoalMode = "until"
+	}
+	if cfg.PolicySnapshot != nil {
+		admission.CatalogDigest = cfg.PolicySnapshot.CatalogDigest
+		admission.PolicyDigest = cfg.PolicySnapshot.SelectedCandidate.PolicyDigest
+		admission.PolicyPath = cfg.PolicySnapshot.SelectedCandidate.PolicyPath
+		admission.SelectionReason = cfg.PolicySnapshot.SelectionReason
+	}
+	return admission
+}
+
+// admitDependentDelegation enforces the Agent Manager-owned qualification gate
+// at the dependent-delegation admission point. A run without a parent is not
+// dependent delegation and is admitted unchanged. A child run is admitted only
+// when its parent persisted a live qualification receipt and the child's
+// resolved runner/model/effort match that receipt exactly; any missing receipt
+// or identity mismatch leaves dependent delegation closed.
+func (o *Orchestrator) admitDependentDelegation(ctx context.Context, req CreateRunRequest, cfg *domain.RunConfig) error {
+	if req.ParentRunID == nil {
+		return nil
+	}
+	if o.runs == nil {
+		return domain.NewConfigMissingError("runs", "run repository not configured", nil)
+	}
+	parent, err := o.runs.Get(ctx, *req.ParentRunID)
+	if err != nil {
+		return domain.NewValidationErrorWithHint("parentRunId",
+			"parent run could not be read for dependent-delegation admission: "+err.Error(),
+			"retry after the parent run is durable")
+	}
+	return dependentDelegationAdmissionError(parent, cfg)
+}
+
+// dependentDelegationAdmissionError is the pure gate decision: it reads the
+// parent's persisted qualification receipt and compares it against the child's
+// resolved identity. Keeping it pure lets the admission wiring and focused
+// tests share one decision without a repository.
+func dependentDelegationAdmissionError(parent *domain.Run, cfg *domain.RunConfig) error {
+	if parent == nil || parent.ResolvedConfig == nil || parent.ResolvedConfig.Admission == nil {
+		return domain.NewValidationError("qualification", "dependent delegation is closed: parent run has no admission record")
+	}
+	if cfg == nil {
+		return domain.NewValidationError("qualification", "dependent delegation is closed: resolved configuration is missing")
+	}
+	req := domain.DependentDelegationRequest{
+		Runner: string(cfg.RunnerType),
+		Model:  cfg.Model,
+		Effort: string(cfg.Effort),
+	}
+	if parent.ResolvedConfig.Admission.Receipt != nil {
+		return domain.AdmitDependentDelegation(parent.ResolvedConfig.Admission.Receipt, req)
+	}
+	if parent.Status != domain.RunStatusStarting && parent.Status != domain.RunStatusRunning {
+		return domain.NewValidationError("qualification", "dependent delegation is closed: completed parent has no live qualification receipt")
+	}
+	// A live coordinator must be able to delegate before its own terminal
+	// seam can capture accepted output. Use the weaker launch-observed identity
+	// check for that case; terminal parents retain the receipt gate above.
+	return domain.AdmitLiveDependentDelegation(parent.ResolvedConfig.Admission, req)
+}
+
+// recordPassedInvocation records the runner-native control arguments the
+// selected codec emits for a resolved configuration, plus the runner-observed
+// runtime version. The control arguments are the "passed" layer between
+// owner-resolved effective values and provider acknowledgment; the runtime
+// version is live-only runtime identity. Both are evidence, never a launch: a
+// missing registry or codec, or a codec that refuses the configuration, records
+// a translation diagnostic instead of changing the creation outcome.
+// Unsupported settings still fail at the runner boundary before a process
+// starts; this method makes that refusal visible in the admission record instead
+// of leaving the passed layer silently empty.
+func (o *Orchestrator) recordPassedInvocation(ctx context.Context, admission *domain.RunAdmission, cfg *domain.RunConfig) {
+	if admission == nil {
+		return
+	}
+	if o == nil || o.runners == nil {
+		admission.TranslationDiagnostics = append(admission.TranslationDiagnostics,
+			"runner registry unavailable; passed control arguments not captured")
+		return
+	}
+	selected, err := o.runners.Get(cfg.RunnerType)
+	if err != nil {
+		admission.TranslationDiagnostics = append(admission.TranslationDiagnostics,
+			fmt.Sprintf("runner %q unavailable; passed control arguments not captured: %v", cfg.RunnerType, err))
+		return
+	}
+	// The runtime version is live-only identity the qualification receipt
+	// requires; capture it whenever the runner resolves, independently of
+	// whether control translation succeeds.
+	o.recordRuntimeVersion(ctx, admission, selected)
+	info, ok := selected.(runner.AgentLaunchInfo)
+	if !ok {
+		admission.TranslationDiagnostics = append(admission.TranslationDiagnostics,
+			fmt.Sprintf("runner %q does not expose control translation; passed control arguments not captured", cfg.RunnerType))
+		return
+	}
+	args, err := info.ControlArgs(cfg)
+	if err != nil {
+		admission.TranslationDiagnostics = append(admission.TranslationDiagnostics,
+			"control translation refused: "+err.Error())
+		return
+	}
+	admission.PassedControlArgs = append(admission.PassedControlArgs, args...)
+	if len(args) == 0 {
+		admission.TranslationDiagnostics = append(admission.TranslationDiagnostics,
+			"no runner-native control arguments emitted")
+	}
+}
+
+// recordRuntimeVersion captures the concrete CLI runtime version observed for
+// the selected runner into the admission record. It is the live-only identity
+// the qualification receipt requires, so an unobserved value stays empty and
+// is explained by a translation diagnostic rather than backfilled.
+func (o *Orchestrator) recordRuntimeVersion(ctx context.Context, admission *domain.RunAdmission, selected runner.Runner) {
+	reporter, ok := selected.(runner.RuntimeVersionReporter)
+	if !ok {
+		admission.TranslationDiagnostics = append(admission.TranslationDiagnostics,
+			fmt.Sprintf("runner %q does not report a runtime version", selected.Type()))
+		return
+	}
+	version, err := reporter.RuntimeVersion(ctx)
+	if err != nil {
+		admission.TranslationDiagnostics = append(admission.TranslationDiagnostics,
+			"runtime version not observed: "+err.Error())
+		return
+	}
+	admission.RuntimeVersion = strings.TrimSpace(version)
+}
+
+// recoverPanickedRun contains a panic at an execution-goroutine boundary. The
+// failure state uses the normal phase path so the run reaches the same terminal
+// status and broadcaster contract as an ordinary executor error; the full
+// stack is retained as a protected run event for postmortem triage.
+func (o *Orchestrator) recoverPanickedRun(run *domain.Run, failure obs.PanicFailure) {
+	if run == nil {
+		obs.Component("orchestrator").Error("recovered run panic without run", obs.KeyError, failure.Error())
+		return
+	}
+	ctx := context.Background()
+	phases.FailWithError(ctx, phases.FailWithErrorInput{
+		Deps: phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster},
+		Run:  run,
+		Err:  failure,
+	})
+	stackEvent := domain.NewLogEvent(run.ID, "error", "panic recovered in "+failure.Operation+"\n"+failure.Stack)
+	if err := o.appendAndBroadcastEvents(ctx, run.ID, stackEvent); err != nil {
+		obs.Component("orchestrator").Error("failed to append recovered panic stack event", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+	}
+}
+
+func (o *Orchestrator) preflightScopePath(task *domain.Task, runMode domain.RunMode, existingSandboxID *uuid.UUID) error {
+	if runMode != domain.RunModeSandboxed || existingSandboxID != nil {
+		return nil
+	}
+
+	scopePath := strings.TrimSpace(task.ScopePath)
+	if scopePath == "" {
+		return domain.NewValidationError("scopePath", "field is required")
+	}
+
+	projectRoot := strings.TrimSpace(task.ProjectRoot)
+	if projectRoot == "" {
+		projectRoot = strings.TrimSpace(o.config.DefaultProjectRoot)
+	}
+	if projectRoot == "" && !filepath.IsAbs(scopePath) {
+		return domain.NewValidationErrorWithHint("projectRoot", "field is required for sandboxed run",
+			"set projectRoot on the task or configure defaultProjectRoot")
+	}
+
+	absScopePath := scopePath
+	if !filepath.IsAbs(absScopePath) && projectRoot != "" {
+		absScopePath = filepath.Join(projectRoot, absScopePath)
+	}
+	absScopePath = filepath.Clean(absScopePath)
+
+	info, err := os.Stat(absScopePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if mkErr := os.MkdirAll(absScopePath, 0o755); mkErr != nil {
+				return domain.NewValidationErrorWithHint("scopePath", "scope path does not exist",
+					fmt.Sprintf("create the directory: %s", absScopePath))
+			}
+			info, err = os.Stat(absScopePath)
+			if err != nil {
+				return domain.NewValidationErrorWithHint("scopePath", "unable to stat scope path",
+					fmt.Sprintf("check permissions for %s", absScopePath))
+			}
+		}
+		if err != nil {
+			return domain.NewValidationErrorWithHint("scopePath", "unable to stat scope path",
+				fmt.Sprintf("check permissions for %s", absScopePath))
+		}
+	}
+	if !info.IsDir() {
+		return domain.NewValidationErrorWithHint("scopePath", "scope path is not a directory",
+			fmt.Sprintf("scope path resolves to %s", absScopePath))
+	}
+
+	return nil
+}
+
+// markIdempotencyFailed marks an idempotency key as failed (allows retry).
+func (o *Orchestrator) markIdempotencyFailed(ctx context.Context, key string) {
+	if key == "" || o.idempotency == nil {
+		return
+	}
+	if err := o.idempotency.Fail(ctx, key); err != nil {
+		obs.Component("orchestrator").Warn("failed to mark idempotency key failed", "idempotencyKey", key, obs.KeyError, err.Error())
+	}
+}
+
+// markIdempotencyComplete marks an idempotency key as successfully completed.
+func (o *Orchestrator) markIdempotencyComplete(ctx context.Context, key string, entityID uuid.UUID, entityType string) {
+	if key == "" || o.idempotency == nil {
+		return
+	}
+	if err := o.idempotency.Complete(ctx, key, entityID, entityType, nil); err != nil {
+		obs.Component("orchestrator").Warn("failed to mark idempotency key complete", "idempotencyKey", key, "entityId", entityID.String(), "entityType", entityType, obs.KeyError, err.Error())
+	}
+}
+
+// resolveRunConfig resolves the run configuration from profile and/or inline config.
+// Returns the resolved config and the profile (if loaded, may be nil for pure inline config).
+func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunRequest) (*domain.RunConfig, *domain.AgentProfile, error) {
+	cfg := domain.DefaultRunConfig()
+	var profile *domain.AgentProfile
+	workTimeoutCeiling, maxTurnsCeiling, hasGlobalCeilings := o.runExecutionCeilings()
+	if hasGlobalCeilings {
+		// The persisted settings are both the defaults visible in resolved_config
+		// and the global ceilings for profile/inline requests.
+		cfg.Timeout = workTimeoutCeiling
+		cfg.MaxTurns = maxTurnsCeiling
+	}
+
+	// Load profile if provided
+	if req.AgentProfileID != nil {
+		var err error
+		profile, err = o.GetProfile(ctx, *req.AgentProfileID)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// Resolve profile by key if provided
+	if req.ProfileRef != nil {
+		if req.ProfileRef.Defaults == nil && !req.ProfileRef.UpdateExisting {
+			key := strings.TrimSpace(req.ProfileRef.ProfileKey)
+			if key == "" {
+				return nil, nil, domain.NewValidationErrorWithHint("profileRef.profileKey", "field is required",
+					"Provide a stable profile key or inline profile defaults")
+			}
+			var err error
+			profile, err = o.profiles.GetByKey(ctx, key)
+			if err != nil {
+				return nil, nil, err
+			}
+			if profile == nil {
+				return nil, nil, domain.NewValidationErrorWithHint("profileRef.profileKey", "profile not found",
+					"Start the owning scenario so agent-manager can reconcile its manifest-declared profiles")
+			}
+		} else {
+			result, err := o.EnsureProfile(ctx, EnsureProfileRequest{
+				ProfileKey:     req.ProfileRef.ProfileKey,
+				Defaults:       req.ProfileRef.Defaults,
+				UpdateExisting: req.ProfileRef.UpdateExisting,
+			})
+			if err != nil {
+				return nil, nil, err
+			}
+			profile = result.Profile
+		}
+	}
+
+	if profile != nil {
+		if hasGlobalCeilings {
+			if err := validateRunDurationCeilings("profile", profile.Timeout, profile.MaxTurns, workTimeoutCeiling, maxTurnsCeiling); err != nil {
+				return nil, nil, err
+			}
+		}
+		cfg.ApplyProfile(profile)
+		// Zero means the profile did not request a value. Persist the effective
+		// global default so run reads and the executor enforce the same numbers.
+		if hasGlobalCeilings && cfg.Timeout <= 0 {
+			cfg.Timeout = workTimeoutCeiling
+		}
+		if hasGlobalCeilings && cfg.MaxTurns <= 0 {
+			cfg.MaxTurns = maxTurnsCeiling
+		}
+	}
+
+	// Apply inline overrides
+	if req.RoleRef != nil {
+		cfg.RoleRef = strings.TrimSpace(*req.RoleRef)
+	}
+	cfg.PreferredRunner = strings.TrimSpace(req.PreferredRunner)
+	if req.MaxTurns != nil {
+		cfg.MaxTurns = *req.MaxTurns
+	}
+	if req.Timeout != nil {
+		cfg.Timeout = *req.Timeout
+	}
+	if hasGlobalCeilings {
+		if err := validateRunDurationCeilings("inline", cfg.Timeout, cfg.MaxTurns, workTimeoutCeiling, maxTurnsCeiling); err != nil {
+			return nil, nil, err
+		}
+	}
+	if strings.TrimSpace(req.Until) != "" {
+		if len(req.Until) > 2048 {
+			return nil, nil, domain.NewValidationError("until", "completion test must be at most 2048 characters")
+		}
+		cfg.Until = strings.TrimSpace(req.Until)
+	}
+	if req.Effort != nil {
+		cfg.Effort = *req.Effort
+	}
+	if req.AllowedTools != nil {
+		cfg.AllowedTools = req.AllowedTools
+	}
+	if req.DeniedTools != nil {
+		cfg.DeniedTools = req.DeniedTools
+	}
+	if req.SkipPermissionPrompt != nil {
+		cfg.SkipPermissionPrompt = *req.SkipPermissionPrompt
+	}
+	// Feature flag overrides
+	if req.EnableBrowser != nil {
+		cfg.Features.EnableBrowser = *req.EnableBrowser
+	}
+	// Extra flags overrides (replace per runner type)
+	if req.ExtraFlags != nil {
+		if cfg.ExtraFlags == nil {
+			cfg.ExtraFlags = make(domain.RunnerExtraFlags)
+		}
+		for rt, flags := range req.ExtraFlags {
+			cfg.ExtraFlags[rt] = append([]string(nil), flags...)
+		}
+	}
+	if req.NetworkAccess != nil {
+		cfg.NetworkAccess = *req.NetworkAccess
+	}
+	if req.AllowedPaths != nil {
+		cfg.AllowedPaths = req.AllowedPaths
+	}
+	if req.DeniedPaths != nil {
+		cfg.DeniedPaths = req.DeniedPaths
+	}
+	if req.AllowedEffects != nil {
+		if err := validateEffectGrant(req.AllowedEffects); err != nil {
+			return nil, nil, domain.NewValidationError("allowedEffects", err.Error())
+		}
+		cfg.AllowedEffects = append([]string(nil), req.AllowedEffects...)
+		cfg.RequireEffectContainment = req.RequireEffectContainment || len(req.AllowedEffects) > 0
+		for _, effect := range req.AllowedEffects {
+			if paths := effectParameter(effect, "paths"); paths != "" && req.AllowedPaths == nil {
+				cfg.AllowedPaths = mergeUnique(cfg.AllowedPaths, []string{paths})
+			}
+		}
+	}
+	if req.ResultSpec != nil {
+		normalized, err := structuredresult.NormalizeSpec(req.ResultSpec)
+		if err != nil {
+			return nil, nil, domain.NewValidationErrorWithHint("resultSpec", err.Error(),
+				"Use result-spec/v1 with the documented bounded JSON Schema subset")
+		}
+		cfg.ResultSpec = normalized
+	}
+	// Validate the resolved config
+	if strings.TrimSpace(cfg.RoleRef) == "" {
+		return nil, nil, domain.NewValidationErrorWithHint("roleRef", "field is required",
+			"Select a portable role from the active role-policy catalog")
+	}
+	if !cfg.Effort.IsValid() {
+		return nil, nil, domain.NewValidationErrorWithHint("effort", "invalid effort", "valid values: low, medium, high, xhigh, max")
+	}
+	if err := domain.ValidateCanonicalToolList("allowedTools", cfg.AllowedTools); err != nil {
+		return nil, nil, err
+	}
+	if err := domain.ValidateCanonicalToolList("deniedTools", cfg.DeniedTools); err != nil {
+		return nil, nil, err
+	}
+	if err := o.resolveExecutionPolicy(ctx, cfg); err != nil {
+		return nil, nil, err
+	}
+	if err := o.applyModelOverride(ctx, cfg, req.Model); err != nil {
+		return nil, nil, err
+	}
+	if err := o.validateToolRestriction(cfg); err != nil {
+		return nil, nil, err
+	}
+
+	// Validate extra flags against runner allowlists (delegate to seam)
+	if o.flagValidator != nil {
+		for rt, flags := range cfg.ExtraFlags {
+			if err := o.flagValidator.ValidateFlags(rt, flags); err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+
+	return cfg, profile, nil
+}
+
+// runExecutionCeilings returns the runtime-owned work limits. Health settings
+// deliberately do not participate: executor liveness and agent work duration
+// are separate control surfaces.
+func (o *Orchestrator) runExecutionCeilings() (time.Duration, int, bool) {
+	if o.orchestrationSettings == nil {
+		return 0, 0, false
+	}
+	settings := o.orchestrationSettings.Get()
+	return time.Duration(settings.RunExecution.RunTimeoutMinutes) * time.Minute, settings.RunExecution.MaxTurns, true
+}
+
+func validateRunDurationCeilings(source string, requestedTimeout time.Duration, requestedMaxTurns int, timeoutCeiling time.Duration, maxTurnsCeiling int) error {
+	if requestedTimeout > timeoutCeiling {
+		return domain.NewValidationErrorWithHint(
+			source+".timeout",
+			fmt.Sprintf("requested timeout %ds exceeds global work-time ceiling %ds", int64(requestedTimeout/time.Second), int64(timeoutCeiling/time.Second)),
+			"Lower the requested timeout or deliberately raise orchestration runExecution.runTimeoutMinutes",
+		)
+	}
+	if requestedMaxTurns > maxTurnsCeiling {
+		return domain.NewValidationErrorWithHint(
+			source+".maxTurns",
+			fmt.Sprintf("requested max turns %d exceeds global turn ceiling %d", requestedMaxTurns, maxTurnsCeiling),
+			"Lower the requested turns or deliberately raise orchestration runExecution.maxTurns",
+		)
+	}
+	return nil
+}
+
+// applyModelOverride applies an explicit per-run model only after role policy
+// resolution. The immutable snapshot remains the execution authority, so its
+// selected candidate must be updated alongside the resolved config; otherwise
+// a later execution attempt could silently revert the caller's override.
+func (o *Orchestrator) applyModelOverride(ctx context.Context, cfg *domain.RunConfig, requested *string) error {
+	if requested == nil {
+		return nil
+	}
+	model := strings.TrimSpace(*requested)
+	if model == "" {
+		return domain.NewValidationError("model", "must not be empty when supplied")
+	}
+	if cfg == nil || cfg.PolicySnapshot == nil {
+		return domain.NewValidationError("model", "cannot override model without a resolved execution policy")
+	}
+	selected := cfg.PolicySnapshot.SelectedCandidate
+	canonical := ""
+	if strings.EqualFold(model, strings.TrimSpace(selected.Model)) {
+		canonical = selected.CanonicalModel
+	}
+	if domain.IsModelExcluded(model, canonical, selected.ExcludedModels) {
+		return domain.NewValidationErrorWithHint("model", "model is excluded by resource policy", "select an allowed model or omit the override")
+	}
+	if o.runners != nil {
+		runner, err := o.runners.Get(cfg.RunnerType)
+		if err != nil {
+			return err
+		}
+		if runner == nil {
+			return domain.NewValidationError("model", "selected runner is not registered")
+		}
+		if err := runner.ProbeModel(ctx, model); err != nil {
+			return domain.NewValidationErrorWithHint("model", "model is not available for the selected runner", err.Error())
+		}
+	}
+	cfg.Model = model
+	snapshot := cfg.PolicySnapshot
+	if snapshot.SelectedIndex < 0 || snapshot.SelectedIndex >= len(snapshot.Candidates) {
+		return domain.NewValidationError("model", "resolved execution policy has an invalid selected candidate")
+	}
+	snapshot.Candidates[snapshot.SelectedIndex].SelectionType = domain.ModelSelectionTypeModel
+	snapshot.Candidates[snapshot.SelectedIndex].Model = model
+	snapshot.SelectedCandidate = snapshot.Candidates[snapshot.SelectedIndex]
+	return nil
+}
+
+// validateToolRestriction makes an allowlist fail closed once policy routing
+// has selected the actual runner. Advisory is explicit and intentionally does
+// not pretend that an unsupported runner enforces the declaration.
+func (o *Orchestrator) validateToolRestriction(cfg *domain.RunConfig) error {
+	if cfg == nil || (len(cfg.AllowedTools) == 0 && len(cfg.DeniedTools) == 0) || o.runners == nil {
+		return nil
+	}
+	selected, err := o.runners.Get(cfg.RunnerType)
+	if err != nil {
+		return err
+	}
+	if selected.Capabilities().SupportsToolRestriction || cfg.ToolRestrictionPolicy.Effective() == domain.ToolRestrictionPolicyAdvisory {
+		return nil
+	}
+	return domain.NewValidationErrorWithCode("toolRestrictionPolicy",
+		fmt.Sprintf("runner %q cannot enforce allowedTools or deniedTools", cfg.RunnerType), domain.ErrCodePolicyRunner)
+}
+
+func (o *Orchestrator) toolRestrictionIsAdvisory(cfg *domain.RunConfig) bool {
+	if cfg == nil || (len(cfg.AllowedTools) == 0 && len(cfg.DeniedTools) == 0) || cfg.ToolRestrictionPolicy.Effective() != domain.ToolRestrictionPolicyAdvisory || o.runners == nil {
+		return false
+	}
+	selected, err := o.runners.Get(cfg.RunnerType)
+	return err == nil && selected != nil && !selected.Capabilities().SupportsToolRestriction
+}
+
+// resolveExecutionPolicy converts the final profile-plus-override selection
+// into a run-owned immutable snapshot. A named policy is resolved once; no
+// runtime decision reads mutable catalog state after this function returns.
+func (o *Orchestrator) resolveExecutionPolicy(ctx context.Context, cfg *domain.RunConfig) error {
+	if cfg == nil {
+		return domain.NewValidationError("runConfig", "field is required")
+	}
+	if strings.TrimSpace(cfg.RoleRef) != "" {
+		if o.rolePolicy == nil || o.roleResolver == nil {
+			return domain.NewValidationError("rolePolicyCatalog", "role policy state or resource resolver is not configured")
+		}
+		resolution, err := o.rolePolicy.ResolvePreferred(ctx, o.roleResolver, cfg.RoleRef, cfg.PreferredRunner)
+		if err != nil {
+			return err
+		}
+		snapshot := resolution.Snapshot()
+		if snapshot == nil || len(snapshot.Candidates) == 0 {
+			return domain.NewValidationError("rolePolicyCatalog", "role resolution produced no candidates")
+		}
+		applyModelExclusions(snapshot)
+		selectedIndex, preflight, err := o.selectInitialCandidate(ctx, snapshot.Candidates)
+		if err != nil {
+			return err
+		}
+		snapshot.SelectedIndex = selectedIndex
+		snapshot.SelectedCandidate = snapshot.Candidates[selectedIndex]
+		if preferred := strings.TrimSpace(cfg.PreferredRunner); preferred != "" && string(snapshot.SelectedCandidate.RunnerType) != preferred {
+			reason := "runner_not_selected"
+			for index, candidate := range snapshot.Candidates {
+				if string(candidate.RunnerType) != preferred {
+					continue
+				}
+				reason = "runner preflight failed"
+				if index < len(preflight) && strings.TrimSpace(preflight[index].Reason) != "" {
+					reason = preflight[index].Reason
+				}
+				break
+			}
+			snapshot.SelectionReason = "preferred_unavailable:" + reason
+		}
+		snapshot.Explanation.Preflight = preflight
+		snapshot.Explanation.Summary = fmt.Sprintf(
+			"%s; selected candidate %d (%s/%s)",
+			snapshot.Explanation.Summary,
+			selectedIndex,
+			snapshot.SelectedCandidate.RunnerType,
+			snapshot.SelectedCandidate.Model,
+		)
+		cfg.PolicySnapshot = snapshot
+		cfg.RunnerType = snapshot.SelectedCandidate.RunnerType
+		cfg.Model = snapshot.SelectedCandidate.Model
+		return nil
+	}
+	return domain.NewValidationError("roleRef", "field is required")
+}
+
+// applyModelExclusions removes denied model values from a newly resolved
+// candidate sequence before runner/model preflight. Resource policy remains
+// the source of the exclusion list; this function only materializes the
+// admission-safe snapshot. A candidate whose primary is denied may use its
+// first permitted same-runner fallback. Candidates with no permitted model
+// remain recorded as unavailable for an auditable fail-closed decision.
+func applyModelExclusions(snapshot *domain.ExecutionPolicySnapshot) {
+	if snapshot == nil {
+		return
+	}
+	for index := range snapshot.Candidates {
+		candidate := &snapshot.Candidates[index]
+		if candidate.SelectionType == domain.ModelSelectionTypeRunnerDefault {
+			continue
+		}
+		models := make([]string, 0, 1+len(candidate.Fallbacks))
+		for modelIndex, model := range append([]string{candidate.Model}, candidate.Fallbacks...) {
+			model = strings.TrimSpace(model)
+			canonical := ""
+			if modelIndex == 0 {
+				canonical = candidate.CanonicalModel
+			}
+			if model == "" || domain.IsModelExcluded(model, canonical, candidate.ExcludedModels) {
+				continue
+			}
+			models = append(models, model)
+		}
+		if len(models) == 0 {
+			candidate.Available = false
+			candidate.FailureCode = "model_excluded"
+			candidate.Failure = "all models in this candidate are excluded by resource policy"
+			continue
+		}
+		if strings.TrimSpace(candidate.Model) != models[0] {
+			// The resource response only provides a canonical identity for its
+			// primary. Do not carry that identity onto a fallback and accidentally
+			// reapply the primary's exclusion on continuation.
+			candidate.CanonicalModel = ""
+		}
+		candidate.Model = models[0]
+		candidate.Fallbacks = append([]string(nil), models[1:]...)
+	}
+}
+
+func (o *Orchestrator) selectInitialCandidate(ctx context.Context, candidates []domain.ExecutionCandidate) (int, []domain.CandidatePreflight, error) {
+	if len(candidates) == 0 {
+		return -1, nil, domain.NewValidationError("rolePolicyCatalog", "resolution produced no candidates")
+	}
+	if o.runners == nil {
+		// Minimal unit orchestrators omit adapters. Production always injects
+		// the registry before accepting traffic.
+		return 0, nil, nil
+	}
+
+	checks := make([]domain.CandidatePreflight, 0, len(candidates))
+	for index, candidate := range candidates {
+		check := domain.CandidatePreflight{Index: index, Candidate: candidate}
+		// Availability is resource-resolution evidence for portable roles.
+		// Legacy snapshots predate that field, so their zero value must not
+		// make every historical/direct candidate unavailable.
+		if candidate.FailureCode == "model_excluded" || (candidate.ResourceRole != "" && !candidate.Available) {
+			check.Reason = candidate.Failure
+			if check.Reason == "" {
+				check.Reason = candidate.FailureCode
+			}
+			if check.Reason == "" {
+				check.Reason = "resource role is unavailable"
+			}
+			checks = append(checks, check)
+			continue
+		}
+		resolvedRunner, err := o.runners.Get(candidate.RunnerType)
+		if err != nil || resolvedRunner == nil {
+			check.Reason = "runner is not registered"
+			checks = append(checks, check)
+			continue
+		}
+		available, message := resolvedRunner.IsAvailable(ctx)
+		if !available {
+			check.Reason = strings.TrimSpace(message)
+			if check.Reason == "" {
+				check.Reason = "runner is unavailable"
+			}
+			checks = append(checks, check)
+			continue
+		}
+		switch candidate.SelectionType {
+		case domain.ModelSelectionTypeModel:
+			if err := resolvedRunner.ProbeModel(ctx, candidate.Model); err != nil {
+				check.Reason = err.Error()
+				checks = append(checks, check)
+				continue
+			}
+		case domain.ModelSelectionTypeRunnerDefault:
+			// Catalog/codec conformance already proves runner-default support.
+		default:
+			check.Reason = "candidate selection type is invalid"
+			checks = append(checks, check)
+			continue
+		}
+		check.Available = true
+		checks = append(checks, check)
+		return index, checks, nil
+	}
+
+	reasons := make([]string, 0, len(checks))
+	for _, check := range checks {
+		reasons = append(reasons, fmt.Sprintf("candidate %d %s/%s: %s", check.Index, check.Candidate.RunnerType, check.Candidate.SelectionType, check.Reason))
+	}
+	return -1, checks, domain.NewValidationErrorWithHint(
+		"rolePolicyCatalog",
+		"no policy candidate passed runner/model preflight",
+		strings.Join(reasons, "; "),
+	)
+}
+
+// resolveSandboxConfig produces the effective SandboxConfig for a run.
+//
+// Contract: the returned config is always non-nil. Callers (including
+// tryAutoApproval) rely on this invariant; a nil return historically caused
+// silent fall-through to NEEDS_REVIEW for empty sandboxes because there was
+// no acceptance config to consult.
+//
+// Precedence (later overrides earlier):
+//  1. Zero-valued default
+//  2. profile.SandboxConfig (if present)
+//  3. req.SandboxConfig (inline override, if present)
+//
+// Phase G: Profile/req AllowedPaths/DeniedPaths are merged into the resolved
+// SandboxConfig.Acceptance so they become *enforced* at apply-at-run-end
+// rather than passed as advisory env vars to runners. This is the
+// agent-sandbox-audit-foundation policy-to-sandbox handoff.
+func (o *Orchestrator) resolveSandboxConfig(req CreateRunRequest, profile *domain.AgentProfile) (*domain.SandboxConfig, error) {
+	// Start from the auditability-contract defaults (Mode=Protected,
+	// AutoApply=true, ApplyOnFailure=true, NetworkMode=localhost,
+	// NoLock=true). Profile and request overrides clone over the top.
+	// Without this baseline, a request with no profile and no inline
+	// config would zero-value the struct, dropping Mode to unspecified
+	// and silently downgrading to host-tracked execution.
+	defaults := domain.DefaultSandboxConfig()
+	cfg := defaults
+	if profile != nil && profile.SandboxConfig != nil {
+		cfg = cloneSandboxConfig(profile.SandboxConfig)
+	}
+	if req.SandboxConfig != nil {
+		cfg = mergeSandboxConfig(cfg, req.SandboxConfig)
+	}
+
+	// Backfill enum/string fields that the override left at the proto
+	// zero-value. Callers (notably swarm-manager) often send a partial
+	// SandboxConfig containing only Acceptance overrides; without this
+	// backfill the wholesale-replace clone above would silently strip
+	// Mode and NetworkMode to "unspecified", silently downgrading
+	// protected runs to tracking. Pointer-typed fields (AutoApply,
+	// ApplyOnFailure) and structural fields (Lifecycle, Acceptance) are
+	// left intentional-explicit; bool fields (ManualReview, NoLock) are
+	// left at the override's value because zero is operator-visible
+	// "off" rather than "not provided".
+	if cfg.Mode == domain.SandboxModeUnspecified {
+		cfg.Mode = defaults.Mode
+	}
+	if cfg.NetworkMode == "" {
+		cfg.NetworkMode = defaults.NetworkMode
+	}
+
+	// Push path policy from profile/request into the acceptance layer so
+	// workspace-sandbox actually enforces it at apply time. The runner-side
+	// advisory env vars are kept for the tracking-mode capability matrix
+	// but the load-bearing enforcement now lives at the sandbox boundary.
+	allowedPaths := profilePaths(profile, func(p *domain.AgentProfile) []string { return p.AllowedPaths })
+	if req.AllowedPaths != nil {
+		allowedPaths = req.AllowedPaths
+	}
+	deniedPaths := profilePaths(profile, func(p *domain.AgentProfile) []string { return p.DeniedPaths })
+	if req.DeniedPaths != nil {
+		deniedPaths = req.DeniedPaths
+	}
+	cfg.Acceptance.Allow.PathGlobs = mergeUnique(cfg.Acceptance.Allow.PathGlobs, allowedPaths)
+	cfg.Acceptance.Deny.PathGlobs = mergeUnique(cfg.Acceptance.Deny.PathGlobs, deniedPaths)
+
+	cfg = normalizeSandboxConfig(cfg)
+	if err := validateSandboxConfig(cfg); err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+// mergeSandboxConfig applies an inline config as a sparse override instead of
+// replacing the profile config wholesale. Proto scalar zero values cannot
+// distinguish absence from an explicit false, so only non-zero scalar values
+// and explicitly-present pointer/structural values override here. This keeps a
+// ManualReview-only request from accidentally deleting its profile's lifecycle
+// and acceptance contract.
+func mergeSandboxConfig(base, override *domain.SandboxConfig) *domain.SandboxConfig {
+	if base == nil {
+		base = domain.DefaultSandboxConfig()
+	}
+	merged := cloneSandboxConfig(base)
+	if override == nil {
+		return merged
+	}
+	if override.Mode != domain.SandboxModeUnspecified {
+		merged.Mode = override.Mode
+	}
+	if override.NetworkMode != "" {
+		merged.NetworkMode = override.NetworkMode
+	}
+	// A populated config carries an explicit ManualReview=false; a sparse
+	// ManualReview-only inline message cannot represent false in proto3 and
+	// therefore leaves the profile value intact.
+	if override.ManualReview || sandboxConfigHasExplicitScalars(override) {
+		merged.ManualReview = override.ManualReview
+	}
+	if override.AutoApply != nil {
+		v := *override.AutoApply
+		merged.AutoApply = &v
+	}
+	if override.ApplyOnFailure != nil {
+		v := *override.ApplyOnFailure
+		merged.ApplyOnFailure = &v
+	}
+	if override.NoLock {
+		merged.NoLock = true
+	}
+	if !sandboxLifecycleIsZero(override.Lifecycle) {
+		merged.Lifecycle = cloneSandboxConfig(override).Lifecycle
+	}
+	if !sandboxAcceptanceIsZero(override.Acceptance) {
+		merged.Acceptance = cloneSandboxConfig(override).Acceptance
+	}
+	return merged
+}
+
+func sandboxConfigHasExplicitScalars(cfg *domain.SandboxConfig) bool {
+	return cfg.Mode != domain.SandboxModeUnspecified || cfg.NetworkMode != "" || cfg.AutoApply != nil || cfg.ApplyOnFailure != nil || cfg.NoLock
+}
+
+func sandboxLifecycleIsZero(lifecycle domain.SandboxLifecycleConfig) bool {
+	return len(lifecycle.CheckpointOn) == 0 && len(lifecycle.StopOn) == 0 && len(lifecycle.DeleteOn) == 0 && lifecycle.TTL == 0 && lifecycle.IdleTimeout == 0
+}
+
+func sandboxAcceptanceIsZero(acceptance domain.SandboxAcceptanceConfig) bool {
+	return acceptance.Mode == "" && !acceptance.IgnoreBinary && len(acceptance.Allow.PathGlobs) == 0 && len(acceptance.Allow.Extensions) == 0 && len(acceptance.Deny.PathGlobs) == 0 && len(acceptance.Deny.Extensions) == 0
+}
+
+func profilePaths(p *domain.AgentProfile, get func(*domain.AgentProfile) []string) []string {
+	if p == nil {
+		return nil
+	}
+	return get(p)
+}
+
+func mergeUnique(a, b []string) []string {
+	if len(a) == 0 && len(b) == 0 {
+		return nil
+	}
+	seen := make(map[string]bool, len(a)+len(b))
+	out := make([]string, 0, len(a)+len(b))
+	for _, v := range a {
+		if v == "" || seen[v] {
+			continue
+		}
+		seen[v] = true
+		out = append(out, v)
+	}
+	for _, v := range b {
+		if v == "" || seen[v] {
+			continue
+		}
+		seen[v] = true
+		out = append(out, v)
+	}
+	return out
+}
+
+func cloneSandboxConfig(cfg *domain.SandboxConfig) *domain.SandboxConfig {
+	if cfg == nil {
+		return nil
+	}
+	clone := *cfg
+	clone.Lifecycle.CheckpointOn = append([]domain.SandboxLifecycleEvent(nil), cfg.Lifecycle.CheckpointOn...)
+	clone.Lifecycle.StopOn = append([]domain.SandboxLifecycleEvent(nil), cfg.Lifecycle.StopOn...)
+	clone.Lifecycle.DeleteOn = append([]domain.SandboxLifecycleEvent(nil), cfg.Lifecycle.DeleteOn...)
+	clone.Acceptance.Allow = cloneSandboxCriteria(cfg.Acceptance.Allow)
+	clone.Acceptance.Deny = cloneSandboxCriteria(cfg.Acceptance.Deny)
+	if cfg.AutoApply != nil {
+		v := *cfg.AutoApply
+		clone.AutoApply = &v
+	}
+	if cfg.ApplyOnFailure != nil {
+		v := *cfg.ApplyOnFailure
+		clone.ApplyOnFailure = &v
+	}
+	return &clone
+}
+
+func cloneSandboxCriteria(criteria domain.SandboxFileCriteria) domain.SandboxFileCriteria {
+	return domain.SandboxFileCriteria{
+		PathGlobs:  append([]string(nil), criteria.PathGlobs...),
+		Extensions: append([]string(nil), criteria.Extensions...),
+	}
+}
+
+func normalizeSandboxConfig(cfg *domain.SandboxConfig) *domain.SandboxConfig {
+	if cfg == nil {
+		return nil
+	}
+	if cfg.Acceptance.Mode == "" {
+		cfg.Acceptance.Mode = "allowlist"
+	}
+	cfg.Acceptance.Allow = normalizeSandboxCriteria(cfg.Acceptance.Allow)
+	cfg.Acceptance.Deny = normalizeSandboxCriteria(cfg.Acceptance.Deny)
+
+	// Default lifecycle cleanup for auto-apply sandboxes.
+	//
+	// Under the auditability contract (Phase 3b), AutoApply=true (the
+	// contract default unless ManualReview=true) means the sandbox is
+	// applied at run end. Once applied, leaving the sandbox active
+	// indefinitely blocks future runs on the same scope path and leaks
+	// overlay mounts. We default deleteOn to ["terminal"] so the sandbox
+	// is cleaned up after any terminal event when ManualReview is off.
+	//
+	// ManualReview=true sandboxes intentionally persist past run end so
+	// operators can review; their TTL GC is owned by workspace-sandbox
+	// LifecycleReconciler (Phase 4).
+	if cfg.GetAutoApply() && !cfg.ManualReview &&
+		len(cfg.Lifecycle.CheckpointOn) == 0 && len(cfg.Lifecycle.DeleteOn) == 0 && len(cfg.Lifecycle.StopOn) == 0 {
+		cfg.Lifecycle.CheckpointOn = []domain.SandboxLifecycleEvent{
+			domain.SandboxLifecycleTurnCompleted,
+			domain.SandboxLifecycleTurnFailed,
+			domain.SandboxLifecycleTurnCancelled,
+		}
+		// Use the terminal event emitted by finalize so default sandboxes are
+		// deleted instead of remaining checkpointed.
+		cfg.Lifecycle.DeleteOn = []domain.SandboxLifecycleEvent{domain.SandboxLifecycleTerminal}
+	}
+
+	return cfg
+}
+
+func normalizeSandboxCriteria(criteria domain.SandboxFileCriteria) domain.SandboxFileCriteria {
+	paths := make([]string, 0, len(criteria.PathGlobs))
+	seenPaths := make(map[string]bool)
+	for _, p := range criteria.PathGlobs {
+		p = strings.TrimSpace(p)
+		if p == "" || seenPaths[p] {
+			continue
+		}
+		seenPaths[p] = true
+		paths = append(paths, p)
+	}
+
+	exts := make([]string, 0, len(criteria.Extensions))
+	seenExts := make(map[string]bool)
+	for _, ext := range criteria.Extensions {
+		ext = strings.TrimSpace(ext)
+		if ext == "" {
+			continue
+		}
+		if !strings.HasPrefix(ext, ".") {
+			ext = "." + ext
+		}
+		ext = strings.ToLower(ext)
+		if seenExts[ext] {
+			continue
+		}
+		seenExts[ext] = true
+		exts = append(exts, ext)
+	}
+
+	criteria.PathGlobs = paths
+	criteria.Extensions = exts
+	return criteria
+}
+
+func validateSandboxConfig(cfg *domain.SandboxConfig) error {
+	if cfg == nil {
+		return nil
+	}
+	if cfg.Acceptance.Mode != "" && cfg.Acceptance.Mode != "allowlist" {
+		return domain.NewValidationError("sandboxConfig.acceptance.mode", "unsupported acceptance mode")
+	}
+	if cfg.Lifecycle.TTL < 0 {
+		return domain.NewValidationError("sandboxConfig.lifecycle.ttl", "ttl cannot be negative")
+	}
+	if cfg.Lifecycle.IdleTimeout < 0 {
+		return domain.NewValidationError("sandboxConfig.lifecycle.idleTimeout", "idleTimeout cannot be negative")
+	}
+	for _, p := range append(cfg.Acceptance.Allow.PathGlobs, cfg.Acceptance.Deny.PathGlobs...) {
+		if filepath.IsAbs(p) || strings.HasPrefix(p, "/") {
+			return domain.NewValidationErrorWithHint(
+				"sandboxConfig.acceptance.pathGlobs",
+				"path globs must be project-root relative",
+				"Remove the leading '/' and use project-root relative patterns",
+			)
+		}
+	}
+	// Warn when AutoApply is on (the contract default) but no allow
+	// criteria are configured. This is valid (empty allow = accept all
+	// non-denied files), but surprising enough to warrant a log line —
+	// especially since an empty deny (from proto serialization)
+	// previously caused silent universal denial.
+	if cfg.GetAutoApply() && !cfg.ManualReview &&
+		len(cfg.Acceptance.Allow.PathGlobs) == 0 &&
+		len(cfg.Acceptance.Allow.Extensions) == 0 {
+		obs.Component("sandbox-config").Info("autoApply enabled with no allow criteria; all non-denied files will be applied at run end")
+	}
+	return nil
+}
+
+func (o *Orchestrator) GetRun(ctx context.Context, id uuid.UUID) (*domain.Run, error) {
+	run, err := o.runs.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if run == nil {
+		return nil, domain.NewNotFoundError("Run", id)
+	}
+	return o.attachRunActions(ctx, run), nil
+}
+
+// GetRunByImportProvenance resolves an imported external session without
+// exposing its filesystem path. Corpus import uses this before parsing so a
+// repeated command is read-only for already adopted evidence.
+func (o *Orchestrator) GetRunByImportProvenance(ctx context.Context, sourceHarness, sourceSessionID string) (*domain.Run, error) {
+	return o.runs.GetByImportProvenance(ctx, sourceHarness, sourceSessionID)
+}
+
+func (o *Orchestrator) ListRuns(ctx context.Context, opts RunListOptions) ([]*domain.Run, error) {
+	runs, err := o.runs.List(ctx, repository.RunListFilter{
+		ListFilter: repository.ListFilter{
+			Limit:  opts.Limit,
+			Offset: opts.Offset,
+		},
+		TaskID:                    opts.TaskID,
+		AgentProfileID:            opts.AgentProfileID,
+		Status:                    opts.Status,
+		TagPrefix:                 opts.TagPrefix,
+		ScopePrefix:               opts.ScopePrefix,
+		InvestigatesRunID:         opts.InvestigatesRunID,
+		AppliesInvestigationRunID: opts.AppliesInvestigationRunID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return o.attachRunActionsList(ctx, runs), nil
+}
+
+// ListParkedRuns returns all parked runs with their await-handle populated. The
+// pruned list-columns omit the heavy await_handle field, so each parked run is
+// reloaded by ID to recover its handle. Used by the await-handle registry's
+// restart recovery (re-spawning waiters on boot).
+func (o *Orchestrator) ListParkedRuns(ctx context.Context) ([]*domain.Run, error) {
+	parked := domain.RunStatusParked
+	rows, err := o.runs.List(ctx, repository.RunListFilter{Status: &parked})
+	if err != nil {
+		return nil, err
+	}
+	full := make([]*domain.Run, 0, len(rows))
+	for _, row := range rows {
+		loaded, err := o.runs.Get(ctx, row.ID)
+		if err != nil {
+			return nil, err
+		}
+		if loaded == nil {
+			continue
+		}
+		full = append(full, loaded)
+	}
+	return full, nil
+}
+
+func (o *Orchestrator) DeleteRun(ctx context.Context, id uuid.UUID) error {
+	run, err := o.GetRun(ctx, id)
+	if err != nil {
+		return err
+	}
+	if allowed, reason := domain.CanDeleteRun(run); !allowed {
+		return domain.NewStateError("Run", string(run.Status), "delete", reason)
+	}
+	if err := o.runs.Delete(ctx, id); err != nil {
+		return err
+	}
+	o.notifyConversationSearch(ctx, "delete_run", id.String(), "")
+	return nil
+}
+
+// GetRunByTag retrieves a run by its custom tag.
+// Returns NotFoundError if no run with that tag exists.
+func (o *Orchestrator) GetRunByTag(ctx context.Context, tag string) (*domain.Run, error) {
+	// List all runs with matching tag prefix and find exact match
+	runs, err := o.runs.List(ctx, repository.RunListFilter{
+		TagPrefix: tag,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Find exact match
+	for _, run := range runs {
+		if run.GetTag() == tag {
+			return o.attachRunActions(ctx, run), nil
+		}
+	}
+
+	return nil, domain.NewNotFoundError("Run", uuid.Nil)
+}
+
+// StopRunByTag stops a run identified by its custom tag.
+func (o *Orchestrator) StopRunByTag(ctx context.Context, tag string) error {
+	run, err := o.GetRunByTag(ctx, tag)
+	if err != nil {
+		return err
+	}
+	return o.StopRun(ctx, run.ID)
+}
+
+// StopAllRuns stops all running runs, optionally filtered by tag prefix.
+func (o *Orchestrator) StopAllRuns(ctx context.Context, opts StopAllOptions) (*StopAllResult, error) {
+	result := &StopAllResult{
+		FailedIDs: []string{},
+	}
+
+	// Get all running or starting runs
+	runningStatus := domain.RunStatusRunning
+	runs, err := o.runs.List(ctx, repository.RunListFilter{
+		Status:    &runningStatus,
+		TagPrefix: opts.TagPrefix,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Also get starting runs
+	startingStatus := domain.RunStatusStarting
+	startingRuns, err := o.runs.List(ctx, repository.RunListFilter{
+		Status:    &startingStatus,
+		TagPrefix: opts.TagPrefix,
+	})
+	if err != nil {
+		return nil, err
+	}
+	runs = append(runs, startingRuns...)
+
+	// Stop each run
+	for _, run := range runs {
+		// Skip already stopped runs
+		if run.Status == domain.RunStatusComplete ||
+			run.Status == domain.RunStatusFailed ||
+			run.Status == domain.RunStatusCancelled {
+			result.Skipped++
+			continue
+		}
+
+		if err := o.StopRun(ctx, run.ID); err != nil {
+			result.Failed++
+			result.FailedIDs = append(result.FailedIDs, run.ID.String())
+		} else {
+			result.Stopped++
+		}
+	}
+
+	return result, nil
+}
+
+func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
+	run, err := o.GetRun(ctx, id)
+	if err != nil {
+		return err
+	}
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
+		return importedRunLifecycleError("stop")
+	}
+
+	// An already-cancelled run is an idempotent replay, not a state error. A
+	// caller that issued a stop and lost the response may replay it after an
+	// owner reopen; the stop already succeeded, so return the same terminal
+	// result without a second terminal write. Stop is the only path to
+	// cancelled, so observing cancelled means this operation completed.
+	if run.Status == domain.RunStatusCancelled {
+		return nil
+	}
+
+	if allowed, reason := domain.CanStopRun(run); !allowed {
+		return domain.NewStateError("Run", string(run.Status), "stop", reason)
+	}
+
+	// Interactive runs have no local process to signal — the CLI lives in a
+	// web-console tmux session. Stop them via the interrupt-then-delete
+	// escalation ladder and finalize deterministically (Cancelled), instead of
+	// the pgid/terminator path below.
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive {
+		return o.stopInteractiveRun(ctx, run)
+	}
+
+	// A parked run has no live process to terminate — stopping it cancels the
+	// await (clears the handle) and moves the run to cancelled. The waiter that
+	// owns the handle observes the terminal status and deregisters (Phase 3).
+	if run.Status == domain.RunStatusParked {
+		// Cancel the background watcher first so it observes the cancellation and
+		// exits without waking the now-cancelled run.
+		if o.awaitRegistry != nil {
+			o.awaitRegistry.Cancel(id)
+		}
+		run.AwaitHandle = nil
+		endedAt := o.now()
+		_, err = o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
+			Run:       run,
+			NewStatus: domain.RunStatusCancelled,
+			Phase:     domain.RunPhaseCompleted,
+			Reason:    "Parked run stopped by request",
+			EndedAt:   &endedAt,
+		})
+		return err
+	}
+
+	// Persist the cancellation intent before any process is terminated. A runner
+	// process that exits after this stamp (even before the terminator confirms
+	// death) reconciles to cancelled instead of resurrecting the run to complete.
+	// The stamp is monotonic and status-guarded, so a repeat stop request is a
+	// no-op rather than a second terminal write.
+	if o.runs != nil {
+		if _, err := o.runs.RequestCancellation(ctx, id, o.now()); err != nil {
+			return err
+		}
+	}
+
+	if o.terminator != nil {
+		result, err := o.terminator.Terminate(ctx, id)
+		if err != nil {
+			return err
+		}
+		if !result.Success {
+			return result.Error
+		}
+
+		_, err = o.finalizeRunCancellation(ctx, id, "Run stopped by request")
+		return err
+	}
+
+	// The immutable resolved config is the sole execution authority.
+	var runnerType domain.RunnerType
+	if run.ResolvedConfig != nil {
+		runnerType = run.ResolvedConfig.RunnerType
+	}
+
+	// Stop execution if we have a runner type
+	if o.runners != nil && runnerType != "" {
+		if r, err := o.runners.Get(runnerType); err == nil {
+			if err := r.Stop(ctx, run.ID); err != nil {
+				return err
+			}
+		}
+	}
+
+	_, err = o.finalizeRunCancellation(ctx, id, "Run stopped by request")
+	return err
+}
+
+// finalizeRunCancellation moves a run to cancelled after its stop request has
+// been reconciled. It re-reads durable state first: if a delayed process exit
+// already reconciled the run to a terminal status (for example the executor's
+// HandleResult adopted the persisted cancellation intent), this is a no-op
+// instead of a second terminal write. That makes stop a replay-safe operation
+// whether the terminator or the executor wins the terminal race.
+func (o *Orchestrator) finalizeRunCancellation(ctx context.Context, id uuid.UUID, reason string) (*domain.Run, error) {
+	current, err := o.GetRun(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if current.Status.IsTerminal() {
+		return current, nil
+	}
+	endedAt := o.now()
+	return o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
+		Run:       current,
+		NewStatus: domain.RunStatusCancelled,
+		Phase:     domain.RunPhaseCompleted,
+		Reason:    reason,
+		EndedAt:   &endedAt,
+	})
+}
+
+func (o *Orchestrator) RecoverRun(ctx context.Context, id uuid.UUID) (*RecoverResult, error) {
+	run, err := o.GetRun(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
+		return nil, importedRunLifecycleError("recover")
+	}
+	if run.Status.IsTerminal() && run.FinalizationStatus == domain.RunFinalizationStatusFailed {
+		return o.recoverFinalization(ctx, run)
+	}
+	if run.Status.IsTerminal() && run.FinalizationStatus == domain.RunFinalizationStatusSucceeded {
+		return &RecoverResult{Run: run, Idempotent: true, Message: "run execution and sandbox finalization are already complete"}, nil
+	}
+	if o.reconciler == nil {
+		return nil, domain.NewConfigMissingError("reconciler", "reconciler not configured", nil)
+	}
+	return o.reconciler.RecoverRun(ctx, id)
+}
+
+// ContinueRun continues an existing run's conversation with a follow-up message.
+// The message is appended to the run's event stream and the response is streamed back.

@@ -1,0 +1,62 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "first-agent",
+    "title": "Create and use a first agent",
+    "purpose": "A person with no account, no Mac and no phone number gets a working agent that has answered them, before being asked for anything. This is the conversion path and its friction budget is the product's most important number.",
+    "prd_refs": [
+      "OT-P0-014",
+      "OT-P1-008"
+    ]
+  },
+  "steps": [
+    {
+      "page": "onboarding",
+      "intent": "Understands that a plain description is the only input required.",
+      "state": "default"
+    },
+    {
+      "page": "onboarding",
+      "intent": "Types what the agent should do and asks for a draft.",
+      "state": "default",
+      "via": "describe-field"
+    },
+    {
+      "page": "onboarding",
+      "intent": "Reads the drafted profile and confirms it.",
+      "state": "success",
+      "via": "confirm-action"
+    },
+    {
+      "page": "conversations",
+      "intent": "Sends a first message and receives a reply in the in-app thread.",
+      "state": "default",
+      "via": "composer-input"
+    },
+    {
+      "page": "agents",
+      "intent": "Sees the agent in the roster and where it can be reached.",
+      "state": "default"
+    }
+  ],
+  "claims": [
+    {
+      "id": "no-account-before-value",
+      "type": "custom",
+      "statement": "No account, credential or payment is requested before the agent has replied at least once.",
+      "tier": "manual",
+      "rationale": "The entire argument for the in-app surface is that it is the only zero-setup path into the product."
+    },
+    {
+      "id": "friction-budget",
+      "type": "custom",
+      "statement": "A first reply is reachable in at most four interactions from a cold start.",
+      "tier": "aspirational",
+      "params": {
+        "maxSteps": 4
+      }
+    }
+  ]
+}

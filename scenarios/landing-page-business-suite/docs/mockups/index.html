@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aquila hero directions</title>
+  <style>
+    :root { color-scheme: dark; --ink:#f4f1eb; --muted:#99a4b8; --bg:#080b12; --panel:#111827; --line:rgba(255,255,255,.11); --orange:#f97316; --cyan:#55d6e6; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--ink); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body:before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.22; background-image:linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px); background-size:48px 48px; mask-image:linear-gradient(to bottom,black,transparent 75%); }
+    main { width:min(1120px,calc(100% - 40px)); margin:0 auto; padding:88px 0 72px; position:relative; }
+    .kicker { color:var(--cyan); font-size:11px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; }
+    h1 { max-width:760px; margin:18px 0 16px; font:600 clamp(42px,7vw,76px)/1.03 "Space Grotesk",Inter,sans-serif; letter-spacing:-.055em; }
+    .intro { max-width:620px; color:var(--muted); font-size:17px; line-height:1.65; margin:0 0 48px; }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:22px; }
+    a { color:inherit; text-decoration:none; }
+    .card { min-height:330px; position:relative; overflow:hidden; border:1px solid var(--line); border-radius:24px; background:linear-gradient(140deg,#111827,#0b101c); box-shadow:0 20px 50px rgba(0,0,0,.3); transition:transform .2s ease,border-color .2s ease; }
+    .card:hover { transform:translateY(-4px); border-color:rgba(85,214,230,.65); }
+    .card:after { content:""; position:absolute; inset:0; background:linear-gradient(120deg,transparent 30%,rgba(85,214,230,.08),transparent 70%); pointer-events:none; }
+    .card-top { display:flex; justify-content:space-between; align-items:center; padding:20px 22px 0; position:relative; z-index:1; }
+    .num { color:var(--orange); font:600 13px/1 "Space Grotesk",sans-serif; }
+    .tag { color:#b9c0cd; font-size:11px; letter-spacing:.12em; text-transform:uppercase; }
+    .card-copy { padding:42px 22px 26px; position:relative; z-index:1; }
+    h2 { margin:0 0 10px; font:600 30px/1.05 "Space Grotesk",Inter,sans-serif; letter-spacing:-.035em; }
+    .card p { max-width:390px; margin:0; color:var(--muted); line-height:1.55; }
+    .mini-ui { position:absolute; right:-34px; bottom:-60px; width:330px; height:184px; padding:16px; border:1px solid rgba(255,255,255,.16); border-radius:16px 16px 0 0; background:#172033; transform:rotate(-4deg); box-shadow:-16px -16px 0 rgba(249,115,22,.1),0 20px 50px rgba(0,0,0,.45); }
+    .mini-ui.bundle { width:390px; right:-24px; background:#101725; transform:rotate(3deg); box-shadow:-14px -14px 0 rgba(85,214,230,.1),0 20px 50px rgba(0,0,0,.45); }
+    .mini-bar { width:70%; height:7px; border-radius:99px; background:#41506a; margin-bottom:16px; }
+    .mini-row { display:flex; gap:8px; margin-bottom:8px; }
+    .mini-row i { display:block; height:42px; flex:1; border-radius:7px; background:#243149; border:1px solid rgba(255,255,255,.08); }
+    .mini-row i:first-child { flex:1.8; background:linear-gradient(135deg,rgba(85,214,230,.22),#243149); }
+    .mini-status { display:inline-flex; gap:6px; align-items:center; color:#9cebdc; font-size:9px; letter-spacing:.1em; text-transform:uppercase; }
+    .dot { width:6px; height:6px; border-radius:50%; background:#35d399; box-shadow:0 0 0 4px rgba(53,211,153,.12); }
+    footer { margin-top:48px; color:#69758a; font-size:12px; display:flex; gap:24px; flex-wrap:wrap; }
+    @media (max-width:700px) { main { width:min(100% - 28px,560px); padding-top:52px; } .grid { grid-template-columns:1fr; } .card { min-height:300px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="kicker">Aquila · hero explorations · 14 Sep 2026</div>
+    <h1>Two stories. One visual system.</h1>
+    <p class="intro">Standalone concepts for the future configurable landing page: two product-led Aquila directions and two bundle-led directions. Every frame is intentionally self-contained, so it can be opened locally or captured without a running app.</p>
+    <section class="grid" aria-label="Hero mockups">
+      <a class="card" href="aquila-hero-01-command-at-rest.html">
+        <div class="card-top"><span class="num">01</span><span class="tag">Aquila only · dark</span></div>
+        <div class="card-copy"><h2>Command at rest</h2><p>A quiet, high-trust hero with a layered workspace artifact and a restrained operational accent.</p></div>
+        <div class="mini-ui"><div class="mini-status"><span class="dot"></span>workspace ready</div><div class="mini-bar"></div><div class="mini-row"><i></i><i></i><i></i></div></div>
+      </a>
+      <a class="card" href="aquila-hero-02-field-notes.html">
+        <div class="card-top"><span class="num">02</span><span class="tag">Aquila only · light</span></div>
+        <div class="card-copy"><h2>Field notes</h2><p>An editorial, paper-toned direction that makes Aquila feel considered, tangible, and easy to understand.</p></div>
+        <div class="mini-ui" style="background:#ebe8e1;border-color:rgba(7,9,15,.15);box-shadow:-16px -16px 0 rgba(249,115,22,.16),0 20px 50px rgba(0,0,0,.28)"><div class="mini-bar" style="background:#b8b1a4"></div><div class="mini-row"><i style="background:#d2cec5"></i><i style="background:#c2d6d2"></i><i style="background:#d2cec5"></i></div></div>
+      </a>
+      <a class="card" href="bundle-hero-01-constellation.html">
+        <div class="card-top"><span class="num">03</span><span class="tag">Bundle · dark</span></div>
+        <div class="card-copy"><h2>The working constellation</h2><p>A bundle story where products orbit one operating center, with future capabilities visible but clearly staged.</p></div>
+        <div class="mini-ui bundle"><div class="mini-status"><span class="dot"></span>3 surfaces · 1 system</div><div class="mini-bar"></div><div class="mini-row"><i></i><i></i><i></i><i></i></div></div>
+      </a>
+      <a class="card" href="bundle-hero-02-one-system.html">
+        <div class="card-top"><span class="num">04</span><span class="tag">Bundle · editorial</span></div>
+        <div class="card-copy"><h2>One system, many hands</h2><p>A confident bundle opener built around a visible workflow: shape, automate, review, and ship.</p></div>
+        <div class="mini-ui bundle" style="background:#ebe8e1;border-color:rgba(7,9,15,.15);box-shadow:-14px -14px 0 rgba(85,214,230,.16),0 20px 50px rgba(0,0,0,.28)"><div class="mini-bar" style="background:#b8b1a4"></div><div class="mini-row"><i style="background:#c9dcd8"></i><i style="background:#d2cec5"></i><i style="background:#f4f1eb"></i><i style="background:#d2cec5"></i></div></div>
+      </a>
+    </section>
+    <footer><span>Concept only — no production files changed.</span><span>Backdrop Studio influence: surface geometry, reserved copy zone, measured contrast.</span></footer>
+  </main>
+</body>
+</html>

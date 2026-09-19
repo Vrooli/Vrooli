@@ -15,6 +15,23 @@ type Viewport struct {
 	Height int `json:"height"`
 }
 
+// ObservedSession is the non-sensitive session inventory exposed by the
+// driver observability endpoint. It is intentionally distinct from the
+// lease-protected command surface: the API uses it only to recover sessions
+// whose owning execution is already terminal.
+type ObservedSession struct {
+	ID               string `json:"id"`
+	OwnerExecutionID string `json:"owner_execution_id"`
+	WorkflowID       string `json:"workflow_id"`
+	CreatedAt        string `json:"created_at"`
+	LastUsedAt       string `json:"last_used_at"`
+}
+
+// ObservedSessionsResponse is returned by GET /observability/sessions.
+type ObservedSessionsResponse struct {
+	Sessions []ObservedSession `json:"sessions"`
+}
+
 // ViewportSource describes what determined the actual viewport dimensions.
 // This attribution helps users understand why dimensions may differ from requested.
 type ViewportSource string
@@ -49,16 +66,26 @@ type FrameStreamingConfig struct {
 
 // CapabilityRequest specifies required browser capabilities for execution.
 type CapabilityRequest struct {
-	Tabs       bool `json:"tabs,omitempty"`
-	Iframes    bool `json:"iframes,omitempty"`
-	Uploads    bool `json:"uploads,omitempty"`
-	Downloads  bool `json:"downloads,omitempty"`
-	HAR        bool `json:"har,omitempty"`
-	Video      bool `json:"video,omitempty"`
-	Tracing    bool `json:"tracing,omitempty"`
-	ViewportW  int  `json:"viewport_width,omitempty"`
-	ViewportH  int  `json:"viewport_height,omitempty"`
-	MaxTimeout int  `json:"max_timeout_ms,omitempty"`
+	Tabs      bool `json:"tabs,omitempty"`
+	Iframes   bool `json:"iframes,omitempty"`
+	Uploads   bool `json:"uploads,omitempty"`
+	Downloads bool `json:"downloads,omitempty"`
+	HAR       bool `json:"har,omitempty"`
+	Video     bool `json:"video,omitempty"`
+	Tracing   bool `json:"tracing,omitempty"`
+	// PerfTrace requests a CDP performance trace (devtools.timeline + CPU
+	// profiler + blink.user_timing) plus an injected web-vitals observer
+	// for the session. The driver streams the trace + web-vitals JSON into
+	// ArtifactPaths.PerfDir on close.
+	PerfTrace bool `json:"performance_trace,omitempty"`
+	// Accessibility requests a CDP accessibility-tree snapshot
+	// (Accessibility.getFullAXTree joined with per-node geometry +
+	// data-testid). The driver writes the normalized snapshot JSON into
+	// ArtifactPaths.AccessibilityDir on close.
+	Accessibility bool `json:"accessibility,omitempty"`
+	ViewportW     int  `json:"viewport_width,omitempty"`
+	ViewportH     int  `json:"viewport_height,omitempty"`
+	MaxTimeout    int  `json:"max_timeout_ms,omitempty"`
 }
 
 // ArtifactPaths controls where the driver should store execution-level artifacts.
@@ -67,6 +94,41 @@ type ArtifactPaths struct {
 	VideoDir  string `json:"video_dir,omitempty"`
 	HARPath   string `json:"har_path,omitempty"`
 	TracePath string `json:"trace_path,omitempty"`
+	// PerfDir is the directory the driver writes performance.json (the CDP
+	// trace) and performance.web-vitals.json into when PerfTrace is set.
+	PerfDir string `json:"perf_dir,omitempty"`
+	// AccessibilityDir is the directory the driver writes accessibility.json
+	// (the normalized AX-tree snapshot) into when Accessibility is set.
+	AccessibilityDir string `json:"accessibility_dir,omitempty"`
+}
+
+// AppTarget is an already-running, target-owned renderer that the
+// Playwright driver may attach to during a validation run. The target owns
+// process launch and cleanup; BAS only owns workflow execution.
+type AppTarget struct {
+	TargetKind     string `json:"target_kind,omitempty"`
+	TargetID       string `json:"target_id"`
+	CDPEndpoint    string `json:"cdp_endpoint"`
+	RendererID     string `json:"renderer_id"`
+	RendererURL    string `json:"renderer_url"`
+	RendererTitle  string `json:"renderer_title,omitempty"`
+	ScenarioName   string `json:"scenario_name"`
+	ArtifactDigest string `json:"artifact_digest"`
+	ContextID      string `json:"context_id"`
+	CDPTransport   string `json:"cdp_transport"`
+}
+
+// ValidationContext binds a BAS session to one immutable validation cell and
+// its leased test storage. Electron execution must carry this context so a
+// target cannot be reused as an unscoped browser session.
+type ValidationContext struct {
+	ContextID        string `json:"context_id"`
+	ScenarioName     string `json:"scenario_name"`
+	ArtifactDigest   string `json:"artifact_digest"`
+	TargetID         string `json:"target_id"`
+	WorkflowID       string `json:"workflow_id"`
+	ProfileID        string `json:"profile_id"`
+	IsolationLeaseID string `json:"isolation_lease_id"`
 }
 
 // CreateSessionRequest is the unified request to create a browser session.
@@ -96,6 +158,22 @@ type CreateSessionRequest struct {
 
 	// Browser profile for anti-detection and human-like behavior
 	BrowserProfile *sessionprofilepersistence.BrowserProfile `json:"browser_profile,omitempty"`
+
+	// Execution mode - deterministic fake media devices
+	FakeMedia *FakeMediaConfig `json:"fake_media,omitempty"`
+
+	// Electron validation mode attaches to an existing target instead of
+	// launching a second browser.
+	AppTarget         *AppTarget         `json:"app_target,omitempty"`
+	ValidationContext *ValidationContext `json:"validation_context,omitempty"`
+}
+
+// FakeMediaConfig requests deterministic fake capture devices for a session.
+// Chromium serves fake media process-wide, so the driver pools a dedicated
+// browser instance per distinct microphone WAV.
+type FakeMediaConfig struct {
+	// Absolute WAV path used as the fake microphone capture source.
+	MicrophoneWav string `json:"microphone_wav,omitempty"`
 }
 
 // CreateSessionRequestFromUUID creates a session request using uuid.UUID types.
@@ -110,6 +188,7 @@ func CreateSessionRequestFromUUID(executionID, workflowID uuid.UUID) *CreateSess
 // CreateSessionResponse is the response from creating a session.
 type CreateSessionResponse struct {
 	SessionID      string          `json:"session_id"`
+	LeaseID        string          `json:"lease_id"`
 	ActualViewport *ActualViewport `json:"actual_viewport,omitempty"`
 }
 
@@ -442,6 +521,23 @@ type CloseSessionResponse struct {
 	HARPath    string   `json:"har_path,omitempty"`
 }
 
+// CloseSessionRequest proves that the caller still owns the execution lease.
+type CloseSessionRequest struct {
+	ExecutionID string `json:"execution_id"`
+	LeaseID     string `json:"lease_id"`
+}
+
+// ReleaseSessionRequest proves that the caller owns the lease it releases.
+type ReleaseSessionRequest struct {
+	ExecutionID string `json:"execution_id"`
+	LeaseID     string `json:"lease_id"`
+}
+
+// ReleaseSessionResponse confirms that the session is idle and reusable.
+type ReleaseSessionResponse struct {
+	Success bool `json:"success,omitempty"`
+}
+
 // ArtifactDownload captures a streamed artifact response from the driver.
 type ArtifactDownload struct {
 	Reader      io.ReadCloser
@@ -497,10 +593,10 @@ type ServiceWorkerInfo struct {
 
 // ServiceWorkerControl represents the service worker control settings for a session.
 type ServiceWorkerControl struct {
-	Mode            string                         `json:"mode"` // allow, block, block-on-domain, unregister-all
-	DomainOverrides []ServiceWorkerDomainOverride  `json:"domainOverrides,omitempty"`
-	BlockedDomains  []string                       `json:"blockedDomains,omitempty"`
-	UnregisterOnStart bool                         `json:"unregisterOnStart,omitempty"`
+	Mode              string                        `json:"mode"` // allow, block, block-on-domain, unregister-all
+	DomainOverrides   []ServiceWorkerDomainOverride `json:"domainOverrides,omitempty"`
+	BlockedDomains    []string                      `json:"blockedDomains,omitempty"`
+	UnregisterOnStart bool                          `json:"unregisterOnStart,omitempty"`
 }
 
 // ServiceWorkerDomainOverride represents per-domain service worker control.
@@ -511,10 +607,10 @@ type ServiceWorkerDomainOverride struct {
 
 // GetServiceWorkersResponse is the response from getting service workers.
 type GetServiceWorkersResponse struct {
-	SessionID string              `json:"session_id"`
-	Workers   []ServiceWorkerInfo `json:"workers"`
+	SessionID string               `json:"session_id"`
+	Workers   []ServiceWorkerInfo  `json:"workers"`
 	Control   ServiceWorkerControl `json:"control"`
-	Message   string              `json:"message,omitempty"`
+	Message   string               `json:"message,omitempty"`
 }
 
 // UnregisterServiceWorkersResponse is the response from unregistering service workers.

@@ -1,0 +1,2512 @@
+{
+  "schema_version": 1,
+  "matrix_revision": "cloud-launch-v1",
+  "status": "required design; evidence not yet collected",
+  "source": {
+    "path": "plan-artifacts/scenario-to-cloud-professional-vps-delivery-certification/source/mandatory-validation-matrix.json",
+    "sha256": "e277d70d9b25d128892c650abd46f37bd783a01dff798664cf2eedf1e8026af9",
+    "case_count": 94
+  },
+  "lane_vocabulary": [
+    "package",
+    "api",
+    "workflow",
+    "relay",
+    "qemu",
+    "real_vps",
+    "bas_ui",
+    "independent_review",
+    "soak"
+  ],
+  "dimension_vocabulary": [
+    "architecture",
+    "os",
+    "installation",
+    "workload",
+    "release",
+    "actor",
+    "connectivity",
+    "data",
+    "credentials",
+    "environment",
+    "coexistence",
+    "user_surface"
+  ],
+  "verdict_vocabulary": [
+    "passed",
+    "failed",
+    "skipped",
+    "unavailable",
+    "unsupported"
+  ],
+  "readiness_rule": "A required case is satisfied only when every lane in lanes[] holds a passed receipt for the exact candidate release digest. Any other state names the (case, lane) cell.",
+  "cases": [
+    {
+      "id": "AUTH-01",
+      "family": "AUTH",
+      "primary_phase": 4,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "relay"
+      ],
+      "lane_text": "package/api; selected real relay",
+      "trigger": "Unauthenticated request to every sensitive route",
+      "assertion": "Denied before dispatch with no secret or target effect",
+      "dimensions": [
+        "actor",
+        "user_surface"
+      ],
+      "requirement_refs": [
+        "STC-P0-012",
+        "STC-P0-013",
+        "STC-P0-014"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 4.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "AUTH-02",
+      "family": "AUTH",
+      "primary_phase": 4,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "relay"
+      ],
+      "lane_text": "package/api; selected real relay",
+      "trigger": "Wrong namespace or environment",
+      "assertion": "Object lookup and mutation denied without disclosing restricted identity",
+      "dimensions": [
+        "actor",
+        "environment"
+      ],
+      "requirement_refs": [
+        "STC-P0-012",
+        "STC-P0-013",
+        "STC-P0-014"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 4.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "AUTH-03",
+      "family": "AUTH",
+      "primary_phase": 4,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "relay"
+      ],
+      "lane_text": "package/api; selected real relay",
+      "trigger": "Expired or revoked grant",
+      "assertion": "Next protected operation rejected; existing session policy enforced",
+      "dimensions": [
+        "actor",
+        "user_surface"
+      ],
+      "requirement_refs": [
+        "STC-P0-012",
+        "STC-P0-013",
+        "STC-P0-014"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 4.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "AUTH-04",
+      "family": "AUTH",
+      "primary_phase": 4,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "relay"
+      ],
+      "lane_text": "package/api; selected real relay",
+      "trigger": "Cross-target substituted identifier",
+      "assertion": "Authorization and result correlation bind the intended machine",
+      "dimensions": [
+        "actor",
+        "environment"
+      ],
+      "requirement_refs": [
+        "STC-P0-012",
+        "STC-P0-013",
+        "STC-P0-014"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 4.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "AUTH-05",
+      "family": "AUTH",
+      "primary_phase": 4,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "relay"
+      ],
+      "lane_text": "package/api; selected real relay",
+      "trigger": "Read-only actor requests mutation",
+      "assertion": "Denied across UI CLI API and relay",
+      "dimensions": [
+        "actor",
+        "user_surface"
+      ],
+      "requirement_refs": [
+        "STC-P0-012",
+        "STC-P0-013",
+        "STC-P0-014"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 4.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "AUTH-06",
+      "family": "AUTH",
+      "primary_phase": 4,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "relay"
+      ],
+      "lane_text": "package/api; selected real relay",
+      "trigger": "Terminal or WebSocket authorization",
+      "assertion": "Upgrade and continued session obey origin and grant policy",
+      "dimensions": [
+        "actor",
+        "user_surface",
+        "connectivity"
+      ],
+      "requirement_refs": [
+        "STC-P0-012",
+        "STC-P0-013",
+        "STC-P0-014"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 4.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "AUTH-07",
+      "family": "AUTH",
+      "primary_phase": 4,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "relay"
+      ],
+      "lane_text": "package/api; selected real relay",
+      "trigger": "Credential or evidence identifier enumeration",
+      "assertion": "Cross-scope reads fail without value or existence leakage",
+      "dimensions": [
+        "actor",
+        "credentials"
+      ],
+      "requirement_refs": [
+        "STC-P0-012",
+        "STC-P0-013",
+        "STC-P0-014"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 4.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "AUTH-08",
+      "family": "AUTH",
+      "primary_phase": 4,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "relay"
+      ],
+      "lane_text": "package/api; selected real relay",
+      "trigger": "Test-mode or development bypass in deployment",
+      "assertion": "Production configuration cannot enable an unauthenticated mutation path",
+      "dimensions": [
+        "actor",
+        "environment"
+      ],
+      "requirement_refs": [
+        "STC-P0-012",
+        "STC-P0-013",
+        "STC-P0-014"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 4.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "PLAN-01",
+      "family": "PLAN",
+      "primary_phase": 6,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "workflow"
+      ],
+      "lane_text": "package/api/workflow",
+      "trigger": "Equivalent UI CLI API inputs",
+      "assertion": "Same normalized configuration and executable-plan digest",
+      "dimensions": [
+        "release",
+        "user_surface"
+      ],
+      "requirement_refs": [
+        "STC-P0-016"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 6.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "PLAN-02",
+      "family": "PLAN",
+      "primary_phase": 6,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "workflow"
+      ],
+      "lane_text": "package/api/workflow",
+      "trigger": "Changed target facts after preview",
+      "assertion": "Apply rejects stale prerequisites before mutation",
+      "dimensions": [
+        "release",
+        "installation"
+      ],
+      "requirement_refs": [
+        "STC-P0-016"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 6.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "PLAN-03",
+      "family": "PLAN",
+      "primary_phase": 6,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "workflow"
+      ],
+      "lane_text": "package/api/workflow",
+      "trigger": "Changed closure or artifact after preview",
+      "assertion": "Apply rejects digest mismatch",
+      "dimensions": [
+        "release",
+        "user_surface"
+      ],
+      "requirement_refs": [
+        "STC-P0-016"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 6.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "PLAN-04",
+      "family": "PLAN",
+      "primary_phase": 6,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "workflow"
+      ],
+      "lane_text": "package/api/workflow",
+      "trigger": "Unknown resource capability",
+      "assertion": "Actionable unsupported result rather than incomplete bundle",
+      "dimensions": [
+        "release",
+        "workload"
+      ],
+      "requirement_refs": [
+        "STC-P0-016"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 6.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "PLAN-05",
+      "family": "PLAN",
+      "primary_phase": 6,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "workflow"
+      ],
+      "lane_text": "package/api/workflow",
+      "trigger": "Repeated preview with same immutable inputs",
+      "assertion": "Stable plan identity and ordered effects",
+      "dimensions": [
+        "release",
+        "user_surface"
+      ],
+      "requirement_refs": [
+        "STC-P0-016"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 6.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "PLAN-06",
+      "family": "PLAN",
+      "primary_phase": 6,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "workflow"
+      ],
+      "lane_text": "package/api/workflow",
+      "trigger": "Plan contains secret reference",
+      "assertion": "No raw secret in serialization logs or review",
+      "dimensions": [
+        "release",
+        "credentials"
+      ],
+      "requirement_refs": [
+        "STC-P0-016"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 6.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "PLAN-07",
+      "family": "PLAN",
+      "primary_phase": 6,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "workflow"
+      ],
+      "lane_text": "package/api/workflow",
+      "trigger": "Human denies privileged action",
+      "assertion": "No later step silently performs equivalent action",
+      "dimensions": [
+        "release",
+        "actor"
+      ],
+      "requirement_refs": [
+        "STC-P0-016"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 6.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "PLAN-08",
+      "family": "PLAN",
+      "primary_phase": 6,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "workflow"
+      ],
+      "lane_text": "package/api/workflow",
+      "trigger": "Conflicting desired-state edits",
+      "assertion": "Explicit conflict or deterministic revision handling",
+      "dimensions": [
+        "release",
+        "user_surface"
+      ],
+      "requirement_refs": [
+        "STC-P0-016"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 6.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "RUN-01",
+      "family": "RUN",
+      "primary_phase": 7,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package and QEMU; real restart subset",
+      "trigger": "Duplicate admission same key",
+      "assertion": "One durable operation and one effective mutation",
+      "dimensions": [
+        "connectivity",
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-018",
+        "STC-P0-019",
+        "STC-P0-020"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 7.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "RUN-02",
+      "family": "RUN",
+      "primary_phase": 7,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package and QEMU; real restart subset",
+      "trigger": "Same key with different request",
+      "assertion": "Conflict; original intent remains unchanged",
+      "dimensions": [
+        "connectivity",
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-018",
+        "STC-P0-019",
+        "STC-P0-020"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 7.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "RUN-03",
+      "family": "RUN",
+      "primary_phase": 7,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package and QEMU; real restart subset",
+      "trigger": "Worker restart after intent persistence",
+      "assertion": "Recorded intent resumes or reconciles without lost work",
+      "dimensions": [
+        "connectivity",
+        "installation",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-018",
+        "STC-P0-019",
+        "STC-P0-020"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 7.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "RUN-04",
+      "family": "RUN",
+      "primary_phase": 7,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package and QEMU; real restart subset",
+      "trigger": "Worker lease expires during remote effect",
+      "assertion": "Stale fence cannot commit; target result reconciled",
+      "dimensions": [
+        "connectivity",
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-018",
+        "STC-P0-019",
+        "STC-P0-020"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 7.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "RUN-05",
+      "family": "RUN",
+      "primary_phase": 7,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package and QEMU; real restart subset",
+      "trigger": "Remote success reply lost",
+      "assertion": "No blind replay; owner obtains authoritative standing",
+      "dimensions": [
+        "connectivity",
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-018",
+        "STC-P0-019",
+        "STC-P0-020"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 7.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "RUN-06",
+      "family": "RUN",
+      "primary_phase": 7,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package and QEMU; real restart subset",
+      "trigger": "Target disconnect mid-step",
+      "assertion": "Unknown or waiting state with one durable next action",
+      "dimensions": [
+        "connectivity",
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-018",
+        "STC-P0-019",
+        "STC-P0-020"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 7.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "RUN-07",
+      "family": "RUN",
+      "primary_phase": 7,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package and QEMU; real restart subset",
+      "trigger": "Client timeout or cancellation",
+      "assertion": "Server operation remains correctly owned",
+      "dimensions": [
+        "connectivity",
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-018",
+        "STC-P0-019",
+        "STC-P0-020"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 7.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "RUN-08",
+      "family": "RUN",
+      "primary_phase": 7,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package and QEMU; real restart subset",
+      "trigger": "Competing operation on same deployment",
+      "assertion": "Serialization or explicit conflict protects invariants",
+      "dimensions": [
+        "connectivity",
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-018",
+        "STC-P0-019",
+        "STC-P0-020"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 7.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "RUN-09",
+      "family": "RUN",
+      "primary_phase": 7,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package and QEMU; real restart subset",
+      "trigger": "Target restart during activation",
+      "assertion": "Reconciles actual active release and durable data",
+      "dimensions": [
+        "connectivity",
+        "release",
+        "installation",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-018",
+        "STC-P0-019",
+        "STC-P0-020"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 7.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "RUN-10",
+      "family": "RUN",
+      "primary_phase": 7,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package and QEMU; real restart subset",
+      "trigger": "Stored operation has unknown version",
+      "assertion": "Explicit incompatibility; no guessed success",
+      "dimensions": [
+        "connectivity",
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-018",
+        "STC-P0-019",
+        "STC-P0-020"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 7.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "REACH-01",
+      "family": "REACH",
+      "primary_phase": 9,
+      "required": true,
+      "lanes": [
+        "api",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "API/QEMU/real VPS",
+      "trigger": "Enroll previously unknown target",
+      "assertion": "Trust and scoped onboarding receipt before privileged use",
+      "dimensions": [
+        "connectivity",
+        "installation",
+        "environment",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-024"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 9.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "REACH-02",
+      "family": "REACH",
+      "primary_phase": 9,
+      "required": true,
+      "lanes": [
+        "api",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "API/QEMU/real VPS",
+      "trigger": "Machine identity changes",
+      "assertion": "Re-enrollment policy; old identity not silently accepted",
+      "dimensions": [
+        "connectivity",
+        "installation",
+        "environment",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-024"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 9.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "REACH-03",
+      "family": "REACH",
+      "primary_phase": 9,
+      "required": true,
+      "lanes": [
+        "api",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "API/QEMU/real VPS",
+      "trigger": "Direct adapter and Bridge path",
+      "assertion": "Equivalent policy authorization results and correlation",
+      "dimensions": [
+        "connectivity",
+        "installation",
+        "environment",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-024"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 9.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "REACH-04",
+      "family": "REACH",
+      "primary_phase": 9,
+      "required": true,
+      "lanes": [
+        "api",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "API/QEMU/real VPS",
+      "trigger": "Transport interruption during artifact transfer",
+      "assertion": "Bounded resume or restart with final digest verification",
+      "dimensions": [
+        "connectivity",
+        "installation",
+        "environment",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-024"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 9.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "REACH-05",
+      "family": "REACH",
+      "primary_phase": 9,
+      "required": true,
+      "lanes": [
+        "api",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "API/QEMU/real VPS",
+      "trigger": "Controller reconnect",
+      "assertion": "Existing durable target operation reattached",
+      "dimensions": [
+        "connectivity",
+        "installation",
+        "environment",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-024"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 9.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "REACH-06",
+      "family": "REACH",
+      "primary_phase": 9,
+      "required": true,
+      "lanes": [
+        "api",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "API/QEMU/real VPS",
+      "trigger": "Shared reach unavailable",
+      "assertion": "Typed unavailable standing; no hidden private SSH fallback",
+      "dimensions": [
+        "connectivity",
+        "installation",
+        "environment",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-024"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 9.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "REACH-07",
+      "family": "REACH",
+      "primary_phase": 9,
+      "required": true,
+      "lanes": [
+        "api",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "API/QEMU/real VPS",
+      "trigger": "Target configuration subset",
+      "assertion": "Analyzer closure matches onboarding installed/running selection",
+      "dimensions": [
+        "installation",
+        "workload",
+        "environment",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-024"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 9.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "REACH-08",
+      "family": "REACH",
+      "primary_phase": 9,
+      "required": true,
+      "lanes": [
+        "api",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "API/QEMU/real VPS",
+      "trigger": "Coexisting unrelated workload",
+      "assertion": "Bootstrap and repair preserve its processes files and network rules",
+      "dimensions": [
+        "installation",
+        "coexistence",
+        "environment",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-024"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 9.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "RELEASE-01",
+      "family": "RELEASE",
+      "primary_phase": 10,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package/QEMU/real activation subset",
+      "trigger": "Corrupt bundle byte",
+      "assertion": "Rejected before extraction or activation",
+      "dimensions": [
+        "release",
+        "installation",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-026",
+        "STC-P0-027"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 10.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "RELEASE-02",
+      "family": "RELEASE",
+      "primary_phase": 10,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package/QEMU/real activation subset",
+      "trigger": "Valid digest from untrusted producer",
+      "assertion": "Trust policy rejects artifact",
+      "dimensions": [
+        "release",
+        "installation",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-026",
+        "STC-P0-027"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 10.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "RELEASE-03",
+      "family": "RELEASE",
+      "primary_phase": 10,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package/QEMU/real activation subset",
+      "trigger": "Archive traversal or unsafe link",
+      "assertion": "Rejected without writes outside owned staging",
+      "dimensions": [
+        "release",
+        "installation",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-026",
+        "STC-P0-027"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 10.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "RELEASE-04",
+      "family": "RELEASE",
+      "primary_phase": 10,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package/QEMU/real activation subset",
+      "trigger": "Wrong architecture or ABI",
+      "assertion": "Preflight rejects before active release changes",
+      "dimensions": [
+        "release",
+        "architecture",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-026",
+        "STC-P0-027"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 10.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "RELEASE-05",
+      "family": "RELEASE",
+      "primary_phase": 10,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package/QEMU/real activation subset",
+      "trigger": "Target CLI differs from approved manifest",
+      "assertion": "Rejected rather than rebuilt from mutable source",
+      "dimensions": [
+        "release",
+        "installation",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-026",
+        "STC-P0-027"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 10.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "RELEASE-06",
+      "family": "RELEASE",
+      "primary_phase": 10,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package/QEMU/real activation subset",
+      "trigger": "Interrupted staging",
+      "assertion": "Active release remains serviceable; staged residue owned",
+      "dimensions": [
+        "release",
+        "installation",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-026",
+        "STC-P0-027"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 10.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "RELEASE-07",
+      "family": "RELEASE",
+      "primary_phase": 10,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package/QEMU/real activation subset",
+      "trigger": "Healthy compatible update",
+      "assertion": "External endpoint serves exact new release",
+      "dimensions": [
+        "release",
+        "architecture",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-026",
+        "STC-P0-027"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 10.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "RELEASE-08",
+      "family": "RELEASE",
+      "primary_phase": 10,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package/QEMU/real activation subset",
+      "trigger": "Unhealthy candidate",
+      "assertion": "Activation withheld or recovery restores verified healthy standing",
+      "dimensions": [
+        "release",
+        "data",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-026",
+        "STC-P0-027"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 10.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "RELEASE-09",
+      "family": "RELEASE",
+      "primary_phase": 10,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package/QEMU/real activation subset",
+      "trigger": "Artifact garbage collection race",
+      "assertion": "Active and recovery leases prevent deletion",
+      "dimensions": [
+        "release",
+        "installation",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-026",
+        "STC-P0-027"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 10.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "RELEASE-10",
+      "family": "RELEASE",
+      "primary_phase": 10,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package/QEMU/real activation subset",
+      "trigger": "Old release compatibility boundary",
+      "assertion": "Explicit rollback eligibility tied to schema and config",
+      "dimensions": [
+        "release",
+        "installation",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-026",
+        "STC-P0-027"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 10.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "DATA-01",
+      "family": "DATA",
+      "primary_phase": 12,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package/QEMU/real new-host restore",
+      "trigger": "Backup under acknowledged writes",
+      "assertion": "Consistent restore with measured recovery point",
+      "dimensions": [
+        "data",
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-029",
+        "STC-P0-030",
+        "STC-P0-031"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 12.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "DATA-02",
+      "family": "DATA",
+      "primary_phase": 12,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package/QEMU/real new-host restore",
+      "trigger": "Corrupted or incomplete backup",
+      "assertion": "Rejected; existing data remains protected",
+      "dimensions": [
+        "data",
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-029",
+        "STC-P0-030",
+        "STC-P0-031"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 12.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "DATA-03",
+      "family": "DATA",
+      "primary_phase": 12,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package/QEMU/real new-host restore",
+      "trigger": "Backup encryption key unavailable",
+      "assertion": "Actionable recovery failure without false completion",
+      "dimensions": [
+        "data",
+        "credentials",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-029",
+        "STC-P0-030",
+        "STC-P0-031"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 12.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "DATA-04",
+      "family": "DATA",
+      "primary_phase": 12,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package/QEMU/real new-host restore",
+      "trigger": "Compatible code rollback",
+      "assertion": "Data preserved and external functionality verified",
+      "dimensions": [
+        "data",
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-029",
+        "STC-P0-030",
+        "STC-P0-031"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 12.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "DATA-05",
+      "family": "DATA",
+      "primary_phase": 12,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package/QEMU/real new-host restore",
+      "trigger": "Fresh-host restore",
+      "assertion": "Service and logical data verified within frozen RTO",
+      "dimensions": [
+        "data",
+        "installation",
+        "architecture",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-029",
+        "STC-P0-030",
+        "STC-P0-031"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 12.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "DATA-06",
+      "family": "DATA",
+      "primary_phase": 12,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package/QEMU/real new-host restore",
+      "trigger": "Incompatible schema rollback",
+      "assertion": "Blocked with supported recovery path",
+      "dimensions": [
+        "data",
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-029",
+        "STC-P0-030",
+        "STC-P0-031"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 12.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "DATA-07",
+      "family": "DATA",
+      "primary_phase": 12,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package/QEMU/real new-host restore",
+      "trigger": "Migration fails partway",
+      "assertion": "Declared transactional or recovery semantics proven",
+      "dimensions": [
+        "data",
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-029",
+        "STC-P0-030",
+        "STC-P0-031"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 12.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "DATA-08",
+      "family": "DATA",
+      "primary_phase": 12,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package/QEMU/real new-host restore",
+      "trigger": "Volume belongs to another deployment",
+      "assertion": "No adopt delete or overwrite without explicit authority",
+      "dimensions": [
+        "data",
+        "coexistence",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-029",
+        "STC-P0-030",
+        "STC-P0-031"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 12.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "DATA-09",
+      "family": "DATA",
+      "primary_phase": 12,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package/QEMU/real new-host restore",
+      "trigger": "Retention pruning",
+      "assertion": "Protected recovery points and active operation leases preserved",
+      "dimensions": [
+        "data",
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-029",
+        "STC-P0-030",
+        "STC-P0-031"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 12.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "DATA-10",
+      "family": "DATA",
+      "primary_phase": 12,
+      "required": true,
+      "lanes": [
+        "package",
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "package/QEMU/real new-host restore",
+      "trigger": "Restore credential prerequisites",
+      "assertion": "Recovery identity works without original controller session",
+      "dimensions": [
+        "data",
+        "credentials",
+        "installation",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-029",
+        "STC-P0-030",
+        "STC-P0-031"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 12.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "SECRET-01",
+      "family": "SECRET",
+      "primary_phase": 13,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "real_vps"
+      ],
+      "lane_text": "package/API/real provider where applicable",
+      "trigger": "Initial materialization",
+      "assertion": "Only authorized consumer receives intended version",
+      "dimensions": [
+        "credentials",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-032"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 13.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "SECRET-02",
+      "family": "SECRET",
+      "primary_phase": 13,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "real_vps"
+      ],
+      "lane_text": "package/API/real provider where applicable",
+      "trigger": "Rotation accepted by provider",
+      "assertion": "New version works; rollout standing recorded",
+      "dimensions": [
+        "credentials",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-032"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 13.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "SECRET-03",
+      "family": "SECRET",
+      "primary_phase": 13,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "real_vps"
+      ],
+      "lane_text": "package/API/real provider where applicable",
+      "trigger": "Provider rejects rotation",
+      "assertion": "Prior usable state retained or explicit recovery standing",
+      "dimensions": [
+        "credentials",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-032"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 13.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "SECRET-04",
+      "family": "SECRET",
+      "primary_phase": 13,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "real_vps"
+      ],
+      "lane_text": "package/API/real provider where applicable",
+      "trigger": "Revoked credential",
+      "assertion": "Provider and consumer cease authorized use as specified",
+      "dimensions": [
+        "credentials",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-032"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 13.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "SECRET-05",
+      "family": "SECRET",
+      "primary_phase": 13,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "real_vps"
+      ],
+      "lane_text": "package/API/real provider where applicable",
+      "trigger": "Synthetic secret canaries",
+      "assertion": "Zero leakage in logs artifacts command arguments and UI",
+      "dimensions": [
+        "credentials",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-032"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 13.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "SECRET-06",
+      "family": "SECRET",
+      "primary_phase": 13,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "real_vps"
+      ],
+      "lane_text": "package/API/real provider where applicable",
+      "trigger": "Concurrent rotation and deployment",
+      "assertion": "Version binding prevents mixed unexplained state",
+      "dimensions": [
+        "credentials",
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-032"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 13.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "SECRET-07",
+      "family": "SECRET",
+      "primary_phase": 13,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "real_vps"
+      ],
+      "lane_text": "package/API/real provider where applicable",
+      "trigger": "Credential service unavailable",
+      "assertion": "No plaintext fallback; actionable pending or failure",
+      "dimensions": [
+        "credentials",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-032"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 13.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "SECRET-08",
+      "family": "SECRET",
+      "primary_phase": 13,
+      "required": true,
+      "lanes": [
+        "package",
+        "api",
+        "real_vps"
+      ],
+      "lane_text": "package/API/real provider where applicable",
+      "trigger": "Recovery break-glass operation",
+      "assertion": "Scoped time-bounded audited path and subsequent revocation",
+      "dimensions": [
+        "credentials",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-032"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 13.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "EDGE-01",
+      "family": "EDGE",
+      "primary_phase": 14,
+      "required": true,
+      "lanes": [
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "QEMU and real VPS",
+      "trigger": "DNS wrong or stale",
+      "assertion": "Independent observation reports mismatch",
+      "dimensions": [
+        "environment",
+        "connectivity",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-036"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 14.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "EDGE-02",
+      "family": "EDGE",
+      "primary_phase": 14,
+      "required": true,
+      "lanes": [
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "QEMU and real VPS",
+      "trigger": "Certificate issue and renewal",
+      "assertion": "Correct hostname chain and renewal outcome verified",
+      "dimensions": [
+        "environment",
+        "connectivity",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-036"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 14.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "EDGE-03",
+      "family": "EDGE",
+      "primary_phase": 14,
+      "required": true,
+      "lanes": [
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "QEMU and real VPS",
+      "trigger": "Public ingress scan",
+      "assertion": "Only declared endpoints accessible",
+      "dimensions": [
+        "environment",
+        "connectivity",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-036"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 14.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "EDGE-04",
+      "family": "EDGE",
+      "primary_phase": 14,
+      "required": true,
+      "lanes": [
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "QEMU and real VPS",
+      "trigger": "Private backend direct access",
+      "assertion": "Unauthenticated public reach is denied",
+      "dimensions": [
+        "environment",
+        "connectivity",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-036"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 14.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "EDGE-05",
+      "family": "EDGE",
+      "primary_phase": 14,
+      "required": true,
+      "lanes": [
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "QEMU and real VPS",
+      "trigger": "Firewall remediation",
+      "assertion": "Typed least-privilege effects; unrelated rules preserved",
+      "dimensions": [
+        "environment",
+        "coexistence",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-036"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 14.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "EDGE-06",
+      "family": "EDGE",
+      "primary_phase": 14,
+      "required": true,
+      "lanes": [
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "QEMU and real VPS",
+      "trigger": "Target reboot",
+      "assertion": "Declared services and endpoint recover under owner policy",
+      "dimensions": [
+        "environment",
+        "connectivity",
+        "installation",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-036"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 14.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "EDGE-07",
+      "family": "EDGE",
+      "primary_phase": 14,
+      "required": true,
+      "lanes": [
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "QEMU and real VPS",
+      "trigger": "Health HTTP 200 with unhealthy body",
+      "assertion": "Consumer rejects healthy verdict",
+      "dimensions": [
+        "environment",
+        "connectivity",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-036"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 14.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "EDGE-08",
+      "family": "EDGE",
+      "primary_phase": 14,
+      "required": true,
+      "lanes": [
+        "qemu",
+        "real_vps"
+      ],
+      "lane_text": "QEMU and real VPS",
+      "trigger": "Stale or wrong-release health receipt",
+      "assertion": "Cannot satisfy candidate gate",
+      "dimensions": [
+        "environment",
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-036"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 14.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "GOV-01",
+      "family": "GOV",
+      "primary_phase": 17,
+      "required": true,
+      "lanes": [
+        "api",
+        "workflow",
+        "real_vps"
+      ],
+      "lane_text": "API/workflow and real publication",
+      "trigger": "Missing mandatory evidence cell",
+      "assertion": "Decision cannot approve",
+      "dimensions": [
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-035"
+      ],
+      "owner": "api/certification",
+      "owner_notes": "Package-level proof that a missing required cell yields not_ready (readiness_test.go). The API, workflow and real-publication lanes are owned by phase 17.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "GOV-02",
+      "family": "GOV",
+      "primary_phase": 17,
+      "required": true,
+      "lanes": [
+        "api",
+        "workflow",
+        "real_vps"
+      ],
+      "lane_text": "API/workflow and real publication",
+      "trigger": "Evidence belongs to other release or target",
+      "assertion": "Rejected as incompatible",
+      "dimensions": [
+        "release",
+        "environment",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-035"
+      ],
+      "owner": "api/certification",
+      "owner_notes": "Package-level proof that evidence for another release digest never satisfies a cell (readiness_test.go). The API, workflow and real-publication lanes are owned by phase 17.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "GOV-03",
+      "family": "GOV",
+      "primary_phase": 17,
+      "required": true,
+      "lanes": [
+        "api",
+        "workflow",
+        "real_vps"
+      ],
+      "lane_text": "API/workflow and real publication",
+      "trigger": "Approved bytes replaced before publish",
+      "assertion": "Publish rejects identity mismatch",
+      "dimensions": [
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-035"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 17.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "GOV-04",
+      "family": "GOV",
+      "primary_phase": 17,
+      "required": true,
+      "lanes": [
+        "api",
+        "workflow",
+        "real_vps"
+      ],
+      "lane_text": "API/workflow and real publication",
+      "trigger": "Publication reply lost",
+      "assertion": "Reconcile destination identity without duplicate unsafe effects",
+      "dimensions": [
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-035"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 17.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "GOV-05",
+      "family": "GOV",
+      "primary_phase": 17,
+      "required": true,
+      "lanes": [
+        "api",
+        "workflow",
+        "real_vps"
+      ],
+      "lane_text": "API/workflow and real publication",
+      "trigger": "Successful staging publish",
+      "assertion": "External fetch or inspection matches approved identity",
+      "dimensions": [
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-035"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 17.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "GOV-06",
+      "family": "GOV",
+      "primary_phase": 17,
+      "required": true,
+      "lanes": [
+        "api",
+        "workflow",
+        "real_vps"
+      ],
+      "lane_text": "API/workflow and real publication",
+      "trigger": "Revoked approval before mutation",
+      "assertion": "Policy rejects or follows documented in-flight rule",
+      "dimensions": [
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-035"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 17.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "GOV-07",
+      "family": "GOV",
+      "primary_phase": 17,
+      "required": true,
+      "lanes": [
+        "api",
+        "workflow",
+        "real_vps"
+      ],
+      "lane_text": "API/workflow and real publication",
+      "trigger": "Evidence fetch lacks bytes",
+      "assertion": "Explicit unavailable; no synthetic pass",
+      "dimensions": [
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-035"
+      ],
+      "owner": "api/certification",
+      "owner_notes": "Package-level proof that unavailable evidence is named, never treated as passed (readiness_test.go). Byte-retrieval lanes are owned by phase 17.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "GOV-08",
+      "family": "GOV",
+      "primary_phase": 17,
+      "required": true,
+      "lanes": [
+        "api",
+        "workflow",
+        "real_vps"
+      ],
+      "lane_text": "API/workflow and real publication",
+      "trigger": "Recovery after publication",
+      "assertion": "Governed recovery targets exact supported release",
+      "dimensions": [
+        "release",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-035"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 17.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "UX-01",
+      "family": "UX",
+      "primary_phase": 19,
+      "required": true,
+      "lanes": [
+        "bas_ui",
+        "independent_review"
+      ],
+      "lane_text": "BAS/UI and independent walkthrough",
+      "trigger": "First deploy through UI",
+      "assertion": "Operator completes without undocumented shell steps",
+      "dimensions": [
+        "user_surface"
+      ],
+      "requirement_refs": [
+        "STC-P0-038",
+        "STC-P0-039"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 19.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "UX-02",
+      "family": "UX",
+      "primary_phase": 19,
+      "required": true,
+      "lanes": [
+        "bas_ui",
+        "independent_review"
+      ],
+      "lane_text": "BAS/UI and independent walkthrough",
+      "trigger": "Same operation through CLI and API",
+      "assertion": "Equivalent effects and inspectable standing",
+      "dimensions": [
+        "user_surface",
+        "release"
+      ],
+      "requirement_refs": [
+        "STC-P0-038",
+        "STC-P0-039"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 19.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "UX-03",
+      "family": "UX",
+      "primary_phase": 19,
+      "required": true,
+      "lanes": [
+        "bas_ui",
+        "independent_review"
+      ],
+      "lane_text": "BAS/UI and independent walkthrough",
+      "trigger": "Keyboard-only critical journey",
+      "assertion": "Logical focus and accessible controls throughout",
+      "dimensions": [
+        "user_surface"
+      ],
+      "requirement_refs": [
+        "STC-P0-038",
+        "STC-P0-039"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 19.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "UX-04",
+      "family": "UX",
+      "primary_phase": 19,
+      "required": true,
+      "lanes": [
+        "bas_ui",
+        "independent_review"
+      ],
+      "lane_text": "BAS/UI and independent walkthrough",
+      "trigger": "Narrow viewport and long content",
+      "assertion": "No lost primary actions or hidden error context",
+      "dimensions": [
+        "user_surface"
+      ],
+      "requirement_refs": [
+        "STC-P0-038",
+        "STC-P0-039"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 19.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "UX-05",
+      "family": "UX",
+      "primary_phase": 19,
+      "required": true,
+      "lanes": [
+        "bas_ui",
+        "independent_review"
+      ],
+      "lane_text": "BAS/UI and independent walkthrough",
+      "trigger": "Reconnect during long operation",
+      "assertion": "Progress reattaches by durable identity",
+      "dimensions": [
+        "user_surface",
+        "connectivity"
+      ],
+      "requirement_refs": [
+        "STC-P0-038",
+        "STC-P0-039"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 19.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "UX-06",
+      "family": "UX",
+      "primary_phase": 19,
+      "required": true,
+      "lanes": [
+        "bas_ui",
+        "independent_review"
+      ],
+      "lane_text": "BAS/UI and independent walkthrough",
+      "trigger": "Denied permission or failed prerequisite",
+      "assertion": "Explains cause remediation and safe next action",
+      "dimensions": [
+        "user_surface",
+        "actor"
+      ],
+      "requirement_refs": [
+        "STC-P0-038",
+        "STC-P0-039"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 19.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "UX-07",
+      "family": "UX",
+      "primary_phase": 19,
+      "required": true,
+      "lanes": [
+        "bas_ui",
+        "independent_review"
+      ],
+      "lane_text": "BAS/UI and independent walkthrough",
+      "trigger": "Secret display and copy affordances",
+      "assertion": "Scoped intentional disclosure with safe default rendering",
+      "dimensions": [
+        "user_surface",
+        "credentials"
+      ],
+      "requirement_refs": [
+        "STC-P0-038",
+        "STC-P0-039"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 19.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "UX-08",
+      "family": "UX",
+      "primary_phase": 19,
+      "required": true,
+      "lanes": [
+        "bas_ui",
+        "independent_review"
+      ],
+      "lane_text": "BAS/UI and independent walkthrough",
+      "trigger": "Independent operator recovery",
+      "assertion": "Runbook enables diagnosis and restore without author assistance",
+      "dimensions": [
+        "user_surface",
+        "installation",
+        "data"
+      ],
+      "requirement_refs": [
+        "STC-P0-038",
+        "STC-P0-039"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 19.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "OPS-01",
+      "family": "OPS",
+      "primary_phase": 23,
+      "required": true,
+      "lanes": [
+        "real_vps",
+        "soak",
+        "qemu"
+      ],
+      "lane_text": "real VPS 24-hour soak plus QEMU faults",
+      "trigger": "Sustained healthy traffic",
+      "assertion": "Availability and latency remain within frozen budgets",
+      "dimensions": [
+        "environment",
+        "workload",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-043"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 23.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "OPS-02",
+      "family": "OPS",
+      "primary_phase": 23,
+      "required": true,
+      "lanes": [
+        "real_vps",
+        "soak",
+        "qemu"
+      ],
+      "lane_text": "real VPS 24-hour soak plus QEMU faults",
+      "trigger": "Scheduled failure and alert",
+      "assertion": "Actionable alert arrives within detection budget",
+      "dimensions": [
+        "environment",
+        "workload",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-043"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 23.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "OPS-03",
+      "family": "OPS",
+      "primary_phase": 23,
+      "required": true,
+      "lanes": [
+        "real_vps",
+        "soak",
+        "qemu"
+      ],
+      "lane_text": "real VPS 24-hour soak plus QEMU faults",
+      "trigger": "Disk and resource pressure",
+      "assertion": "Bounded degradation and owner remediation; no broad destructive cleanup",
+      "dimensions": [
+        "environment",
+        "workload",
+        "coexistence",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-043"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 23.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "OPS-04",
+      "family": "OPS",
+      "primary_phase": 23,
+      "required": true,
+      "lanes": [
+        "real_vps",
+        "soak",
+        "qemu"
+      ],
+      "lane_text": "real VPS 24-hour soak plus QEMU faults",
+      "trigger": "Repeated update and recovery cycles",
+      "assertion": "No accumulating processes leases files or operations",
+      "dimensions": [
+        "environment",
+        "workload",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-043"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 23.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "OPS-05",
+      "family": "OPS",
+      "primary_phase": 23,
+      "required": true,
+      "lanes": [
+        "real_vps",
+        "soak",
+        "qemu"
+      ],
+      "lane_text": "real VPS 24-hour soak plus QEMU faults",
+      "trigger": "Workload retirement",
+      "assertion": "Data disposition explicit; access revoked; public route removed",
+      "dimensions": [
+        "environment",
+        "workload",
+        "data",
+        "coexistence",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-043"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 23.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "OPS-06",
+      "family": "OPS",
+      "primary_phase": 23,
+      "required": true,
+      "lanes": [
+        "real_vps",
+        "soak",
+        "qemu"
+      ],
+      "lane_text": "real VPS 24-hour soak plus QEMU faults",
+      "trigger": "Qualification cleanup",
+      "assertion": "Zero unexplained owned residual resources or spend",
+      "dimensions": [
+        "environment",
+        "workload",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-043"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 23.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "OPS-07",
+      "family": "OPS",
+      "primary_phase": 23,
+      "required": true,
+      "lanes": [
+        "real_vps",
+        "soak",
+        "qemu"
+      ],
+      "lane_text": "real VPS 24-hour soak plus QEMU faults",
+      "trigger": "Minimal fixture on amd64 and arm64",
+      "assertion": "Both identities qualify or required support remains incomplete",
+      "dimensions": [
+        "environment",
+        "workload",
+        "architecture",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-043"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 23.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    },
+    {
+      "id": "OPS-08",
+      "family": "OPS",
+      "primary_phase": 23,
+      "required": true,
+      "lanes": [
+        "real_vps",
+        "soak",
+        "qemu"
+      ],
+      "lane_text": "real VPS 24-hour soak plus QEMU faults",
+      "trigger": "Representative hosted consumer",
+      "assertion": "Generic deployment and update boundary succeeds without product-specific code",
+      "dimensions": [
+        "environment",
+        "workload",
+        "os"
+      ],
+      "requirement_refs": [
+        "STC-P0-043"
+      ],
+      "owner": "unassigned",
+      "owner_notes": "Owning test package or workflow lands with phase 23.",
+      "evidence": "Typed assertion result, operation/target/release identity and retrievable owner receipt; attach redacted diagnostic artifacts as applicable."
+    }
+  ],
+  "unsupported_cells": [
+    {
+      "id": "UNSUP-OS-UBUNTU-2204",
+      "dimension": "os",
+      "value": "ubuntu-22.04",
+      "classification": "compatibility_only",
+      "reason": "Older package baselines; preflight warns; no certification cells exist for 22.04.",
+      "policy_ref": "docs/reference/support-policy.md#target-platforms"
+    },
+    {
+      "id": "UNSUP-OS-UBUNTU-2004",
+      "dimension": "os",
+      "value": "ubuntu-20.04",
+      "classification": "compatibility_only_deprecated",
+      "reason": "End of standard support; preflight warns; no certification.",
+      "policy_ref": "docs/reference/support-policy.md#target-platforms"
+    },
+    {
+      "id": "UNSUP-OS-DEBIAN-12",
+      "dimension": "os",
+      "value": "debian-12",
+      "classification": "unsupported",
+      "reason": "Not exercised; preflight reports an unsupported distribution.",
+      "policy_ref": "docs/reference/support-policy.md#target-platforms"
+    },
+    {
+      "id": "UNSUP-OS-MACOS",
+      "dimension": "os",
+      "value": "macos",
+      "classification": "unsupported",
+      "reason": "macOS nodes are Bridge targets for other ramps, not cloud VPS targets.",
+      "policy_ref": "docs/reference/support-policy.md#target-platforms"
+    },
+    {
+      "id": "UNSUP-OS-WINDOWS",
+      "dimension": "os",
+      "value": "windows",
+      "classification": "unsupported",
+      "reason": "Windows nodes are Bridge targets for other ramps, not cloud VPS targets.",
+      "policy_ref": "docs/reference/support-policy.md#target-platforms"
+    },
+    {
+      "id": "UNSUP-ARCH-OTHER",
+      "dimension": "architecture",
+      "value": "any architecture other than linux/amd64 or linux/arm64",
+      "classification": "unsupported",
+      "reason": "Only linux/amd64 and linux/arm64 have native CLI artifact detection; missing dependencies must produce explicit unsupported results.",
+      "policy_ref": "docs/reference/support-policy.md#target-platforms"
+    },
+    {
+      "id": "UNSUP-WORKLOAD-RESOURCE-HEAVY",
+      "dimension": "workload",
+      "value": "resource-heavy",
+      "classification": "compatibility_only",
+      "reason": "Certified only for the explicit unsupported/insufficient-capacity refusal path, never for a successful deployment.",
+      "policy_ref": "docs/reference/support-policy.md#workload-shapes"
+    },
+    {
+      "id": "UNSUP-REACH-RAW-SSH-INVENTORY",
+      "dimension": "connectivity",
+      "value": "cloud-owned raw SSH inventory",
+      "classification": "unsupported_retired",
+      "reason": "Retired; see the deletion ledger. Direct SSH exists only through the shared bounded reach adapter with explicit transport selection.",
+      "policy_ref": "docs/reference/support-policy.md#providers-and-transports"
+    },
+    {
+      "id": "UNSUP-ENV-PROVIDER-API",
+      "dimension": "environment",
+      "value": "cloud provider APIs (DigitalOcean, Hetzner, AWS, ...)",
+      "classification": "out_of_scope",
+      "reason": "VPS provisioning is the operator's responsibility.",
+      "policy_ref": "docs/reference/support-policy.md#providers-and-transports"
+    },
+    {
+      "id": "UNSUP-ENV-KUBERNETES",
+      "dimension": "environment",
+      "value": "kubernetes or multi-region",
+      "classification": "out_of_scope",
+      "reason": "Rejected alternative until core certification exists.",
+      "policy_ref": "docs/reference/support-policy.md#providers-and-transports"
+    }
+  ]
+}

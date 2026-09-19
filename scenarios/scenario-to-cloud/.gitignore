@@ -1,2 +1,4 @@
 cli/cli
 api/scenario-to-cloud
+api/scenario-to-cloud-api
+cli/scenario-to-cloud

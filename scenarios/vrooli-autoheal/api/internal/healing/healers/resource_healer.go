@@ -4,10 +4,9 @@ package healers
 
 import (
 	"context"
-	"strings"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/healing/strategies"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/healing/strategies"
 )
 
 // ResourceHealer provides healing actions for Vrooli resources.
@@ -38,19 +37,9 @@ func (h *ResourceHealer) Actions(lastResult *checks.Result) []checks.RecoveryAct
 	isStopped := false
 
 	if lastResult != nil {
-		output, ok := lastResult.Details["output"].(string)
-		if ok {
-			lowerOutput := strings.ToLower(output)
-			// Check negative patterns first
-			if strings.Contains(lowerOutput, "not running") ||
-				strings.Contains(lowerOutput, "stopped") ||
-				strings.Contains(lowerOutput, "exited") {
-				isStopped = true
-			} else if strings.Contains(lowerOutput, "running") ||
-				strings.Contains(lowerOutput, "healthy") ||
-				strings.Contains(lowerOutput, "started") {
-				isRunning = true
-			}
+		if running, ok := lastResult.Details["running"].(bool); ok {
+			isRunning = running
+			isStopped = !running
 		}
 		if lastResult.Status == checks.StatusOK {
 			isRunning = true
@@ -60,7 +49,7 @@ func (h *ResourceHealer) Actions(lastResult *checks.Result) []checks.RecoveryAct
 		}
 	}
 
-	return []checks.RecoveryAction{
+	actions := []checks.RecoveryAction{
 		{
 			ID:          "start",
 			Name:        "Start",
@@ -104,6 +93,16 @@ func (h *ResourceHealer) Actions(lastResult *checks.Result) []checks.RecoveryAct
 			Available:   true,
 		},
 	}
+	if resourceCompanionDown(lastResult) {
+		actions = append([]checks.RecoveryAction{{
+			ID:          "respawn-companion",
+			Name:        "Respawn Companion",
+			Description: "Respawn the dead companion for the " + h.resourceName + " resource without restarting the container",
+			Dangerous:   false,
+			Available:   true,
+		}}, actions...)
+	}
+	return actions
 }
 
 // Execute runs a recovery action.
@@ -111,6 +110,8 @@ func (h *ResourceHealer) Execute(ctx context.Context, actionID string, lastResul
 	switch actionID {
 	case "start":
 		return h.strategy.Start(ctx, h.checkID)
+	case "respawn-companion":
+		return h.strategy.RespawnCompanion(ctx, h.checkID)
 	case "stop":
 		return h.strategy.Stop(ctx, h.checkID)
 	case "restart":
@@ -130,4 +131,12 @@ func (h *ResourceHealer) Execute(ctx context.Context, actionID string, lastResul
 			Message:  "Action not recognized",
 		}
 	}
+}
+
+func resourceCompanionDown(lastResult *checks.Result) bool {
+	if lastResult == nil {
+		return false
+	}
+	companion, _ := lastResult.Details["companionDown"].(bool)
+	return companion
 }

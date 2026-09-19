@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Secrets Manager">
+  <rect width="64" height="64" rx="14" fill="#010510"/>
+  <path d="M20 29v-6a12 12 0 0 1 24 0v6" fill="none" stroke="#34d399" stroke-width="6" stroke-linecap="round"/>
+  <rect x="14" y="27" width="36" height="27" rx="6" fill="#0f172a" stroke="#34d399" stroke-width="3"/>
+  <circle cx="32" cy="40" r="4" fill="#f8fafc"/>
+  <path d="M32 44v5" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
+</svg>

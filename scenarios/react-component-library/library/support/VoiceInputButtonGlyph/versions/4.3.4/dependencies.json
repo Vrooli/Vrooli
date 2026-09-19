@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:VoiceInputButtonGlyph",
+  "version": "4.3.4",
+  "resolvedAt": "2026-09-09T00:00:00Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.3",
+      "rank": 1
+    }
+  ]
+}

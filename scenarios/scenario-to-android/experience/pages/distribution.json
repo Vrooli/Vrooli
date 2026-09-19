@@ -1,0 +1,353 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "distribution",
+    "title": "Distribution",
+    "routes": [
+      "/distribution"
+    ],
+    "purpose": "Answer where this artifact may legitimately go. Google's three channels — Play, verified sideload, and ADB internal — have genuinely different identity, packaging, and review requirements, and each reports its own availability independently of the others.",
+    "prd_refs": [
+      "OT-P0-008",
+      "OT-P0-009",
+      "OT-P0-010"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Every channel reports its own availability, and none inherits a sibling's.",
+      "notes": "An APK that installs over ADB proves nothing about Play, which needs a verified developer, an AAB, and review. Presenting the channels as one 'can distribute' verdict is how an owner discovers at upload time that they cannot publish."
+    },
+    {
+      "statement": "A blocked channel names the readiness rung that would unblock it.",
+      "notes": "Channel availability and the readiness ladder are the same underlying probe seen from two directions. A blocked channel that does not point at its rung forces the operator to guess which of six rungs is the one."
+    },
+    {
+      "statement": "ADB internal is presented as host-tethered, never as distribution to a person.",
+      "notes": "It reaches only a device physically trusted by a node the owner controls. Counting it as a distribution channel makes an unverified developer read as having somewhere to ship."
+    },
+    {
+      "statement": "Dated platform obligations are shown with their dates while they are still in the future.",
+      "notes": "Developer verification and the target-API floor are calendar events with published deadlines. A channel that will close on a known date should say so before it closes, not after."
+    },
+    {
+      "statement": "A channel waiting on a Google decision is distinguishable from one waiting on the owner.",
+      "notes": "One is a queue and the other is a task. Rendering them the same produces either idle waiting or pointless re-submission."
+    }
+  ],
+  "elements": [
+    {
+      "id": "channel-list",
+      "role": "list",
+      "name": "Distribution channels",
+      "description": "One entry per channel — Play, verified sideload, ADB internal — each carrying its own availability."
+    },
+    {
+      "id": "channel-availability",
+      "role": "status",
+      "name": "Channel availability",
+      "description": "The closed-vocabulary disposition for one channel, carrying a text label as well as a status colour."
+    },
+    {
+      "id": "channel-requirement",
+      "role": "note",
+      "name": "Channel requirement",
+      "description": "What this specific channel requires — developer verification, AAB packaging, target-API level, or review submission."
+    },
+    {
+      "id": "channel-blocking-rung",
+      "role": "note",
+      "name": "Blocking rung",
+      "description": "The named release-readiness rung that stands between the owner and this channel."
+    },
+    {
+      "id": "channel-next-action",
+      "role": "button",
+      "name": "Next action",
+      "description": "The single action that would advance this channel toward availability."
+    },
+    {
+      "id": "channel-deadline",
+      "role": "note",
+      "name": "Deadline",
+      "description": "The dated platform obligation that will close or has closed this channel, shown while it is still actionable."
+    },
+    {
+      "id": "artifact-identity",
+      "role": "note",
+      "name": "Artifact",
+      "description": "The application id, version code, packaging format, and target API that these channel verdicts describe."
+    },
+    {
+      "id": "promotability-block",
+      "role": "status",
+      "name": "Evidence grade block",
+      "description": "The notice shown when an artifact's supporting evidence cannot gate a release, and the person-reaching channels are therefore closed."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "A verified developer with a compliant artifact. Some channels available, others requiring a further step, each stating which.",
+      "setup": {
+        "route": "/distribution"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "Channel availability is being probed; no channel verdict is asserted yet.",
+      "setup": {
+        "route": "/distribution",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No artifact has been built yet. Explains that channels are evaluated against an artifact rather than showing an empty channel list.",
+      "setup": {
+        "route": "/distribution",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some channel probes succeeded and others could not be reached; unprobed channels are explicitly unknown rather than assumed blocked.",
+      "setup": {
+        "route": "/distribution",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Channel verdicts are from a probe old enough that a verification or signing key may have changed since. Age is shown rather than the data being presented as current.",
+      "setup": {
+        "route": "/distribution",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The channel probe failed. Reported as a failure rather than as every channel being unavailable.",
+      "setup": {
+        "route": "/distribution",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "unverified-developer",
+      "description": "No developer verification. Play and verified sideload are both blocked on the same rung; ADB internal remains available as a host-tethered destination.",
+      "setup": {
+        "route": "/distribution",
+        "query": {
+          "fixture": "unverified-developer"
+        }
+      }
+    },
+    {
+      "id": "verification-pending",
+      "description": "Developer verification is awaiting a Google decision. The dependent channels are neither available nor actionable by the owner.",
+      "setup": {
+        "route": "/distribution",
+        "query": {
+          "fixture": "verification-pending"
+        }
+      }
+    },
+    {
+      "id": "target-api-below-floor",
+      "description": "The artifact targets an API level below the Play floor. Play is blocked on the artifact rather than on the owner's identity, and the required level is named with its dated deadline.",
+      "setup": {
+        "route": "/distribution",
+        "query": {
+          "fixture": "target-api-below-floor"
+        }
+      }
+    },
+    {
+      "id": "play-ready",
+      "description": "Verification, signing, and target API all hold. Play internal testing is available while production still requires a review submission.",
+      "setup": {
+        "route": "/distribution",
+        "query": {
+          "fixture": "play-ready"
+        }
+      }
+    },
+    {
+      "id": "non-promotable-artifact",
+      "description": "The artifact is supported only by evidence that cannot gate a release. Every person-reaching channel is closed on evidence grade rather than on a missing credential.",
+      "setup": {
+        "route": "/distribution",
+        "query": {
+          "fixture": "non-promotable-artifact"
+        }
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "every-channel-reports-its-own-availability",
+      "type": "element-present",
+      "elements": [
+        "channel-list",
+        "channel-availability",
+        "channel-requirement"
+      ],
+      "states": [
+        "default",
+        "unverified-developer",
+        "play-ready",
+        "target-api-below-floor"
+      ],
+      "tier": "machine",
+      "statement": "Every channel displays its own availability and its own requirement, in every state where channels are listed.",
+      "rationale": "S2A-P0-008. A channel is never presented as available because a sibling channel is. One collapsed 'can distribute' verdict is the exact failure this target exists to prevent."
+    },
+    {
+      "id": "blocked-channel-names-its-rung",
+      "type": "element-present",
+      "elements": [
+        "channel-blocking-rung",
+        "channel-next-action"
+      ],
+      "states": [
+        "unverified-developer",
+        "target-api-below-floor",
+        "non-promotable-artifact"
+      ],
+      "tier": "machine",
+      "statement": "Every blocked channel names the readiness rung that would unblock it and offers one next action.",
+      "rationale": "S2A-P0-009. Channel availability and the readiness ladder are the same probe seen from two directions; a block that does not name its rung forces the operator to guess."
+    },
+    {
+      "id": "channels-do-not-inherit-availability",
+      "type": "state-distinct",
+      "states": [
+        "unverified-developer",
+        "play-ready"
+      ],
+      "tier": "machine",
+      "statement": "A board where only the host-tethered channel is available renders distinguishably from one where a person-reaching channel is available.",
+      "rationale": "S2A-P0-008. If these read the same, an unverified developer sees an available channel and concludes they can ship."
+    },
+    {
+      "id": "identity-block-differs-from-artifact-block",
+      "type": "state-distinct",
+      "states": [
+        "unverified-developer",
+        "target-api-below-floor"
+      ],
+      "tier": "machine",
+      "statement": "A channel blocked by the owner's identity renders distinguishably from one blocked by the artifact's own properties.",
+      "rationale": "S2A-P0-008. Verification is a person problem and target API is a build problem; their remedies share nothing, and a single generic 'blocked' makes both undiagnosable."
+    },
+    {
+      "id": "evidence-grade-can-close-every-channel",
+      "type": "element-present",
+      "elements": [
+        "promotability-block"
+      ],
+      "states": [
+        "non-promotable-artifact"
+      ],
+      "tier": "machine",
+      "statement": "An artifact whose evidence cannot gate a release presents an explicit evidence-grade block on this page.",
+      "rationale": "S2A-P0-010. Without it, an insufficiently proven build becomes shippable simply by navigating away from run review."
+    },
+    {
+      "id": "dated-obligations-show-their-date",
+      "type": "element-present",
+      "elements": [
+        "channel-deadline"
+      ],
+      "states": [
+        "unverified-developer",
+        "target-api-below-floor"
+      ],
+      "tier": "machine",
+      "statement": "A channel constrained by a dated platform obligation displays that date.",
+      "rationale": "S2A-P0-002 and S2A-P0-009. Developer verification and the target-API floor are published calendar events; a channel that will close on a known date must say so before it closes."
+    },
+    {
+      "id": "waiting-on-google-differs-from-waiting-on-you",
+      "type": "state-distinct",
+      "states": [
+        "verification-pending",
+        "unverified-developer"
+      ],
+      "tier": "machine",
+      "statement": "A channel awaiting a Google decision renders distinguishably from one awaiting an owner action.",
+      "rationale": "One is a queue and the other is a task. Rendering them alike produces either idle waiting or pointless re-submission."
+    },
+    {
+      "id": "artifact-identity-is-explicit",
+      "type": "element-present",
+      "elements": [
+        "artifact-identity"
+      ],
+      "states": [
+        "default",
+        "play-ready",
+        "target-api-below-floor"
+      ],
+      "tier": "machine",
+      "statement": "Channel verdicts name the artifact they describe, including its packaging format and target API.",
+      "rationale": "Play accepts an AAB and a direct install accepts an APK; a verdict that does not name the format cannot be checked against the channel it claims."
+    },
+    {
+      "id": "adb-internal-is-not-distribution",
+      "type": "custom",
+      "statement": "ADB internal is presented as a host-tethered destination and is never counted toward the number of available distribution channels.",
+      "tier": "manual",
+      "rationale": "S2A-P0-008. It reaches only a device already trusted by a node the owner controls. Counting it would let an unverified developer read as having somewhere to ship, which is the collapsed-verdict failure in a different costume."
+    },
+    {
+      "id": "channel-availability-not-colour-alone",
+      "type": "custom",
+      "statement": "Every channel availability is distinguishable without relying on hue — each carries a shape or text label as well as a status colour.",
+      "tier": "manual",
+      "rationale": "DESIGN.md accessibility floor. This page's whole purpose is distinguishing kinds of 'no' from each other, which cannot depend on colour discrimination."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "channel-list": {
+        "testid": "distribution-channel-list"
+      },
+      "channel-availability": {
+        "testid": "distribution-channel-availability"
+      },
+      "channel-requirement": {
+        "testid": "distribution-channel-requirement"
+      },
+      "channel-blocking-rung": {
+        "testid": "distribution-channel-blocking-rung"
+      },
+      "channel-next-action": {
+        "testid": "distribution-channel-next-action"
+      },
+      "channel-deadline": {
+        "testid": "distribution-channel-deadline"
+      },
+      "artifact-identity": {
+        "testid": "distribution-artifact-identity"
+      },
+      "promotability-block": {
+        "testid": "distribution-promotability-block"
+      }
+    }
+  }
+}

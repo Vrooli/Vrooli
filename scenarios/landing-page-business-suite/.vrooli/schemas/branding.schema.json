@@ -4,7 +4,9 @@
   "title": "Site Branding Configuration",
   "description": "Site-wide branding settings for the landing page",
   "type": "object",
-  "required": ["site_name"],
+  "required": [
+    "site_name"
+  ],
   "properties": {
     "site_name": {
       "type": "string",
@@ -102,6 +104,34 @@
     "smtp_from": {
       "type": "string",
       "description": "From address for outgoing emails"
+    },
+    "legal_name": {
+      "type": "string",
+      "description": "Registered business name shown in the footer, contact page, and legal pages"
+    },
+    "contact_address": {
+      "type": "string",
+      "description": "Postal contact address, one line per address line"
+    },
+    "privacy_policy_markdown": {
+      "type": "string",
+      "maxLength": 100000,
+      "description": "Operator-authored privacy policy in Markdown; omitted means the default template"
+    },
+    "terms_markdown": {
+      "type": "string",
+      "maxLength": 100000,
+      "description": "Operator-authored terms and conditions in Markdown; omitted means the default template"
+    },
+    "privacy_effective_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Privacy policy effective date (YYYY-MM-DD)"
+    },
+    "terms_effective_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Terms and conditions effective date (YYYY-MM-DD)"
     }
   },
   "additionalProperties": false

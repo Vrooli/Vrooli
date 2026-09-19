@@ -1,0 +1,39 @@
+{
+  "id": "mission-control",
+  "title": "Mission Control",
+  "category": "mission-control",
+  "theme": "ground-control",
+  "composition": "orbital-field",
+  "metricIds": [
+    "active_scenarios",
+    "scenario_health",
+    "scenario_health_detail",
+    "swarm_throughput",
+    "swarm_active_agents",
+    "timing_stats",
+    "revenue_mrr",
+    "revenue_today"
+  ],
+  "beats": [
+    {
+      "hero": "active_scenarios",
+      "dwellSeconds": 12
+    },
+    {
+      "hero": "swarm_active_agents",
+      "dwellSeconds": 12
+    },
+    {
+      "hero": "scenario_health_detail",
+      "dwellSeconds": 12
+    },
+    {
+      "hero": "timing_stats",
+      "dwellSeconds": 12
+    }
+  ],
+  "bind": {
+    "running": "active_scenarios",
+    "healthy": "scenario_health"
+  }
+}

@@ -1,0 +1,121 @@
+{
+  "_metadata": {
+    "module": "grocery-and-inventory",
+    "description": "Derived shopping list, honest package and unknown states, event-based stock, purchases, batches, and consumption.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "GROC-001",
+      "title": "The shopping list is derived and transparent",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "The scenario shall derive the shopping list from an explicitly selected plan or range and the current inventory policy, showing total planned need, stock considered, missing amount, selected package plan, and estimated checkout while displaying unknown amount, unit conversion, package size, or price separately.",
+      "tags": [
+        "groceries",
+        "derivation",
+        "unknown"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: equivalent units combine only through valid mappings and unresolved quantities stay visibly unresolved; a row can show known needed mass with an unknown package count (ACT-023)."
+        }
+      ]
+    },
+    {
+      "id": "GROC-002",
+      "title": "Package counts and overrides are honest",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "The scenario shall round package counts upward where appropriate, retain a user purchase override with a mismatch badge when plan need later changes, keep manual grocery items distinct from plan-derived requirements, and treat Already have as an editable stock assertion stronger than a shopping checkmark.",
+      "tags": [
+        "packages",
+        "overrides",
+        "stock"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: replanning cannot delete a manual item, and an override retains its mismatch badge after the derived need changes (ACT-023)."
+        }
+      ]
+    },
+    {
+      "id": "GROC-003",
+      "title": "Stock is an idempotent event ledger",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
+      "category": "storage",
+      "criticality": "P0",
+      "description": "The scenario shall represent stock through events for purchase, assertion, correction, preparation consumption, batch creation, portion consumption, waste, transfer, and reversal, each with an idempotency key, and the current projection shall be recomputable and testable.",
+      "tags": [
+        "inventory",
+        "ledger",
+        "idempotency"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: retrying a committed stock operation does not change event counts or projections, and the projection recomputes from the ledger (ACT-024)."
+        }
+      ]
+    },
+    {
+      "id": "GROC-004",
+      "title": "Future reservations never consume on-hand stock",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "While a plan reserves an ingredient for future cooking, the scenario shall not subtract it from on-hand stock, and the planner rebuilding a plan shall exclude its own replaced reservations so repeated replans do not appear to run out of stock.",
+      "tags": [
+        "reservations",
+        "replan",
+        "stock"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: FIX-03 confirmation consumes raw ingredients once, later portions reduce the prepared batch only, and a cancel releases a reservation without erasing prepared food (ACT-048, ACT-049)."
+        }
+      ]
+    },
+    {
+      "id": "GROC-005",
+      "title": "Checkout, purchase, and consumption are distinct",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "Checking a shopping line shall update only checklist state; an explicit purchase action shall preview quantities and prices and create idempotent purchase and stock events exactly once, and receipt parsing shall stage review proposals without silently creating consumption.",
+      "tags": [
+        "checkout",
+        "purchase",
+        "idempotency"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: checking a line does not alter purchased inventory or recorded spend; confirming and retrying a purchase applies once (ACT-025, ACT-050)."
+        }
+      ]
+    }
+  ]
+}

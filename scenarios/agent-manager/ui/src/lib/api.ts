@@ -1,7 +1,13 @@
 import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
 
+// One scenario-owned resolver keeps REST and Connect clients on the same
+// proxy-aware base URL without each feature re-implementing environment logic.
+export function resolveAgentManagerApiBase(appendSuffix = false): string {
+  return resolveApiBase({ appendSuffix });
+}
+
 // Simple! Just specify if you want the /api/v1 suffix
-const API_BASE = resolveApiBase({ appendSuffix: true });
+const API_BASE = resolveAgentManagerApiBase(true);
 
 export async function fetchHealth() {
   const url = buildApiUrl("/health", { baseUrl: API_BASE });

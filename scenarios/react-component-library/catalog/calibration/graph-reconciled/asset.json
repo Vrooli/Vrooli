@@ -1,0 +1,10 @@
+{
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "calibration.graph-reconciled",
+    "name": "Graph reconciliation calibration",
+    "kind": "component",
+    "targets": ["react-vite"]
+  }
+}

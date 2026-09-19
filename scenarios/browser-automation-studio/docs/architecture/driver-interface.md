@@ -87,6 +87,16 @@ The browser-automation-studio implements a **pluggable driver architecture** tha
 
 ## Interface Definitions
 
+### Target-owned application attachment
+
+Cross-platform validation uses one `AppTarget` descriptor. Its `target_kind`
+selects an admitted-URL policy (`electron` or `android-webview`); BAS attaches
+to the target-owned renderer and never launches the application or opens a
+debugging port. The executor calls the resolver seam for every scenario
+navigation, so adding a WebView kind does not create a parallel target field.
+The attach also requires the matching immutable `ValidationContext` and
+isolation lease.
+
 ### VisionNavigator Interface
 
 Each navigator implements the `VisionNavigator` interface:

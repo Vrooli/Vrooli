@@ -8,8 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/elevation"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // NTPCheck verifies time synchronization via NTP.
@@ -64,7 +65,7 @@ func (c *NTPCheck) Run(ctx context.Context) checks.Result {
 
 	// Only supported on Linux with systemd
 	if runtime.GOOS != "linux" {
-		result.Status = checks.StatusOK
+		result.Status = checks.StatusNotApplicable
 		result.Message = "NTP check not applicable on this platform"
 		result.Details["platform"] = runtime.GOOS
 		return result
@@ -158,21 +159,9 @@ func (c *NTPCheck) getTimeInfo(ctx context.Context) (map[string]string, error) {
 
 // RecoveryActions returns available recovery actions for NTP check
 func (c *NTPCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryAction {
-	ntpEnabled := true
-	if lastResult != nil {
-		if enabled, ok := lastResult.Details["ntpEnabled"].(bool); ok {
-			ntpEnabled = enabled
-		}
-	}
+	_ = lastResult
 
 	return []checks.RecoveryAction{
-		{
-			ID:          "enable-ntp",
-			Name:        "Enable NTP",
-			Description: "Enable NTP time synchronization via timedatectl",
-			Dangerous:   false,
-			Available:   !ntpEnabled,
-		},
 		{
 			ID:          "force-sync",
 			Name:        "Force Sync",
@@ -194,12 +183,10 @@ func (c *NTPCheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 
 	var output []byte
 	var err error
+	var outcome elevation.Outcome
 	switch actionID {
-	case "enable-ntp":
-		output, err = c.executor.CombinedOutput(ctx, "sudo", "timedatectl", "set-ntp", "true")
-		result.Message = "Enabling NTP synchronization"
 	case "force-sync":
-		output, err = c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", "systemd-timesyncd")
+		output, outcome, err = checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "restart", "systemd-timesyncd")
 		result.Message = "Restarting systemd-timesyncd"
 	default:
 		result.Success = false
@@ -207,6 +194,7 @@ func (c *NTPCheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 		result.Duration = time.Since(start)
 		return result
 	}
+	result.Elevation = &outcome
 
 	result.Output = string(output)
 

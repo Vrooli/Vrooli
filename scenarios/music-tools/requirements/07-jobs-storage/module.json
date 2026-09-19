@@ -1,0 +1,78 @@
+{
+  "_metadata": {
+    "description": "Server-owned async jobs and a bounded derived-artifact budget.",
+    "last_validated_at": "2026-09-19T05:29:54-04:00",
+    "module": "jobs-storage",
+    "prd_ref": "OT-P0-005",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MUS-P0-014",
+      "title": "Jobs survive client disconnect",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Long operations are server-owned jobs with durable status and progress; cancelling a client does not abort the run, and every job ends in success or an explicit, recoverable failure classification.",
+      "tags": [
+        "jobs",
+        "durability"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/jobs/manager_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Durable job lifecycle is covered by the shipped job manager tests"
+        }
+      ]
+    },
+    {
+      "id": "MUS-P0-015",
+      "title": "Derived artifacts are bounded and evictable",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Stems and other derived audio are produced on demand and held under a declared storage budget with least-recently-used eviction. There is no operation that materialises stems for an entire library, because doing so would exceed available disk by roughly an order of magnitude.",
+      "tags": [
+        "storage",
+        "budget"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/storage/storage_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Storage budgets and eviction behavior are covered by the shipped storage tests"
+        }
+      ]
+    },
+    {
+      "id": "MUS-P0-016",
+      "title": "Outputs flow through the shared blob seam",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Generated and derived audio is written through the shared api-core BlobStore seam with ownership metadata, rather than to ad-hoc filesystem paths.",
+      "tags": [
+        "storage",
+        "seam"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/storage/storage_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Blob persistence and ownership behavior are covered by the shipped storage tests"
+        }
+      ]
+    }
+  ]
+}

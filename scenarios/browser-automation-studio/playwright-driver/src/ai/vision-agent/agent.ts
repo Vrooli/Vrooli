@@ -355,7 +355,8 @@ export function createVisionAgent(
             conversationHistory,
             stepNumber,
             navConfig.prompt,
-            elementLabels
+            elementLabels,
+            screenshot
           );
 
           // PERFORMANCE: Trim old conversation history to prevent context overflow
@@ -510,6 +511,12 @@ export function createVisionAgent(
             continue;
           }
 
+          // Enforce at the executor boundary, never by trusting the model prompt.
+          if (navConfig.effectPolicy === 'read_only' && analysisResult.action.type !== 'wait') {
+            status = 'failed';
+            error = `effect_policy: ${analysisResult.action.type} is not observational`;
+            break;
+          }
           // ACT: Execute the action
           const executionResult = await deps.actionExecutor.execute(
             navConfig.page,
@@ -643,7 +650,20 @@ export function createVisionAgent(
         abortController = null;
       }
 
+      let verifiedSuccess = false;
+      let extractedData: Record<string, string[]> = {};
+      let verificationError: string | undefined;
+      if (status === 'completed') {
+        try {
+          const observed = await observeTaskResult(navConfig);
+          verifiedSuccess = observed.verifiedSuccess;
+          extractedData = observed.extractedData;
+        } catch (e) {
+          verificationError = e instanceof Error ? e.message : String(e);
+        }
+      }
       const result: NavigationResult = {
+        verifiedSuccess, extractedData, verificationError,
         navigationId: navConfig.navigationId,
         status,
         totalSteps: stepNumber,
@@ -655,7 +675,8 @@ export function createVisionAgent(
       };
 
       deps.logger.info('Navigation completed', {
-        ...result,
+        navigationId: result.navigationId, status: result.status, totalSteps: result.totalSteps,
+        verifiedSuccess: result.verifiedSuccess, verificationError: result.verificationError,
       });
 
       return result;
@@ -713,7 +734,8 @@ function updateConversationHistory(
   history: ConversationMessageInterface[],
   stepNumber: number,
   prompt: string,
-  elementLabels: ElementLabel[]
+  elementLabels: ElementLabel[],
+  screenshot: Buffer
 ): void {
   // Add system prompt on first step
   if (stepNumber === 1) {
@@ -734,6 +756,7 @@ function updateConversationHistory(
   history.push({
     role: 'user',
     content: `Current state (step ${stepNumber}):\n\n${elementContext}\n\nWhat action should I take next to achieve the goal?`,
+    screenshot,
   });
 }
 
@@ -999,4 +1022,42 @@ function buildActionContext(
   }
 
   return context;
+}
+
+/** Deterministic final-page observations; never executes the recorded task again. */
+export async function observeTaskResult(config: Pick<NavigationConfig, 'page' | 'postconditions' | 'extraction'>): Promise<{verifiedSuccess: boolean; extractedData: Record<string, string[]>}> {
+  const conditions = config.postconditions ?? [];
+  const extraction = config.extraction ?? [];
+  if (conditions.length > 16 || extraction.length > 16) throw new Error('task contract exceeds observation budget');
+  for (const condition of conditions) {
+    const locator = config.page.locator(condition.selector);
+    const count = await locator.count();
+    const mode = condition.mode;
+    let valid = false;
+    if (mode === 'exists' || mode === 'ASSERTION_MODE_EXISTS') valid = count > 0;
+    else if (mode === 'count_equals') valid = /^\d+$/.test(condition.expected ?? '') && count === Number(condition.expected);
+    else if (mode === 'text_equals' || mode === 'text_contains') {
+      const text = count > 0 ? await locator.first().textContent({timeout: 1000}) ?? '' : '';
+      valid = count > 0 && (mode === 'text_equals' ? text === condition.expected : text.includes(condition.expected ?? ''));
+    }
+    if (!valid) throw new Error(`postcondition_failed: ${condition.selector}`);
+  }
+  const extractedData: Record<string, string[]> = Object.create(null);
+  let bytes = 0;
+  for (const spec of extraction) {
+    if (!spec.name || Object.hasOwn(extractedData, spec.name)) throw new Error('invalid extraction name');
+    const locator = config.page.locator(spec.selector);
+    const limit = Math.min(100, Math.max(1, spec.limit || 10));
+    const count = Math.min(await locator.count(), limit);
+    const values: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const item = locator.nth(i);
+      const value = (spec.attribute ? await item.getAttribute(spec.attribute, {timeout: 1000}) : await item.textContent({timeout: 1000})) ?? '';
+      bytes += Buffer.byteLength(value);
+      if (bytes > 32768) throw new Error('extraction exceeds 32768 byte budget');
+      values.push(value);
+    }
+    extractedData[spec.name] = values;
+  }
+  return {verifiedSuccess: conditions.length > 0, extractedData};
 }

@@ -10,6 +10,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import * as http from 'node:http'
+import { gzipSync } from 'node:zlib'
 import express from 'express'
 import type { Server } from 'node:http'
 import {
@@ -26,8 +27,10 @@ import { mockRequest, mockResponse } from '../helpers/mock-request.js'
 /** Start an Express app with the embedded router mounted at /embedded and return server + port */
 async function startEmbeddedServer(
   options: Parameters<typeof createEmbeddedProxyRouter>[0] = {},
+  bodyParser?: express.RequestHandler,
 ): Promise<{ server: Server; port: number }> {
   const app = express()
+  if (bodyParser) app.use(bodyParser)
   app.use('/embedded', createEmbeddedProxyRouter(options))
 
   return new Promise((resolve) => {
@@ -42,6 +45,21 @@ async function startEmbeddedServer(
 /** Start a tiny upstream HTTP server that echoes back request info */
 async function startUpstreamServer(): Promise<{ server: Server; port: number }> {
   const server = http.createServer((req, res) => {
+    if (req.url === '/agent_manager.v1.AgentManagerService/GetEffortBoard') {
+      const chunks: Buffer[] = []
+      req.on('data', (chunk: Buffer) => chunks.push(chunk))
+      req.on('end', () => {
+        const body = Buffer.concat(chunks)
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          method: req.method,
+          body: body.toString('base64'),
+          byteLength: body.length,
+          headers: req.headers,
+        }))
+      })
+      return
+    }
     if (req.url === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ ok: true }))
@@ -79,7 +97,12 @@ async function startUpstreamServer(): Promise<{ server: Server; port: number }> 
 async function makeRequest(
   port: number,
   path: string,
-  options: { method?: string; headers?: Record<string, string> } = {},
+  options: {
+    method?: string
+    headers?: Record<string, string>
+    body?: string | Buffer
+    writeBody?: (req: http.ClientRequest) => void
+  } = {},
 ): Promise<{ status: number; body: any; headers: http.IncomingHttpHeaders }> {
   return new Promise((resolve, reject) => {
     const req = http.request(
@@ -105,7 +128,8 @@ async function makeRequest(
       req.destroy()
       reject(new Error('Test request timeout'))
     })
-    req.end()
+    if (options.writeBody) options.writeBody(req)
+    else req.end(options.body)
   })
 }
 
@@ -277,6 +301,7 @@ describe('createEmbeddedProxyRouter', () => {
   afterEach(async () => {
     if (embedded?.server) await closeServer(embedded.server)
     if (upstream?.server) await closeServer(upstream.server)
+    delete process.env.BODY_PROXY_UI_PORT
   })
 
   describe('GET /:scenario/external-url', () => {
@@ -331,6 +356,124 @@ describe('createEmbeddedProxyRouter', () => {
   })
 
   describe('proxy passthrough (USE /:scenario)', () => {
+    it.each(['length', 'chunked', 'gzip'])('forwards parsed Connect JSON with correct UTF-8 framing (%s)', async (framing) => {
+      upstream = await startUpstreamServer()
+      process.env.BODY_PROXY_UI_PORT = String(upstream.port)
+      embedded = await startEmbeddedServer({ timeoutMs: 200 }, express.json())
+      const source = '{\n  "effortRef": "effort:café-東京-🚀", "pageSize": 3\n}\n'
+      const expected = Buffer.from('{"effortRef":"effort:café-東京-🚀","pageSize":3}')
+      const input = framing === 'gzip' ? gzipSync(source) : Buffer.from(source)
+
+      const res = await makeRequest(embedded.port, '/embedded/body-proxy/agent_manager.v1.AgentManagerService/GetEffortBoard', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'connect-protocol-version': '1',
+          ...(framing === 'chunked'
+            ? { 'transfer-encoding': 'chunked' }
+            : { 'content-length': String(input.length) }),
+          ...(framing === 'gzip' ? { 'content-encoding': 'gzip' } : {}),
+        },
+        body: input,
+      })
+
+      expect(res.status).toBe(200)
+      expect(res.body.method).toBe('POST')
+      expect(res.body.body).toBe(expected.toString('base64'))
+      expect(res.body.byteLength).toBe(expected.length)
+      expect(res.body.headers['content-length']).toBe(String(expected.length))
+      expect(res.body.headers['transfer-encoding']).toBeUndefined()
+      expect(res.body.headers['content-encoding']).toBeUndefined()
+      expect(res.body.headers['connect-protocol-version']).toBe('1')
+    })
+
+    it.each(['raw', 'text'])('forwards a retained %s parser body without JSON coercion', async (parser) => {
+      upstream = await startUpstreamServer()
+      process.env.BODY_PROXY_UI_PORT = String(upstream.port)
+      const contentType = parser === 'raw' ? 'application/octet-stream' : 'text/plain'
+      const source = parser === 'raw' ? Buffer.from([0, 255, 128, 13, 10]) : Buffer.from('café 東京 🚀')
+      embedded = await startEmbeddedServer({}, parser === 'raw' ? express.raw() : express.text())
+
+      const res = await makeRequest(embedded.port, '/embedded/body-proxy/agent_manager.v1.AgentManagerService/GetEffortBoard', {
+        method: 'PUT',
+        headers: { 'content-type': contentType, 'content-length': String(source.length) },
+        body: source,
+      })
+
+      expect(res.status).toBe(200)
+      expect(res.body.method).toBe('PUT')
+      expect(res.body.body).toBe(source.toString('base64'))
+      expect(res.body.headers['content-length']).toBe(String(source.length))
+    })
+
+    it.each(['missing', 'circular'])('rejects a consumed %s body before contacting upstream', async (representation) => {
+      upstream = await startUpstreamServer()
+      const received = vi.fn()
+      upstream.server.on('request', received)
+      process.env.BODY_PROXY_UI_PORT = String(upstream.port)
+      embedded = await startEmbeddedServer({}, (req, res, next) => {
+        express.json()(req, res, (error) => {
+          if (error) return next(error)
+          if (representation === 'missing') req.body = undefined
+          else req.body.circular = req.body
+          next()
+        })
+      })
+
+      const res = await makeRequest(embedded.port, '/embedded/body-proxy/agent_manager.v1.AgentManagerService/GetEffortBoard', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'content-length': '2' },
+        body: '{}',
+      })
+
+      expect(res.status).toBe(400)
+      expect(res.body.error).toBe('Cannot forward consumed request body')
+      expect(received).not.toHaveBeenCalled()
+    })
+
+    it('does not invent a body when the JSON parser receives an empty request', async () => {
+      upstream = await startUpstreamServer()
+      process.env.BODY_PROXY_UI_PORT = String(upstream.port)
+      embedded = await startEmbeddedServer({}, express.json())
+
+      const res = await makeRequest(embedded.port, '/embedded/body-proxy/agent_manager.v1.AgentManagerService/GetEffortBoard', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'content-length': '0' },
+      })
+
+      expect(res.status).toBe(200)
+      expect(res.body.byteLength).toBe(0)
+      expect(res.body.body).toBe('')
+    })
+
+    it('streams binary request chunks before the client has finished uploading', async () => {
+      upstream = await startUpstreamServer()
+      process.env.BODY_PROXY_UI_PORT = String(upstream.port)
+      embedded = await startEmbeddedServer({}, express.json())
+      const first = Buffer.from([0, 255, 128, 13, 10])
+      const second = Buffer.from([254, 1, 2, 0])
+      let firstObserved: Buffer | undefined
+      const res = await makeRequest(embedded.port, '/embedded/body-proxy/agent_manager.v1.AgentManagerService/GetEffortBoard', {
+        method: 'POST',
+        headers: { 'content-type': 'application/octet-stream' },
+        writeBody: (request) => {
+          upstream.server.once('request', (incoming) => {
+            incoming.once('data', (chunk: Buffer) => {
+              firstObserved = chunk
+              request.end(second)
+            })
+          })
+          request.write(first)
+        },
+      })
+
+      expect(res.status).toBe(200)
+      expect(firstObserved).toEqual(first)
+      expect(res.body.body).toBe(Buffer.concat([first, second]).toString('base64'))
+      expect(res.body.headers['transfer-encoding']).toBe('chunked')
+      expect(res.body.headers['content-length']).toBeUndefined()
+    })
+
     it('proxies GET request to upstream and returns response', async () => {
       upstream = await startUpstreamServer()
       process.env.PROXY_TARGET_UI_PORT = String(upstream.port)

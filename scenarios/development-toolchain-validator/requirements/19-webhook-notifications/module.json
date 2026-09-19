@@ -1,0 +1,18 @@
+{
+  "module_id": "MOD-P2-003",
+  "prd_ref": "OT-P2-003",
+  "priority": "P2",
+  "title": "Webhook Notifications",
+  "description": "Notify on verdict regressions, new stale flags, or convergence milestones via configurable webhooks.",
+  "requirements": [
+    {
+      "id": "REQ-P2-003",
+      "prd_ref": "OT-P2-003",
+      "title": "Webhook config + event dispatcher",
+      "description": "Per-event-type webhook subscriptions (URL + secret). Reuses event stream from OT-P1-004. Includes retry with backoff and dead-letter on persistent failure.",
+      "category": "integration",
+      "status": "planned",
+      "validation": []
+    }
+  ]
+}

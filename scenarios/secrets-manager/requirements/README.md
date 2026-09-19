@@ -3,15 +3,20 @@
 This folder tracks the canonical requirements that back the minimal PRD. Keep the list focused, organized, and easy to audit.
 
 ## Layout
-- `index.json` – single registry file (no submodules yet). Each entry maps to an Operational Target from `PRD.md` via `prd_ref`.
+- `index.json` – imports the authoritative requirement modules.
+- `01-operational-targets/module.json` – evidence-backed claims mapped directly to the `OT-P*-###` targets in `PRD.md`.
+
+An operational target is the PRD outcome that a requirement proves; every P0/P1 target must link to at least one focused requirement.
+
+Auto-sync records live `[REQ:ID]` test evidence after a comprehensive Test Genie run. It is evidence capture, not permission to hand-edit requirement status.
 - `README.md` – this guide. Add additional docs here if we later split into modules.
 
 ## Editing Workflow
-1. Open `requirements/index.json` and add/update requirement objects.
-2. Use stable IDs (`SEC-<DOMAIN>-###`). Update the `prd_ref` to match the relevant OT line.
-3. For P0/P1 requirements, add placeholder validation entries with `"status": "planned"` and a reference to the expected test file. Empty `validation` arrays fail schema validation for critical requirements. For P2 requirements, empty arrays are allowed.
-4. When adding tests, annotate assertions with `[REQ:SEC-XXX-###]` so coverage reporting can tie results back.
-5. Keep the count to a few dozen focused requirements—combine smaller behaviours when possible to avoid noise.
+1. Add or update a focused requirement in the relevant imported module, using a stable `SEC-<DOMAIN>-###` ID and an exact `OT-P*-###` `prd_ref`.
+2. For P0/P1 requirements, cite a test that actually proves the claim; P2 requirements may remain planned without validation until work begins.
+3. When adding tests, annotate them with `[REQ:SEC-XXX-###]` so the full Test Genie run can record live evidence.
+4. `auto_sync_enabled` lets Test Genie update its evidence snapshot after a comprehensive successful suite; do not hand-edit that snapshot or mark a requirement complete without passing evidence.
+5. Keep the count focused—combine smaller behaviors when they form one falsifiable claim.
 
 ## Validation & Reporting
 - Run `make test` (or `vrooli scenario test secrets-manager`) after modifying requirements so phased tests remain in sync.

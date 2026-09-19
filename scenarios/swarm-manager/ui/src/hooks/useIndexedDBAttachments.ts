@@ -55,14 +55,14 @@ function openDB(dbName: string): Promise<IDBDatabase> {
       }
     };
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(req.error ?? new Error(`Failed to open IndexedDB ${dbName}`));
   });
 }
 
 async function loadFromDB(dbName: string): Promise<CaptureAttachment[]> {
   try {
     const db = await openDB(dbName);
-    return new Promise((resolve) => {
+    return await new Promise((resolve) => {
       const tx = db.transaction(STORE_NAME, "readonly");
       const store = tx.objectStore(STORE_NAME);
       const req = store.getAll();
@@ -144,7 +144,7 @@ export function useIndexedDBAttachments(options: UseIndexedDBAttachmentsOptions)
 
   // Load persisted attachments from IndexedDB on mount.
   useEffect(() => {
-    loadFromDB(dbName).then((restored) => {
+    void loadFromDB(dbName).then((restored) => {
       if (restored.length > 0) {
         setAttachments(restored);
       }
@@ -158,7 +158,7 @@ export function useIndexedDBAttachments(options: UseIndexedDBAttachmentsOptions)
 
     if (persistTimerRef.current !== null) clearTimeout(persistTimerRef.current);
     persistTimerRef.current = setTimeout(() => {
-      saveToDB(dbName, attachments);
+      void saveToDB(dbName, attachments);
     }, persistDebounceMs);
     return () => {
       if (persistTimerRef.current !== null) clearTimeout(persistTimerRef.current);
@@ -174,7 +174,7 @@ export function useIndexedDBAttachments(options: UseIndexedDBAttachmentsOptions)
       }
       // Fire-and-forget — we can't await in beforeunload, but IDB transactions
       // started synchronously before the page tears down usually complete.
-      saveToDB(dbName, attachmentsRef.current);
+      void saveToDB(dbName, attachmentsRef.current);
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
@@ -198,7 +198,7 @@ export function useIndexedDBAttachments(options: UseIndexedDBAttachmentsOptions)
 
   const clearAll = useCallback(() => {
     setAttachments([]);
-    clearDB(dbName);
+    void clearDB(dbName);
   }, [dbName]);
 
   const getFiles = useCallback((): File[] => {

@@ -1,0 +1,171 @@
+{
+  "_metadata": {
+    "description": "Requirements for rate-aware autonomous disk recovery and its typed evidence surfaces.",
+    "last_validated_at": "2026-09-02T21:38:47-04:00",
+    "module": "disk-recovery",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "CLN-P0-101",
+      "title": "Autonomous recovery admits safe and regenerable tiers",
+      "status": "in_progress",
+      "criticality": "P0",
+      "description": "When a pressure report starts recovery, the controller MUST admit safe and proven regenerable providers and MUST withhold conditional and forbidden providers without their required authority.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "internal/orchestrator/pressure_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Pressure gate tests cover autonomous tier selection."
+        }
+      ]
+    },
+    {
+      "id": "CLN-P0-102",
+      "title": "Recovery restores a free-space target",
+      "status": "in_progress",
+      "criticality": "P0",
+      "description": "The recovery controller MUST run bounded batches, re-measure free space, and stop when the configured free-space target or an authority boundary is reached.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "internal/orchestrator/pressure_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Controller tests cover target, budget, and batch termination."
+        }
+      ]
+    },
+    {
+      "id": "CLN-P0-103",
+      "title": "Recovery runs hold a host lock",
+      "status": "in_progress",
+      "criticality": "P0",
+      "description": "A recovery run MUST hold the host recovery lock while deleting and a concurrent run MUST report the held lock without deleting.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "internal/recoverylock/lock_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Advisory lock ownership is tested across competing holders."
+        }
+      ]
+    },
+    {
+      "id": "CLN-P0-104",
+      "title": "Recovery evidence uses typed integer fields",
+      "status": "in_progress",
+      "criticality": "P0",
+      "description": "The ledger MUST store run and action byte counts, file counts, durations, free-space changes, authority, and terminal reason in typed columns.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "internal/orchestrator/sqlite_store_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Ledger persistence tests verify typed recovery rows."
+        }
+      ]
+    },
+    {
+      "id": "CLN-P0-105",
+      "title": "Governed roots carry regenerability proof",
+      "status": "in_progress",
+      "criticality": "P0",
+      "description": "A regenerable root MUST declare a recreating producer, exact containment, and no active lease before autonomous recovery may select it.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "internal/providers/registry_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Built-in root declarations and proof metadata are validated."
+        }
+      ]
+    },
+    {
+      "id": "CLN-P0-106",
+      "title": "Owner budgets authorize R2 cleanup",
+      "status": "in_progress",
+      "criticality": "P0",
+      "description": "An owner storage entry MUST be regenerable and declare an age or byte budget before the recovery controller may use it without a second approval.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "handlers/cleanup/connect_handler_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Owner-provider linkage and budget authority are tested."
+        }
+      ]
+    },
+    {
+      "id": "CLN-P0-107",
+      "title": "Pressure reports carry writer rate",
+      "status": "in_progress",
+      "criticality": "P0",
+      "description": "Pressure reports MUST carry fill rate, hot writers, and trigger, and the shared classifier MUST determine the pressure band for every sender.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "../../internal/hostpressure/reclaim_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Shared pressure contract and classification tests pass."
+        }
+      ]
+    },
+    {
+      "id": "CLN-P0-108",
+      "title": "Writer snapshots identify hot roots",
+      "status": "in_progress",
+      "criticality": "P0",
+      "description": "The rate sensor MUST persist one writer snapshot per governed root and MUST emit a named hot-writer event after a complete sensor window above the configured limit.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "../../system-monitor/api/internal/services/fill_rate_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Rate and hot-writer tests cover snapshot deltas and event naming."
+        }
+      ]
+    },
+    {
+      "id": "CLN-P0-109",
+      "title": "Standing approvals are host-local",
+      "status": "in_progress",
+      "criticality": "P0",
+      "description": "A conditional recovery provider MUST require a named standing approval whose host identity and subject constraints match the current host.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "../../internal/storageapproval/provider_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Setup discovery rejects host mismatch and applies only selected approvals."
+        }
+      ]
+    },
+    {
+      "id": "CLN-P0-110",
+      "title": "Recovery emits typed events and a work record",
+      "status": "in_progress",
+      "criticality": "P0",
+      "description": "Each recovery run MUST emit started and completed events and MUST append one work-record journal note after reclaimed bytes are confirmed.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "internal/orchestrator/pressure_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Recovery journal append and failure isolation are tested."
+        }
+      ]
+    }
+  ]
+}

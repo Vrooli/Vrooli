@@ -1,0 +1,920 @@
+//nolint:goconst // test data deliberately reuses stable manifest fixtures.
+package resources
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
+	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"slices"
+	"strconv"
+	"strings"
+	"testing"
+
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
+	hostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
+	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
+)
+
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=5 | LAST: 2026-04-13
+
+func TestStatusForResourceReportsUnavailableCommand(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	controller := NewController(root, home)
+
+	item := Resource{
+		Name: "missing",
+		Path: filepath.Join(root, "resources", "missing"),
+	}
+
+	status, err := controller.statusForResource(item, true)
+	if err != nil {
+		t.Fatalf("statusForResource: %v", err)
+	}
+	if status.StatusCode != StatusCodeUnavailable {
+		t.Fatalf("status.StatusCode = %q, want %q", status.StatusCode, StatusCodeUnavailable)
+	}
+	if status.ProbeError == "" {
+		t.Fatal("expected probe error for unavailable status command")
+	}
+}
+
+func TestStatusForResourceCategorizesProbeFailures(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	controller := NewController(root, home)
+	writeExecutableOnPath(t, "resource-fixture", shelltest.BashShebang()+"exit 0\n")
+
+	originalRun := runCommandResource
+	t.Cleanup(func() {
+		runCommandResource = originalRun
+	})
+
+	item := Resource{
+		Name:         "fixture",
+		Path:         filepath.Join(root, "resources", "fixture"),
+		Exists:       true,
+		DeclaresCLI:  true,
+		CLIInstalled: true,
+	}
+
+	t.Run("timeout", func(t *testing.T) {
+		runCommandResource = func(ctx context.Context, cmd *exec.Cmd) commandResult {
+			return commandResult{err: context.DeadlineExceeded}
+		}
+
+		status, err := controller.statusForResource(item, true)
+		if err != nil {
+			t.Fatalf("statusForResource: %v", err)
+		}
+		if status.StatusCode != StatusCodeTimeout {
+			t.Fatalf("status.StatusCode = %q, want %q", status.StatusCode, StatusCodeTimeout)
+		}
+	})
+
+	t.Run("command error", func(t *testing.T) {
+		runCommandResource = func(ctx context.Context, cmd *exec.Cmd) commandResult {
+			return commandResult{err: errors.New("exit status 7")}
+		}
+
+		status, err := controller.statusForResource(item, true)
+		if err != nil {
+			t.Fatalf("statusForResource: %v", err)
+		}
+		if status.StatusCode != StatusCodeCommandError {
+			t.Fatalf("status.StatusCode = %q, want %q", status.StatusCode, StatusCodeCommandError)
+		}
+		if !strings.Contains(status.ProbeError, "exit status 7") {
+			t.Fatalf("status.ProbeError = %q", status.ProbeError)
+		}
+	})
+
+	t.Run("invalid payload", func(t *testing.T) {
+		runCommandResource = func(ctx context.Context, cmd *exec.Cmd) commandResult {
+			return commandResult{output: []byte("not-json\n")}
+		}
+
+		status, err := controller.statusForResource(item, true)
+		if err != nil {
+			t.Fatalf("statusForResource: %v", err)
+		}
+		if status.StatusCode != StatusCodeInvalidStatusPayload {
+			t.Fatalf("status.StatusCode = %q, want %q", status.StatusCode, StatusCodeInvalidStatusPayload)
+		}
+	})
+}
+
+func TestStatusForResourceParsesStructuredPayload(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	controller := NewController(root, home)
+	writeExecutableOnPath(t, "resource-fixture", shelltest.BashShebang()+"exit 0\n")
+
+	originalRun := runCommandResource
+	t.Cleanup(func() {
+		runCommandResource = originalRun
+	})
+	runCommandResource = func(ctx context.Context, cmd *exec.Cmd) commandResult {
+		return commandResult{output: []byte(`{"installed":true,"running":true,"healthy":true,"message":"healthy"}`)}
+	}
+
+	item := Resource{
+		Name:         "fixture",
+		Path:         filepath.Join(root, "resources", "fixture"),
+		Exists:       true,
+		DeclaresCLI:  true,
+		CLIInstalled: true,
+	}
+
+	status, err := controller.statusForResource(item, true)
+	if err != nil {
+		t.Fatalf("statusForResource: %v", err)
+	}
+	if status.StatusCode != StatusCodeOK {
+		t.Fatalf("status.StatusCode = %q, want %q", status.StatusCode, StatusCodeOK)
+	}
+	if !status.Running {
+		t.Fatal("expected running status")
+	}
+	if status.Healthy == nil || !*status.Healthy {
+		t.Fatalf("status.Healthy = %#v", status.Healthy)
+	}
+}
+
+func TestRunReturnsCategorizedErrors(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	controller := NewController(root, home)
+
+	err := controller.Run("missing", []string{"start"}, ioDiscard{}, ioDiscard{})
+	var resourceErr *Error
+	if !errors.As(err, &resourceErr) {
+		t.Fatalf("expected *Error, got %T", err)
+	}
+	if resourceErr.Code != ErrorCodeCommandUnavailable {
+		t.Fatalf("resourceErr.Code = %q, want %q", resourceErr.Code, ErrorCodeCommandUnavailable)
+	}
+
+	writeExecutableOnPath(t, "resource-fixture", shelltest.BashShebang()+"exit 7\n")
+
+	err = controller.Run("fixture", []string{"stop"}, ioDiscard{}, ioDiscard{})
+	if !errors.As(err, &resourceErr) {
+		t.Fatalf("expected *Error, got %T", err)
+	}
+	if resourceErr.Code != ErrorCodeOperationFailed {
+		t.Fatalf("resourceErr.Code = %q, want %q", resourceErr.Code, ErrorCodeOperationFailed)
+	}
+	if resourceErr.Operation != "stop" {
+		t.Fatalf("resourceErr.Operation = %q, want stop", resourceErr.Operation)
+	}
+}
+
+func TestDiscoverMarksManifestNativeResources(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceTemplate("external-cli"),
+		testresource.WithResourceDescription("Fixture resource"),
+		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
+			Image:         "fixture:1.0.0",
+			ContainerName: "vrooli-fixture",
+		}),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "supported",
+			Windows: "partial",
+		}),
+	))
+
+	items, err := NewController(root, home).Discover()
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("len(items) = %d, want 1", len(items))
+	}
+	if items[0].ControlMode != "manifest-native" {
+		t.Fatalf("ControlMode = %q, want manifest-native", items[0].ControlMode)
+	}
+	if items[0].Driver != "external-cli" {
+		t.Fatalf("Driver = %q, want external-cli", items[0].Driver)
+	}
+}
+
+func TestDiscoverHidesConfigOnlyResourcesWithoutManifest(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+
+	items, err := NewController(root, home).Discover()
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("len(items) = %d, want 0: %#v", len(items), items)
+	}
+}
+
+func TestStatusForManifestNativeExternalCLIResource(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	commandPath := writeExecutableOnPath(t, "fixture-cli", shelltest.BashShebang()+"if [[ \"$1\" == \"--version\" ]]; then\n  echo 'fixture-cli 1.0.0'\n  exit 0\nfi\nexit 0\n")
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceTemplate("external-cli"),
+		testresource.WithResourceDescription("Fixture external CLI resource"),
+		testresource.WithResourceBinary("fixture-cli"),
+		testresource.WithResourceVersionArgs("--version"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "supported",
+			Windows: "supported",
+		}),
+		testresource.WithResourceHealthChecks(manifestpkg.ResourceHealthCheck{
+			Type:    "command",
+			Command: []string{commandPath, "--version"},
+		}),
+	))
+
+	status, err := NewController(root, home).Status("fixture", true)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if !status.Installed || !status.Running {
+		t.Fatalf("status = %#v, expected installed/running", status)
+	}
+	if status.Healthy == nil || !*status.Healthy {
+		t.Fatalf("Healthy = %#v, want true", status.Healthy)
+	}
+	if status.Message != "available" {
+		t.Fatalf("Message = %q, want available", status.Message)
+	}
+}
+
+func TestStatusForManifestNativeExternalCLIResourceUsesResourceScopedEnvForHealthChecks(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	scriptPath := filepath.Join(root, "fixture-health.sh")
+	expectedDataDir := ""
+	for _, entry := range resourceEnvForResource(root, home, "fixture") {
+		if strings.HasPrefix(entry, "RESOURCE_DATA_DIR=") {
+			expectedDataDir = strings.TrimPrefix(entry, "RESOURCE_DATA_DIR=")
+			break
+		}
+	}
+	if expectedDataDir == "" {
+		t.Fatal("expected RESOURCE_DATA_DIR in resource env")
+	}
+	script := fmt.Sprintf(shelltest.BashShebang()+"set -euo pipefail\n[[ \"$RESOURCE_DATA_DIR\" == %q ]]\n", expectedDataDir)
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write health script: %v", err)
+	}
+	writeExecutableOnPath(t, "fixture-cli", shelltest.BashShebang()+"exit 0\n")
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceTemplate("external-cli"),
+		testresource.WithResourceDescription("Fixture external CLI resource"),
+		testresource.WithResourceBinary("fixture-cli"),
+		testresource.WithResourceVersionArgs("--version"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "supported",
+			Windows: "supported",
+		}),
+		testresource.WithResourceHealthChecks(manifestpkg.ResourceHealthCheck{
+			Type:    "command",
+			Command: []string{"bash", scriptPath},
+		}),
+	))
+
+	status, err := NewController(root, home).Status("fixture", false)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if status.Healthy == nil || !*status.Healthy {
+		t.Fatalf("status = %#v, want healthy", status)
+	}
+}
+
+func TestStatusForManifestNativeExternalCLIResourceMarksUnavailableWhenVersionProbeFails(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	writeExecutableOnPath(t, "fixture-cli", shelltest.BashShebang()+"if [[ \"$1\" == \"--version\" ]]; then\n  exit 1\nfi\nexit 0\n")
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceTemplate("external-cli"),
+		testresource.WithResourceDescription("Fixture external CLI resource"),
+		testresource.WithResourceBinary("fixture-cli"),
+		testresource.WithResourceVersionArgs("--version"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "supported",
+			Windows: "supported",
+		}),
+	))
+
+	status, err := NewController(root, home).Status("fixture", true)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if status.StatusCode != StatusCodeUnavailable {
+		t.Fatalf("StatusCode = %q, want %q", status.StatusCode, StatusCodeUnavailable)
+	}
+	if status.Healthy == nil || *status.Healthy {
+		t.Fatalf("Healthy = %#v, want false", status.Healthy)
+	}
+}
+
+func TestRunManifestNativeExternalCLIInstallRejectsUnsupportedAction(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	installMarker := filepath.Join(root, "install.marker")
+	manifest := testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceTemplate("external-cli"),
+		testresource.WithResourceDescription("Fixture external CLI resource"),
+		testresource.WithResourceBinary("fixture-cli"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "supported",
+			Windows: "supported",
+		}),
+		testresource.WithResourceInstall(manifestpkg.ResourceInstall{
+			Platforms: map[string][]string{
+				"linux":   {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
+				"macos":   {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
+				"windows": {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
+			},
+		}),
+	)
+	manifest.CLI.Enabled = false
+	testresource.WriteResourceManifest(t, root, "fixture", manifest)
+	writeExecutableOnPath(t, "fixture-cli", shelltest.BashShebang()+"echo 'fixture-cli 1.0.0'\n")
+
+	controller := NewController(root, home)
+	if err := controller.Run("fixture", []string{"install"}, ioDiscard{}, ioDiscard{}); err != nil {
+		t.Fatalf("Run(install): %v", err)
+	}
+	if _, err := os.Stat(installMarker); err != nil {
+		t.Fatalf("expected install marker: %v", err)
+	}
+	if err := controller.Run("fixture", []string{"custom"}, ioDiscard{}, ioDiscard{}); err == nil || !strings.Contains(err.Error(), `action "custom" is not supported`) {
+		t.Fatalf("Run(custom) error = %v", err)
+	}
+}
+
+func TestRunManifestNativeExternalCLIStartInstallsWhenUnavailable(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	installMarker := filepath.Join(root, "install.marker")
+	manifest := testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceTemplate("external-cli"),
+		testresource.WithResourceDescription("Fixture external CLI resource"),
+		testresource.WithResourceBinary("missing-cli"),
+		testresource.WithResourceVersionArgs("--version"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "supported",
+			Windows: "supported",
+		}),
+		testresource.WithResourceInstall(manifestpkg.ResourceInstall{
+			Platforms: map[string][]string{
+				"linux":   {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
+				"macos":   {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
+				"windows": {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
+			},
+		}),
+	)
+	manifest.CLI.Enabled = false
+	testresource.WriteResourceManifest(t, root, "fixture", manifest)
+
+	if err := NewController(root, home).Run("fixture", []string{"start"}, ioDiscard{}, ioDiscard{}); err != nil {
+		t.Fatalf("Run(start): %v", err)
+	}
+	if _, err := os.Stat(installMarker); err != nil {
+		t.Fatalf("expected install marker after start: %v", err)
+	}
+}
+
+func TestManagedDiscoveredExternalCLIRefusesImplicitInstall(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	installMarker := filepath.Join(root, "install.marker")
+	manifest := testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceTemplate("external-cli"),
+		testresource.WithResourceDescription("Fixture discovered CLI resource"),
+		testresource.WithResourceBinary("definitely-missing-discovered-cli"),
+		testresource.WithResourceVersionArgs("--version"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{Linux: "supported", MacOS: "supported", Windows: "supported"}),
+		testresource.WithResourceInstall(manifestpkg.ResourceInstall{Platforms: map[string][]string{
+			"linux": {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
+		}}),
+	)
+	manifest.CLI.Enabled = false
+	manifest.ProviderPolicy = &resourcedeployment.ProviderPolicy{DefaultMode: resourcedeployment.ProviderManagedDiscovered, AllowedModes: []resourcedeployment.ProviderMode{resourcedeployment.ProviderManagedDiscovered}, ExternalManagement: "forbidden"}
+	testresource.WriteResourceManifest(t, root, "fixture", manifest)
+
+	err := NewController(root, home).Run("fixture", []string{"start"}, ioDiscard{}, ioDiscard{})
+	if err == nil || !strings.Contains(err.Error(), "will not install or adopt") {
+		t.Fatalf("managed-discovered start error = %v", err)
+	}
+	if _, statErr := os.Stat(installMarker); !os.IsNotExist(statErr) {
+		t.Fatalf("managed-discovered start unexpectedly ran install, stat error = %v", statErr)
+	}
+}
+
+func TestStatusForManifestNativeCloudAPILegacyEnvironmentIsNotCredentialAuthority(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	server := startHTTPServer(t, "127.0.0.1:"+strconv.Itoa(mustAllocatePort(t)), func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	})
+	defer server.Shutdown(context.Background())
+
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("cloud-api"),
+		testresource.WithResourceTemplate("cloud-api"),
+		testresource.WithResourceDescription("Fixture cloud API resource"),
+		testresource.WithResourceEndpoint("http://"+server.Addr+"/health"),
+		testresource.WithResourceCredentialsEnv("FIXTURE_API_KEY"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "supported",
+			Windows: "supported",
+		}),
+		testresource.WithResourceHealthChecks(manifestpkg.ResourceHealthCheck{
+			Type:           "http",
+			Target:         "http://" + server.Addr + "/health",
+			ExpectedStatus: []int{http.StatusUnauthorized},
+		}),
+	))
+	t.Setenv("FIXTURE_API_KEY", "secret")
+
+	status, err := NewController(root, home).Status("fixture", false)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if !status.Installed || !status.Running {
+		t.Fatalf("status = %#v, expected installed/running", status)
+	}
+	if status.Healthy == nil || *status.Healthy {
+		t.Fatalf("Healthy = %#v, want false", status.Healthy)
+	}
+	if !strings.Contains(status.Message, "FIXTURE_API_KEY") {
+		t.Fatalf("Message = %q, want migration-safe credential hint", status.Message)
+	}
+}
+
+func TestStatusForManifestNativeCloudAPIMissingCredentials(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("cloud-api"),
+		testresource.WithResourceTemplate("cloud-api"),
+		testresource.WithResourceDescription("Fixture cloud API resource"),
+		testresource.WithResourceEndpoint("https://api.example.com/health"),
+		testresource.WithResourceCredentialsEnv("FIXTURE_API_KEY"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "supported",
+			Windows: "supported",
+		}),
+	))
+
+	status, err := NewController(root, home).Status("fixture", true)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if status.Healthy == nil || *status.Healthy {
+		t.Fatalf("Healthy = %#v, want false", status.Healthy)
+	}
+	if !strings.Contains(status.Message, "FIXTURE_API_KEY") {
+		t.Fatalf("Message = %q, want credential hint", status.Message)
+	}
+}
+
+func TestStatusForManifestNativeCloudAPIRejectsPlaintextUserSecrets(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("cloud-api"),
+		testresource.WithResourceTemplate("cloud-api"),
+		testresource.WithResourceDescription("Fixture cloud API resource"),
+		testresource.WithResourceEndpoint("https://api.example.com/health"),
+		testresource.WithResourceCredentialsEnv("FIXTURE_API_KEY"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "supported",
+			Windows: "supported",
+		}),
+	))
+
+	writePlaintextUserSecrets(t, home, map[string]string{"FIXTURE_API_KEY": "secret"})
+
+	status, err := NewController(root, home).Status("fixture", true)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if status.Healthy == nil || *status.Healthy {
+		t.Fatalf("Healthy = %#v, want false", status.Healthy)
+	}
+	if !strings.Contains(status.Message, "FIXTURE_API_KEY") {
+		t.Fatalf("Message = %q, want migration-safe credential hint", status.Message)
+	}
+}
+
+func TestProjectPhase5ResourcesAreManifestNative(t *testing.T) {
+	root := projectRootForResourcesTest(t)
+	controller := NewController(root, t.TempDir())
+
+	items, err := controller.Discover()
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+
+	// Every resource the repository ships must be manifest-native and declare a
+	// driver the control plane knows. Asserting coverage of what is discovered
+	// keeps this honest when a resource is added or retired; a pinned name list
+	// only proves that yesterday's fleet still exists.
+	if len(items) == 0 {
+		t.Fatal("Discover() returned no resources")
+	}
+	drivers := make(map[string]int, len(manifestpkg.AllowedDrivers))
+	for _, item := range items {
+		if item.ControlMode != "manifest-native" {
+			t.Fatalf("%s ControlMode = %q, want manifest-native", item.Name, item.ControlMode)
+		}
+		if item.ManifestPath == "" {
+			t.Fatalf("%s ManifestPath is empty", item.Name)
+		}
+		if !slices.Contains(manifestpkg.AllowedDrivers, item.Driver) {
+			t.Fatalf("%s Driver = %q, want one of %v", item.Name, item.Driver, manifestpkg.AllowedDrivers)
+		}
+		drivers[item.Driver]++
+	}
+	// And the driver kinds the fleet is built on each have at least one resource,
+	// so retiring the last one of a kind is a deliberate, visible change.
+	for _, driver := range []string{"managed-service", "external-cli", "cloud-api"} {
+		if drivers[driver] == 0 {
+			t.Fatalf("no discovered resource uses the %q driver; driver census = %v", driver, drivers)
+		}
+	}
+}
+
+func TestProjectPhase5ResourceManifestsValidate(t *testing.T) {
+	root := projectRootForResourcesTest(t)
+	controller := NewController(root, t.TempDir())
+
+	items, err := controller.Discover()
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	if len(items) == 0 {
+		t.Fatal("Discover() returned no resources")
+	}
+	// Every discovered manifest must load and validate. Comparing discovered
+	// against processed is the assertion; a hard-coded name list rots the moment
+	// a resource is renamed or retired.
+	processed := 0
+	for _, item := range items {
+		name := item.Name
+		loaded, err := controller.loadResourceManifest(defaultResourceManifestPath(root, name))
+		if err != nil {
+			t.Fatalf("loadResourceManifest(%s): %v", name, err)
+		}
+		processed++
+		if loaded.Name != name {
+			t.Fatalf("%s manifest name = %q", name, loaded.Name)
+		}
+		manifest := loaded
+		if strings.TrimSpace(manifest.Driver) == "" {
+			t.Fatalf("%s driver is empty", name)
+		}
+	}
+	if processed != len(items) {
+		t.Fatalf("validated %d manifests but discovered %d", processed, len(items))
+	}
+}
+
+func TestVaultManagedServiceDoesNotOverclaimTargetReadiness(t *testing.T) {
+	root := projectRootForResourcesTest(t)
+	controller := NewController(root, t.TempDir())
+	manifest, err := controller.loadResourceManifest(defaultResourceManifestPath(root, "vault"))
+	if err != nil {
+		t.Fatalf("load Vault manifest: %v", err)
+	}
+
+	if manifest.Driver != "managed-service" {
+		t.Fatalf("Vault driver = %q, want managed-service", manifest.Driver)
+	}
+	if len(manifest.HostTools) != 1 {
+		t.Fatalf("Vault hostTools = %+v, want one Linux Secret Service declaration", manifest.HostTools)
+	}
+	secretTool := manifest.HostTools[0]
+	if secretTool.Name != "secret-tool" || !secretTool.Required || !slices.Contains(secretTool.Platforms, "linux") || strings.Contains(secretTool.Notes, "do not rely") {
+		t.Fatalf("Vault secret-tool declaration = %+v, want required Linux bootstrap host tool without a desktop-independence claim", secretTool)
+	}
+	for platform, support := range map[string]string{
+		"linux":   manifest.Platforms.Linux,
+		"macos":   manifest.Platforms.MacOS,
+		"windows": manifest.Platforms.Windows,
+	} {
+		if support != "partial" {
+			t.Errorf("Vault %s platform support = %q, want partial until native-host smoke coverage is complete", platform, support)
+		}
+	}
+
+	desktop := manifest.Deployment.Profiles["desktop"]
+	for platform, target := range map[string]*manifestpkg.ResourceDeploymentTarget{
+		"linux": desktop.Linux,
+		"macos": desktop.MacOS,
+	} {
+		if target == nil {
+			t.Errorf("Vault desktop target %s is missing", platform)
+			continue
+		}
+		if target.Support != "conditional" || target.Mode != "bundled-service" {
+			t.Errorf("Vault desktop target %s = support %q mode %q, want conditional bundled-service", platform, target.Support, target.Mode)
+		}
+	}
+	if desktop.Windows == nil || desktop.Windows.Support != "conditional" || desktop.Windows.Mode != "bundled-service" || len(desktop.Windows.Evidence) == 0 {
+		t.Fatalf("Vault Windows desktop target = %+v, want conditional target with evidence", desktop.Windows)
+	}
+	if !slices.Contains(desktop.Linux.Requires, "secret-tool") {
+		t.Fatalf("Vault Linux desktop requirements = %v, want secret-tool", desktop.Linux.Requires)
+	}
+}
+
+func TestLoadResourceManifestParsesHostRequirements(t *testing.T) {
+	root := t.TempDir()
+	controller := NewController(root, t.TempDir())
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceBinary("fixture"),
+		testresource.WithResourceHostTools(
+			hostreqspec.Declaration{Name: "sqlite", Required: true, Reason: "resource sqlite", When: []string{"setup"}},
+		),
+		testresource.WithResourceHostSafeguards(
+			hostreqspec.Declaration{Name: "remote_session_protection", Required: false, Reason: "resource safeguard", Platforms: []string{"linux"}},
+		),
+	))
+
+	manifest, err := controller.loadResourceManifest(defaultResourceManifestPath(root, "fixture"))
+	if err != nil {
+		t.Fatalf("loadResourceManifest: %v", err)
+	}
+	if len(manifest.HostTools) != 1 || manifest.HostTools[0].Name != "sqlite" {
+		t.Fatalf("hostTools = %+v", manifest.HostTools)
+	}
+	if len(manifest.HostSafeguards) != 1 || manifest.HostSafeguards[0].Name != "remote_session_protection" {
+		t.Fatalf("hostSafeguards = %+v", manifest.HostSafeguards)
+	}
+}
+
+func TestLoadResourceManifestRejectsDuplicateHostRequirements(t *testing.T) {
+	root := t.TempDir()
+	controller := NewController(root, t.TempDir())
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceBinary("fixture"),
+		testresource.WithResourceHostTools(
+			hostreqspec.Declaration{Name: "sqlite", Required: true, Reason: "one"},
+			hostreqspec.Declaration{Name: "sqlite", Required: false, Reason: "two"},
+		),
+	))
+
+	if _, err := controller.loadResourceManifest(defaultResourceManifestPath(root, "fixture")); err == nil || !strings.Contains(err.Error(), `duplicate tool declaration "sqlite"`) {
+		t.Fatalf("loadResourceManifest error = %v", err)
+	}
+}
+
+func TestProjectMigratedResourcesUseNativeDrivers(t *testing.T) {
+	root := projectRootForResourcesTest(t)
+	controller := NewController(root, t.TempDir())
+
+	expected := map[string]string{
+		"kokoro":               "managed-service",
+		"kyutai-stt":           "managed-service",
+		"speaker-verification": "managed-service",
+		"whisper":              "managed-service",
+	}
+
+	for name, driver := range expected {
+		status, err := controller.Status(name, true)
+		if err != nil {
+			t.Fatalf("Status(%s): %v", name, err)
+		}
+		if status.Resource.ControlMode != "manifest-native" {
+			t.Fatalf("%s ControlMode = %q, want manifest-native", name, status.Resource.ControlMode)
+		}
+		if status.Resource.Driver != driver {
+			t.Fatalf("%s Driver = %q, want %q", name, status.Resource.Driver, driver)
+		}
+	}
+}
+
+func TestProjectPhase7ActiveDiscoveryOnlyIncludesManifestBackedResources(t *testing.T) {
+	root := projectRootForResourcesTest(t)
+	controller := NewController(root, t.TempDir())
+
+	items, err := controller.Discover()
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	if len(items) == 0 {
+		t.Fatal("expected at least one active resource")
+	}
+
+	for _, item := range items {
+		if item.ManifestPath == "" {
+			t.Fatalf("%s missing manifest path in active discovery", item.Name)
+		}
+		if item.ControlMode != "manifest-native" {
+			t.Fatalf("%s ControlMode = %q, want manifest-native", item.Name, item.ControlMode)
+		}
+	}
+}
+
+func TestProjectManagedServiceStatusesUseNativeManifests(t *testing.T) {
+	projectRoot := projectRootForResourcesTest(t)
+	root := t.TempDir()
+	home := t.TempDir()
+	controller := NewController(root, home)
+
+	testscenario.WriteProjectResourceConfig(t, root, "postgres", true)
+	testscenario.WriteProjectResourceConfig(t, root, "redis", true)
+	testscenario.WriteProjectResourceConfig(t, root, "vault", true)
+
+	postgresPort := mustAllocatePort(t)
+	redisPort := mustAllocatePort(t)
+
+	copyManifestWithOverrides(t, projectRoot, root, "postgres", postgresPort, postgresPort, "tcp", "")
+	copyManifestWithOverrides(t, projectRoot, root, "redis", redisPort, redisPort, "tcp", "")
+
+	postgresListener := mustListenTCP(t, "127.0.0.1:"+strconv.Itoa(postgresPort))
+	defer postgresListener.Close()
+	redisListener := mustListenTCP(t, "127.0.0.1:"+strconv.Itoa(redisPort))
+	defer redisListener.Close()
+
+	for _, name := range []string{"postgres", "redis"} {
+		status, err := controller.Status(name, true)
+		if err != nil {
+			t.Fatalf("Status(%s): %v", name, err)
+		}
+		if status.Resource.ControlMode != "manifest-native" {
+			t.Fatalf("%s ControlMode = %q, want manifest-native", name, status.Resource.ControlMode)
+		}
+		if status.Running {
+			t.Fatalf("%s reported running without an acquired managed artifact", name)
+		}
+		if status.StatusCode != StatusCodeUnavailable {
+			t.Fatalf("%s StatusCode = %q, want unavailable", name, status.StatusCode)
+		}
+	}
+}
+
+type ioDiscard struct{}
+
+func (ioDiscard) Write(p []byte) (int, error) { return len(p), nil }
+
+func shellQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
+}
+
+func writeExecutableOnPath(t *testing.T, name, contents string) string {
+	t.Helper()
+	path := testkitgo.WriteExecutableOnPath(t, name, contents)
+	testresource.UseSystemLookPath(t, &lookPathCommandFn)
+	testresource.UseSystemLookPath(t, &lookPathResourceFn)
+	return path
+}
+
+func projectRootForResourcesTest(t *testing.T) string {
+	t.Helper()
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("resolve root: %v", err)
+	}
+	return root
+}
+
+func mustListenTCP(t *testing.T, address string) net.Listener {
+	t.Helper()
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		t.Fatalf("listen %s: %v", address, err)
+	}
+	return listener
+}
+
+func startHTTPServer(t *testing.T, address string, handler func(http.ResponseWriter, *http.Request)) *http.Server {
+	t.Helper()
+	server := &http.Server{Addr: address, Handler: http.HandlerFunc(handler)}
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		t.Fatalf("listen %s: %v", address, err)
+	}
+	go func() {
+		_ = server.Serve(listener)
+	}()
+	t.Cleanup(func() {
+		_ = listener.Close()
+	})
+	return server
+}
+
+func mustAllocatePort(t *testing.T) int {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("allocate port: %v", err)
+	}
+	defer listener.Close()
+	return listener.Addr().(*net.TCPAddr).Port
+}
+
+func copyManifestWithOverrides(t *testing.T, srcRoot, dstRoot, name string, primaryPort, secondaryPort int, healthType, healthPath string) {
+	t.Helper()
+	controller := NewController(srcRoot, t.TempDir())
+	manifest, err := controller.loadResourceManifest(defaultResourceManifestPath(srcRoot, name))
+	if err != nil {
+		t.Fatalf("load manifest %s: %v", name, err)
+	}
+	manifest.Runtime.ContainerName = "fixture-" + name
+	switch name {
+	case "postgres", "redis":
+		if len(manifest.Ports) > 0 {
+			manifest.Ports[0].Host = primaryPort
+		}
+		if len(manifest.HealthChecks) > 0 {
+			manifest.HealthChecks[0].Type = healthType
+			manifest.HealthChecks[0].Target = "127.0.0.1:" + strconv.Itoa(primaryPort)
+		}
+	case "qdrant":
+		if len(manifest.Ports) > 0 {
+			manifest.Ports[0].Host = primaryPort
+		}
+		if len(manifest.Ports) > 1 {
+			manifest.Ports[1].Host = secondaryPort
+		}
+		if len(manifest.HealthChecks) > 0 {
+			manifest.HealthChecks[0].Type = healthType
+			manifest.HealthChecks[0].Target = "http://127.0.0.1:" + strconv.Itoa(primaryPort) + healthPath
+		}
+	case "vault":
+		if len(manifest.Ports) > 0 {
+			manifest.Ports[0].Host = primaryPort
+		}
+		if len(manifest.HealthChecks) > 0 {
+			manifest.HealthChecks[0].Type = healthType
+			manifest.HealthChecks[0].Target = "http://127.0.0.1:" + strconv.Itoa(primaryPort) + healthPath
+		}
+	}
+
+	data, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal manifest %s: %v", name, err)
+	}
+	path := defaultResourceManifestPath(dstRoot, name)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}

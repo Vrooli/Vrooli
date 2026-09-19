@@ -19,10 +19,10 @@ Each workflow JSON must include:
 }
 ```
 
-Reference selectors via `@selector/<key>` from `ui/src/consts/selectors.ts`. After adding or moving a workflow, run from the scenario directory:
+Reference selectors via `@selector/<key>` from `ui/src/consts/selectors.ts`. After adding or moving a workflow, rebuild the registry through the scenario's Test Genie lifecycle. The old registry command is retained only as historical documentation:
 
-```bash
-test-genie registry build
+```text
+cli[old]: test-genie registry build
 ```
 
 This regenerates `bas/registry.json`, which is tracked so other agents can see which files exist, which requirements they validate, and what fixtures they depend on.

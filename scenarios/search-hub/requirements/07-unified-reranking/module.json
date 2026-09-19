@@ -1,0 +1,45 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-08-28T08:23:12-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P1-001",
+      "title": "Reranked unified list",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-001",
+      "category": "core",
+      "description": "The reranker scores the fused shortlist into one comparable ranked list across providers, behind a Reranker interface. The declared rerank_preference and active leg are observable, and rerank-on vs rerank-off MRR is reported on each provider's search.json golden corpus to justify its cost.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Rerank produces the expected ordering on a fixture shortlist."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "rerank-on MRR is reported alongside rerank-off on the labeled set."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-002",
+      "title": "Reranker-down degradation",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-001",
+      "category": "core",
+      "description": "When the reranker is unavailable, the router falls back to by-provider grouping and sets a degraded flag in status/response — the query still succeeds.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "With the reranker forced unavailable, Query returns grouped results and reranked=false + degraded=true."
+        }
+      ]
+    }
+  ]
+}

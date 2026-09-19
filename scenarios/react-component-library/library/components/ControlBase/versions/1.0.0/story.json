@@ -1,0 +1,352 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "Continue",
+        "format": "renderable-text",
+        "kind": "structured",
+        "label": "Children",
+        "path": "children",
+        "required": true
+      },
+      {
+        "default": "primary",
+        "kind": "enum",
+        "label": "Variant",
+        "options": [
+          "primary",
+          "secondary",
+          "ghost",
+          "danger"
+        ],
+        "path": "variant",
+        "required": true
+      },
+      {
+        "default": "md",
+        "kind": "enum",
+        "label": "Size",
+        "options": [
+          "xs",
+          "sm",
+          "md",
+          "lg",
+          "xl",
+          "icon"
+        ],
+        "path": "size",
+        "required": true
+      },
+      {
+        "default": "comfortable",
+        "kind": "enum",
+        "label": "Density",
+        "options": [
+          "comfortable",
+          "compact"
+        ],
+        "path": "density",
+        "required": true
+      },
+      {
+        "default": "square",
+        "kind": "enum",
+        "label": "Shape",
+        "options": [
+          "square",
+          "pill"
+        ],
+        "path": "shape",
+        "required": true
+      },
+      {
+        "default": false,
+        "kind": "boolean",
+        "label": "Disabled",
+        "path": "disabled"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "children": "Primary",
+        "variant": "primary"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Primary",
+          "role": "button"
+        }
+      ],
+      "id": "variant-primary",
+      "mode": "pinned",
+      "name": "Primary",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "children": "Secondary",
+        "variant": "secondary"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Secondary",
+          "role": "button"
+        }
+      ],
+      "id": "variant-secondary",
+      "mode": "pinned",
+      "name": "Secondary",
+      "role": "axis",
+      "axis": "variant",
+      "covers": {
+        "variant": [
+          "primary",
+          "secondary",
+          "ghost",
+          "danger"
+        ]
+      }
+    },
+    {
+      "args": {
+        "children": "Ghost",
+        "variant": "ghost"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Ghost",
+          "role": "button"
+        }
+      ],
+      "id": "variant-ghost",
+      "mode": "pinned",
+      "name": "Ghost",
+      "role": "axis",
+      "axis": "size",
+      "covers": {
+        "size": [
+          "xs",
+          "sm",
+          "md",
+          "lg",
+          "xl",
+          "icon"
+        ]
+      }
+    },
+    {
+      "args": {
+        "children": "Danger",
+        "variant": "danger"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Danger",
+          "role": "button"
+        }
+      ],
+      "id": "variant-danger",
+      "mode": "pinned",
+      "name": "Danger",
+      "role": "axis",
+      "axis": "density",
+      "covers": {
+        "density": [
+          "comfortable",
+          "compact"
+        ]
+      }
+    },
+    {
+      "args": {
+        "children": "XS",
+        "size": "xs"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "XS",
+          "role": "button"
+        }
+      ],
+      "id": "size-xs",
+      "mode": "pinned",
+      "name": "Extra small",
+      "role": "axis",
+      "axis": "shape",
+      "covers": {
+        "shape": [
+          "square",
+          "pill"
+        ]
+      }
+    },
+    {
+      "args": {
+        "children": "SM",
+        "size": "sm"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "SM",
+          "role": "button"
+        }
+      ],
+      "id": "size-sm",
+      "mode": "pinned",
+      "name": "Small",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "MD",
+        "size": "md"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "MD",
+          "role": "button"
+        }
+      ],
+      "id": "size-md",
+      "mode": "pinned",
+      "name": "Medium",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "LG",
+        "size": "lg"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "LG",
+          "role": "button"
+        }
+      ],
+      "id": "size-lg",
+      "mode": "pinned",
+      "name": "Large",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "XL",
+        "size": "xl"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "XL",
+          "role": "button"
+        }
+      ],
+      "id": "size-xl",
+      "mode": "pinned",
+      "name": "Extra large",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "aria-label": "Icon action",
+        "children": "•",
+        "size": "icon"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Icon action",
+          "role": "button"
+        }
+      ],
+      "id": "size-icon",
+      "mode": "pinned",
+      "name": "Icon floor",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "Comfortable",
+        "density": "comfortable"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Comfortable",
+          "role": "button"
+        }
+      ],
+      "id": "density-comfortable",
+      "mode": "pinned",
+      "name": "Comfortable density",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "Compact",
+        "density": "compact"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Compact",
+          "role": "button"
+        }
+      ],
+      "id": "density-compact",
+      "mode": "pinned",
+      "name": "Compact density",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "Square",
+        "shape": "square"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Square",
+          "role": "button"
+        }
+      ],
+      "id": "shape-square",
+      "mode": "pinned",
+      "name": "Square shape",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "Pill",
+        "shape": "pill"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Pill",
+          "role": "button"
+        }
+      ],
+      "id": "shape-pill",
+      "mode": "pinned",
+      "name": "Pill shape",
+      "role": "boundary"
+    }
+  ],
+  "title": "Control Base 1.0"
+}

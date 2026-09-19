@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "ffmpeg",
+  "display_name": "FFmpeg",
+  "category": "media",
+  "summary": "Cross-platform media processing toolkit for transcoding, analysis, extraction, and stream manipulation.",
+  "why_it_matters": "FFmpeg remains broadly useful capability knowledge for media-heavy scenarios, but the repo does not currently use it enough to justify a bespoke maintained Vrooli integration.",
+  "when_to_use": [
+    "A future scenario needs reliable audio or video transcoding.",
+    "Operators need frame extraction, metadata inspection, or media normalization.",
+    "The workflow benefits from a mature CLI tool instead of custom media code."
+  ],
+  "example_scenarios": [
+    "Transcription pre-processing",
+    "Video pipeline automation",
+    "Media asset normalization"
+  ],
+  "integration_kind": "external-cli",
+  "platform_support": {
+    "notes": "FFmpeg is cross-platform, but codec availability and hardware acceleration support vary by package source and host GPU.",
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "prerequisites": [
+    "Installed FFmpeg and ffprobe binaries",
+    "Defined codec and acceleration expectations",
+    "Artifact storage conventions for generated outputs"
+  ],
+  "dependencies": [],
+  "suggested_template": "external-cli",
+  "implementation_notes": [
+    "Promotion should expose validated workflows, not attempt to wrap the full FFmpeg CLI.",
+    "Treat transcoding, analysis, and streaming as separate support surfaces.",
+    "Future support should prefer declarative job definitions over opaque raw flag pass-through."
+  ],
+  "operational_notes": [
+    "Codec and hardware acceleration differences are the main portability concern.",
+    "Version pinning matters for reproducible output characteristics.",
+    "Validation should run a known media conversion job."
+  ],
+  "risks": [
+    "A thin wrapper can still leave most real complexity to operators.",
+    "Hardware acceleration claims are easy to misrepresent across hosts."
+  ],
+  "status": "prioritized",
+  "replacement_for": [
+    "ffmpeg"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/ffmpeg"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

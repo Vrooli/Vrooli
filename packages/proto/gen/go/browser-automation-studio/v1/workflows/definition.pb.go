@@ -90,8 +90,6 @@ func (ExecutionMode) EnumDescriptor() ([]byte, []int) {
 }
 
 // WorkflowDefinitionV2 is the canonical workflow storage format.
-//
-// @usage WorkflowSummary.flow_definition, CreateWorkflowRequest.flow_definition
 type WorkflowDefinitionV2 struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Workflow metadata.
@@ -165,8 +163,6 @@ func (x *WorkflowDefinitionV2) GetEdges() []*WorkflowEdgeV2 {
 }
 
 // WorkflowMetadataV2 captures workflow-level descriptors.
-//
-// @usage WorkflowDefinitionV2.metadata
 type WorkflowMetadataV2 struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Workflow name.
@@ -267,8 +263,6 @@ func (x *WorkflowMetadataV2) GetExecutionMode() ExecutionMode {
 }
 
 // WorkflowSettingsV2 captures browser/execution configuration.
-//
-// @usage WorkflowDefinitionV2.settings
 type WorkflowSettingsV2 struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Viewport width in pixels (default: 1280).
@@ -291,8 +285,13 @@ type WorkflowSettingsV2 struct {
 	// Can be overridden at execution time via ExecutionParameters.browser_profile.
 	// Use presets ("stealth", "balanced", "fast", "none") for common configurations.
 	BrowserProfile *base.BrowserProfile `protobuf:"bytes,10,opt,name=browser_profile,json=browserProfile,proto3" json:"browser_profile,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Deterministic fake media devices for this workflow (e.g. a WAV-backed
+	// fake microphone for dictation flows). The browser is launched with
+	// Chromium fake-media flags and the context is granted microphone
+	// permission for the workflow's own scenario origin.
+	FakeMedia     *FakeMediaConfig `protobuf:"bytes,11,opt,name=fake_media,json=fakeMedia,proto3" json:"fake_media,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WorkflowSettingsV2) Reset() {
@@ -388,9 +387,65 @@ func (x *WorkflowSettingsV2) GetBrowserProfile() *base.BrowserProfile {
 	return nil
 }
 
+func (x *WorkflowSettingsV2) GetFakeMedia() *FakeMediaConfig {
+	if x != nil {
+		return x.FakeMedia
+	}
+	return nil
+}
+
+// FakeMediaConfig requests deterministic fake media devices for execution.
+// Chromium serves fake capture devices process-wide, so the driver launches
+// (and pools) a dedicated browser instance per distinct configuration.
+type FakeMediaConfig struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// WAV file served as the fake microphone capture source.
+	// Relative paths are resolved against the execution parameter project_root
+	// and must stay within it, so committed workflows can reference repo
+	// fixtures without host-specific absolute paths.
+	MicrophoneWav *string `protobuf:"bytes,1,opt,name=microphone_wav,json=microphoneWav,proto3,oneof" json:"microphone_wav,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FakeMediaConfig) Reset() {
+	*x = FakeMediaConfig{}
+	mi := &file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FakeMediaConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FakeMediaConfig) ProtoMessage() {}
+
+func (x *FakeMediaConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FakeMediaConfig.ProtoReflect.Descriptor instead.
+func (*FakeMediaConfig) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_workflows_definition_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *FakeMediaConfig) GetMicrophoneWav() string {
+	if x != nil && x.MicrophoneWav != nil {
+		return *x.MicrophoneWav
+	}
+	return ""
+}
+
 // WorkflowNodeV2 represents a single workflow step.
-//
-// @usage WorkflowDefinitionV2.nodes
 type WorkflowNodeV2 struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique node identifier.
@@ -408,7 +463,7 @@ type WorkflowNodeV2 struct {
 
 func (x *WorkflowNodeV2) Reset() {
 	*x = WorkflowNodeV2{}
-	mi := &file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[3]
+	mi := &file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -420,7 +475,7 @@ func (x *WorkflowNodeV2) String() string {
 func (*WorkflowNodeV2) ProtoMessage() {}
 
 func (x *WorkflowNodeV2) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[3]
+	mi := &file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -433,7 +488,7 @@ func (x *WorkflowNodeV2) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkflowNodeV2.ProtoReflect.Descriptor instead.
 func (*WorkflowNodeV2) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_workflows_definition_proto_rawDescGZIP(), []int{3}
+	return file_browser_automation_studio_v1_workflows_definition_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *WorkflowNodeV2) GetId() string {
@@ -465,13 +520,19 @@ func (x *WorkflowNodeV2) GetExecutionSettings() *NodeExecutionSettings {
 }
 
 // NodeExecutionSettings captures per-step execution configuration.
-//
-// @usage WorkflowNodeV2.execution_settings
 type NodeExecutionSettings struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Maximum time for this step in milliseconds (default: 30000).
 	TimeoutMs *int32 `protobuf:"varint,1,opt,name=timeout_ms,json=timeoutMs,proto3,oneof" json:"timeout_ms,omitempty"`
 	// Wait time after step completes before proceeding in milliseconds.
+	//
+	// NOT IMPLEMENTED. No executor or driver has ever applied this value, so a
+	// workflow declaring it gets no settle time at all. Do not add new uses: wait
+	// on a real condition (an ACTION_TYPE_WAIT with a selector) instead, which is
+	// both correct and faster than a fixed sleep. Retained rather than reserved
+	// because assets outside browser-automation-studio still set it.
+	//
+	// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflows/definition.proto.
 	WaitAfterMs *int32 `protobuf:"varint,2,opt,name=wait_after_ms,json=waitAfterMs,proto3,oneof" json:"wait_after_ms,omitempty"`
 	// Continue workflow if this step fails.
 	ContinueOnError *bool `protobuf:"varint,3,opt,name=continue_on_error,json=continueOnError,proto3,oneof" json:"continue_on_error,omitempty"`
@@ -483,7 +544,7 @@ type NodeExecutionSettings struct {
 
 func (x *NodeExecutionSettings) Reset() {
 	*x = NodeExecutionSettings{}
-	mi := &file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[4]
+	mi := &file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -495,7 +556,7 @@ func (x *NodeExecutionSettings) String() string {
 func (*NodeExecutionSettings) ProtoMessage() {}
 
 func (x *NodeExecutionSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[4]
+	mi := &file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -508,7 +569,7 @@ func (x *NodeExecutionSettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodeExecutionSettings.ProtoReflect.Descriptor instead.
 func (*NodeExecutionSettings) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_workflows_definition_proto_rawDescGZIP(), []int{4}
+	return file_browser_automation_studio_v1_workflows_definition_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *NodeExecutionSettings) GetTimeoutMs() int32 {
@@ -518,6 +579,7 @@ func (x *NodeExecutionSettings) GetTimeoutMs() int32 {
 	return 0
 }
 
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflows/definition.proto.
 func (x *NodeExecutionSettings) GetWaitAfterMs() int32 {
 	if x != nil && x.WaitAfterMs != nil {
 		return *x.WaitAfterMs
@@ -540,8 +602,6 @@ func (x *NodeExecutionSettings) GetResilience() *ResilienceConfig {
 }
 
 // ResilienceConfig captures retry and precondition settings.
-//
-// @usage NodeExecutionSettings.resilience
 type ResilienceConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Maximum retry attempts (default: 1, meaning no retries).
@@ -568,7 +628,7 @@ type ResilienceConfig struct {
 
 func (x *ResilienceConfig) Reset() {
 	*x = ResilienceConfig{}
-	mi := &file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[5]
+	mi := &file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -580,7 +640,7 @@ func (x *ResilienceConfig) String() string {
 func (*ResilienceConfig) ProtoMessage() {}
 
 func (x *ResilienceConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[5]
+	mi := &file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -593,7 +653,7 @@ func (x *ResilienceConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResilienceConfig.ProtoReflect.Descriptor instead.
 func (*ResilienceConfig) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_workflows_definition_proto_rawDescGZIP(), []int{5}
+	return file_browser_automation_studio_v1_workflows_definition_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ResilienceConfig) GetMaxAttempts() int32 {
@@ -660,8 +720,6 @@ func (x *ResilienceConfig) GetSuccessWaitMs() int32 {
 }
 
 // WorkflowEdgeV2 connects nodes in the workflow graph.
-//
-// @usage WorkflowDefinitionV2.edges
 type WorkflowEdgeV2 struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique edge identifier.
@@ -689,7 +747,7 @@ type WorkflowEdgeV2 struct {
 
 func (x *WorkflowEdgeV2) Reset() {
 	*x = WorkflowEdgeV2{}
-	mi := &file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[6]
+	mi := &file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -701,7 +759,7 @@ func (x *WorkflowEdgeV2) String() string {
 func (*WorkflowEdgeV2) ProtoMessage() {}
 
 func (x *WorkflowEdgeV2) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[6]
+	mi := &file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -714,7 +772,7 @@ func (x *WorkflowEdgeV2) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkflowEdgeV2.ProtoReflect.Descriptor instead.
 func (*WorkflowEdgeV2) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_workflows_definition_proto_rawDescGZIP(), []int{6}
+	return file_browser_automation_studio_v1_workflows_definition_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *WorkflowEdgeV2) GetId() string {
@@ -792,7 +850,7 @@ const file_browser_automation_studio_v1_workflows_definition_proto_rawDesc = "" 
 	"\n" +
 	"\b_versionB\x0e\n" +
 	"\f_requirementB\b\n" +
-	"\x06_owner\"\xcb\x04\n" +
+	"\x06_owner\"\x99\x05\n" +
 	"\x12WorkflowSettingsV2\x12*\n" +
 	"\x0eviewport_width\x18\x01 \x01(\x05H\x00R\rviewportWidth\x88\x01\x01\x12,\n" +
 	"\x0fviewport_height\x18\x02 \x01(\x05H\x01R\x0eviewportHeight\x88\x01\x01\x12\"\n" +
@@ -805,7 +863,9 @@ const file_browser_automation_studio_v1_workflows_definition_proto_rawDesc = "" 
 	"\n" +
 	"timeout_ms\x18\t \x01(\x05H\aR\ttimeoutMs\x88\x01\x01\x12U\n" +
 	"\x0fbrowser_profile\x18\n" +
-	" \x01(\v2,.browser_automation_studio.v1.BrowserProfileR\x0ebrowserProfileB\x11\n" +
+	" \x01(\v2,.browser_automation_studio.v1.BrowserProfileR\x0ebrowserProfile\x12L\n" +
+	"\n" +
+	"fake_media\x18\v \x01(\v2-.browser_automation_studio.v1.FakeMediaConfigR\tfakeMediaB\x11\n" +
 	"\x0f_viewport_widthB\x12\n" +
 	"\x10_viewport_heightB\r\n" +
 	"\v_user_agentB\t\n" +
@@ -813,18 +873,21 @@ const file_browser_automation_studio_v1_workflows_definition_proto_rawDesc = "" 
 	"\t_headlessB\x11\n" +
 	"\x0f_entry_selectorB\x1c\n" +
 	"\x1a_entry_selector_timeout_msB\r\n" +
-	"\v_timeout_msJ\x04\b\x05\x10\x06\"\xc2\x02\n" +
+	"\v_timeout_msJ\x04\b\x05\x10\x06\"P\n" +
+	"\x0fFakeMediaConfig\x12*\n" +
+	"\x0emicrophone_wav\x18\x01 \x01(\tH\x00R\rmicrophoneWav\x88\x01\x01B\x11\n" +
+	"\x0f_microphone_wav\"\xc2\x02\n" +
 	"\x0eWorkflowNodeV2\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12F\n" +
 	"\x06action\x18\x02 \x01(\v2..browser_automation_studio.v1.ActionDefinitionR\x06action\x12K\n" +
 	"\bposition\x18\x03 \x01(\v2*.browser_automation_studio.v1.NodePositionH\x00R\bposition\x88\x01\x01\x12g\n" +
 	"\x12execution_settings\x18\x04 \x01(\v23.browser_automation_studio.v1.NodeExecutionSettingsH\x01R\x11executionSettings\x88\x01\x01B\v\n" +
 	"\t_positionB\x15\n" +
-	"\x13_execution_settings\"\xb0\x02\n" +
+	"\x13_execution_settings\"\xb4\x02\n" +
 	"\x15NodeExecutionSettings\x12\"\n" +
 	"\n" +
-	"timeout_ms\x18\x01 \x01(\x05H\x00R\ttimeoutMs\x88\x01\x01\x12'\n" +
-	"\rwait_after_ms\x18\x02 \x01(\x05H\x01R\vwaitAfterMs\x88\x01\x01\x12/\n" +
+	"timeout_ms\x18\x01 \x01(\x05H\x00R\ttimeoutMs\x88\x01\x01\x12+\n" +
+	"\rwait_after_ms\x18\x02 \x01(\x05B\x02\x18\x01H\x01R\vwaitAfterMs\x88\x01\x01\x12/\n" +
 	"\x11continue_on_error\x18\x03 \x01(\bH\x02R\x0fcontinueOnError\x88\x01\x01\x12S\n" +
 	"\n" +
 	"resilience\x18\x04 \x01(\v2..browser_automation_studio.v1.ResilienceConfigH\x03R\n" +
@@ -883,40 +946,42 @@ func file_browser_automation_studio_v1_workflows_definition_proto_rawDescGZIP() 
 }
 
 var file_browser_automation_studio_v1_workflows_definition_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_browser_automation_studio_v1_workflows_definition_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_browser_automation_studio_v1_workflows_definition_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_browser_automation_studio_v1_workflows_definition_proto_goTypes = []any{
 	(ExecutionMode)(0),               // 0: browser_automation_studio.v1.ExecutionMode
 	(*WorkflowDefinitionV2)(nil),     // 1: browser_automation_studio.v1.WorkflowDefinitionV2
 	(*WorkflowMetadataV2)(nil),       // 2: browser_automation_studio.v1.WorkflowMetadataV2
 	(*WorkflowSettingsV2)(nil),       // 3: browser_automation_studio.v1.WorkflowSettingsV2
-	(*WorkflowNodeV2)(nil),           // 4: browser_automation_studio.v1.WorkflowNodeV2
-	(*NodeExecutionSettings)(nil),    // 5: browser_automation_studio.v1.NodeExecutionSettings
-	(*ResilienceConfig)(nil),         // 6: browser_automation_studio.v1.ResilienceConfig
-	(*WorkflowEdgeV2)(nil),           // 7: browser_automation_studio.v1.WorkflowEdgeV2
-	nil,                              // 8: browser_automation_studio.v1.WorkflowMetadataV2.LabelsEntry
-	(*base.BrowserProfile)(nil),      // 9: browser_automation_studio.v1.BrowserProfile
-	(*actions.ActionDefinition)(nil), // 10: browser_automation_studio.v1.ActionDefinition
-	(*base.NodePosition)(nil),        // 11: browser_automation_studio.v1.NodePosition
-	(base.WorkflowEdgeType)(0),       // 12: browser_automation_studio.v1.WorkflowEdgeType
+	(*FakeMediaConfig)(nil),          // 4: browser_automation_studio.v1.FakeMediaConfig
+	(*WorkflowNodeV2)(nil),           // 5: browser_automation_studio.v1.WorkflowNodeV2
+	(*NodeExecutionSettings)(nil),    // 6: browser_automation_studio.v1.NodeExecutionSettings
+	(*ResilienceConfig)(nil),         // 7: browser_automation_studio.v1.ResilienceConfig
+	(*WorkflowEdgeV2)(nil),           // 8: browser_automation_studio.v1.WorkflowEdgeV2
+	nil,                              // 9: browser_automation_studio.v1.WorkflowMetadataV2.LabelsEntry
+	(*base.BrowserProfile)(nil),      // 10: browser_automation_studio.v1.BrowserProfile
+	(*actions.ActionDefinition)(nil), // 11: browser_automation_studio.v1.ActionDefinition
+	(*base.NodePosition)(nil),        // 12: browser_automation_studio.v1.NodePosition
+	(base.WorkflowEdgeType)(0),       // 13: browser_automation_studio.v1.WorkflowEdgeType
 }
 var file_browser_automation_studio_v1_workflows_definition_proto_depIdxs = []int32{
 	2,  // 0: browser_automation_studio.v1.WorkflowDefinitionV2.metadata:type_name -> browser_automation_studio.v1.WorkflowMetadataV2
 	3,  // 1: browser_automation_studio.v1.WorkflowDefinitionV2.settings:type_name -> browser_automation_studio.v1.WorkflowSettingsV2
-	4,  // 2: browser_automation_studio.v1.WorkflowDefinitionV2.nodes:type_name -> browser_automation_studio.v1.WorkflowNodeV2
-	7,  // 3: browser_automation_studio.v1.WorkflowDefinitionV2.edges:type_name -> browser_automation_studio.v1.WorkflowEdgeV2
-	8,  // 4: browser_automation_studio.v1.WorkflowMetadataV2.labels:type_name -> browser_automation_studio.v1.WorkflowMetadataV2.LabelsEntry
+	5,  // 2: browser_automation_studio.v1.WorkflowDefinitionV2.nodes:type_name -> browser_automation_studio.v1.WorkflowNodeV2
+	8,  // 3: browser_automation_studio.v1.WorkflowDefinitionV2.edges:type_name -> browser_automation_studio.v1.WorkflowEdgeV2
+	9,  // 4: browser_automation_studio.v1.WorkflowMetadataV2.labels:type_name -> browser_automation_studio.v1.WorkflowMetadataV2.LabelsEntry
 	0,  // 5: browser_automation_studio.v1.WorkflowMetadataV2.execution_mode:type_name -> browser_automation_studio.v1.ExecutionMode
-	9,  // 6: browser_automation_studio.v1.WorkflowSettingsV2.browser_profile:type_name -> browser_automation_studio.v1.BrowserProfile
-	10, // 7: browser_automation_studio.v1.WorkflowNodeV2.action:type_name -> browser_automation_studio.v1.ActionDefinition
-	11, // 8: browser_automation_studio.v1.WorkflowNodeV2.position:type_name -> browser_automation_studio.v1.NodePosition
-	5,  // 9: browser_automation_studio.v1.WorkflowNodeV2.execution_settings:type_name -> browser_automation_studio.v1.NodeExecutionSettings
-	6,  // 10: browser_automation_studio.v1.NodeExecutionSettings.resilience:type_name -> browser_automation_studio.v1.ResilienceConfig
-	12, // 11: browser_automation_studio.v1.WorkflowEdgeV2.type:type_name -> browser_automation_studio.v1.WorkflowEdgeType
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	10, // 6: browser_automation_studio.v1.WorkflowSettingsV2.browser_profile:type_name -> browser_automation_studio.v1.BrowserProfile
+	4,  // 7: browser_automation_studio.v1.WorkflowSettingsV2.fake_media:type_name -> browser_automation_studio.v1.FakeMediaConfig
+	11, // 8: browser_automation_studio.v1.WorkflowNodeV2.action:type_name -> browser_automation_studio.v1.ActionDefinition
+	12, // 9: browser_automation_studio.v1.WorkflowNodeV2.position:type_name -> browser_automation_studio.v1.NodePosition
+	6,  // 10: browser_automation_studio.v1.WorkflowNodeV2.execution_settings:type_name -> browser_automation_studio.v1.NodeExecutionSettings
+	7,  // 11: browser_automation_studio.v1.NodeExecutionSettings.resilience:type_name -> browser_automation_studio.v1.ResilienceConfig
+	13, // 12: browser_automation_studio.v1.WorkflowEdgeV2.type:type_name -> browser_automation_studio.v1.WorkflowEdgeType
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_workflows_definition_proto_init() }
@@ -930,13 +995,14 @@ func file_browser_automation_studio_v1_workflows_definition_proto_init() {
 	file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[4].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[5].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[6].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_workflows_definition_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_workflows_definition_proto_rawDesc), len(file_browser_automation_studio_v1_workflows_definition_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -12,6 +12,9 @@ import (
 )
 
 func TestTemplateGeneratorInterpolatesPlaceholders(t *testing.T) {
+	// [REQ:STD-TEMPLATE-BASIC] [REQ:STD-E2E-GENERATION]
+	// [REQ:STD-NATIVE-MENUS] [REQ:STD-NATIVE-NOTIFICATIONS]
+	// [REQ:SCENARIO-P0-007]
 	cleanup := setupTestLogger()
 	defer cleanup()
 
@@ -64,6 +67,7 @@ func TestTemplateGeneratorInterpolatesPlaceholders(t *testing.T) {
 		t.Fatalf("failed to read generated main.ts: %v", err)
 	}
 	mainContent := string(mainContentBytes)
+	assertGeneratedFilesAreHonest(t, outputDir)
 
 	if strings.Contains(mainContent, "{{") {
 		t.Fatalf("generated main.ts still contains template tokens: %s", mainContent)
@@ -73,6 +77,24 @@ func TestTemplateGeneratorInterpolatesPlaceholders(t *testing.T) {
 	}
 	if !strings.Contains(mainContent, `SCENARIO_NAME: "test-scenario"`) {
 		t.Fatalf("scenario name placeholder missing from generated file")
+	}
+	if !strings.Contains(mainContent, "autoUpdater") {
+		t.Fatal("generated main.ts does not include electron-updater wiring")
+	}
+	if !strings.Contains(mainContent, "DEPLOYMENT_MANAGER_RECEIPT_TOKEN") {
+		t.Fatal("generated main.ts does not use the release receipt credential")
+	}
+	if strings.Contains(mainContent, "DEPLOYMENT_MANAGER_AUTH_TOKEN") || strings.Contains(mainContent, "DEPLOYMENT_MANAGER_SERVICE_TOKEN") {
+		t.Fatal("generated main.ts must not consume an owner or publisher service credential")
+	}
+	if !strings.Contains(mainContent, "release-bound client update receipt configuration is incomplete") {
+		t.Fatal("generated main.ts must fail closed for incomplete release-bound receipt reporting")
+	}
+	if !strings.Contains(mainContent, "update_receipt_report_failed") {
+		t.Fatal("generated main.ts must distinguish receipt transport failure from local persistence failure")
+	}
+	if !strings.Contains(mainContent, "await stopLaunchProfiler();\n    await shutdownRuntime();\n    app.quit();") || !strings.Contains(mainContent, "child.kill(\"SIGKILL\")") {
+		t.Fatal("generated main.ts does not await bounded bundled-runtime shutdown before demo quit")
 	}
 }
 
@@ -140,6 +162,7 @@ func TestTemplateGeneratorInjectsBundledRuntimeConfig(t *testing.T) {
 		t.Fatalf("failed to read generated main.ts: %v", err)
 	}
 	mainContent := string(mainContentBytes)
+	assertGeneratedFilesAreHonest(t, outputDir)
 
 	if !strings.Contains(mainContent, `DEPLOYMENT_MODE: "bundled"`) {
 		t.Fatalf("deployment mode placeholder missing from generated file: %s", mainContent)
@@ -151,7 +174,6 @@ func TestTemplateGeneratorInjectsBundledRuntimeConfig(t *testing.T) {
 	expectedSnippets := []string{
 		`ROOT: "custom-bundle-root"`,
 		`IPC_HOST: "10.0.0.5"`,
-		`IPC_PORT: 49100`,
 		`TOKEN_REL: "runtime/custom-token"`,
 		`UI_SERVICE: "ui-service"`,
 		`UI_PORT_NAME: "ui-port"`,
@@ -161,5 +183,38 @@ func TestTemplateGeneratorInjectsBundledRuntimeConfig(t *testing.T) {
 		if !strings.Contains(mainContent, snippet) {
 			t.Fatalf("expected bundled runtime snippet missing: %q", snippet)
 		}
+	}
+
+	// The bundle manifest is the only IPC port declaration. Baking one into the
+	// generated shell turned a manifest's "0 = allocate" into a fixed number, so
+	// the shell must not carry a port constant at all.
+	if strings.Contains(mainContent, "IPC_PORT") {
+		t.Fatalf("generated shell must not bake an IPC port constant: %s", mainContent)
+	}
+}
+
+func assertGeneratedFilesAreHonest(t *testing.T, root string) {
+	t.Helper()
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		contents, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(contents), "{{") {
+			t.Errorf("generated file %s contains an unresolved template token", path)
+		}
+		if strings.HasSuffix(path, ".json") && !json.Valid(contents) {
+			t.Errorf("generated JSON file %s is invalid", path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("scan generated files: %v", err)
 	}
 }

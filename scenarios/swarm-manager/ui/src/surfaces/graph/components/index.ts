@@ -5,5 +5,4 @@ export { LensNav } from "./LensNav";
 export { Sidebar } from "./Sidebar";
 
 export { SettingsDrawer } from "./SettingsDrawer";
-export { ClusterNode } from "./ClusterNode";
 export { EdgeLegend } from "./EdgeLegend";

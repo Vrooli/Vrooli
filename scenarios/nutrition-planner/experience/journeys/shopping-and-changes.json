@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "shopping-and-changes",
+    "title": "Shopping and changes",
+    "purpose": "Review a week, shop against its derived list while preserving materially unchanged checks, and explicitly confirm purchases so a checkmark is never mistaken for a receipt.",
+    "prd_refs": [
+      "OT-P0-011",
+      "OT-P0-012",
+      "OT-P0-014",
+      "OT-P0-009"
+    ]
+  },
+  "steps": [
+    {
+      "page": "week",
+      "intent": "Review the dated week and the meals that generate my shopping needs.",
+      "via": "week-range"
+    },
+    {
+      "page": "groceries",
+      "intent": "Check off items as shopping progresses without that changing stock or recording consumption.",
+      "via": "grocery-list"
+    },
+    {
+      "page": "groceries",
+      "intent": "Change a meal and keep the checked state for materially unchanged line requirements.",
+      "via": "plan-scope"
+    },
+    {
+      "page": "groceries",
+      "state": "purchase-confirm",
+      "intent": "Explicitly add purchased quantities and prices to the pantry after a preview.",
+      "via": "purchase-action"
+    }
+  ],
+  "claims": [
+    {
+      "id": "changed-plan-preserves-checks",
+      "type": "state-covered",
+      "statement": "A meal change preserves checks for materially unchanged lines and marks only increased or changed requirements for review.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "purchase-confirmation-is-idempotent",
+      "type": "state-covered",
+      "statement": "A confirmed purchase previews its changes and cannot apply the same purchase twice.",
+      "tier": "aspirational"
+    }
+  ]
+}

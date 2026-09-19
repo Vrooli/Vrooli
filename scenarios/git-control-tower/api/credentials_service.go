@@ -83,6 +83,9 @@ func ensureOriginPlaceholder(credentials []Credential, remoteURL string) []Crede
 
 // SaveCredential saves or updates a credential.
 func SaveCredential(ctx context.Context, deps CredentialsDeps, req CredentialSaveRequest) (*CredentialSaveResponse, error) {
+	if err := requireHumanMutation(ctx, "save credential"); err != nil {
+		return nil, err
+	}
 	repoDir, err := validateCredentialsDeps(deps)
 	if err != nil {
 		return nil, err
@@ -171,6 +174,9 @@ func resolveRemoteURL(ctx context.Context, deps CredentialsDeps, repoDir, remote
 
 // DeleteCredential removes a stored credential.
 func DeleteCredential(ctx context.Context, deps CredentialsDeps, req CredentialDeleteRequest) (*CredentialDeleteResponse, error) {
+	if err := requireHumanMutation(ctx, "delete credential"); err != nil {
+		return nil, err
+	}
 	id := strings.TrimSpace(req.ID)
 	if id == "" {
 		return &CredentialDeleteResponse{

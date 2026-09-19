@@ -1,57 +1,60 @@
 package main
 
 import (
+	"strings"
 	"testing"
 )
 
-// [REQ:CLI-STATUS-001] Status command is registered
-// [REQ:CLI-STATUS-002] JSON output flag parsing
-func TestUseJSONFlag(t *testing.T) {
+// TestNewAppConstructs is the smoke gate: NewApp() must succeed against
+// the cli-core wiring declared in app.go. This catches the most common
+// regression class — a misconfigured StandardScenarioOptions or a missing
+// dependency from cli-core — before any tests touch real commands.
+func TestNewAppConstructs(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
-		t.Fatalf("NewApp: %v", err)
+		t.Fatalf("NewApp() error: %v", err)
 	}
-
-	tests := []struct {
-		args []string
-		want bool
-	}{
-		{[]string{}, false},
-		{[]string{"--json"}, true},
-		{[]string{"-j"}, true},
-		{[]string{"--verbose", "--json"}, true},
-		{[]string{"--verbose"}, false},
-	}
-
-	for _, tc := range tests {
-		got := app.useJSON(tc.args)
-		if got != tc.want {
-			t.Errorf("useJSON(%v) = %v, want %v", tc.args, got, tc.want)
-		}
+	if app == nil || app.core == nil || app.core.CLI == nil {
+		t.Fatal("NewApp() returned an incomplete app")
 	}
 }
 
-// [REQ:CLI-STATUS-001] API path construction
-func TestAPIPathConstruction(t *testing.T) {
+// TestRunVersion exercises a non-API command path through cli-core.
+// --version must succeed and must NOT trigger the NeedsAPI preflight
+// (which would try to reach the configured API base and fail in CI).
+func TestRunVersion(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
-		t.Fatalf("NewApp: %v", err)
+		t.Fatalf("NewApp() error: %v", err)
 	}
-
-	tests := []struct {
-		input string
-		want  string
-	}{
-		{"/tunnel/health", "/api/v1/tunnel/health"},
-		{"/routes", "/api/v1/routes"},
-		{"routes", "/api/v1/routes"},
-		{"", ""},
+	if err := app.Run([]string{"--version"}); err != nil {
+		t.Fatalf("app.Run(--version) error: %v", err)
 	}
+}
 
-	for _, tc := range tests {
-		got := app.apiPath(tc.input)
-		if got != tc.want {
-			t.Errorf("apiPath(%q) = %q, want %q", tc.input, got, tc.want)
-		}
+// TestRunHelp exercises cli-core's help renderer through the scenario
+// app's wiring. Help is rendered to stdout by cli-core; we only verify
+// Run returns without error. The presence of each registered command in
+// the actual help surface is covered by cli-core's own tests.
+func TestRunHelp(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() error: %v", err)
+	}
+	if err := app.Run([]string{"--help"}); err != nil {
+		t.Fatalf("app.Run(--help) error: %v", err)
+	}
+}
+
+// TestMetadata pins the values app.go declares — appName must match the
+// scenario id (post-substitution), appVersion must be non-empty.
+// Catches accidental edits that decouple the binary identity from the
+// scenario it belongs to.
+func TestMetadata(t *testing.T) {
+	if strings.TrimSpace(appName) == "" {
+		t.Fatal("appName must not be empty")
+	}
+	if strings.TrimSpace(appVersion) == "" {
+		t.Fatal("appVersion must not be empty")
 	}
 }

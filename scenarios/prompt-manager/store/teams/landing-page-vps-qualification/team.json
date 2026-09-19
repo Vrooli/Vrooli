@@ -1,0 +1,75 @@
+{
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "landing-page-vps-qualification-coordinator",
+    "reportingMode": "leader",
+    "messagingMode": "in-session",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "createdAt": "2026-09-13T21:55:43Z",
+  "displayName": "Landing Page VPS Qualification",
+  "effortRefs": [
+    "legacy-effort:landing-page-business-suite-vps-qualification"
+  ],
+  "enabled": false,
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
+  "id": "landing-page-vps-qualification",
+  "kind": "team",
+  "lifetime": "finite",
+  "mission": "Coordinate the finite landing-page-business-suite VPS qualification effort through its accepted assignment, bounded qualification work, external gates, and terminal closure.",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": [],
+      "sharedState": []
+    },
+    "knowledgeTopics": {
+      "effort-wake/*": {
+        "ownerMemberId": "landing-page-vps-qualification-coordinator",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {
+      "landing-page-vps-qualification-coordinator": {
+        "lane": "Coordinate the finite effort; reconcile owner state, perform only qualified bounded coordinator work, retain evidence, and stop at blockers or terminal evidence.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "safetyCriticalRules": [
+          "The effort reference is an attribution edge, not an authority grant.",
+          "Do not start, cancel, repair, or replace owner work without qualified control and the exact retained identity.",
+          "Do not resume this team or its legacy driver during migration; scheduling remains disabled until qualification is reviewed.",
+          "Retain exact effort, plan, run, task, revision, and evidence references in every handoff."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        }
+      }
+    }
+  },
+  "purpose": "delivery",
+  "revision": 3,
+  "runtime": {
+    "mode": "single-process"
+  },
+  "schemaVersion": 1,
+  "updatedAt": "2026-09-13T22:01:20Z"
+}

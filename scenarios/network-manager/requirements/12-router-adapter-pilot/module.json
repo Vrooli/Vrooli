@@ -1,0 +1,28 @@
+{
+  "_metadata": {
+    "module": "router-adapter-pilot",
+    "description": "First explicit router adapter after P0.",
+    "prd_ref": "OT-P1-003",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "NM-P1-003",
+      "title": "First router adapter supports explicit platform capabilities",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "adapter",
+      "criticality": "P1",
+      "description": "The scenario shall add one router adapter selected from the first deployment environment and expose only the router reads and writes that adapter can support with confirmation and rollback semantics.",
+      "tags": ["router", "adapter", "capability-report"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add adapter-specific contract tests tagged [REQ:NM-P1-003] once the first router platform is selected."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+-- Cross-cutting database infrastructure belongs here. Audio-tools currently
+-- has no extensions, custom types, or cross-domain views, so this home is
+-- intentionally empty; each durable table is declared by its owning domain.

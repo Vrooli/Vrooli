@@ -1,0 +1,56 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.agent-activity-timeline",
+    "name": "AgentActivityTimeline",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "ai",
+    "description": "The chronological view of agent-visible activity including searches, tool calls, checkpoints, approvals, outputs, retries, and failures, with filtering and expansion.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "data-display.timeline",
+        "reason": "Chronology, grouping, and pagination are shared."
+      },
+      {
+        "asset": "ai.tool-execution-card",
+        "reason": "Tool entries render through the shared card."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "freshness-disclosure",
+    "partial-degradation",
+    "error-honesty"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "partial",
+    "stale",
+    "request-error"
+  ]
+}

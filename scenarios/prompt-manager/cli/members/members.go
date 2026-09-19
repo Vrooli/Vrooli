@@ -11,10 +11,10 @@ import (
 	"os"
 	"strings"
 
+	"prompt-manager/cli/internal/appctx"
+
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-
-	"prompt-manager/cli/internal/appctx"
 )
 
 // Member represents a member from the API

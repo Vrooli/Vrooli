@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package vrooli.vrooli_onboarding.v1.auth;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/auth;authv1";
+
+// AuthService is onboarding's same-origin browser facade for
+// scenario-authenticator. Onboarding owns no account state or token signing.
+service AuthService {
+  rpc Login(LoginRequest) returns (LoginResponse);
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string email = 1;
+  string user_id = 2;
+}

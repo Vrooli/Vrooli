@@ -1,0 +1,20 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "typescript-code-graph",
+  "phase": "typescript-code-graph",
+  "displayName": "TypeScript Code Graph",
+  "description": "Validates live TypeScript graph extraction for declared targets.",
+  "source": "validation-provider",
+  "orderHint": 2,
+  "timeout": "120s",
+  "findingSource": "architecture",
+  "validation": {"contract": "scenario-validation/v1"},
+  "targets": {"kinds": ["scenario", "control-plane"], "selection": "enumerate"},
+  "applicability": {"default": "applies"},
+  "policy": {"selection": "default_when_applicable", "providerReadiness": "required_when_applicable", "providerLifecycle": "start_if_needed", "freshness": "require_live_contract", "resultGating": "gating", "unavailable": "fail"},
+  "runnability": {"needsAPI": true},
+  "determinism": {"default": "file-determined", "inputs": ["**/*.ts", "**/*.tsx", ".vrooli/service.json"]},
+  "docs": {"path": "scenarios/test-genie/docs/phases/architecture/README.md"},
+  "maturity": {"version": "1.0.0", "levels": [{"id": "L0", "name": "Graph unavailable", "description": "TypeScript extraction cannot run.", "entry_criteria": [], "exit_criteria": ["The provider is reachable."]}, {"id": "L1", "name": "Graph extractable", "description": "TypeScript graph extraction returns a target-scoped graph.", "entry_criteria": ["The provider is reachable."], "exit_criteria": ["Graph provenance is live."]}, {"id": "L2", "name": "Graph proven", "description": "TypeScript graph extraction is live and target-scoped.", "entry_criteria": ["Graph provenance is live."], "exit_criteria": ["No required findings remain."]}], "capabilities": [{"id": "typescript_graph", "label": "TypeScript Graph", "description": "TypeScript graph extraction is target-scoped and live.", "levels": [{"id": "L0", "name": "Unavailable", "description": "Graph extraction is unavailable.", "capability_summary": "TypeScript graph evidence is unavailable.", "next_unlock": "Start the provider."}, {"id": "L1", "name": "Extractable", "description": "A target graph can be extracted.", "capability_summary": "TypeScript graph evidence is extractable.", "next_unlock": "Prove target scope."}, {"id": "L2", "name": "Proven", "description": "The graph is live and target-scoped.", "capability_summary": "TypeScript graph evidence is proven."}]}], "findings": {}, "fallback": {"capability_id": "typescript_graph", "local_level_impact": "L0", "global_impact": "foundation_blocker", "dimension": "contracts", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required"}}
+}

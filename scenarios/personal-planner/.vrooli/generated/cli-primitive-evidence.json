@@ -1,0 +1,306 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "personal-planner",
+  "generator": "v1.0.0",
+  "manifest_hash": "28dd617a124f0756537f441c1e6cc563fd13e71d70b633643fd16d8acbb9d2f0",
+  "commands": [
+    {
+      "path": "calendar carry-forward",
+      "group": "calendar",
+      "command": "carry-forward",
+      "binding": "CalendarService.CarryForwardAllocation",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "calendar create-routine",
+      "group": "calendar",
+      "command": "create-routine",
+      "binding": "CalendarService.CreateRoutine",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "calendar reschedule-routine-occurrence",
+      "group": "calendar",
+      "command": "reschedule-routine-occurrence",
+      "binding": "CalendarService.RescheduleRoutineOccurrence",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "calendar routine-occurrences",
+      "group": "calendar",
+      "command": "routine-occurrences",
+      "binding": "CalendarService.ListRoutineOccurrences",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "calendar routines",
+      "group": "calendar",
+      "command": "routines",
+      "binding": "CalendarService.ListRoutines",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "calendar skip-routine-occurrence",
+      "group": "calendar",
+      "command": "skip-routine-occurrence",
+      "binding": "CalendarService.SkipRoutineOccurrence",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "focus actuals",
+      "group": "focus",
+      "command": "actuals",
+      "binding": "FocusService.ListActuals",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "focus correct-actual",
+      "group": "focus",
+      "command": "correct-actual",
+      "binding": "FocusService.CorrectActual",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "focus corrections",
+      "group": "focus",
+      "command": "corrections",
+      "binding": "FocusService.ListActualCorrections",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "focus current",
+      "group": "focus",
+      "command": "current",
+      "binding": "FocusService.GetCurrentSession",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "focus end",
+      "group": "focus",
+      "command": "end",
+      "binding": "FocusService.EndFocus",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "focus pause",
+      "group": "focus",
+      "command": "pause",
+      "binding": "FocusService.PauseFocus",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "focus record-actual",
+      "group": "focus",
+      "command": "record-actual",
+      "binding": "FocusService.RecordManualActual",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "focus resume",
+      "group": "focus",
+      "command": "resume",
+      "binding": "FocusService.ResumeFocus",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "focus start",
+      "group": "focus",
+      "command": "start",
+      "binding": "FocusService.StartFocus",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "goals complete-milestone",
+      "group": "goals",
+      "command": "complete-milestone",
+      "binding": "GoalsService.UpdateMilestoneStatus",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "goals create",
+      "group": "goals",
+      "command": "create",
+      "binding": "GoalsService.CreateGoal",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "goals create-milestone",
+      "group": "goals",
+      "command": "create-milestone",
+      "binding": "GoalsService.CreateMilestone",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "goals list",
+      "group": "goals",
+      "command": "list",
+      "binding": "GoalsService.ListGoals",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "goals milestones",
+      "group": "goals",
+      "command": "milestones",
+      "binding": "GoalsService.ListMilestones",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "goals progress",
+      "group": "goals",
+      "command": "progress",
+      "binding": "GoalsService.UpdateGoalProgress",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "integrations create-fixture",
+      "group": "integrations",
+      "command": "create-fixture",
+      "binding": "IntegrationsService.CreateFixtureConnection",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "integrations disconnect",
+      "group": "integrations",
+      "command": "disconnect",
+      "binding": "IntegrationsService.DisconnectConnection",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "integrations list",
+      "group": "integrations",
+      "command": "list",
+      "binding": "IntegrationsService.ListConnections",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "integrations sync",
+      "group": "integrations",
+      "command": "sync",
+      "binding": "IntegrationsService.SyncConnection",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "review daily",
+      "group": "review",
+      "command": "daily",
+      "binding": "ReviewService.GetDailySummary",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "review reflection",
+      "group": "review",
+      "command": "reflection",
+      "binding": "ReviewService.GetReflection",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "review save-reflection",
+      "group": "review",
+      "command": "save-reflection",
+      "binding": "ReviewService.SaveReflection",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "review weekly",
+      "group": "review",
+      "command": "weekly",
+      "binding": "ReviewService.GetWeeklySummary",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "work create",
+      "group": "work",
+      "command": "create",
+      "binding": "WorkService.CreateWorkItem",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "work get",
+      "group": "work",
+      "command": "get",
+      "binding": "WorkService.GetWorkItem",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "work list",
+      "group": "work",
+      "command": "list",
+      "binding": "WorkService.ListWorkItems",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "work plan",
+      "group": "work",
+      "command": "plan",
+      "binding": "WorkService.GetTodayPlan",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "workspace availability",
+      "group": "workspace",
+      "command": "availability",
+      "binding": "WorkspaceService.ListAvailability",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "workspace profile",
+      "group": "workspace",
+      "command": "profile",
+      "binding": "WorkspaceService.GetProfile",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "workspace replace-availability",
+      "group": "workspace",
+      "command": "replace-availability",
+      "binding": "WorkspaceService.ReplaceAvailability",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "workspace update-profile",
+      "group": "workspace",
+      "command": "update-profile",
+      "binding": "WorkspaceService.UpdateProfile",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    }
+  ]
+}

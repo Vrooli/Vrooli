@@ -1,0 +1,83 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.data-explorer",
+    "name": "DataExplorer",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The data investigation workspace combining filters, a query builder, table or grid presentation, visualization, saved views, an inspector, export, and responsive layout.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "patterns.search-filter-results",
+        "reason": "Query, filter, and result state are shared."
+      },
+      {
+        "asset": "data-display.query-builder",
+        "reason": "Structured predicates use the shared editor."
+      },
+      {
+        "asset": "patterns.responsive-inspector-workspace",
+        "reason": "Detail inspection is the shared workspace composition."
+      },
+      {
+        "asset": "patterns.export-workflow",
+        "reason": "Result export uses the shared workflow."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "visualization.chart",
+        "reason": "Only explorers that visualize results need the chart framework."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "recovery-path",
+    "input-preservation",
+    "status-announced",
+    "error-honesty",
+    "error-message-usefulness",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "partial-degradation",
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "mobile-capability-parity",
+    "content-reflow",
+    "density-adaptive-layout",
+    "entrance-restraint"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "submitting",
+    "success",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "qualityGates": [
+    "performance"
+  ]
+}

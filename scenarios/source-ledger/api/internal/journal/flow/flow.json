@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "journal-write",
+  "domain": "journal",
+  "description": "Immutable journal append with inference degradation and retry enqueueing.",
+  "model": {"module": "JournalWriteWorkflow", "seed": "2026072701", "maxSteps": 6, "traceCount": 8, "verify": {"invariants": ["TypeOK", "TerminalClosure", "IllegalTransitionsPreserveState", "AppendIsIrreversible"]}},
+  "states": [
+    {"id": "received", "quint": "Received", "initial": true},
+    {"id": "classified", "quint": "Classified"},
+    {"id": "embedded", "quint": "Embedded"},
+    {"id": "unclassified", "quint": "Unclassified"},
+    {"id": "appended", "quint": "Appended", "terminal": true},
+    {"id": "queued", "quint": "Queued", "terminal": true}
+  ],
+  "events": [
+    {"id": "classify", "quint": "Classify"},
+    {"id": "classify_failure", "quint": "ClassifyFailure"},
+    {"id": "embed", "quint": "Embed"},
+    {"id": "append", "quint": "Append"},
+    {"id": "queue_retry", "quint": "QueueRetry"}
+  ],
+  "transitionDefaults": {"invalid": {"to": "self", "wantError": true}, "terminal": {"to": "self", "wantError": true}},
+  "transitions": [
+    {"from": "received", "event": "classify", "to": "classified"},
+    {"from": "received", "event": "classify_failure", "to": "unclassified"},
+    {"from": "classified", "event": "embed", "to": "embedded"},
+    {"from": "embedded", "event": "append", "to": "appended"},
+    {"from": "unclassified", "event": "queue_retry", "to": "queued"}
+  ],
+  "invariants": [
+    {"id": "type_ok", "quint": "TypeOK", "description": "The model status remains inside the declared state set."},
+    {"id": "terminal_closure", "quint": "TerminalClosure", "description": "Persisted terminal states cannot transition."},
+    {"id": "illegal_transitions_preserve_state", "quint": "IllegalTransitionsPreserveState", "description": "Rejected transitions preserve status."},
+    {"id": "append_is_irreversible", "quint": "AppendIsIrreversible", "description": "Once appended, journal data never returns to mutable processing."}
+  ],
+  "traces": [
+    {"name": "successful_append", "initial": "received", "steps": [{"event": "classify", "want": "classified", "wantError": false}, {"event": "embed", "want": "embedded", "wantError": false}, {"event": "append", "want": "appended", "wantError": false}]},
+    {"name": "classifier_failure_is_queued", "initial": "received", "steps": [{"event": "classify_failure", "want": "unclassified", "wantError": false}, {"event": "queue_retry", "want": "queued", "wantError": false}]}
+  ],
+  "runtime": {"go": {"package": "flow", "statusType": "JournalWriteStatus", "eventType": "JournalWriteEvent", "constantPrefix": "JournalWrite"}, "sideEffects": ["Journal persistence happens before retry enqueueing.", "Classifier failure degrades to an unclassified immutable entry with retry work."]},
+  "replay": {"transition": {"function": "TransitionJournalWrite", "stateType": "JournalWriteState", "statusField": "Status"}}
+}
+

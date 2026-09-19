@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/health"
-	"github.com/vrooli/api-core/preflight"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 	"net/http"
 	"os"
 	"sort"

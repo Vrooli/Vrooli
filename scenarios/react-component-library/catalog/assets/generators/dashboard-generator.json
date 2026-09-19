@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "generators.dashboard-generator",
+    "name": "DashboardGenerator",
+    "kind": "generator",
+    "domain": "generators",
+    "description": "Produces a dashboard from metric, chart, table, filter, layout, and refresh definitions while preserving loading, partial-failure, and responsive behavior.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "lib-util",
+    "delivery": "generated",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.app-shell",
+        "reason": "Generated dashboard content mounts under the host AppShell; the generator does not redraw application chrome."
+      },
+      {
+        "asset": "primitives.grid",
+        "reason": "Compose responsive metric, chart and table regions using shared layout."
+      },
+      {
+        "asset": "primitives.card",
+        "reason": "Render metric and chart surfaces with consumer-restylable cards."
+      }
+    ]
+  }
+}

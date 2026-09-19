@@ -25,14 +25,14 @@ type ActionRecordCallback func(sessionID string, action *RecordedNavigationActio
 
 // RecordedNavigationAction contains action details from AI navigation.
 type RecordedNavigationAction struct {
-	ActionType  string
-	URL         string
-	PageTitle   string
-	Selector    string
-	Reasoning   string
-	StepNumber  int
-	Timestamp   string
-	Source      string // "ai"
+	ActionType string
+	URL        string
+	PageTitle  string
+	Selector   string
+	Reasoning  string
+	StepNumber int
+	Timestamp  string
+	Source     string // "ai"
 }
 
 // PlaywrightVisionNavigator implements VisionNavigator using playwright-driver.
@@ -166,7 +166,7 @@ func (n *PlaywrightVisionNavigator) CreditPolicy() CreditPolicy {
 		OperationType:    credits.OpAIVisionNavigate,
 		PerStepCharging:  true,
 		CreditsPerStep:   2,
-		BypassConditions: []BypassCondition{BypassBYOK, BypassResourceOpenrouter},
+		BypassConditions: []BypassCondition{BypassCredentialProvenance, BypassResourceOpenrouter},
 	}
 }
 
@@ -182,29 +182,19 @@ func (n *PlaywrightVisionNavigator) Navigate(ctx context.Context, req Navigation
 
 	// Track the navigation session
 	session := &NavigationSession{
-		NavigationID:  navigationID,
-		SessionID:     req.SessionID,
-		UserID:        req.UserID,
-		Model:         req.Model,
-		StartedAt:     time.Now(),
-		Status:        StatusNavigating,
-		IsBYOK:        req.APIKey != "",
-		NavigatorType: NavigatorPlaywright,
+		NavigationID:         navigationID,
+		SessionID:            req.SessionID,
+		UserID:               req.UserID,
+		Model:                req.Model,
+		StartedAt:            time.Now(),
+		Status:               StatusNavigating,
+		CredentialProvenance: CredentialProvenanceNone,
+		NavigatorType:        NavigatorPlaywright,
 	}
 
 	n.mu.Lock()
 	n.activeNavigations[navigationID] = session
 	n.mu.Unlock()
-
-	// Resolve API key
-	apiKey := req.APIKey
-	if apiKey == "" {
-		apiKey = os.Getenv("OPENROUTER_API_KEY")
-	}
-	if apiKey == "" {
-		n.removeNavigation(navigationID)
-		return nil, errors.New("API key required: provide api_key in request or set OPENROUTER_API_KEY environment variable")
-	}
 
 	// Set defaults
 	maxSteps := req.MaxSteps
@@ -217,11 +207,13 @@ func (n *PlaywrightVisionNavigator) Navigate(ctx context.Context, req Navigation
 
 	// Forward to playwright-driver
 	driverReq := map[string]interface{}{
-		"prompt":       req.Prompt,
-		"model":        req.Model,
-		"api_key":      apiKey,
-		"max_steps":    maxSteps,
-		"callback_url": req.CallbackURL,
+		"prompt":         req.Prompt,
+		"effect_policy":  req.EffectPolicy,
+		"postconditions": req.Postconditions,
+		"extraction":     req.Extraction,
+		"model":          req.Model,
+		"max_steps":      maxSteps,
+		"callback_url":   req.CallbackURL,
 	}
 
 	driverURL := fmt.Sprintf("%s/session/%s/ai-navigate", n.driverBaseURL, req.SessionID)
@@ -313,8 +305,9 @@ func (n *PlaywrightVisionNavigator) HandleStepCallback(ctx context.Context, even
 		session.TotalTokens += event.TokensUsed.TotalTokens
 		session.AwaitingHuman = event.AwaitingHuman
 		session.HumanIntervention = event.HumanIntervention
+		session.RecordStep(stepRecordFromEvent(event))
 		if event.AwaitingHuman {
-			session.Status = StatusAwaitingHuman
+			session.SetStatus(StatusAwaitingHuman)
 		}
 	}
 	n.mu.Unlock()
@@ -353,7 +346,7 @@ func (n *PlaywrightVisionNavigator) HandleStepCallback(ctx context.Context, even
 				PromptTokens:     event.TokensUsed.PromptTokens,
 				CompletionTokens: event.TokensUsed.CompletionTokens,
 			},
-			IsBYOK: session.IsBYOK,
+			IsBYOK: session.CredentialProvenance == CredentialProvenanceAuthority,
 		})
 		if err != nil {
 			n.log.WithError(err).Warn("vision_navigation_callback: failed to charge credits")
@@ -423,7 +416,10 @@ func (n *PlaywrightVisionNavigator) HandleCompleteCallback(ctx context.Context, 
 	n.mu.Lock()
 	session := n.activeNavigations[result.NavigationID]
 	if session != nil {
-		session.Status = result.Status
+		session.VerifiedSuccess = result.VerifiedSuccess
+		session.ExtractedData = result.ExtractedData
+		session.VerificationError = result.VerificationError
+		session.SetStatus(result.Status)
 		session.StepCount = result.TotalSteps
 		session.TotalTokens = result.TotalTokens
 	}
@@ -461,12 +457,46 @@ func (n *PlaywrightVisionNavigator) HandleCompleteCallback(ctx context.Context, 
 	return nil
 }
 
-// GetSession returns a navigation session by ID.
+// GetSession returns a snapshot of a navigation session by ID. The snapshot
+// carries the session's Changed() channel so callers can wait on the next
+// status transition without holding the navigator lock.
 func (n *PlaywrightVisionNavigator) GetSession(navigationID string) (*NavigationSession, bool) {
-	n.mu.RLock()
-	defer n.mu.RUnlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	session, exists := n.activeNavigations[navigationID]
-	return session, exists
+	if !exists {
+		return nil, false
+	}
+	return session.Snapshot(), true
+}
+
+// stepRecordFromEvent maps a driver step callback onto the bounded history
+// entry kept on the NavigationSession.
+func stepRecordFromEvent(event *NavigationStep) NavigationStepRecord {
+	rec := NavigationStepRecord{
+		Index:       event.StepNumber,
+		URL:         event.CurrentURL,
+		Description: event.Reasoning,
+		Success:     event.Error == "",
+		Error:       event.Error,
+		At:          time.Now(),
+	}
+	if t, ok := event.Action["type"].(string); ok {
+		rec.ActionType = t
+	}
+	if sel, ok := event.Action["selector"].(string); ok {
+		rec.Selector = sel
+	}
+	for _, key := range []string{"value", "text", "key"} {
+		if v, ok := event.Action[key].(string); ok && v != "" {
+			rec.Value = v
+			break
+		}
+	}
+	if u, ok := event.Action["url"].(string); ok && u != "" && (rec.ActionType == "navigate" || rec.URL == "") {
+		rec.URL = u
+	}
+	return rec
 }
 
 // AbortNavigation sends an abort request to playwright-driver.
@@ -491,7 +521,7 @@ func (n *PlaywrightVisionNavigator) AbortNavigation(ctx context.Context, navigat
 	// Update status locally
 	n.mu.Lock()
 	if s := n.activeNavigations[navigationID]; s != nil {
-		s.Status = StatusAborted
+		s.SetStatus(StatusAborted)
 	}
 	n.mu.Unlock()
 
@@ -530,7 +560,7 @@ func (n *PlaywrightVisionNavigator) ResumeNavigation(ctx context.Context, naviga
 	// Update status locally
 	n.mu.Lock()
 	if s := n.activeNavigations[navigationID]; s != nil {
-		s.Status = StatusNavigating
+		s.SetStatus(StatusNavigating)
 		s.AwaitingHuman = false
 		s.HumanIntervention = nil
 	}
@@ -581,23 +611,21 @@ func (h *playwrightNavigationHandle) Status() NavigationStatus {
 }
 
 func (h *playwrightNavigationHandle) Wait(ctx context.Context) error {
-	// Poll for completion
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
-
+	// Block on the session's status-change broadcast; awaiting_human is not
+	// completion from a handle's point of view, so keep waiting through it.
 	for {
+		session, exists := h.navigator.GetSession(h.session.NavigationID)
+		if !exists {
+			return nil // Session cleaned up, assume completed
+		}
+		switch session.Status {
+		case StatusCompleted, StatusFailed, StatusAborted, StatusMaxSteps, StatusLoopDetected:
+			return nil
+		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-ticker.C:
-			session, exists := h.navigator.GetSession(h.session.NavigationID)
-			if !exists {
-				return nil // Session cleaned up, assume completed
-			}
-			switch session.Status {
-			case StatusCompleted, StatusFailed, StatusAborted, StatusMaxSteps, StatusLoopDetected:
-				return nil
-			}
+		case <-session.Changed():
 		}
 	}
 }

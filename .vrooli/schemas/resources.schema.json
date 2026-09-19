@@ -53,18 +53,33 @@
         },
         "type": {
           "type": "string",
-          "description": "Explicit resource type (required when key doesn't match resource name)",
+          "description": "Explicit resource type for alias or instance keys when the entry key does not match the canonical resource name",
           "examples": ["postgres", "ollama", "n8n", "qdrant", "redis"]
         },
         "enabled": {
           "type": "boolean",
           "default": false,
-          "description": "Whether this resource is enabled"
+          "description": "Whether this dependency participates in orchestration for this configuration. Disabled dependencies are skipped entirely."
         },
         "required": {
           "type": "boolean",
           "default": false,
-          "description": "Whether this resource is required for the service to function"
+          "description": "Whether this resource is semantically important for correct behavior. When `startup_policy` is omitted, required resources default to `must_start`."
+        },
+        "startup_policy": {
+          "type": "string",
+          "enum": ["must_start", "try_start", "ignore"],
+          "description": "One input to the derived supervision intent. Values are `must_start`, `try_start`, and `ignore`. When omitted, intent derives as `must_start` for required edges and `try_start` otherwise. Repository manifests declare this explicitly."
+        },
+        "supervision_precedence": {
+          "type": "string",
+          "enum": ["required", "startup_policy"],
+          "description": "Explicit acknowledgement required only when `required` and `startup_policy` disagree. `required=true` with `try_start` derives `must_start` and uses `required`; `required=false` with `must_start` derives `must_start` and uses `startup_policy`."
+        },
+        "freshness_policy": {
+          "type": "string",
+          "enum": ["restart_when_stale", "reuse_running", "rebuild_only"],
+          "description": "How lifecycle orchestration treats a running dependency whose sources changed. Invalid on an ignored dependency."
         },
         "version": {
           "type": "string",
@@ -78,19 +93,16 @@
           "type": "string",
           "description": "Human-readable description of this resource configuration"
         },
+        "degraded_behavior": {
+          "type": "string",
+          "description": "Human explanation of fallback behavior when this resource is unavailable. Required for intentional degradation patterns such as `required=true` with `startup_policy=try_start`."
+        },
         "startup_order": {
           "type": "integer",
           "default": 500,
           "minimum": 1,
           "maximum": 9999,
           "description": "Startup priority (higher = starts first, like CSS z-index). Core infrastructure: 1000+, platforms: 500-999, optional: 100-499"
-        },
-        "initialization": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/initializationItem"
-          },
-          "description": "Initialization files/scripts to run when resource is set up"
         },
         "baseUrl": {
           "$ref": "common.schema.json#/definitions/url",
@@ -124,29 +136,6 @@
       },
       "additionalProperties": true,
       "description": "Base resource configuration with type-specific properties allowed"
-    },
-    "initializationItem": {
-      "type": "object",
-      "properties": {
-        "file": {
-          "type": "string",
-          "description": "Path to initialization file relative to scenario root"
-        },
-        "type": {
-          "type": "string",
-          "enum": ["workflow", "script", "app", "schema", "config", "data"],
-          "description": "Type of initialization content"
-        },
-        "target": {
-          "type": "string",
-          "description": "Target location or identifier for the content"
-        },
-        "order": {
-          "type": "integer",
-          "description": "Execution order (lower numbers run first)"
-        }
-      },
-      "required": ["file", "type"]
     },
     "healthCheckConfig": {
       "type": "object",

@@ -1,0 +1,261 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "service": {
+    "name": "chart-generator",
+    "displayName": "Professional Chart Generator",
+    "description": "Professional-grade data visualization generation with customizable styling for business reports, research papers, and analytics dashboards",
+    "version": "1.0.0",
+    "tags": [
+      "data-visualization",
+      "chart-generation",
+      "business-intelligence",
+      "reporting-tools",
+      "foundational-capability",
+      "cross-scenario-multiplier",
+      "professional-output",
+      "customizable-styling",
+      "go-api",
+      "native-go-processing",
+      "postgres-storage",
+      "cli-integration"
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/chart-generator"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Chart generation API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Chart style management UI port",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Chart Generator service health monitoring",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 60000
+        },
+        {
+          "name": "chart_generation_test",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/api/v1/health/generation",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 300000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Chart Generator with all dependencies",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/chart-generator-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "chart-generator",
+            "targets": [
+              "chart-generator"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o chart-generator-api .",
+          "description": "Build Go chart generation API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && pnpm install --ignore-workspace",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && pnpm run build",
+          "description": "Build production UI bundle"
+        },
+        {
+          "name": "setup-database",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Initialize PostgreSQL schema and seed default styles"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start chart generator with API server and UI",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./chart-generator-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/chart-generator-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start style management UI server with health endpoint",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for chart-generator",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test-genie execute chart-generator --preset comprehensive",
+          "description": "Execute phased scenario test suite"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop all chart generator services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"chart-generator-api\" || true; sleep 1; pkill -9 -f \"chart-generator-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store chart templates, custom styles, generation history, and configuration data",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed-styles.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": false,
+        "required": false,
+        "purpose": "Store generated chart assets and large data files with organized bucket structure"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Cache frequently used styles, templates, and generated charts for performance optimization"
+      }
+    },
+    "scenarios": {
+      "browser-automation-studio": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "PNG rendering leg (replacing the deleted browserless resource). The renderer serves chart HTML over its own HTTP surface and calls BAS CaptureService.Capture (Connect-RPC) to screenshot it via the scenario=chart-generator shorthand; the returned artifact bytes become the PNG export.",
+        "degraded_behavior": "Without browser-automation-studio, PNG export falls back to a basic Go-drawn placeholder image; HTML/SVG/PDF exports are unaffected."
+      }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "chart-generator",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "chart-generator"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  }
+}

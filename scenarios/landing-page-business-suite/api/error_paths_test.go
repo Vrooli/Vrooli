@@ -7,6 +7,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // ============================================================================
@@ -25,17 +26,15 @@ func TestErrorPaths_ContextCancellation(t *testing.T) {
 	cancel()
 
 	// Test that operations properly handle cancelled context
-	err := usageSvc.RecordUsage(ctx, UsageReportRequest{
+	err := usageSvc.RecordUsage(ctx, commerce.UsageReportRequest{
 		UserIdentity: "cancel-test@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       1000,
 		AppBundleKey: "test-app",
 	})
 
-	if err == nil {
-		t.Log("RecordUsage succeeded with cancelled context (may be acceptable for fast operations)")
-	} else if !errors.Is(err, context.Canceled) {
-		t.Logf("RecordUsage returned error (may or may not be context.Canceled): %v", err)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("RecordUsage error = %v, want context.Canceled", err)
 	}
 }
 
@@ -50,16 +49,15 @@ func TestErrorPaths_ContextTimeout(t *testing.T) {
 	// Allow the context to actually expire
 	time.Sleep(1 * time.Millisecond)
 
-	err := usageSvc.RecordUsage(ctx, UsageReportRequest{
+	err := usageSvc.RecordUsage(ctx, commerce.UsageReportRequest{
 		UserIdentity: "timeout-test@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       1000,
 		AppBundleKey: "test-app",
 	})
 
-	// The operation may succeed if it's fast enough, or fail with deadline exceeded
-	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
-		t.Logf("RecordUsage error (expected DeadlineExceeded or success): %v", err)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("RecordUsage error = %v, want context.DeadlineExceeded", err)
 	}
 }
 
@@ -70,7 +68,7 @@ func TestErrorPaths_InvalidUserIdentity(t *testing.T) {
 	ctx := context.Background()
 
 	// Test empty user identity
-	err := usageSvc.RecordUsage(ctx, UsageReportRequest{
+	err := usageSvc.RecordUsage(ctx, commerce.UsageReportRequest{
 		UserIdentity: "",
 		LimitKey:     "ai_credits",
 		Amount:       1000,
@@ -89,7 +87,7 @@ func TestErrorPaths_InvalidLimitKey(t *testing.T) {
 	ctx := context.Background()
 
 	// Test empty limit key
-	err := usageSvc.RecordUsage(ctx, UsageReportRequest{
+	err := usageSvc.RecordUsage(ctx, commerce.UsageReportRequest{
 		UserIdentity: "valid@example.com",
 		LimitKey:     "",
 		Amount:       1000,
@@ -108,15 +106,16 @@ func TestErrorPaths_NegativeAmount(t *testing.T) {
 	ctx := context.Background()
 
 	// Test negative amount
-	err := usageSvc.RecordUsage(ctx, UsageReportRequest{
+	err := usageSvc.RecordUsage(ctx, commerce.UsageReportRequest{
 		UserIdentity: "valid@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       -100,
 		AppBundleKey: "test-app",
 	})
 
-	// Depending on implementation, negative amounts might be rejected or treated as refunds
-	t.Logf("Negative amount handling: err=%v", err)
+	if err == nil {
+		t.Fatal("negative usage amount must be rejected")
+	}
 }
 
 func TestErrorPaths_GetUsage_NonexistentUser(t *testing.T) {
@@ -127,7 +126,6 @@ func TestErrorPaths_GetUsage_NonexistentUser(t *testing.T) {
 
 	// Query for a user that doesn't exist
 	usage, err := usageSvc.GetUsage(ctx, "nonexistent@example.com", "ai_credits", nil)
-
 	// Should return 0 usage for non-existent user, not an error
 	if err != nil {
 		t.Errorf("Expected nil error for non-existent user, got: %v", err)
@@ -158,14 +156,12 @@ func TestErrorPaths_CheckLimit_InvalidTier(t *testing.T) {
 
 func TestErrorPaths_AccountService_NonexistentUser(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planSvc := NewPlanService(db)
 	svc := NewAccountService(db, planSvc)
 
 	// Query for a user that doesn't exist
 	sub, err := svc.GetSubscription("nonexistent-999999@example.com")
-
 	// Should return nil subscription without error (or with specific error)
 	if err != nil {
 		t.Logf("Non-existent user returned error: %v", err)
@@ -177,14 +173,12 @@ func TestErrorPaths_AccountService_NonexistentUser(t *testing.T) {
 
 func TestErrorPaths_AccountService_EmptyEmail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planSvc := NewPlanService(db)
 	svc := NewAccountService(db, planSvc)
 
 	// Test with empty email
 	sub, err := svc.GetSubscription("")
-
 	// Should handle gracefully
 	if err != nil {
 		t.Logf("Empty email returned error (acceptable): %v", err)
@@ -196,7 +190,6 @@ func TestErrorPaths_AccountService_EmptyEmail(t *testing.T) {
 
 func TestErrorPaths_LimitsService_InvalidTierID(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewLimitsService(db, "postgres")
 	ctx := context.Background()
@@ -221,14 +214,13 @@ func TestErrorPaths_LimitsService_InvalidTierID(t *testing.T) {
 
 func TestErrorPaths_LimitsService_UpdateNonexistent(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewLimitsService(db, "postgres")
 	ctx := context.Background()
 
 	// Try to update a non-existent limit
 	newValue := int64(5000)
-	_, err := svc.UpdateLimit(ctx, "nonexistent_tier", "nonexistent_key", nil, TierLimitUpdate{
+	_, err := svc.UpdateLimit(ctx, "nonexistent_tier", "nonexistent_key", nil, commerce.TierLimitUpdate{
 		LimitValue: &newValue,
 	})
 
@@ -239,14 +231,13 @@ func TestErrorPaths_LimitsService_UpdateNonexistent(t *testing.T) {
 
 func TestErrorPaths_LimitsService_CreateDuplicate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewLimitsService(db, "postgres")
 	ctx := context.Background()
 
 	// Create a limit - must set AppBundleKey because NULL != NULL in unique constraints
 	appKey := "test_app_dup"
-	limit := TierLimit{
+	limit := commerce.TierLimit{
 		TierID:         "test_tier_dup",
 		LimitType:      "cost_based",
 		LimitKey:       "test_limit_dup",
@@ -279,7 +270,6 @@ func TestErrorPaths_LimitsService_CreateDuplicate(t *testing.T) {
 
 func TestErrorPaths_LimitsService_DeleteNonexistent(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewLimitsService(db, "postgres")
 	ctx := context.Background()
@@ -294,7 +284,6 @@ func TestErrorPaths_LimitsService_DeleteNonexistent(t *testing.T) {
 
 func TestErrorPaths_StripeService_ConfigSnapshot(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewStripeService(db)
 
@@ -324,7 +313,6 @@ func TestErrorPaths_StripeService_ConfigSnapshot(t *testing.T) {
 
 func TestErrorPaths_StripeService_InvalidSignature(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewStripeService(db)
 

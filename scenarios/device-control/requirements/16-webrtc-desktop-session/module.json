@@ -1,0 +1,61 @@
+{
+  "_metadata": {
+    "module": "webrtc-desktop-session",
+    "description": "Portal Everywhere acceptance obligations for Bridge-mediated, Device Control-owned browser desktop sessions.",
+    "prd_ref": "OT-P0-018",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DEVICECONTROL-WEBRTC-01",
+      "title": "Native companion readiness",
+      "status": "planned",
+      "prd_ref": "OT-P0-018",
+      "category": "desktop",
+      "criticality": "P0",
+      "description": "Given a Bridge-managed companion is installed on an authorized node, when readiness is probed, Device Control shall report the active user session, selected display, capture permission, input permission, clipboard capability, helper generation, and exact unavailable reason without inferring readiness from service presence.",
+      "validation": [{"type": "test", "status": "planned", "notes": "Retain producer capability receipt for active session, capture, input, clipboard, and permission-denied states on macOS minimouse."}]
+    },
+    {
+      "id": "DEVICECONTROL-WEBRTC-02",
+      "title": "WebRTC display session",
+      "status": "planned",
+      "prd_ref": "OT-P0-018",
+      "category": "desktop",
+      "criticality": "P0",
+      "description": "Given a valid Device Control lease and Bridge channel grant, when Web Console opens one selected display, Device Control shall publish a VP8 WebRTC video track and expose connection state, selected display identity, frame dimensions, and bounded transport statistics.",
+      "validation": [{"type": "test", "status": "planned", "notes": "Use a deterministic fixture and retain browser/companion connection evidence for direct and TURN-relayed paths."}]
+    },
+    {
+      "id": "DEVICECONTROL-WEBRTC-03",
+      "title": "Lease-bound raw input",
+      "status": "planned",
+      "prd_ref": "OT-P0-018",
+      "category": "security",
+      "criticality": "P0",
+      "description": "Given an interactive session, when pointer, keyboard, wheel, or clipboard commands arrive, Device Control shall require the current lease epoch and destination, reject stale commands, release held input on stop or loss, and return accepted, rejected, or outcome-unknown receipts without blind replay.",
+      "validation": [{"type": "test", "status": "planned", "notes": "Cover epoch mismatch, takeover, disconnect during key/button hold, revoke, helper crash, and uncertain delivery."}]
+    },
+    {
+      "id": "DEVICECONTROL-WEBRTC-04",
+      "title": "Text clipboard capability",
+      "status": "planned",
+      "prd_ref": "OT-P0-018",
+      "category": "privacy",
+      "criticality": "P0",
+      "description": "Given clipboard scope is explicitly granted, when the operator requests text transfer in either direction, Device Control shall enforce size and encoding limits, audit the transfer, and refuse clipboard activity after expiry or revocation.",
+      "validation": [{"type": "test", "status": "planned", "notes": "Retain audit receipt for bounded Unicode text in both directions and refusal when clipboard scope is absent."}]
+    },
+    {
+      "id": "DEVICECONTROL-WEBRTC-05",
+      "title": "Session revocation and recovery",
+      "status": "planned",
+      "prd_ref": "OT-P0-018",
+      "category": "lifecycle",
+      "criticality": "P0",
+      "description": "Given a desktop peer is active, when Bridge revokes the node or Device Control expires/kills the lease, the peer shall close, queued input shall be rejected, held input shall be released, and reconnect shall require a new session and epoch.",
+      "validation": [{"type": "test", "status": "planned", "notes": "Retain paired control-plane and target-side receipts proving existing channels lost authority."}]
+    }
+  ]
+}

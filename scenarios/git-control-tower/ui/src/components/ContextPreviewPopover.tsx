@@ -1,8 +1,12 @@
+import { lazy, Suspense } from "react";
 import { X } from "lucide-react";
 import { Popover } from "./ui/popover";
-import { MarkdownPreview } from "./MarkdownPreview";
 import { buildCaptureScreenshotUrl } from "../lib/api";
 import type { AgentContextItem } from "../lib/api";
+
+const LazyMarkdownPreview = lazy(() =>
+  import("./MarkdownPreview").then(({ MarkdownPreview }) => ({ default: MarkdownPreview })),
+);
 
 interface ContextPreviewPopoverProps {
   item: AgentContextItem;
@@ -51,7 +55,9 @@ export function ContextPreviewPopover({ item, scenarioSlug, onRemove }: ContextP
             />
           </div>
         )}
-        <MarkdownPreview content={item.markdown} />
+        <Suspense fallback={<div className="p-3 text-xs text-slate-500">Loading preview…</div>}>
+          <LazyMarkdownPreview content={item.markdown} />
+        </Suspense>
       </div>
     </Popover>
   );

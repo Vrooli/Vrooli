@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "fixtures.form-schema",
+    "name": "FormSchemaFixture",
+    "kind": "fixture",
+    "domain": "fixtures",
+    "description": "Adversarial form definitions covering every field type, conditional visibility, computed values, nested objects, repeating arrays, async options, and server-rejected values.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "fixture",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "fixture": {
+    "dataShapes": [
+      "empty",
+      "typical",
+      "overflow",
+      "volume",
+      "failure"
+    ],
+    "satisfies": {
+      "capability": "validation-adapter",
+      "typeArguments": [
+        "FormValues"
+      ]
+    },
+    "recordCount": {
+      "typical": 20,
+      "volume": 400
+    }
+  },
+  "rationale": "The volume shape is a 400-field schema, which is what proves the generated-form dependency graph recalculates affected nodes rather than the whole form on every keystroke."
+}

@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	types "scenario-dependency-analyzer/internal/types"
+	"github.com/vrooli/api-core/storage"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // TestBuildReport tests the main report building function.
@@ -24,7 +25,7 @@ func TestBuildReport(t *testing.T) {
 		scenariosDir := filepath.Dir(scenarioDir)
 		scenarioName := filepath.Base(scenarioDir)
 
-		cfg := &types.ServiceConfig{}
+		cfg := &types.Manifest{}
 		cfg.Service.Name = scenarioName
 		cfg.Service.Version = "1.0.0"
 
@@ -48,7 +49,7 @@ func TestBuildReport(t *testing.T) {
 		scenariosDir := filepath.Dir(scenarioDir)
 		scenarioName := filepath.Base(scenarioDir)
 
-		cfg := &types.ServiceConfig{}
+		cfg := &types.Manifest{}
 		cfg.Service.Name = scenarioName
 		cfg.Dependencies.Resources = map[string]types.Resource{
 			"postgres": {Type: "database", Required: true},
@@ -69,12 +70,12 @@ func TestBuildReport(t *testing.T) {
 		scenariosDir := filepath.Dir(scenarioDir)
 		scenarioName := filepath.Base(scenarioDir)
 
-		cfg := &types.ServiceConfig{}
+		cfg := &types.Manifest{}
 		cfg.Service.Name = scenarioName
-		cfg.Deployment = &types.ServiceDeployment{
+		cfg.TierFeasibility = &types.TierFeasibility{
 			Tiers: map[string]types.DeploymentTier{
-				"desktop": {Status: "ready"},
-				"server":  {Status: "ready"},
+				"desktop": {},
+				"server":  {},
 			},
 		}
 
@@ -93,17 +94,12 @@ func TestBuildReport(t *testing.T) {
 		disk := 2048.0
 		cpu := 1.5
 
-		cfg := &types.ServiceConfig{}
+		cfg := &types.Manifest{}
 		cfg.Service.Name = scenarioName
-		cfg.Deployment = &types.ServiceDeployment{
-			AggregateRequirements: &types.DeploymentRequirements{
-				RAMMB:    &ram,
-				DiskMB:   &disk,
-				CPUCores: &cpu,
-			},
+		cfg.TierFeasibility = &types.TierFeasibility{
 			Tiers: map[string]types.DeploymentTier{
 				"server": {
-					Status: "ready",
+					Requirements: &types.DeploymentRequirements{RAMMB: &ram, DiskMB: &disk, CPUCores: &cpu},
 				},
 			},
 		}
@@ -127,18 +123,18 @@ func TestBuildReport(t *testing.T) {
 		scenariosDir := filepath.Dir(scenarioDir)
 		scenarioName := filepath.Base(scenarioDir)
 
-		if err := os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0o755); err != nil {
 			t.Fatalf("mkdir .vrooli: %v", err)
 		}
 
-		cfg := &types.ServiceConfig{}
+		cfg := &types.Manifest{}
 		cfg.Service.Name = scenarioName
 		cfg.Dependencies.Resources = map[string]types.Resource{
 			"postgres": {Type: "postgres", Required: true},
 		}
-		cfg.Deployment = &types.ServiceDeployment{
+		cfg.TierFeasibility = &types.TierFeasibility{
 			Tiers: map[string]types.DeploymentTier{
-				"tier-1-local": {Status: "ready"},
+				"tier-1-local": {},
 			},
 		}
 
@@ -146,7 +142,7 @@ func TestBuildReport(t *testing.T) {
 		if err != nil {
 			t.Fatalf("marshal config: %v", err)
 		}
-		if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "service.json"), raw, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "service.json"), raw, 0o644); err != nil {
 			t.Fatalf("write service.json: %v", err)
 		}
 
@@ -190,7 +186,7 @@ func TestPersistReport(t *testing.T) {
 			t.Fatalf("PersistReport error: %v", err)
 		}
 
-		reportPath := filepath.Join(scenarioDir, ".vrooli", "deployment", "deployment-report.json")
+		reportPath := mustReportPath(t, scenarioDir)
 		if _, err := os.Stat(reportPath); os.IsNotExist(err) {
 			t.Error("expected report file to exist")
 		}
@@ -229,7 +225,7 @@ func TestPersistReport(t *testing.T) {
 
 	t.Run("NoRewriteWhenOnlyGeneratedAtChanges", func(t *testing.T) {
 		scenarioDir := t.TempDir()
-		reportPath := filepath.Join(scenarioDir, ".vrooli", "deployment", "deployment-report.json")
+		reportPath := mustReportPath(t, scenarioDir)
 
 		first := &types.DeploymentAnalysisReport{
 			Scenario:      "test-scenario",
@@ -309,171 +305,83 @@ func TestLoadReport(t *testing.T) {
 
 	t.Run("InvalidJSON", func(t *testing.T) {
 		scenarioDir := t.TempDir()
-		reportDir := filepath.Join(scenarioDir, ".vrooli", "deployment")
-		os.MkdirAll(reportDir, 0755)
-		os.WriteFile(filepath.Join(reportDir, "deployment-report.json"), []byte("invalid json"), 0644)
+		reportDir := filepath.Dir(mustReportPath(t, scenarioDir))
+		os.MkdirAll(reportDir, 0o755)
+		os.WriteFile(filepath.Join(reportDir, "deployment-report.json"), []byte("invalid json"), 0o644)
 
 		_, err := LoadReport(scenarioDir)
 		if err == nil {
 			t.Error("expected error for invalid JSON")
 		}
 	})
+
+	t.Run("MarksReportStaleWhenManifestChanges", func(t *testing.T) {
+		scenarioDir := t.TempDir()
+		manifestDir := filepath.Join(scenarioDir, ".vrooli")
+		if err := os.MkdirAll(manifestDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		manifestPath := filepath.Join(manifestDir, "service.json")
+		if err := os.WriteFile(manifestPath, []byte(`{"service":{"name":"fixture"}}`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		report := &types.DeploymentAnalysisReport{
+			Scenario:      "fixture",
+			ReportVersion: ReportVersion,
+			GeneratedAt:   time.Now().UTC(),
+		}
+		if err := PersistReport(scenarioDir, report); err != nil {
+			t.Fatalf("PersistReport: %v", err)
+		}
+
+		fresh, err := LoadReport(scenarioDir)
+		if err != nil {
+			t.Fatalf("LoadReport fresh: %v", err)
+		}
+		if fresh.Stale {
+			t.Fatal("fresh report was marked stale")
+		}
+
+		if err := os.WriteFile(manifestPath, []byte(`{"service":{"name":"changed"}}`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		stale, err := LoadReport(scenarioDir)
+		if err != nil {
+			t.Fatalf("LoadReport stale: %v", err)
+		}
+		if !stale.Stale {
+			t.Fatal("changed manifest did not mark persisted report stale")
+		}
+		if stale.Provenance.InputDigest == "" {
+			t.Fatal("stale report lost its original input digest")
+		}
+	})
 }
 
-// TestClassifyResource tests resource classification.
-func TestClassifyResource(t *testing.T) {
-	tests := []struct {
-		name      string
-		resource  string
-		wantClass ResourceClass
-		wantHeavy bool
-	}{
-		{"Postgres", "postgres", ResourceClassDatabase, true},
-		{"MySQL", "mysql", ResourceClassDatabase, true},
-		{"MongoDB", "mongodb", ResourceClassDatabase, true},
-		{"Redis", "redis", ResourceClassDatabase, false},
-		{"Qdrant", "qdrant", ResourceClassDatabase, false},
-		{"Ollama", "ollama", ResourceClassAI, true},
-		{"ClaudeCode", "claude-code", ResourceClassAI, false},
-		{"OpenAI", "openai", ResourceClassAI, false},
-		{"N8N", "n8n", ResourceClassAutomation, true},
-		{"Huginn", "huginn", ResourceClassAutomation, true},
-		{"Windmill", "windmill", ResourceClassAutomation, true},
-		{"Minio", "minio", ResourceClassStorage, false},
-		{"S3", "s3", ResourceClassStorage, false},
-		{"Browserless", "browserless", ResourceClassBrowser, true},
-		{"Playwright", "playwright", ResourceClassBrowser, true},
-		{"Judge0", "judge0", ResourceClassExecution, true},
-		{"Sandbox", "sandbox", ResourceClassExecution, true},
-		{"Unknown", "unknown-resource", ResourceClassService, false},
+func mustReportPath(t *testing.T, scenarioDir string) string {
+	t.Helper()
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		t.Fatalf("create storage resolver: %v", err)
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			classification := ClassifyResource(tt.resource)
-			if classification.Class != tt.wantClass {
-				t.Errorf("ClassifyResource(%q).Class = %q, want %q",
-					tt.resource, classification.Class, tt.wantClass)
-			}
-			if classification.IsHeavyOps != tt.wantHeavy {
-				t.Errorf("ClassifyResource(%q).IsHeavyOps = %v, want %v",
-					tt.resource, classification.IsHeavyOps, tt.wantHeavy)
-			}
-		})
+	path, err := resolver.Path(
+		storage.Options{ScenarioID: filepath.Base(filepath.Clean(scenarioDir))},
+		storage.ClassData,
+		filepath.Join("deployment", "deployment-report.json"),
+	)
+	if err != nil {
+		t.Fatalf("resolve report path: %v", err)
 	}
-}
-
-// TestDecideTierFitness tests tier fitness decisions.
-func TestDecideTierFitness(t *testing.T) {
-	tests := []struct {
-		name           string
-		tier           string
-		classification ResourceClassification
-		wantSupported  bool
-		minScore       float64
-		maxScore       float64
-	}{
-		{
-			name:           "LocalAlwaysSupported",
-			tier:           "local",
-			classification: ResourceClassification{Class: ResourceClassDatabase, IsHeavyOps: true},
-			wantSupported:  true,
-			minScore:       1.0,
-			maxScore:       1.0,
-		},
-		{
-			name:           "DesktopLightweight",
-			tier:           "desktop",
-			classification: ResourceClassification{Class: ResourceClassStorage, IsHeavyOps: false},
-			wantSupported:  true,
-			minScore:       0.85,
-			maxScore:       1.0,
-		},
-		{
-			name:           "DesktopHeavy",
-			tier:           "desktop",
-			classification: ResourceClassification{Class: ResourceClassDatabase, IsHeavyOps: true},
-			wantSupported:  true,
-			minScore:       0.5,
-			maxScore:       0.7,
-		},
-		{
-			name:           "ServerAlwaysGood",
-			tier:           "server",
-			classification: ResourceClassification{Class: ResourceClassDatabase, IsHeavyOps: true},
-			wantSupported:  true,
-			minScore:       0.9,
-			maxScore:       1.0,
-		},
-		{
-			name:           "MobileAIBlocked",
-			tier:           "mobile",
-			classification: ResourceClassification{Class: ResourceClassAI, IsHeavyOps: true},
-			wantSupported:  false,
-			minScore:       0.0,
-			maxScore:       0.1,
-		},
-		{
-			name:           "MobileDatabaseBlocked",
-			tier:           "mobile",
-			classification: ResourceClassification{Class: ResourceClassDatabase, IsHeavyOps: false},
-			wantSupported:  false,
-			minScore:       0.1,
-			maxScore:       0.3,
-		},
-		{
-			name:           "SaaSDatabase",
-			tier:           "saas",
-			classification: ResourceClassification{Class: ResourceClassDatabase, IsHeavyOps: true},
-			wantSupported:  true,
-			minScore:       0.9,
-			maxScore:       1.0,
-		},
-		{
-			name:           "SaaSLocalAI",
-			tier:           "saas",
-			classification: ResourceClassification{Class: ResourceClassAI, IsHeavyOps: true},
-			wantSupported:  true,
-			minScore:       0.2,
-			maxScore:       0.4,
-		},
-		{
-			name:           "EnterpriseAlwaysHigh",
-			tier:           "enterprise",
-			classification: ResourceClassification{Class: ResourceClassAI, IsHeavyOps: true},
-			wantSupported:  true,
-			minScore:       0.95,
-			maxScore:       1.0,
-		},
-		{
-			name:           "UnknownTier",
-			tier:           "unknown-tier",
-			classification: ResourceClassification{Class: ResourceClassService, IsHeavyOps: false},
-			wantSupported:  true,
-			minScore:       0.6,
-			maxScore:       0.8,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			decision := DecideTierFitness(tt.tier, tt.classification)
-			if decision.Supported != tt.wantSupported {
-				t.Errorf("DecideTierFitness(%q).Supported = %v, want %v",
-					tt.tier, decision.Supported, tt.wantSupported)
-			}
-			if decision.FitnessScore < tt.minScore || decision.FitnessScore > tt.maxScore {
-				t.Errorf("DecideTierFitness(%q).FitnessScore = %v, want between %v and %v",
-					tt.tier, decision.FitnessScore, tt.minScore, tt.maxScore)
-			}
-		})
-	}
+	return path
 }
 
 // TestIsTierBlocker tests the tier blocker decision logic.
 func TestIsTierBlocker(t *testing.T) {
 	truePtr := func(b bool) *bool { return &b }
-	floatPtr := func(f float64) *float64 { return &f }
 
 	tests := []struct {
 		name    string
@@ -491,29 +399,9 @@ func TestIsTierBlocker(t *testing.T) {
 			want:    false,
 		},
 		{
-			name:    "LowFitness",
-			support: types.TierSupportSummary{FitnessScore: floatPtr(0.5)},
-			want:    true,
-		},
-		{
-			name:    "HighFitness",
-			support: types.TierSupportSummary{FitnessScore: floatPtr(0.9)},
-			want:    false,
-		},
-		{
-			name:    "ThresholdFitness",
-			support: types.TierSupportSummary{FitnessScore: floatPtr(TierBlockerThreshold)},
-			want:    false,
-		},
-		{
-			name:    "BelowThreshold",
-			support: types.TierSupportSummary{FitnessScore: floatPtr(TierBlockerThreshold - 0.01)},
-			want:    true,
-		},
-		{
 			name:    "NoData",
 			support: types.TierSupportSummary{},
-			want:    false,
+			want:    true,
 		},
 	}
 
@@ -522,31 +410,6 @@ func TestIsTierBlocker(t *testing.T) {
 			got := IsTierBlocker(tt.support)
 			if got != tt.want {
 				t.Errorf("IsTierBlocker() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-// TestInterpretTierStatus tests tier status interpretation.
-func TestInterpretTierStatus(t *testing.T) {
-	tests := []struct {
-		status string
-		want   TierStatus
-	}{
-		{"ready", TierStatusReady},
-		{"supported", TierStatusReady},
-		{"limited", TierStatusLimited},
-		{"blocked", TierStatusLimited},
-		{"unknown", TierStatusUnknown},
-		{"", TierStatusUnknown},
-		{"READY", TierStatusUnknown}, // case-sensitive
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.status, func(t *testing.T) {
-			got := InterpretTierStatus(tt.status)
-			if got != tt.want {
-				t.Errorf("InterpretTierStatus(%q) = %v, want %v", tt.status, got, tt.want)
 			}
 		})
 	}
@@ -731,52 +594,15 @@ func TestBuildDependencyNodeIndex(t *testing.T) {
 	}
 }
 
-// TestInferResourceTierSupport tests default tier support inference.
-func TestInferResourceTierSupport(t *testing.T) {
-	t.Run("PostgresInference", func(t *testing.T) {
-		support := InferResourceTierSupport("postgres", nil)
-		if len(support) == 0 {
-			t.Fatal("expected tier support to be populated")
-		}
-
-		// Local should always work
-		if local, ok := support["local"]; ok {
-			if local.Supported == nil || !*local.Supported {
-				t.Error("expected local tier to be supported")
-			}
-		} else {
-			t.Error("expected local tier in support map")
-		}
-
-		// Mobile should be blocked for heavy database
-		if mobile, ok := support["mobile"]; ok {
-			if mobile.Supported == nil || *mobile.Supported {
-				t.Error("expected mobile tier to be unsupported for postgres")
-			}
-		}
-	})
-
-	t.Run("RedisInference", func(t *testing.T) {
-		support := InferResourceTierSupport("redis", nil)
-		// Redis is lightweight, should have better mobile support
-		if mobile, ok := support["mobile"]; ok {
-			// Even redis should be blocked on mobile (it's still a database)
-			if mobile.Supported != nil && *mobile.Supported {
-				t.Logf("mobile support for redis: %v", *mobile.Supported)
-			}
-		}
-	})
-}
-
 // TestBundleManifestIntegration tests bundle manifest generation integration.
 func TestBundleManifestIntegration(t *testing.T) {
 	scenarioDir := t.TempDir()
 
 	// Create minimal directory structure
-	os.MkdirAll(filepath.Join(scenarioDir, "api"), 0755)
-	os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0755)
+	os.MkdirAll(filepath.Join(scenarioDir, "api"), 0o755)
+	os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0o755)
 
-	cfg := &types.ServiceConfig{}
+	cfg := &types.Manifest{}
 	cfg.Service.Name = "integration-test"
 	cfg.Service.Version = "2.0.0"
 	cfg.Service.Description = "Integration test scenario"

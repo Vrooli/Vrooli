@@ -3,7 +3,7 @@
  * Simpler than TemplateEditorModal since skills have no variables.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { X, Pencil, Loader2 } from "lucide-react";
 import type { Skill, SkillWithSource } from "@/lib/types/templates";
 import { ItemTreeSidebar } from "@/components/shared/ItemTreeSidebar";
@@ -49,7 +49,10 @@ export function SkillEditorModal({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
-  const formState: SkillFormState = { name, description, icon, modes, content, tagsInput, targetToolId, draft };
+  const formState: SkillFormState = useMemo(
+    () => ({ name, description, icon, modes, content, tagsInput, targetToolId, draft }),
+    [content, description, draft, icon, modes, name, tagsInput, targetToolId],
+  );
   const hasUnsavedChanges = useHasUnsavedChanges(readOnly, skill, formState);
 
   // Multi-item editing (extracted hook)
@@ -141,7 +144,7 @@ export function SkillEditorModal({
 
         {/* Content with optional sidebar */}
         <div className="flex-1 min-h-0 overflow-hidden flex">
-          {showSidebar && allSkills && (
+          {showSidebar && (
             <ItemTreeSidebar
               items={multiEdit.itemsForTree}
               selectedItemId={skill?.id ?? null}
@@ -186,7 +189,7 @@ export function SkillEditorModal({
           {!readOnly && (
             <>
               {showSidebar && multiEdit.dirtyCount > 1 && onSaveAll ? (
-                <button onClick={multiEdit.handleSaveAll} disabled={multiEdit.isSavingAll} className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                <button onClick={() => { void multiEdit.handleSaveAll(); }} disabled={multiEdit.isSavingAll} className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                   {multiEdit.isSavingAll && <Loader2 className="h-4 w-4 animate-spin" />}
                   Save All Changes ({multiEdit.dirtyCount})
                 </button>

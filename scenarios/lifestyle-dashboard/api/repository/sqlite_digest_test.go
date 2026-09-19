@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
 	"lifestyle-dashboard/domain"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // setupDigestTestDB creates a test database with schema.

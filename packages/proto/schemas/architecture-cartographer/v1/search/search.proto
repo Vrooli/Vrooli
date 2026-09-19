@@ -1,0 +1,130 @@
+syntax = "proto3";
+
+package vrooli.architecture_cartographer.v1.search;
+
+import "common/v1/confidence.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/search;search_v1";
+
+// =============================================================================
+// SEARCH DOMAIN — cross-scenario domain-map semantic discovery
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain search
+// @stability unstable
+//
+// Wire contract for the SearchService Connect-RPC service. It indexes the
+// DERIVED domain map of every scenario (one document per domain, composed from
+// the domain's responsibility / purpose / owns-data / glossary) into a local
+// Qdrant collection and serves AI-first, term-agnostic semantic queries with a
+// deterministic text fallback. A user or agent who does NOT know Vrooli's
+// terminology can ask "how does authoring work in plan-manager?" and get the
+// `plan-manager/authoring` domain back — without typing the word "domain".
+//
+// The token-gated reindex + config-write control plane is the SHARED
+// vrooli.search_hub.v1.control.SearchControlService (not redefined here), so
+// search-hub's sweep can drive index-time experiments and write back a winning
+// tuning uniformly across every provider.
+//
+// Consumed by:
+//   - API: handlers/search/connect_handler.go implements SearchServiceHandler.
+//   - CLI: cli/domains/search/handlers.go calls the generated Connect-Go client.
+// =============================================================================
+
+service SearchService {
+  rpc Search(SearchRequest) returns (SearchResponse);
+  rpc Status(StatusRequest) returns (StatusResponse);
+}
+
+// Mode selects the retrieval strategy. AI uses ollama embeddings + Qdrant;
+// TEXT uses deterministic substring/keyword matching over the same corpus.
+// UNSPECIFIED lets the server pick (AI if available, else TEXT).
+enum Mode {
+  MODE_UNSPECIFIED = 0;
+  MODE_AI = 1;
+  MODE_TEXT = 2;
+}
+
+// SearchRequest is the body accepted by SearchService.Search.
+message SearchRequest {
+  // Free-text natural-language query (e.g. "how does authoring work in
+  // plan-manager", "which domain owns plan validation").
+  string query = 1;
+  // Maximum number of results to return. Server clamps to a sane upper bound.
+  int32 limit = 2;
+  // Optional explicit retrieval mode. UNSPECIFIED lets the server choose.
+  Mode mode = 3;
+}
+
+// SearchResult is one hit from the domain corpus: a single scenario domain.
+message SearchResult {
+  // Stable leaf id, "<scenario>/<domain>" (e.g. "plan-manager/authoring"). The
+  // eval runner and result_mapping id_field key on this.
+  string id = 1;
+  // The owning scenario (e.g. "plan-manager"). A metadata facet, not embedded
+  // prose.
+  string scenario = 2;
+  // The domain name (e.g. "authoring").
+  string name = 3;
+  // Human-authored semantic anchor — what the domain is responsible for. The
+  // primary snippet shown to callers.
+  string responsibility = 4;
+  // Why the capability exists for users/operators.
+  string purpose = 5;
+  // Primary archetype (reporting / service / mutation / …), a metadata facet.
+  string archetype = 6;
+  // Repo-relative path prefixes/globs the domain owns.
+  repeated string paths = 7;
+  // Higher is better. The number's regime depends on the active reranker leg
+  // (see `reranker` on SearchResponse). Clients MUST NOT threshold it
+  // themselves — use `weak` below.
+  double score = 8;
+  // Server-computed weak-match flag: true when this hit falls in the uncertain
+  // band for the regime that produced its score. Computed once in the service
+  // via the shared engine's regime-aware weak labeling so every client renders
+  // an identical "(weak)" badge without re-deriving a threshold.
+  bool weak = 9;
+  // Shared confidence carrier for federated search consumers. Mirrors `weak`
+  // for compatibility and adds the score regime.
+  common.v1.Confidence confidence = 10;
+  // Score regime that produced `score` ("cosine", "cross-encoder", "llm",
+  // "fused"). Kept as a flat field for declarative search-hub result_mapping.
+  string regime = 11;
+}
+
+// SearchResponse echoes which Mode actually served the request so the caller
+// can render a "(text mode fallback)" hint when AI is unavailable.
+message SearchResponse {
+  repeated SearchResult results = 1;
+  Mode mode_used = 2;
+  // Active reranker leg that ordered these results ("cross-encoder:…",
+  // "llm:…") or "none" when reranking is disabled/unavailable (results then
+  // keep their fused/dense order).
+  string reranker = 3;
+}
+
+// StatusRequest is currently empty; reserved for future filters.
+message StatusRequest {}
+
+// StatusResponse reports backend availability and the last reconcile state.
+// Used by the CLI's `search status` and by AI workflows that need to know
+// whether to attempt semantic mode.
+message StatusResponse {
+  // True iff either AI or TEXT mode can serve a query end-to-end.
+  bool available = 1;
+  // True iff the ollama embedding endpoint is reachable.
+  bool ollama = 2;
+  // True iff the qdrant vector store is reachable.
+  bool qdrant = 3;
+  // Number of domain documents currently indexed across all scenarios.
+  int32 indexed_count = 4;
+  // RFC3339 timestamp of the most recent reconcile run, or "" if none.
+  string last_reconcile_at = 5;
+  // Free-form outcome string from the most recent reconcile ("ok",
+  // "partial: 2 errors", etc.).
+  string last_reconcile_outcome = 6;
+  // Active reranker leg ("cross-encoder:…", "llm:…"), "none" when reranking is
+  // disabled, or "degraded" when enabled but no leg is currently reachable.
+  string reranker = 7;
+}

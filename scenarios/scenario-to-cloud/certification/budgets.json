@@ -1,0 +1,264 @@
+{
+  "schema_version": 1,
+  "matrix_revision": "cloud-launch-v1",
+  "policy_ref": "docs/reference/support-policy.md#numeric-budgets-minimal-seeded-fixture",
+  "frozen_at": "2026-09-09",
+  "frozen_by_phase": 1,
+  "rule": "A weaker budget may not be introduced after a failed test solely to make the report pass. Adjust only before execution with workload size, capacity and justification recorded.",
+  "machine_profile": {
+    "vcpu": 2,
+    "memory_gib": 4,
+    "disk_gib": 40,
+    "public_ipv4": 1,
+    "ipv6": "optional"
+  },
+  "qualification": {
+    "acknowledged_write_loss_on_healthy_activation": 0,
+    "planned_maintenance_unavailability_seconds_max": 60,
+    "planned_maintenance_note": "Stateful workloads declare their own bound in fixture.json expected_capacity.planned_unavailability_seconds_max.",
+    "fresh_host_restore_seconds_max": 900,
+    "backup_recovery_point_seconds_max": 300,
+    "health_alert_detection_seconds_max": 60,
+    "stale_fence_commits_max": 0,
+    "effective_writers_per_deployment": 1,
+    "synthetic_secret_leakage_occurrences_max": 0,
+    "soak_hours_min": 24,
+    "residual_unexplained_owned_resources_max": 0,
+    "idle_management_overhead": {
+      "cpu_percent_max": 5,
+      "rss_mib_max": 300
+    },
+    "api_read_latency": {
+      "p95_ms_max": 500,
+      "concurrent_readers": 20,
+      "small_sample_rule": "Report sample size; do not present a small sample as a strong percentile claim."
+    }
+  },
+  "artifacts": {
+    "release_bundle_bytes_max": 2147483648,
+    "evidence_package_bytes_max": 268435456,
+    "single_log_attachment_bytes_max": 33554432,
+    "screenshot_bytes_max": 4194304,
+    "video_bytes_max": 134217728,
+    "note": "Artifacts above these sizes are truncated at the owner with an explicit limitation on the receipt, never silently."
+  },
+  "concurrency": {
+    "owned_targets_per_qualification_max": 1,
+    "qualification_runs_per_scenario_max": 1,
+    "lanes_in_parallel_max": 2,
+    "fault_injections_per_run_max": 8,
+    "note": "Test Genie admits one in-progress run per scenario; QEMU and real-VPS lanes may run concurrently on separate owned targets."
+  },
+  "timeouts_seconds": {
+    "package": 600,
+    "api": 900,
+    "workflow": 1800,
+    "relay": 1800,
+    "bas_ui": 1800,
+    "qemu": 7200,
+    "real_vps": 10800,
+    "independent_review": 0,
+    "soak": 93600,
+    "note": "0 means no machine timeout: independent review is a human activity recorded by receipt. Soak is 24h plus 2h setup/teardown. A lost observer never converts a server-owned operation into a failure."
+  },
+  "spend": {
+    "ceiling_minor_units": 0,
+    "currency": "USD",
+    "note": "No authorised spend exists at phase 2; a real-VPS lane stays explicitly pending until an authorisation receipt names a ceiling."
+  },
+  "retention": {
+    "failed_evidence": "retain indefinitely with real producer timestamps",
+    "passed_evidence_days": 365,
+    "fixture_leases_after_terminal_hours": 24,
+    "owned_ephemeral_targets_after_terminal_hours": 1,
+    "protected_recovery_points": "never pruned while an active operation lease references them"
+  },
+  "cleanup_ownership": {
+    "fixture_writes": "fixture lease scope (fixtures/**/fixture.json ownership.lease_scope)",
+    "owned_targets": "qualification program that leased the target; policy retain_failed_evidence_then_remove_owned_ephemeral_resources",
+    "test_storage": "routed Test Genie storage lease (storage-manager validate scenario scenario-to-cloud)",
+    "evidence_receipts": "certification/evidence owner; receipts are withdrawn with a reason, never deleted silently",
+    "neighbor_invariant": "before/after inventory of unrelated processes, files and network rules must match; any difference is a failed cleanup"
+  },
+  "phase_23": {
+    "frozen_at": "2026-09-09",
+    "frozen_by_phase": 23,
+    "rule": "Budgets below were frozen before any measurement against a target. Small samples (fewer than min_samples) never produce a percentile verdict; the harness reports insufficient_samples with the observed values attached.",
+    "min_samples_for_percentiles": 100,
+    "reader_concurrency": 20,
+    "fixture_profiles": {
+      "stateless-web": {
+        "fixture_ref": "fixtures/workloads/stateless-web",
+        "read_endpoints": [
+          "/api/v1/deployments",
+          "/api/v1/deployments/{id}",
+          "/api/v1/deployments/{id}/health/observation",
+          "/api/v1/deployments/{id}/edge",
+          "/api/v1/operations/{id}"
+        ],
+        "latency_ms": {
+          "p50_max": 150,
+          "p95_max": 500,
+          "p99_max": 1000
+        },
+        "error_rate_max": 0.005,
+        "target_resources": {
+          "cpu_percent_max": 60,
+          "rss_mib_max": 1024,
+          "disk_gib_max": 12
+        }
+      },
+      "headless-api": {
+        "fixture_ref": "fixtures/workloads/headless-api",
+        "read_endpoints": [
+          "/api/v1/deployments",
+          "/api/v1/deployments/{id}",
+          "/api/v1/deployments/{id}/health/observation",
+          "/api/v1/operations/{id}"
+        ],
+        "latency_ms": {
+          "p50_max": 150,
+          "p95_max": 500,
+          "p99_max": 1000
+        },
+        "error_rate_max": 0.005,
+        "target_resources": {
+          "cpu_percent_max": 60,
+          "rss_mib_max": 1024,
+          "disk_gib_max": 12
+        }
+      },
+      "sql-uploads": {
+        "fixture_ref": "fixtures/workloads/sql-uploads",
+        "read_endpoints": [
+          "/api/v1/deployments",
+          "/api/v1/deployments/{id}",
+          "/api/v1/deployments/{id}/health/observation",
+          "/api/v1/deployments/{id}/recovery-points",
+          "/api/v1/operations/{id}"
+        ],
+        "latency_ms": {
+          "p50_max": 200,
+          "p95_max": 500,
+          "p99_max": 1500
+        },
+        "error_rate_max": 0.005,
+        "target_resources": {
+          "cpu_percent_max": 70,
+          "rss_mib_max": 2048,
+          "disk_gib_max": 20
+        }
+      }
+    },
+    "management_process": {
+      "idle": {
+        "cpu_percent_max": 5,
+        "rss_mib_max": 300,
+        "goroutines_max": 500,
+        "open_fds_max": 256
+      },
+      "active_operation": {
+        "cpu_percent_max": 50,
+        "rss_mib_max": 768,
+        "goroutines_max": 2000,
+        "open_fds_max": 1024
+      },
+      "post_cleanup_growth": {
+        "rss_mib_max_delta": 64,
+        "goroutines_max_delta": 8,
+        "open_fds_max_delta": 8,
+        "note": "Measured against the baseline phase after the peak phase and cleanup; growth beyond these deltas is unexplained growth (P23-A02)."
+      }
+    },
+    "deployment_queue": {
+      "depth_max": 32,
+      "effectful_operations_per_deployment_max": 1,
+      "effectful_operations_per_host_max": 4,
+      "queue_delay_seconds_max": 120,
+      "worker_pool_size": 2,
+      "serialisation_evidence": "certification/evidence/RUN-08.json (api/operations TestCompetingOperationsSerialiseThroughTheOwner)"
+    },
+    "retries": {
+      "safe_replay": {
+        "max_attempts": 3,
+        "initial_backoff_seconds": 5,
+        "backoff_multiplier": 2,
+        "backoff_cap_seconds": 60
+      },
+      "observe_then_replay": {
+        "max_attempts": 3,
+        "initial_backoff_seconds": 15,
+        "backoff_multiplier": 2,
+        "backoff_cap_seconds": 120
+      },
+      "recover": {
+        "max_attempts": 1,
+        "initial_backoff_seconds": 0,
+        "backoff_multiplier": 1,
+        "backoff_cap_seconds": 0
+      },
+      "transport_receipt_read": {
+        "max_attempts": 3,
+        "initial_backoff_seconds": 2,
+        "backoff_multiplier": 2,
+        "backoff_cap_seconds": 30
+      },
+      "alert_delivery": {
+        "max_attempts": 5,
+        "initial_backoff_seconds": 10,
+        "backoff_multiplier": 2,
+        "backoff_cap_seconds": 300
+      }
+    },
+    "operation_timeouts_seconds": {
+      "queue": 120,
+      "execution": 2700,
+      "transport": 60,
+      "observer": 300,
+      "lease_ttl": 90,
+      "heartbeat": 30,
+      "reconcile": 90,
+      "source": "api/operations DefaultConfig"
+    },
+    "retention_budgets": {
+      "release_artifacts": {
+        "keep": "active + predecessor",
+        "keep_latest_per_scenario": 2,
+        "days": 30,
+        "protected": "active release, rollback predecessor, any release a non-terminal operation names"
+      },
+      "logs": {
+        "days": 14,
+        "single_attachment_bytes_max": 33554432
+      },
+      "operation_receipts": {
+        "days": 90,
+        "protected": "non-terminal operations; operations referenced by an open incident"
+      },
+      "recovery_points": {
+        "keep_last": 7,
+        "days": 30,
+        "protected": "points held by an active or retained release, a non-terminal operation or an operator pin (api/backup Protection)"
+      },
+      "health_observations": {
+        "days": 7
+      },
+      "fixture_leases_after_terminal_hours": 24
+    },
+    "soak": {
+      "duration_hours_min": 24,
+      "scheduled_observation_interval_seconds": 60,
+      "controlled_reboots": 1,
+      "safe_updates": 1,
+      "external_input": "EXT-09"
+    },
+    "detection": {
+      "alert_detection_seconds_max": 60,
+      "stale_observation_after_seconds": 120,
+      "certificate_expiry_warning_days": 14,
+      "backup_rpo_seconds_max": 300,
+      "recovery_notification_seconds_max": 120
+    },
+    "retries_note": "Retry classes are api/execplan retry contracts. Attempts count worker attempts over one admitted operation; backoff is applied by the reconciler between attempts and capped. Beyond max_attempts the record parks in reconciling with a typed next action; nothing retries unboundedly."
+  }
+}

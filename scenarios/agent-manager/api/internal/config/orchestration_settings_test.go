@@ -5,8 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"agent-manager/internal/domain"
 )
 
 // =============================================================================
@@ -255,9 +253,9 @@ func TestOrchestrationSettings_Validate_CrossField(t *testing.T) {
 				t.Fatalf("Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if tt.wantErr && tt.errField != "" {
-				cfgErr, ok := err.(*domain.ConfigError)
+				cfgErr, ok := err.(*Error)
 				if !ok {
-					t.Fatalf("expected *domain.ConfigError, got %T", err)
+					t.Fatalf("expected *Error, got %T", err)
 				}
 				if cfgErr.Setting == "" {
 					t.Fatal("expected non-empty Setting on ConfigError")

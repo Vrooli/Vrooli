@@ -138,6 +138,11 @@ export class SplashWindowManager implements ISplashWindowManager {
                     preload: preloadPath,
                 },
             });
+            await this.config.onPhase?.("created");
+            this.window.on("ready-to-show", () => {
+                void Promise.resolve(this.config.onPhase?.("ready_to_show"));
+                if (this.window && !this.window.isDestroyed()) void Promise.resolve(this.config.onPhase?.("shown"));
+            });
 
             // Set up IPC listeners
             this.setupIpcListeners();
@@ -148,6 +153,8 @@ export class SplashWindowManager implements ISplashWindowManager {
                 this.config.htmlPath
             );
             await this.window.loadFile(htmlPath);
+            await this.config.onPhase?.("load_completed");
+            if (this.window.isVisible()) await this.config.onPhase?.("shown");
 
             // Set up escape key handling
             if (this.config.allowEscapeClose) {
@@ -188,6 +195,7 @@ export class SplashWindowManager implements ISplashWindowManager {
         // Listen for splash ready notification
         this.deps.ipcMain.on(SPLASH_IPC_CHANNELS.READY, () => {
             this.log("Splash window reports ready");
+            void Promise.resolve(this.config.onPhase?.("first_paint"));
         });
 
         // Listen for copy logs request

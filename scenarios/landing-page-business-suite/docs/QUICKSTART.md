@@ -20,78 +20,36 @@ Before starting, ensure you have:
 - [ ] Node.js 18+ with pnpm (`pnpm --version`)
 
 If Vrooli isn't set up yet:
-```bash
-cd ~/Vrooli
-./scripts/manage.sh setup --yes yes
-```
+initialize the workspace from its repository root using the setup procedure
+documented by the installed Vrooli release. Run `vrooli help` to discover the
+available lifecycle commands before continuing.
 
 ---
 
-## Option 1: Using Landing Manager (Recommended)
+## Start Landing Page Business Suite
 
-Landing Manager generates complete landing pages from this template.
+From the scenario directory, use the Vrooli lifecycle:
 
 ```bash
-# Generate a new landing page
-vrooli scenario start landing-manager
-
-# Follow the prompts to configure your landing page
-# This creates a new scenario in scenarios/<your-slug>/
-```
-
-Once generated:
-```bash
-cd scenarios/<your-slug>
 make start
+make logs
 ```
 
----
+The lifecycle starts the required local resources, assigns the API and UI
+ports, and applies the authoritative domain schemas. Do not run the API binary
+or a development script directly; that bypasses lifecycle health checks and
+port ownership.
 
-## Option 2: Direct Template Usage
-
-For development or customization of the template itself:
-
-### Step 1: Start PostgreSQL
+To inspect the active endpoints and health status:
 
 ```bash
-resource-postgres start
-resource-postgres status  # Verify it's running
+vrooli scenario status landing-page-business-suite
 ```
 
-### Step 2: Build the API
+To stop the scenario when finished:
 
 ```bash
-cd scripts/scenarios/templates/landing-page-react-vite/api
-go build -o landing-api .
-```
-
-### Step 3: Set Environment Variables
-
-```bash
-export API_PORT=8080
-export UI_PORT=3000
-export DATABASE_URL="postgres://postgres:postgres@localhost:5432/landing_dev"
-```
-
-### Step 4: Initialize Database
-
-```bash
-psql $DATABASE_URL -f initialization/postgres/schema.sql
-psql $DATABASE_URL -f initialization/postgres/seed.sql  # Optional demo data
-```
-
-### Step 5: Start the API
-
-```bash
-./landing-api
-```
-
-### Step 6: Start the UI (new terminal)
-
-```bash
-cd scripts/scenarios/templates/landing-page-react-vite/ui
-pnpm install
-pnpm run dev
+make stop
 ```
 
 ---
@@ -100,24 +58,19 @@ pnpm run dev
 
 | Surface | URL | Purpose |
 |---------|-----|---------|
-| Public Landing | `http://localhost:3000/` | What visitors see |
-| Admin Portal | `http://localhost:3000/admin` | Manage content |
-| API Health | `http://localhost:8080/health` | Service status |
+| Public Landing | `http://localhost:${UI_PORT}/` | What visitors see |
+| Admin Portal | `http://localhost:${UI_PORT}/admin` | Manage content |
+| API Health | `http://localhost:${API_PORT}/health` | Service status |
 
-### Default Admin Credentials
-
-```
-Email: admin@localhost
-Password: changeme123
-```
-
-**For production deployments**, override these defaults using environment variables:
-- `ADMIN_DEFAULT_EMAIL` - Your admin email
-- `ADMIN_DEFAULT_PASSWORD` - Your admin password (12+ chars, letters and numbers)
-
-For scenario-to-cloud deployments, add these via the **Secrets Tab** and restart the scenario.
-
-Alternatively, visit `/admin/profile` after your first login to change credentials manually.
+Vrooli assigns `API_PORT` and `UI_PORT` at startup. For development access,
+use the administrator credentials configured in the scenario's local secret
+surface. For production, provision the administrator password through the
+credential authority and configure the canonical `PUBLIC_BASE_URL` through the
+supported configuration workflow before starting the scenario. Existing
+installations may keep `AUTH_MAGIC_LINK_BASE_URL` as a compatibility fallback;
+when the canonical setting is present, LPBS derives `/auth/verify` from it.
+LPBS generates and witnesses its session and encryption credentials; production
+requires an absolute HTTPS public URL.
 
 ---
 
@@ -136,12 +89,14 @@ Click "Preview Landing" or visit `/` in a new tab.
 
 ### 3. Edit Hero Content
 
-1. Go to **Customization**
-2. Select the **Control** variant
-3. Click **Hero** section
-4. Edit the headline and CTA
-5. Watch the live preview update
-6. Click **Save**
+1. Open `/admin/presentation/control` (or select an existing variant in Presentation).
+2. Edit the configured product-hero block in the presentation document.
+3. Save the draft and inspect its private root or app-detail preview.
+4. Resolve validation errors and missing capability/asset qualification.
+5. Confirm **Publish draft** when ready. Saving alone does not change the public page.
+
+The initial recommended document is a draft. Review-fixture artwork is not a
+released asset, and upcoming remote/device features must remain coming soon.
 
 ### 4. View Analytics
 
@@ -158,20 +113,28 @@ To enable payments:
 
 ### 1. Get Stripe Keys
 
-From [Stripe Dashboard](https://dashboard.stripe.com/apikeys):
+From [Stripe Dashboard](https://dashboard.stripe.com/test/apikeys), use test
+mode first:
 - Publishable key: `pk_test_...`
-   - Restricted key: `rk_test_...`
+- Restricted key: `rk_test_...`
 
 ### 2. Configure in Admin
 
-1. Go to **Billing → Stripe** (`/admin/billing`)
-2. Enter your keys
-3. Save
+1. Set `STRIPE_MODE=test`.
+2. Provision the three `stripe-test-*` fields through the credential authority
+   or governed Billing → Stripe flow. The canonical onboarding credential
+   workflow is documented in [`docs/configuration/secrets.md`](../../../docs/configuration/secrets.md);
+   the LPBS admin surface is **Billing → Stripe** at `/admin/billing`.
+3. Save and restart through `make restart`.
+
+Run deployment readiness after configuration. It reports the active mode, exact
+missing credential fields, catalog state, HTTPS-origin validity, and whether
+the public webhook route reaches LPBS. It never returns secret values.
 
 ### 3. Set Up Webhooks
 
 In Stripe Dashboard → Developers → Webhooks:
-- Endpoint: `http://your-domain/api/v1/webhooks/stripe`
+- Endpoint: `https://your-domain/api/v1/webhooks/stripe`
 - Events: `checkout.session.completed`, `customer.subscription.*`, `invoice.*`
 
 ### 4. Test Payment
@@ -187,7 +150,7 @@ Use test card `4242 4242 4242 4242` with any future date and CVC.
 1. Go to **Customization** (`/admin/customization`)
 2. Click **Create New Variant**
 3. Name it (e.g., "Holiday Special")
-4. Set weight to 50 (splits traffic evenly with Control)
+4. Set weight to num[target]:50 (splits traffic evenly with Control)
 
 ### 2. Customize the Variant
 
@@ -221,11 +184,11 @@ make logs
 make test
 
 # Check status
-vrooli scenario status <slug>
+vrooli scenario status "<scenario-name>"
 
 # Get allocated ports
-vrooli scenario port <slug> UI_PORT
-vrooli scenario port <slug> API_PORT
+vrooli scenario port "<scenario-name>" UI_PORT
+vrooli scenario port "<scenario-name>" API_PORT
 ```
 
 ---
@@ -272,6 +235,6 @@ go build -o landing-api .
 
 ## Getting Help
 
-1. Check [FAQ](FAQ.md) for common questions
+1. Check [FAQ](guides/faq.md) for common questions
 2. Review [Troubleshooting](guides/TROUBLESHOOTING.md) for specific issues
 3. Run `vrooli help` for CLI assistance

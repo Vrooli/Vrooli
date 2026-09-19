@@ -1,0 +1,6 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": { "id": "patterns.swipe-actions", "name": "SwipeActions", "kind": "component", "domain": "patterns", "description": "Reveals bounded row actions through a staged swipe while preserving keyboard and handedness behavior.", "targets": ["react-vite"], "slot": "ui-pattern", "delivery": "adopted", "target": { "priority": "P1", "maturity": "verified" } }
+}

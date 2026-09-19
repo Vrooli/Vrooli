@@ -1,0 +1,25 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "debt-curator",
+  "displayName": "Debt Curator",
+  "description": "Applies meta-optimization's evolutionary-pressure principles to the meta-optimization team itself. Scans typed team knowledge and shared artifacts for prose workarounds ripe for promotion into permanent structure (canon under docs/agent-system/, skills, scenario features, team-config). Proposes promotions and retirements; never implements.",
+  "status": "active",
+  "appearance": {
+    "body": "#D97706",
+    "head": "#F59E0B",
+    "accent": "#FEF3C7"
+  },
+  "tags": [
+    "meta",
+    "self-improvement",
+    "debt",
+    "reflection"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-04-21T00:00:00Z",
+  "updatedAt": "2026-04-21T00:00:00Z"
+}

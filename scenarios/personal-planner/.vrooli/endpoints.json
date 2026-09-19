@@ -1,0 +1,368 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.personal_planner.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.personal_planner.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "focus_current",
+      "path": "/vrooli.personal_planner.v1.focus.FocusService/GetCurrentSession",
+      "method": "POST",
+      "summary": "Get current focus session",
+      "description": "Returns the one running or paused focus session, if present.",
+      "category": "focus"
+    },
+    {
+      "id": "focus_start",
+      "path": "/vrooli.personal_planner.v1.focus.FocusService/StartFocus",
+      "method": "POST",
+      "summary": "Start focus",
+      "description": "Starts one durable focus session.",
+      "category": "focus"
+    },
+    {
+      "id": "focus_pause",
+      "path": "/vrooli.personal_planner.v1.focus.FocusService/PauseFocus",
+      "method": "POST",
+      "summary": "Pause focus",
+      "description": "Pauses active time without ending the session.",
+      "category": "focus"
+    },
+    {
+      "id": "focus_resume",
+      "path": "/vrooli.personal_planner.v1.focus.FocusService/ResumeFocus",
+      "method": "POST",
+      "summary": "Resume focus",
+      "description": "Resumes a paused focus session.",
+      "category": "focus"
+    },
+    {
+      "id": "focus_end",
+      "path": "/vrooli.personal_planner.v1.focus.FocusService/EndFocus",
+      "method": "POST",
+      "summary": "End focus",
+      "description": "Ends a focus session while preserving active and wall time separately.",
+      "category": "focus"
+    },
+    {
+      "id": "focus_record_actual",
+      "path": "/vrooli.personal_planner.v1.focus.FocusService/RecordManualActual",
+      "method": "POST",
+      "summary": "Record manual actual",
+      "description": "Records approximate or observed active time without fabricating a timer interval.",
+      "category": "focus"
+    },
+    {
+      "id": "focus_list_actuals",
+      "path": "/vrooli.personal_planner.v1.focus.FocusService/ListActuals",
+      "method": "POST",
+      "summary": "List actuals",
+      "description": "Lists manual actual records, optionally for a local date.",
+      "category": "focus"
+    },
+    {
+      "id": "focus_list_actual_corrections",
+      "path": "/vrooli.personal_planner.v1.focus.FocusService/ListActualCorrections",
+      "method": "POST",
+      "summary": "List actual corrections",
+      "description": "Lists bounded correction provenance for manual actual records.",
+      "category": "focus"
+    },
+    {
+      "id": "focus_correct_actual",
+      "path": "/vrooli.personal_planner.v1.focus.FocusService/CorrectActual",
+      "method": "POST",
+      "summary": "Correct actual",
+      "description": "Corrects a manual actual while retaining correction provenance.",
+      "category": "focus"
+    },
+    {
+      "id": "calendar_today",
+      "path": "/vrooli.personal_planner.v1.calendar.CalendarService/ListTodayAllocations",
+      "method": "POST",
+      "summary": "List accepted allocations",
+      "description": "Lists accepted allocations for the current local day and reports measured planned capacity.",
+      "category": "calendar"
+    },
+    {
+      "id": "calendar_range",
+      "path": "/vrooli.personal_planner.v1.calendar.CalendarService/ListAllocations",
+      "method": "POST",
+      "summary": "List accepted allocation range",
+      "description": "Lists accepted allocations for an explicit inclusive local-date range.",
+      "category": "calendar"
+    },
+    {
+      "id": "calendar_create",
+      "path": "/vrooli.personal_planner.v1.calendar.CalendarService/CreateAllocation",
+      "method": "POST",
+      "summary": "Place work on the calendar",
+      "description": "Creates an accepted, non-overlapping calendar allocation for a work item.",
+      "category": "calendar"
+    },
+    {
+      "id": "calendar_carry_forward",
+      "path": "/vrooli.personal_planner.v1.calendar.CalendarService/CarryForwardAllocation",
+      "method": "POST",
+      "summary": "Carry unfinished work forward",
+      "description": "Preserves the original accepted placement as history and creates one new accepted placement on a selected date.",
+      "category": "calendar"
+    },
+    {
+      "id": "calendar_list_routines",
+      "path": "/vrooli.personal_planner.v1.calendar.CalendarService/ListRoutines",
+      "method": "POST",
+      "summary": "List routines",
+      "description": "Lists active fixed and flexible routine definitions.",
+      "category": "calendar"
+    },
+    {
+      "id": "calendar_create_routine",
+      "path": "/vrooli.personal_planner.v1.calendar.CalendarService/CreateRoutine",
+      "method": "POST",
+      "summary": "Create routine",
+      "description": "Creates a timezone-aware fixed or flexible routine definition.",
+      "category": "calendar"
+    },
+    {
+      "id": "calendar_routine_occurrences",
+      "path": "/vrooli.personal_planner.v1.calendar.CalendarService/ListRoutineOccurrences",
+      "method": "POST",
+      "summary": "List routine occurrences",
+      "description": "Expands routine demand across a bounded local-date range.",
+      "category": "calendar"
+    },
+    {
+      "id": "calendar_skip_routine_occurrence",
+      "path": "/vrooli.personal_planner.v1.calendar.CalendarService/SkipRoutineOccurrence",
+      "method": "POST",
+      "summary": "Skip routine occurrence",
+      "description": "Skips one generated routine occurrence without changing the series definition.",
+      "category": "calendar"
+    },
+    {
+      "id": "calendar_reschedule_routine_occurrence",
+      "path": "/vrooli.personal_planner.v1.calendar.CalendarService/RescheduleRoutineOccurrence",
+      "method": "POST",
+      "summary": "Reschedule routine occurrence",
+      "description": "Moves one generated routine occurrence without changing the series definition.",
+      "category": "calendar"
+    },
+    {
+      "id": "goals_list",
+      "path": "/vrooli.personal_planner.v1.goals.GoalsService/ListGoals",
+      "method": "POST",
+      "summary": "List goals",
+      "description": "Lists active and historical goals.",
+      "category": "goals"
+    },
+    {
+      "id": "goals_create",
+      "path": "/vrooli.personal_planner.v1.goals.GoalsService/CreateGoal",
+      "method": "POST",
+      "summary": "Create goal",
+      "description": "Creates an outcome-oriented goal.",
+      "category": "goals"
+    },
+    {
+      "id": "goals_update_progress",
+      "path": "/vrooli.personal_planner.v1.goals.GoalsService/UpdateGoalProgress",
+      "method": "POST",
+      "summary": "Update goal progress",
+      "description": "Records explicit goal progress.",
+      "category": "goals"
+    },
+    {
+      "id": "goals_list_milestones",
+      "path": "/vrooli.personal_planner.v1.goals.GoalsService/ListMilestones",
+      "method": "POST",
+      "summary": "List goal milestones",
+      "description": "Lists milestones for a goal.",
+      "category": "goals"
+    },
+    {
+      "id": "goals_create_milestone",
+      "path": "/vrooli.personal_planner.v1.goals.GoalsService/CreateMilestone",
+      "method": "POST",
+      "summary": "Create goal milestone",
+      "description": "Creates a measurable goal milestone.",
+      "category": "goals"
+    },
+    {
+      "id": "goals_update_milestone_status",
+      "path": "/vrooli.personal_planner.v1.goals.GoalsService/UpdateMilestoneStatus",
+      "method": "POST",
+      "summary": "Update milestone status",
+      "description": "Marks a goal milestone open or complete.",
+      "category": "goals"
+    },
+    {
+      "id": "integrations_list_connections",
+      "path": "/vrooli.personal_planner.v1.integrations.IntegrationsService/ListConnections",
+      "method": "POST",
+      "summary": "List calendar connections",
+      "description": "Lists provider-neutral read-only calendar connection state without returning secrets.",
+      "category": "integrations"
+    },
+    {
+      "id": "integrations_create_fixture",
+      "path": "/vrooli.personal_planner.v1.integrations.IntegrationsService/CreateFixtureConnection",
+      "method": "POST",
+      "summary": "Create fixture calendar",
+      "description": "Creates a clearly synthetic read-only calendar connection for contract and UI verification.",
+      "category": "integrations"
+    },
+    {
+      "id": "integrations_sync",
+      "path": "/vrooli.personal_planner.v1.integrations.IntegrationsService/SyncConnection",
+      "method": "POST",
+      "summary": "Sync calendar connection",
+      "description": "Refreshes a connection through its configured adapter with revision protection.",
+      "category": "integrations"
+    },
+    {
+      "id": "integrations_disconnect",
+      "path": "/vrooli.personal_planner.v1.integrations.IntegrationsService/DisconnectConnection",
+      "method": "POST",
+      "summary": "Disconnect calendar",
+      "description": "Disconnects a read-only provider connection without claiming external deletion.",
+      "category": "integrations"
+    },
+    {
+      "id": "review_daily",
+      "path": "/vrooli.personal_planner.v1.review.ReviewService/GetDailySummary",
+      "method": "POST",
+      "summary": "Get daily review",
+      "description": "Summarizes recorded focus and honest coverage for a local day.",
+      "category": "review"
+    },
+    {
+      "id": "review_weekly",
+      "path": "/vrooli.personal_planner.v1.review.ReviewService/GetWeeklySummary",
+      "method": "POST",
+      "summary": "Get weekly review",
+      "description": "Summarizes planned time, recorded focus, and honest coverage across a local week.",
+      "category": "review"
+    },
+    {
+      "id": "review_reflection",
+      "path": "/vrooli.personal_planner.v1.review.ReviewService/GetReflection",
+      "method": "POST",
+      "summary": "Read review reflection",
+      "description": "Reads the optional reflection for a local day.",
+      "category": "review"
+    },
+    {
+      "id": "review_save_reflection",
+      "path": "/vrooli.personal_planner.v1.review.ReviewService/SaveReflection",
+      "method": "POST",
+      "summary": "Save review reflection",
+      "description": "Saves an optional reflection for a local day.",
+      "category": "review"
+    },
+    {
+      "id": "work_list",
+      "path": "/vrooli.personal_planner.v1.work.WorkService/ListWorkItems",
+      "method": "POST",
+      "summary": "List work items",
+      "description": "Returns work items ordered newest-first.",
+      "category": "work"
+    },
+    {
+      "id": "work_create",
+      "path": "/vrooli.personal_planner.v1.work.WorkService/CreateWorkItem",
+      "method": "POST",
+      "summary": "Create work item",
+      "description": "Captures a work item with explicit remaining effort.",
+      "category": "work"
+    },
+    {
+      "id": "work_get",
+      "path": "/vrooli.personal_planner.v1.work.WorkService/GetWorkItem",
+      "method": "POST",
+      "summary": "Get work item",
+      "description": "Returns one work item by id.",
+      "category": "work"
+    },
+    {
+      "id": "work_today_plan",
+      "path": "/vrooli.personal_planner.v1.work.WorkService/GetTodayPlan",
+      "method": "POST",
+      "summary": "Get today's plan",
+      "description": "Projects captured work into a deterministic day plan and capacity summary.",
+      "category": "work"
+    },
+    {
+      "id": "workspace_get_profile",
+      "path": "/vrooli.personal_planner.v1.workspace.WorkspaceService/GetProfile",
+      "method": "POST",
+      "summary": "Get planning profile",
+      "description": "Reads the local timezone, capacity, reserve, and focus preferences.",
+      "category": "workspace"
+    },
+    {
+      "id": "workspace_update_profile",
+      "path": "/vrooli.personal_planner.v1.workspace.WorkspaceService/UpdateProfile",
+      "method": "POST",
+      "summary": "Update planning profile",
+      "description": "Updates local planning profile preferences with revision protection.",
+      "category": "workspace"
+    },
+    {
+      "id": "workspace_list_availability",
+      "path": "/vrooli.personal_planner.v1.workspace.WorkspaceService/ListAvailability",
+      "method": "POST",
+      "summary": "List availability",
+      "description": "Reads weekly availability windows and date exceptions.",
+      "category": "workspace"
+    },
+    {
+      "id": "workspace_replace_availability",
+      "path": "/vrooli.personal_planner.v1.workspace.WorkspaceService/ReplaceAvailability",
+      "method": "POST",
+      "summary": "Replace availability",
+      "description": "Replaces availability with revision protection; protected time remains explicit.",
+      "category": "workspace"
+    }
+  ]
+}

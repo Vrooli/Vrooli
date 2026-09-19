@@ -1,0 +1,313 @@
+{
+  "metadata": {
+    "name": "workspace-edit-hero",
+    "description": "Stage-1 Edit-hero journey driving the humanized deterministic studio end-to-end: loads an image into the canvas, then runs a four-op edit chain through the humanized controls AND their accessible fallbacks — crop via the Advanced numeric x/y/w/h fields (the keyboard/non-pointer fallback for the canvas drag-box), adjust via the slider form, convert via a format pill, and compress via the target-size field — asserting the unified history grows one step per apply and a result image renders in the canvas. A broken OpPicker, a control that fails to wire its field into the params form, a regressed apply edge, or a history that does not advance all fail here. The crop drag-box pointer path is unit-tested in cropMath/CropOverlay; this journey pins the accessible numeric path the PRD requires for every op.",
+    "requirement": "IMG-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "purpose": "workspace-edit-hero"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-workspace",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "@scenario/self",
+          "scenario_path": "/workspace",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Navigate to the Workspace" }
+      }
+    },
+    {
+      "id": "wait-operation-select",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.operationSelect",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Edit-mode operation picker visible" }
+      }
+    },
+    {
+      "id": "load-sample-image",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const c = document.createElement('canvas'); c.width = 240; c.height = 160; const g = c.getContext('2d'); g.fillStyle = '#3b6ea5'; g.fillRect(0, 0, 240, 160); g.fillStyle = '#f0c419'; g.fillRect(40, 30, 160, 100); return new Promise((resolve) => { c.toBlob((blob) => { const file = new File([blob], 'sample.png', { type: 'image/png' }); const input = document.querySelector('[data-testid=\"workspace-file-input\"]'); const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files; input.dispatchEvent(new Event('change', { bubbles: true })); resolve('loaded'); }, 'image/png'); }); })()",
+          "store_result": "imageLoaded"
+        },
+        "metadata": { "label": "Load a generated sample image into the canvas" }
+      }
+    },
+    {
+      "id": "wait-canvas-image",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.canvas.image",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Loaded image renders in the canvas" }
+      }
+    },
+    {
+      "id": "select-crop",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/workspace.opOption(name=\"crop\")" },
+        "metadata": { "label": "Select the Crop operation" }
+      }
+    },
+    {
+      "id": "open-crop-advanced",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/workspace.crop.advanced" },
+        "metadata": { "label": "Open the Advanced numeric-crop disclosure (accessible fallback)" }
+      }
+    },
+    {
+      "id": "set-crop-x",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/workspace.fieldInput(name=\"x\")",
+          "value": "20",
+          "clear_first": true
+        },
+        "metadata": { "label": "Set crop X via the numeric fallback" }
+      }
+    },
+    {
+      "id": "set-crop-y",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/workspace.fieldInput(name=\"y\")",
+          "value": "15",
+          "clear_first": true
+        },
+        "metadata": { "label": "Set crop Y via the numeric fallback" }
+      }
+    },
+    {
+      "id": "set-crop-width",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/workspace.fieldInput(name=\"width\")",
+          "value": "120",
+          "clear_first": true
+        },
+        "metadata": { "label": "Set crop width via the numeric fallback" }
+      }
+    },
+    {
+      "id": "set-crop-height",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/workspace.fieldInput(name=\"height\")",
+          "value": "80",
+          "clear_first": true
+        },
+        "metadata": { "label": "Set crop height via the numeric fallback" }
+      }
+    },
+    {
+      "id": "apply-crop",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/workspace.applyButton" },
+        "metadata": { "label": "Apply the crop" }
+      }
+    },
+    {
+      "id": "assert-history-step-1",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.historyStep(index=1)",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "History did not gain a first step after applying crop — the apply edge or the unified history rail regressed."
+        },
+        "metadata": { "label": "History shows the crop step" }
+      }
+    },
+    {
+      "id": "select-adjust",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/workspace.opOption(name=\"adjust\")" },
+        "metadata": { "label": "Select the Adjust operation" }
+      }
+    },
+    {
+      "id": "set-brightness",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/workspace.fieldInput(name=\"brightness\")",
+          "value": "20"
+        },
+        "metadata": { "label": "Raise brightness via the slider" }
+      }
+    },
+    {
+      "id": "apply-adjust",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/workspace.applyButton" },
+        "metadata": { "label": "Apply the adjustment" }
+      }
+    },
+    {
+      "id": "assert-history-step-2",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.historyStep(index=2)",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "History did not advance to a second step after Adjust — the slider control did not wire into the params form, or apply regressed."
+        },
+        "metadata": { "label": "History shows the adjust step" }
+      }
+    },
+    {
+      "id": "select-convert",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/workspace.opOption(name=\"convert\")" },
+        "metadata": { "label": "Select the Convert operation" }
+      }
+    },
+    {
+      "id": "pick-webp-format",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const group = document.querySelector('[data-testid=\"workspace-field-format\"]'); const pill = Array.from(group.querySelectorAll('[role=\"radio\"]')).find((b) => b.textContent.trim() === 'WEBP'); pill.click(); return pill.getAttribute('aria-checked'); })()",
+          "store_result": "webpChecked"
+        },
+        "metadata": { "label": "Choose the WEBP format pill" }
+      }
+    },
+    {
+      "id": "apply-convert",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/workspace.applyButton" },
+        "metadata": { "label": "Apply the conversion" }
+      }
+    },
+    {
+      "id": "assert-history-step-3",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.historyStep(index=3)",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "History did not advance to a third step after Convert — the format pills did not wire into the params form, or apply regressed."
+        },
+        "metadata": { "label": "History shows the convert step" }
+      }
+    },
+    {
+      "id": "select-compress",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/workspace.opOption(name=\"compress\")" },
+        "metadata": { "label": "Select the Compress operation" }
+      }
+    },
+    {
+      "id": "set-target-size",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/workspace.fieldInput(name=\"target_bytes\")",
+          "value": "30",
+          "clear_first": true
+        },
+        "metadata": { "label": "Set a 30 KB target via the target-size field" }
+      }
+    },
+    {
+      "id": "apply-compress",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/workspace.applyButton" },
+        "metadata": { "label": "Apply the compression toward the target size" }
+      }
+    },
+    {
+      "id": "assert-history-step-4",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.historyStep(index=4)",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "History did not advance to a fourth step after Compress — the target-size field did not wire into the params form, or apply regressed."
+        },
+        "metadata": { "label": "History shows the compress step (four-op chain complete)" }
+      }
+    },
+    {
+      "id": "assert-result-rendered",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.canvas.image",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "No result image is rendered in the canvas after the four-op chain — the in-canvas result pipeline regressed."
+        },
+        "metadata": { "label": "A result image renders in the canvas" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-workspace", "target": "wait-operation-select", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-operation-select", "target": "load-sample-image", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "load-sample-image", "target": "wait-canvas-image", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "wait-canvas-image", "target": "select-crop", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "select-crop", "target": "open-crop-advanced", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "open-crop-advanced", "target": "set-crop-x", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e7", "source": "set-crop-x", "target": "set-crop-y", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e8", "source": "set-crop-y", "target": "set-crop-width", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e9", "source": "set-crop-width", "target": "set-crop-height", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e10", "source": "set-crop-height", "target": "apply-crop", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e11", "source": "apply-crop", "target": "assert-history-step-1", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e12", "source": "assert-history-step-1", "target": "select-adjust", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e13", "source": "select-adjust", "target": "set-brightness", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e14", "source": "set-brightness", "target": "apply-adjust", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e15", "source": "apply-adjust", "target": "assert-history-step-2", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e16", "source": "assert-history-step-2", "target": "select-convert", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e17", "source": "select-convert", "target": "pick-webp-format", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e18", "source": "pick-webp-format", "target": "apply-convert", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e19", "source": "apply-convert", "target": "assert-history-step-3", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e20", "source": "assert-history-step-3", "target": "select-compress", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e21", "source": "select-compress", "target": "set-target-size", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e22", "source": "set-target-size", "target": "apply-compress", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e23", "source": "apply-compress", "target": "assert-history-step-4", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e24", "source": "assert-history-step-4", "target": "assert-result-rendered", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

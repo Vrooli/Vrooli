@@ -1,0 +1,256 @@
+syntax = "proto3";
+
+package common.v1.integrations;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1";
+
+// =============================================================================
+// SHARED INTEGRATION CONTRACT
+// =============================================================================
+//
+// @stability beta
+//
+// Scenario-independent integration identity, lifecycle state, feature
+// compatibility, and bounded recovery policy. Product-specific services may
+// import these messages while retaining ownership of their presentation and
+// product projections.
+//
+// USAGE CONTEXTS:
+//   - Command Center: renders and refreshes cross-scenario integrations.
+//   - Scenario adapters: publish lifecycle and feature observations.
+//   - Control plane: owns bounded lifecycle actions and recovery policy.
+//
+// =============================================================================
+
+// Scenario-independent operational integration state. This contract keeps
+// lifecycle availability, feature compatibility, and bounded recovery policy
+// separate from any product's metric or presentation model.
+enum DependencyKind {
+  DEPENDENCY_KIND_UNSPECIFIED = 0;
+  DEPENDENCY_KIND_SCENARIO = 1;
+  DEPENDENCY_KIND_RESOURCE = 2;
+  DEPENDENCY_KIND_CONTROL_PLANE = 3;
+}
+
+enum LifecycleStatus {
+  LIFECYCLE_STATUS_UNSPECIFIED = 0;
+  LIFECYCLE_STATUS_AVAILABLE = 1;
+  LIFECYCLE_STATUS_UNAVAILABLE = 2;
+  LIFECYCLE_STATUS_UNKNOWN = 3;
+}
+
+enum FeatureStatus {
+  FEATURE_STATUS_UNSPECIFIED = 0;
+  FEATURE_STATUS_COMPATIBLE = 1;
+  FEATURE_STATUS_INCOMPATIBLE = 2;
+  FEATURE_STATUS_MISSING = 3;
+  FEATURE_STATUS_UNKNOWN = 4;
+}
+
+enum ActionKind {
+  ACTION_KIND_UNSPECIFIED = 0;
+  ACTION_KIND_OWNER_GUIDANCE = 1;
+  ACTION_KIND_SCENARIO_START = 2;
+  ACTION_KIND_SCENARIO_RESTART = 3;
+  ACTION_KIND_OPERATOR_COMMAND = 4;
+}
+
+enum Criticality {
+  CRITICALITY_UNSPECIFIED = 0;
+  CRITICALITY_REQUIRED = 1;
+  CRITICALITY_OPTIONAL = 2;
+}
+
+enum PlatformSupport {
+  PLATFORM_SUPPORT_UNSPECIFIED = 0;
+  PLATFORM_SUPPORT_SUPPORTED = 1;
+  PLATFORM_SUPPORT_DEGRADED = 2;
+  PLATFORM_SUPPORT_UNSUPPORTED = 3;
+}
+
+message PlatformVerdict {
+  PlatformSupport support = 1;
+  string reason = 2;
+}
+
+message Integration {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  DependencyKind dependency_kind = 4;
+  string dependency_slug = 5;
+  bool enabled = 6;
+  bool required = 7;
+  string startup_policy = 8;
+  repeated Feature features = 9;
+  LifecycleState lifecycle = 10;
+  ActionPolicy action = 11;
+  string origin = 12;
+  Criticality criticality = 13;
+  PlatformVerdict platform = 14;
+}
+
+message Feature {
+  string id = 1;
+  string contract_version = 2;
+  string expected_unit = 3;
+}
+
+message LifecycleState {
+  LifecycleStatus status = 1;
+  string reason_code = 2;
+  string message = 3;
+  string checked_at = 4;
+  int64 latency_ms = 5;
+}
+
+message FeatureState {
+  string feature_id = 1;
+  FeatureStatus status = 2;
+  string reason_code = 3;
+  string message = 4;
+  string checked_at = 5;
+}
+
+message ActionPolicy {
+  ActionKind kind = 1;
+  string label = 2;
+  bool requires_confirmation = 3;
+  bool eligible = 4;
+  string owner_guidance = 5;
+}
+
+message ListIntegrationsRequest {}
+message ListIntegrationsResponse {
+  repeated Integration integrations = 1;
+  string generated_at = 2;
+}
+message GetIntegrationRequest { string integration_id = 1; }
+message GetIntegrationResponse {
+  Integration integration = 1;
+  repeated FeatureState features = 2;
+}
+message RefreshIntegrationsRequest {}
+message RunIntegrationActionRequest {
+  string integration_id = 1;
+  ActionKind action = 2;
+  bool confirmed = 3;
+  string request_id = 4;
+}
+message RunIntegrationActionResponse {
+  string integration_id = 1;
+  ActionKind action = 2;
+  string status = 3;
+  string message = 4;
+  string request_id = 5;
+}
+
+// -----------------------------------------------------------------------------
+// Connection view contract
+// -----------------------------------------------------------------------------
+// Connection metadata is intentionally separate from Integration runtime
+// health. Credential values, refresh tokens, and provider responses never
+// belong in this contract.
+enum ConnectionStatus {
+  CONNECTION_STATUS_UNSPECIFIED = 0;
+  CONNECTION_STATUS_CONNECTED = 1;
+  CONNECTION_STATUS_CHECKING = 2;
+  CONNECTION_STATUS_NEEDS_REAUTHORIZATION = 3;
+  CONNECTION_STATUS_REVOKED = 4;
+  CONNECTION_STATUS_PROVIDER_OUTAGE = 5;
+  CONNECTION_STATUS_UNKNOWN = 6;
+  CONNECTION_STATUS_DISCONNECTED = 7;
+  CONNECTION_STATUS_EXPIRED = 8;
+  CONNECTION_STATUS_INSUFFICIENT_SCOPE = 9;
+  CONNECTION_STATUS_PROVIDER_UNAVAILABLE = 10;
+  CONNECTION_STATUS_OFFLINE = 11;
+}
+
+enum ConnectionActionKind {
+  CONNECTION_ACTION_KIND_UNSPECIFIED = 0;
+  CONNECTION_ACTION_KIND_CONNECT = 1;
+  CONNECTION_ACTION_KIND_TEST = 2;
+  CONNECTION_ACTION_KIND_REFRESH = 3;
+  CONNECTION_ACTION_KIND_ROTATE = 4;
+  CONNECTION_ACTION_KIND_BIND = 5;
+  CONNECTION_ACTION_KIND_UNBIND = 6;
+  CONNECTION_ACTION_KIND_REVOKE = 7;
+  CONNECTION_ACTION_KIND_DELETE = 8;
+}
+
+message ConnectionScope {
+  string name = 1;
+  string purpose = 2;
+  bool granted = 3;
+}
+
+message ConnectionBinding {
+  string scenario_slug = 1;
+  string scenario_name = 2;
+  string context = 3;
+}
+
+message Connection {
+  string id = 1;
+  string connector_id = 2;
+  string connector_name = 3;
+  string display_name = 4;
+  string account_label = 5;
+  string account_identity = 6;
+  ConnectionStatus status = 7;
+  repeated ConnectionScope scopes = 8;
+  repeated ConnectionBinding bindings = 9;
+  string last_verified_at = 10;
+  string freshness = 11;
+  string reason_code = 12;
+  string next_action = 13;
+  repeated ConnectionActionKind supported_actions = 14;
+  string credential_authority_ref = 15;
+}
+
+message ListConnectionsRequest { string connector_id = 1; }
+message ListConnectionsResponse {
+  repeated Connection connections = 1;
+  string generated_at = 2;
+}
+message GetConnectionRequest { string connection_id = 1; }
+message GetConnectionResponse { Connection connection = 1; }
+message ConnectionMutationRequest {
+  string connection_id = 1;
+  string connector_id = 2;
+  string display_name = 3;
+  string request_id = 4;
+  // credential_value is write-only input for API-key and rotation flows. It
+  // must never be copied into ConnectionMutationResponse, logs, or durable
+  // Integration Hub state; the credential authority owns the value.
+  string credential_value = 5;
+  // Binding targets are explicit inputs rather than inferred from caller
+  // metadata. They are used only by BindConnection and UnbindConnection.
+  string binding_scenario_slug = 6;
+  string binding_context = 7;
+  // BindConnection rejects a binding when any requested scope is not granted
+  // by the connection. Empty means the consumer accepts the connector's
+  // current granted scopes.
+  repeated string required_scopes = 8;
+}
+message ConnectionMutationResponse {
+  Connection connection = 1;
+  string request_id = 2;
+}
+
+// ConnectionService is the provider-neutral lifecycle seam. Integration Hub
+// implementations own its authorization, persistence, and provider behavior;
+// consumers only receive metadata and may use only operations exposed by the
+// owning backend.
+service ConnectionService {
+  rpc ListConnections(ListConnectionsRequest) returns (ListConnectionsResponse);
+  rpc GetConnection(GetConnectionRequest) returns (GetConnectionResponse);
+	rpc CreateConnection(ConnectionMutationRequest) returns (ConnectionMutationResponse);
+	rpc ProbeConnection(ConnectionMutationRequest) returns (ConnectionMutationResponse);
+	rpc RefreshConnection(ConnectionMutationRequest) returns (ConnectionMutationResponse);
+	rpc RotateConnection(ConnectionMutationRequest) returns (ConnectionMutationResponse);
+	rpc BindConnection(ConnectionMutationRequest) returns (ConnectionMutationResponse);
+  rpc UnbindConnection(ConnectionMutationRequest) returns (ConnectionMutationResponse);
+  rpc RevokeConnection(ConnectionMutationRequest) returns (ConnectionMutationResponse);
+  rpc DeleteConnection(ConnectionMutationRequest) returns (ConnectionMutationResponse);
+}

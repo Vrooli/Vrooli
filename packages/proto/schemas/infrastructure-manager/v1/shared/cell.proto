@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package vrooli.infrastructure_manager.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/shared;shared_v1";
+
+enum Projection {
+  PROJECTION_UNSPECIFIED = 0;
+  PROJECTION_SUPERVISION = 1;
+  PROJECTION_AVAILABILITY = 2;
+  PROJECTION_RECOVERY = 3;
+  PROJECTION_CAPACITY = 4;
+  PROJECTION_HEADROOM = 5;
+  PROJECTION_DURABILITY = 6;
+  PROJECTION_ATTRIBUTION = 7;
+  PROJECTION_VALIDATION_COST = 8;
+  PROJECTION_AGENT_THROUGHPUT = 9;
+  PROJECTION_COMMISSIONING = 10;
+  // Host, kernel and device tier. Second rung of the infra-health cascade
+  // ladder, so it is read before any outer-tier finding is honoured.
+  PROJECTION_SUBSTRATE = 11;
+}
+
+enum CellStatus {
+  CELL_STATUS_UNSPECIFIED = 0;
+  CELL_STATUS_NOW = 1;
+  CELL_STATUS_IN_REACH = 2;
+  CELL_STATUS_MISSING = 3;
+}
+
+message Cell {
+  string id = 1;
+  Projection projection = 2;
+  string question = 3;
+  string owner = 4;
+  string leg_unit = 5;
+  CellStatus status = 6;
+  string sensor_ref = 7;
+  string gap_opened_on = 8;
+  int32 gap_open_days = 9;
+  repeated string notes = 10;
+}

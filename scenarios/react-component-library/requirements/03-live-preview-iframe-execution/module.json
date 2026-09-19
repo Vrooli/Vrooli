@@ -1,0 +1,140 @@
+{
+  "_metadata": {
+    "description": "Per-component preview harness that executes real React inside an isolated iframe, wired via @vrooli/iframe-bridge.",
+    "last_validated_at": "2026-08-25T02:11:45-04:00",
+    "module": "live-preview-iframe-execution",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PR-001",
+      "title": "Per-component harness page renders the actual React component (not placeholder HTML)",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "preview",
+      "criticality": "P0",
+      "description": "API serves `GET /preview/{component_id_or_library_id}/harness.html` returning an HTML shell that imports the component's bundled source and mounts it via `ReactDOM.createRoot`. The harness resolves optional `version` and `story` query params from indexed `story.json`, supports stable `libraryId` URLs for external capture tooling, posts identity-correlated `preview-ready`/`preview-error`, accepts only validated data-only temporary args override/reset messages for its own story, and preserves same-origin runtime imports.",
+      "tags": [
+        "preview",
+        "iframe",
+        "react"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/preview/module_test.go::TestModule_HarnessHTML",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Preview module tests prove the harness returns real same-origin HTML, inlines the bundled component module, includes runtime import maps, and posts preview-ready. TestModule_HarnessAcceptsLibraryID covers stable `libraryId` route IDs used by experience-component capture."
+        }
+      ]
+    },
+    {
+      "id": "PR-002",
+      "title": "Reload-on-save: editor save triggers iframe NAV via the host bridge",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "preview",
+      "criticality": "P0",
+      "description": "After the editor PUT succeeds, the UI invokes the host-side `@vrooli/iframe-bridge` NAV message to reload the harness. Warm reload latency target is \u003c 1s on a 50KB component on a developer-class machine.",
+      "tags": [
+        "preview",
+        "iframe-bridge"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/features/components/ComponentEditor.test.tsx::reloads the iframe when save returns a new sha256",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The editor iframe URL includes the returned sha/retry key as a cache-buster; saves that change content force a new harness navigation."
+        }
+      ]
+    },
+    {
+      "id": "PR-003",
+      "title": "Preview iframe is served same-origin from the library API with sandbox attributes",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "category": "preview",
+      "criticality": "P0",
+      "description": "The harness page is served by the library's own API on a dedicated harness path so the bridge can inspect freely. The `\u003ciframe\u003e` carries the sandbox attribute set documented in `ui-health`; no third-party origins are loaded.",
+      "tags": [
+        "preview",
+        "security"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "not_implemented",
+          "notes": "api/handlers/preview/module_test.go asserts the harness route returns HTML with same-origin /preview/runtime imports, stable `libraryId` route ids resolve, and runtime routes serve JavaScript. ui/src/features/components/ComponentEditor.test.tsx asserts the iframe uses the harness URL and sandbox attributes. ui/server.test.js asserts the production UI server proxies /preview harness and runtime paths to the API before SPA fallback, preventing recursive loading of the library UI inside the iframe. bas/cases/preview/preview-renders-component.json catches the user-visible recursion symptom through test-genie playbooks. BAS CaptureService captures the isolated /preview/... route and returns structured evidence through api/internal/componenttests/bas_executor.go."
+        }
+      ]
+    },
+    {
+      "id": "PR-004",
+      "title": "Preview runtime honors declared React ranges",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "category": "preview",
+      "criticality": "P0",
+      "description": "The preview harness resolves declared `react` and `react-dom` dependency ranges to the newest supported runtime candidate, serves the vendored React runtime from same-origin `/preview/runtime/...` URLs, and surfaces an in-iframe import-map diagnostic when the resolved runtime is unavailable locally. Runtime imports are guarded with dynamic imports so module failures render in `#preview-error` instead of leaving a blank iframe.",
+      "tags": [
+        "preview",
+        "react",
+        "dependencies"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "not_implemented",
+          "notes": "api/internal/deps/semver_test.go covers range-to-latest resolution for wildcard, caret, tilde, comparator, compound, exact, missing, and unparseable ranges. api/handlers/preview/static_test.go verifies React imports point at same-origin /preview/runtime URLs, unavailable vendored runtime versions render diagnostics while falling back to React 18.3.1, harness CSS contains the design tokens/Tailwind app utilities, and runtime/component import failures are inside a catchable dynamic-import path. api/handlers/preview/module_test.go verifies the React runtime routes serve ESM with the named exports consumed by compiled JSX and ReactDOM client (`jsx`, `jsxs`, `Fragment`, `createRoot`, `hydrateRoot`) without esm.sh or dynamic CommonJS require leakage."
+        }
+      ]
+    },
+    {
+      "id": "PR-005",
+      "title": "Preview bundler resolves relative imports and local dependency runtimes",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "category": "preview",
+      "criticality": "P0",
+      "description": "The preview bundler uses esbuild Build with a source-directory ResolveDir so relative imports are bundled into the component module. Bare package imports remain external and are resolved by a per-preview import map. Non-React declared dependencies resolve through the same semver range function used by the deps domain and map to same-origin `/preview/runtime/npm/\u003cpackage\u003e@\u003cversion\u003e/...` URLs when the package version is installed locally; unresolved ranges surface an import-map diagnostic.",
+      "tags": [
+        "preview",
+        "dependencies",
+        "bundling"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "not_implemented",
+          "notes": "api/internal/preview/service_test.go::TestEsbuilderBundlesRelativeImports proves Build-based relative import bundling. api/handlers/preview/static_test.go::TestBuildImportMapJSONPinsDeclaredDeps verifies non-React dependencies map to same-origin runtime URLs with no esm.sh, and TestBuildImportMapJSONUsesResolvedDependencyVersionPerBundle proves conflicting declared ranges produce independent import maps."
+        }
+      ]
+    },
+    {
+      "id": "PR-006",
+      "title": "Preview failures surface in the host UI",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "category": "preview",
+      "criticality": "P0",
+      "description": "The harness posts identity-correlated `preview-error` messages to the parent when render setup fails or the component has no callable export. The host editor correlates messages with the registered component/example/version/frame, renders a retryable error only on the failed specimen, and reserves a gallery-level failure state for the case where every preview is unavailable.",
+      "tags": [
+        "preview",
+        "failure-state",
+        "iframe"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "not_implemented",
+          "notes": "api/handlers/preview/static_test.go asserts harness render failures post `preview-error`. ui/src/features/components/ComponentEditor.test.tsx asserts a `preview-error` message renders the failure panel and retry reloads the iframe with a fresh retry key. BAS CaptureService asserts the isolated harness reaches its declared ready state and returns console, network, accessibility, performance, DOM, and screenshot evidence. `pnpm type-check`, `pnpm lint`, and targeted Go preview tests passed."
+        }
+      ]
+    }
+  ]
+}

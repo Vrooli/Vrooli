@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "architecture-cartographer.per-domain-apply.ui",
+  "domain": "apply",
+  "description": "UI projection of the per-domain apply lifecycle. Mirrors docs/concepts/FLOWS.md::Per-domain apply. transition.ts is the runtime authority; flow.test.ts replays this declaration to guarantee they agree. Adding states or transitions requires updating transition.ts + flow.json + flow.test.ts together (and the API-side handler when it lands).",
+  "states": [
+    { "id": "baseline_captured", "initial": true, "description": "Build baseline snapshot has been captured." },
+    { "id": "plan_generated", "description": "PlanApply has returned a plan." },
+    { "id": "dry_run_ok", "description": "Dry-run completed without errors." },
+    { "id": "applied", "description": "RunApply has executed; build verification in flight." },
+    { "id": "committed", "description": "Apply committed atomically; build remained green (terminal)." },
+    { "id": "refused_build_break", "description": "Apply refused commit because the build broke." },
+    { "id": "force_committed", "description": "Operator force-committed despite a build break (terminal)." }
+  ],
+  "events": [
+    { "id": "plan", "description": "PlanApply is invoked." },
+    { "id": "dry_run", "description": "PlanApply is invoked with dry_run=true." },
+    { "id": "apply", "description": "RunApply is invoked." },
+    { "id": "commit", "description": "BuildGuard reports green and apply commits." },
+    { "id": "refuse", "description": "BuildGuard reports red; apply refuses to commit." },
+    { "id": "force_commit", "description": "Operator force-commits with a note." },
+    { "id": "rebaseline", "description": "Capture a fresh baseline (only legal from refused state)." }
+  ],
+  "transitionDefaults": {
+    "invalid": { "to": "self", "wantError": false }
+  },
+  "transitions": [
+    { "from": "baseline_captured", "event": "plan", "to": "plan_generated" },
+    { "from": "baseline_captured", "event": "dry_run", "to": "plan_generated" },
+    { "from": "baseline_captured", "event": "apply", "to": "baseline_captured" },
+    { "from": "baseline_captured", "event": "commit", "to": "baseline_captured" },
+    { "from": "baseline_captured", "event": "refuse", "to": "baseline_captured" },
+    { "from": "baseline_captured", "event": "force_commit", "to": "baseline_captured" },
+    { "from": "baseline_captured", "event": "rebaseline", "to": "baseline_captured" },
+
+    { "from": "plan_generated", "event": "plan", "to": "plan_generated" },
+    { "from": "plan_generated", "event": "dry_run", "to": "dry_run_ok" },
+    { "from": "plan_generated", "event": "apply", "to": "applied" },
+    { "from": "plan_generated", "event": "commit", "to": "plan_generated" },
+    { "from": "plan_generated", "event": "refuse", "to": "plan_generated" },
+    { "from": "plan_generated", "event": "force_commit", "to": "plan_generated" },
+    { "from": "plan_generated", "event": "rebaseline", "to": "plan_generated" },
+
+    { "from": "dry_run_ok", "event": "plan", "to": "plan_generated" },
+    { "from": "dry_run_ok", "event": "dry_run", "to": "dry_run_ok" },
+    { "from": "dry_run_ok", "event": "apply", "to": "applied" },
+    { "from": "dry_run_ok", "event": "commit", "to": "dry_run_ok" },
+    { "from": "dry_run_ok", "event": "refuse", "to": "dry_run_ok" },
+    { "from": "dry_run_ok", "event": "force_commit", "to": "dry_run_ok" },
+    { "from": "dry_run_ok", "event": "rebaseline", "to": "dry_run_ok" },
+
+    { "from": "applied", "event": "plan", "to": "applied" },
+    { "from": "applied", "event": "dry_run", "to": "applied" },
+    { "from": "applied", "event": "apply", "to": "applied" },
+    { "from": "applied", "event": "commit", "to": "committed" },
+    { "from": "applied", "event": "refuse", "to": "refused_build_break" },
+    { "from": "applied", "event": "force_commit", "to": "applied" },
+    { "from": "applied", "event": "rebaseline", "to": "applied" },
+
+    { "from": "committed", "event": "plan", "to": "committed" },
+    { "from": "committed", "event": "dry_run", "to": "committed" },
+    { "from": "committed", "event": "apply", "to": "committed" },
+    { "from": "committed", "event": "commit", "to": "committed" },
+    { "from": "committed", "event": "refuse", "to": "committed" },
+    { "from": "committed", "event": "force_commit", "to": "committed" },
+    { "from": "committed", "event": "rebaseline", "to": "committed" },
+
+    { "from": "refused_build_break", "event": "plan", "to": "plan_generated" },
+    { "from": "refused_build_break", "event": "dry_run", "to": "refused_build_break" },
+    { "from": "refused_build_break", "event": "apply", "to": "refused_build_break" },
+    { "from": "refused_build_break", "event": "commit", "to": "refused_build_break" },
+    { "from": "refused_build_break", "event": "refuse", "to": "refused_build_break" },
+    { "from": "refused_build_break", "event": "force_commit", "to": "force_committed" },
+    { "from": "refused_build_break", "event": "rebaseline", "to": "baseline_captured" },
+
+    { "from": "force_committed", "event": "plan", "to": "force_committed" },
+    { "from": "force_committed", "event": "dry_run", "to": "force_committed" },
+    { "from": "force_committed", "event": "apply", "to": "force_committed" },
+    { "from": "force_committed", "event": "commit", "to": "force_committed" },
+    { "from": "force_committed", "event": "refuse", "to": "force_committed" },
+    { "from": "force_committed", "event": "force_commit", "to": "force_committed" },
+    { "from": "force_committed", "event": "rebaseline", "to": "force_committed" }
+  ],
+  "invariants": [
+    { "id": "baseline_is_initial", "description": "Apply runs begin with a captured baseline." },
+    { "id": "committed_is_terminal", "description": "No event moves a run out of 'committed'." },
+    { "id": "force_committed_is_terminal", "description": "No event moves a run out of 'force_committed'." },
+    { "id": "applied_must_commit_or_refuse", "description": "From 'applied', only commit/refuse leave the state." },
+    { "id": "force_commit_only_from_refused", "description": "force_commit is only legal from refused_build_break." }
+  ]
+}

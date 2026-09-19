@@ -3,7 +3,7 @@ package fileutil
 import (
 	"testing"
 
-	"scenario-to-desktop-runtime/testutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
 
 func TestTailFile(t *testing.T) {

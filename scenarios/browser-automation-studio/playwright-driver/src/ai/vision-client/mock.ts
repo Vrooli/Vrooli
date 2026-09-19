@@ -15,13 +15,12 @@ import type {
   TokenUsage,
 } from './types';
 import type { BrowserAction } from '../action/types';
-import { getModelSpec, getDefaultModelId } from './model-registry';
 
 /**
  * Configuration for MockVisionClient.
  */
 export interface MockVisionClientConfig {
-  /** Model to simulate */
+  /** Gateway route profile to simulate. */
   modelId?: string;
 
   /** Default confidence score */
@@ -80,13 +79,22 @@ export class MockVisionClient implements VisionModelClient {
 
   constructor(config: MockVisionClientConfig = {}) {
     this.config = {
-      modelId: config.modelId ?? getDefaultModelId(),
+      modelId: config.modelId ?? 'local_first',
       defaultConfidence: config.defaultConfidence ?? 0.9,
       latencyMs: config.latencyMs ?? 0,
       shouldFail: config.shouldFail ?? false,
       failureMessage: config.failureMessage ?? 'Mock client simulated failure',
     };
-    this.modelSpec = getModelSpec(this.config.modelId);
+    const remote = this.config.modelId === 'remote_only' || this.config.modelId === 'remote-only';
+    this.modelSpec = {
+      id: remote ? 'remote_only' : 'local_first',
+      displayName: remote ? 'Hosted vision' : 'Local-first vision',
+      provider: 'mock',
+      supportsComputerUse: false,
+      supportsElementLabels: true,
+      recommended: !remote,
+      tier: 'mock',
+    };
   }
 
   /**

@@ -107,6 +107,41 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
     // This prevents flickering/white screen on initial connection
     let pendingFrame: { data: string; sessionId: number } | null = null;
 
+    /**
+     * End this stream without propagating a background cleanup race to the
+     * process. Session teardown can remove the session while the periodic page
+     * probe is queued; in that case there is no page left to stream.
+     */
+    const stopStreaming = async (): Promise<void> => {
+      if (!isActive) return;
+      isActive = false;
+
+      if (pageCheckInterval) {
+        clearInterval(pageCheckInterval);
+        pageCheckInterval = null;
+      }
+
+      try {
+        await cdpSession.send('Page.stopScreencast');
+      } catch (error) {
+        logger.debug(scopedLog(LogContext.RECORDING, 'stopScreencast failed (page may be closed)'), {
+          sessionId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+
+      try {
+        await cdpSession.detach();
+      } catch {
+        // Session may already be detached.
+      }
+
+      logger.info(scopedLog(LogContext.RECORDING, 'CDP screencast stopped'), {
+        sessionId,
+        totalFrames: frameCount,
+      });
+    };
+
     // Helper to restart screencast on a new page or with new viewport
     const restartScreencast = async (
       newPage: Page,
@@ -156,9 +191,26 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
     // Trade-off: Lower interval = faster tab detection, more CPU overhead
     pageCheckInterval = setInterval(() => {
       if (!isActive) return;
-      const newPage = pageProvider();
+      let newPage: Page;
+      try {
+        newPage = pageProvider();
+      } catch (error) {
+        logger.info(scopedLog(LogContext.RECORDING, 'stopping screencast after session closed'), {
+          sessionId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        void stopStreaming();
+        return;
+      }
+
       if (newPage !== currentPage && !newPage.isClosed()) {
-        void restartScreencastOnPage(newPage);
+        void restartScreencastOnPage(newPage).catch((error) => {
+          logger.warn(scopedLog(LogContext.RECORDING, 'screencast page change failed'), {
+            sessionId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          void stopStreaming();
+        });
       }
     }, cdpConfig.pageCheckIntervalMs);
 
@@ -412,36 +464,7 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
         }
       },
 
-      stop: async (): Promise<void> => {
-        if (!isActive) return;
-        isActive = false;
-
-        // Clear page change detection interval
-        if (pageCheckInterval) {
-          clearInterval(pageCheckInterval);
-          pageCheckInterval = null;
-        }
-
-        try {
-          await cdpSession.send('Page.stopScreencast');
-        } catch (error) {
-          logger.debug(scopedLog(LogContext.RECORDING, 'stopScreencast failed (page may be closed)'), {
-            sessionId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-
-        try {
-          await cdpSession.detach();
-        } catch {
-          // Session may already be detached
-        }
-
-        logger.info(scopedLog(LogContext.RECORDING, 'CDP screencast stopped'), {
-          sessionId,
-          totalFrames: frameCount,
-        });
-      },
+      stop: stopStreaming,
     };
   }
 }

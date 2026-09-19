@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package vrooli.git_control_tower.v1.auth;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/auth;auth_v1";
+
+// AuthService is GCT's same-origin browser facade for scenario-authenticator.
+// GCT owns no credentials or token signing; the API forwards Login to the
+// authenticator over Connect-RPC and relays the issued short-lived token.
+service AuthService {
+  rpc Login(LoginRequest) returns (LoginResponse);
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  string email = 3;
+  string user_id = 4;
+}

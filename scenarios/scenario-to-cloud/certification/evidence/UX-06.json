@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "case_id": "UX-06",
+  "verdict": "unavailable",
+  "lane": "bas_ui",
+  "requirement_refs": [
+    "STC-P0-038",
+    "STC-P0-039"
+  ],
+  "candidate": {
+    "release_digest": "",
+    "configuration_digest": "",
+    "closure_digest": ""
+  },
+  "target": {
+    "machine_id": "",
+    "architecture": "",
+    "os": ""
+  },
+  "operation_refs": [],
+  "validation_receipt_ref": "vitest:ui/src/components/deployments/console/DeploymentConsole.test.tsx#explains a denied plan with the missing scope; ui/src/lib/consoleActions.test.ts#describes denials with the missing scope from details or the matrix",
+  "artifact_refs": [
+    "bas/cases/19-console/ui/console-five-questions.json",
+    "scenarios/scenario-to-cloud/docs/reference/console-experience.md",
+    "~/.vrooli/plan-artifacts/scenario-to-cloud-professional-vps-delivery-certification/evidence/P19-operator-experience.md"
+  ],
+  "assertions": [
+    "Denied permission or failed prerequisite: behaviour proven in vitest (jsdom, axe, userEvent.tab) against wire-shaped fixtures; BAS journey authored as observer-only"
+  ],
+  "observed_at": "2026-09-09T18:40:00Z",
+  "limitations": [
+    "bas_ui lane not run: no Test Genie workflow run was executed in phase 19; the BAS case is registered (bas/registry.json) but unexecuted, so the cell stays unavailable",
+    "mutating journeys (apply, cancel, restore) need the routed test-storage lease (docs/agent-system/routed-test-db.md), which is not installed for scenario-to-cloud; they are observer-only in BAS and proven in vitest",
+    "independent_review lane pending EXT-08 (independent operator walkthrough)"
+  ]
+}

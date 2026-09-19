@@ -402,13 +402,6 @@ class ApiService {
     })
   }
 
-  async createRuleWithAI(payload: { name: string; description: string; category: string; severity: string; motivation?: string }): Promise<{ issueId: string; issueUrl: string; message: string }> {
-    return this.fetch('/rules/create', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
-  }
-
   async getActiveAgents(): Promise<{ count: number; agents: AgentInfo[] }> {
     try {
       return await this.fetch('/agents')
@@ -435,18 +428,6 @@ class ApiService {
 
   async getTestCoverage(): Promise<any> {
     return this.fetch('/rules/test-coverage')
-  }
-
-  async reportRuleIssue(payload: {
-    reportType: 'add_tests' | 'fix_tests' | 'fix_violations'
-    ruleId: string
-    customInstructions: string
-    selectedScenarios: string[]
-  }): Promise<{ issueId: string; issueUrl?: string; message: string }> {
-    return this.fetch('/rules/report-issue', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
   }
 
   async getPreferences(): Promise<PreferencesResponse> {

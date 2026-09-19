@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "overlays.responsive-panel",
+  "deprecatedVersions": [
+    "1.1.3",
+    "1.1.4"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.1.3",
+    "1.1.4"
+  ],
+  "latest": "1.1.5",
+  "libraryId": "react-component-library:ResponsivePanel"
+}

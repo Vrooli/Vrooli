@@ -12,9 +12,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // RECORDING SESSION MANAGEMENT
 // =============================================================================
 //
-// @layer 3
-// @domain recording
-// @imports actions, timeline
 // @stability stable
 //
 // This file handles the LIFECYCLE of browser recording sessions:

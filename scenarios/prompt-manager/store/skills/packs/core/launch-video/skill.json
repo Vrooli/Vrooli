@@ -1,0 +1,37 @@
+{
+  "createdAt": "2026-09-17T00:00:00Z",
+  "description": "Produce a short launch-video draft for one sellable Vrooli scenario from its official advertising sources and real captures of the running product, using the third-party brag method and the HyperFrames renderer.",
+  "entry": "SKILL.md",
+  "icon": "video",
+  "id": "launch-video",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "tools"
+  ],
+  "name": "launch-video",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill read",
+      "brand-manager",
+      "vrooli scenario port"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "landing-page-business-suite",
+      "brand-manager"
+    ]
+  },
+  "revision": 10,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "marketing",
+    "video",
+    "launch"
+  ],
+  "updatedAt": "2026-09-19T00:00:00Z"
+}

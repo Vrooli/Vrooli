@@ -7,6 +7,7 @@ export interface CheckWithConfig extends CheckInfo {
     enabled: boolean;
     autoHeal: boolean;
   };
+  protectionReason?: string;
 }
 
 export type CategoryIcon = React.ComponentType<{ size?: string | number; className?: string }>;

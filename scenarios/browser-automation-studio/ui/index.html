@@ -32,6 +32,11 @@
       @keyframes spin {
         to { transform: rotate(360deg); }
       }
+      @media (prefers-reduced-motion: reduce) {
+        #initial-loading .spinner {
+          animation: none;
+        }
+      }
       /* Hide loading once React renders */
       #root:not(:empty) ~ #initial-loading {
         display: none;

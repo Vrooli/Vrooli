@@ -10,10 +10,10 @@ import (
 	"regexp"
 	"time"
 
-	"scenario-to-desktop-runtime/deps"
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/ports"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/deps"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/ports"
 )
 
 // Status represents the current state of a service.
@@ -93,7 +93,7 @@ func (m *Monitor) WaitForReadiness(ctx context.Context, serviceID string) error 
 
 	switch svc.Readiness.Type {
 	case "health_success":
-		return m.pollHealth(ctx, *svc)
+		return m.pollReadinessHealth(ctx, *svc)
 	case "port_open":
 		port, err := m.ports.Resolve(svc.ID, svc.Readiness.PortName)
 		if err != nil {
@@ -107,6 +107,37 @@ func (m *Monitor) WaitForReadiness(ctx context.Context, serviceID string) error 
 	default:
 		return fmt.Errorf("unknown readiness type %q", svc.Readiness.Type)
 	}
+}
+
+// pollReadinessHealth deliberately uses a short retry interval. The manifest
+// health interval is an operator monitoring cadence (often 30 seconds); using
+// it for startup readiness can make a service miss its entire readiness
+// deadline after one transient connection-refused result.
+func (m *Monitor) pollReadinessHealth(ctx context.Context, svc manifest.Service) error {
+	interval := 500 * time.Millisecond
+	timeout := time.Duration(svc.Readiness.TimeoutMs) * time.Millisecond
+	if timeout == 0 {
+		timeout = 30 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	retries := svc.Health.Retries
+	if retries == 0 {
+		retries = 3
+	}
+	for attempt := 0; attempt <= retries; attempt++ {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+		if m.checkHealthOnce(ctx, svc, 2*time.Second) {
+			return nil
+		}
+		m.clock.Sleep(interval)
+	}
+	return fmt.Errorf("health readiness check failed after %d attempts", retries+1)
 }
 
 // CheckOnce performs a single health check for a service.
@@ -216,7 +247,7 @@ func parseHealthBody(body io.Reader) bool {
 	if payload.Readiness != nil && !*payload.Readiness {
 		return false
 	}
-	if payload.Status != "" && payload.Status != "healthy" && payload.Status != "degraded" {
+	if payload.Status != "" && payload.Status != "healthy" && payload.Status != "degraded" && payload.Status != "ok" {
 		return false
 	}
 	return true

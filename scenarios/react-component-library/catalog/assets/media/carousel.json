@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "media.carousel",
+    "name": "Carousel",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "media",
+    "description": "The touch- and keyboard-operable sequence with native-feeling momentum, snapping, pagination indicators, autoplay safeguards, responsive item counts, and reduced-motion behavior.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-swipe",
+        "reason": "Axis locking, velocity, and cancellation are shared."
+      },
+      {
+        "asset": "primitives.scroll-area",
+        "reason": "Native scrolling and keyboard behavior are preserved."
+      },
+      {
+        "asset": "motion.presence",
+        "reason": "Enter and exit lifecycle and reduced-motion collapse are owned once."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "content-reflow",
+    "contrast-floor",
+    "gesture-alternative",
+    "entrance-restraint",
+    "responsive-transformation",
+    "reduced-motion",
+    "status-announced",
+    "pointer-independence"
+  ],
+  "rationale": "Autoplay is the accessibility hazard: any automatic advance must pause on hover, focus, and reduced-motion preference, and must never move content out from under a user who is reading it."
+}

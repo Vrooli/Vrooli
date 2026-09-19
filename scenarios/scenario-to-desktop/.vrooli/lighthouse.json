@@ -4,6 +4,18 @@
   "service": "scenario-to-desktop",
   "description": "Lighthouse performance and accessibility audits for the Scenario to Desktop UI",
   "enabled": true,
+  "pages": [
+    {
+      "id": "home",
+      "path": "/",
+      "thresholds": {
+        "performance": { "error": 0.5, "warn": 0.7 },
+        "accessibility": { "error": 0.7, "warn": 0.9 },
+        "best-practices": { "error": 0.7, "warn": 0.85 },
+        "seo": { "error": 0.6, "warn": 0.8 }
+      }
+    }
+  ],
   "lighthouse": {
     "enabled": true,
     "url": "http://localhost:${UI_PORT}",

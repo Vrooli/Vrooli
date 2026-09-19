@@ -6,6 +6,8 @@ import (
 	"os"
 	"sync"
 	"testing"
+
+	"landing-page-business-suite-api/internal/envx"
 )
 
 // ============================================================================
@@ -21,7 +23,7 @@ func TestSecurity_XFFSpoofing_UntrustedSourceIgnored(t *testing.T) {
 	// Attacker tries to spoof their IP via X-Forwarded-For
 	// but their connection is NOT from a trusted proxy
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
-	req.RemoteAddr = "203.0.113.50:12345" // Attacker's real IP (not in trusted range)
+	req.RemoteAddr = "203.0.113.50:12345"        // Attacker's real IP (not in trusted range)
 	req.Header.Set("X-Forwarded-For", "1.2.3.4") // Spoofed IP
 
 	ip := getClientIP(req)
@@ -107,8 +109,8 @@ func TestSecurity_XFFSpoofing_InvalidIPInHeader(t *testing.T) {
 // ============================================================================
 
 func TestSecurity_SecureCookies_DefaultsToSecureInProduction(t *testing.T) {
-	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
-	oldCookies := os.Getenv("LPBS_SECURE_COOKIES")
+	oldEnv := envx.Get("LPBS_ENVIRONMENT")
+	oldCookies := envx.Get("LPBS_SECURE_COOKIES")
 	defer func() {
 		if oldEnv != "" {
 			os.Setenv("LPBS_ENVIRONMENT", oldEnv)
@@ -132,7 +134,7 @@ func TestSecurity_SecureCookies_DefaultsToSecureInProduction(t *testing.T) {
 }
 
 func TestSecurity_SecureCookies_CanBeDisabledForDev(t *testing.T) {
-	oldCookies := os.Getenv("LPBS_SECURE_COOKIES")
+	oldCookies := envx.Get("LPBS_SECURE_COOKIES")
 	defer func() {
 		if oldCookies != "" {
 			os.Setenv("LPBS_SECURE_COOKIES", oldCookies)
@@ -149,8 +151,8 @@ func TestSecurity_SecureCookies_CanBeDisabledForDev(t *testing.T) {
 }
 
 func TestSecurity_SecureCookies_DisabledByDefault_InDevelopment(t *testing.T) {
-	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
-	oldCookies := os.Getenv("LPBS_SECURE_COOKIES")
+	oldEnv := envx.Get("LPBS_ENVIRONMENT")
+	oldCookies := envx.Get("LPBS_SECURE_COOKIES")
 	defer func() {
 		if oldEnv != "" {
 			os.Setenv("LPBS_ENVIRONMENT", oldEnv)
@@ -187,9 +189,9 @@ func TestSecurity_EmailValidation_RejectsInvalidFormats(t *testing.T) {
 		"user@example.com; rm -rf /",
 		"user@example.com\x00evil",
 		"@example.com",          // Missing local part
-		"user@",                  // Missing domain
-		"user@@example.com",      // Double @
-		"user example@test.com",  // Space in local part
+		"user@",                 // Missing domain
+		"user@@example.com",     // Double @
+		"user example@test.com", // Space in local part
 	}
 
 	for _, input := range maliciousInputs {
@@ -252,8 +254,8 @@ func TestSecurity_URLValidation_AcceptsLegitimateURLs(t *testing.T) {
 // ============================================================================
 
 func TestSecurity_APIKeyEncryption_ProductionRequiresKey(t *testing.T) {
-	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
-	oldKey := os.Getenv("LPBS_API_KEY_ENCRYPTION_KEY")
+	oldEnv := envx.Get("LPBS_ENVIRONMENT")
+	oldKey := envx.Get("LPBS_API_KEY_ENCRYPTION_KEY")
 	defer func() {
 		if oldEnv != "" {
 			os.Setenv("LPBS_ENVIRONMENT", oldEnv)
@@ -272,6 +274,18 @@ func TestSecurity_APIKeyEncryption_ProductionRequiresKey(t *testing.T) {
 
 	if !isProductionEnvironment() {
 		t.Error("Expected isProductionEnvironment() to return true")
+	}
+}
+
+func TestSecurity_ControlPlaneProductionEnvironmentIsAuthoritativeFallback(t *testing.T) {
+	t.Setenv("LPBS_ENVIRONMENT", "")
+	t.Setenv("VROOLI_ENVIRONMENT", "production")
+
+	if !isProductionEnvironment() {
+		t.Fatal("expected VROOLI_ENVIRONMENT=production to select production security")
+	}
+	if !isSecureCookiesEnabled() {
+		t.Fatal("expected control-plane production environment to enable secure cookies")
 	}
 }
 
@@ -361,4 +375,38 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func TestSecurity_XFFSpoofing_ForgedLeftmostEntryThroughLocalProxy(t *testing.T) {
+	resetTrustedProxies()
+	os.Unsetenv("TRUSTED_PROXY_CIDRS")
+
+	// A client sends a forged header; the scenario's UI proxy on loopback
+	// appends the real peer. The forged value must not become the client IP.
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/magic-link", nil)
+	req.RemoteAddr = "127.0.0.1:50000"
+	req.Header.Set("X-Forwarded-For", "6.6.6.6, 203.0.113.50")
+
+	if ip := getClientIP(req); ip != "203.0.113.50" {
+		t.Fatalf("client IP = %s, want the proxy-observed peer 203.0.113.50", ip)
+	}
+}
+
+func TestSecurity_DefaultTrustsOnlyLoopbackProxy(t *testing.T) {
+	resetTrustedProxies()
+	os.Unsetenv("TRUSTED_PROXY_CIDRS")
+
+	proxied := httptest.NewRequest(http.MethodGet, "/", nil)
+	proxied.RemoteAddr = "[::1]:41000"
+	proxied.Header.Set("X-Forwarded-For", "198.51.100.4")
+	if ip := getClientIP(proxied); ip != "198.51.100.4" {
+		t.Fatalf("visitors behind the local UI proxy collapse to one address: %s", ip)
+	}
+
+	remote := httptest.NewRequest(http.MethodGet, "/", nil)
+	remote.RemoteAddr = "192.0.2.9:41000"
+	remote.Header.Set("X-Forwarded-For", "198.51.100.4")
+	if ip := getClientIP(remote); ip != "192.0.2.9" {
+		t.Fatalf("a remote peer's forwarding header was trusted: %s", ip)
+	}
 }

@@ -23,12 +23,12 @@ func ExecutionToProto(execution *database.ExecutionIndex) (*basexecution.Executi
 	}
 
 	pb := &basexecution.Execution{
-		ExecutionId:     execution.ID.String(),
-		WorkflowId:      execution.WorkflowID.String(),
-		Status:          StringToExecutionStatus(execution.Status),
-		StartedAt:       autocontracts.TimeToTimestamp(execution.StartedAt),
-		CreatedAt:       autocontracts.TimeToTimestamp(execution.CreatedAt),
-		UpdatedAt:       autocontracts.TimeToTimestamp(execution.UpdatedAt),
+		ExecutionId: execution.ID.String(),
+		WorkflowId:  execution.WorkflowID.String(),
+		Status:      StringToExecutionStatus(execution.Status),
+		StartedAt:   autocontracts.TimeToTimestamp(execution.StartedAt),
+		CreatedAt:   autocontracts.TimeToTimestamp(execution.CreatedAt),
+		UpdatedAt:   autocontracts.TimeToTimestamp(execution.UpdatedAt),
 	}
 
 	pb.CompletedAt = autocontracts.TimePtrToTimestamp(execution.CompletedAt)
@@ -178,7 +178,6 @@ func timelineFrameToEntry(frame export.TimelineFrame) (*bastimeline.TimelineEntr
 	if frame.FinalURL != "" {
 		entry.Aggregates.FinalUrl = &frame.FinalURL
 	}
-
 
 	if frame.ExtractedDataPreview != nil {
 		entry.Aggregates.ExtractedDataPreview = typeconv.AnyToJsonValue(frame.ExtractedDataPreview)

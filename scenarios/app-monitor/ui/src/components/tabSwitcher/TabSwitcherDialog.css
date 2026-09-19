@@ -328,6 +328,26 @@
   margin-top: 10px;
   font-size: 0.78rem;
   color: rgba(231, 235, 255, 0.66);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tab-switcher__progressive-status button {
+  border: 1px solid rgba(134, 160, 255, 0.34);
+  border-radius: 8px;
+  background: rgba(95, 125, 255, 0.18);
+  color: #eef2ff;
+  font: inherit;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.tab-switcher__progressive-status button:hover,
+.tab-switcher__progressive-status button:focus-visible {
+  border-color: rgba(154, 178, 255, 0.62);
+  background: rgba(95, 125, 255, 0.28);
 }
 
 .tab-switcher__section {

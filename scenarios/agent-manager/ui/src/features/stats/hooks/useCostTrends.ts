@@ -1,8 +1,8 @@
 // React Query hook for fetching cost stats
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchCostStats, statsQueryKeys } from "../api/statsClient";
-import type { CostResponse, StatsFilter } from "../api/types";
+import { fetchDurableRunCost, statsQueryKeys, type DurableRunCost } from "../api/statsClient";
+import type { StatsFilter } from "../api/types";
 import { useTimeWindow } from "./useTimeWindow";
 
 export interface UseCostTrendsOptions {
@@ -15,9 +15,9 @@ export function useCostTrends(options: UseCostTrendsOptions = {}) {
   const { filter: defaultFilter } = useTimeWindow();
   const filter = options.filter ?? defaultFilter;
 
-  return useQuery<CostResponse, Error>({
-    queryKey: statsQueryKeys.cost(filter),
-    queryFn: () => fetchCostStats(filter),
+  return useQuery<DurableRunCost, Error>({
+    queryKey: [...statsQueryKeys.cost(filter), "durable"] as const,
+    queryFn: () => fetchDurableRunCost(filter),
     enabled: options.enabled ?? true,
     staleTime: options.staleTime ?? 30_000,
     refetchInterval: 60_000,

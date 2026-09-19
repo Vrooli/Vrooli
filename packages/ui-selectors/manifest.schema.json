@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.local/schemas/ui-selectors-v1.json",
+  "title": "Portable UI selector manifest",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "selectors",
+    "dynamicSelectors"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "selectors": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "testId",
+          "selector"
+        ],
+        "properties": {
+          "testId": {
+            "type": "string"
+          },
+          "selector": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "dynamicSelectors": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "selectorPattern",
+          "params"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "selectorPattern": {
+            "type": "string",
+            "minLength": 1
+          },
+          "testIdPattern": {
+            "type": "string",
+            "minLength": 1
+          },
+          "params": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "type"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "type": {
+                  "enum": [
+                    "string",
+                    "number",
+                    "enum"
+                  ]
+                },
+                "values": {
+                  "type": "array",
+                  "items": {
+                    "type": [
+                      "string",
+                      "number"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "sources": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    }
+  }
+}

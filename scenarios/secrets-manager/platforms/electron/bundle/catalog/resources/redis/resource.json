@@ -1,0 +1,217 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "redis",
+  "storage": {"entries": {
+    "data": {"rung": "pinned", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/redis", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/redis", "windows": "$USER_HOME/AppData/Local/vrooli/resources/redis"}, "kind": "dir", "class": "data", "regenerable": true, "rationale": "Redis is configured as a bounded cache/event bus; its append-only persistence directory is bind-mounted to /data."}
+  }},
+  "display_name": "Redis Cache",
+  "description": "Redis event bus and cache layer for project and scenario workflows.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-redis",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-redis_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-redis"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "template": "docker-service",
+  "driver": "docker-service",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker images, storage, and networking remain host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        }
+      }
+    }
+  },
+  "portability_tier": "full",
+  "category": "storage",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "dependencies": [],
+  "ports": [
+    {
+      "name": "redis",
+      "container": 6379,
+      "host": 6380
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "tcp",
+      "target": "127.0.0.1:6380",
+      "interval_seconds": 10,
+      "timeout_seconds": 5
+    }
+  ],
+  "runtime": {
+    "image": "redis:7-alpine",
+    "container_name": "vrooli-redis-resource",
+    "command": [
+      "redis-server",
+      "--appendonly",
+      "no",
+      "--save",
+      "900",
+      "1",
+      "300",
+      "10",
+      "60",
+      "10000",
+      "--maxmemory",
+      "2gb",
+      "--maxmemory-policy",
+      "allkeys-lru",
+      "--protected-mode",
+      "no",
+      "--bind",
+      "0.0.0.0",
+      "--port",
+      "6379"
+    ],
+    "volumes": [
+      {
+        "source": "${RESOURCE_DATA_DIR}",
+        "target": "/data"
+      }
+    ]
+  },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific Redis dependency settings.",
+    "properties": {
+      "access_method": {
+        "type": "string"
+      },
+      "fallback": {
+        "type": "string"
+      },
+      "notes": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "environment_exports": {
+    "static": {
+      "REDIS_HOST": "localhost",
+      "REDIS_DB": "0"
+    },
+    "from_ports": {
+      "REDIS_PORT": "redis"
+    },
+    "from_runtime_env": [
+      "REDIS_PASSWORD"
+    ],
+    "derived": {
+      "REDIS_URL": {
+        "template": "redis://${REDIS_HOST}:${REDIS_PORT}"
+      },
+      "REDIS_BASE_URL": {
+        "template": "${REDIS_URL}"
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 999,
+    "startup_timeout_seconds": 15,
+    "startup_time_estimate": "2-5s",
+    "dependencies": [],
+    "recovery_attempts": 3,
+    "priority": "critical"
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 15,
+    "stop_timeout_seconds": 30,
+    "retries": 3
+  },
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
+}

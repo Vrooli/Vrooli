@@ -223,6 +223,11 @@ func (r *repository) GetProjectsStats(ctx context.Context, projectIDs []uuid.UUI
 		return result, nil
 	}
 
+	// last_execution is an aggregate (MAX), so the result column has no
+	// declared SQL type that the driver could use to auto-convert text
+	// to time.Time. Scan into a string and parse explicitly — keeps the
+	// time format contract (RFC3339Nano) visible in code instead of
+	// relying on the driver's column-type heuristic.
 	query, args, err := sqlx.In(`
 		SELECT
 			p.id AS project_id,
@@ -240,16 +245,34 @@ func (r *repository) GetProjectsStats(ctx context.Context, projectIDs []uuid.UUI
 	}
 
 	query = r.db.Rebind(query)
-	var stats []*ProjectStats
-	if err := r.db.SelectContext(ctx, &stats, query, args...); err != nil {
+	type rawStats struct {
+		ProjectID      uuid.UUID      `db:"project_id"`
+		WorkflowCount  int            `db:"workflow_count"`
+		ExecutionCount int            `db:"execution_count"`
+		LastExecution  sql.NullString `db:"last_execution"`
+	}
+	var rows []*rawStats
+	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
 		return nil, fmt.Errorf("failed to get project stats: %w", err)
 	}
 
-	for _, row := range stats {
+	for _, row := range rows {
 		if row == nil {
 			continue
 		}
-		result[row.ProjectID] = row
+		stats := &ProjectStats{
+			ProjectID:      row.ProjectID,
+			WorkflowCount:  row.WorkflowCount,
+			ExecutionCount: row.ExecutionCount,
+		}
+		if row.LastExecution.Valid {
+			parsed, err := parseTimestamp(row.LastExecution.String)
+			if err != nil {
+				return nil, fmt.Errorf("parse last_execution for project %s: %w", row.ProjectID, err)
+			}
+			stats.LastExecution = &parsed
+		}
+		result[row.ProjectID] = stats
 	}
 	for _, id := range projectIDs {
 		if _, ok := result[id]; !ok {
@@ -257,6 +280,38 @@ func (r *repository) GetProjectsStats(ctx context.Context, projectIDs []uuid.UUI
 		}
 	}
 	return result, nil
+}
+
+// parseTimestamp parses the text shapes SQLite stores time values in
+// for this scenario:
+//
+//   - modernc.org/sqlite's _time_format=sqlite shape (the production
+//     and test DSN both opt into it):
+//     "2006-01-02 15:04:05.999999999-07:00".
+//   - SQLite's CURRENT_TIMESTAMP default ("2006-01-02 15:04:05"),
+//     produced when a NULL value falls through to the column DEFAULT.
+//   - RFC3339Nano.
+//   - Go's historical time.Time.String() representation
+//     ("2006-01-02 15:04:05.999999999 -0700 MST"). Parsing that durable
+//     legacy form at the read boundary prevents one old execution from
+//     making the entire project catalog unavailable.
+//
+// Aggregate columns (MAX(started_at), MIN(...)) strip the declared
+// SQL type so the driver's auto-conversion can't fire; callers must
+// scan as string and use this helper.
+func parseTimestamp(raw string) (time.Time, error) {
+	for _, layout := range []string{
+		"2006-01-02 15:04:05.999999999 -0700 MST",
+		"2006-01-02 15:04:05.999999999-07:00",
+		"2006-01-02 15:04:05",
+		time.RFC3339Nano,
+		time.RFC3339,
+	} {
+		if t, err := time.Parse(layout, raw); err == nil {
+			return t.UTC(), nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unrecognized timestamp format: %q", raw)
 }
 
 // ============================================================================
@@ -375,9 +430,18 @@ func (r *repository) CreateExecution(ctx context.Context, execution *ExecutionIn
 	if execution.ID == uuid.Nil {
 		execution.ID = uuid.New()
 	}
+	if execution.TriggerType == "" {
+		execution.TriggerType = "manual"
+	}
 
 	query := `INSERT INTO executions (id, workflow_id, status, started_at, error_message, result_path, resumed_from_id)
 	          VALUES (:id, :workflow_id, :status, :started_at, :error_message, :result_path, :resumed_from_id)`
+	if hasTriggerType, err := r.db.columnExists(ctx, "executions", "trigger_type"); err != nil {
+		return fmt.Errorf("check executions.trigger_type column: %w", err)
+	} else if hasTriggerType {
+		query = `INSERT INTO executions (id, workflow_id, status, trigger_type, started_at, error_message, result_path, resumed_from_id)
+		          VALUES (:id, :workflow_id, :status, :trigger_type, :started_at, :error_message, :result_path, :resumed_from_id)`
+	}
 	_, err := r.db.NamedExecContext(ctx, query, execution)
 	if err != nil {
 		r.log.WithError(err).Error("Failed to create execution")
@@ -522,6 +586,21 @@ func (r *repository) ListExecutionsByStatus(ctx context.Context, status string, 
 	return executions, nil
 }
 
+// ListExecutionsByStatusOldest returns the oldest terminal-index rows first.
+// Recovery previews use this bounded query so they can advance through aged
+// evidence without loading the complete execution table into the API.
+func (r *repository) ListExecutionsByStatusOldest(ctx context.Context, status string, limit, offset int) ([]*ExecutionIndex, error) {
+	base := fmt.Sprintf("SELECT %s FROM executions WHERE status = ? ORDER BY started_at ASC", executionSelectColumns)
+	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
+	args := append([]any{status}, pagingArgs...)
+	query := r.db.Rebind(queryWithPaging)
+	var executions []*ExecutionIndex
+	if err := r.db.SelectContext(ctx, &executions, query, args...); err != nil {
+		return nil, fmt.Errorf("failed to list oldest executions by status: %w", err)
+	}
+	return executions, nil
+}
+
 // ============================================================================
 // Schedule Operations
 // ============================================================================
@@ -590,13 +669,8 @@ func (r *repository) ListSchedules(ctx context.Context, workflowID *uuid.UUID, a
 		base += " WHERE is_active = true"
 	}
 
-	// Use dialect-aware NULL ordering
-	if r.db.Dialect().IsPostgres() {
-		base += " ORDER BY next_run_at ASC NULLS LAST"
-	} else {
-		// SQLite: Use CASE expression to push NULLs to end
-		base += " ORDER BY CASE WHEN next_run_at IS NULL THEN 1 ELSE 0 END, next_run_at ASC"
-	}
+	// SQLite has no NULLS LAST; emulate with CASE.
+	base += " ORDER BY CASE WHEN next_run_at IS NULL THEN 1 ELSE 0 END, next_run_at ASC"
 	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
 	args = append(args, pagingArgs...)
 	query := r.db.Rebind(queryWithPaging)
@@ -666,7 +740,7 @@ func (r *repository) CreateExport(ctx context.Context, export *ExportIndex) erro
 
 func (r *repository) GetExport(ctx context.Context, id uuid.UUID) (*ExportIndex, error) {
 	query := r.db.Rebind(`
-		SELECT e.*, w.name AS workflow_name, ex.started_at AS execution_date
+		SELECT e.*, COALESCE(w.name, '') AS workflow_name, ex.started_at AS execution_date
 		FROM exports e
 		LEFT JOIN workflows w ON e.workflow_id = w.id
 		LEFT JOIN executions ex ON e.execution_id = ex.id
@@ -747,7 +821,7 @@ func (r *repository) ListExports(ctx context.Context, limit, offset int) ([]*Exp
 		limit = 100
 	}
 	query := r.db.Rebind(`
-		SELECT e.*, w.name AS workflow_name, ex.started_at AS execution_date
+		SELECT e.*, COALESCE(w.name, '') AS workflow_name, ex.started_at AS execution_date
 		FROM exports e
 		LEFT JOIN workflows w ON e.workflow_id = w.id
 		LEFT JOIN executions ex ON e.execution_id = ex.id
@@ -763,7 +837,7 @@ func (r *repository) ListExports(ctx context.Context, limit, offset int) ([]*Exp
 
 func (r *repository) ListExportsByExecution(ctx context.Context, executionID uuid.UUID) ([]*ExportIndex, error) {
 	query := r.db.Rebind(`
-		SELECT e.*, w.name AS workflow_name, ex.started_at AS execution_date
+		SELECT e.*, COALESCE(w.name, '') AS workflow_name, ex.started_at AS execution_date
 		FROM exports e
 		LEFT JOIN workflows w ON e.workflow_id = w.id
 		LEFT JOIN executions ex ON e.execution_id = ex.id
@@ -782,7 +856,7 @@ func (r *repository) ListExportsByWorkflow(ctx context.Context, workflowID uuid.
 		limit = 100
 	}
 	query := r.db.Rebind(`
-		SELECT e.*, w.name AS workflow_name, ex.started_at AS execution_date
+		SELECT e.*, COALESCE(w.name, '') AS workflow_name, ex.started_at AS execution_date
 		FROM exports e
 		LEFT JOIN workflows w ON e.workflow_id = w.id
 		LEFT JOIN executions ex ON e.execution_id = ex.id

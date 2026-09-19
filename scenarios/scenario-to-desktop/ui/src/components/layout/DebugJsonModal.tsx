@@ -1,7 +1,7 @@
 /**
  * Debug modal showing full pipeline store state as JSON.
  *
- * Uses a snapshot approach to avoid React Error #185: "Cannot update
+ * Uses a snapshot approach to avoid React error 185: "Cannot update
  * component while rendering a different component". The store is polled
  * every 2s, so subscribing during render causes race conditions.
  */
@@ -49,7 +49,13 @@ export function DebugJsonModal({ open, onClose }: DebugJsonModalProps) {
   // Don't render anything if not open
   if (!open) return null;
 
-  return <DebugJsonModalContent onClose={onClose} copied={copied} setCopied={setCopied} />;
+  return (
+    <DebugJsonModalContent
+      onClose={onClose}
+      copied={copied}
+      setCopied={setCopied}
+    />
+  );
 }
 
 interface DebugJsonModalContentProps {
@@ -58,8 +64,12 @@ interface DebugJsonModalContentProps {
   setCopied: (value: boolean) => void;
 }
 
-function DebugJsonModalContent({ onClose, copied, setCopied }: DebugJsonModalContentProps) {
-  // Snapshot state on mount to avoid render-during-render issues (React Error #185).
+function DebugJsonModalContent({
+  onClose,
+  copied,
+  setCopied,
+}: DebugJsonModalContentProps) {
+  // Snapshot state on mount to avoid render-during-render issues (React error 185).
   // The store polls every 2s, so subscribing would cause re-renders during render.
   // Use useState with lazy initializer to capture state once on mount.
   const [storeState, setStoreState] = useState(getStoreSnapshot);
@@ -69,19 +79,25 @@ function DebugJsonModalContent({ onClose, copied, setCopied }: DebugJsonModalCon
   }, []);
 
   // Safe JSON stringify that handles non-serializable values
-  const jsonString = JSON.stringify(storeState, (_key, value: unknown) => {
-    if (value instanceof Date) return value.toISOString();
-    if (typeof value === 'function') return '[Function]';
-    if (value === undefined) return null;
-    if (typeof value === 'bigint') return (value as bigint).toString();
-    return value;
-  }, 2);
+  const jsonString = JSON.stringify(
+    storeState,
+    (_key, value: unknown) => {
+      if (value instanceof Date) return value.toISOString();
+      if (typeof value === "function") return "[Function]";
+      if (value === undefined) return null;
+      if (typeof value === "bigint") return value.toString();
+      return value;
+    },
+    2,
+  );
 
   const handleCopy = async () => {
     const result = await writeToClipboard(jsonString);
     if (result.success) {
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => {
+        setCopied(false);
+      }, 2000);
     }
   };
 
@@ -97,7 +113,9 @@ function DebugJsonModalContent({ onClose, copied, setCopied }: DebugJsonModalCon
       <Card className="w-full max-w-4xl max-h-[90vh] flex flex-col border-slate-800 bg-slate-950/90 shadow-xl">
         <CardHeader className="flex flex-row items-start justify-between gap-4 shrink-0">
           <div className="space-y-1">
-            <CardTitle className="text-lg text-slate-100">Pipeline Store Debug</CardTitle>
+            <CardTitle className="text-lg text-slate-100">
+              Pipeline Store Debug
+            </CardTitle>
             <p className="text-sm text-slate-400">
               Full pipeline store state for debugging purposes.
             </p>
@@ -118,7 +136,9 @@ function DebugJsonModalContent({ onClose, copied, setCopied }: DebugJsonModalCon
               type="button"
               variant="outline"
               size="sm"
-              onClick={handleCopy}
+              onClick={() => {
+                void handleCopy();
+              }}
               className="h-8 gap-2"
             >
               {copied ? (
@@ -139,6 +159,7 @@ function DebugJsonModalContent({ onClose, copied, setCopied }: DebugJsonModalCon
               size="sm"
               onClick={onClose}
               className="h-8 w-8 p-0"
+              aria-label="Close pipeline store debug"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -151,6 +172,6 @@ function DebugJsonModalContent({ onClose, copied, setCopied }: DebugJsonModalCon
         </CardContent>
       </Card>
     </div>,
-    document.body
+    document.body,
   );
 }

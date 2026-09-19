@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package vrooli.network_manager.v1.monitoring;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/monitoring;monitoring_v1";
+
+// MonitoringService owns recurring snapshot schedules and regression alerts.
+service MonitoringService {
+  rpc ListMonitoringSchedules(ListMonitoringSchedulesRequest) returns (ListMonitoringSchedulesResponse);
+  rpc UpsertMonitoringSchedule(UpsertMonitoringScheduleRequest) returns (UpsertMonitoringScheduleResponse);
+  rpc RunMonitoringCheck(RunMonitoringCheckRequest) returns (RunMonitoringCheckResponse);
+  rpc ListMonitoringAlerts(ListMonitoringAlertsRequest) returns (ListMonitoringAlertsResponse);
+}
+
+message MonitoringSchedule {
+  string id = 1;
+  string name = 2;
+  string profile = 3;
+  string baseline_snapshot_id = 4;
+  int32 interval_minutes = 5;
+  bool enabled = 6;
+  int32 latency_threshold_ms = 7;
+  int32 unavailable_threshold = 8;
+  repeated string effects = 9;
+  string created_at = 10;
+  string updated_at = 11;
+}
+
+message MonitoringAlert {
+  string id = 1;
+  string schedule_id = 2;
+  string snapshot_id = 3;
+  string severity = 4;
+  string status = 5;
+  string summary = 6;
+  repeated string evidence = 7;
+  string created_at = 8;
+}
+
+message MonitoringRun {
+  string id = 1;
+  string schedule_id = 2;
+  string snapshot_id = 3;
+  string status = 4;
+  string summary = 5;
+  bool regression_detected = 6;
+  repeated MonitoringAlert alerts = 7;
+  repeated string effects = 8;
+  string created_at = 9;
+}
+
+message ListMonitoringSchedulesRequest {
+  bool include_disabled = 1;
+}
+
+message ListMonitoringSchedulesResponse {
+  repeated MonitoringSchedule schedules = 1;
+}
+
+message UpsertMonitoringScheduleRequest {
+  MonitoringSchedule schedule = 1;
+}
+
+message UpsertMonitoringScheduleResponse {
+  MonitoringSchedule schedule = 1;
+}
+
+message RunMonitoringCheckRequest {
+  string schedule_id = 1;
+  bool dry_run = 2;
+}
+
+message RunMonitoringCheckResponse {
+  MonitoringRun run = 1;
+}
+
+message ListMonitoringAlertsRequest {
+  string schedule_id = 1;
+  bool open_only = 2;
+}
+
+message ListMonitoringAlertsResponse {
+  repeated MonitoringAlert alerts = 1;
+}

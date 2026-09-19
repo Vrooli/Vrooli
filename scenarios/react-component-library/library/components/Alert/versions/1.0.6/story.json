@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-alert]"
+        }
+      ],
+      "role": "anatomy"
+    },
+    {"id":"empty","name":"Empty message","args":{"children":""},"expect":[{"kind":"visible","selector":"[data-rcl-alert]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long message","args":{"children":"This alert contains deliberately long copy so the message wraps while its tone, dismissal affordance, and readable boundary remain visible."},"expect":[{"kind":"visible","selector":"[data-rcl-alert]"}],"role":"boundary","mode":"pinned"}
+  ]
+}

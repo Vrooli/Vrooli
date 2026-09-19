@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-ui-manifest.schema.json",
+  "title": "Secrets Manager UI overlay",
+  "description": "Scenario-owned files and experience metadata layered onto the current react-vite template contract.",
+  "schemaVersion": "2.0.0",
+  "targets": [
+    "react-vite"
+  ],
+  "idiom": "react-typescript",
+  "provides": [
+    "design-tokens",
+    "ui-provider"
+  ],
+  "files": {
+    "designTokens": {
+      "path": "ui/src/design-tokens.css"
+    },
+    "tailwindTheme": {
+      "path": "ui/tailwind.theme.json"
+    },
+    "tokenMap": {
+      "path": "ui/token-map.json"
+    },
+    "localeCatalogue": {
+      "path": "ui/src/i18n/locales/{locale}.json",
+      "defaultLocale": "en"
+    },
+    "selectorRegistry": {
+      "path": "ui/src/consts/selectors.ts"
+    },
+    "librarySelectors": {
+      "path": "ui/src/consts/selectors.library.ts"
+    },
+    "appEntry": {
+      "path": "ui/src/main.tsx"
+    },
+    "stringsRegistry": {
+      "path": "ui/src/consts/strings.generated.ts"
+    }
+  },
+  "gates": [
+    "types",
+    "tokens",
+    "lifecycle"
+  ],
+  "templateStructureVersion": "react-vite/v2",
+  "slotCoverage": "full",
+  "contract": {
+    "kind": "scenario-ui",
+    "schema": "scenario-ui-manifest/v2",
+    "template": "react-vite",
+    "extensionRule": "Product pages replace template examples while retaining the generated slot structure."
+  }
+}

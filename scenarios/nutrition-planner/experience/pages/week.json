@@ -1,0 +1,438 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "week",
+    "title": "Your week",
+    "routes": [
+      "/week",
+      "/week/:start"
+    ],
+    "purpose": "Show a dated seven-day plan so a person can see slots, anchors, locks, and exactly what a replan would change before any write.",
+    "prd_refs": [
+      "OT-P0-009",
+      "OT-P0-007",
+      "OT-P0-006",
+      "OT-P0-010",
+      "OT-P1-005"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The actual local date range and meal scope are read before any row."
+    },
+    {
+      "statement": "Locked occurrences are unmistakable and survive a replan preview unchanged."
+    },
+    {
+      "statement": "A replan preview shows changed, unchanged, and locked rows against the captured input revision."
+    },
+    {
+      "statement": "Unknown cost, nutrient, or time contributions and infeasible required constraints are named in the summary."
+    },
+    {
+      "statement": "An open or unrecorded slot contributes unknown future intake, never zero or assumed compliance."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The surface at rest with data present; the state a journey step assumes when it names none.",
+      "setup": {
+        "route": "/week"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "First read of the page's data; layout is reserved so nothing shifts on arrival.",
+      "setup": {
+        "route": "/week",
+        "query": {
+          "fixture": "loading"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "The read succeeded and there is genuinely nothing, which is distinct from not-yet-loaded.",
+      "setup": {
+        "route": "/week",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some contributing data could not be read; what is missing is named rather than shown as zero.",
+      "setup": {
+        "route": "/week",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "setup": {
+        "route": "/week",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next available action are stated.",
+      "setup": {
+        "route": "/week",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "validation-error",
+      "description": "Input was rejected before submission; the offending field is identified next to it.",
+      "setup": {
+        "route": "/week",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
+    },
+    {
+      "id": "saving",
+      "description": "A write is in flight; the affected control says why it is unavailable.",
+      "setup": {
+        "route": "/week",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
+      "id": "offline",
+      "description": "The client cannot reach the API; read-only or queued behavior is explained.",
+      "setup": {
+        "route": "/week",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    },
+    {
+      "id": "full-day-scope",
+      "description": "The plan is being read across all configured breakfast/lunch/dinner/snack slots rather than the dinner row alone.",
+      "setup": {
+        "route": "/week",
+        "query": {
+          "fixture": "full-day-scope"
+        }
+      }
+    },
+    {
+      "id": "replan-preview",
+      "description": "A replan draft is shown with changed, unchanged, and locked rows and a before/after summary, before anything is applied.",
+      "setup": {
+        "route": "/week",
+        "query": {
+          "fixture": "replan-preview"
+        }
+      }
+    },
+    {
+      "id": "stale-inputs",
+      "description": "A profile, price, recipe, stock, or plan input changed since the preview was generated, so the preview must be rebuilt.",
+      "setup": {
+        "route": "/week",
+        "query": {
+          "fixture": "stale-inputs"
+        }
+      }
+    },
+    {
+      "id": "rule-conflict",
+      "description": "A required rule, appliance, or lock makes a requested occurrence infeasible; the rule is named and required constraints are not relaxed.",
+      "setup": {
+        "route": "/week",
+        "query": {
+          "fixture": "rule-conflict"
+        }
+      }
+    },
+    {
+      "id": "replan-applied",
+      "description": "The selected preview has been applied against its captured input revision and the plan reflects it.",
+      "setup": {
+        "route": "/week",
+        "query": {
+          "fixture": "replan-applied"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "week-range",
+      "role": "status",
+      "description": "The actual local date range and the active meal scope."
+    },
+    {
+      "id": "week-nav",
+      "role": "group",
+      "description": "Previous and next week navigation that preserves the selected week across refresh."
+    },
+    {
+      "id": "slot-scope-toggle",
+      "role": "tab",
+      "description": "Switches between the dinner row and the full configured day without changing the plan."
+    },
+    {
+      "id": "day-list",
+      "role": "list",
+      "name": "Days",
+      "description": "The readable day-grouped occurrence list, preferred over a desktop matrix on small screens."
+    },
+    {
+      "id": "day-group",
+      "role": "group",
+      "description": "One local date with its slots and occurrences."
+    },
+    {
+      "id": "occurrence-row",
+      "role": "listitem",
+      "description": "Date/slot, meal, servings, metrics, status, and lock state."
+    },
+    {
+      "id": "lock-indicator",
+      "role": "status",
+      "description": "A visible lock marker with a text label, not a colour-only cue."
+    },
+    {
+      "id": "week-summary",
+      "role": "table",
+      "name": "Week summary",
+      "description": "Known portion cost, estimated checkout, active prep, and variety with their denominator."
+    },
+    {
+      "id": "unknown-summary-note",
+      "role": "note",
+      "description": "States which summary contributors are unknown or missing so an average is not read as complete."
+    },
+    {
+      "id": "replan-action",
+      "role": "button",
+      "name": "Replan",
+      "description": "Requests a draft for the selected week's unlocked future occurrences."
+    },
+    {
+      "id": "replan-dialog",
+      "role": "dialog",
+      "name": "Replan preview",
+      "description": "Changed, unchanged, and locked rows with a before/after summary."
+    },
+    {
+      "id": "changed-rows",
+      "role": "table",
+      "description": "Per-row change classification for the pending draft."
+    },
+    {
+      "id": "stale-inputs-alert",
+      "role": "alert",
+      "description": "Names the material input that changed and requires a rebuilt preview before apply."
+    },
+    {
+      "id": "conflict-note",
+      "role": "note",
+      "description": "Names the rule or lock that makes an occurrence infeasible and the action that would resolve it."
+    },
+    {
+      "id": "open-slot-note",
+      "role": "note",
+      "description": "Marks an intentionally open or unrecorded slot as unknown future intake."
+    }
+  ],
+  "claims": [
+    {
+      "id": "week-shows-actual-dates",
+      "type": "element-present",
+      "statement": "The week page states its actual local date range and active meal scope before the rows.",
+      "tier": "aspirational",
+      "elements": [
+        "week-range",
+        "slot-scope-toggle"
+      ]
+    },
+    {
+      "id": "locks-are-labeled",
+      "type": "element-present",
+      "statement": "Every locked occurrence carries a visible lock label rather than a colour-only marker.",
+      "tier": "aspirational",
+      "elements": [
+        "lock-indicator",
+        "occurrence-row"
+      ]
+    },
+    {
+      "id": "locks-survive-preview",
+      "type": "element-present",
+      "statement": "A replan preview preserves locked occurrences unchanged and shows them distinctly from changed rows.",
+      "tier": "aspirational",
+      "elements": [
+        "replan-dialog",
+        "lock-indicator",
+        "changed-rows"
+      ],
+      "states": [
+        "replan-preview"
+      ]
+    },
+    {
+      "id": "stale-preview-must-rebuild",
+      "type": "element-present",
+      "statement": "When a material input changed, the page states which input is stale and requires a rebuilt preview instead of applying the old one.",
+      "tier": "aspirational",
+      "elements": [
+        "stale-inputs-alert",
+        "replan-dialog"
+      ],
+      "states": [
+        "stale-inputs"
+      ]
+    },
+    {
+      "id": "summary-names-its-denominator",
+      "type": "element-present",
+      "statement": "The week summary labels the denominator and missing-data status of every average it shows.",
+      "tier": "aspirational",
+      "elements": [
+        "week-summary",
+        "unknown-summary-note"
+      ]
+    },
+    {
+      "id": "conflict-names-the-rule",
+      "type": "element-present",
+      "statement": "An infeasible occurrence names the required rule or lock that blocks it and never trades that rule against cost, effort, or variety.",
+      "tier": "aspirational",
+      "elements": [
+        "conflict-note"
+      ],
+      "states": [
+        "rule-conflict"
+      ]
+    },
+    {
+      "id": "open-slot-is-unknown",
+      "type": "element-present",
+      "statement": "An open or unrecorded slot is shown as unknown future intake rather than zero or assumed compliance.",
+      "tier": "aspirational",
+      "elements": [
+        "open-slot-note",
+        "occurrence-row"
+      ]
+    },
+    {
+      "id": "scope-change-is-perceivable",
+      "type": "state-distinct",
+      "statement": "Switching from the dinner row to the full configured day is perceivably different and does not silently alter the plan.",
+      "tier": "aspirational",
+      "elements": [
+        "slot-scope-toggle",
+        "day-list"
+      ],
+      "states": [
+        "default",
+        "full-day-scope"
+      ]
+    },
+    {
+      "id": "replan-has-one-dominant-action",
+      "type": "single-dominant-action",
+      "statement": "In the preview, applying the draft is the one dominant action with keeping the current plan subordinate.",
+      "tier": "aspirational",
+      "elements": [
+        "replan-action",
+        "replan-dialog"
+      ],
+      "states": [
+        "replan-preview"
+      ]
+    },
+    {
+      "id": "week-no-horizontal-overflow",
+      "type": "no-document-horizontal-overflow",
+      "statement": "The day-grouped week never scrolls the whole document sideways; wide content is confined to its own region.",
+      "tier": "aspirational",
+      "elements": [
+        "day-list"
+      ]
+    },
+    {
+      "id": "applied-week-reflects-draft",
+      "type": "element-present",
+      "statement": "After apply, the day list and summary reflect the applied draft so a successful apply cannot be mistaken for a no-op.",
+      "tier": "aspirational",
+      "elements": [
+        "replan-action",
+        "week-summary",
+        "day-list"
+      ],
+      "states": [
+        "replan-applied"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "week-range": {
+        "testid": "week-week-range"
+      },
+      "week-nav": {
+        "testid": "week-week-nav"
+      },
+      "slot-scope-toggle": {
+        "testid": "week-slot-scope-toggle"
+      },
+      "day-list": {
+        "testid": "week-day-list"
+      },
+      "day-group": {
+        "testid": "week-day-group"
+      },
+      "occurrence-row": {
+        "testid": "week-occurrence-row"
+      },
+      "lock-indicator": {
+        "testid": "week-lock-indicator"
+      },
+      "week-summary": {
+        "testid": "week-week-summary"
+      },
+      "unknown-summary-note": {
+        "testid": "week-unknown-summary-note"
+      },
+      "replan-action": {
+        "testid": "week-replan-action"
+      },
+      "replan-dialog": {
+        "testid": "week-replan-dialog"
+      },
+      "changed-rows": {
+        "testid": "week-changed-rows"
+      },
+      "stale-inputs-alert": {
+        "testid": "week-stale-inputs-alert"
+      },
+      "conflict-note": {
+        "testid": "week-conflict-note"
+      },
+      "open-slot-note": {
+        "testid": "week-open-slot-note"
+      }
+    }
+  }
+}

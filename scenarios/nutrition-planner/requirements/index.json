@@ -1,0 +1,28 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-workspace-and-profile/module.json",
+    "02-meal-capture/module.json",
+    "03-recipe-revisions-and-components/module.json",
+    "04-recipe-representations/module.json",
+    "05-eligibility-and-rules/module.json",
+    "06-planning-engine/module.json",
+    "07-today-and-swap/module.json",
+    "08-nutrition-and-targets/module.json",
+    "09-cost-and-pricing/module.json",
+    "10-grocery-and-inventory/module.json",
+    "11-portability-and-printing/module.json",
+    "12-persistence-and-concurrency/module.json",
+    "13-experience-and-accessibility/module.json",
+    "14-ai-assistance/module.json",
+    "15-provider-adapters/module.json",
+    "16-jobs-and-recurring/module.json",
+    "17-feedback-and-preferences/module.json",
+    "18-commercial-foundations/module.json",
+    "19-deferred-expansion/module.json"
+  ]
+}

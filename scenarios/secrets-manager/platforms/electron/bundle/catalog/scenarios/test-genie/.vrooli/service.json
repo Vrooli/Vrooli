@@ -1,0 +1,236 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "service": {
+    "parent": "vrooli",
+    "name": "test-genie",
+    "displayName": "Test Genie",
+    "description": "Descriptor-backed test orchestration and execution-evidence remediation",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/test-genie"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999",
+      "port": 21223
+    }
+  },
+  "hostTools": [
+    {
+      "name": "bats",
+      "required": false,
+      "reason": "Execute discovered BATS suites during integration-test orchestration",
+      "when": [
+        "setup"
+      ],
+      "environments": [
+        "development"
+      ],
+      "notes": "Test Genie degrades with a clear missing-dependency error when bats is unavailable"
+    }
+  ],
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "startup_grace_period": 15000,
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
+        }
+      ]
+    },
+    "setup": {
+      "description": "Build API & UI, install CLI",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/test-genie-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "test-genie"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o test-genie-api .",
+          "description": "Build the Go API binary at api/test-genie-api so lifecycle setup checks and start-api reuse the same executable"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Launch API and Vite dev server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./test-genie-api",
+          "background": true,
+          "condition": {
+            "file_exists": "api/test-genie-api"
+          },
+          "description": "Start Go API server"
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "background": true,
+          "description": "Serve production UI bundle",
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "test": {
+      "description": "Execute phased test suite",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "test-genie execute test-genie --preset comprehensive",
+          "description": "Run structure/unit/integration/business/performance phases"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop background processes",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'test-genie-api' || true",
+          "description": "Stop Go API"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
+        }
+      ]
+    }
+  },
+  "environment": {
+    "TEST_GENIE_SQLITE_PATH": "${SCENARIO_DATA_DIR}/test-genie.db"
+  },
+  "dependencies": {
+    "scenarios": {
+      "agent-inbox": {
+        "enabled": true,
+        "required": false,
+        "description": "Optional external tool-discovery consumer. Test Genie publishes tool registry proto contracts that agent-inbox can consume.",
+        "degraded_behavior": "Core test execution continues when agent-inbox is unavailable; external tool invocation/discovery integrations may be unavailable."
+      },
+      "agent-manager": {
+        "enabled": true,
+        "required": false,
+        "description": "Optional evidence-bound remediation executor using Test Genie's declared role-only profile.",
+        "config": {
+          "declarations": {
+            "reconcile": true,
+            "profileMode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-manager/generation.json"
+            ]
+          }
+        },
+        "degraded_behavior": "Core test execution continues when agent-manager is unavailable; evidence-bound remediation returns a clear unavailable error."
+      },
+      "browser-automation-studio": {
+        "enabled": true,
+        "required": false,
+        "description": "Optional browser workflow producer used by smoke and playbook phases for UI automation and captured evidence.",
+        "degraded_behavior": "UI smoke/playbook automation can skip or report missing BAS, while non-browser phases continue."
+      }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "test-genie",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "test-genie"
+    },
+    "freshness": {
+      "inputs": [
+        "api/**",
+        "cli/**",
+        ".vrooli/service.json",
+        ".vrooli/testing.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  }
+}

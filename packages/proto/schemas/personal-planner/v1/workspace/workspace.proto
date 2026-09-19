@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package vrooli.personal_planner.v1.workspace;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/workspace;workspace_v1";
+
+// Workspace owns the private planning profile used by Settings and capacity.
+// It deliberately contains manual, local facts only; provider connections are
+// a separate integrations boundary and must not be implied by this profile.
+service WorkspaceService {
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
+  rpc ListAvailability(ListAvailabilityRequest) returns (ListAvailabilityResponse);
+  rpc ReplaceAvailability(ReplaceAvailabilityRequest) returns (ReplaceAvailabilityResponse);
+}
+
+message PlanningProfile {
+  string id = 1;
+  string timezone = 2;
+  string week_start = 3;
+  int32 daily_capacity_minutes = 4;
+  int32 reserve_minutes = 5;
+  int32 focus_session_minutes = 6;
+  int64 revision = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+message GetProfileRequest {}
+message GetProfileResponse { PlanningProfile profile = 1; }
+
+message UpdateProfileRequest {
+  string timezone = 1;
+  string week_start = 2;
+  int32 daily_capacity_minutes = 3;
+  int32 reserve_minutes = 4;
+  int32 focus_session_minutes = 5;
+  int64 expected_revision = 6;
+}
+message UpdateProfileResponse { PlanningProfile profile = 1; }
+
+message AvailabilityWindow {
+  string id = 1;
+  int32 weekday = 2;
+  int32 start_minute = 3;
+  int32 end_minute = 4;
+  string timezone = 5;
+  string effective_start_date = 6;
+  string effective_end_date = 7;
+  int32 priority = 8;
+  int64 revision = 9;
+}
+
+message AvailabilityException {
+  string id = 1;
+  string date = 2;
+  int32 start_minute = 3;
+  int32 end_minute = 4;
+  string kind = 5;
+  string reason = 6;
+  int64 revision = 7;
+}
+
+message ListAvailabilityRequest {}
+message ListAvailabilityResponse {
+  repeated AvailabilityWindow windows = 1;
+  repeated AvailabilityException exceptions = 2;
+  int64 revision = 3;
+}
+
+message ReplaceAvailabilityRequest {
+  repeated AvailabilityWindow windows = 1;
+  repeated AvailabilityException exceptions = 2;
+  int64 expected_revision = 3;
+}
+message ReplaceAvailabilityResponse {
+  repeated AvailabilityWindow windows = 1;
+  repeated AvailabilityException exceptions = 2;
+  int64 revision = 3;
+}

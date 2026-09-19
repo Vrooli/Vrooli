@@ -1,27 +1,42 @@
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { startScenarioServer } from '@vrooli/api-base/server'
+import { proxyToApi, startScenarioServer } from '@vrooli/api-base/server'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
-const SERVICE_NAME = 'tech-tree-designer'
-const VERSION = process.env.npm_package_version || '1.0.0'
-const DEFAULT_UI_PORT = process.env.UI_PORT || process.env.PORT || '3000'
-const API_PORT = process.env.API_PORT
-
-function requireEnv(value, name) {
-  if (!value) {
-    throw new Error(`[${SERVICE_NAME}] Missing required environment variable: ${name}`)
-  }
-  return value
+// Both ports come from the scenario lifecycle. createScenarioServer already
+// rejects either one when it is missing or unparseable, so these guards change
+// no behaviour: the process still refuses to start. What they change is the
+// message — the library reports "Invalid UI_PORT configuration", which names
+// the symptom, and these name the cause and the fix.
+const uiPort = process.env.UI_PORT
+if (!uiPort) {
+  throw new Error(
+    'UI_PORT is not set. The scenario lifecycle supplies it — start this scenario with `vrooli scenario start tech-tree-designer` rather than running server.js directly.',
+  )
 }
 
+const apiPort = process.env.API_PORT
+if (!apiPort) {
+  throw new Error(
+    'API_PORT is not set. The scenario lifecycle supplies it — start this scenario with `vrooli scenario start tech-tree-designer` rather than running server.js directly.',
+  )
+}
+
+const connectRpcPath = /^\/vrooli\.tech_tree_designer\.v1\./
+
 startScenarioServer({
-  uiPort: requireEnv(DEFAULT_UI_PORT, 'UI_PORT'),
-  apiPort: requireEnv(API_PORT, 'API_PORT'),
-  distDir: path.join(__dirname, 'dist'),
-  serviceName: SERVICE_NAME,
-  version: VERSION,
+  uiPort,
+  apiPort,
+  distDir: './dist',
+  serviceName: 'tech-tree-designer',
   corsOrigins: '*',
+  setupRoutes(app) {
+    app.use((req, res, next) => {
+      if (!connectRpcPath.test(req.path)) {
+        next()
+        return
+      }
+
+      proxyToApi(req, res, req.originalUrl || req.url, {
+        apiPort,
+      }).catch(next)
+    })
+  },
 })

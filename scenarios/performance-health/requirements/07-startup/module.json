@@ -1,0 +1,58 @@
+{
+  "_metadata": {
+    "description": "The resource-aware startup benchmark (axis ②) migrated greenfield from structure-health's perf domain.",
+    "last_validated_at": "2026-07-06T16:19:34-04:00",
+    "module": "startup",
+    "prd_ref": "PRD.md",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PH-STARTUP-001",
+      "title": "Resource-aware startup measurement",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-001",
+      "category": "api",
+      "criticality": "P2",
+      "description": "startup restarts a scenario behind a runner seam and persists per-surface time-to-healthy plus a common.v1.ExecutionMetrics resource envelope to the trend store; reads are newest-first and scoped per scenario. Never invoked by a Test Genie phase.",
+      "tags": [
+        "startup",
+        "execution-metrics",
+        "trend"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/startup/startup_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Store round-trip, newest-first scoping, and a faked-runner benchmark persist with injected metrics."
+        }
+      ]
+    },
+    {
+      "id": "PH-STARTUP-002",
+      "title": "Self-restart deadlock guard",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-001",
+      "category": "api",
+      "criticality": "P2",
+      "description": "The startup benchmark refuses to restart performance-health itself (self-restart deadlock guard) and surfaces runner errors rather than hanging.",
+      "tags": [
+        "startup",
+        "self-deadlock-guard",
+        "api"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/startup/guard_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Asserts the self-benchmark rejection and the runner-error propagation path."
+        }
+      ]
+    }
+  ]
+}

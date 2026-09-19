@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "dashboard.statsGrid": {
+      "testId": "dashboard-stats-grid",
+      "selector": "[data-testid=\"dashboard-stats-grid\"]"
+    },
+    "dashboard.timelineSection": {
+      "testId": "dashboard-timeline-section",
+      "selector": "[data-testid=\"dashboard-timeline-section\"]"
+    },
+    "dashboard.domainsSection": {
+      "testId": "dashboard-domains-section",
+      "selector": "[data-testid=\"dashboard-domains-section\"]"
+    },
+    "dashboard.eventsSection": {
+      "testId": "dashboard-events-section",
+      "selector": "[data-testid=\"dashboard-events-section\"]"
+    },
+    "timeline.chart": {
+      "testId": "timeline-chart",
+      "selector": "[data-testid=\"timeline-chart\"]"
+    },
+    "timeline.empty": {
+      "testId": "timeline-empty",
+      "selector": "[data-testid=\"timeline-empty\"]"
+    },
+    "timeline.bars": {
+      "testId": "timeline-bars",
+      "selector": "[data-testid=\"timeline-bars\"]"
+    },
+    "timeline.periodSelector": {
+      "testId": "timeline-period-selector",
+      "selector": "[data-testid=\"timeline-period-selector\"]"
+    },
+    "domains.list": {
+      "testId": "domains-list",
+      "selector": "[data-testid=\"domains-list\"]"
+    },
+    "domains.card": {
+      "testId": "domain-card",
+      "selector": "[data-testid=\"domain-card\"]"
+    },
+    "domains.statusBadge": {
+      "testId": "domain-status-badge",
+      "selector": "[data-testid=\"domain-status-badge\"]"
+    },
+    "events.list": {
+      "testId": "events-list",
+      "selector": "[data-testid=\"events-list\"]"
+    },
+    "events.row": {
+      "testId": "event-row",
+      "selector": "[data-testid=\"event-row\"]"
+    },
+    "stats.totalEvents": {
+      "testId": "stat-total-events",
+      "selector": "[data-testid=\"stat-total-events\"]"
+    },
+    "stats.activeDomains": {
+      "testId": "stat-active-domains",
+      "selector": "[data-testid=\"stat-active-domains\"]"
+    },
+    "stats.lastActivity": {
+      "testId": "stat-last-activity",
+      "selector": "[data-testid=\"stat-last-activity\"]"
+    },
+    "stats.trend": {
+      "testId": "stat-7day-trend",
+      "selector": "[data-testid=\"stat-7day-trend\"]"
+    },
+    "score.card": {
+      "testId": "lifestyle-score",
+      "selector": "[data-testid=\"lifestyle-score\"]"
+    },
+    "score.value": {
+      "testId": "lifestyle-score-value",
+      "selector": "[data-testid=\"lifestyle-score-value\"]"
+    },
+    "error.alert": {
+      "testId": "error-alert",
+      "selector": "[data-testid=\"error-alert\"]"
+    },
+    "error.retryButton": {
+      "testId": "error-retry-button",
+      "selector": "[data-testid=\"error-retry-button\"]"
+    }
+  },
+  "dynamicSelectors": {},
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "d365ee497ed4d1e9f4eb6384adf9c78dea6c1bc6890526f52a2c1a1281dde39b"
+  }
+}

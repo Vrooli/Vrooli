@@ -2,11 +2,11 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
 )
 
 // AdminOverrideHandlers handles admin operations for scenario overrides.
@@ -16,7 +16,7 @@ type AdminOverrideHandlers struct {
 }
 
 // NewAdminOverrideHandlers creates handlers for admin override operations.
-func NewAdminOverrideHandlers(db *sql.DB, logger *Logger) *AdminOverrideHandlers {
+func NewAdminOverrideHandlers(db *database.RoutedDB, logger *Logger) *AdminOverrideHandlers {
 	return &AdminOverrideHandlers{
 		store:  NewScenarioOverrideStore(db, logger),
 		logger: logger,
@@ -75,11 +75,11 @@ func (h *AdminOverrideHandlers) CleanupOrphans(w http.ResponseWriter, r *http.Re
 	if len(orphans) == 0 {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":     true,
-			"dry_run":     req.DryRun,
-			"deleted":     0,
-			"orphan_ids":  []string{},
-			"message":     "no orphan overrides found",
+			"success":    true,
+			"dry_run":    req.DryRun,
+			"deleted":    0,
+			"orphan_ids": []string{},
+			"message":    "no orphan overrides found",
 		})
 		return
 	}
@@ -101,12 +101,12 @@ func (h *AdminOverrideHandlers) CleanupOrphans(w http.ResponseWriter, r *http.Re
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"success":     true,
-		"dry_run":     req.DryRun,
-		"deleted":     deleted,
+		"success":      true,
+		"dry_run":      req.DryRun,
+		"deleted":      deleted,
 		"would_delete": len(orphans),
-		"orphan_ids":  orphanIDs,
-		"orphans":     orphans,
+		"orphan_ids":   orphanIDs,
+		"orphans":      orphans,
 	})
 }
 

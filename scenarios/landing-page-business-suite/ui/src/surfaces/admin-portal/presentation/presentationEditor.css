@@ -1,0 +1,31 @@
+.presentation-editing-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
+.presentation-preview-surface { container-type: inline-size; container-name: presentation-preview; }
+.presentation-preview-column { overflow-wrap: anywhere; }
+@media (min-width: 1200px) {
+  .presentation-editing-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .presentation-editing-grid fieldset > .grid { grid-template-columns: minmax(0, 1fr); }
+}
+/* A native preview responds to its column, not the administrator's wider window. */
+@container presentation-preview (max-width: 850px) {
+  .presentation-page .wrap, .presentation-page .hero-center .hero-stage, .presentation-page .hero-editorial { width: calc(100% - 40px); }
+  .presentation-page .intro-row, .presentation-page .hero-editorial, .presentation-page .video-split { display: block; }
+  .presentation-page .intro-row > p { margin-top: 24px; }
+  .presentation-page .recorded-demo figure { margin-top: 32px; }
+  .presentation-page .site-header { height: 80px; }
+  .presentation-page .brand-subtitle, .presentation-page .brand-divider { display: none; }
+  .presentation-page .site-header nav { display: none; position: absolute; left: -20px; right: -20px; top: 79px; padding: 16px 20px; background: var(--paper); }
+  .presentation-page .site-header nav > a { min-height: 44px; }
+  .presentation-page .menu-toggle { display: flex; flex-direction: column; justify-content: center; gap: 6px; width: 44px; height: 44px; background: none; padding: 10px; }
+  .presentation-page .menu-toggle span { display: block; height: 1px; width: 24px; background: var(--ink); }
+  .presentation-page .site-header.menu-open nav { display: flex; flex-direction: column; }
+  .presentation-page.theme-signal .hero-center h1, .presentation-page.theme-studio .hero-center h1, .presentation-page .hero-editorial h1 { font-size: clamp(40px, 8cqw, 64px); letter-spacing: -.045em; }
+  .presentation-page .hero-editorial .hero-stage { margin: 40px auto 0; }
+  .presentation-page .workspace-body { grid-template-columns: 130px minmax(0, 1fr); }
+  .presentation-page .review-pane { display: none; }
+  .presentation-page .story-grid, .presentation-page .catalog-grid, .presentation-page .roadmap-grid { grid-template-columns: 1fr; }
+  .presentation-page .voice-story, .presentation-page .mobile-story { display: block; padding: 32px 24px; }
+  .presentation-page .voice-scene { margin-top: 24px; }
+  .presentation-page .phone-stage { margin: 24px auto 0; }
+  .presentation-page .closing-content { padding: 40px 24px; }
+  .presentation-page .closing h2, .presentation-page h2 { font-size: clamp(30px, 6cqw, 44px); }
+}

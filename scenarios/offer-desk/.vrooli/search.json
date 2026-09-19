@@ -1,0 +1,83 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "offer-desk.catalog",
+      "lifecycle": "production",
+      "provider_group": "offer-desk",
+      "bucket": "BUCKET_KNOW",
+      "type": "offer-record",
+      "description": "Offer Desk's authoritative offer graph: offers, variants, channels, revenue lines, deliverables, ramps, streams, audiences, plus their relationships, triggers, observed facts, evaluations, promotion proposals, and audit history. Route here for questions about what an offer is, why a gate fired or did not, and the recorded decision history.",
+      "scope": "SCOPE_PROJECT",
+      "class": "local_live",
+      "index_timestamp_field": "last_indexed_at",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "offer-desk",
+          "path": "/vrooli.offer_desk.v1.search.SearchService/Search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": { "Content-Type": "application/json" }
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "offer-desk",
+          "path": "/vrooli.offer_desk.v1.search.SearchService/Status",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": { "Content-Type": "application/json" }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "title",
+        "snippet_field": "snippet",
+        "score_field": "score",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "performance": { "p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8 },
+      "tuning": { "engine": "dense", "rerank_enabled": false, "floor": { "max_gap": 0, "hard_floor": 0 } },
+      "tests": {
+        "name": "offer desk catalog — primary",
+        "description": "Reviewed owner corpus over the live offer catalog. Every catalog source class (all eight node kinds, edges, triggers, observed facts, evaluations, audit history) has a labelled positive, plus non-Aquila product records to prove coverage is not narrowed to marketing records. Reviewed positives are tagged across difficulty bands (strong/weak-real/weak/hard) grounded in observed provider-direct rank, so recall is not over-reported. Ids are the live authoritative catalog ids in this scenario's non-regenerable data store; re-verify after any bulk catalog change.",
+        "coverage": {
+          "required_tags": ["offer", "variant", "channel", "revenue-line", "deliverable", "ramp", "stream", "audience", "edge", "trigger", "fact", "evaluation", "audit", "non-aquila"],
+          "required_tag_groups": [
+            { "id": "offer-graph", "description": "All eight catalog node kinds resolve as authoritative records.", "tags": ["offer", "variant", "channel", "revenue-line", "deliverable", "ramp", "stream", "audience"], "min_reviewed_positive": 8 },
+            { "id": "relationships", "description": "Catalog relationships (edges) resolve with a follow-up reference.", "tags": ["edge"], "min_reviewed_positive": 1 },
+            { "id": "decision-reasoning", "description": "Triggers and evaluations explain why a gate fired or did not.", "tags": ["trigger", "evaluation"], "min_reviewed_positive": 2 },
+            { "id": "observed-facts", "description": "Observed facts resolve with explicit freshness.", "tags": ["fact"], "min_reviewed_positive": 1 },
+            { "id": "history", "description": "Audit history resolves as historical record.", "tags": ["audit"], "min_reviewed_positive": 1 },
+            { "id": "cross-product", "description": "Non-Aquila product records remain discoverable (not narrowed to marketing records).", "tags": ["non-aquila"], "min_reviewed_positive": 1 }
+          ]
+        },
+        "minimum": {
+          "reviewed_positive": 14,
+          "negative": 2,
+          "required_tags": ["offer", "variant", "channel", "revenue-line", "deliverable", "ramp", "stream", "audience", "edge", "trigger", "fact", "evaluation", "audit", "non-aquila"]
+        },
+        "cases": [
+          { "id": "offer-browse", "query": "what offers exist", "tags": ["offer", "browse", "hard"], "expect_ids": ["node:161d07de-5c04-40fd-bd74-86c6b3da3f0b"], "expect_within_top_k": 5, "status": "reviewed", "note": "Ambiguous browse query; the canonical Business Bundle lands late in the top-5 (observed rank 4)." },
+          { "id": "variant-tier", "query": "tier-1 variant", "tags": ["variant", "strong"], "expect_ids": ["node:54180a50-e4c4-49b6-9b11-0735fdb0b65e"], "expect_within_top_k": 3, "status": "reviewed" },
+          { "id": "channel-app-stores", "query": "app stores channel", "tags": ["channel", "strong"], "expect_ids": ["node:216e7a1b-9b05-4af2-8e5e-e06d30228bee"], "expect_within_top_k": 3, "status": "reviewed" },
+          { "id": "revenue-affiliate", "query": "affiliate commerce revenue line", "tags": ["revenue-line", "strong"], "expect_ids": ["node:01d288ce-65e0-412a-81d8-947575e38843"], "expect_within_top_k": 3, "status": "reviewed" },
+          { "id": "deliverable-agent-manager", "query": "agent manager deliverable", "tags": ["deliverable", "strong"], "expect_ids": ["node:d234e314-e4bc-4279-af79-a5bd369e5603"], "expect_within_top_k": 3, "status": "reviewed" },
+          { "id": "ramp-agent", "query": "agent ramp", "tags": ["ramp", "strong"], "expect_ids": ["node:10110513-b3e9-4451-9d28-22215725f361"], "expect_within_top_k": 3, "status": "reviewed" },
+          { "id": "stream-ai-credits", "query": "ai credits stream", "tags": ["stream", "strong"], "expect_ids": ["node:f89c763c-0b5b-4f4c-b55c-ed87cfead576"], "expect_within_top_k": 3, "status": "reviewed" },
+          { "id": "audience-business", "query": "business audience segment", "tags": ["audience", "weak-real"], "expect_ids": ["node:908f28fd-7c4c-443f-aec3-ef033f7fea66"], "expect_within_top_k": 5, "status": "reviewed" },
+          { "id": "edge-unlocks", "query": "relationship unlocks", "tags": ["edge", "weak-real"], "expect_ids": ["edge:360a259d-b1d8-4935-877c-15a0a4996346"], "expect_within_top_k": 5, "status": "reviewed" },
+          { "id": "trigger-publication-ready", "query": "trigger plugin publication ready", "tags": ["trigger", "weak-real"], "expect_ids": ["trigger:c8459166-a349-4d7a-b7e2-c432a4fbb331"], "expect_within_top_k": 5, "status": "reviewed" },
+          { "id": "fact-publication-ready", "query": "plugin publication ready fact", "tags": ["fact", "weak-real"], "expect_ids": ["fact:plugin_publication_ready"], "expect_within_top_k": 3, "status": "reviewed" },
+          { "id": "evaluation-current", "query": "current evaluation of scenario-to-plugin-publication", "tags": ["evaluation", "weak"], "expect_ids": ["evaluation:09d20815-2c70-46d6-9194-438a111b4750"], "expect_within_top_k": 3, "status": "reviewed" },
+          { "id": "audit-transition", "query": "audit compute-manager status transition", "tags": ["audit", "weak"], "expect_ids": ["audit:8c640e9a-7bf4-4ef9-826b-91cf5fca0e93"], "expect_within_top_k": 3, "status": "reviewed" },
+          { "id": "non-aquila-shipped-ramp", "query": "shipped on ramp secrets manager", "tags": ["fact", "non-aquila", "freshness", "hard"], "expect_ids": ["fact:shipped_on_ramp.desktop.secrets-manager"], "expect_within_top_k": 3, "status": "reviewed", "note": "A non-Aquila product record (desktop.secrets-manager); proves cross-product coverage. Semantic paraphrase of a ramp fact." },
+          { "id": "junk", "query": "florbnax zzqq nonsense", "tags": ["gibberish"], "expect_no_strong_hit": true, "expect_max_score": 0.55, "status": "reviewed", "note": "Dense-baseline junk band; measured top score ~0.51 on 2026-09-12. Tighten after the pending rerank/floor sweep." },
+          { "id": "off-domain-react", "query": "how do I write a react component", "tags": ["gibberish", "off-domain"], "expect_no_strong_hit": true, "expect_max_score": 0.55, "status": "reviewed", "note": "Off-domain query must not produce a strong offer-catalog hit. Measured top score ~0.50 on 2026-09-12." }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "metadata": {
+    "name": "experience-exposure",
+    "description": "Navigate to the exposure experience page so its active experience specification has a browser automation evidence seam.",
+    "requirement": "UX-EXPERIENCE-EXPOSURE",
+    "version": "1",
+    "labels": {"spec_entry_id": "exposure", "reset": "none", "purpose": "experience-contract"},
+    "execution_mode": "observer"
+  },
+  "settings": {"viewport_width": 1280, "viewport_height": 800},
+  "nodes": [
+    {
+      "id": "navigate-exposure",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "tunnel-manager",
+          "scenario_path": "/exposure",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": {"label": "Navigate to exposure"}
+      }
+    },
+    {
+      "id": "wait-exposure-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.exposure",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {"label": "Wait for the exposure surface"}
+      }
+    },
+    {
+      "id": "assert-exposure-page",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.exposure",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 10000,
+          "failure_message": "Exposure did not render its bound page surface"
+        },
+        "metadata": {"label": "Assert exposure surface is visible"}
+      }
+    },
+    {
+      "id": "assert-exposure-results-lifecycle",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-experience-surface=\"exposure-results\"][data-experience-state=\"loading\"], [data-experience-surface=\"exposure-results\"][data-experience-state=\"ready\"], [data-experience-surface=\"exposure-results\"][data-experience-state=\"partial\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 10000,
+          "failure_message": "Exposure results did not expose its async lifecycle surface"
+        },
+        "metadata": {"label": "Assert exposure results lifecycle"}
+      }
+    }
+  ]
+}

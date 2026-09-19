@@ -2,42 +2,7 @@
  * Tool approval and pending approval API functions.
  */
 import { API_BASE, buildApiUrl, jsonResponse } from "./api-base";
-import type { ApprovalOverride } from "./api-types";
-
-// =============================================================================
-// Tool Approval Override
-// =============================================================================
-
-/**
- * Set the approval override for a tool.
- * @param scenario - Scenario name
- * @param toolName - Tool name
- * @param approvalOverride - Approval override value ("" | "require" | "skip")
- * @param chatId - Optional chat ID for chat-specific configuration
- */
-export async function setToolApproval(
-  scenario: string,
-  toolName: string,
-  approvalOverride: ApprovalOverride,
-  chatId?: string
-): Promise<void> {
-  const url = buildApiUrl("/tools/config/approval", { baseUrl: API_BASE });
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      scenario,
-      tool_name: toolName,
-      approval_override: approvalOverride
-    })
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to set tool approval: ${res.status}`);
-  }
-}
+import type { ToolCallRecord } from "./api-types";
 
 // =============================================================================
 // Pending Approvals
@@ -61,6 +26,20 @@ export interface ApprovalResult {
   };
   pending_approvals: PendingApproval[];
   auto_continued: boolean;
+}
+
+export async function fetchChatToolCalls(chatId: string): Promise<ToolCallRecord[]> {
+  const url = buildApiUrl(`/chats/${chatId}/tool-calls`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch tool calls: ${res.status}`);
+  }
+
+  return jsonResponse<ToolCallRecord[]>(res);
 }
 
 /**

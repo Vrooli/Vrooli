@@ -20,7 +20,7 @@
  * - Action editing (selector and payload)
  */
 
-import { useCallback, useEffect, useRef, useState, useMemo, useId, type ReactNode } from 'react';
+import { Profiler, useCallback, useEffect, useRef, useState, useMemo, useId, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RecordingHeader } from './capture/RecordingHeader';
 import { TabBar } from './capture/TabBar';
@@ -31,7 +31,7 @@ import { WorkflowPickerModal } from './conversion/WorkflowPickerModal';
 import { WorkflowInfoCard, type ExecutionConfigSettings } from './timeline/WorkflowInfoCard';
 import type { ReplayPreviewResponse } from './types/types';
 import type { WorkflowSettingsTyped } from '@/types/workflow';
-import { SessionManager } from '@/views/SettingsView/sections/sessions';
+import { SessionManager } from '@/views/SettingsView/sections/sessions/SessionManager/SessionManager';
 import { useRecordingSession } from './hooks/useRecordingSession';
 import { useSessionProfiles } from './hooks/useSessionProfiles';
 import { useRecordMode, type InsertActionData } from './hooks/useRecordMode';
@@ -51,27 +51,28 @@ import { mergeConsecutiveActions, type MergedAction } from './utils/mergeActions
 import { getConfig } from '@/config';
 import { useStreamSettings } from './capture/streamSettingsState';
 import type { StreamSettingsValues } from './capture/StreamSettings';
-import type { StreamConnectionStatus, FrameStats } from './capture/PlaywrightView';
 import { DEFAULT_STREAM_FPS, DEFAULT_STREAM_QUALITY } from './constants';
 import type { TimelineMode } from './types/timeline-unified';
 import { mergeActionsWithAISteps } from './types/timeline-unified';
 import { UnifiedSidebar, useUnifiedSidebar, useAISettings } from './sidebar';
 import { useAIConversation } from './ai-conversation';
 import { HumanInterventionOverlay } from './ai-navigation';
-import { useExecutionStore, useStartWorkflow, useExecutionEvents } from '@/domains/executions';
+import { useExecutionStore } from '@/domains/executions/store';
+import { useStartWorkflow } from '@/domains/executions/hooks/useStartWorkflow';
+import { useExecutionEvents } from '@/domains/executions/hooks/useExecutionEvents';
+import { useSessionStore } from './stores/sessionStore';
 import { useExecutionExport } from '@/domains/executions/viewer/useExecutionExport';
 import { useReplayCustomization } from '@/domains/executions/viewer/useReplayCustomization';
 import { useExportStore } from '@/domains/exports';
-import {
-  ExportDialog,
-  ExportDialogProvider,
-  buildExportDialogContextValue,
-} from '@/domains/executions/export';
+import { ExportDialog } from '@/domains/executions/export/components/ExportDialog';
+import { ExportDialogProvider } from '@/domains/executions/export/context/ExportDialogProvider';
+import { buildExportDialogContextValue } from '@/domains/executions/export/context/ExportDialogContext';
 import { ExportSuccessPanel } from '@/domains/exports/ExportSuccessPanel';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { ConfirmDialog } from '@shared/ui/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { extractConsoleLogs, extractNetworkEvents, extractDomSnapshots } from './utils/artifact-extraction';
+import { onProfilerRender } from '@/lib/profiler';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -110,9 +111,7 @@ export type WorkflowTypeParam = 'action' | 'flow' | 'case';
 
 type WorkflowNode = {
   id: string;
-  type?: string;
-  data?: Record<string, unknown>;
-  action?: {
+  action: {
     type: string;
     metadata?: { label?: string };
     navigate?: { url?: string };
@@ -274,8 +273,7 @@ export function RecordModePage({
   const streamSettingsRef = useRef<StreamSettingsValues | null>(null);
   streamSettingsRef.current = streamSettings;
 
-  // Connection status for header indicator
-  const [connectionStatus, setConnectionStatus] = useState<StreamConnectionStatus | null>(null);
+  const setConnectionStatus = useSessionStore(s => s.setConnectionStatus);
 
   // Workflow selection and execution state
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(initialWorkflowId ?? null);
@@ -297,9 +295,14 @@ export function RecordModePage({
   const [showReplayStyle, setShowReplayStyle] = useState(false);
   const [showPreviewSettings, setShowPreviewSettings] = useState(false);
 
-  // Metadata from content panels for PreviewContainer's BrowserChrome
-  const [recordingPageTitle, setRecordingPageTitle] = useState<string>('');
-  const [recordingFrameStats, setRecordingFrameStats] = useState<FrameStats | null>(null);
+  // Live recording metadata is stored in sessionStore so stream updates do not rerender this whole page.
+  const setRecordingPageTitle = useSessionStore(s => s.setRecordingPageTitle);
+  const setRecordingFrameStats = useSessionStore(s => s.setRecordingFrameStats);
+  const clearLivePreviewMetadata = useSessionStore(s => s.clearLivePreviewMetadata);
+
+  useEffect(() => {
+    clearLivePreviewMetadata();
+  }, [clearLivePreviewMetadata, sessionId]);
   const [executionWorkflowName, setExecutionWorkflowName] = useState<string | null>(null);
   const [executionCurrentUrl, setExecutionCurrentUrl] = useState<string>('');
   const [executionFooter, setExecutionFooter] = useState<ReactNode>(null);
@@ -587,14 +590,16 @@ export function RecordModePage({
 
     const fetchWorkflowDefinition = async () => {
       try {
-        const config = await getConfig();
-        console.log('[RecordingSession] Fetching workflow:', `${config.API_URL}/workflows/${selectedWorkflowId}`);
-        const response = await fetch(`${config.API_URL}/workflows/${selectedWorkflowId}`);
-        if (!response.ok) {
-          console.error('[RecordingSession] Failed to fetch workflow definition, status:', response.status);
+        const { getWorkflowViaApi } = await import('@/domains/workflows/services/workflowApi');
+        const { toJson } = await import('@bufbuild/protobuf');
+        const { WorkflowSummarySchema } = await import('@vrooli/proto-types/browser-automation-studio/v1/api/service_pb');
+        console.log('[RecordingSession] Fetching workflow via Connect:', selectedWorkflowId);
+        const resp = await getWorkflowViaApi(selectedWorkflowId);
+        if (!resp.workflow) {
+          console.error('[RecordingSession] Failed to fetch workflow definition: workflow missing');
           return;
         }
-        const data: unknown = await response.json();
+        const data = toJson(WorkflowSummarySchema, resp.workflow, { useProtoFieldName: true });
         console.log('[RecordingSession] Raw workflow data:', JSON.stringify(data, null, 2).slice(0, 1000));
 
         const parseNodes = (value: unknown): WorkflowNode[] => {
@@ -602,20 +607,15 @@ export function RecordModePage({
           return value
             .map((node) => {
               if (!isRecord(node) || typeof node.id !== 'string') return null;
-              const parsedNode: WorkflowNode = { id: node.id };
-              if (typeof node.type === 'string') parsedNode.type = node.type;
-              if (isRecord(node.data)) parsedNode.data = node.data;
-              if (isRecord(node.action) && typeof node.action.type === 'string') {
-                const action: WorkflowNode['action'] = { type: node.action.type };
-                if (isRecord(node.action.metadata) && typeof node.action.metadata.label === 'string') {
-                  action.metadata = { label: node.action.metadata.label };
-                }
-                if (isRecord(node.action.navigate) && typeof node.action.navigate.url === 'string') {
-                  action.navigate = { url: node.action.navigate.url };
-                }
-                parsedNode.action = action;
+              if (!isRecord(node.action) || typeof node.action.type !== 'string') return null;
+              const action: WorkflowNode['action'] = { type: node.action.type };
+              if (isRecord(node.action.metadata) && typeof node.action.metadata.label === 'string') {
+                action.metadata = { label: node.action.metadata.label };
               }
-              return parsedNode;
+              if (isRecord(node.action.navigate) && typeof node.action.navigate.url === 'string') {
+                action.navigate = { url: node.action.navigate.url };
+              }
+              return { id: node.id, action };
             })
             .filter((node): node is WorkflowNode => node !== null);
         };
@@ -1234,6 +1234,7 @@ export function RecordModePage({
   const displayError = sessionError ?? error;
 
   return (
+    <Profiler id="RecordingSession" onRender={onProfilerRender}>
     <ViewportProvider sessionId={sessionId} actualViewport={sessionActualViewport}>
     <div className="flex flex-col h-full bg-flow-bg text-flow-text">
       <RecordingHeader
@@ -1254,7 +1255,6 @@ export function RecordModePage({
         selectedSessionProfileId={selectedProfileId}
         onSelectSessionProfile={handleSelectSessionProfile}
         onCreateSessionProfile={handleCreateSessionProfile}
-        connectionStatus={connectionStatus}
         onConfigureSession={handleConfigureSession}
         onNavigateToSessionSettings={handleNavigateToSessionSettings}
         workflowType={workflowType}
@@ -1440,9 +1440,7 @@ export function RecordModePage({
                   onFetchNavigationStack={handleFetchNavigationStack}
                   onNavigateToIndex={handleNavigateToIndex}
                   onOpenHistorySettings={handleOpenHistorySettings}
-                  pageTitle={recordingPageTitle || undefined}
                   placeholder={actions[actions.length - 1]?.url || 'Search or enter URL'}
-                  frameStats={recordingFrameStats}
                   targetFps={streamSettings?.fps ?? DEFAULT_STREAM_FPS}
                   showStats={showStats}
                   mode="recording"
@@ -1557,5 +1555,6 @@ export function RecordModePage({
       <ConfirmDialog state={confirmDialogState} onClose={closeConfirmDialog} />
     </div>
     </ViewportProvider>
+    </Profiler>
   );
 }

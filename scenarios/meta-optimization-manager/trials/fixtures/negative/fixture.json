@@ -1,0 +1,7 @@
+{
+  "family": "negative",
+  "negative": true,
+  "prompt_file": "spec.md",
+  "oracle": [],
+  "target_dir": "target"
+}

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0.0",
+  "oracle": "content-not-clipped",
+  "recordedAt": "2026-08-17",
+  "verdicts": [
+    {"fixture": "bad.dialog-clipped", "check": "content-not-clipped", "verdict": "failed", "evidence": "dialog body scroll dimensions exceeded client dimensions with overflow hidden"},
+    {"fixture": "bad.dashboard-ultrawide", "check": "content-not-clipped", "verdict": "failed", "evidence": "detail card scroll dimensions exceeded client dimensions with overflow hidden"},
+    {"fixture": "good.button-content", "check": "content-not-clipped", "verdict": "passed"},
+    {"fixture": "good.alert-dialog", "check": "content-not-clipped", "verdict": "passed"},
+    {"fixture": "good.dashboard-fluid", "check": "content-not-clipped", "verdict": "passed"}
+  ]
+}

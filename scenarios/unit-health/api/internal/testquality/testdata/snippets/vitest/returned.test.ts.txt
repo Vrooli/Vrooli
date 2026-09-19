@@ -1,0 +1,4 @@
+import { test, expect } from "vitest";
+test("returned", () => {
+ return expect(Promise.resolve(5)).resolves.toBe(5);
+});

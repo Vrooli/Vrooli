@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "first-useful-plan",
+    "title": "A first useful plan",
+    "purpose": "Take a new person from diet and kitchen choices to one recommended meal and an inspectable draft week without demanding personal measurements just to start.",
+    "prd_refs": [
+      "OT-P0-002",
+      "OT-P0-007",
+      "OT-P0-008",
+      "OT-P0-009"
+    ]
+  },
+  "steps": [
+    {
+      "page": "kitchen",
+      "intent": "Choose a diet approach, composable exclusions, and the appliances I actually have.",
+      "via": "food-approach-cards"
+    },
+    {
+      "page": "kitchen",
+      "state": "apply-preview",
+      "intent": "See the summarized rules and how many stored meals currently fit them before applying.",
+      "via": "review-summary"
+    },
+    {
+      "page": "meals",
+      "intent": "Confirm there are meals I can actually cook and save a favorite with just a name.",
+      "via": "meal-grid"
+    },
+    {
+      "page": "today",
+      "intent": "Read one recommended meal with a calculation-backed reason and honest unknowns.",
+      "via": "next-meal-card"
+    },
+    {
+      "page": "week",
+      "intent": "Inspect the generated draft week and confirm the accepted anchors are present.",
+      "via": "day-list"
+    }
+  ],
+  "claims": [
+    {
+      "id": "first-plan-needs-no-measurements",
+      "type": "state-covered",
+      "statement": "A first plan is reachable without entering personal measurements, and incomplete data is described rather than hidden behind a coverage badge.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "setup-then-immediate-recommendation",
+      "type": "affordance-present",
+      "statement": "Finishing setup leads directly to one recommended meal and an inspectable week rather than an empty shell.",
+      "tier": "aspirational"
+    }
+  ]
+}

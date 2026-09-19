@@ -1,0 +1,245 @@
+{
+  "_metadata": {
+    "description": "Post-viability role alignment, migration, policy, SDK, and expansion work.",
+    "last_validated_at": "2026-08-27T21:29:54-04:00",
+    "module": "expansion",
+    "prd_ref": "OT-P1-001",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "AIGW-EMBEDDING-GOVERNANCE",
+      "title": "Embedding governance reports dimension and retarget risks",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-001",
+      "category": "embedding.governance",
+      "criticality": "P1",
+      "description": "AI Gateway should help scenarios avoid irreversible vector-store coupling by checking role metadata, dimensions, content hashes, and migration readiness.",
+      "tags": [
+        "embedding",
+        "vector-store",
+        "migration"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/conformance/scanner_test.go::TestScannerFindsMaturityTaxonomyRules",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Validates vector-store and embedding metadata advisory findings; full retarget workflow remains in progress."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-ROLE-ALIGNMENT",
+      "title": "Role alignment surfaces Ollama/OpenRouter policy gaps",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "policy.alignment",
+      "criticality": "P1",
+      "description": "AI Gateway should report missing or mismatched provider roles, including the planned Ollama `extract.structured` role and investigated OpenRouter `embedding.default` role.",
+      "tags": [
+        "policy",
+        "roles",
+        "openrouter",
+        "ollama"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Use the role alignment reference before modifying resource policies."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-MIGRATION-REPORTS",
+      "title": "Migration reports guide scenarios away from direct provider coupling",
+      "status": "complete",
+      "prd_ref": "OT-P1-003",
+      "category": "migration",
+      "criticality": "P1",
+      "description": "The gateway should produce adoption reports that identify current AI integration patterns, recommended gateway profile replacements, and remaining investigation items.",
+      "tags": [
+        "migration",
+        "adoption",
+        "reporting"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/conformance/scanner_test.go::TestScannerRecognizesGatewayAdoptionSignal",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validates scanner output can distinguish adopted scenarios from migration candidates; richer adoption report formatting remains planned."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-POLICY-CONSTRAINTS",
+      "title": "Routing policies enforce privacy, locality, cost, and quality constraints",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-004",
+      "category": "routing.policy",
+      "criticality": "P1",
+      "description": "Profiles such as local-only, local-first, remote-only, quality-first, cheap-first, and privacy-sensitive should be explicit policy objects with deterministic route outcomes.",
+      "tags": [
+        "routing",
+        "policy",
+        "privacy",
+        "cost"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/routing/service_test.go::TestPreviewSelectsLocalFirstAndExplainsFallback",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Validates local-first profile semantics and fallback behavior."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/routing/service_test.go::TestPreviewBlocksRemoteFallbackForSecretPrivacy",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Validates privacy-sensitive routing blocks remote fallback for secret requests."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-SDK-CALLERS",
+      "title": "Typed caller helpers preserve the provider-neutral contract",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-005",
+      "category": "caller.sdk",
+      "criticality": "P1",
+      "description": "Caller helpers should reduce boilerplate for scenario authors without exposing provider-specific model fields or bypassing the gateway API.",
+      "tags": [
+        "sdk",
+        "callers",
+        "ergonomics"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/gateway/connect_handler_test.go::TestValidateGatewayRequestAcceptsProviderNeutralShape",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Validates generated Connect callers can send provider-neutral gateway requests; dedicated SDK helpers remain future work."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-ADAPTIVE-ROUTING",
+      "title": "Adaptive routing uses operational feedback without hiding policy reasons",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "routing.adaptive",
+      "criticality": "P2",
+      "description": "Future routing intelligence should learn from quality, latency, cost, failure, and operator feedback while keeping route previews explainable and overrideable. Adaptive scoring is blocked until descriptor-backed route measures (AIGW-ROUTE-MEASURES) are validated; scoring must never hide the hard policy reasons that already govern deterministic routing.",
+      "tags": [
+        "routing",
+        "feedback",
+        "future"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Define adaptive routing acceptance criteria only after AIGW-ROUTE-MEASURES is green and route evidence carries trustworthy analytics fields; conservative deterministic routing remains the shipped behavior."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-FLEET-ENFORCEMENT",
+      "title": "Fleet enforcement can fail nonconformant AI usage at high maturity",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "conformance.enforcement",
+      "criticality": "P2",
+      "description": "Higher-maturity suites should be able to fail scenarios that bypass AI Gateway when a gateway contract exists and no approved exception is recorded.",
+      "tags": [
+        "test-genie",
+        "fleet",
+        "future"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Enforcement remains advisory; define rollout after advisory scans and pilot migrations prove the finding taxonomy."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-CAPACITY-ROUTING",
+      "title": "Local route eligibility consults the platform capacity broker",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-008",
+      "category": "routing.capacity",
+      "criticality": "P1",
+      "description": "Before selecting a local AI route, the gateway must ask the platform capacity broker (via the `vrooli capacity` CLI/broker contract, never direct GPU/RAM probing) whether the operation-scoped local candidate fits, and record a structured verdict (fit, insufficient_capacity, unknown_capacity, reclaim_required, advisory_reclaim_unavailable). local-only fails closed on insufficient local capacity; local-first may fall back to remote when privacy/cost policy allows; privacy-sensitive/secret never routes remote solely because local capacity is constrained. Any acquired claim is released after execution or bounded by broker TTL on crash.",
+      "tags": [
+        "routing",
+        "capacity",
+        "locality"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/routing/capacity_service_test.go::TestCapacityInsufficientLocalOnlyFailsClosed",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Fake capacity adapter proves fit selection + claim release, insufficient local-first remote fallback, local-only and privacy-sensitive fail-closed, advisory-reclaim-unavailable treated as unavailable, broker-error degrade-to-unknown, and no-footprint no-op."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-MULTI-PROVIDER-EXPANSION",
+      "title": "Additional providers can join the same role/profile contract",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "providers.expansion",
+      "criticality": "P2",
+      "description": "New text or embedding providers should be added behind resource-owned policies and the existing AI Gateway profile contract after Ollama and OpenRouter are stable.",
+      "tags": [
+        "providers",
+        "future"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Require a provider integration design before adding any third provider."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-RELATED-MODAL-COORDINATION",
+      "title": "Gateway coordinates with image/audio tools without absorbing their provider logic",
+      "status": "planned",
+      "prd_ref": "OT-P2-004",
+      "category": "modal.coordination",
+      "criticality": "P2",
+      "description": "Cross-modal workflows should coordinate with image-tools and audio-tools while leaving image and audio provider orchestration in those specialized scenarios.",
+      "tags": [
+        "image-tools",
+        "audio-tools",
+        "future"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Define coordination contract only after text/embedding gateway routes are implemented."
+        }
+      ]
+    }
+  ]
+}

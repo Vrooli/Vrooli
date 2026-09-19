@@ -6,7 +6,8 @@
  * instead of browser downloads (since files are already on the local filesystem).
  */
 
-import { getConfig } from "@/config";
+import { ConnectError } from '@connectrpc/connect';
+import { exportsClient } from '@/api/exports';
 
 // =============================================================================
 // Types
@@ -97,26 +98,21 @@ async function copyToClipboard(text: string): Promise<DownloadResult> {
   }
 }
 
+const connectErrorMessage = (err: unknown, fallback: string): string => {
+  if (err instanceof ConnectError) return err.message;
+  if (err instanceof Error) return err.message;
+  return fallback;
+};
+
 /**
  * Reveals a file in the system file manager via the backend API.
  */
 async function revealFile(exportId: string): Promise<DownloadResult> {
   try {
-    const { API_URL } = await getConfig();
-    const response = await fetch(`${API_URL}/exports/${exportId}/reveal`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      return { success: false, error: text || 'Failed to reveal file' };
-    }
-
+    await exportsClient.revealExport({ id: exportId });
     return { success: true };
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to reveal file';
-    return { success: false, error: message };
+    return { success: false, error: connectErrorMessage(error, 'Failed to reveal file') };
   }
 }
 
@@ -125,21 +121,10 @@ async function revealFile(exportId: string): Promise<DownloadResult> {
  */
 async function openFolder(exportId: string): Promise<DownloadResult> {
   try {
-    const { API_URL } = await getConfig();
-    const response = await fetch(`${API_URL}/exports/${exportId}/open-folder`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      return { success: false, error: text || 'Failed to open folder' };
-    }
-
+    await exportsClient.openExportFolder({ id: exportId });
     return { success: true };
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to open folder';
-    return { success: false, error: message };
+    return { success: false, error: connectErrorMessage(error, 'Failed to open folder') };
   }
 }
 

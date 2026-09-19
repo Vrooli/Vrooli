@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "new-week",
+    "title": "A new week",
+    "purpose": "Carry forward accepted anchors, preferences, credible stock, and feedback into a preview that explains meaningful changes, preserves locks, and refuses a stale input revision.",
+    "prd_refs": [
+      "OT-P0-009",
+      "OT-P0-007",
+      "OT-P1-005",
+      "OT-P0-014"
+    ]
+  },
+  "steps": [
+    {
+      "page": "week",
+      "intent": "Carry forward accepted anchors, current preferences, and credible stock into the next date range.",
+      "via": "week-nav"
+    },
+    {
+      "page": "week",
+      "state": "replan-preview",
+      "intent": "Preview changed, unchanged, and locked rows and the unknown cost, nutrient, or time contributions.",
+      "via": "replan-dialog"
+    },
+    {
+      "page": "week",
+      "state": "stale-inputs",
+      "intent": "See that a material input changed and require a rebuilt preview before applying.",
+      "via": "stale-inputs-alert"
+    },
+    {
+      "page": "week",
+      "state": "replan-applied",
+      "intent": "Apply the preview against its captured input revision and confirm the week reflects it.",
+      "via": "replan-action"
+    }
+  ],
+  "claims": [
+    {
+      "id": "locks-outlive-a-replan",
+      "type": "state-covered",
+      "statement": "Locked commitments survive replanning and are shown unchanged in the preview.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "a-scheduled-run-never-replaces-a-plan",
+      "type": "state-covered",
+      "statement": "A scheduled draft is prepared without silently replacing a plan the person already arranged.",
+      "tier": "aspirational"
+    }
+  ]
+}

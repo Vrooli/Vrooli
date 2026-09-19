@@ -1,0 +1,94 @@
+syntax = "proto3";
+package vrooli.vrooli_bridge.v1.companion;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/companion;companionv1";
+
+// Bridge owns the lifecycle request and audit-safe state; Device Control owns
+// the companion binary and native desktop semantics. Credentials and binary
+// contents never appear in this contract.
+service CompanionService {
+  rpc Install(InstallRequest) returns (CompanionOperation);
+  rpc Inspect(InspectRequest) returns (CompanionOperation);
+  rpc Upgrade(UpgradeRequest) returns (CompanionOperation);
+  rpc Revoke(RevokeRequest) returns (CompanionOperation);
+  rpc Remove(RemoveRequest) returns (CompanionOperation);
+}
+
+enum CompanionState {
+  COMPANION_STATE_UNSPECIFIED = 0;
+  COMPANION_STATE_ABSENT = 1;
+  COMPANION_STATE_INSTALLING = 2;
+  COMPANION_STATE_READY = 3;
+  COMPANION_STATE_DEGRADED = 4;
+  COMPANION_STATE_REVOKED = 5;
+  COMPANION_STATE_REMOVED = 6;
+  COMPANION_STATE_FAILED = 7;
+}
+
+message InstallRequest {
+  string node_id = 1;
+  string version = 2;
+  string display_id = 3;
+  // Optional artifact source metadata. When supplied, Bridge completes the
+  // directed placement and only then sends the lifecycle command to the node.
+  string artifact_source_ref = 4;
+  string artifact_name = 5;
+  string artifact_destination_path = 6;
+}
+message InspectRequest { string node_id = 1; }
+message UpgradeRequest {
+  string node_id = 1;
+  string version = 2;
+  string artifact_source_ref = 3;
+  string artifact_name = 4;
+  string artifact_destination_path = 5;
+}
+message RevokeRequest { string node_id = 1; string reason = 2; }
+message RemoveRequest { string node_id = 1; }
+
+message CompanionOperation {
+  string operation_id = 1;
+  string node_id = 2;
+  string version = 3;
+  CompanionState state = 4;
+  string reason_code = 5;
+  string recovery = 6;
+  bool user_launch_agent = 7;
+  google.protobuf.Timestamp observed_at = 8;
+  string artifact_distribution_id = 9;
+}
+
+// CompanionCommand is carried only on the authenticated Bridge node channel.
+// It contains operation metadata, never binary contents, credentials, or a
+// shell command. The node-local Device Control lifecycle adapter owns the
+// user LaunchAgent and reports the observed result.
+enum CompanionOperationKind {
+  COMPANION_OPERATION_KIND_UNSPECIFIED = 0;
+  COMPANION_OPERATION_KIND_INSTALL = 1;
+  COMPANION_OPERATION_KIND_INSPECT = 2;
+  COMPANION_OPERATION_KIND_UPGRADE = 3;
+  COMPANION_OPERATION_KIND_REVOKE = 4;
+  COMPANION_OPERATION_KIND_REMOVE = 5;
+}
+
+message CompanionCommand {
+  string operation_id = 1;
+  string node_id = 2;
+  CompanionOperationKind kind = 3;
+  string version = 4;
+  string display_id = 5;
+  string artifact_distribution_id = 6;
+}
+
+message CompanionResponse {
+  string operation_id = 1;
+  string node_id = 2;
+  string version = 3;
+  CompanionState state = 4;
+  string reason_code = 5;
+  string recovery = 6;
+  bool user_launch_agent = 7;
+  google.protobuf.Timestamp observed_at = 8;
+}

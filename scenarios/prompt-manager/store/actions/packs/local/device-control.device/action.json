@@ -1,0 +1,44 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "device-control.device",
+  "name": "Run semantic TV volume operation",
+  "status": "active",
+  "owner": {
+    "type": "scenario",
+    "id": "device-control"
+  },
+  "command": {
+    "argv": [
+      "device-control",
+      "device",
+      "volume",
+      "{{device}}",
+      "--goal",
+      "{{goal}}",
+      "--actor",
+      "{{actor}}"
+    ]
+  },
+  "inputs": {
+    "actor": {
+      "type": "string",
+      "required": true
+    },
+    "device": {
+      "type": "string",
+      "required": true
+    },
+    "goal": {
+      "type": "string",
+      "required": true
+    }
+  },
+  "permissions": {},
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-09-06T21:02:47Z",
+  "updatedAt": "2026-09-06T21:02:47Z"
+}

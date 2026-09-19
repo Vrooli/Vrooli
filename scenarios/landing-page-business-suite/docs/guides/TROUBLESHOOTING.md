@@ -8,6 +8,14 @@ audience: ["users", "developers"]
 
 # Troubleshooting
 
+## Everyone was signed out after upgrading
+
+LPBS uses `__Host-access_token`, `__Secure-refresh_token`, and
+`__Host-lpbs_session_hint` cookie names on HTTPS. The rename intentionally
+ends existing browser sessions once so that an old cookie name is never
+accepted as authority. Sign in again after the deployment; native and desktop
+clients that send tokens in request bodies are unaffected.
+
 Solutions for common issues with your landing page.
 
 ---
@@ -18,13 +26,13 @@ Run these commands to diagnose most issues:
 
 ```bash
 # Check scenario status
-vrooli scenario status <your-scenario>
+vrooli scenario status "<your-scenario>"
 
 # Check PostgreSQL
 resource-postgres status
 
 # View logs
-vrooli scenario logs <your-scenario> --tail 50
+vrooli scenario logs "<your-scenario>" --tail 50
 
 # Check health endpoint
 curl http://localhost:<port>/health
@@ -127,7 +135,7 @@ curl http://localhost:<port>/health
 1. **Clear cookies** for the domain
 2. **Check API is running** at `/api/v1/health`
 3. **Verify credentials**:
-   - Default: `admin@localhost` / `changeme123` (change via `/admin/profile`)
+   - There is no default password; provision `admin-default-password` and restart (see [Admin Credentials](ADMIN_GUIDE.md#admin-credentials))
 
 ### Changes not saving
 
@@ -342,14 +350,11 @@ curl -X POST https://landing.yourdomain.com/api/v1/webhooks/stripe
 ### Collecting Debug Information
 
 ```bash
-# System info
-vrooli info
-
 # Scenario status
-vrooli scenario status <name>
+vrooli scenario status "<name>"
 
 # Recent logs
-vrooli scenario logs <name> --tail 200
+vrooli scenario logs "<name>" --tail 200
 
 # Port allocations
 ./scripts/resources/port-registry.sh list
@@ -366,8 +371,15 @@ When reporting issues, include:
 
 ---
 
+## Sign-in email delivery
+
+- **Bounced or rejected:** run `admin-email-readiness`, confirm the address and From-domain alignment, then inspect the admin delivery report. Do not expose provider response text to the person signing in.
+- **Deferred:** the receiving mail server is delaying the message. Wait and retry delivery; if it persists, inspect provider status and mailbox quotas.
+- **No email:** confirm SendGrid or SMTP credentials, run readiness, and verify the Signed Event Webhook public key and event URL. `admin-sign-in-delivery` reports provider acceptance, while `admin-email-readiness` checks configuration.
+- **Lost mailbox access:** use the approved account recovery/address-change process. Never issue an admin-created sign-in link.
+
 ## See Also
 
-- [FAQ](../FAQ.md) - Frequently asked questions
+- [FAQ](faq.md) - Frequently asked questions
 - [Concepts](../concepts/CONCEPTS.md) - Architecture understanding
 - [Deployment Guide](DEPLOYMENT.md) - Deployment troubleshooting

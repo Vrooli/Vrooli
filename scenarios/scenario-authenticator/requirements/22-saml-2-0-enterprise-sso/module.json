@@ -1,0 +1,53 @@
+{
+  "description": "SAML service-provider support and enterprise SSO integration for realms that require it.",
+  "module_id": "MOD-P2-022",
+  "prd_ref": "OT-P2-001",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P1-001"
+      ],
+      "description": "Realms must optionally support SAML 2.0 SP-initiated and IdP-initiated flows, enabling enterprise SSO. Configuration per realm includes: IdP metadata URL or XML, attribute mapping (NameID → email, display name, groups), and SP metadata publication. SAML assertions must be validated (signature, conditions, audience, expiry). The resulting local session and token issuance must be identical to other authentication methods.",
+      "id": "REQ-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "delivery_scope": "roadmap",
+      "deferred_reason": "Enterprise SAML is outside the local household and delegated-principal scope of this plan.",
+      "revisit_trigger": "An enterprise deployment requires SAML service-provider integration.",
+      "title": "SAML 2.0 Service Provider Support and Enterprise SSO Integration",
+      "validation": [
+        {
+          "notes": "api/internal/saml/saml_test.go: parse a valid SAML assertion from a test IdP, extract NameID and attributes correctly",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/saml/saml_test.go: tampered assertion signature fails validation; expired assertion (NotOnOrAfter in past) is rejected",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/saml/saml_e2e_test.go: configure a stubbed SAML IdP for a realm; initiate SP-initiated SSO flow; receive SAML response; local session and token issued",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "bas/admin/saml_config_test: admin configures a SAML IdP for a realm, downloads SP metadata, and a test user signs in via the SAML flow",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "SAML 2.0 + Enterprise SSO"
+}

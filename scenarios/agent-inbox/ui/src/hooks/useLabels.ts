@@ -49,7 +49,7 @@ export function useLabels() {
   const createLabelMutation = useMutation({
     mutationFn: createLabel,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["labels"] });
+      void queryClient.invalidateQueries({ queryKey: ["labels"] });
     },
   });
 
@@ -57,8 +57,8 @@ export function useLabels() {
   const deleteLabelMutation = useMutation({
     mutationFn: deleteLabel,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["labels"] });
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
+      void queryClient.invalidateQueries({ queryKey: ["labels"] });
+      void queryClient.invalidateQueries({ queryKey: ["chats"] });
     },
   });
 
@@ -67,8 +67,8 @@ export function useLabels() {
     mutationFn: ({ chatId, labelId }: { chatId: string; labelId: string }) =>
       assignLabel(chatId, labelId),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["chat", variables.chatId] });
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
+      void queryClient.invalidateQueries({ queryKey: ["chat", variables.chatId] });
+      void queryClient.invalidateQueries({ queryKey: ["chats"] });
     },
   });
 
@@ -77,8 +77,8 @@ export function useLabels() {
     mutationFn: ({ chatId, labelId }: { chatId: string; labelId: string }) =>
       removeLabel(chatId, labelId),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["chat", variables.chatId] });
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
+      void queryClient.invalidateQueries({ queryKey: ["chat", variables.chatId] });
+      void queryClient.invalidateQueries({ queryKey: ["chats"] });
     },
   });
 

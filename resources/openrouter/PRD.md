@@ -59,7 +59,7 @@ OpenRouter provides a unified AI model gateway that enables access to 100+ model
 - [x] All P0 requirements implemented and tested
 - [x] Integration tests pass with all dependent resources
 - [x] Performance targets met under expected load
-- [x] Security standards met for API key handling (Vault integration added)
+- [x] Security standards met for API key handling (credential authority and recovery bundles)
 - [x] Documentation complete and accurate
 
 ## 🏗️ Technical Architecture
@@ -67,10 +67,10 @@ OpenRouter provides a unified AI model gateway that enables access to 100+ model
 ### Resource Dependencies
 ```yaml
 required:
-  - resource_name: vault
-    purpose: Secure storage of OpenRouter API keys
-    integration_pattern: Key retrieval on startup
-    access_method: CLI
+  - resource_name: credential-authority
+    purpose: Secure storage and runtime injection of OpenRouter API keys
+    integration_pattern: Credential resolution before process launch
+    access_method: Vrooli control plane
     
 optional:
   - resource_name: cloudflare-ai
@@ -92,12 +92,12 @@ standard_interfaces:
   management:
     - cli: cli.sh (using CLI framework)
     - actions: [help, install, uninstall, start, stop, restart, status, validate, test, configure, list-models, test-model, content]
-    - configuration: config/defaults.sh
+    - configuration: cli/internal/config/
     - documentation: README.md + docs/
     
   networking:
     - docker_networks: [vrooli-network]
-    - port_registry: Not applicable (proxy service)
+    - ports: Not applicable (cloud API)
     - hostname: Not applicable (external API)
     
   monitoring:
@@ -106,20 +106,24 @@ standard_interfaces:
     - logging: Configuration and API call logs
     
   data_persistence:
-    - volumes: [${VROOLI_ROOT}/data/openrouter]
-    - backup_strategy: API key backup via Vault
+    - config: ${RESOURCE_CONFIG_DIR}
+    - data: ${RESOURCE_DATA_DIR}
+    - cache: ${RESOURCE_CACHE_DIR}
+    - logs: ${RESOURCE_LOGS_DIR}
+    - state: ${RESOURCE_STATE_DIR}
+    - backup_strategy: API key backup via encrypted credential-authority recovery bundles
     - migration_support: Configuration versioning
 
 integration_patterns:
   scenarios_using_resource:
-    - scenario_name: ecosystem-manager
+    - scenario_name: swarm-manager
       usage_pattern: Model selection for different scenario types
       
     - scenario_name: code-automation
       usage_pattern: Code-specialized models for development tasks
       
   resource_to_resource:
-    - vault → openrouter: API key retrieval
+    - credential-authority → openrouter: API key injection
     - openrouter → n8n: Model access in workflows
     - openrouter → cline: AI model provider
 ```
@@ -157,7 +161,7 @@ customization:
   user_configurable:
     - parameter: api_key
       description: OpenRouter API key
-      default: Retrieved from Vault or environment
+      default: Injected from the Vrooli credential authority
       
     - parameter: default_model
       description: Default model for requests
@@ -251,7 +255,7 @@ resource_specific_actions:
 ```yaml
 implementation_requirements:
   - cli_location: cli.sh (uses CLI framework)
-  - configuration: config/defaults.sh
+  - configuration: cli/internal/config/
   - dependencies: lib/ directory with modular functions
   - error_handling: Exit codes (0=success, 1=error, 2=config error)
   - logging: Structured output with levels (INFO, WARN, ERROR)
@@ -290,9 +294,14 @@ networking:
     
 data_management:
   persistence:
-    - volume: ${VROOLI_ROOT}/data/openrouter
-      mount: /data
-      purpose: Configuration, templates, usage logs
+    - config_root: ${RESOURCE_CONFIG_DIR}
+      purpose: Credentials, routing rules, and operator-managed config
+    - data_root: ${RESOURCE_DATA_DIR}
+      purpose: Templates, usage logs, and benchmark payloads
+    - cache_root: ${RESOURCE_CACHE_DIR}
+      purpose: Rebuildable request and model cache artifacts
+    - state_root: ${RESOURCE_STATE_DIR}
+      purpose: Routing history, rate limits, and transient test state
       
   backup_strategy:
     - method: Configuration files backed up
@@ -349,7 +358,7 @@ monitoring_requirements:
 security_requirements:
   authentication:
     - method: API key (Bearer token)
-    - credential_storage: Vault (recommended) or environment
+    - credential_storage: Vrooli credential authority (native OS secure store or encrypted authority backend)
     - session_management: Stateless per-request auth
     
   authorization:
@@ -358,9 +367,9 @@ security_requirements:
     - resource_isolation: Per-API-key usage tracking
     
   data_protection:
-    - encryption_at_rest: API keys encrypted in Vault
+    - encryption_at_rest: API keys protected by the credential authority backend
     - encryption_in_transit: HTTPS for all API calls
-    - key_management: Vault-based key rotation
+    - key_management: Operator-controlled authority provisioning, rotation, and recovery bundles
     
   network_security:
     - port_exposure: None (outbound HTTPS only)
@@ -414,7 +423,7 @@ test_specification:
     - Integration tests in test/ directory
     - Shared fixtures from __test/fixtures/data/
     - Test results included in status output with timestamp
-    - Examples in examples/ directory
+    - Usage examples documented in README.md or docs/
   
   lifecycle_tests:
     - name: "Resource Installation"
@@ -489,7 +498,7 @@ resource_discovery:
   metadata:
     description: Unified AI model gateway for 100+ models
     version: 1.0.0
-    dependencies: [vault (optional)]
+    dependencies: []
     enables: [multi-model scenarios, cost-optimized automation, provider redundancy]
 
 resource_framework_compliance:
@@ -509,7 +518,7 @@ deployment_integration:
   configuration_management:
     - Environment-based configuration
     - Template-based setup
-    - Secret management via Vault
+    - Secret management via the Vrooli credential authority
 ```
 
 ### Version Management
@@ -554,14 +563,14 @@ release_management:
 ### Technical Risks
 | Risk | Probability | Impact | Mitigation |
 |------|------------|--------|------------|
-| API key exposure | Low | Critical | Store in Vault, never log |
+| API key exposure | Low | Critical | Store through the credential authority, never log |
 | Service unavailability | Low | High | Local model fallback (Ollama) |
 | Rate limiting | Medium | Medium | Request queuing and retry |
 | Cost overruns | Medium | Medium | Budget limits and monitoring |
 
 ### Operational Risks
 - **Configuration Drift**: Version control for configurations
-- **Dependency Failures**: Graceful degradation without Vault
+- **Dependency Failures**: Graceful degradation when the credential authority is unavailable
 - **Resource Conflicts**: None (external service)
 - **Update Compatibility**: Backward compatible API
 
@@ -570,7 +579,7 @@ release_management:
 ### Infrastructure Validation
 - [x] Resource installs and starts successfully
 - [x] All management actions work correctly
-- [x] Integration with other resources functions properly (Vault integration improved)
+- [x] Integration with other resources functions properly (credential-authority integration)
 - [x] Performance meets established targets
 - [x] Security requirements satisfied (follows SECRETS-STANDARD.md)
 - [x] Documentation complete and accurate
@@ -597,10 +606,10 @@ release_management:
 - Decision driver: Reduced maintenance, automatic updates
 - Trade-offs: External dependency vs zero maintenance
 
-**Vault Integration**: Optional but recommended
-- Alternative considered: Mandatory Vault usage
-- Decision driver: Flexibility for different environments
-- Trade-offs: Security vs ease of setup
+**Credential Authority Integration**: Canonical and required for managed operation
+- Alternative considered: Resource-owned Vault or file lookup
+- Decision driver: Portability across native OS stores and encrypted authority backends
+- Trade-offs: The control plane must inject the process credential before launch
 
 ### Known Limitations
 - **API Key Required**: Cannot function without valid API key
@@ -612,7 +621,7 @@ release_management:
   - Future fix: Multiple API key rotation
 
 ### Integration Considerations
-- **Vault Dependency**: Falls back to environment variables if Vault unavailable
+- **Credential Authority Dependency**: Reports provider-unavailable versus unconfigured states without falling back to resource-owned secret files
 - **Model Selection**: Default model should balance cost and capability
 - **Error Handling**: Clear messages for API key issues
 - **Cost Monitoring**: Important for production usage
@@ -623,11 +632,11 @@ release_management:
 - README.md - Quick start and overview
 - docs/models.md - Complete model list and capabilities
 - docs/integration.md - Integration patterns and examples
-- config/defaults.sh - Configuration options
+- cli/internal/config/ - Typed configuration options
 - lib/configure.sh - Configuration management
 
 ### Related Resources
-- vault - Secure API key storage
+- Vrooli credential authority - Secure API key storage and recovery
 - ollama - Local model fallback option
 - n8n - Workflow automation using models
 - cline - IDE integration for coding

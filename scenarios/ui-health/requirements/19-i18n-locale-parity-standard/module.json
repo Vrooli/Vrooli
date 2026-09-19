@@ -1,0 +1,102 @@
+{
+  "description": "An i18n locale-parity standard. Static checks verify `SUPPORTED_LOCALES`, a typed `strings.ts`, locale-key parity across locales, and `vrooli.locale` persistence. Runtime checks verify `<html lang>`/`dir` are set. Auto-fix can scaffold missing locale keys and add lang/dir (safe fixers).",
+  "module_id": "MOD-P1-019",
+  "prd_ref": "OT-P1-005",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Static i18n checks must verify presence of a `SUPPORTED_LOCALES` declaration, a typed `strings.ts`, locale-key parity across all supported locales, and `vrooli.locale` persistence wiring. Missing keys or non-parity across locales must produce Findings.",
+      "id": "REQ-P1-007",
+      "prd_ref": "OT-P1-005",
+      "status": "draft",
+      "title": "Static i18n checks",
+      "validation": [
+        {
+          "notes": "Absence of SUPPORTED_LOCALES or a typed strings.ts produces a Finding",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A key present in one locale but missing in another produces a locale-key-parity Finding",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Missing vrooli.locale persistence wiring produces a Finding",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run ui-health against a scenario with a missing locale key and confirm the parity Finding is emitted",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The i18n static standard enforces locale parity and typed strings across scenarios",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P1-007"
+      ],
+      "description": "Runtime i18n checks must verify the rendered document sets `<html lang>` and `dir`. Safe auto-fixers must be able to scaffold missing locale keys and add the lang/dir attributes.",
+      "id": "REQ-P1-008",
+      "prd_ref": "OT-P1-005",
+      "status": "draft",
+      "title": "Runtime lang/dir + safe scaffolding fixers",
+      "validation": [
+        {
+          "notes": "Missing <html lang> or dir at runtime produces a runtime i18n Finding",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The locale-key scaffolding fixer adds missing keys and is idempotent",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The lang/dir fixer inserts the attributes safely without altering other markup",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run the i18n fixers and confirm missing locale keys are scaffolded and lang/dir are added on re-validate",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Runtime lang/dir and safe i18n scaffolding round out the locale-parity standard",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "i18n locale-parity standard"
+}

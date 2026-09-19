@@ -3,6 +3,11 @@
   "title": "Agent Integration (Migration Strategies)",
   "priority": "P1",
   "description": "AI-powered migration proposals and automatic issue creation",
-  "requirements": [],
+  "requirements": [
+    {"id":"DM-P1-020","title":"Agent Migration Proposals","status":"planned","prd_ref":"OT-P1-020","domain":"swaps","description":"Return migration proposals for a profile and its source within five minutes","tags":["agents"],"validation":[{"type":"test","ref":"api/swaps/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
+    {"id":"DM-P1-021","title":"Detailed Migration Estimates","status":"planned","prd_ref":"OT-P1-021","domain":"swaps","description":"Include line estimates, testing checklists, and deployment impact in proposals","tags":["agents"],"validation":[{"type":"test","ref":"api/swaps/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
+    {"id":"DM-P1-022","title":"Auto-Generated Issue Creation","status":"planned","prd_ref":"OT-P1-022","domain":"swaps","description":"Create prefilled app-issue-tracker issues from approved migration proposals","tags":["agents","integration"],"validation":[{"type":"test","ref":"api/swaps/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
+    {"id":"DM-P1-023","title":"Bulk Proposal Approval","status":"planned","prd_ref":"OT-P1-023","domain":"approvals","description":"Approve or reject multiple migration proposals in one operation","tags":["agents","approvals"],"validation":[{"type":"test","ref":"cli/approvals/commands_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]}
+  ],
   "_metadata": {}
 }

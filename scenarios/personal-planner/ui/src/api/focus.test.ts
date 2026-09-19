@@ -1,0 +1,44 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+const client = vi.hoisted(() => ({ getCurrentSession: vi.fn(), startFocus: vi.fn(), pauseFocus: vi.fn(), resumeFocus: vi.fn(), endFocus: vi.fn(), listActuals: vi.fn(), listActualCorrections: vi.fn(), recordManualActual: vi.fn(), correctActual: vi.fn() }));
+vi.mock("@connectrpc/connect", () => ({ createClient: () => client }));
+
+import { correctActual, endFocus, fetchActualCorrections, fetchActuals, fetchCurrentFocus, pauseFocus, recordManualActual, resumeFocus, startFocus } from "./focus";
+
+afterEach(() => vi.clearAllMocks());
+
+describe("focus API transport", () => {
+  it("maps current and lifecycle calls through Connect", async () => {
+    const session = { id: "s-1", revision: 1n } as never;
+    client.getCurrentSession.mockResolvedValue({ hasSession: true, session });
+    client.startFocus.mockResolvedValue({ session });
+    client.pauseFocus.mockResolvedValue({ session });
+    client.resumeFocus.mockResolvedValue({ session });
+    client.endFocus.mockResolvedValue({ session });
+    expect(await fetchCurrentFocus()).toBe(session);
+    expect(await startFocus({ workItemId: "w-1", title: "Draft", mode: "open" })).toBe(session);
+    await pauseFocus(session); await resumeFocus(session); await endFocus(session);
+    expect(client.pauseFocus).toHaveBeenCalledWith({ sessionId: "s-1", expectedRevision: 1n });
+    expect(client.resumeFocus).toHaveBeenCalledWith({ sessionId: "s-1", expectedRevision: 1n });
+    expect(client.endFocus).toHaveBeenCalledWith({ sessionId: "s-1", expectedRevision: 1n });
+  });
+
+  it("returns no current session honestly", async () => {
+    client.getCurrentSession.mockResolvedValue({ hasSession: false });
+    expect(await fetchCurrentFocus()).toBeNull();
+  });
+
+  it("records, lists, and corrects manual actuals through Connect", async () => {
+    const actual = { id: "a-1", localDate: "2026-09-19", reportedMinutes: 45n, certainty: "user_reported_approximate", revision: 1n } as never;
+    client.listActuals.mockResolvedValue({ actuals: [actual] });
+    client.listActualCorrections.mockResolvedValue({ corrections: [{ id: "c-1", actualId: "a-1" }] });
+    client.recordManualActual.mockResolvedValue({ actual });
+    client.correctActual.mockResolvedValue({ actual });
+    expect(await fetchActuals("2026-09-19")).toEqual([actual]);
+    expect(await fetchActualCorrections({ localDate: "2026-09-19" })).toEqual([{ id: "c-1", actualId: "a-1" }]);
+    expect(await recordManualActual({ title: "Review", localDate: "2026-09-19", reportedMinutes: 45 })).toBe(actual);
+    expect(await correctActual(actual, { reportedMinutes: 30, note: "Interrupted" })).toBe(actual);
+    expect(client.recordManualActual).toHaveBeenCalledWith(expect.objectContaining({ reportedMinutes: 45n }));
+    expect(client.correctActual).toHaveBeenCalledWith(expect.objectContaining({ id: "a-1", expectedRevision: 1n, reportedMinutes: 30n }));
+  });
+});

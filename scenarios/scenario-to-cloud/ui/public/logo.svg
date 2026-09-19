@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Scenario To Cloud</title>
+  <desc id="desc">A cloud with an upward deployment arrow</desc>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3b82f6" />
+      <stop offset="1" stop-color="#9333ea" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#020617" />
+  <path fill="url(#g)" d="M151 337h211c35 0 63-28 63-63 0-31-23-57-53-62-12-57-62-99-123-99-56 0-104 36-120 87-43 2-77 37-77 80 0 44 36 80 80 80h19Zm105-166 79 79h-49v91h-60v-91h-49l79-79Z" />
+</svg>

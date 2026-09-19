@@ -7,13 +7,22 @@ import (
 	"time"
 )
 
-func (s *Service) runScenarioRestartAndHealth(ctx context.Context, executionID string, scenarioName string) error {
+func (s *Service) runScenarioRestartAndHealth(ctx context.Context, executionID string, scenarioName string, target string) error {
 	// NOTE: The overall finalization phase (restarting) is set once before the
 	// scenario loop in processFinalization. Per-scenario restart/health updates
 	// only update the scenario-level state to avoid phase flickering when
 	// processing multiple scenarios.
+	//
+	// scenarioName keys the per-scenario finalization state; target is the
+	// lifecycle address actually restarted/health-checked. They differ when the
+	// scenario is shadow-engaged: target = "<scenario>@shadow" routes validation
+	// to the instance running the just-merged candidate (plan P-b.5), while state
+	// stays keyed by the bare scenario name.
 	if s.scenarioLifecycle == nil || s.scenarioHealth == nil {
 		return s.failFinalization(executionID, scenarioName, "scenario restart/health seams are not configured")
+	}
+	if strings.TrimSpace(target) == "" {
+		target = scenarioName
 	}
 
 	for attempt := 1; attempt <= s.finalizationCfg.MaxRestartAttempts; attempt++ {
@@ -26,7 +35,7 @@ func (s *Service) runScenarioRestartAndHealth(ctx context.Context, executionID s
 			return err
 		}
 
-		restartErr := s.scenarioLifecycle.Restart(ctx, scenarioName)
+		restartErr := s.scenarioLifecycle.Restart(ctx, target)
 		restartFinishedAt := nowRFC3339()
 		if restartErr != nil {
 			restartResult := RestartResult{
@@ -70,7 +79,7 @@ func (s *Service) runScenarioRestartAndHealth(ctx context.Context, executionID s
 			return err
 		}
 
-		healthSnapshot, healthErr := s.waitForScenarioHealth(ctx, scenarioName)
+		healthSnapshot, healthErr := s.waitForScenarioHealth(ctx, target)
 		if healthErr == nil {
 			return s.updateScenarioHealthState(executionID, scenarioName, HealthCheckResult{
 				Status:         FinalizationStatusCompleted,
@@ -93,11 +102,13 @@ func (s *Service) runScenarioRestartAndHealth(ctx context.Context, executionID s
 			return err
 		}
 
+		// SchemaValid is false only when the scenario status probe itself
+		// errored (the CLI command failed), so it stands in for "health could
+		// not be assessed". A typed probe can no longer report a parse/shape
+		// mismatch, so the former "health checks missing" code is gone.
 		warningCode := finalizationWarningHealthRetry
 		if !healthSnapshot.SchemaValid {
 			warningCode = finalizationWarningHealthSchemaInvalid
-		} else if strings.Contains(strings.ToLower(healthSnapshot.Details), "no health checks") {
-			warningCode = finalizationWarningHealthChecksMissing
 		}
 		if attempt < s.finalizationCfg.MaxRestartAttempts {
 			if err := s.appendFinalizationWarning(executionID, newFinalizationWarning(

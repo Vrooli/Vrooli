@@ -41,6 +41,10 @@ func (e *Error) Unwrap() error {
 	return e.Cause
 }
 
+// HTTPStatusCode lets resilience classify transport outcomes without taking a
+// dependency on the driver package.
+func (e *Error) HTTPStatusCode() int { return e.Status }
+
 // IsConnectionError returns true if the error is due to driver connectivity issues.
 func (e *Error) IsConnectionError() bool {
 	return e.Cause != nil && (strings.Contains(e.Cause.Error(), "connection refused") ||

@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from '@testing-library/user-event';
 import { DocsViewer } from './DocsViewer';
 import type { DocEntry, DocContent } from '../../../shared/api';
@@ -263,5 +264,41 @@ describe('DocsViewer', () => {
       });
       expect(screen.getByText('Template Documentation')).toBeInTheDocument();
     });
+  });
+
+  it('renders rich operator documentation, supports sidebar controls, and scrolls a requested anchor into view', async () => {
+    const richDoc: DocContent = {
+      path: 'getting-started/installation.md',
+      title: 'Rich guide',
+      content: '# Getting started\n## Repeated\n### Details\n#### Fine print\n### ***\n---\n> Important **notice**\n- First\n* Second\n1. One\n2. Two\n| Name | Value |\n| --- | --- |\n| Feature | `enabled` |\n\n| --- |\n```\nconst safe = true;\n```\nPrefix `inline` suffix\n[External](https://example.com) and [Internal](/docs) and *italic*\n## Repeated',
+    };
+    mockGetDocContent.mockResolvedValue(richDoc);
+    const scrollTo = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollTo', { configurable: true, value: scrollTo });
+    Object.defineProperty(HTMLElement.prototype, 'offsetTop', { configurable: true, value: 80 });
+
+    renderWithRouter(<DocsViewer />, '/admin/docs?doc=getting-started/installation.md#repeated');
+
+    await waitFor(() => { expect(screen.getByText('Rich guide')).toBeInTheDocument(); });
+    expect(screen.getByRole('heading', { name: 'Getting started' })).toHaveAttribute('id', 'getting-started');
+    expect(screen.getByRole('heading', { name: 'Details' })).toHaveAttribute('id', 'details');
+    expect(screen.getByRole('heading', { name: 'Fine print' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '***' })).toHaveAttribute('id', 'section-5');
+    expect(screen.getByText('Important')).toBeInTheDocument();
+    expect(screen.getByText('notice')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'External' })).toHaveAttribute('target', '_blank');
+    expect(screen.getByRole('link', { name: 'Internal' })).not.toHaveAttribute('target');
+    expect(screen.getByText('inline')).toBeInTheDocument();
+    expect(screen.getByText('const safe = true;')).toBeInTheDocument();
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    await waitFor(() => { expect(scrollTo).toHaveBeenCalledWith({ top: 56, behavior: 'smooth' }); });
+
+    fireEvent.click(screen.getByTestId('docs-toggle-sidebar'));
+    expect(screen.getByTestId('docs-tree').parentElement?.parentElement).toHaveStyle({ width: '0px' });
+    fireEvent.click(screen.getByTestId('docs-toggle-sidebar'));
+    const divider = screen.getByTestId('docs-resize-handle');
+    fireEvent.mouseDown(divider, { clientX: 10 });
+    fireEvent.mouseMove(document, { clientX: 900 });
+    fireEvent.mouseUp(document);
   });
 });

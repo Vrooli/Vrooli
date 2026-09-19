@@ -1,0 +1,657 @@
+syntax = "proto3";
+
+package vrooli.landing_page_business_suite.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared;shared_v1";
+
+// Versioned marketing content. This contract contains no executable markup,
+// provider credentials, checkout URLs, entitlement decisions, or installer bytes.
+// The pure presentation domain validates finite kind/variant combinations and
+// cross-references; the publishing owner separately qualifies external evidence.
+message ProductPresentationDocument {
+  int32 schema_version = 1;
+  PresentationBundle bundle = 2;
+  repeated PresentationApp apps = 3;
+  repeated PresentationPage pages = 4;
+  repeated PresentationAsset assets = 5;
+  repeated PresentationFixture fixtures = 6;
+  map<string, PresentationStringTable> strings = 7;
+}
+
+message PresentationStringTable { map<string, string> values = 1; }
+message PresentationStringList { repeated string values = 1; }
+
+message PresentationBundle {
+  string key = 1;
+  string name = 2;
+  repeated string app_order = 3;
+  int32 max_app_slides = 4;
+  string page_id = 5;
+  string empty_page_id = 6;
+  string default_locale = 7;
+  repeated string locales = 8;
+}
+
+message PresentationApp {
+  string key = 1;
+  string slug = 2;
+  string name = 3;
+  bool enabled = 4;
+  string visibility = 5;
+  string publication = 6;
+  string page_id = 7;
+  string tagline = 8;
+  string description = 9;
+  repeated PresentationCapability capabilities = 10;
+  // Administrative-only source pointer; never included in public projection.
+  string preservation_ref = 11;
+}
+
+message PresentationCapability {
+  string id = 1;
+  string label = 2;
+  repeated string benefits = 3;
+  string status = 4;
+  repeated string evidence_refs = 5;
+  PresentationOwnerQualification owner_qualification = 6;
+  repeated string constraints = 7;
+  repeated string provider_requirements = 8;
+  repeated string platform_requirements = 9;
+  map<string, string> localized_labels = 10;
+  map<string, PresentationStringList> localized_benefits = 11;
+  string status_label = 12;
+  map<string, string> status_labels = 13;
+}
+
+message PresentationOwnerQualification {
+  string owner = 1;
+  string evidence_ref = 2;
+  string release_ref = 3;
+  bool qualified = 4;
+}
+
+message PresentationPage {
+  string id = 1;
+  string locale = 2;
+  string title = 3;
+  string description = 4;
+  PresentationTheme theme = 5;
+  PresentationNavigation navigation = 6;
+  repeated PresentationBlock blocks = 7;
+  PresentationFooter footer = 8;
+  // Finite, locale/page-owned renderer labels, decorations and references.
+  // Stored and projected with the same immutable page, never a UI sidecar.
+  PresentationPageDisplay display = 9;
+}
+
+message PresentationPageDisplay {
+  PresentationShellDisplay shell = 1;
+  map<string, PresentationAssetLabel> asset_labels = 2;
+  map<string, PresentationFixtureDisplay> fixture_display = 3;
+  map<string, PresentationBlockDisplay> blocks = 4;
+  map<string, PresentationAppDisplay> apps = 5;
+}
+
+message PresentationShellDisplay {
+  string brand_name = 1;
+  string brand_mark = 2;
+  string brand_target = 3;
+  string brand_subtitle = 4;
+  string skip_label = 5;
+  string menu_label = 6;
+  string footer_brand_name = 7;
+  string footer_brand_mark = 8;
+  string footer_brand_target = 9;
+  string footer_tagline = 10;
+  string copyright = 11;
+  string footer_note = 12;
+  string unavailable_reason = 13;
+  string preview_label = 14;
+  PresentationAction header_action = 15;
+  // Optional same-origin image that replaces the finite SVG brand mark. The
+  // mark stays required so an unloaded or rejected image still has a fallback.
+  string brand_logo = 16;
+  string brand_logo_alt = 17;
+  string footer_brand_logo = 18;
+}
+
+message PresentationAssetLabel {
+  string alt = 1;
+  string sizes = 2;
+}
+
+message PresentationFixtureDisplay {
+  string mark = 1;
+  string avatar = 2;
+  string time = 3;
+  string tabs_label = 4;
+  string terminal_label = 5;
+  string messages_label = 6;
+  map<string, string> file_changes = 7;
+}
+
+message PresentationBlockDisplay {
+  string eyebrow = 1;
+  string description = 2;
+  string note = 3;
+  string accessibility_label = 4;
+  string badge = 5;
+  string mark = 6;
+  repeated string formats = 7;
+  map<string, string> anchors = 8;
+  repeated int32 heading_breaks = 9;
+  string fixture_ref = 10;
+  map<string, string> hero_fixture_refs = 11;
+}
+
+message PresentationAppDisplay {
+  string fixture_ref = 1;
+  string visual_ref = 2;
+  string mark = 3;
+  string tone = 4;
+  string detail_label = 5;
+  // Optional same-origin product logo that replaces the finite SVG mark.
+  string logo = 6;
+  string logo_alt = 7;
+}
+
+message PresentationTheme {
+  string variant = 1;
+  string primary = 2;
+  string background = 3;
+  string accent = 4;
+}
+
+message PresentationNavigation {
+  string label = 1;
+  repeated PresentationNavigationItem items = 2;
+}
+
+message PresentationNavigationItem {
+  string label = 1;
+  string accessible_label = 2;
+  string target = 3;
+}
+
+message PresentationFooter {
+  string label = 1;
+  repeated PresentationNavigationItem links = 2;
+}
+
+message PresentationBlock {
+  string id = 1;
+  string kind = 2;
+  int32 version = 3;
+  string variant = 4;
+  PresentationBlockContent content = 5;
+}
+
+// The discriminator and the oneof must agree. Unknown kinds/versions fail
+// validation rather than being silently omitted by a renderer.
+message PresentationBlockContent {
+  oneof value {
+    PresentationProductHero product_hero = 1;
+    PresentationBundleHero bundle_hero = 2;
+    PresentationCapabilityStrip capability_strip = 3;
+    PresentationProductStory product_story = 4;
+    PresentationProductDemo product_demo = 5;
+    PresentationAppSpotlights app_spotlights = 6;
+    PresentationArtifactExplorer artifact_explorer = 7;
+    PresentationVoiceStory voice_story = 8;
+    PresentationDeviceStory device_story = 9;
+    PresentationCapabilityRoadmap capability_roadmap = 10;
+    PresentationPricing pricing = 11;
+    PresentationClosingAction closing_action = 12;
+    PresentationFAQ faq = 13;
+    PresentationFooter footer = 14;
+  }
+}
+
+message PresentationAction {
+  string kind = 1;
+  string label = 2;
+  string accessible_label = 3;
+  string target = 4;
+  string plan_ref = 5;
+  string app_key = 6;
+  string reason = 7;
+}
+
+message PresentationHeroItem {
+  string app_key = 1;
+  string visual_ref = 2;
+  string exhibit_kind = 3;
+  string detail_label = 4;
+}
+
+message PresentationProductHero {
+  string app_key = 1;
+  string eyebrow = 2;
+  string title = 3;
+  string description = 4;
+  string visual_ref = 5;
+  string fixture_ref = 6;
+  string accessibility_label = 7;
+  repeated PresentationAction actions = 8;
+}
+
+message PresentationBundleHero {
+  string eyebrow = 1;
+  string title = 2;
+  string description = 3;
+  string accessibility_label = 4;
+  repeated PresentationHeroItem hero_items = 5;
+  repeated PresentationAction actions = 6;
+}
+
+message PresentationCapabilityItem {
+  string capability_id = 1;
+  string label = 2;
+  string description = 3;
+}
+
+message PresentationCapabilityStrip {
+  string heading = 1;
+  repeated PresentationCapabilityItem items = 2;
+}
+
+message PresentationStoryItem {
+  string title = 1;
+  string description = 2;
+  string visual_ref = 3;
+  string alt_text = 4;
+}
+
+message PresentationProductStory {
+  string heading = 1;
+  string body = 2;
+  repeated PresentationStoryItem items = 3;
+}
+
+message PresentationProductDemo {
+  string heading = 1;
+  string description = 2;
+  string renderer_ref = 3;
+  string fixture_ref = 4;
+  string poster_ref = 5;
+  string media_ref = 6;
+  string alt_text = 7;
+  PresentationPlayback playback = 8;
+}
+
+// PresentationPlayback is the finite external-player configuration for a
+// recorded product demo. The presentation domain validates the provider URL
+// and maps it to a privacy-enhanced embed only after user activation.
+message PresentationPlayback {
+  string provider = 1;
+  string external_url = 2;
+  string layout = 3;
+  string play_label = 4;
+  string caption = 5;
+  string unavailable_label = 6;
+}
+
+message PresentationAppSpotlights {
+  string heading = 1;
+  repeated string app_keys = 2;
+  string detail_link_label = 3;
+}
+
+message PresentationArtifactExample {
+  string id = 1;
+  string kind = 2;
+  string label = 3;
+  string filename = 4;
+  string type = 5;
+  string title = 6;
+  string body = 7;
+  repeated string steps = 8;
+  repeated string checks = 9;
+  string caption = 10;
+  string alt_text = 11;
+  string icon = 12;
+  int32 width = 13;
+  int32 height = 14;
+  string source_ref = 15;
+  PresentationArtifactSource source = 16;
+  string asset_ref = 17;
+  string brand = 18;
+  string accent = 19;
+  repeated PresentationArtifactFrame frames = 20;
+  string preview_ref = 21;
+}
+
+message PresentationArtifactSource {
+  string ref = 1;
+  string media_ref = 2;
+  string text_excerpt = 3;
+  string integrity_hash = 4;
+  string isolation = 5;
+}
+
+message PresentationArtifactFrame {
+  string asset_ref = 1;
+  string time = 2;
+  string label = 3;
+}
+
+message PresentationArtifactExplorer {
+  string heading = 1;
+  string capability_id = 2;
+  repeated PresentationArtifactExample examples = 3;
+  string selected_example_id = 4;
+}
+
+message PresentationVoiceFeature {
+  string title = 1;
+  string description = 2;
+  string capability_id = 3;
+}
+
+message PresentationVoiceStory {
+  string eyebrow = 1;
+  string heading = 2;
+  string body = 3;
+  repeated PresentationVoiceFeature features = 4;
+  string note = 5;
+  string input_label = 6;
+  string transcript = 7;
+  string summary_label = 8;
+  string summary_title = 9;
+  repeated string summary_items = 10;
+  string output_label = 11;
+  string demo_note = 12;
+  string provider_qualification = 13;
+  repeated double waveform = 14;
+  repeated string capability_ids = 15;
+}
+
+message PresentationDeviceStory {
+  string heading = 1;
+  string description = 2;
+  string device = 3;
+  string visual_ref = 4;
+  string alt_text = 5;
+}
+
+message PresentationCapabilityRoadmap {
+  string heading = 1;
+  repeated string capability_ids = 2;
+  string status_label = 3;
+  string description = 4;
+}
+
+message PresentationPricing {
+  string heading = 1;
+  string description = 2;
+  repeated string plan_refs = 3;
+  repeated PresentationAction actions = 4;
+}
+
+message PresentationClosingAction {
+  string heading = 1;
+  string description = 2;
+  repeated PresentationAction actions = 3;
+  string visual_ref = 4;
+}
+
+message PresentationFAQItem {
+  string question = 1;
+  string answer = 2;
+  string accessible_label = 3;
+}
+
+message PresentationFAQ {
+  string heading = 1;
+  repeated PresentationFAQItem items = 2;
+}
+
+message PresentationFixture {
+  string id = 1;
+  string kind = 2;
+  oneof data {
+    PresentationWorkspaceFixture workspace = 3;
+    PresentationBackdropFixture backdrop = 4;
+    PresentationWorkflowFixture workflow = 5;
+    PresentationMonitorFixture monitor = 6;
+  }
+}
+
+message PresentationMonitorMetric {
+  string id = 1;
+  string label = 2;
+  string value = 3;
+  string unit = 4;
+  string detail = 5;
+  string status = 6;
+  repeated double trend = 7;
+}
+
+message PresentationMonitorFixture {
+  string title = 1;
+  string host = 2;
+  string metrics_label = 3;
+  repeated PresentationMonitorMetric metrics = 4;
+  string investigation_label = 5;
+  string investigation_title = 6;
+  string investigation_body = 7;
+  repeated string findings = 8;
+  string action_note = 9;
+  string status = 10;
+  string uptime = 11;
+}
+
+message PresentationWorkspaceFixture {
+  string title = 1;
+  string group = 2;
+  string group_label = 3;
+  repeated string groups = 4;
+  string sessions_label = 5;
+  repeated string sessions = 6;
+  string role = 7;
+  string model = 8;
+  string reviewer = 9;
+  string reviewer_model = 10;
+  string branch = 11;
+  string prompt = 12;
+  string answer = 13;
+  repeated string files = 14;
+  string file_label = 15;
+  repeated string diff = 16;
+  string command = 17;
+  repeated string checks = 18;
+  string ready = 19;
+  string composer = 20;
+  string return_label = 21;
+  string return_title = 22;
+  string review_message = 23;
+  string message_label = 24;
+  string reply_label = 25;
+  string status = 26;
+  string today = 27;
+  repeated string keyboard = 28;
+}
+
+message PresentationBackdropFixture {
+  string title = 1;
+  string label = 2;
+  string selected = 3;
+  repeated string styles = 4;
+  string surface = 5;
+  string palette = 6;
+  string panel = 7;
+  string caption = 8;
+  string export = 9;
+  repeated string options = 10;
+  string badge = 11;
+  repeated string asset_refs = 12;
+}
+
+message PresentationWorkflowStep {
+  string number = 1;
+  string title = 2;
+  string description = 3;
+}
+
+message PresentationWorkflowFixture {
+  string title = 1;
+  string label = 2;
+  repeated PresentationWorkflowStep steps = 3;
+  string browser_title = 4;
+  repeated string browser_rows = 5;
+  string note = 6;
+}
+
+message PresentationAsset {
+  string id = 1;
+  string release_ref = 2;
+  string content_hash = 3;
+  int32 width = 4;
+  int32 height = 5;
+  string mime = 6;
+  string surface = 7;
+  repeated PresentationAssetVariant responsive_alternatives = 8;
+  PresentationFocalPoint focal_point = 9;
+  string crop_policy = 10;
+  PresentationAssetProvenance provenance = 11;
+  repeated PresentationOverlayRegion overlay_regions = 12;
+  string public_url = 13;
+  repeated string private_evidence_refs = 14;
+}
+
+message PresentationAssetVariant {
+  string surface = 1;
+  string asset_id = 2;
+}
+
+message PresentationFocalPoint {
+  double x = 1;
+  double y = 2;
+}
+
+message PresentationAssetProvenance {
+  string provider = 1;
+  string job_ref = 2;
+  string candidate_ref = 3;
+}
+
+message PresentationOverlayRegion {
+  string name = 1;
+  double x = 2;
+  double y = 3;
+  double width = 4;
+  double height = 5;
+  PresentationLegibilityMeasurement measurement = 6;
+}
+
+message PresentationLegibilityMeasurement {
+  double contrast_ratio = 1;
+  double minimum_contrast_ratio = 2;
+  double threshold = 3;
+  string verdict = 4;
+  string measurement_ref = 5;
+}
+
+// Public projection types deliberately omit owner and preservation evidence.
+message ResolvedProductPresentation {
+  int32 schema_version = 1;
+  string mode = 2;
+  string scope = 3;
+  string app_key = 4;
+  PresentationPage page = 5;
+  repeated string selected_app_keys = 6;
+  repeated PresentationAppSpotlight spotlights = 7;
+  repeated ResolvedPresentationCapability capabilities = 8;
+  repeated ResolvedPresentationAsset assets = 9;
+  repeated PresentationFixture fixtures = 10;
+  PresentationDiagnostics diagnostics = 11;
+  repeated ResolvedPresentationAction actions = 12;
+}
+
+message PresentationAppSpotlight {
+  string app_key = 1;
+  string slug = 2;
+  string name = 3;
+  string tagline = 4;
+  string description = 5;
+  string detail_route = 6;
+}
+
+message ResolvedPresentationCapability {
+  string id = 1;
+  string label = 2;
+  repeated string benefits = 3;
+  string status = 4;
+  string status_label = 5;
+  repeated string constraints = 6;
+  repeated string provider_requirements = 7;
+  repeated string platform_requirements = 8;
+}
+
+message ResolvedPresentationAsset {
+  string id = 1;
+  string release_ref = 2;
+  string content_hash = 3;
+  int32 width = 4;
+  int32 height = 5;
+  string mime = 6;
+  string surface = 7;
+  repeated PresentationAssetVariant responsive_alternatives = 8;
+  PresentationFocalPoint focal_point = 9;
+  string crop_policy = 10;
+  PresentationAssetProvenance provenance = 11;
+  repeated ResolvedPresentationOverlayRegion overlay_regions = 12;
+  string public_url = 13;
+}
+
+message ResolvedPresentationOverlayRegion {
+  string name = 1;
+  double x = 2;
+  double y = 3;
+  double width = 4;
+  double height = 5;
+  ResolvedPresentationLegibility measurement = 6;
+}
+
+message ResolvedPresentationLegibility {
+  double contrast_ratio = 1;
+  double minimum_contrast_ratio = 2;
+  double threshold = 3;
+  string verdict = 4;
+}
+
+message PresentationDiagnostics {
+  string requested_route = 1;
+  string resolved_route = 2;
+  string requested_variant = 3;
+  string resolved_variant = 4;
+  string requested_revision = 5;
+  string resolved_revision = 6;
+  string locale = 7;
+  string bundle_key = 8;
+  string app_key = 9;
+  string mode = 10;
+  bool fallback = 11;
+  string fallback_reason = 12;
+  bool preview = 13;
+  bool noindex = 14;
+  bool no_store = 15;
+  repeated string eligible_app_keys = 16;
+  string block_digest = 17;
+  repeated string asset_release_refs = 18;
+  string commerce_snapshot_ref = 19;
+  // Aggregation-owned assignment facts; absent on pure/admin preview results.
+  string weight_fingerprint = 20;
+  string assignment_source = 21;
+}
+
+// These are display-safe owner observations, not authorization tokens.
+// A download or checkout still goes through its authoritative service.
+message ResolvedPresentationAction {
+  string key = 1;
+  string status = 2;
+  string reason = 3;
+  string href = 4;
+  string app_key = 5;
+  string plan_ref = 6;
+}

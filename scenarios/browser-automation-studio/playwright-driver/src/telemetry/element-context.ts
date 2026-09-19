@@ -14,7 +14,7 @@
  * Handlers that target elements should call captureElementContext() before executing
  * the action, then include the result in their HandlerResult.
  *
- * @see docs/plans/enrich-execution-with-element-context.md
+ * Related design work is historical; current plans are owned by Plan Manager.
  */
 
 import type { Page, Locator } from 'rebrowser-playwright';
@@ -209,6 +209,8 @@ async function captureRawElementMeta(
           'data-testid',
           'data-test-id',
           'data-cy',
+          'data-experience-surface',
+          'data-experience-state',
         ];
         for (const attr of interestingAttrs) {
           const val = el.getAttribute(attr);

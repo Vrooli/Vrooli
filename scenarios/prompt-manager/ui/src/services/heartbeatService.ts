@@ -9,7 +9,11 @@
  */
 
 import { buildApiUrl } from '@vrooli/api-base'
-import { API_BASE } from '@/lib/api'
+import { z } from 'zod'
+import { API_BASE, connectSlice4Request } from '@/lib/api'
+import { operatorDirectAttributionHeaders } from './attribution'
+import { decodeRunEvents, type RunEvent } from '@/lib/schemas/runEvent.schema'
+export type { RunEvent } from '@/lib/schemas/runEvent.schema'
 
 // ============================================================================
 // Types
@@ -19,13 +23,35 @@ export interface HeartbeatConfig {
   teamId: string
   agentId: string
   enabled: boolean
+  teamEnabled?: boolean
+  effectiveState?: 'scheduled' | 'team-disabled' | 'paused' | 'disabled' | 'not-scheduled' | 'unavailable'
+  effectiveReason?: string
+  controlState?: HeartbeatControlStatusValue
+  scheduled?: boolean
   schedule: string
   profileKey?: string
+  lifecycleState?: string
+  supervision?: Record<string, unknown>
+  wakeAdmission?: WakeAdmission
+  supervisionError?: string
+  supervisionState?: {
+    status?: string
+    coverage?: string
+    lastScanAt?: string
+    lastSuccessAt?: string
+    efforts?: Record<string, { retired?: boolean; observationOnly?: boolean; lastAssessedAt?: string }>
+  }
+  finiteLeader?: { effortRef?: string; acceptedRevision?: string; retired?: boolean }
   lastExecution?: HeartbeatExecResult
   nextExecution?: string
   nextExecutions?: string[]
   createdAt: string
   updatedAt: string
+}
+
+export interface WakeAdmission {
+  mode: 'always' | 'on-change'
+  changeSources?: Array<'team' | 'member' | 'inbox' | 'corpus'>
 }
 
 export interface HeartbeatExecResult {
@@ -41,12 +67,14 @@ export interface CreateHeartbeatRequest {
   schedule: string
   profileKey?: string
   enabled?: boolean
+  wakeAdmission?: WakeAdmission
 }
 
 export interface UpdateHeartbeatRequest {
   schedule?: string
   profileKey?: string
   enabled?: boolean
+  wakeAdmission?: WakeAdmission
 }
 
 export interface TriggerResponse {
@@ -99,6 +127,62 @@ export interface MemberDocResponse {
 
 export interface MemberDocRequest {
   content: string
+}
+
+export type HeartbeatControlStatusValue =
+  | 'active'
+  | 'warning-idle-soon'
+  | 'paused-auto-idle'
+  | 'paused-manual'
+
+export interface HeartbeatControlPolicy {
+  enabled: boolean
+  pauseAfterDaysWithoutHumanEngagement: number
+  warningAfterDaysWithoutHumanEngagement: number
+  resumeMode: 'manual'
+}
+
+export interface HeartbeatControlTeamOverride {
+  mode: 'inherit' | 'disabled' | 'custom'
+  pauseAfterDaysWithoutHumanEngagement?: number | null
+  warningAfterDaysWithoutHumanEngagement?: number | null
+  resumeMode?: 'manual'
+}
+
+export interface HeartbeatControlStatus {
+  scope: 'global' | 'team'
+  teamId?: string
+  status: HeartbeatControlStatusValue
+  effectivePolicy: HeartbeatControlPolicy
+  globalPolicy?: HeartbeatControlPolicy
+  teamOverride?: HeartbeatControlTeamOverride | null
+  lastHumanEngagementAt?: string | null
+  lastHumanEngagementReason?: string
+  lastHumanEngagementTeamId?: string
+  pausedAt?: string | null
+  pausedReason?: string
+  warningAt?: string | null
+  autoPauseAt?: string | null
+  resumeHint?: string
+  teams?: HeartbeatControlStatus[]
+}
+
+export interface HeartbeatControlPolicyRequest {
+  enabled?: boolean
+  pauseAfterDaysWithoutHumanEngagement?: number
+  warningAfterDaysWithoutHumanEngagement?: number
+  resumeMode?: 'manual'
+}
+
+export interface HeartbeatControlTeamPolicyRequest {
+  mode?: 'inherit' | 'disabled' | 'custom'
+  pauseAfterDaysWithoutHumanEngagement?: number
+  warningAfterDaysWithoutHumanEngagement?: number
+  resumeMode?: 'manual'
+}
+
+export interface HeartbeatControlPauseRequest {
+  reason?: string
 }
 
 // --- Team State Types ---
@@ -159,80 +243,41 @@ export interface UpdateTaskRequest {
   note?: string
 }
 
-export interface DecisionOption {
-  key: string
-  label: string
-  rationale: string
-  recommended?: boolean
-}
-
-export interface DecisionEntry {
-  id: string
-  at: string
-  by: string
-  decision: string
-  rationale: string
-  context?: string
-  supersedes?: string
-  status?: 'pending' | 'accepted' | 'rejected' | 'running' | 'completed'
-  topic?: string
-  description?: string
-  options?: DecisionOption[]
-  selected?: string | null
-  freeform?: string | null
-  notes?: string | null
-}
-
-export interface UpdateDecisionRequest {
-  decision?: string
-  rationale?: string
-  context?: string
-  status?: string
-  supersedes?: string
-  topic?: string
-  description?: string
-  options?: DecisionOption[]
-  selected?: string | null
-  freeform?: string | null
-  notes?: string | null
-}
-
-export interface DecisionListResponse {
-  teamId: string
-  entries: DecisionEntry[]
-}
-
-export interface PendingDecisionTeamGroup {
-  teamId: string
-  teamName: string
-  entries: DecisionEntry[]
-}
-
-export interface AllPendingDecisionsResponse {
-  teams: PendingDecisionTeamGroup[]
-  totalCount: number
-}
-
-export interface AddDecisionRequest {
-  by: string
-  decision?: string
-  rationale?: string
-  context?: string
-  supersedes?: string
-  topic?: string
-  options?: DecisionOption[]
-}
-
 // --- Knowledge types ---
+
+// AttributionInfo mirrors the API-side store.AttributionInfo. The canonical
+// contract lives in docs/agent-system/RUNTIME_ATTRIBUTION.md (the API Go
+// struct in scenarios/prompt-manager/api/store/models.go is the source of
+// truth). Optional pointer fields marshal as null over the wire; in
+// TypeScript we represent them as `string | null`.
+export interface AttributionInfo {
+  kind: string
+  member_id: string | null
+  team_id: string | null
+  run_id: string | null
+  spawn_origin: string
+  source_skill_id: string | null
+}
 
 export interface KnowledgeEntry {
   id: string
   at: string
-  by: string
   topic: string
   content: string
   source?: string
   supersedes?: string
+  // caller is the API-derived display string ("team/member", "skill:<id>",
+  // "operator", "legacy:<original-by>") — render this instead of parsing
+  // attribution. Always present on post-cutoff and migrated entries.
+  caller: string
+  // caller_note is optional freeform context the writer attached; never
+  // an identity claim. P3.2 migration preserves the legacy `by` value
+  // here on every pre-cutoff entry.
+  caller_note?: string
+  // attribution is the structured truth. Always present; UI consumers
+  // typically render `caller` and only inspect attribution for filtering
+  // (e.g., "show writes by writer-skills last week").
+  attribution: AttributionInfo
 }
 
 export interface KnowledgeListResponse {
@@ -241,9 +286,12 @@ export interface KnowledgeListResponse {
 }
 
 export interface AddKnowledgeRequest {
-  by: string
   topic: string
   content: string
+  // Identity is carried out-of-band on the X-Vrooli-Attribution header,
+  // not on the request body. caller_note is freeform context only — see
+  // docs/agent-system/RUNTIME_ATTRIBUTION.md.
+  caller_note?: string
   source?: string
   supersedes?: string
 }
@@ -285,11 +333,22 @@ async function apiRequest<T>(
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    // Every UI-originated request carries operator-direct attribution.
+    // The API ignores this header on read-only endpoints and validates
+    // it on mutating ones (POST /teams/{id}/knowledge etc.). Sending it
+    // unconditionally keeps the request shape uniform. Canon:
+    // docs/agent-system/RUNTIME_ATTRIBUTION.md § HTTP header.
+    ...operatorDirectAttributionHeaders(),
   }
   // Merge additional headers if provided
   if (options?.headers) {
     const extraHeaders = options.headers as Record<string, string>
     Object.assign(headers, extraHeaders)
+  }
+
+  const migrated = await connectSlice4Request(endpoint, { ...options, headers })
+  if (migrated.handled) {
+    return migrated.data as T
   }
 
   const response = await fetch(url, {
@@ -480,6 +539,61 @@ export async function triggerHeartbeat(teamId: string, agentId: string): Promise
 }
 
 // ============================================================================
+// Heartbeat Control Operations
+// ============================================================================
+
+export async function getHeartbeatControlStatus(): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>('/heartbeats/control')
+}
+
+export async function getTeamHeartbeatControlStatus(teamId: string): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>(`/teams/${encodeURIComponent(teamId)}/heartbeats/control`)
+}
+
+export async function pauseHeartbeatControl(request?: HeartbeatControlPauseRequest): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>('/heartbeats/control/pause', {
+    method: 'POST',
+    body: JSON.stringify(request ?? {}),
+  })
+}
+
+export async function resumeHeartbeatControl(): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>('/heartbeats/control/resume', {
+    method: 'POST',
+  })
+}
+
+export async function updateHeartbeatControlPolicy(request: HeartbeatControlPolicyRequest): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>('/heartbeats/control/policy', {
+    method: 'PUT',
+    body: JSON.stringify(request),
+  })
+}
+
+export async function pauseTeamHeartbeatControl(teamId: string, request?: HeartbeatControlPauseRequest): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>(`/teams/${encodeURIComponent(teamId)}/heartbeats/control/pause`, {
+    method: 'POST',
+    body: JSON.stringify(request ?? {}),
+  })
+}
+
+export async function resumeTeamHeartbeatControl(teamId: string): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>(`/teams/${encodeURIComponent(teamId)}/heartbeats/control/resume`, {
+    method: 'POST',
+  })
+}
+
+export async function updateTeamHeartbeatControlPolicy(
+  teamId: string,
+  request: HeartbeatControlTeamPolicyRequest
+): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>(`/teams/${encodeURIComponent(teamId)}/heartbeats/control/policy`, {
+    method: 'PUT',
+    body: JSON.stringify(request),
+  })
+}
+
+// ============================================================================
 // Heartbeat Logs
 // ============================================================================
 
@@ -516,9 +630,11 @@ export async function listTeamLogs(teamId: string, opts?: {
   if (opts?.offset !== undefined) params.set('offset', String(opts.offset))
   if (opts?.agentId) params.set('agentId', opts.agentId)
   const qs = params.toString()
-  return apiRequest<TeamLogListResponse>(
+  const response = await apiRequest<Omit<TeamLogListResponse, 'logs'> & { logs?: TeamLogEntry[] | null }>(
     `/teams/${encodeURIComponent(teamId)}/heartbeats/logs${qs ? `?${qs}` : ''}`
   )
+  // The JSON Value transport preserves Go nil slices on empty log pages.
+  return { ...response, logs: response.logs ?? [] }
 }
 
 // ============================================================================
@@ -681,13 +797,150 @@ export interface RunDetails {
   sessionId?: string
   teamId?: string
   agentId?: string
+  source?: 'agent-manager' | 'heartbeat-attempt'
+  phase?: string
+  recovery?: string
+  errorCategory?: string
   actions?: RunActions
+  requestedModel?: string | null
+  actualModel?: string | null
+  harnessKind?: string | null
+  importSourceHarness?: string | null
+  importSourceSessionId?: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
+  terminalClass?: string | null
+  stopReason?: string | null
+  reportedSummary?: { tokensUsed: number | null; costEstimate: number | null } | null
+  workReferences?: Record<string, unknown>[]
+}
+
+const accountingEvidenceSchema = z.object({
+  requestedModel: z.string().nullish(), actualModel: z.string().nullish(),
+  harnessKind: z.string().nullish(), importSourceHarness: z.string().nullish(),
+  importSourceSessionId: z.string().nullish(), createdAt: z.string().nullish(), updatedAt: z.string().nullish(),
+  terminalClass: z.string().nullish(), stopReason: z.string().nullish(),
+  reportedSummary: z.object({
+    tokensUsed: z.number().int().nonnegative().nullable(),
+    costEstimate: z.number().finite().nonnegative().nullable(),
+  }).nullable(),
+  workReferences: z.array(z.record(z.string(), z.unknown())),
+})
+
+// The Connect Value envelope does not validate embedded AM JSON. Decode once
+// here, retaining absent metrics and both protobuf JSON name spellings.
+function runAccountingEvidence(value: unknown): z.infer<typeof accountingEvidenceSchema> {
+  const raw = z.record(z.string(), z.unknown()).parse(value)
+  const summary = raw.summary == null ? null : z.record(z.string(), z.unknown()).parse(raw.summary)
+  return accountingEvidenceSchema.parse({
+    requestedModel: raw.requested_model ?? raw.requestedModel ?? null,
+    actualModel: raw.actual_model ?? raw.actualModel ?? null,
+    harnessKind: raw.harness_kind ?? raw.harnessKind ?? null,
+    importSourceHarness: raw.import_source_harness ?? raw.importSourceHarness ?? null,
+    importSourceSessionId: raw.import_source_session_id ?? raw.importSourceSessionId ?? null,
+    createdAt: raw.created_at ?? raw.createdAt ?? null,
+    updatedAt: raw.updated_at ?? raw.updatedAt ?? null,
+    terminalClass: raw.terminal_class ?? raw.terminalClass ?? null,
+    stopReason: raw.stop_reason ?? raw.stopReason ?? null,
+    reportedSummary: summary ? {
+      tokensUsed: summary.tokens_used ?? summary.tokensUsed ?? null,
+      costEstimate: summary.cost_estimate ?? summary.costEstimate ?? null,
+    } : null,
+    workReferences: raw.work_references ?? raw.workReferences ?? [],
+  })
 }
 
 export interface ListRunsResponse {
   runs: RunDetails[]
   total: number
   hasMore: boolean
+}
+
+const accountingCount = z.number().int().nonnegative()
+const teamRunAccountingSchema = z.object({
+  teamId: z.string().min(1), agentId: z.string().optional(),
+  windowStart: z.string(), windowEnd: z.string(), observedAt: z.string(),
+  knownRuns: accountingCount, observedRuns: accountingCount,
+  unavailableRuns: accountingCount, unqueriedRuns: accountingCount,
+  observedExecutions: accountingCount, duplicateExecutions: accountingCount,
+  actualModels: z.record(z.string(), accountingCount), unknownModelExecutions: accountingCount,
+  runtimeStates: z.record(z.string(), accountingCount), terminalReasons: z.record(z.string(), accountingCount),
+  usage: z.object({
+    tokens: accountingCount.nullable(), costUSD: z.number().finite().nonnegative().nullable(),
+    qualifiedRuns: accountingCount, reportedTokenRuns: accountingCount, reportedCostRuns: accountingCount, partial: z.boolean(),
+  }),
+  coverage: z.object({
+    partial: z.boolean(), declarationsRead: accountingCount, declarationLimit: accountingCount,
+    ownerReadLimit: accountingCount, invalidTimestamps: accountingCount, limitations: z.array(z.string()),
+  }),
+  runs: z.array(z.object({
+    runId: z.string().min(1), agentIds: z.array(z.string()), declaredAt: z.string(),
+    availability: z.enum(['available', 'unavailable', 'not_queried']),
+    executionIdentity: z.string().optional(), runtimeState: z.string().optional(),
+    actualModel: z.string().optional(), terminalClass: z.string().optional(), stopReason: z.string().optional(),
+  })),
+}).refine((value) => value.knownRuns === value.observedRuns + value.unavailableRuns + value.unqueriedRuns
+  && value.observedRuns === value.observedExecutions + value.duplicateExecutions,
+{ message: 'Owner run coverage counts do not reconcile' })
+
+export type TeamRunAccounting = z.infer<typeof teamRunAccountingSchema>
+
+/** Join PM's recorded assignments to their exact AM owner runs. */
+export async function getTeamRunAccounting(teamId: string, agentId?: string): Promise<TeamRunAccounting> {
+  const params = new URLSearchParams({ accounting: 'true', team_id: teamId })
+  if (agentId) params.set('agent_id', agentId)
+  const result = teamRunAccountingSchema.parse(await apiRequest<unknown>(`/runs?${params}`))
+  if (result.teamId !== teamId || (result.agentId ?? '') !== (agentId ?? '')) {
+    throw new Error('Owner run accounting attribution mismatch')
+  }
+  return result
+}
+
+export interface TypedInvestigation {
+  investigationId: string
+  operationStatus: string
+  request?: {
+    subject?: {
+      kind?: string
+      ref?: string
+      runIds?: string[]
+    }
+    question?: string
+  }
+  result?: {
+    diagnosis?: {
+      condition?: string
+      disposition?: string
+      summary?: string
+      rootCause?: string
+      confidence?: string
+      unprovenPredicates?: string[]
+    }
+    coverage?: Array<{ plane?: string; state?: string; reason?: string }>
+    applicability?: { state?: string; checkedRevision?: string; checkedAt?: string }
+    findings?: Array<{ id?: string; subjectRunIds?: string[]; relation?: string; summary?: string }>
+    recommendations?: Array<{ id?: string; kind?: string; subjectRunIds?: string[]; text?: string }>
+  }
+  workflowRef?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface HeartbeatAttempt {
+  id: string
+  teamId: string
+  agentId: string
+  profileKey?: string
+  taskId?: string
+  runId?: string
+  tag?: string
+  status: string
+  phase: string
+  startedAt: string
+  endedAt?: string
+  errorCategory?: string
+  error?: string
+  recovery?: string
 }
 
 function normalizeRunStatus(status: string): string {
@@ -740,6 +993,7 @@ export async function getRunDetails(runId: string): Promise<RunDetails> {
   )
   const r = raw.run
   return {
+    ...runAccountingEvidence(r),
     id: r.id,
     taskId: r.task_id,
     profileId: r.agent_profile_id,
@@ -769,6 +1023,7 @@ export async function listRuns(opts?: {
   status?: string
   tagPrefix?: string
   profileKey?: string
+  agentId?: string
   taskId?: string
   investigatesRunId?: string
   appliesInvestigationRunId?: string
@@ -779,6 +1034,7 @@ export async function listRuns(opts?: {
   if (opts?.status) params.set('status', opts.status)
   if (opts?.tagPrefix) params.set('tag_prefix', opts.tagPrefix)
   if (opts?.profileKey) params.set('profile_key', opts.profileKey)
+  if (opts?.agentId) params.set('agent_id', opts.agentId)
   if (opts?.taskId) params.set('task_id', opts.taskId)
   if (opts?.investigatesRunId) params.set('investigates_run_id', opts.investigatesRunId)
   if (opts?.appliesInvestigationRunId) params.set('applies_investigation_run_id', opts.appliesInvestigationRunId)
@@ -789,6 +1045,7 @@ export async function listRuns(opts?: {
 
   const raw = await apiRequest<{ runs?: Array<{ id: string; task_id: string; agent_profile_id?: string; status: string; started_at?: string; ended_at?: string; error_msg?: string; tag?: string; session_id?: string }>; total?: number; has_more?: boolean }>(endpoint)
   const runs = (raw.runs ?? []).map((r) => ({
+    ...runAccountingEvidence(r),
     id: r.id,
     taskId: r.task_id,
     profileId: r.agent_profile_id,
@@ -807,15 +1064,64 @@ export async function listRuns(opts?: {
 }
 
 /**
- * Continue a run with an additional message.
+ * List local heartbeat dispatch attempts, including attempts that failed
+ * before agent-manager could create a run.
  */
-export async function continueRun(runId: string, message: string): Promise<void> {
+export async function listHeartbeatAttempts(opts?: {
+  status?: string
+  profileKey?: string
+  teamId?: string
+  agentId?: string
+  limit?: number
+  offset?: number
+}): Promise<{ attempts: HeartbeatAttempt[]; total: number; hasMore: boolean }> {
+  const params = new URLSearchParams()
+  if (opts?.status) params.set('status', opts.status)
+  if (opts?.profileKey) params.set('profile_key', opts.profileKey)
+  if (opts?.teamId) params.set('team_id', opts.teamId)
+  if (opts?.agentId) params.set('agent_id', opts.agentId)
+  if (opts?.limit !== undefined) params.set('limit', String(opts.limit))
+  if (opts?.offset !== undefined) params.set('offset', String(opts.offset))
+  const qs = params.toString()
+  return apiRequest<{ attempts: HeartbeatAttempt[]; total: number; hasMore: boolean }>(
+    `/heartbeat-attempts${qs ? `?${qs}` : ''}`
+  )
+}
+
+/**
+ * Continue a run with an additional message.
+ *
+ * Pass a stable `requestId` for conversation turns. The server derives the
+ * owner-visible idempotency key from it, so a retried send or a reload that
+ * replays the same turn cannot advance the conversation twice. Generate one id
+ * per logical turn with {@link newConversationRequestId} and reuse it across
+ * retries of that turn only.
+ */
+export async function continueRun(
+  runId: string,
+  message: string,
+  opts?: { requestId?: string }
+): Promise<void> {
   await apiRequest<Record<string, never>>(
     `/runs/${encodeURIComponent(runId)}/continue`,
     {
       method: 'POST',
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, request_id: opts?.requestId }),
     }
+  )
+}
+
+/**
+ * Generate a stable request identity for one conversation turn. Reuse the
+ * returned value when retrying that same turn; do not reuse it for a new turn.
+ */
+export function newConversationRequestId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  // Conservative fallback for environments without Web Crypto.
+  return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) =>
+    (Number(c) ^ (Math.random() * 16 >> (Number(c) / 4))).toString(16)
   )
 }
 
@@ -832,13 +1138,15 @@ export async function retryRun(runId: string): Promise<TriggerResponse> {
 }
 
 /**
- * Create an investigation run for one or more failed runs.
+ * Start a diagnosis-only finite investigation. The legacy run endpoint remains
+ * readable for retained approval/apply records, but new Prompt Manager UI
+ * admissions use the Agent Manager typed lifecycle.
  */
-export async function createInvestigationRun(runIds: string[], opts?: {
+export async function createTypedInvestigationRun(runIds: string[], opts?: {
   depth?: string
   customContext?: string
-}): Promise<RunDetails> {
-  const raw = await apiRequest<{ run: { id: string; task_id: string; agent_profile_id?: string; status: string; started_at?: string; ended_at?: string; error_msg?: string; tag?: string; session_id?: string } }>(
+}): Promise<TypedInvestigation> {
+  const raw = await apiRequest<{ investigation: TypedInvestigation }>(
     '/runs/investigate',
     {
       method: 'POST',
@@ -846,21 +1154,25 @@ export async function createInvestigationRun(runIds: string[], opts?: {
         run_ids: runIds,
         depth: opts?.depth,
         custom_context: opts?.customContext,
+        typed: true,
       }),
     }
   )
-  const r = raw.run
-  return {
-    id: r.id,
-    taskId: r.task_id,
-    profileId: r.agent_profile_id,
-    status: normalizeRunStatus(r.status),
-    startedAt: r.started_at,
-    endedAt: r.ended_at,
-    error: r.error_msg,
-    tag: r.tag,
-    sessionId: r.session_id,
+  if (!raw.investigation?.investigationId) {
+    throw new Error('typed investigation response did not contain a durable identity')
   }
+  return raw.investigation
+}
+
+/**
+ * Read typed investigations linked to one subject run. Filtering stays here so
+ * the Agent Manager owner remains the sole authority for the durable list.
+ */
+export async function listTypedInvestigations(runId: string): Promise<TypedInvestigation[]> {
+  const raw = await apiRequest<{ investigations?: TypedInvestigation[] }>(
+    '/runs?typed_investigations=true&limit=200'
+  )
+  return (raw.investigations ?? []).filter((item) => item.request?.subject?.runIds?.includes(runId))
 }
 
 /**
@@ -898,68 +1210,6 @@ export async function createInvestigationApplyRun(
 // Run Events
 // ============================================================================
 
-export interface RunEvent {
-  id: string
-  runId: string
-  sequence: number
-  eventType: 'log' | 'message' | 'tool_call' | 'tool_result' | 'status' | 'metric' | 'error'
-  timestamp: string
-  data: Record<string, unknown>
-}
-
-/**
- * Map proto event type enums to short names used by the UI.
- * Agent-manager uses protojson names like "RUN_EVENT_TYPE_MESSAGE".
- */
-const EVENT_TYPE_MAP: Record<string, RunEvent['eventType']> = {
-  RUN_EVENT_TYPE_MESSAGE: 'message',
-  RUN_EVENT_TYPE_TOOL_CALL: 'tool_call',
-  RUN_EVENT_TYPE_TOOL_RESULT: 'tool_result',
-  RUN_EVENT_TYPE_STATUS: 'status',
-  RUN_EVENT_TYPE_METRIC: 'metric',
-  RUN_EVENT_TYPE_LOG: 'log',
-  RUN_EVENT_TYPE_ERROR: 'error',
-}
-
-/** Agent-manager event shape (snake_case protojson with typed payload fields). */
-interface RawRunEvent {
-  id: string
-  run_id: string
-  sequence?: string | number
-  event_type: string
-  timestamp: string
-  // Payload is one of these, keyed by short type name:
-  message?: Record<string, unknown>
-  tool_call?: Record<string, unknown>
-  tool_result?: Record<string, unknown>
-  status?: Record<string, unknown>
-  metric?: Record<string, unknown>
-  log?: Record<string, unknown>
-  error?: Record<string, unknown>
-  // Fallback for unknown types
-  data?: Record<string, unknown>
-}
-
-/** Normalize a single raw event into the UI-friendly RunEvent shape. */
-function normalizeEvent(raw: RawRunEvent): RunEvent {
-  const shortType = EVENT_TYPE_MAP[raw.event_type] ?? (raw.event_type.toLowerCase().replace('run_event_type_', '') as RunEvent['eventType'])
-
-  // Extract the typed payload — agent-manager nests it under the short type key
-  const payload: Record<string, unknown> =
-    raw.message ?? raw.tool_call ?? raw.tool_result ??
-    raw.status ?? raw.metric ?? raw.log ?? raw.error ??
-    raw.data ?? {}
-
-  return {
-    id: raw.id,
-    runId: raw.run_id,
-    sequence: typeof raw.sequence === 'string' ? parseInt(raw.sequence, 10) || 0 : (raw.sequence ?? 0),
-    eventType: shortType,
-    timestamp: raw.timestamp,
-    data: payload,
-  }
-}
-
 /**
  * Fetch events for a run, optionally starting after a given sequence number.
  */
@@ -978,9 +1228,7 @@ export async function getRunEvents(runId: string, opts?: {
   const endpoint = `/runs/${encodeURIComponent(runId)}/events${qs ? `?${qs}` : ''}`
 
   // Agent-manager wraps events in {"events": [...]}
-  const raw = await apiRequest<{ events?: RawRunEvent[] } | RawRunEvent[]>(endpoint)
-  const rawEvents = Array.isArray(raw) ? raw : (raw.events ?? [])
-  return rawEvents.map(normalizeEvent)
+  return decodeRunEvents(await apiRequest<unknown>(endpoint))
 }
 
 // ============================================================================
@@ -1039,6 +1287,15 @@ export async function createRun(opts: {
   if (opts.profileKey) {
     body.profile_ref = { profile_key: opts.profileKey }
   }
+  return createChatRun(body)
+}
+
+/** Start a selected persona conversation; context and profile are server-owned. */
+export async function createMemberConversation(opts: { teamId?: string; agentId: string; message: string; requestId: string }): Promise<RunDetails> {
+  return createChatRun({ conversation: { team_id: opts.teamId, agent_id: opts.agentId, message: opts.message, request_id: opts.requestId } })
+}
+
+async function createChatRun(body: Record<string, unknown>): Promise<RunDetails> {
   const raw = await apiRequest<{ run: { id: string; task_id: string; agent_profile_id?: string; status: string; started_at?: string; ended_at?: string; error_msg?: string; tag?: string; session_id?: string; actions?: { can_investigate?: boolean; can_apply_investigation?: boolean; can_delete?: boolean; can_stop?: boolean; can_retry?: boolean; can_continue?: boolean } } }>(
     '/runs',
     {
@@ -1069,7 +1326,7 @@ export async function createRun(opts: {
 }
 
 // ============================================================================
-// Team State Operations (Handoff, Task Board, Decisions)
+// Team State Operations (Handoff, Task Board, Work)
 // ============================================================================
 
 export async function getLastHandoff(teamId: string, agentId: string): Promise<HandoffResponse> {
@@ -1128,54 +1385,11 @@ export async function deleteTask(teamId: string, taskId: string): Promise<void> 
   })
 }
 
-export async function getDecisions(
-  teamId: string,
-  opts?: { context?: string; status?: string; last?: number }
-): Promise<DecisionListResponse> {
-  const params = new URLSearchParams()
-  if (opts?.context) params.set('context', opts.context)
-  if (opts?.status) params.set('status', opts.status)
-  if (opts?.last) params.set('last', String(opts.last))
-  const qs = params.toString()
-  return apiRequest<DecisionListResponse>(`/teams/${encodeURIComponent(teamId)}/decisions${qs ? `?${qs}` : ''}`)
-}
-
-export async function getAllPendingDecisions(): Promise<AllPendingDecisionsResponse> {
-  return apiRequest<AllPendingDecisionsResponse>('/decisions/pending')
-}
-
-export async function addDecision(
-  teamId: string,
-  request: AddDecisionRequest
-): Promise<DecisionEntry> {
-  return apiRequest<DecisionEntry>(`/teams/${encodeURIComponent(teamId)}/decisions`, {
-    method: 'POST',
-    body: JSON.stringify(request),
-  })
-}
-
-export async function updateDecision(
-  teamId: string,
-  decisionId: string,
-  request: UpdateDecisionRequest
-): Promise<DecisionEntry> {
-  return apiRequest<DecisionEntry>(`/teams/${encodeURIComponent(teamId)}/decisions/${encodeURIComponent(decisionId)}`, {
-    method: 'PATCH',
-    body: JSON.stringify(request),
-  })
-}
-
-export async function deleteDecision(teamId: string, decisionId: string): Promise<void> {
-  await apiRequest<undefined>(`/teams/${encodeURIComponent(teamId)}/decisions/${encodeURIComponent(decisionId)}`, {
-    method: 'DELETE',
-  })
-}
-
 // ============================================================================
 // Knowledge Log
 // ============================================================================
 
-export async function getKnowledge(
+export async function getTeamCorpus(
   teamId: string,
   opts?: { topic?: string; last?: number }
 ): Promise<KnowledgeListResponse> {

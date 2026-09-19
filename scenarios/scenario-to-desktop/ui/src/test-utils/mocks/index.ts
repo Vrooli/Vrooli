@@ -3,8 +3,27 @@
  * Provides consistent test data creation with sensible defaults and override support.
  */
 
-import type { VerbosePipelineStatus, BundlePreflightResponse, BundlePreflightSecret } from "../../lib/api";
-import { initialPipelineState, type PipelineStoreState } from "../../store/pipelineTypes";
+import type { VerbosePipelineStatus } from "../../lib/api";
+import { create, type MessageInitShape } from "@bufbuild/protobuf";
+import {
+  BundleStageDetailsSchema,
+  PipelineStatusSchema,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb";
+import { BuildStatusResponseSchema } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/operation_results_pb";
+import {
+  Platform,
+  StageName,
+  StageStatus,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
+import {
+  PreflightResponseSchema,
+  SecretClass,
+  type PreflightResponse,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/preflight_results_pb";
+import {
+  initialPipelineState,
+  type PipelineStoreState,
+} from "../../store/pipelineTypes";
 import { initialFormState, type FormStoreState } from "../../store/formTypes";
 
 // ============================================================================
@@ -28,7 +47,7 @@ import { initialFormState, type FormStoreState } from "../../store/formTypes";
  * ```
  */
 export function createPipelineState(
-  overrides?: Partial<PipelineStoreState>
+  overrides?: Partial<PipelineStoreState>,
 ): PipelineStoreState {
   return {
     ...initialPipelineState,
@@ -41,7 +60,7 @@ export function createPipelineState(
  */
 export function createRunningPipelineState(
   scenarioName: string,
-  pipelineId: string = "test-pipeline-123"
+  pipelineId: string = "test-pipeline-123",
 ): PipelineStoreState {
   return createPipelineState({
     scenarioName,
@@ -56,7 +75,7 @@ export function createRunningPipelineState(
  */
 export function createCompletedPipelineState(
   scenarioName: string,
-  pipelineId: string = "test-pipeline-123"
+  pipelineId: string = "test-pipeline-123",
 ): PipelineStoreState {
   return createPipelineState({
     scenarioName,
@@ -73,7 +92,7 @@ export function createCompletedPipelineState(
 export function createFailedPipelineState(
   scenarioName: string,
   errorMessage: string = "Pipeline failed",
-  pipelineId: string = "test-pipeline-123"
+  pipelineId: string = "test-pipeline-123",
 ): PipelineStoreState {
   return createPipelineState({
     scenarioName,
@@ -107,7 +126,7 @@ export function createFailedPipelineState(
  * ```
  */
 export function createFormState(
-  overrides?: Partial<FormStoreState>
+  overrides?: Partial<FormStoreState>,
 ): FormStoreState {
   return {
     ...initialFormState,
@@ -124,66 +143,73 @@ export function createFormState(
  *
  * @example
  * ```ts
- * const status = createPipelineStatus({
- *   status: "running",
- *   current_stage: "build",
- * });
+ * const status = createPipelineStatus({ status: StageStatus.RUNNING, currentStage: StageName.BUILD });
  * ```
  */
 export function createPipelineStatus(
-  overrides?: Partial<VerbosePipelineStatus>
+  overrides?: MessageInitShape<typeof PipelineStatusSchema>,
 ): VerbosePipelineStatus {
-  return {
-    pipeline_id: "test-pipeline-123",
-    status: "running",
-    current_stage: "bundle",
-    stage_order: ["bundle", "preflight", "generate", "build", "smoketest", "deploy"],
+  return create(PipelineStatusSchema, {
+    pipelineId: "test-pipeline-123",
+    status: StageStatus.RUNNING,
+    currentStage: StageName.BUNDLE,
+    stageOrder: [
+      StageName.BUNDLE,
+      StageName.PREFLIGHT,
+      StageName.GENERATE,
+      StageName.BUILD,
+      StageName.SMOKE_TEST,
+      StageName.DEPLOY,
+    ],
     stages: {
-      bundle: { status: "pending" },
-      preflight: { status: "pending" },
-      generate: { status: "pending" },
-      build: { status: "pending" },
-      smoketest: { status: "pending" },
-      deploy: { status: "pending" },
+      bundle: { stage: StageName.BUNDLE, status: StageStatus.PENDING },
+      preflight: { stage: StageName.PREFLIGHT, status: StageStatus.PENDING },
+      generate: { stage: StageName.GENERATE, status: StageStatus.PENDING },
+      build: { stage: StageName.BUILD, status: StageStatus.PENDING },
+      smoketest: { stage: StageName.SMOKE_TEST, status: StageStatus.PENDING },
+      deploy: { stage: StageName.DEPLOY, status: StageStatus.PENDING },
     },
     ...overrides,
-  } as VerbosePipelineStatus;
+  });
 }
 
 /**
  * Creates a mock preflight response with validation passed.
  */
 export function createPreflightResponse(
-  overrides?: Partial<BundlePreflightResponse>
-): BundlePreflightResponse {
-  return {
+  overrides?: Partial<MessageInitShape<typeof PreflightResponseSchema>>,
+): PreflightResponse {
+  const defaults: MessageInitShape<typeof PreflightResponseSchema> = {
     validation: {
       valid: true,
-      missing_assets: [],
-      missing_binaries: [],
+      missingAssets: [],
+      missingBinaries: [],
     },
     ready: {
       ready: true,
-      details: {},
+      details: [],
     },
     secrets: [],
+  };
+  return create(PreflightResponseSchema, {
+    ...defaults,
     ...overrides,
-  } as BundlePreflightResponse;
+  } as MessageInitShape<typeof PreflightResponseSchema>);
 }
 
 /**
  * Creates a mock preflight response with missing secrets.
  */
 export function createPreflightWithMissingSecrets(
-  secrets: Array<{ id: string; label?: string; class?: string }>
-): BundlePreflightResponse {
-  const secretsList: BundlePreflightSecret[] = secrets.map((s) => ({
+  secrets: Array<{ id: string; label?: string; class?: string }>,
+): PreflightResponse {
+  const secretsList = secrets.map((s) => ({
     id: s.id,
-    label: s.label ?? s.id,
-    class: s.class ?? "env",
+    secretClass: SecretClass.GENERIC,
     required: true,
-    has_value: false,
+    hasValue: false,
     description: `Secret for ${s.id}`,
+    prompt: { label: s.label ?? s.id, class: s.class ?? "env" },
   }));
 
   return createPreflightResponse({
@@ -198,17 +224,17 @@ export function createPreflightWithMissingSecrets(
  */
 export function createPreflightWithValidationErrors(
   missingAssets: string[] = [],
-  missingBinaries: string[] = []
-): BundlePreflightResponse {
+  missingBinaries: string[] = [],
+): PreflightResponse {
   return createPreflightResponse({
     validation: {
       valid: false,
-      missing_assets: missingAssets.map((path) => ({
-        service_id: "default",
+      missingAssets: missingAssets.map((path) => ({
+        serviceId: "default",
         path,
       })),
-      missing_binaries: missingBinaries.map((path) => ({
-        service_id: "default",
+      missingBinaries: missingBinaries.map((path) => ({
+        serviceId: "default",
         platform: "linux",
         path,
       })),
@@ -241,7 +267,7 @@ export function createVerboseStageResult(
     error?: string;
     details?: unknown;
     logs?: string[];
-  }
+  },
 ): {
   stage: string;
   status: string;
@@ -254,8 +280,11 @@ export function createVerboseStageResult(
   return {
     stage: overrides?.stage ?? "unknown",
     status,
-    started_at: overrides?.started_at ?? (status === "pending" ? 0 : Date.now()),
-    ...(overrides?.completed_at !== undefined && { completed_at: overrides.completed_at }),
+    started_at:
+      overrides?.started_at ?? (status === "pending" ? 0 : Date.now()),
+    ...(overrides?.completed_at !== undefined && {
+      completed_at: overrides.completed_at,
+    }),
     ...(overrides?.error !== undefined && { error: overrides.error }),
     ...(overrides?.details !== undefined && { details: overrides.details }),
     ...(overrides?.logs !== undefined && { logs: overrides.logs }),
@@ -270,14 +299,14 @@ export function createVerboseStageResult(
  * Creates a mock bundle stage result.
  */
 export function createBundleResult(overrides?: Record<string, unknown>) {
-  return {
-    bundle_dir: "/path/to/bundle",
-    manifest_path: "/path/to/manifest.json",
-    total_size_human: "150 MB",
-    copied_artifacts: ["app.js", "index.html"],
-    runtime_binaries: { linux: "/path/to/binary" },
+  return create(BundleStageDetailsSchema, {
+    bundleDir: "/path/to/bundle",
+    manifestPath: "/path/to/manifest.json",
+    totalSizeHuman: "150 MB",
+    copiedArtifacts: ["app.js", "index.html"],
+    runtimeBinaries: { linux: "/path/to/binary" },
     ...overrides,
-  };
+  });
 }
 
 /**
@@ -296,19 +325,23 @@ export function createGenerateResult(overrides?: Record<string, unknown>) {
  */
 export function createBuildResult(
   platforms: string[] = ["win", "mac", "linux"],
-  overrides?: Record<string, unknown>
+  overrides?: MessageInitShape<typeof BuildStatusResponseSchema>,
 ) {
   const artifacts: Record<string, string> = {};
   platforms.forEach((p) => {
     artifacts[p] = `/path/to/output/${p}/installer`;
   });
 
-  return {
-    output_path: "/path/to/output",
-    platforms,
+  return create(BuildStatusResponseSchema, {
+    outputPath: "/path/to/output",
+    requestedPlatforms: platforms.map((platform) => {
+      if (platform === "win") return Platform.WIN;
+      if (platform === "mac") return Platform.MAC;
+      return Platform.LINUX;
+    }),
     artifacts,
     ...overrides,
-  };
+  });
 }
 
 /**
@@ -316,7 +349,7 @@ export function createBuildResult(
  */
 export function createSmokeTestResult(
   status: "passed" | "failed" | "completed" = "passed",
-  overrides?: Record<string, unknown>
+  overrides?: Record<string, unknown>,
 ) {
   return {
     status,

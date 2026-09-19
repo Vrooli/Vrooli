@@ -1,0 +1,426 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.tech_tree_designer.v1.health.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.tech_tree_designer.v1.errors.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "graph-describe",
+      "path": "/vrooli.tech_tree_designer.v1.graph.GraphService/DescribeTechTree",
+      "method": "POST",
+      "summary": "Describe the scenario interface graph",
+      "description": "Returns live scenario nodes and proto-import edges from the configured graph source.",
+      "category": "graph",
+      "request": {
+        "type": "DescribeTechTreeRequest"
+      },
+      "response": {
+        "type": "DescribeTechTreeResponse"
+      }
+    },
+    {
+      "id": "graph-neighborhood",
+      "path": "/vrooli.tech_tree_designer.v1.graph.GraphService/GetNeighborhood",
+      "method": "POST",
+      "summary": "Get a graph neighborhood",
+      "description": "Returns the nodes and edges within a local directed or incoming radius around one scenario.",
+      "category": "graph",
+      "request": {
+        "type": "GetNeighborhoodRequest"
+      },
+      "response": {
+        "type": "DescribeTechTreeResponse"
+      }
+    },
+    {
+      "id": "graph-path",
+      "path": "/vrooli.tech_tree_designer.v1.graph.GraphService/FindPath",
+      "method": "POST",
+      "summary": "Find a graph path",
+      "description": "Returns the shortest directed path between two scenarios when an interface-dependency path exists.",
+      "category": "graph",
+      "request": {
+        "type": "FindPathRequest"
+      },
+      "response": {
+        "type": "DescribeTechTreeResponse"
+      }
+    },
+    {
+      "id": "graph-ancestors",
+      "path": "/vrooli.tech_tree_designer.v1.graph.GraphService/ListAncestors",
+      "method": "POST",
+      "summary": "List graph ancestors",
+      "description": "Returns the dependency ancestors reachable from a scenario through proto-import edges.",
+      "category": "graph",
+      "request": {
+        "type": "ListAncestorsRequest"
+      },
+      "response": {
+        "type": "DescribeTechTreeResponse"
+      }
+    },
+    {
+      "id": "graph-export",
+      "path": "/vrooli.tech_tree_designer.v1.graph.GraphService/ExportTechTree",
+      "method": "POST",
+      "summary": "Export the graph",
+      "description": "Exports the scenario interface graph as DOT, JSON, or plain text.",
+      "category": "graph",
+      "request": {
+        "type": "ExportTechTreeRequest"
+      },
+      "response": {
+        "type": "ExportTechTreeResponse"
+      }
+    },
+    {
+      "id": "ontology-capabilities-list",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/ListCapabilities",
+      "method": "POST",
+      "summary": "List capability ontology nodes",
+      "description": "Lists top-down capability nodes, optionally filtered by parent, descendants, and kind.",
+      "category": "ontology",
+      "request": {
+        "type": "ListCapabilitiesRequest"
+      },
+      "response": {
+        "type": "ListCapabilitiesResponse"
+      }
+    },
+    {
+      "id": "ontology-capability-get",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/GetCapability",
+      "method": "POST",
+      "summary": "Get a capability",
+      "description": "Returns one capability by id or slug.",
+      "category": "ontology",
+      "request": {
+        "type": "GetCapabilityRequest"
+      },
+      "response": {
+        "type": "Capability"
+      }
+    },
+    {
+      "id": "ontology-capability-upsert",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/UpsertCapability",
+      "method": "POST",
+      "summary": "Create or update a capability",
+      "description": "Upserts a capability node in the top-down ontology tree.",
+      "category": "ontology",
+      "request": {
+        "type": "UpsertCapabilityRequest"
+      },
+      "response": {
+        "type": "Capability"
+      }
+    },
+    {
+      "id": "ontology-capability-delete",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/DeleteCapability",
+      "method": "POST",
+      "summary": "Delete a capability",
+      "description": "Deletes one capability node by id or slug.",
+      "category": "ontology",
+      "request": {
+        "type": "DeleteCapabilityRequest"
+      },
+      "response": {
+        "type": "DeleteCapabilityResponse"
+      }
+    },
+    {
+      "id": "ontology-edge-upsert",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/UpsertCapabilityEdge",
+      "method": "POST",
+      "summary": "Create a capability edge",
+      "description": "Creates a decomposition, progression, or requirement edge between capabilities.",
+      "category": "ontology",
+      "request": {
+        "type": "UpsertCapabilityEdgeRequest"
+      },
+      "response": {
+        "type": "CapabilityEdge"
+      }
+    },
+    {
+      "id": "ontology-edge-delete",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/DeleteCapabilityEdge",
+      "method": "POST",
+      "summary": "Delete a capability edge",
+      "description": "Deletes one capability edge.",
+      "category": "ontology",
+      "request": {
+        "type": "DeleteCapabilityEdgeRequest"
+      },
+      "response": {
+        "type": "DeleteCapabilityEdgeResponse"
+      }
+    },
+    {
+      "id": "ontology-import-topology",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/ImportTopology",
+      "method": "POST",
+      "summary": "Import ontology topology JSON",
+      "description": "Idempotently imports the macro topology seed shape into capability nodes and progression edges.",
+      "category": "ontology",
+      "request": {
+        "type": "ImportTopologyRequest"
+      },
+      "response": {
+        "type": "ImportTopologyResponse"
+      }
+    },
+    {
+      "id": "ontology-fulfillment-link",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/LinkFulfillment",
+      "method": "POST",
+      "summary": "Link a scenario fulfillment",
+      "description": "Links a capability to a live or planned scenario slug.",
+      "category": "ontology",
+      "request": {
+        "type": "LinkFulfillmentRequest"
+      },
+      "response": {
+        "type": "Fulfillment"
+      }
+    },
+    {
+      "id": "ontology-fulfillment-unlink",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/UnlinkFulfillment",
+      "method": "POST",
+      "summary": "Unlink a scenario fulfillment",
+      "description": "Removes a capability-to-scenario fulfillment link.",
+      "category": "ontology",
+      "request": {
+        "type": "UnlinkFulfillmentRequest"
+      },
+      "response": {
+        "type": "UnlinkFulfillmentResponse"
+      }
+    },
+    {
+      "id": "ontology-fulfillments-list",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/ListFulfillments",
+      "method": "POST",
+      "summary": "List fulfillment links",
+      "description": "Lists capability-to-scenario fulfillment links.",
+      "category": "ontology",
+      "request": {
+        "type": "ListFulfillmentsRequest"
+      },
+      "response": {
+        "type": "ListFulfillmentsResponse"
+      }
+    },
+    {
+      "id": "ontology-coverage",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/GetCoverage",
+      "method": "POST",
+      "summary": "Get coverage analytics",
+      "description": "Computes built, in-flight, gap, and unmapped coverage across ontology and implementation layers.",
+      "category": "ontology",
+      "request": {
+        "type": "GetCoverageRequest"
+      },
+      "response": {
+        "type": "CoverageSummary"
+      }
+    },
+    {
+      "id": "ontology-focus",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/ListFocus",
+      "method": "POST",
+      "summary": "List focus candidates",
+      "description": "Ranks ontology gaps and unmapped scenarios for portfolio prioritization.",
+      "category": "ontology",
+      "request": {
+        "type": "ListFocusRequest"
+      },
+      "response": {
+        "type": "ListFocusResponse"
+      }
+    },
+    {
+      "id": "ontology-capability-scenarios",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/GetCapabilityScenarios",
+      "method": "POST",
+      "summary": "List scenarios for a capability",
+      "description": "Returns live and planned scenarios fulfilling a capability, optionally through descendants.",
+      "category": "ontology",
+      "request": {
+        "type": "GetCapabilityScenariosRequest"
+      },
+      "response": {
+        "type": "CapabilityScenarios"
+      }
+    },
+    {
+      "id": "ontology-scenario-capabilities",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/GetScenarioCapabilities",
+      "method": "POST",
+      "summary": "List capabilities for a scenario",
+      "description": "Returns ontology capabilities directly fulfilled by one scenario slug.",
+      "category": "ontology",
+      "request": {
+        "type": "GetScenarioCapabilitiesRequest"
+      },
+      "response": {
+        "type": "ScenarioCapabilities"
+      }
+    },
+    {
+      "id": "ontology-overlay-graph",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/DescribeOverlayGraph",
+      "method": "POST",
+      "summary": "Describe the overlay graph",
+      "description": "Projects capability nodes, ontology edges, fulfillment edges, and implementation graph nodes into one graph response.",
+      "category": "ontology",
+      "request": {
+        "type": "DescribeOverlayGraphRequest"
+      },
+      "response": {
+        "type": "DescribeOverlayGraphResponse"
+      }
+    },
+    {
+      "id": "planning-create",
+      "path": "/vrooli.tech_tree_designer.v1.planning.PlanningService/CreatePlannedScenario",
+      "method": "POST",
+      "summary": "Create a planned scenario",
+      "description": "Creates or updates a planned scenario metadata record for contract-first design.",
+      "category": "planning",
+      "request": {
+        "type": "CreatePlannedScenarioRequest"
+      },
+      "response": {
+        "type": "PlannedScenario"
+      }
+    },
+    {
+      "id": "planning-list",
+      "path": "/vrooli.tech_tree_designer.v1.planning.PlanningService/ListPlannedScenarios",
+      "method": "POST",
+      "summary": "List planned scenarios",
+      "description": "Lists planned scenario records and their proto file trees.",
+      "category": "planning",
+      "request": {
+        "type": "ListPlannedScenariosRequest"
+      },
+      "response": {
+        "type": "ListPlannedScenariosResponse"
+      }
+    },
+    {
+      "id": "planning-get",
+      "path": "/vrooli.tech_tree_designer.v1.planning.PlanningService/GetPlannedScenario",
+      "method": "POST",
+      "summary": "Get a planned scenario",
+      "description": "Returns planned scenario metadata and stored proto files.",
+      "category": "planning",
+      "request": {
+        "type": "GetPlannedScenarioRequest"
+      },
+      "response": {
+        "type": "PlannedScenario"
+      }
+    },
+    {
+      "id": "planning-file-put",
+      "path": "/vrooli.tech_tree_designer.v1.planning.PlanningService/PutPlannedProtoFile",
+      "method": "POST",
+      "summary": "Add or edit a planned proto file",
+      "description": "Stores or replaces real .proto text for a planned scenario file path.",
+      "category": "planning",
+      "request": {
+        "type": "PutPlannedProtoFileRequest"
+      },
+      "response": {
+        "type": "PlannedProtoFile"
+      }
+    },
+    {
+      "id": "planning-file-delete",
+      "path": "/vrooli.tech_tree_designer.v1.planning.PlanningService/DeletePlannedProtoFile",
+      "method": "POST",
+      "summary": "Remove a planned proto file",
+      "description": "Deletes one stored proto file from a planned scenario.",
+      "category": "planning",
+      "request": {
+        "type": "DeletePlannedProtoFileRequest"
+      },
+      "response": {
+        "type": "DeletePlannedProtoFileResponse"
+      }
+    },
+    {
+      "id": "planning-validate",
+      "path": "/vrooli.tech_tree_designer.v1.planning.PlanningService/ValidatePlannedScenario",
+      "method": "POST",
+      "summary": "Validate planned proto files",
+      "description": "Compiles planned proto text with live schemas and returns structure, naming, import, and stability findings.",
+      "category": "planning",
+      "request": {
+        "type": "ValidatePlannedScenarioRequest"
+      },
+      "response": {
+        "type": "ValidatePlannedScenarioResponse"
+      }
+    },
+    {
+      "id": "planning-materialize",
+      "path": "/vrooli.tech_tree_designer.v1.planning.PlanningService/MaterializePlannedScenario",
+      "method": "POST",
+      "summary": "Materialize planned proto files",
+      "description": "Writes validated planned proto text into packages/proto/schemas/<slug>/ and regenerates proto artifacts.",
+      "category": "planning",
+      "request": {
+        "type": "MaterializePlannedScenarioRequest"
+      },
+      "response": {
+        "type": "MaterializePlannedScenarioResponse"
+      }
+    }
+  ]
+}

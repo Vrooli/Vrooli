@@ -1,0 +1,15 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-offer-graph/module.json",
+    "02-gates/module.json",
+    "03-migration/module.json",
+    "04-integration/module.json",
+    "05-console/module.json"
+    ,"06-release-ladder/module.json"
+  ]
+}

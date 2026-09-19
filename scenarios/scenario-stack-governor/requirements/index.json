@@ -7,8 +7,7 @@
   "imports": [
     "01-rule-enablement-config/module.json",
     "02-rule-catalog-ux/module.json",
-    "03-run-rules-results/module.json",
-    "04-go-workspace-independence/module.json"
+    "03-run-rules-results/module.json"
   ],
   "requirements": []
 }
