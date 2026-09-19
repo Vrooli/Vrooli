@@ -1,6 +1,48 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "database": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "music-tools.db",
+        "rationale": "Durable styles, jobs, measures, and pool inventory state.",
+        "budget": {"max_bytes": "5GiB", "rationale": "Alarm-only durable state; cleanup never deletes the database."}
+      },
+      "job_outputs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "subpath": "blobs/out",
+        "rationale": "Generated audio is derived from durable job inputs and may be reclaimed by the owner cleanup provider.",
+        "budget": {"max_age": "7d", "max_bytes": "32GiB", "rationale": "Bound generated audio while protecting reserved takes."},
+        "reclaim": {"pruner": "custom"}
+      },
+      "runtime": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "subpath": "runtime",
+        "rationale": "Rebuildable local runtime material.",
+        "budget": {"max_bytes": "1GiB", "rationale": "Alarm-only runtime ceiling."}
+      }
+    },
+    "cleanup_providers": [
+      {
+        "id": "music-tools-job-blobs",
+        "name": "Music-tools terminal job-output blobs",
+        "safety_tier": "safe_with_owner",
+        "default_mode": "disabled",
+        "default_approval": "operator",
+        "storage_entries": ["job_outputs"]
+      }
+    ]
+  },
   "service": {
     "parent": "vrooli",
     "name": "music-tools",
@@ -94,7 +136,13 @@
     }
   },
   "dependencies": {
-    "resources": {}
+    "resources": {
+      "ace-step": {
+        "description": "Governed ACE-Step 1.5 local music generation runtime",
+        "enabled": true,
+        "required": true
+      }
+    }
   },
   "credentials": {},
   "environment": {},

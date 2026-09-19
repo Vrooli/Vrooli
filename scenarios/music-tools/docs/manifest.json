@@ -166,11 +166,11 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "\ud83c\udfaf Overview",
-              "\ud83c\udfaf Operational Targets",
-              "\ud83e\uddf1 Tech Direction Snapshot",
-              "\ud83e\udd1d Dependencies & Launch Plan",
-              "\ud83c\udfa8 UX & Branding"
+              "🎯 Overview",
+              "🎯 Operational Targets",
+              "🧱 Tech Direction Snapshot",
+              "🤝 Dependencies & Launch Plan",
+              "🎨 UX & Branding"
             ],
             "forbiddenPlaceholders": [
               "[Summarize the permanent capability this scenario adds]",
@@ -245,10 +245,10 @@
           "validation": {
             "requiredHeadings": [
               "Prerequisites",
-              "1 \u2014 Setup",
-              "2 \u2014 Start",
-              "3 \u2014 Open",
-              "5 \u2014 Run the tests"
+              "1 — Setup",
+              "2 — Start",
+              "3 — Open",
+              "5 — Run the tests"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -1005,7 +1005,7 @@
             "requiredHeadings": [
               "Global flags (provided by cli-core)",
               "Built-in commands (auto-provided by `cli-core`)",
-              "Scenario commands \u2014 `notes` (CRUD reference)",
+              "Scenario commands — `notes` (CRUD reference)",
               "Output contracts",
               "Adding a new command",
               "Cross-references"
@@ -1105,7 +1105,7 @@
           "requiredBy": [
             "implemented"
           ],
-          "completion": "recommended",
+          "completion": "optional",
           "validation": {
             "requiredHeadings": [
               "Purpose Of This Document",
@@ -1116,6 +1116,80 @@
               "Supporting tools",
               "Residency",
               "Rejected",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "reference/resource-ace-step.md",
+          "docType": "ace-step-resource-reference",
+          "title": "ACE-Step Resource Spec",
+          "description": "Specification for the ace-step composition runtime: components, measured performance, profile rungs, capacity claim, generation contract, and install traps",
+          "audience": [
+            "developers",
+            "operators",
+            "agents"
+          ],
+          "canonicalFor": [
+            "ace-step-resource",
+            "composition-runtime",
+            "generation-contract"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional",
+          "validation": {
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Provenance Of The Figures Here",
+              "What The Resource Wraps",
+              "Component Inventory",
+              "Measured Performance",
+              "Profile Rungs",
+              "Capacity Declaration",
+              "Generation Contract",
+              "Acquisition And Install Traps",
+              "Exposed Operations",
+              "Open Unknowns",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "reference/resource-music-mir.md",
+          "docType": "music-mir-resource-reference",
+          "title": "Music-MIR Resource Spec",
+          "description": "Specification for the music-mir analysis runtime, recorded at its actual confidence: nothing measured",
+          "audience": [
+            "developers",
+            "operators",
+            "agents"
+          ],
+          "canonicalFor": [
+            "music-mir-resource",
+            "analysis-runtime"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional",
+          "validation": {
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Status",
+              "Why It Is A Separate Runtime",
+              "Responsibilities",
+              "Licence Exposure",
+              "What Must Be Measured Before It Is Built",
               "Cross-References"
             ],
             "forbiddenPlaceholders": [
@@ -1143,7 +1217,7 @@
             "boundaries",
             "boundary-registry"
           ],
-          "description": "Boundary registry \u2014 every interface and its production / test fake",
+          "description": "Boundary registry — every interface and its production / test fake",
           "audience": [
             "developers",
             "agents"
@@ -1449,7 +1523,7 @@
             "changelog",
             "handoff-log"
           ],
-          "description": "Lifecycle log \u2014 append a row whenever work lands",
+          "description": "Lifecycle log — append a row whenever work lands",
           "audience": [
             "developers",
             "agents"

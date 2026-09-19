@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package vrooli.personal_planner.v1.integrations;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/integrations;integrations_v1";
+
+// Integrations exposes read-only calendar connection state. Provider secrets
+// and OAuth callbacks intentionally do not cross this contract.
+service IntegrationsService {
+  rpc ListConnections(ListConnectionsRequest) returns (ListConnectionsResponse);
+  rpc CreateFixtureConnection(CreateFixtureConnectionRequest) returns (CreateFixtureConnectionResponse);
+  rpc SyncConnection(SyncConnectionRequest) returns (SyncConnectionResponse);
+  rpc DisconnectConnection(DisconnectConnectionRequest) returns (DisconnectConnectionResponse);
+}
+
+message ProviderConnection {
+  string id = 1;
+  string provider = 2;
+  string display_name = 3;
+  string source_kind = 4;
+  string status = 5;
+  string health_message = 6;
+  bool read_only = 7;
+  int32 calendar_count = 8;
+  int32 imported_event_count = 9;
+  int64 busy_minutes = 10;
+  int64 revision = 11;
+  google.protobuf.Timestamp last_sync_at = 12;
+}
+
+message ListConnectionsRequest {}
+message ListConnectionsResponse { repeated ProviderConnection connections = 1; }
+
+message CreateFixtureConnectionRequest { string display_name = 1; }
+message CreateFixtureConnectionResponse { ProviderConnection connection = 1; }
+
+message SyncConnectionRequest { string id = 1; int64 expected_revision = 2; }
+message SyncConnectionResponse {
+  ProviderConnection connection = 1;
+  int32 imported_event_count = 2;
+  int64 busy_minutes = 3;
+}
+
+message DisconnectConnectionRequest { string id = 1; int64 expected_revision = 2; }
+message DisconnectConnectionResponse { ProviderConnection connection = 1; }

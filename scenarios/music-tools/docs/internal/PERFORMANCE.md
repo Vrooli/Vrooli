@@ -12,10 +12,12 @@ Use this document to answer:
 
 ## Honesty statement
 
-**No figure in this document has been measured on target hardware.** Nothing in
-this scenario executes a model yet. Every number is `vendor` (stated by a model
-publisher) or `estimated` (arithmetic from verified figures). They are written down
-so they can be *replaced*, not relied upon.
+Composition now has both spike and managed-service measurements on the reference
+host. Analysis, separation, and queue wait remain unmeasured. SFT has now been
+measured through ten successful checksum-verified managed-service jobs; the
+numeric audio results remain proxies and do not constitute a listening-quality
+verdict. Every number
+without a receipt below is still `vendor` or `estimated`.
 
 Treat every budget below as a hypothesis with a falsification procedure.
 
@@ -40,12 +42,57 @@ operation that reports its wait honestly is behaving correctly even when slow.
 
 ## Current Measurements
 
+Composition — and only composition — has been measured, now including the SFT
+variant. Everything else in the budget table above is still `vendor` or
+`estimated`, and the distinction is the point: do not read this section as
+though the scenario has been profiled.
+
+Measured 2026-09-18 on the reference host (RTX 4070 Ti SUPER, 15.56 GiB usable,
+**five model services already resident**), ACE-Step 1.5 turbo, 8 steps, 45 s of
+48 kHz stereo output. Full figures and corrections in
+[`../reference/model-registry.md`](../reference/model-registry.md).
+
 | Measurement | Value | Confidence |
 |---|---|---|
-| — | none taken | — |
+| Composition, 45 s clip, DiT resident | 17.9 s | `measured` (spike) |
+| Composition, 45 s clip, `offload_dit_to_cpu` | 55.2 s | `measured` (spike) |
+| Managed offload smoke, 1 s request / 1 step | ~46 s wall clock | `measured` (2026-09-19) |
+| Managed offload smoke output | 5.120 s, 983084-byte WAV | `measured` (2026-09-19) |
+| Degradation cost of the CPU-offload rung | **3.1×** | `measured` |
+| Cold model load | ~30 s | `measured` |
+| Peak process VRAM | ~7.0 GiB | `measured` |
+| SFT, 5.12 s output, 50 steps / CFG 7, offload rung | 16.613–570.561 s; median 22.101 s | `measured` (10 jobs; one capacity outlier) |
+| SFT offload control-plane footprint | 6.0 GiB; one footprint sample | `measured` reservation/footprint, not instantaneous per-job peak |
 
-This table stays empty until the profiling procedure below has run. Populating it
-with vendor figures would be dishonest.
+### The first concrete degradation rung
+
+`OT-P0-003` requires operations to declare ordered profile rungs and to degrade
+under contention rather than fail. That requirement now has one real instance
+with a real price: **CPU-offloaded DiT costs 3.1× wall-clock and buys the
+ability to run in roughly 4 GiB instead of ~7 GiB.**
+
+### SFT measurement
+
+The SFT comparison used the ten preserved spike briefs and requested seeds,
+`duration=5`, 50 inference steps, CFG 7, and the same caller-controlled caption
+path. All ten jobs produced 5.120-second, 48 kHz stereo WAVs. The proxy table is
+at `~/.vrooli/plan-artifacts/music-tools-implement-and-validate-the-ace-step-resource/sft-run-20260919/proxy-metrics.json`;
+it records tempo, 30–120 Hz sub-bass share, 6–14 kHz hi-hat energy, onset
+density, and RMS. These are evidence about reproducible signal features, not a
+quality verdict. The measured run did not establish a material SFT advantage,
+so turbo remains the default; SFT is the higher-cost measured alternative.
+
+This is the first rung to declare, and it is worth declaring precisely because
+the price is high enough that a caller should be told it was applied. A rung
+that silently triples a job's duration is indistinguishable from a hang.
+
+### What the measurement does not establish
+
+The spike ran outside the scenario, outside the capacity broker, and outside
+any job queue. The managed smoke now establishes that the acquired resource,
+offline model closure, capacity rung, and HTTP boundary work together. It still
+establishes nothing about queue wait, lease scheduling, concurrent operations,
+or the analysis and separation tiers.
 
 ## Known Constraints
 

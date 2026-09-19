@@ -1,5 +1,11 @@
 # API Endpoints — Music Tools
 
+> **Status (2026-09-19): composition metadata and REST edges are shipped.**
+> The generated contracts cover composition, jobs, models, styles, and capacity;
+> the current API runtime exposes health, styles, composition jobs, takes, pool
+> transitions, and audio retrieval. Connect handlers for the infrastructure
+> services are staged for the infrastructure-domain port.
+
 Human-readable reference for the API. The machine-readable
 source of truth is [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json) —
 doc generators, Postman collection builders, and SDK stubs read it
@@ -65,108 +71,39 @@ The scaffold ships one fully worked CRUD vertical slice as a copyable
 reference (see the fenced example below); `template-manager detemplate
 <scenario>` removes it once your real domains are green.
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
+### Composition endpoint surface
 
-The `notes` domain is the canonical worked example. Copy its layering
-when adding the first non-trivial mutation in your scenario, then
-remove it.
+The following surface is the current composition contract. Job, model, styles,
+and capacity messages are also present in generated proto form; their runtime
+handlers land with the corresponding infrastructure domains.
 
-#### `POST /vrooli.music_tools.v1.notes.NotesService/ListNotes`
+The split follows `image-tools`, which proved it: **discovery and metadata are
+Connect-RPC; any edge carrying audio bytes is a REST multipart endpoint whose
+*parameters* stay proto-typed.** Audio cannot ride a proto field, but the
+request parameters and the submit result can and must.
 
-List notes through the generated Connect-RPC service, newest-first.
-
-| | |
-|---|---|
-| **Auth** | None (template default; scenarios add auth as needed) |
-| **Response** | `ListNotesResponse { notes: Note[] }` (capped at 100 by `notes.Service`) |
-| **Errors** | `500 internal` — repository read failure |
-| **CLI** | `music-tools notes list` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.music_tools.v1.notes.NotesService/ListNotes" \
-  -H 'Content-Type: application/json' \
-  -d '{}'
-```
-
-UI and CLI code should normally use the generated client instead of
-calling this path by hand.
-
-#### `POST /vrooli.music_tools.v1.notes.NotesService/CreateNote`
-
-Create a note through the generated Connect-RPC service.
-
-| | |
-|---|---|
-| **Auth** | None (template default) |
-| **Request** | `CreateNoteRequest { title: string (required), body: string (optional) }` |
-| **Response** | `CreateNoteResponse { note: Note }` |
-| **Errors** | `invalid_argument` — missing/whitespace-only title<br>`internal` — repository write failure |
-| **CLI** | `music-tools notes create --title <title> [--body <body>]` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.music_tools.v1.notes.NotesService/CreateNote" \
-  -H 'Content-Type: application/json' \
-  -d '{"title":"first","body":"hello"}'
-```
-
-Title validation (non-empty after whitespace trim) lives in
-`internal/notes/service.go`, **not** the handler. The Connect handler
-only translates `notes.ErrInvalidNote` into `invalid_argument`.
-
-#### `POST /vrooli.music_tools.v1.notes.NotesService/GetNote`
-
-Fetch a note by id through the generated Connect-RPC service.
-
-| | |
-|---|---|
-| **Auth** | None (template default) |
-| **Request** | `GetNoteRequest { id: string }` |
-| **Response** | `GetNoteResponse { note: Note }` |
-| **Errors** | `not_found` — no note with that id<br>`internal` — repository read failure |
-| **CLI** | `music-tools notes get <id>` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.music_tools.v1.notes.NotesService/GetNote" \
-  -H 'Content-Type: application/json' \
-  -d '{"id":"abc123"}'
-```
-
-`notes.ErrNoteNotFound` returned by the service is translated into the
-typed `not_found` Connect error at the handler edge.
-
-#### `POST /api/v1/notes/{id}/attachments`
-
-Upload opaque file bytes through the documented REST multipart exception.
-The response is still proto-typed metadata.
-
-| | |
-|---|---|
-| **Auth** | None (template default) |
-| **Path params** | `id` — note identifier |
-| **Request** | `multipart/form-data` with `file` part |
-| **Response** | `UploadAttachmentResponse { attachment: Attachment }` |
-| **Errors** | `400 invalid_request` — malformed multipart or missing file<br>`404 not_found` — no note with that id<br>`500 internal` — blob or metadata persistence failure |
-| **CLI** | `music-tools notes attach <id> --file <path>` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/api/v1/notes/abc123/attachments" \
-  -F file=@./example.png
-```
-
-#### `Note` shape
-
-| Field | Type | Notes |
+| Edge | Transport | Why |
 |---|---|---|
-| `id` | string (UUID) | Server-generated |
-| `title` | string | Required, non-empty after trim |
-| `body` | string | Optional |
-| `created_at` | `google.protobuf.Timestamp` | Server-set on create |
-| `updated_at` | `google.protobuf.Timestamp` | Server-set on create / future update |
-| `attachment_keys` | `string[]` | Keys of uploaded note attachments |
+| `CompositionService.ListCompositionOperations` | Connect-RPC | Catalogue discovery; CLI and UI build their surfaces from it |
+| `POST /api/v1/compose` | REST multipart | Optional reference audio + `params` part carrying proto as protojson. Returns a proto-typed submit response: job id, ETA, resolved model and rung |
+| `POST /api/v1/analyze` | REST multipart | Input track is bytes |
+| `JobsService.{GetJob,WaitJob,ListJobs,CancelJob,WatchJob}` | Connect-RPC | `WatchJob` server-streams progress. `WaitJob` is the single blocking call — callers never poll |
+| `ModelsService.*`, `StylesService.*`, `TakesService.*` | Connect-RPC | Metadata only |
 
-Defined in `packages/proto/schemas/music-tools/v1/notes/notes.proto`.
-<!-- EXAMPLE-DOMAIN:notes END -->
+Three contract points that follow from recorded decisions rather than taste:
+
+- **A composition job produces N artifacts.** The result references a set of
+  takes, each with its own provenance — model, licence lane, applied capacity
+  rung, seed, and the caption *as the model received it*. A response shape that
+  assumes one output per job will have to be broken later.
+- **The applied degradation rung travels with the result** (`OT-P0-003`). It is
+  not a log line; a caller must be able to see that a take was produced on a
+  degraded rung. The first measured rung is CPU-offloaded DiT at 3.1× the
+  resident cost — see [`../internal/PERFORMANCE.md`](../internal/PERFORMANCE.md).
+- **Any caption rewriting is reported.** If a planner rewrote the caller's
+  brief, the rewritten text is in the report, not swallowed. See the
+  2026-09-18 caption-ownership decision in
+  [`../internal/DECISIONS.md`](../internal/DECISIONS.md).
 
 ---
 

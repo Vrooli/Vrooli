@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "key": "05f18b2d19a40ec4b3c01f7ba983ea6de5441de19945e9b5c189806b353be4f4",
+  "key": "e7878bedcb7e7ab1bb70958c81bda810e366f4887c1c75dcec169b823f98de64",
   "inputs": [
     "go.mod",
     "go.sum",
@@ -234,5 +234,5 @@
     "scenarios/prompt-manager/api/internal/validation",
     "scenarios/prompt-manager/api/internal/world"
   ],
-  "toolchain": "go version go1.25.0 linux/amd64"
+  "toolchain": "go version go1.25.12 linux/amd64"
 }

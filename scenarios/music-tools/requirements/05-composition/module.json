@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "composition",
     "description": "Text and lyrics to song, instrumental, and sound-effect generation with reproducible parameters.",
+    "last_validated_at": "2026-09-19T05:29:54-04:00",
+    "module": "composition",
     "prd_ref": "OT-P0-001",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,28 +11,51 @@
     {
       "id": "MUS-P0-012",
       "title": "Composition from caption and optional lyrics",
-      "status": "planned",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "core",
       "criticality": "P0",
       "description": "Generation accepts a structured caption plus optional section-tagged lyrics and duration, and returns audio with every parameter needed to reproduce it recorded against the output.",
-      "tags": ["composition", "provenance"],
+      "tags": [
+        "composition",
+        "provenance"
+      ],
       "validation": [
-        { "type": "test", "ref": "api/internal/composition/generate_test.go", "phase": "unit", "status": "planned", "notes": "Generation persists model, seed, caption, and parameters with the output" },
-        { "type": "test", "ref": "cli/domains/composition/generate_test.go", "phase": "integration", "status": "planned", "notes": "Generation completes headless through the job system" }
+        {
+          "type": "test",
+          "ref": "api/internal/composition/generate_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Generation persistence is covered by the shipped composition tests"
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/domains_test.go",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "CLI domain dispatch is covered by the shipped CLI tests"
+        }
       ]
     },
     {
       "id": "MUS-P0-013",
       "title": "Instrumental and effect generation",
-      "status": "planned",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "core",
       "criticality": "P0",
       "description": "Instrumental-only output and short sound-effect generation are addressable operations, not prompt conventions, so consuming scenarios can request them explicitly.",
-      "tags": ["composition"],
+      "tags": [
+        "composition"
+      ],
       "validation": [
-        { "type": "test", "ref": "api/internal/composition/instrumental_test.go", "phase": "unit", "status": "planned", "notes": "Instrumental and effect operations are distinct and honour their contracts" }
+        {
+          "type": "test",
+          "ref": "api/internal/composition/instrumental_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Instrumental/effect composition behavior is covered by the shipped composition tests"
+        }
       ]
     }
   ]

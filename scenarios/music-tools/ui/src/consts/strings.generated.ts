@@ -55,7 +55,7 @@ export const strings = {
     bottomNavLabel: "layout.bottomNavLabel",
     nav: {
       dashboard: "layout.nav.dashboard",
-      notes: "layout.nav.notes",
+      composition: "layout.nav.composition",
       settings: "layout.nav.settings",
     },
     sidebarLabel: "layout.sidebarLabel",
@@ -72,31 +72,6 @@ export const strings = {
       "skip-to-content": "navigation.app-shell.skip-to-content",
     },
   },
-  notes: {
-    attachmentFileLabel: "notes.attachmentFileLabel",
-    attachmentsLabel: "notes.attachmentsLabel",
-    attachmentsLabel_one: "notes.attachmentsLabel_one",
-    create: "notes.create",
-    createdAtLabel: "notes.createdAtLabel",
-    empty: "notes.empty",
-    loading: "notes.loading",
-    measure: {
-      loading: "notes.measure.loading",
-      thisWeek: "notes.measure.thisWeek",
-      title: "notes.measure.title",
-    },
-    noFileSelected: "notes.noFileSelected",
-    table: {
-      actions: "notes.table.actions",
-      attachments: "notes.table.attachments",
-      created: "notes.table.created",
-      search: "notes.table.search",
-      title: "notes.table.title",
-    },
-    title: "notes.title",
-    uploadAttachment: "notes.uploadAttachment",
-    uploadSuccess: "notes.uploadSuccess",
-  },
   notifications: {
     summary: "notifications.summary",
     summary_one: "notifications.summary_one",
@@ -107,9 +82,6 @@ export const strings = {
       description: "pages.dashboard.description",
       statPlaceholderLabel: "pages.dashboard.statPlaceholderLabel",
       title: "pages.dashboard.title",
-    },
-    notes: {
-      title: "pages.notes.title",
     },
     settings: {
       localeHeading: "pages.settings.localeHeading",

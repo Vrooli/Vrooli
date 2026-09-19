@@ -26,20 +26,20 @@ the CLI; the UI is an enhancer, never a gate.**
 
 ## Domain Inventory
 
-| Domain | Purpose | Archetype | Owns data | Surfaces | Requirements |
-|---|---|---|---|---|---|
-| health | Runtime readiness and dependency reachability. | Reporting | No | API, UI | Starter scaffold |
-| ops | Deterministic, zero-download, zero-GPU audio editing: trim, fade, concat, convert, silence trim, loudness measurement. | Transform | No | API, CLI, UI | MUS-P0-002 |
-| composition | Caption and lyrics to song; instrumental; sound effects. | AI operation | No | API, CLI, UI | MUS-P0-012, MUS-P0-013 |
-| transformation | Editing existing audio: stem separation, cover, section repaint, vocal-to-accompaniment, reference mastering. | AI operation | No | API, CLI, UI | MUS-P1-003, MUS-P1-004 |
-| analysis | Audio to data: dual embeddings, structure and beats, tempo and key, loudness, tags, audio-to-MIDI, lyric transcription. | Extract | No | API, CLI, UI | MUS-P0-009 … MUS-P1-002 |
-| models | Declarative registry, hardware-aware selection, checksum-verified install, licence lane. | Registry | Registry and install state | API, CLI, UI | MUS-P0-003 … MUS-P0-005, MUS-P1-005 |
-| capacity | Capacity-broker claims, degradation rungs, exclusive GPU leases. | Policy | Claim state | API (seam), CLI | MUS-P0-006 … MUS-P0-008 |
-| backends | Per-operation provider abstraction and fallback ladder across the three runtimes. | Abstraction | No | API (seam) | MUS-P0-001 |
-| jobs | Durable server-owned async jobs with progress. | Lifecycle | Job records | API, CLI, UI | MUS-P0-014 |
-| storage | BlobStore integration, derived-artifact budget, LRU eviction. | Infrastructure | Blob refs, budget state | API (seam), CLI | MUS-P0-015, MUS-P0-016 |
-| styles | Data-defined styles compiling to caption plus parameters. | CRUD + compile | Style definitions | API, CLI, UI | OT-P1-004 |
-| measures | Operation latency, queue wait, degradation frequency, fallback usage. | Telemetry | Measure samples | API, CLI | OT-P0-005 |
+| Domain | Purpose | Archetype | Owns data | Surfaces | Requirements | Source Paths |
+|---|---|---|---|---|---|---|
+| health | Runtime readiness and dependency reachability. | Reporting | No | API, UI | Starter scaffold | `api/handlers/health/` |
+| ops | Deterministic, zero-download, zero-GPU audio editing: trim, fade, concat, convert, silence trim, standards-conformant loudness measurement, and platform-target normalisation. | Transform | No | API, CLI, UI | MUS-P0-002, MUS-P1-009, MUS-P1-010 | `api/internal/ops/` *(planned)* |
+| composition | Caption and lyrics to song; instrumental; sound effects. Produces a **set of takes** per request, not one track, and owns the pool those takes sit in. | AI operation | Takes, their reservation lifecycle, inventory depth | API, CLI, UI | MUS-P0-012, MUS-P0-013, OT-P1-005 | `api/internal/composition/` *(planned)* |
+| transformation | Editing existing audio: stem separation, cover, section repaint, vocal-to-accompaniment, reference mastering. | AI operation | No | API, CLI, UI | MUS-P1-003, MUS-P1-004, MUS-P1-011 | `api/internal/transformation/` *(planned)* |
+| analysis | Audio to data: dual embeddings, structure and beats, tempo and key, loudness, tags, audio-to-MIDI, lyric transcription. | Extract | No | API, CLI, UI | MUS-P0-009 … MUS-P1-002 | `api/internal/analysis/` *(planned)* |
+| models | Declarative registry, hardware-aware selection, checksum-verified install, licence lane. | Registry | Registry and install state | API, CLI, UI | MUS-P0-003 … MUS-P0-005, MUS-P1-005 | `api/internal/models/` *(planned)* |
+| capacity | Capacity-broker claims, degradation rungs, exclusive GPU leases. | Policy | Claim state | API (seam), CLI | MUS-P0-006 … MUS-P0-008 | `api/internal/capacity/` *(planned)* |
+| backends | Per-operation provider abstraction and fallback ladder across the three runtimes. | Abstraction | No | API (seam) | MUS-P0-001 | `api/internal/backends/` *(planned)* |
+| jobs | Durable server-owned async jobs with progress. | Lifecycle | Job records | API, CLI, UI | MUS-P0-014 | `api/internal/jobs/` *(planned)* |
+| storage | BlobStore integration, derived-artifact budget, LRU eviction. | Infrastructure | Blob refs, budget state | API (seam), CLI | MUS-P0-015, MUS-P0-016 | `api/internal/storage/` *(planned)* |
+| styles | Data-defined styles compiling to caption plus parameters. The unit a batch and a maintained inventory are configured with. | CRUD + compile | Style definitions | API, CLI, UI | MUS-P0-020 | `api/internal/styles/` *(planned)* |
+| measures | Operation latency, queue wait, degradation frequency, fallback usage. | Telemetry | Measure samples | API, CLI | OT-P0-005 | `api/internal/measures/` *(planned)* |
 
 ## Domain Details
 
@@ -51,7 +51,14 @@ cost and determinism rather than by subject:
 - **`ops`** is exact, CPU-only, and instant — trimming, conversion, loudness
   measurement. It never downloads a model and never claims the GPU, which makes it
   the only family guaranteed available.
-- **`composition`** creates audio that did not exist. Exclusive GPU lease.
+- **`composition`** creates audio that did not exist. Exclusive GPU lease. It owns
+  two things that look separable but are not: the **batch** (N independently seeded
+  takes from one brief) and the **pool** (those takes' reservation lifecycle and
+  the declared depth per style). The pool lives here rather than in a consumer
+  because the intended consumer, `music-library`, is still generated scaffold — so
+  deferring it defers it indefinitely. The line held is that the pool is
+  *mechanism and declared policy*; ranking takes by inferred preference is taste
+  and stays with consumers. See [`DATA.md`](DATA.md#the-reservation-lifecycle).
 - **`transformation`** changes audio that already exists — the iterative family, and
   the reason this is a toolbox rather than a generator. A near-miss is edited, not
   regenerated.

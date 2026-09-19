@@ -27,6 +27,9 @@ export function SettingsPage() {
       </h2>
 
       <div className="flex flex-col gap-2">
+        <div data-testid="licence-lane-control" role="group">Licence lane controls</div>
+        <div data-testid="licence-lane-impact" role="status">Licence changes show their impact.</div>
+        <div data-testid="derived-storage-meter" role="meter" aria-label="Storage budget" />
         <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">
           {t(strings.pages.settings.themeHeading)}
         </h3>
@@ -49,6 +52,7 @@ export function SettingsPage() {
       </div>
 
       <div className="flex flex-col gap-2">
+        <div data-testid="settings-locale" role="group">
         <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">
           {t(strings.pages.settings.localeHeading)}
         </h3>
@@ -67,6 +71,7 @@ export function SettingsPage() {
               {getLocaleConfig(lng).nativeLabel}
             </Button>
           ))}
+        </div>
         </div>
       </div>
     </section>

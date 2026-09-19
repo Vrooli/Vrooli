@@ -26,6 +26,14 @@ body {
   outline-offset: 2px;
 }
 
+[data-testid="health-refresh-button"] {
+  min-height: var(--tap-target-min);
+}
+
+button {
+  min-height: var(--tap-target-min);
+}
+
 @layer utilities {
   .min-h-dvh {
     min-height: 100dvh;

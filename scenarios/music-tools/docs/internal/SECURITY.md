@@ -88,3 +88,34 @@ Known and accepted for now:
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — licence lanes
 - [`../reference/model-registry.md`](../reference/model-registry.md) — per-model licences
 - [`PROBLEMS.md`](PROBLEMS.md) — open issues
+# ACE-Step remote-code review (2026-09-19)
+
+The qualified source pin is `ACE-Step/ACE-Step-1.5` commit
+`ca1e85fe9430179831e6bc6be790c332190a3866`. The model revision is
+`ACE-Step/Ace-Step1.5@19671f406d603126926c1b7e2adc169acbcade22`; the separate
+planner is `ACE-Step/acestep-5Hz-lm-0.6B@148d8ea0225bdab342ee1ae3a354275ccd60ca80`.
+The source archive SHA-256 is
+`b464c11f00af00e1e089a09f58a03962f803c080f116fd0517dbe5ec839706b3`.
+
+Threat: Transformers `trust_remote_code` executes publisher-authored Python
+from the pinned model tree. I read the two `auto_map` modules at the model
+revision: `configuration_acestep_v15.py` and
+`modeling_acestep_v15_turbo.py`. Their imports are limited to Transformers,
+PyTorch, einops, vector-quantize-pytorch, and standard numerical modules. The
+review found no network client, subprocess call, credential/environment read,
+dynamic `eval`/`exec`, or filesystem write in the model implementation path.
+The source repository contains separate API/download/training utilities that
+do use network, subprocess, and filesystem operations; those entrypoints are
+not launched by this resource.
+
+Mitigation: the source and model files are commit/revision pinned, every
+acquired artifact has a SHA-256 declaration, and the resource invokes the
+headless PyTorch generation path only. The resource must not fetch at first
+request, and outbound-network denial should be included in live qualification.
+Any pin move requires a new remote-code review. A checksum protects against
+post-review tampering but never replaces reading the code at the pin.
+
+Licence evidence: the pinned source is MIT. The pinned model card reports MIT
+and states that its training data includes licensed and royalty-free/no-
+copyright data; that training-data statement remains a vendor assertion and
+is not independently audited.

@@ -12,6 +12,8 @@
     "05-composition/module.json",
     "06-transformation/module.json",
     "07-jobs-storage/module.json",
-    "08-licence-lanes/module.json"
+    "08-licence-lanes/module.json",
+    "09-batch-selection/module.json",
+    "10-delivery-ops/module.json"
   ]
 }

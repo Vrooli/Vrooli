@@ -28,7 +28,9 @@ outcome, statefulness, and validation level.
 |---|---|---|---|---|---|
 | Model install | models | Operator or CLI requests a model | Weights verified and available | Staged and resumable; refuses below the disk floor; checksum failure leaves the model unavailable | Level 3 |
 | GPU-bearing operation | capacity + jobs | Any operation needing the card | Artifact plus the applied profile rung | Claim, admit or queue or degrade, execute, release; release on failure and on crash | Level 5 |
-| Composition job | composition + jobs | Caption and optional lyrics submitted | Audio with provenance | Long-running, progress-reporting, cancellable, survives client disconnect | Level 5 |
+| Composition batch | composition + jobs | A style or brief plus a take count submitted | N peer takes, each with its own provenance, all added to the pool | Long-running, progress-reporting, cancellable, survives client disconnect; partial batches are kept, not discarded | Level 5 |
+| Take reservation | composition | A consumer asks the pool for a track | A reserved take, or an empty-pool answer | Reserve, then consume or release or expire; depth accounting drives replenishment | Level 4 |
+| Inventory replenishment | composition + jobs | Pool depth for a style falls below its threshold | A composition batch enqueued | Triggered by consumption, not by a clock; idempotent under repeated triggers | Level 3 |
 | Track decomposition | analysis | Consumer requests attributes | Structured description | Partial success when a runtime is unavailable; never silently incomplete | Level 4 |
 | Derived-artifact eviction | storage | Budget exceeded | Space reclaimed | LRU over regenerable artifacts only | Level 3 |
 
@@ -59,15 +61,55 @@ shared and no two heavyweight models co-reside.
 - Why Level 5: the release path must hold under crash and cancellation, and a
   leaked lease starves every other tenant on the host.
 
-### Composition job — `composition` + `jobs`
+### Composition batch — `composition` + `jobs`
 
-- Trigger: caption and optional lyrics submitted via API or CLI.
-- Steps: validate and compile the caption, acquire the GPU lease above, generate,
-  write through the BlobStore seam with provenance, release.
-- Statefulness: server-owned; survives client disconnect; progress observable;
-  cancellation releases the lease rather than orphaning it.
+- Trigger: a style id (or a raw brief) plus a take count, via API or CLI.
+- Steps: compile the style to caption plus parameters, acquire the GPU lease
+  above, then for each of N seeds generate one take and write it through the
+  BlobStore seam with its own provenance; release the lease; add every take to the
+  pool as `available`.
+- Statefulness: server-owned; survives client disconnect; progress observable per
+  take, not just per job; cancellation releases the lease rather than orphaning it.
+- **Partial batches are kept.** If take 7 of 10 fails or the job is cancelled, the
+  six completed takes stay in the pool. A batch is a set of independent
+  generations, not a transaction, and discarding good takes because a later one
+  failed would be a bug.
+- Provenance per take: model, licence lane, applied profile rung, seed, and both
+  `caption_as_authored` and `caption_as_sent`.
 - Failure modes: composition runtime stopped (fail explicitly — never silently
-  substitute a cloud provider); budget exhausted (evict, then proceed).
+  substitute a cloud provider); budget exhausted (evict, then proceed); GPU
+  contended (degrade to the `offload-dit` rung and record it, per
+  [`../reference/resource-ace-step.md`](../reference/resource-ace-step.md)).
+
+### Take reservation — `composition`
+
+- Trigger: a consumer asks the pool for a track in a named style.
+- Steps: select an `available` take, mark it `reserved` with the holder and a
+  timestamp, return it. On `consume` it becomes terminal; on `release` it returns
+  to `available` and `times offered` increments; on expiry it returns to
+  `available` silently.
+- Invariant: **no take is offered to two holders at once.** This is the whole
+  reason the state exists — two launch videos produced the same afternoon must not
+  ship the same bed.
+- Selection among available takes is arbitrary and explicitly not ranked. The
+  scenario has no opinion about which take is better.
+- Failure modes: pool empty for the requested style (an ordinary answer, not an
+  error — the caller decides whether to wait on a batch or proceed without music);
+  holder never returns (expiry reclaims the take; not reported as a failure).
+
+### Inventory replenishment — `composition` + `jobs`
+
+- Trigger: depth for a style falls below its declared threshold, evaluated after
+  every reservation and consumption.
+- Steps: compute depth (`available` + `reserved`), compare against the threshold,
+  enqueue one composition batch sized to reach the target depth.
+- Idempotence: a style with a replenish batch already in flight does not enqueue a
+  second. This matters because consumption events arrive in bursts.
+- **No scheduler is involved.** The trigger is a consumption event. Idle-time
+  replenishment would be a second, pluggable trigger and is currently blocked on a
+  platform gap — see [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md).
+- Failure modes: the batch fails (depth stays low; the next consumption retries);
+  GPU contended (the batch queues or degrades like any other).
 
 ### Track decomposition — `analysis`
 
@@ -95,55 +137,6 @@ shared and no two heavyweight models co-reside.
 - Steps: evict least-recently-used regenerable artifacts until the write fits.
 - Invariant: **only regenerable artifacts are evictable.** Nothing here is ever the
   only copy of anything.
-
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The template ships an `Attachment upload` flow on the `notes` domain as a
-worked Level 5 temporal-workflow vertical slice. Copy its shape for your
-own stateful flows, then remove it.
-
-Add this row to the Flow Inventory above:
-
-| Flow | Domain | Trigger | Outcome | Statefulness | Validation |
-|---|---|---|---|---|---|
-| Attachment upload | notes | User/CLI uploads a file for a note. | Blob is stored and metadata is persisted. | Stateful upload request with validation and failure paths. | Level 5 workflow tests: matrix, traces, declarative spec, checked Quint model, generated artifacts, and production replay. |
-
-#### Attachment upload
-
-- Owner domain: notes.
-- Trigger: multipart upload request from UI or CLI.
-- Inputs: note id, file key/name, file bytes, content type, file size.
-- Steps:
-  1. Parse multipart request.
-  2. Validate note id and file metadata.
-  3. Store opaque bytes through BlobStore.
-  4. Persist attachment metadata through notes repository seam.
-  5. Return proto-typed metadata response.
-- Outputs: uploaded attachment metadata or typed error response.
-- Failure modes: missing note id, missing file, invalid metadata, blob
-  write failure, metadata persistence failure.
-- Retry/cancel behavior: caller may retry after transport/storage
-  failure; duplicate handling belongs to the owning real domain when
-  product requirements demand it.
-- Tests: `api/handlers/notes/attachments_handler_test.go`,
-  `api/internal/notes/attachments_service_test.go`,
-  `api/internal/notes/flow/flow_test.go`,
-  `ui/src/features/notes/AttachmentUpload.test.tsx`, and
-  `ui/src/features/notes/flow/flow.test.ts`.
-- Generated subpackages: `api/internal/notes/flow/generated/`
-  (`model.qnt`, `artifact.json`, `runtime.go`, `replay.go`) and
-  `ui/src/features/notes/flow/generated/` (`model.qnt`, `artifact.json`,
-  `runtime.ts`, `replay.helper.ts`).
-- Requirements: template starter only.
-
-These example state machines belong in the State Machines table below:
-
-| Domain/Flow | States | Illegal Transitions | Enforcement |
-|---|---|---|---|
-| notes / attachment upload API | received, bytes_stored, metadata_recorded, failed | metadata before bytes, terminal-state escape, duplicate terminal events | `*.flow.json` contract, generated Quint model, generated formal artifact replay, side-effect cleanup tests |
-| notes / attachment upload UI | idle, selected, uploading, succeeded, failed | start before select, stale completion after reset/reselect, retry without file context | `*.flow.json` contract, generated Quint model, generated formal artifact replay, attempt-id stale completion tests |
-<!-- EXAMPLE-DOMAIN:notes END -->
 
 ## State Machines
 

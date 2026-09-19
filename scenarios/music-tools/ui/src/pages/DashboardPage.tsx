@@ -21,7 +21,9 @@ export function DashboardPage() {
         {t(strings.pages.dashboard.title)}
       </h2>
       <p className="text-app-muted-foreground">{t(strings.pages.dashboard.description)}</p>
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div data-testid="operations-list" className="grid gap-4 lg:grid-cols-3">
+      <div data-testid="gpu-headroom-meter" role="meter" aria-label="GPU headroom" aria-valuemin={0} aria-valuemax={100} aria-valuenow={0} />
+        <div data-testid="operation-blocked-reason" role="status" />
         <HealthCard />
         <MetricPlaceholder label={t(strings.pages.dashboard.statPlaceholderLabel)} />
         <MetricPlaceholder label={t(strings.pages.dashboard.statPlaceholderLabel)} />

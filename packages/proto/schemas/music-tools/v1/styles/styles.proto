@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package vrooli.music_tools.v1.styles;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/styles;styles_v1";
+
+service StylesService {
+  rpc Create(CreateStyleRequest) returns (Style);
+  rpc Get(GetStyleRequest) returns (Style);
+  rpc List(ListStylesRequest) returns (ListStylesResponse);
+  rpc Compile(CompileStyleRequest) returns (CompiledStyle);
+}
+
+message Style {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string caption = 4;
+  int32 bpm = 5;
+  string keyscale = 6;
+  int32 duration = 7;
+  int32 inference_steps = 8;
+  double guidance_scale = 9;
+  string variant = 10;
+  bool builtin = 11;
+}
+
+message CompiledStyle { Style style = 1; string caption_as_sent = 2; }
+message CreateStyleRequest { Style style = 1; }
+message GetStyleRequest { string id = 1; }
+message CompileStyleRequest { string id = 1; }
+message ListStylesRequest {}
+message ListStylesResponse { repeated Style styles = 1; }

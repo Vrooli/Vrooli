@@ -25,8 +25,11 @@ new evidence.
 | `estimated` | Derived by arithmetic from verified figures; not measured |
 | `unknown` | Could not be determined |
 
-**Nothing here has been measured on the reference host.** Every throughput figure is
-`vendor` or `estimated`. Benchmark before treating any of it as a budget.
+**Most of this has not been measured on the reference host.** Every throughput figure
+was `vendor` or `estimated` until 2026-09-18, when the composition path alone was
+measured — see [Measured on the reference host](#measured-on-the-reference-host).
+Everything outside that section remains unmeasured. Benchmark before treating any of
+it as a budget.
 
 ## Licence Lanes
 
@@ -82,6 +85,46 @@ in the inference reference while the README's feature matrix marks them as
 universal. The variant that fits the reference host is the one most likely to lack
 them. This contradiction is unresolved upstream and is why separation is owned by
 `music-mir` instead. See [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md).
+
+## Measured on the reference host
+
+Measured 2026-09-18 and 2026-09-19 on the RTX 4070 Ti SUPER (15.56 GiB usable),
+with the composition path exercised through both the throwaway spike and the
+shipped `music-tools` job pipeline. Nothing outside composition has been measured.
+
+| Figure | Value | Confidence |
+|---|---|---|
+| ACE-Step 1.5 turbo + LM 0.6B, 45 s of audio, DiT resident | **17.9 s** | `measured` |
+| Same, `offload_dit_to_cpu=True` | **55.2 s** | `measured` |
+| ACE-Step 1.5 SFT, ten 5.12 s jobs, offloaded | **16.613–570.561 s** (median 22.101 s) | `measured`; one capacity-reclaim outlier |
+| ACE-Step SFT control-plane offload footprint | **6 GiB**; job reservation 7 GiB | `measured`; not an instantaneous per-job `nvidia-smi` peak |
+| Peak process VRAM, DiT resident, LM 0.6B | ~7.0 GiB | `measured` |
+| Cold model load | ~30 s | `measured` |
+| Main bundle on disk | 9.4 GiB | `measured` |
+| LM 0.6B on disk | 1.3 GiB | `measured` |
+| Output | 48 kHz stereo, normalised to -1.0 dBFS peak | `measured` |
+
+**The VRAM tiering held.** The bundled 1.7B planner died with
+`torch.OutOfMemoryError` against the resident tenants; the 0.6B planner succeeded.
+That is exactly what the tier table predicts for the 8-12 GB free band, so the
+tier table's prediction is now corroborated rather than merely published.
+
+Three corrections to what this document assumed:
+
+- **The composition estimate of ~9-10 GB exclusive is defensible but not the floor.**
+  The measured path fits in ~7.0 GiB with the 0.6B planner, and under ~6 GiB with
+  DiT offload. "Exclusive" remains right; the number is conservative.
+- **`ACE-Step/Ace-Step1.5` is a `transformers` custom-code model**, loaded through
+  `trust_remote_code`, not through the `acestep` PyPI/GitHub package. The pip
+  package `github.com/ace-step/ACE-Step` is **v1** and defaults to
+  `ACE-Step/ACE-Step-v1-3.5B`. v1.5 lives at `github.com/ace-step/ACE-Step-1.5`.
+  Installing the wrong one is a silent 10 GB detour.
+- **The main bundle ships the 1.7B planner, not the 0.6B.** The planner that fits
+  this host must be fetched separately from `ACE-Step/acestep-5Hz-lm-0.6B`.
+
+Licence is unchanged and `verified`: MIT. The publisher additionally asserts
+commercial use is permitted and that training data was licensed, royalty-free, or
+synthetic — that assertion is `vendor` and has not been independently audited.
 
 ## Analysis and embedding
 

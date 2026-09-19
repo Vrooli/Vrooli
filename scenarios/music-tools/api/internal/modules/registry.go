@@ -19,16 +19,22 @@ package modules
 import (
 	"music-tools/internal/module"
 
+	compositionpb "github.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/composition"
 	capsH "music-tools/handlers/capabilities"
+	compositionH "music-tools/handlers/composition"
+	modelsH "music-tools/handlers/models"
+	cleanupdomain "music-tools/internal/cleanup"
+	compositiondomain "music-tools/internal/composition"
+	jobdomain "music-tools/internal/jobs"
+	measuredomain "music-tools/internal/measures"
+	modeldomain "music-tools/internal/models"
+	stylesdomain "music-tools/internal/styles"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "music-tools/handlers/health"
-	notesH "music-tools/handlers/notes" // EXAMPLE-DOMAIN:notes
 	localdb "music-tools/internal/database"
-
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/notes" // EXAMPLE-DOMAIN:notes
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -39,7 +45,9 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, compositionH.Endpoints...)
+	out = append(out, modelsH.Endpoints...)
+	out = append(out, cleanupdomain.Endpoints...)
 	return out
 }
 
@@ -65,9 +73,7 @@ type ProtoFileEntry struct {
 // AllProtoFiles returns the proto FileDescriptor backing each
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
-	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_music_tools_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
-	}
+	return []ProtoFileEntry{{Module: "composition", File: compositionpb.File_music_tools_v1_composition_composition_proto}}
 }
 
 // AllSchemas returns every domain's schema provider plus the system
@@ -81,6 +87,10 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(jobdomain.Schema),
+		apidb.SchemaProviderFunc(measuredomain.Schema),
+		apidb.SchemaProviderFunc(modeldomain.Schema),
+		apidb.SchemaProviderFunc(stylesdomain.Schema),
+		apidb.SchemaProviderFunc(compositiondomain.Schema),
 	}
 }

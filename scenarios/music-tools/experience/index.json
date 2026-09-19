@@ -7,9 +7,15 @@
   "description": "Experience contract for Music Tools. This is an operations console for a capability primitive, not a creative tool: the surfaces exist to make model residency, GPU contention, licence lane, and job state legible while long work runs. The UI enhances the CLI and never gates it.",
   "pages": [
     { "id": "dashboard", "path": "pages/dashboard.json", "title": "Operations", "status": "active" },
+    { "id": "compose", "path": "pages/compose.json", "title": "Compose", "status": "active" },
+    { "id": "audition", "path": "pages/audition.json", "title": "Audition", "status": "active" },
+    { "id": "pool", "path": "pages/pool.json", "title": "Pool", "status": "active" },
+    { "id": "styles", "path": "pages/styles.json", "title": "Styles", "status": "active" },
     { "id": "models", "path": "pages/models.json", "title": "Models", "status": "active" },
     { "id": "jobs", "path": "pages/jobs.json", "title": "Jobs", "status": "active" },
     { "id": "settings", "path": "pages/settings.json", "title": "Settings", "status": "active" }
   ],
-  "journeys": []
+  "journeys": [
+    { "id": "style-to-delivered-track", "path": "journeys/style-to-delivered-track.json", "title": "From a house sound to a delivered track", "status": "active" }
+  ]
 }

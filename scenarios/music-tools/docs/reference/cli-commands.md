@@ -1,5 +1,11 @@
 # CLI Commands — Music Tools
 
+> **Status (2026-09-19): composition commands are shipped headlessly.** The
+> current CLI exposes styles, composition submission, style compilation, jobs
+> wait/get/list/cancel, take listing and transitions, and pool
+> draw/status/configure. Analysis, models, and
+> durable infrastructure commands remain in the implementation plan.
+
 The scenario CLI is a thin Go wrapper over the API. Every command
 calls a single API endpoint and renders the result; there is no
 business logic in the CLI. If a command needs to make a decision the
@@ -123,58 +129,34 @@ The scaffold ships one fully worked CRUD command group as a copyable
 reference (see the fenced example below); `template-manager detemplate
 <scenario>` removes it once your real domains are green.
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
+### Command surface and planned extensions
 
-The `notes` domain is the canonical worked example. Copy its layout
-when adding the first non-trivial domain to your scenario, then remove
-it.
+The first composition commands are implemented. The remaining rows are recorded
+so the domain vocabulary stops being re-invented per conversation, and so
+`DOMAINS.md`'s twelve domains have a concrete CLI shape to be measured against.
+Requirement IDs are from
+[`../../requirements/`](../../requirements/); every one is `status: planned`.
 
-#### `music-tools notes list`
+| Command | Domain | Requirement | Notes |
+|---|---|---|---|
+| `music-tools compose <brief> --takes <n> --wait` | composition | `MUS-P0-012`, `MUS-P0-013` | Produces **N takes**, not one track — see the 2026-09-18 batch decision in [`../internal/DECISIONS.md`](../internal/DECISIONS.md). `--takes` defaults above 1. |
+| `music-tools styles {list,get,create,compile}` | styles | `OT-P0-007` | A style compiles to a caption plus parameters. This is the unit a batch and an inventory are configured with. |
+| `music-tools takes {list,get,reserve,consume,release,discard}` | composition | — | The reservation lifecycle in [`../concepts/DATA.md`](../concepts/DATA.md#the-reservation-lifecycle). `release` is the "give me a different one" path and must be cheap — it regenerates nothing. The scenario records what was reserved and passed over; it does not infer preference from it. |
+| `music-tools pool {status,draw,configure}` | composition | `OT-P1-005` | `draw` is the consumer's one-call path: reserve a ready take in a named style, or say the pool is empty. `configure` sets target depth and replenish threshold per style. |
+| `music-tools analyze <track>` | analysis | `MUS-P0-009`–`011`, `MUS-P1-001` | One decomposition contract: embeddings, structure, beats, tempo/key with retained disagreement, loudness, tags. |
+| `music-tools separate <track>` | transformation | `MUS-P1-003` | Owned by the `music-mir` runtime, never assumed from the composition runtime. |
+| `music-tools ops {trim,fade,concat,convert,loudness}` | ops | `MUS-P0-002` | Deterministic; no GPU, no model download. |
+| `music-tools models {list,install,remove,doctor,explain}` | models | `MUS-P0-003`–`005` | Must surface licence lane on every row (`experience/pages/models.json` treats lane as decision-critical, not metadata). |
+| `music-tools jobs {get,wait,list,cancel,watch}` | jobs | `MUS-P0-014` | Durable, server-owned, survives client disconnect. |
 
-List notes, newest-first. Calls the generated Connect-RPC
-`Notes/List` method. Uses the
-**data-retrieval contract**: `Summary → Results → Retrieval Hints`.
+Two shape constraints inherited from decisions, not preferences:
 
-```bash
-music-tools notes list
-music-tools notes list --json
-```
-
-#### `music-tools notes create --title <title> [--body <body>]`
-
-Create a note. Calls the generated Connect-RPC `Notes/Create` method. Uses the **mutation
-contract**: `Result → What Changed → Next Command`.
-
-```bash
-music-tools notes create --title "First note" --body "Hello world"
-```
-
-`--title` is required. `--body` is optional. Validation lives in the
-API service, so an empty title surfaces as an `invalid_argument`
-Connect error rather than a CLI-side check.
-
-#### `music-tools notes get <id>`
-
-Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
-
-```bash
-music-tools notes get abc123
-```
-
-A non-existent id surfaces as `not_found`; the CLI translates the
-typed Connect code to an actionable error message.
-
-#### `music-tools notes attach <id> --file <path>`
-
-Attach a file to a note. This is the documented REST multipart
-exception because the request body contains opaque bytes. The response
-is proto-typed attachment metadata.
-
-```bash
-music-tools notes attach abc123 --file ./example.png
-```
-<!-- EXAMPLE-DOMAIN:notes END -->
+- **`compose` is a job submit, not a synchronous call.** It returns a job id and
+  an ETA; callers block once on `jobs wait`. A ten-take batch is minutes of GPU
+  time and cannot ride a request.
+- **Bytes do not ride proto.** Following `image-tools`, discovery and metadata
+  are Connect-RPC while any edge carrying audio is a REST multipart endpoint
+  with proto-typed parameters. See [`api-endpoints.md`](api-endpoints.md).
 
 ## Output contracts
 

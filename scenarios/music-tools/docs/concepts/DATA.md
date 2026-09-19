@@ -53,11 +53,98 @@ scenario does not manage anyone's library.
 | `blobs` | storage | id, kind (generated / stem / render), source track ref, bytes, last accessed |
 | `budget` | storage | kind, budget bytes, used bytes |
 | `styles` | styles | id, caption template, params, built-in flag |
+| `takes` | composition | id, job id, style id, seed, caption as sent, caption as authored, blob ref, pool state, reserved by, reserved at, consumed at, times offered |
+| `style_inventory` | styles | style id, target depth, replenish threshold, last replenish job |
 | `measures` | measures | operation, duration, queue wait, degraded flag, timestamp |
 
 Every generated blob records the model, licence lane, and applied profile rung that
 produced it, so a degraded or restricted-lane output is never mistaken for a
 full-quality permissive one.
+
+### Why `takes` is a table and not a column on `jobs`
+
+A composition job produces a **set** of candidates, not one artifact — see the
+2026-09-18 batch decision in [`../internal/DECISIONS.md`](../internal/DECISIONS.md).
+Modelling that as one output per job would have to be broken later.
+
+Two fields carry decisions rather than convenience:
+
+- **`caption as sent` alongside `caption as authored`.** The generator's planner
+  rewrites captions by default, and measurably ruins authored briefs. Keeping both
+  makes the rewrite auditable instead of invisible; if they differ, a caller can
+  see what the model was actually asked.
+- **`pool state` and its companions.** Records where a take is in the reservation
+  lifecycle below, and which caller holds it. This is stored as a **fact**, not
+  interpreted: inferring taste from picks and skips belongs to a consuming
+  scenario, and these columns are the seam it reads. The distinction is the line
+  that keeps the PRD's "holds no opinion about taste" non-goal honest while still
+  letting an inventory exist here.
+
+### The reservation lifecycle
+
+A take is not simply chosen or not chosen. It moves through a lifecycle, because
+the pool has more than one consumer and a track that has shipped in one video must
+not ship in the next.
+
+```text
+                   ┌──────────── release ────────────┐
+                   ↓                                 │
+generated → available → reserved → consumed          │
+                   │         │                       │
+                   │         └───────────────────────┘
+                   └── discard ──→ discarded
+```
+
+| State | Meaning |
+|---|---|
+| `available` | In the pool, offerable to any caller |
+| `reserved` | A caller holds it; no other caller will be offered it |
+| `consumed` | It shipped. Terminal — the take is never offered again |
+| `discarded` | Explicitly rejected. Terminal, and excluded from depth accounting |
+
+Three properties are deliberate:
+
+- **Reservation is what prevents collision.** Without it, two launch videos
+  generated the same afternoon can ship the same bed. Selection state alone cannot
+  express this, which is why `selection state` was replaced.
+- **`release` is a first-class transition, not an error path.** "Give me a
+  different one" is the single most likely thing a caller says, and it must be
+  cheap: the take returns to `available` and `times offered` increments. Nothing is
+  regenerated.
+- **`times offered` is a fact, not a score.** It records that a take was put in
+  front of someone and passed over. This scenario never reads it to rank, filter,
+  or weight anything. A consuming scenario may; that is the seam.
+
+A reservation held by a caller that never returns would leak pool depth, so
+reservations carry a timestamp and expire back to `available`. Expiry is not a
+failure and is not reported as one.
+
+### Inventory depth
+
+`style_inventory` holds the declared policy for a named style: a `target depth` of
+ready takes and a `replenish threshold` below which a batch is enqueued. Depth
+counts `available` plus `reserved`; `consumed` and `discarded` takes are gone from
+the count, which is what makes consumption trigger replenishment.
+
+The trigger that runs replenishment is **pluggable**, and the v1 needs no platform
+facility: when a reservation or consumption drops depth below the threshold,
+enqueue a batch. Idle-time replenishment is an optimisation over *when* that batch
+runs, not what makes the pool possible — see
+[`../internal/PROBLEMS.md`](../internal/PROBLEMS.md).
+
+Note the divergence from `image-tools`, which is deliberate rather than
+accidental: its `--variations N` produces one primary result plus indexed extras
+inside a single job. Here the takes are **peers**. There is no primary, because the
+2026-09-18 decision holds that selection is the quality mechanism and the scenario
+does not rank.
+
+Storage budgets must be sized for the discarded takes, not the kept one. If a
+usable track costs ten generations, the `generated` blob budget in `budget` is
+roughly an order of magnitude larger than a naive per-delivered-track estimate,
+and LRU eviction should prefer takes in the `discarded` state first, then
+`available` takes that have never been reserved. A `reserved` take is never
+evicted — a caller is holding it — and a `consumed` take's bytes are the
+consumer's concern to release.
 
 ## The size arithmetic
 

@@ -29,6 +29,36 @@ Two properties carry that role:
    third-party service that can change its terms. Hosted competitors in this space
    now carry per-generation royalties under licensing settlements; this scenario
    carries none.
+
+   As of 2026-09-18 this is a **recorded decision with revisit triggers**, not an
+   assumption — see `../internal/DECISIONS.md`. It was previously stated here as a
+   bare property, which made a real fork look like a fact of nature. The siblings
+   disagree about this fork and neither is a house pattern: `image-tools` routes a
+   BYOK rung through `ai-gateway` with no subscription and no markup, while
+   `audio-tools` runs a Vrooli rung through LPBS with `ai_credits` and
+   `voice_minutes` meters. Music is the modality where staying local has the
+   strongest case, because hosted music generation is precisely where the royalty
+   and training-data-provenance exposure lives.
+
+   Two mechanical blockers back the decision up: the gateway's `RequestKind` enum
+   has no audio member, and no hosted music provider is wired in `resources/`.
+   Adding the lane is real work, not a configuration flag.
+
+   **Correction, same day.** An earlier version of this section implied that a
+   hosted rung would require this scenario to declare meters and entitlement. It
+   would not, and the argument has been withdrawn. `image-tools` calls the gateway
+   as an ordinary registered provider and declares no `.vrooli/monetization.json`,
+   no entitlement, and no quota logic; subscription and metering live entirely in
+   `ai-gateway`, which declares `ai_credits` and `requires_entitlement` on its own
+   behalf. The no-hosted-rung decision now rests on licence exposure alone, which
+   is the leg that holds.
+
+   **The cost of staying local, stated plainly:** composition has no CPU rung and
+   will not get one, so an operator without a capable GPU gets no composition at
+   all. `image-tools` degrades to CPU and still serves that user; this scenario
+   refuses. "Local-first" is therefore also "GPU owners only", and that is now a
+   recorded consequence with its own revisit trigger rather than an unexamined
+   side effect.
 2. **Licence lanes.** Commercial usability is recorded per model, so a product built
    on this scenario can be configured to use only models whose licences permit
    commercially distributed output.
@@ -85,6 +115,9 @@ What must be demonstrated here before a paid product can depend on it:
 |---|---|
 | Sold directly | No — capability primitive |
 | SKU membership | None, and none expected |
+| Meter declaration | **None** — no `.vrooli/monetization.json`, because there is no metered path. Note this would still be true with a hosted rung: `image-tools` has a BYOK rung and declares no meters either, because `ai-gateway` owns metering. |
+| Hosted/gateway rung | **Decided against, 2026-09-18**, on licence exposure alone, with three revisit triggers in `../internal/DECISIONS.md`. The provider-chain *seam* is adopted; the rung is not built. |
+| Hardware reach | **Bounded.** No CPU rung for composition, so no GPU means no composition. Recorded as a decision, 2026-09-18. |
 | Lane split designed | Yes — `docs/concepts/ARCHITECTURE.md`, `docs/reference/model-registry.md` |
 | Lane split implemented | **No** — no implementation exists |
 | Permissive-lane build proven | **No** — `OT-P1-002` not started |

@@ -43,7 +43,7 @@
     "bottomNavLabel": "Mobile navigation",
     "nav": {
       "dashboard": "Dashboard",
-      "notes": "Notes",
+      "composition": "Composition",
       "settings": "Settings"
     },
     "sidebarLabel": "Primary navigation"
@@ -60,31 +60,6 @@
       "skip-to-content": "Skip to content"
     }
   },
-  "notes": {
-    "attachmentFileLabel": "Attachment file",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "empty": "No notes yet.",
-    "loading": "Loading notes…",
-    "measure": {
-      "loading": "Counting…",
-      "thisWeek": "{{count}} notes created this week",
-      "title": "Notes this week"
-    },
-    "noFileSelected": "Select a file before uploading.",
-    "table": {
-      "actions": "Actions",
-      "attachments": "Attachments",
-      "created": "Created",
-      "search": "Search notes",
-      "title": "Title"
-    },
-    "title": "Notes",
-    "uploadAttachment": "Upload attachment",
-    "uploadSuccess": "Uploaded {{name}}."
-  },
   "notifications": {
     "summary": "{{count}} notifications",
     "summary_one": "1 notification",
@@ -95,9 +70,6 @@
       "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
       "statPlaceholderLabel": "Stat",
       "title": "Dashboard"
-    },
-    "notes": {
-      "title": "Notes"
     },
     "settings": {
       "localeHeading": "Language",

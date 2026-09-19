@@ -33,8 +33,8 @@ durable infrastructure below. In particular:
   mobile, desktop sidebar navigation, theme controls, and Settings-owned
   locale switching. Keep those floors unless your scenario has an explicit
   experience-spec opt-out.
-- The starter page content and the `notes` domain remain illustrative. Replace
-  them with scenario-specific surfaces once the real product shape is known.
+- The starter page content is illustrative. Replace it with scenario-specific
+  surfaces once the real product shape is known.
 - Durable seams you should keep: i18n wiring (`SUPPORTED_LOCALES`,
   `useTranslation`, the locale switcher behavior), accessibility
   primitives (`role`, `aria-*`, `data-testid` selectors), the

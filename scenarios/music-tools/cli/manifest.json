@@ -1,150 +1,50 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "music-tools",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Music composition CLI surface for styles, peer-take jobs, take selection, and pool reservations.",
   "groups": [
-    {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
-      "commands": [
-        {
-          "name": "list",
-          "description": "List all notes",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "ListNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "create",
-          "description": "Create a note",
-          "flags": [
-            {
-              "name": "title",
-              "required": true,
-              "description": "Note title"
-            },
-            {
-              "name": "body",
-              "description": "Note body"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CreateNote"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
-          }
-        },
-        {
-          "name": "get",
-          "description": "Get a note by id",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Note id"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "GetNote"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
-          "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CountNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
-            }
-          }
-        }
-      ]
-    }
+    {"name": "styles", "description": "Manage composition styles", "commands": [
+      {"name": "create", "description": "Create a style from JSON", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}},
+      {"name": "list", "description": "List styles", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+      {"name": "export", "description": "Export a style", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+      {"name": "compile", "description": "Compile a style", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+      {"name": "delete", "description": "Delete a custom style", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}},
+      {"name": "import", "description": "Import a style", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}}
+    ]},
+    {"name": "compose", "description": "Queue peer music takes", "commands": [
+      {"name": "run", "description": "Queue a composition batch", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}}
+    ]},
+    {"name": "jobs", "description": "Inspect composition jobs", "commands": [
+      {"name": "get", "description": "Get a job", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+      {"name": "list", "description": "List jobs", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+      {"name": "wait", "description": "Wait for a job", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+      {"name": "cancel", "description": "Cancel a queued or running job", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}}
+    ]},
+    {"name": "takes", "description": "Inspect generated takes", "commands": [
+      {"name": "list", "description": "List generated takes", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+      {"name": "get", "description": "Get a take", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+      {"name": "reserve", "description": "Reserve a take", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}},
+      {"name": "consume", "description": "Consume a reserved take", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}},
+      {"name": "release", "description": "Release a reserved take", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}},
+      {"name": "discard", "description": "Discard a take", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}}
+    ]},
+    {"name": "pool", "description": "Reserve composition takes", "commands": [
+      {"name": "draw", "description": "Draw an available take", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}},
+      {"name": "status", "description": "Show pool depth", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+      {"name": "configure", "description": "Configure replenishment policy", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}}
+    ]},
+    {"name": "models", "description": "Inspect music model registry", "commands": [
+      {"name": "list", "description": "List available models", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+      {"name": "get", "description": "Get one model", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}
+    ]}
   ],
-  "measures": {
-    "domains": [
-      {
-        "domain": "notes",
-        "stateful": true,
-        "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier."
-      }
-    ]
-  },
-  "exceptions": [
-    {
-      "command": "notes attach",
-      "class": "upload",
-      "reason": "Multipart file upload is exposed through the notes REST attachment endpoint, while cli-manifest/v1 only models Connect-RPC bindings."
-    }
-  ],
-  "omitted": []
+  "measures": {"domains": []},
+  "omitted": [
+    {"service": "CompositionService", "method": "Submit", "reason": "The CLI uses the REST composition job surface so it can expose asynchronous batch submission and job IDs."},
+    {"service": "CompositionService", "method": "ListTakes", "reason": "The CLI uses the REST take inventory surface so it can filter and reserve pool takes."},
+    {"service": "CompositionService", "method": "CompileStyle", "reason": "The compile edge is a REST style projection; no generated RPC exists for this endpoint."},
+    {"service": "CompositionService", "method": "AudioTake", "reason": "The endpoint carries opaque audio bytes; the CLI manifest records it as a REST binary edge rather than a JSON command."},
+    {"service": "ModelsService", "method": "List", "reason": "The CLI uses the REST model-registry projection so licence lanes remain visible in the JSON response."},
+    {"service": "ModelsService", "method": "Get", "reason": "The CLI uses the REST model-registry projection for one-model retrieval."}
+  ]
 }

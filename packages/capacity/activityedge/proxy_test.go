@@ -116,6 +116,7 @@ func TestEveryAcceleratorResourceTransitionsActiveThenIdle(t *testing.T) {
 		{resource: "whisper", method: http.MethodPost, path: "/asr"},
 		{resource: "kokoro", method: http.MethodPost, path: "/v1/audio/speech"},
 		{resource: "kyutai-stt", method: http.MethodGet, path: "/v1/stream"},
+		{resource: "ace-step", method: http.MethodPost, path: "/v1/compose"},
 		{resource: "speaker-verification", method: http.MethodPost, path: "/v1/verify"},
 		{resource: "ollama", method: http.MethodPost, path: "/api/chat"},
 		{resource: "reranker", method: http.MethodPost, path: "/rerank"},

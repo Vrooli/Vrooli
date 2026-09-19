@@ -8,8 +8,12 @@ import (
 	"path/filepath"
 
 	"music-tools/internal/capabilities"
+	"music-tools/internal/capacity"
+	cleanupdomain "music-tools/internal/cleanup"
+	"music-tools/internal/models"
 	"music-tools/internal/modules"
 	"music-tools/internal/server"
+	musicstorage "music-tools/internal/storage"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -23,8 +27,9 @@ import (
 	_ "modernc.org/sqlite"
 
 	capsH "music-tools/handlers/capabilities"
+	compositionH "music-tools/handlers/composition"
 	healthH "music-tools/handlers/health"
-	notesH "music-tools/handlers/notes" // EXAMPLE-DOMAIN:notes
+	modelsH "music-tools/handlers/models"
 )
 
 // scenarioStorageRoots resolves all filesystem storage classes once at
@@ -81,12 +86,27 @@ func main() {
 		log.Fatalf("file storage configuration failed: %v", err)
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
+	musicBlobs, err := musicstorage.New("music-tools")
+	if err != nil {
+		log.Fatalf("music blob storage configuration failed: %v", err)
+	}
+	musicBlobs.SetBudgetBytes(32 << 30)
+	compositionState, err := compositionH.NewStateWithCapacityAndStorage(db.Primary(), capacity.CLICapacityBroker{}, musicBlobs)
+	if err != nil {
+		log.Fatalf("composition job manager initialization failed: %v", err)
+	}
+	modelRegistry, err := models.LoadSeed(true)
+	if err != nil {
+		log.Fatalf("model registry initialization failed: %v", err)
+	}
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "music-tools-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
-		notesH.Module(db, schedule.System(), log.Default()), // EXAMPLE-DOMAIN:notes
+		compositionH.Module(compositionState),
+		modelsH.Module(modelRegistry),
+		cleanupdomain.Module(cleanupdomain.Deps{Store: musicBlobs}),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -94,19 +114,6 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, schedule.System())
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
 
 	rootMux.Handle("/", srv.Handler())
 
@@ -117,7 +124,7 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error { compositionState.Close(); return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
