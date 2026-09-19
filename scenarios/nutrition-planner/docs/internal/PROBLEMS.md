@@ -144,6 +144,22 @@ a migration handoff with a planned retirement path back into
 | Documentation vs. implementation | The PRD, requirements registry, concepts, business/operations/internal docs, and experience contract now describe the real product, but no product code exists yet — only the `health` domain and the fenced `notes` example. A reader who trusts the docs would assume capabilities that are not implemented. | Documentation is deliberately ahead of implementation; `docs/manifest.json` marks these documents `active` as authored contracts, not as working code. | Deliver the first real vertical slice (Gate 6), then detemplate (Gate 7), and keep every planned-versus-implemented statement explicit until then. |
 | Design contract vs. implementation | `DESIGN.md` still carries the template `ORIENTATION-TODO: scenario-design-adaptation` rationale and the home surface is still marked `PLACEHOLDER:home-surface`; `docs/concepts/EXPERIENCE.md` states the product decision but the UI has not been configured to it. | The design-language gate cannot pass, so no UI implementation should be treated as final. | Complete Gate 5: configure the shell, replace the home placeholder, and record the design rationale in `DESIGN.md`. |
 
+## Current-state clarification
+
+### 2026-09-18 — Historical scaffold entries require supersession context
+
+**Symptom:** Earlier entries in this file state that implementation had not started and that the notes example remained present. Those statements describe the documentation handoff state, not the current worktree.
+
+**Root cause:** The implementation progressed substantially after the entries were authored, but the persistent problem register intentionally keeps historical entries unchanged.
+
+**Workaround:** Read the current code, `PROGRESS.md`, and the active plan evidence as authoritative for present implementation state.
+
+**Real fix:** Retire or annotate historical entries when the scenario’s documentation lifecycle permits a consolidated problem-register cleanup; do not use them as current product claims.
+
+**Owner:** nutrition-planner implementation
+
+**Refs:** `PROGRESS.md`, active Plan Manager execution `27e8a38e-18d9-47c4-9bd9-d5925c91c002`.
+
 ## Cross-references
 
 - [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)

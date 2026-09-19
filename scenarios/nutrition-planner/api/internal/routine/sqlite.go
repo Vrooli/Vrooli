@@ -49,6 +49,7 @@ func (r *sqliteRepository) Create(ctx context.Context, t Template) (Template, er
 	}
 	return t, nil
 }
+
 func (r *sqliteRepository) insertRevision(ctx context.Context, t Template) error {
 	days, _ := json.Marshal(t.Weekdays)
 	_, err := r.db.ExecContext(ctx, `INSERT INTO routine_template_revisions(template_id,revision,workspace_id,slot_name,recipe_id,quantity,weekdays_json,start_date,end_date,mode,active,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, t.ID, t.Revision, t.WorkspaceID, t.SlotName, t.RecipeID, t.Quantity.String(), string(days), t.StartDate, t.EndDate, t.Mode, boolInt(t.Active), t.CreatedAt.UTC().Format(time.RFC3339Nano))
@@ -57,6 +58,7 @@ func (r *sqliteRepository) insertRevision(ctx context.Context, t Template) error
 	}
 	return nil
 }
+
 func (r *sqliteRepository) List(ctx context.Context, workspaceID string) ([]Template, error) {
 	rows, err := r.db.QueryContext(ctx, `SELECT t.id,v.revision,v.workspace_id,v.slot_name,v.recipe_id,v.quantity,v.weekdays_json,v.start_date,v.end_date,v.mode,v.active,v.created_at FROM routine_templates t JOIN routine_template_revisions v ON v.template_id=t.id AND v.revision=t.current_revision WHERE t.workspace_id=? ORDER BY t.updated_at DESC,t.id`, workspaceID)
 	if err != nil {
@@ -73,6 +75,7 @@ func (r *sqliteRepository) List(ctx context.Context, workspaceID string) ([]Temp
 	}
 	return out, rows.Err()
 }
+
 func (r *sqliteRepository) Get(ctx context.Context, id, workspaceID string, revision int64) (Template, error) {
 	row := r.db.QueryRowContext(ctx, `SELECT template_id,revision,workspace_id,slot_name,recipe_id,quantity,weekdays_json,start_date,end_date,mode,active,created_at FROM routine_template_revisions WHERE template_id=? AND revision=? AND workspace_id=?`, id, revision, workspaceID)
 	v, err := scan(row)
@@ -84,6 +87,7 @@ func (r *sqliteRepository) Get(ctx context.Context, id, workspaceID string, revi
 	}
 	return v, nil
 }
+
 func (r *sqliteRepository) Update(ctx context.Context, in UpdateInput) (Template, error) {
 	current, err := r.Get(ctx, in.ID, in.WorkspaceID, in.ExpectedRevision)
 	if err != nil {
@@ -118,6 +122,7 @@ func (r *sqliteRepository) Update(ctx context.Context, in UpdateInput) (Template
 	}
 	return next, nil
 }
+
 func scan(s interface{ Scan(...any) error }) (Template, error) {
 	var t Template
 	var quantity, days, created string
@@ -137,6 +142,7 @@ func scan(s interface{ Scan(...any) error }) (Template, error) {
 	t.CreatedAt, err = time.Parse(time.RFC3339Nano, created)
 	return t, err
 }
+
 func boolInt(v bool) int {
 	if v {
 		return 1

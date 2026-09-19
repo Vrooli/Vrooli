@@ -21,6 +21,7 @@ func testRepo(t *testing.T) Repository {
 	}
 	return NewSQLiteRepository(db, schedule.System())
 }
+
 func TestWorkspaceOwnershipAndIdempotency(t *testing.T) {
 	r := testRepo(t)
 	ctx := context.Background()

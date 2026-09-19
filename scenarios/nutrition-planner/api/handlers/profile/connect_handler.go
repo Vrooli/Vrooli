@@ -88,6 +88,8 @@ func (h *connectHandler) ApplyProfile(ctx context.Context, q *connect.Request[v1
 		return nil, connect.NewError(connect.CodeInvalidArgument, e)
 	}
 	matching := int64(0)
+	needsReview := int64(0)
+	excluded := int64(0)
 	if h.recipes != nil {
 		items, listErr := h.recipes.List(ctx, id)
 		if listErr != nil {
@@ -95,12 +97,17 @@ func (h *connectHandler) ApplyProfile(ctx context.Context, q *connect.Request[v1
 		}
 		for _, item := range items {
 			decision := eligibility.Evaluate(eligibility.Profile{Revision: p.Revision, ExcludedGroups: append(append([]string(nil), p.ActiveRules...), p.ExcludedGroups...), Allergies: p.Allergies, Appliances: p.Appliances}, eligibility.Candidate{Revision: item.Revision, Groups: item.Groups, RequiredAppliances: item.RequiredAppliances, AllergenEvidence: mapEvidence(item.AllergenEvidence), MethodIDs: methodIDs(item.Methods)})
-			if decision.Status == eligibility.Eligible {
+			switch decision.Status {
+			case eligibility.Eligible:
 				matching++
+			case eligibility.NeedsInformation:
+				needsReview++
+			case eligibility.Ineligible:
+				excluded++
 			}
 		}
 	}
-	return connect.NewResponse(&v1.ApplyProfileResponse{Profile: toProto(p), MatchingMeals: matching}), nil
+	return connect.NewResponse(&v1.ApplyProfileResponse{Profile: toProto(p), MatchingMeals: matching, NeedsReviewMeals: needsReview, ExcludedMeals: excluded}), nil
 }
 
 func methodIDs(methods []recipe.Method) []string {

@@ -25,6 +25,7 @@ func NewConnectHandler(workspaces workspace.Service, logger *log.Logger) *connec
 	}
 	return &connectHandler{workspaces: workspaces, logger: logger}
 }
+
 func (h *connectHandler) Evaluate(ctx context.Context, req *connect.Request[v1.EvaluateRequest]) (*connect.Response[v1.EvaluateResponse], error) {
 	principal, ok := identity.PrincipalFromContext(ctx)
 	if !ok {

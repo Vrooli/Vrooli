@@ -89,6 +89,22 @@
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
     },
+    "pages.today": {
+      "testId": "page-today",
+      "selector": "[data-testid=\"page-today\"]"
+    },
+    "pages.week": {
+      "testId": "page-week",
+      "selector": "[data-testid=\"page-week\"]"
+    },
+    "pages.transfer": {
+      "testId": "page-transfer",
+      "selector": "[data-testid=\"page-transfer\"]"
+    },
+    "transfer.importInput": {
+      "testId": "data-transfer-import-input",
+      "selector": "[data-testid=\"data-transfer-import-input\"]"
+    },
     "errorBoundary.root": {
       "testId": "error-boundary-root",
       "selector": "[data-testid=\"error-boundary-root\"]"
@@ -140,6 +156,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
-    "ui/src/consts/selectors.ts": "8085023073e298ca651abdf32c1d4dc2c733dd719ecb8714df1588ccad5c8345"
+    "ui/src/consts/selectors.ts": "3aec352f04d1022ef14099fb6baa5e78e13b6f3642dd8b87e29e877873837f89"
   }
 }

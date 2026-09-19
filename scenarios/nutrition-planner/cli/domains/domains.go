@@ -1,6 +1,9 @@
 package domains
 
 import (
+	"nutrition-planner/cli/domains/recipe"
+	"nutrition-planner/cli/domains/workspace"
+
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -34,6 +37,14 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	groups := []cliapp.SubcommandGroup{}
+	group, err := workspace.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	recipeGroup, err := recipe.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups := []cliapp.SubcommandGroup{group, recipeGroup}
 	return groups, nil
 }

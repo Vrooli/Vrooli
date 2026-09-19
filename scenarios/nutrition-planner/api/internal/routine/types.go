@@ -157,6 +157,7 @@ func Generate(templates []Template, from, to string) ([]Occurrence, error) {
 	})
 	return out, nil
 }
+
 func contains(values []int, want int) bool {
 	for _, value := range values {
 		if value == want {

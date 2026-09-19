@@ -80,7 +80,7 @@ func (h *connectHandler) CreateRecipe(ctx context.Context, q *connect.Request[v1
 	if e != nil {
 		return nil, e
 	}
-	r, e := h.s.Create(ctx, internal.CreateInput{WorkspaceID: w, Name: q.Msg.Name, Notes: q.Msg.Notes, SourceURL: q.Msg.SourceUrl, SourceType: q.Msg.SourceType, OriginalText: q.Msg.OriginalText, IdempotencyKey: q.Msg.IdempotencyKey, Methods: fromProtoMethods(q.Msg.Methods), Groups: q.Msg.Groups, RequiredAppliances: q.Msg.RequiredAppliances, AllergenEvidence: q.Msg.AllergenEvidence})
+	r, e := h.s.Create(ctx, internal.CreateInput{WorkspaceID: w, Name: q.Msg.Name, Notes: q.Msg.Notes, SourceURL: q.Msg.SourceUrl, SourceType: q.Msg.SourceType, OriginalText: q.Msg.OriginalText, IdempotencyKey: q.Msg.IdempotencyKey, Methods: fromProtoMethods(q.Msg.Methods), Groups: q.Msg.Groups, RequiredAppliances: q.Msg.RequiredAppliances, AllergenEvidence: q.Msg.AllergenEvidence, CanonicalYield: q.Msg.CanonicalYield, ServingUnit: q.Msg.ServingUnit, Ingredients: fromProtoIngredients(q.Msg.Ingredients)})
 	if e != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, e)
 	}
@@ -112,7 +112,7 @@ func (h *connectHandler) UpdateRecipe(ctx context.Context, q *connect.Request[v1
 	if e != nil {
 		return nil, e
 	}
-	r, e := h.s.Update(ctx, internal.UpdateInput{WorkspaceID: w, ID: q.Msg.Id, ExpectedRevision: q.Msg.ExpectedRevision, Name: q.Msg.Name, Notes: q.Msg.Notes, SourceURL: q.Msg.SourceUrl, SourceType: q.Msg.SourceType, OriginalText: q.Msg.OriginalText, IdempotencyKey: q.Msg.IdempotencyKey, Methods: fromProtoMethods(q.Msg.Methods), Groups: q.Msg.Groups, RequiredAppliances: q.Msg.RequiredAppliances, AllergenEvidence: q.Msg.AllergenEvidence})
+	r, e := h.s.Update(ctx, internal.UpdateInput{WorkspaceID: w, ID: q.Msg.Id, ExpectedRevision: q.Msg.ExpectedRevision, Name: q.Msg.Name, Notes: q.Msg.Notes, SourceURL: q.Msg.SourceUrl, SourceType: q.Msg.SourceType, OriginalText: q.Msg.OriginalText, IdempotencyKey: q.Msg.IdempotencyKey, Methods: fromProtoMethods(q.Msg.Methods), Groups: q.Msg.Groups, RequiredAppliances: q.Msg.RequiredAppliances, AllergenEvidence: q.Msg.AllergenEvidence, CanonicalYield: q.Msg.CanonicalYield, ServingUnit: q.Msg.ServingUnit, Ingredients: fromProtoIngredients(q.Msg.Ingredients)})
 	if e != nil {
 		var c internal.ErrConflict
 		if errors.As(e, &c) {
@@ -124,7 +124,25 @@ func (h *connectHandler) UpdateRecipe(ctx context.Context, q *connect.Request[v1
 }
 
 func toProto(r internal.Recipe) *v1.Recipe {
-	return &v1.Recipe{Id: r.ID, Revision: r.Revision, Name: r.Name, Notes: r.Notes, SourceUrl: r.SourceURL, SourceType: r.SourceType, OriginalText: r.OriginalText, Status: r.Status, CreatedAt: timestamppb.New(r.CreatedAt), UpdatedAt: timestamppb.New(r.UpdatedAt), Methods: toProtoMethods(r.Methods), Groups: r.Groups, RequiredAppliances: r.RequiredAppliances, AllergenEvidence: r.AllergenEvidence}
+	return &v1.Recipe{Id: r.ID, Revision: r.Revision, Name: r.Name, Notes: r.Notes, SourceUrl: r.SourceURL, SourceType: r.SourceType, OriginalText: r.OriginalText, Status: r.Status, CreatedAt: timestamppb.New(r.CreatedAt), UpdatedAt: timestamppb.New(r.UpdatedAt), Methods: toProtoMethods(r.Methods), Groups: r.Groups, RequiredAppliances: r.RequiredAppliances, AllergenEvidence: r.AllergenEvidence, CanonicalYield: r.CanonicalYield, ServingUnit: r.ServingUnit, Ingredients: toProtoIngredients(r.Ingredients)}
+}
+
+func fromProtoIngredients(items []*v1.RecipeIngredient) []internal.Ingredient {
+	out := make([]internal.Ingredient, 0, len(items))
+	for _, item := range items {
+		if item != nil {
+			out = append(out, internal.Ingredient{ID: item.Id, Name: item.Name, Amount: item.Amount, Unit: item.Unit, Discrete: item.Discrete, Preparation: item.Preparation})
+		}
+	}
+	return out
+}
+
+func toProtoIngredients(items []internal.Ingredient) []*v1.RecipeIngredient {
+	out := make([]*v1.RecipeIngredient, 0, len(items))
+	for _, item := range items {
+		out = append(out, &v1.RecipeIngredient{Id: item.ID, Name: item.Name, Amount: item.Amount, Unit: item.Unit, Discrete: item.Discrete, Preparation: item.Preparation})
+	}
+	return out
 }
 
 func fromProtoMethods(methods []*v1.RecipeMethod) []internal.Method {

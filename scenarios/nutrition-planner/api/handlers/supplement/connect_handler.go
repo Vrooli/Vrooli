@@ -63,6 +63,7 @@ func (h *connectHandler) ListSchedules(ctx context.Context, req *connect.Request
 	}
 	return connect.NewResponse(out), nil
 }
+
 func (h *connectHandler) CreateSchedule(ctx context.Context, req *connect.Request[v1.CreateScheduleRequest]) (*connect.Response[v1.CreateScheduleResponse], error) {
 	if err := h.scope(ctx, req.Msg.WorkspaceId); err != nil {
 		return nil, err
@@ -77,6 +78,7 @@ func (h *connectHandler) CreateSchedule(ctx context.Context, req *connect.Reques
 	}
 	return connect.NewResponse(&v1.CreateScheduleResponse{Schedule: toProto(created)}), nil
 }
+
 func (h *connectHandler) UpdateSchedule(ctx context.Context, req *connect.Request[v1.UpdateScheduleRequest]) (*connect.Response[v1.UpdateScheduleResponse], error) {
 	if err := h.scope(ctx, req.Msg.WorkspaceId); err != nil {
 		return nil, err
@@ -95,6 +97,7 @@ func (h *connectHandler) UpdateSchedule(ctx context.Context, req *connect.Reques
 	}
 	return connect.NewResponse(&v1.UpdateScheduleResponse{Schedule: toProto(updated)}), nil
 }
+
 func (h *connectHandler) GetSchedule(ctx context.Context, req *connect.Request[v1.GetScheduleRequest]) (*connect.Response[v1.GetScheduleResponse], error) {
 	if err := h.scope(ctx, req.Msg.WorkspaceId); err != nil {
 		return nil, err
@@ -117,9 +120,11 @@ func ints(v []int32) []int {
 	}
 	return out
 }
+
 func toProto(s internal.Schedule) *v1.Schedule {
 	return &v1.Schedule{Id: s.ID, Revision: s.Revision, ProductRevisionId: s.ProductRevisionID, Dose: s.Dose.String(), DoseUnit: s.DoseUnit, Weekdays: ints32(s.Weekdays), StartDate: s.StartDate, EndDate: s.EndDate, Paused: s.Paused, Confirmed: s.Confirmed, CreatedAt: s.CreatedAt.Format(time.RFC3339Nano)}
 }
+
 func ints32(v []int) []int32 {
 	out := make([]int32, 0, len(v))
 	for _, item := range v {

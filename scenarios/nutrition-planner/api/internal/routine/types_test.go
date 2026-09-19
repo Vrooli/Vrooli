@@ -1,8 +1,9 @@
 package routine
 
 import (
-	"nutrition-planner/internal/decimalx"
 	"testing"
+
+	"nutrition-planner/internal/decimalx"
 )
 
 func TestGenerateSevenDayOccurrencesKeepsTemplateSeparate(t *testing.T) {

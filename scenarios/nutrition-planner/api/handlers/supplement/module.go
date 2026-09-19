@@ -16,6 +16,7 @@ import (
 func Module(db *database.RoutedDB, clock schedule.Clock, logger *log.Logger) module.Module {
 	return ModuleWithRepository(internal.NewSQLiteRepository(db, clock), workspace.NewService(workspace.NewSQLiteRepository(db, clock)), logger)
 }
+
 func ModuleWithRepository(repo internal.Repository, ws workspace.Service, logger *log.Logger) module.Module {
 	path, handler := connect.NewSupplementServiceHandler(NewConnectHandler(repo, ws, logger))
 	return module.Module{Name: "supplement", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler}) }, Endpoints: Endpoints}

@@ -14,6 +14,7 @@ import (
 func TestNativeRecipeExportIsNamespacedAndHonest(t *testing.T) {
 	b, err := Recipes([]recipe.Recipe{{
 		ID: "r1", Revision: 1, Name: "Draft", Status: "draft",
+		CanonicalYield: "4", ServingUnit: "servings", Ingredients: []recipe.Ingredient{{ID: "i1", Name: "Rice", Amount: "200", Unit: "g", Preparation: "rinsed"}},
 		Groups: []string{"vegan"}, Methods: []recipe.Method{{ID: "m1", Name: "Cook", Steps: []recipe.MethodStep{{ID: "s1", Instruction: "stir"}}}},
 	}})
 	if err != nil {
@@ -28,6 +29,9 @@ func TestNativeRecipeExportIsNamespacedAndHonest(t *testing.T) {
 	}
 	if len(out.Recipes[0].Methods) != 1 || len(out.Recipes[0].Groups) != 1 {
 		t.Fatalf("recipe graph was not exported: %s", b)
+	}
+	if out.Recipes[0].CanonicalYield != "4" || out.Recipes[0].ServingUnit != "servings" || len(out.Recipes[0].Ingredients) != 1 || out.Recipes[0].Ingredients[0].Preparation != "rinsed" {
+		t.Fatalf("recipe yield and ingredients were not exported: %#v", out.Recipes[0])
 	}
 	for _, omission := range out.Manifest.Omissions {
 		if omission == "methods" {
@@ -123,6 +127,39 @@ func TestImportRecipesStagesAndRejectsDuplicateRevisions(t *testing.T) {
 	if _, err := ImportRecipes(duplicate); err == nil {
 		t.Fatal("expected duplicate revision rejection")
 	}
+	var envelope Export
+	if err := json.Unmarshal(content, &envelope); err != nil {
+		t.Fatal(err)
+	}
+	envelope.Manifest.RecordCount++
+	bad, err := json.Marshal(envelope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ImportRecipes(bad); err == nil {
+		t.Fatal("expected recipe manifest count rejection")
+	}
+}
+
+func TestImportRecipesEnforcesDocumentedEntityLimits(t *testing.T) {
+	item := recipe.Recipe{ID: "r1", Revision: 1, Name: "Soup", Notes: strings.Repeat("n", 10_001)}
+	content, err := Recipes([]recipe.Recipe{item})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ImportRecipes(content); err == nil || !strings.Contains(err.Error(), "10,000") {
+		t.Fatalf("expected note-size rejection, got %v", err)
+	}
+
+	item.Notes = ""
+	item.Methods = []recipe.Method{{Name: "Cook", Steps: make([]recipe.MethodStep, 31)}}
+	content, err = Recipes([]recipe.Recipe{item})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ImportRecipes(content); err == nil || !strings.Contains(err.Error(), "30 preparation") {
+		t.Fatalf("expected step-count rejection, got %v", err)
+	}
 }
 
 func TestGroceriesCSVQuotesAndNeutralizesFormulaCells(t *testing.T) {
@@ -162,6 +199,19 @@ func TestWeeklyPDFKeepsOpenSlotsAndUnknownValues(t *testing.T) {
 	}
 	if !bytes.HasPrefix(content, []byte("%PDF-")) {
 		t.Fatalf("not a valid PDF artifact")
+	}
+}
+
+func TestPDFSupportsLetterAndRejectsUnknownPageSize(t *testing.T) {
+	content, err := RecipePDFWithPageSize(recipe.Recipe{Name: "Letter recipe"}, "LETTER")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(content, []byte("/MediaBox [0 0 612.00 792.00]")) {
+		t.Fatalf("expected US Letter page, got %q", content)
+	}
+	if _, err := WeeklyPDFWithPageSize(planning.Draft{}, nil, "tabloid"); err == nil {
+		t.Fatal("expected unsupported page size error")
 	}
 }
 

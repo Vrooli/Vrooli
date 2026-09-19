@@ -3,9 +3,10 @@ package planning
 import (
 	"context"
 	"database/sql"
+	"testing"
+
 	"github.com/vrooli/api-core/schedule"
 	_ "modernc.org/sqlite"
-	"testing"
 )
 
 func TestApplyRejectsStaleDraft(t *testing.T) {

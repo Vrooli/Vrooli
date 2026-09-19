@@ -11,6 +11,8 @@ type Recipe struct {
 	ID, WorkspaceID                                          string
 	Revision                                                 int64
 	Name, Notes, SourceURL, SourceType, OriginalText, Status string
+	CanonicalYield, ServingUnit                              string
+	Ingredients                                              []Ingredient
 	CreatedAt, UpdatedAt                                     time.Time
 	IdempotencyKey, RequestHash                              string
 	Methods                                                  []Method
@@ -18,19 +20,25 @@ type Recipe struct {
 	AllergenEvidence                                         map[string]string
 }
 type (
+	Ingredient struct {
+		ID, Name, Amount, Unit, Preparation string
+		Discrete                            bool
+	}
 	CreateInput struct {
-		WorkspaceID, Name, Notes, SourceURL, SourceType, OriginalText, IdempotencyKey string
-		Methods                                                                       []Method
-		Groups, RequiredAppliances                                                    []string
-		AllergenEvidence                                                              map[string]string
+		WorkspaceID, Name, Notes, SourceURL, SourceType, OriginalText, IdempotencyKey, CanonicalYield, ServingUnit string
+		Methods                                                                                                    []Method
+		Groups, RequiredAppliances                                                                                 []string
+		AllergenEvidence                                                                                           map[string]string
+		Ingredients                                                                                                []Ingredient
 	}
 	UpdateInput struct {
-		WorkspaceID, ID                                                  string
-		ExpectedRevision                                                 int64
-		Name, Notes, SourceURL, SourceType, OriginalText, IdempotencyKey string
-		Methods                                                          []Method
-		Groups, RequiredAppliances                                       []string
-		AllergenEvidence                                                 map[string]string
+		WorkspaceID, ID                                                                               string
+		ExpectedRevision                                                                              int64
+		Name, Notes, SourceURL, SourceType, OriginalText, IdempotencyKey, CanonicalYield, ServingUnit string
+		Methods                                                                                       []Method
+		Groups, RequiredAppliances                                                                    []string
+		AllergenEvidence                                                                              map[string]string
+		Ingredients                                                                                   []Ingredient
 	}
 )
 

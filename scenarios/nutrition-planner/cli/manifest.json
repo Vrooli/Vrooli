@@ -14,6 +14,33 @@
           "governance": {"effect": "read", "run_eligible": true, "permissions": ["nutrition:read"]}
         }
       ]
+    },
+    {
+      "name": "recipe",
+      "description": "Manage durable meal revisions.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List recipes in a workspace.",
+          "flags": [{"name": "workspace-id", "required": true, "description": "Workspace id"}],
+          "binding": {"kind": "connect-rpc", "service": "RecipeService", "method": "ListRecipes"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["nutrition:read"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "create",
+          "description": "Create a name-first recipe draft.",
+          "flags": [
+            {"name": "workspace-id", "required": true, "description": "Workspace id"},
+            {"name": "name", "required": true, "description": "Recipe name"},
+            {"name": "notes", "description": "Optional notes"},
+            {"name": "source-url", "description": "Optional source URL"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "RecipeService", "method": "CreateRecipe"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["nutrition:write"]},
+          "architecture": {"primitive": "proto_mutation"}
+        }
+      ]
     }
   ],
   "measures": {
@@ -23,14 +50,14 @@
   "omitted": [
     {"service": "WorkspaceService", "method": "CreateWorkspace", "reason": "Workspace bootstrap is currently owned by the authenticated web flow; CLI parity is added with the workspace collection vertical slice."},
     {"service": "WorkspaceService", "method": "GetWorkspace", "reason": "Workspace bootstrap is currently owned by the authenticated web flow; CLI parity is added with the workspace collection vertical slice."},
-    {"service": "RecipeService", "method": "CreateRecipe", "reason": "Recipe CLI commands are introduced with the durable meal collection UI slice."},
-    {"service": "RecipeService", "method": "GetRecipe", "reason": "Recipe CLI commands are introduced with the durable meal collection UI slice."},
-    {"service": "RecipeService", "method": "ListRecipes", "reason": "Recipe CLI commands are introduced with the durable meal collection UI slice."},
+    {"service": "RecipeService", "method": "GetRecipe", "reason": "Recipe CLI get/update parity is scheduled after the name-first collection slice."},
     {"service": "RecipeService", "method": "UpdateRecipe", "reason": "Recipe CLI commands are introduced with the durable meal collection UI slice."},
     {"service": "PortabilityService", "method": "ExportRecipes", "reason": "Native export is currently exposed through the authenticated web/API surface; CLI export parity is scheduled with the portability phase."},
     {"service": "PortabilityService", "method": "ExportWorkspace", "reason": "Workspace export is currently exposed through the authenticated web/API surface; CLI export parity is scheduled with the portability phase."},
     {"service": "PortabilityService", "method": "PreviewWorkspaceImport", "reason": "Workspace import preview is currently exposed through the authenticated web/API surface; CLI parity is scheduled with the portability phase."},
     {"service": "PortabilityService", "method": "ApplyWorkspaceImport", "reason": "Workspace restore is currently exposed through the authenticated web/API surface; CLI parity is scheduled with the portability phase."},
+    {"service": "PortabilityService", "method": "PreviewRecipesImport", "reason": "Recipe import preview is currently exposed through the authenticated web/API surface; CLI parity is scheduled with the portability phase."},
+    {"service": "PortabilityService", "method": "ApplyRecipesImport", "reason": "Recipe import apply is currently exposed through the authenticated web/API surface; CLI parity is scheduled with the portability phase."},
     {"service": "JobsService", "method": "ListJobs", "reason": "Optional job status is currently exposed through the authenticated web/API surface; CLI parity is scheduled with the jobs phase."},
     {"service": "JobsService", "method": "CreateJob", "reason": "Optional job creation is currently exposed through the authenticated web/API surface; CLI parity is scheduled with the jobs phase."},
     {"service": "JobsService", "method": "TransitionJob", "reason": "Optional job transitions are currently exposed through the authenticated web/API surface; CLI parity is scheduled with the jobs phase."},

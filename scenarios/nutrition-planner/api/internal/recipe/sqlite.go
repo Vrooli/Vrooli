@@ -63,7 +63,8 @@ func (r *sqliteRepository) Create(ctx context.Context, w Recipe) (Recipe, error)
 	groups, _ := json.Marshal(w.Groups)
 	appliances, _ := json.Marshal(w.RequiredAppliances)
 	evidence, _ := json.Marshal(w.AllergenEvidence)
-	if _, err := r.db.ExecContext(ctx, `INSERT INTO recipe_revisions(recipe_id,revision,workspace_id,name,notes,source_url,source_type,original_text,status,methods_json,groups_json,required_appliances_json,allergen_evidence_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, w.ID, w.Revision, w.WorkspaceID, w.Name, w.Notes, w.SourceURL, w.SourceType, w.OriginalText, w.Status, string(methods), string(groups), string(appliances), string(evidence), w.CreatedAt.Format(tf)); err != nil {
+	ingredients, _ := json.Marshal(w.Ingredients)
+	if _, err := r.db.ExecContext(ctx, `INSERT INTO recipe_revisions(recipe_id,revision,workspace_id,name,notes,source_url,source_type,original_text,status,methods_json,groups_json,required_appliances_json,allergen_evidence_json,canonical_yield,serving_unit,ingredients_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, w.ID, w.Revision, w.WorkspaceID, w.Name, w.Notes, w.SourceURL, w.SourceType, w.OriginalText, w.Status, string(methods), string(groups), string(appliances), string(evidence), w.CanonicalYield, w.ServingUnit, string(ingredients), w.CreatedAt.Format(tf)); err != nil {
 		return Recipe{}, fmt.Errorf("insert recipe revision: %w", err)
 	}
 	if w.IdempotencyKey != "" {
@@ -75,7 +76,7 @@ func (r *sqliteRepository) Create(ctx context.Context, w Recipe) (Recipe, error)
 }
 
 func (r *sqliteRepository) List(ctx context.Context, workspaceID string) ([]Recipe, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT r.id,r.workspace_id,r.current_revision,v.name,v.notes,v.source_url,v.source_type,v.original_text,v.status,v.methods_json,v.groups_json,v.required_appliances_json,v.allergen_evidence_json,r.created_at,r.updated_at FROM recipes r JOIN recipe_revisions v ON v.recipe_id=r.id AND v.revision=r.current_revision WHERE r.workspace_id=? ORDER BY r.updated_at DESC,r.id DESC`, workspaceID)
+	rows, err := r.db.QueryContext(ctx, `SELECT r.id,r.workspace_id,r.current_revision,v.name,v.notes,v.source_url,v.source_type,v.original_text,v.status,v.methods_json,v.groups_json,v.required_appliances_json,v.allergen_evidence_json,v.canonical_yield,v.serving_unit,v.ingredients_json,r.created_at,r.updated_at FROM recipes r JOIN recipe_revisions v ON v.recipe_id=r.id AND v.revision=r.current_revision WHERE r.workspace_id=? ORDER BY r.updated_at DESC,r.id DESC`, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +93,7 @@ func (r *sqliteRepository) List(ctx context.Context, workspaceID string) ([]Reci
 }
 
 func (r *sqliteRepository) Get(ctx context.Context, id, workspaceID string) (Recipe, error) {
-	row := r.db.QueryRowContext(ctx, `SELECT r.id,r.workspace_id,r.current_revision,v.name,v.notes,v.source_url,v.source_type,v.original_text,v.status,v.methods_json,v.groups_json,v.required_appliances_json,v.allergen_evidence_json,r.created_at,r.updated_at FROM recipes r JOIN recipe_revisions v ON v.recipe_id=r.id AND v.revision=r.current_revision WHERE r.id=?`, id)
+	row := r.db.QueryRowContext(ctx, `SELECT r.id,r.workspace_id,r.current_revision,v.name,v.notes,v.source_url,v.source_type,v.original_text,v.status,v.methods_json,v.groups_json,v.required_appliances_json,v.allergen_evidence_json,v.canonical_yield,v.serving_unit,v.ingredients_json,r.created_at,r.updated_at FROM recipes r JOIN recipe_revisions v ON v.recipe_id=r.id AND v.revision=r.current_revision WHERE r.id=?`, id)
 	v, err := scan(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Recipe{}, ErrNotFound{id}
@@ -125,6 +126,9 @@ func (r *sqliteRepository) Update(ctx context.Context, in UpdateInput) (Recipe, 
 	next.Groups = in.Groups
 	next.RequiredAppliances = in.RequiredAppliances
 	next.AllergenEvidence = in.AllergenEvidence
+	next.CanonicalYield = in.CanonicalYield
+	next.ServingUnit = in.ServingUnit
+	next.Ingredients = in.Ingredients
 	next.UpdatedAt = r.clock.Now().UTC()
 	if err := validateName(next.Name); err != nil {
 		return Recipe{}, err
@@ -133,7 +137,8 @@ func (r *sqliteRepository) Update(ctx context.Context, in UpdateInput) (Recipe, 
 	groups, _ := json.Marshal(next.Groups)
 	appliances, _ := json.Marshal(next.RequiredAppliances)
 	evidence, _ := json.Marshal(next.AllergenEvidence)
-	if _, err := r.db.ExecContext(ctx, `INSERT INTO recipe_revisions(recipe_id,revision,workspace_id,name,notes,source_url,source_type,original_text,status,methods_json,groups_json,required_appliances_json,allergen_evidence_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, next.ID, next.Revision, next.WorkspaceID, next.Name, next.Notes, next.SourceURL, next.SourceType, next.OriginalText, next.Status, string(methods), string(groups), string(appliances), string(evidence), next.UpdatedAt.Format(tf)); err != nil {
+	ingredients, _ := json.Marshal(next.Ingredients)
+	if _, err := r.db.ExecContext(ctx, `INSERT INTO recipe_revisions(recipe_id,revision,workspace_id,name,notes,source_url,source_type,original_text,status,methods_json,groups_json,required_appliances_json,allergen_evidence_json,canonical_yield,serving_unit,ingredients_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, next.ID, next.Revision, next.WorkspaceID, next.Name, next.Notes, next.SourceURL, next.SourceType, next.OriginalText, next.Status, string(methods), string(groups), string(appliances), string(evidence), next.CanonicalYield, next.ServingUnit, string(ingredients), next.UpdatedAt.Format(tf)); err != nil {
 		return Recipe{}, err
 	}
 	if _, err := r.db.ExecContext(ctx, `UPDATE recipes SET current_revision=?,updated_at=? WHERE id=? AND workspace_id=? AND current_revision=?`, next.Revision, next.UpdatedAt.Format(tf), next.ID, next.WorkspaceID, cur.Revision); err != nil {
@@ -144,8 +149,8 @@ func (r *sqliteRepository) Update(ctx context.Context, in UpdateInput) (Recipe, 
 
 func scan(s interface{ Scan(...any) error }) (Recipe, error) {
 	var v Recipe
-	var c, u, methodsJSON, groupsJSON, appliancesJSON, evidenceJSON string
-	if err := s.Scan(&v.ID, &v.WorkspaceID, &v.Revision, &v.Name, &v.Notes, &v.SourceURL, &v.SourceType, &v.OriginalText, &v.Status, &methodsJSON, &groupsJSON, &appliancesJSON, &evidenceJSON, &c, &u); err != nil {
+	var c, u, methodsJSON, groupsJSON, appliancesJSON, evidenceJSON, ingredientsJSON string
+	if err := s.Scan(&v.ID, &v.WorkspaceID, &v.Revision, &v.Name, &v.Notes, &v.SourceURL, &v.SourceType, &v.OriginalText, &v.Status, &methodsJSON, &groupsJSON, &appliancesJSON, &evidenceJSON, &v.CanonicalYield, &v.ServingUnit, &ingredientsJSON, &c, &u); err != nil {
 		return Recipe{}, err
 	}
 	var err error
@@ -174,6 +179,11 @@ func scan(s interface{ Scan(...any) error }) (Recipe, error) {
 	}
 	if evidenceJSON != "" {
 		if err := json.Unmarshal([]byte(evidenceJSON), &v.AllergenEvidence); err != nil {
+			return Recipe{}, err
+		}
+	}
+	if ingredientsJSON != "" {
+		if err := json.Unmarshal([]byte(ingredientsJSON), &v.Ingredients); err != nil {
 			return Recipe{}, err
 		}
 	}

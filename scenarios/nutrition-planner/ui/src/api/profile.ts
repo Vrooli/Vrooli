@@ -15,8 +15,8 @@ export async function saveProfileDraft(workspaceId: string, draftJson: string): 
   return response.profile;
 }
 
-export async function applyProfile(input: { workspaceId: string; preset: string; excludedGroups: string[]; allergies: string[]; appliances: string[]; costWeight: number; effortWeight: number; varietyWeight: number }): Promise<{ profile: Profile; matchingMeals: bigint }> {
+export async function applyProfile(input: { workspaceId: string; preset: string; excludedGroups: string[]; allergies: string[]; appliances: string[]; costWeight: number; effortWeight: number; varietyWeight: number }): Promise<{ profile: Profile; matchingMeals: bigint; needsReviewMeals: bigint; excludedMeals: bigint }> {
   const response = await client.applyProfile(input);
   if (!response.profile) throw new Error("The API returned no applied profile.");
-  return { profile: response.profile, matchingMeals: response.matchingMeals };
+  return { profile: response.profile, matchingMeals: response.matchingMeals, needsReviewMeals: response.needsReviewMeals, excludedMeals: response.excludedMeals };
 }

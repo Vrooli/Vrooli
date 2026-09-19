@@ -115,7 +115,7 @@ func (h *connectHandler) ExportRecipes(ctx context.Context, req *connect.Request
 		h.logger.Printf("recipe export: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&v1.ExportRecipesResponse{Format: "daily.recipes", SchemaVersion: 2, ContentJson: string(content), Omissions: []string{"nutrition", "cost", "ingredients", "methods"}}), nil
+	return connect.NewResponse(&v1.ExportRecipesResponse{Format: "daily.recipes", SchemaVersion: 2, ContentJson: string(content), Omissions: []string{"nutrition", "cost"}}), nil
 }
 
 func (h *connectHandler) ExportWorkspace(ctx context.Context, req *connect.Request[v1.ExportWorkspaceRequest]) (*connect.Response[v1.ExportWorkspaceResponse], error) {
@@ -205,6 +205,60 @@ func (h *connectHandler) ApplyWorkspaceImport(ctx context.Context, req *connect.
 	return connect.NewResponse(&v1.ApplyWorkspaceImportResponse{WorkspaceRevision: result.WorkspaceRevision, RecipesApplied: int32(result.RecipesApplied), CheckpointId: result.CheckpointID}), nil
 }
 
+func (h *connectHandler) PreviewRecipesImport(ctx context.Context, req *connect.Request[v1.PreviewRecipesImportRequest]) (*connect.Response[v1.PreviewRecipesImportResponse], error) {
+	principal, ok := identity.PrincipalFromContext(ctx)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified actor required"))
+	}
+	if req.Msg.WorkspaceId == "" || req.Msg.ContentJson == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id and content_json are required"))
+	}
+	if h.restorer == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("recipe import is not configured"))
+	}
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.Subject); err != nil {
+		return nil, workspaceError(err)
+	}
+	envelope, err := internalPortability.ImportRecipes([]byte(req.Msg.ContentJson))
+	if err != nil {
+		return connect.NewResponse(&v1.PreviewRecipesImportResponse{Valid: false, Errors: []string{err.Error()}}), nil
+	}
+	preview, err := h.restorer.PreviewRecipes(ctx, req.Msg.WorkspaceId, envelope)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&v1.PreviewRecipesImportResponse{Valid: len(preview.Errors) == 0, Format: envelope.Format, SchemaVersion: int32(envelope.SchemaVersion), RecipeCount: int32(preview.RecipeCount), DuplicateCount: int32(preview.DuplicateCount), ConflictCount: int32(preview.ConflictCount), Errors: preview.Errors}), nil
+}
+
+func (h *connectHandler) ApplyRecipesImport(ctx context.Context, req *connect.Request[v1.ApplyRecipesImportRequest]) (*connect.Response[v1.ApplyRecipesImportResponse], error) {
+	principal, ok := identity.PrincipalFromContext(ctx)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified actor required"))
+	}
+	if req.Msg.WorkspaceId == "" || req.Msg.ContentJson == "" || req.Msg.IdempotencyKey == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id, content_json, and idempotency_key are required"))
+	}
+	if h.restorer == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("recipe import is not configured"))
+	}
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.Subject); err != nil {
+		return nil, workspaceError(err)
+	}
+	envelope, err := internalPortability.ImportRecipes([]byte(req.Msg.ContentJson))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	result, err := h.restorer.ApplyRecipes(ctx, req.Msg.WorkspaceId, req.Msg.ExpectedWorkspaceRevision, req.Msg.IdempotencyKey, req.Msg.ConflictPolicy, envelope)
+	if err != nil {
+		var stale internalPortability.ErrRestoreRevision
+		if errors.As(err, &stale) {
+			return nil, connect.NewError(connect.CodeAborted, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&v1.ApplyRecipesImportResponse{WorkspaceRevision: result.WorkspaceRevision, RecipesApplied: int32(result.RecipesApplied), RecipesSkipped: int32(result.RecipesSkipped), RemappedIds: result.RemappedIDs}), nil
+}
+
 func (h *connectHandler) ExportRecipePDF(ctx context.Context, req *connect.Request[v1.ExportRecipePDFRequest]) (*connect.Response[v1.ExportPDFResponse], error) {
 	principal, ok := identity.PrincipalFromContext(ctx)
 	if !ok {
@@ -220,7 +274,7 @@ func (h *connectHandler) ExportRecipePDF(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
-	content, err := internalPortability.RecipePDF(item)
+	content, err := internalPortability.RecipePDFWithPageSize(item, req.Msg.PageSize)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -257,7 +311,7 @@ func (h *connectHandler) ExportWeeklyPDF(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	content, err := internalPortability.WeeklyPDF(draft, internalShopping.Derive(draft, items, checked))
+	content, err := internalPortability.WeeklyPDFWithPageSize(draft, internalShopping.Derive(draft, items, checked), req.Msg.PageSize)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

@@ -37,6 +37,7 @@ func NewConnectHandler(workspaces workspace.Service, recipes recipe.Service, pro
 	}
 	return &connectHandler{workspaces: workspaces, recipes: recipes, profiles: profiles, plans: plans, shopping: shoppingRepo, feedback: feedbackRepo, logger: logger}
 }
+
 func (h *connectHandler) GeneratePlan(ctx context.Context, req *connect.Request[v1.GeneratePlanRequest]) (*connect.Response[v1.GeneratePlanResponse], error) {
 	p, ok := identity.PrincipalFromContext(ctx)
 	if !ok {
@@ -78,14 +79,38 @@ func (h *connectHandler) GeneratePlan(ctx context.Context, req *connect.Request[
 		decision := eligibility.Evaluate(active, eligibility.Candidate{Revision: item.Revision, Groups: item.Groups, RequiredAppliances: item.RequiredAppliances, AllergenEvidence: mapEvidence(item.AllergenEvidence), MethodIDs: methodIDs(item.Methods)})
 		candidates = append(candidates, internal.Candidate{ID: item.ID, Name: item.Name, Eligible: decision.Status == eligibility.Eligible, InputRevision: fmt.Sprint(item.Revision), Cost: 0, Effort: float64(len(item.Methods))})
 	}
+	currentRevision, currentPlan, revisionErr := h.plans.Get(ctx, req.Msg.WorkspaceId)
+	if revisionErr != nil {
+		return nil, connect.NewError(connect.CodeInternal, revisionErr)
+	}
 	slots := make([]internal.Slot, 0, len(req.Msg.Dates)+len(req.Msg.MealSlots))
 	if len(req.Msg.MealSlots) > 0 {
 		for _, slot := range req.Msg.MealSlots {
 			slots = append(slots, internal.Slot{Date: slot.Date, SlotName: slot.SlotName, Mode: slot.Mode, Quantity: slot.Quantity, Locked: slot.LockedRecipeId != "", RecipeID: slot.LockedRecipeId})
 		}
 	} else {
+		lockedRecipeIDs := make(map[string]string, len(req.Msg.LockedRecipeIds))
+		for date, recipeID := range req.Msg.LockedRecipeIds {
+			lockedRecipeIDs[date] = recipeID
+		}
+		openDates := map[string]bool{}
+		var saved internal.Draft
+		if currentPlan != "" && json.Unmarshal([]byte(currentPlan), &saved) == nil {
+			for _, occurrence := range saved.Occurrences {
+				if occurrence.Mode == "open" && containsDate(req.Msg.Dates, occurrence.Date) {
+					openDates[occurrence.Date] = true
+				}
+				if occurrence.Locked && occurrence.RecipeID != "" && containsDate(req.Msg.Dates, occurrence.Date) {
+					lockedRecipeIDs[occurrence.Date] = occurrence.RecipeID
+				}
+			}
+		}
 		for _, date := range req.Msg.Dates {
-			recipeID := req.Msg.LockedRecipeIds[date]
+			if openDates[date] {
+				slots = append(slots, internal.Slot{Date: date, SlotName: "dinner", Mode: "open", Quantity: "1"})
+				continue
+			}
+			recipeID := lockedRecipeIDs[date]
 			slots = append(slots, internal.Slot{Date: date, SlotName: "dinner", Mode: "fixed", Locked: recipeID != "", RecipeID: recipeID})
 		}
 	}
@@ -102,11 +127,16 @@ func (h *connectHandler) GeneratePlan(ctx context.Context, req *connect.Request[
 	for _, item := range draft.Unresolved {
 		unresolved = append(unresolved, item.Date)
 	}
-	currentRevision, _, revisionErr := h.plans.Get(ctx, req.Msg.WorkspaceId)
-	if revisionErr != nil {
-		return nil, connect.NewError(connect.CodeInternal, revisionErr)
-	}
 	return connect.NewResponse(&v1.GeneratePlanResponse{RunId: draft.RunID, DraftJson: string(raw), UnresolvedDates: unresolved, InputReferences: draft.InputReferences, CurrentRevision: currentRevision}), nil
+}
+
+func containsDate(dates []string, target string) bool {
+	for _, date := range dates {
+		if date == target {
+			return true
+		}
+	}
+	return false
 }
 
 func methodIDs(methods []recipe.Method) []string {
@@ -116,6 +146,7 @@ func methodIDs(methods []recipe.Method) []string {
 	}
 	return out
 }
+
 func mapEvidence(in map[string]string) map[string]eligibility.EvidenceState {
 	out := make(map[string]eligibility.EvidenceState, len(in))
 	for key, value := range in {

@@ -65,3 +65,22 @@ func TestCreateIdempotencyReplaysAndRejectsChangedPayload(t *testing.T) {
 		t.Fatal("changed idempotent payload accepted")
 	}
 }
+
+func TestRecipeYieldAndIngredientsPersistAcrossRevisions(t *testing.T) {
+	s := NewService(repo(t))
+	ctx := context.Background()
+	first, err := s.Create(ctx, CreateInput{WorkspaceID: "w1", Name: "Bowl", CanonicalYield: "2", ServingUnit: "servings", Ingredients: []Ingredient{{ID: "rice", Name: "Rice", Amount: "40", Unit: "g"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated, err := s.Update(ctx, UpdateInput{WorkspaceID: "w1", ID: first.ID, ExpectedRevision: first.Revision, Name: "Bowl", CanonicalYield: "4", ServingUnit: "servings", Ingredients: []Ingredient{{ID: "rice", Name: "Rice", Amount: "80", Unit: "g"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Revision != 2 || updated.CanonicalYield != "4" || len(updated.Ingredients) != 1 || updated.Ingredients[0].Amount != "80" {
+		t.Fatalf("updated=%#v", updated)
+	}
+	if first.CanonicalYield != "2" || first.Ingredients[0].Amount != "40" {
+		t.Fatalf("create snapshot mutated=%#v", first)
+	}
+}

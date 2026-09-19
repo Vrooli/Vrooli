@@ -1,12 +1,14 @@
 package inventory
 
 import (
+	"log"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 	connect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/inventory/inventory_v1connect"
-	"log"
+
 	internal "nutrition-planner/internal/inventory"
 	"nutrition-planner/internal/module"
 	"nutrition-planner/internal/workspace"

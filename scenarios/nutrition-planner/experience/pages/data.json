@@ -6,7 +6,8 @@
     "id": "data",
     "title": "Your food, portable.",
     "routes": [
-      "/data"
+      "/data",
+      "/transfer"
     ],
     "purpose": "Export, print, import, and restore owned data with review before write, explicit duplicate decisions, and a recoverable checkpoint, never exporting secrets or tenant authority.",
     "prd_refs": [

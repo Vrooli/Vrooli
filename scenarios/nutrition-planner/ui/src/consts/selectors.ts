@@ -41,6 +41,12 @@ const literalSelectors = {
     dashboardHeader: "page-dashboard-header",
     dashboardPlaceholder: "page-dashboard-placeholder",
     settings: "page-settings",
+    today: "page-today",
+    week: "page-week",
+    transfer: "page-transfer",
+  },
+  transfer: {
+    importInput: "data-transfer-import-input",
   },
   errorBoundary: {
     root: "error-boundary-root",

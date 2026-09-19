@@ -4,12 +4,16 @@ const exportGroceriesCSV = vi.hoisted(() => vi.fn());
 const exportRecipePDF = vi.hoisted(() => vi.fn());
 const exportWeeklyPDF = vi.hoisted(() => vi.fn());
 const exportWorkspace = vi.hoisted(() => vi.fn());
+const exportRecipes = vi.hoisted(() => vi.fn());
 const previewWorkspaceImport = vi.hoisted(() => vi.fn());
 const applyWorkspaceImport = vi.hoisted(() => vi.fn());
-vi.mock("@connectrpc/connect", () => ({ createClient: () => ({ exportGroceriesCSV, exportRecipePDF, exportWeeklyPDF, exportWorkspace, previewWorkspaceImport, applyWorkspaceImport }) }));
+const previewRecipesImport = vi.hoisted(() => vi.fn());
+const applyRecipesImport = vi.hoisted(() => vi.fn());
+vi.mock("@connectrpc/connect", () => ({ createClient: () => ({ exportGroceriesCSV, exportRecipePDF, exportWeeklyPDF, exportWorkspace, exportRecipes, previewWorkspaceImport, applyWorkspaceImport, previewRecipesImport, applyRecipesImport }) }));
 vi.mock("./client", () => ({ transport: {} }));
 
-import { applyWorkspaceImport as applyBackup, exportGroceriesCSV as exportCSV, exportRecipePDF as exportRecipe, exportWeeklyPDF as exportWeek, exportWorkspace as exportBackup, previewWorkspaceImport as previewBackup } from "./portability";
+import { applyWorkspaceImport as applyBackup, exportGroceriesCSV as exportCSV, exportRecipePDF as exportRecipe, exportWeeklyPDF as exportWeek, exportWorkspace as exportBackup, exportRecipes as exportRecipeCollection, previewWorkspaceImport as previewBackup } from "./portability";
+import { applyRecipesImport as applyRecipeImport, previewRecipesImport as previewRecipeImport } from "./portability";
 
 describe("portability API", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -33,5 +37,16 @@ describe("portability API", () => {
     await expect(previewBackup({ workspaceId: "w1", contentJson: "{}" })).resolves.toMatchObject({ valid: true, recordCount: 3 });
     applyWorkspaceImport.mockResolvedValue({ workspaceRevision: 4n, recipesApplied: 1, checkpointId: "cp1" });
     await expect(applyBackup({ workspaceId: "w1", expectedWorkspaceRevision: 3n, contentJson: "{}", idempotencyKey: "restore-1" })).resolves.toMatchObject({ workspaceRevision: 4n, checkpointId: "cp1" });
+  });
+  it("exports a native recipe collection", async () => {
+    exportRecipes.mockResolvedValue({ contentJson: "{}", omissions: ["nutrition"] });
+    await expect(exportRecipeCollection("w1")).resolves.toEqual({ filename: "daily-recipes.json", content: "{}", omissions: ["nutrition"] });
+    expect(exportRecipes).toHaveBeenCalledWith({ workspaceId: "w1" });
+  });
+  it("previews and applies a native recipe collection", async () => {
+    previewRecipesImport.mockResolvedValue({ valid: true, format: "daily.recipes", schemaVersion: 2, recipeCount: 2, duplicateCount: 1, conflictCount: 1, errors: [] });
+    applyRecipesImport.mockResolvedValue({ workspaceRevision: 5n, recipesApplied: 1, recipesSkipped: 1, remappedIds: ["r1=r2"] });
+    await expect(previewRecipeImport({ workspaceId: "w1", contentJson: "{}" })).resolves.toMatchObject({ recipeCount: 2, conflictCount: 1 });
+    await expect(applyRecipeImport({ workspaceId: "w1", expectedWorkspaceRevision: 4n, contentJson: "{}", idempotencyKey: "import-1" })).resolves.toMatchObject({ workspaceRevision: 5n, recipesSkipped: 1 });
   });
 });

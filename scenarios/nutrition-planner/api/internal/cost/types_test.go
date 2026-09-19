@@ -36,8 +36,22 @@ func TestCalculateKeepsUnknownStockUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !result.Missing.IsUnknown() || !result.CheckoutMinorCost.IsUnknown() {
+	if !result.Missing.IsUnknown() || !result.CheckoutMinorCost.IsUnknown() || result.AllocatedMinorCost.String() != "80" {
 		t.Fatalf("unknown stock was fabricated: %#v", result)
+	}
+}
+
+func TestCalculateManyRetainsKnownAllocationWhenStockIsUnknown(t *testing.T) {
+	price, _ := money.New(200, "USD", 2)
+	result, err := CalculateMany([]Requirement{{ItemID: "rice", Amount: mustDecimal(t, "500"), Unit: "g"}, {ItemID: "sauce", Amount: mustDecimal(t, "80"), Unit: "g"}}, map[string]Stock{"rice": {Amount: mustDecimal(t, "500"), Unit: "g"}, "sauce": {Amount: decimalx.Unknown, Unit: "g"}}, map[string][]Package{
+		"rice":  {{ItemID: "rice", Amount: mustDecimal(t, "500"), Unit: "g", Price: price}},
+		"sauce": {{ItemID: "sauce", Amount: mustDecimal(t, "200"), Unit: "g", Price: price}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Complete || result.AllocatedMinorCost.String() != "280" || result.CheckoutMinorCost.String() != "0" || len(result.Unknown) != 1 || result.Unknown[0] != "sauce" {
+		t.Fatalf("result=%#v", result)
 	}
 }
 

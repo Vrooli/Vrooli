@@ -21,6 +21,7 @@ import (
 func Module(db *database.RoutedDB, clock schedule.Clock, logger *log.Logger) module.Module {
 	return ModuleWithServices(workspace.NewService(workspace.NewSQLiteRepository(db, clock)), recipe.NewService(recipe.NewSQLiteRepository(db, clock)), profile.NewService(profile.NewSQLiteRepository(db, clock)), internal.NewSQLiteRepository(db, clock), shopping.NewSQLiteRepository(db, clock), feedback.NewSQLiteRepository(db, clock), logger)
 }
+
 func ModuleWithServices(workspaces workspace.Service, recipes recipe.Service, profiles profile.Service, plans internal.Repository, shoppingRepo shopping.Repository, feedbackRepo feedback.Repository, logger *log.Logger) module.Module {
 	path, handler := connect.NewPlanningServiceHandler(NewConnectHandler(workspaces, recipes, profiles, plans, shoppingRepo, feedbackRepo, logger))
 	return module.Module{Name: "planning", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler}) }, Endpoints: Endpoints}

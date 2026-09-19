@@ -12,30 +12,36 @@ import (
 
 var ErrNotConfigured = errors.New("provider is not configured")
 
-type Status struct{ Name, State, Reason string }
-type NutritionQuery struct{ FoodID, Query, Preparation, DataType string }
-type NutritionSearchQuery struct{ Query, Preparation, DataType string }
-type NutritionSearchResult struct {
-	SourceID, SourceVersion, ObservedAt       string
-	ConceptID, Name, ProductName, Preparation string
-	DataType                                  string
-}
+type (
+	Status                struct{ Name, State, Reason string }
+	NutritionQuery        struct{ FoodID, Query, Preparation, DataType string }
+	NutritionSearchQuery  struct{ Query, Preparation, DataType string }
+	NutritionSearchResult struct {
+		SourceID, SourceVersion, ObservedAt       string
+		ConceptID, Name, ProductName, Preparation string
+		DataType                                  string
+	}
+)
 type NutritionResult struct {
 	SourceID, SourceVersion, ObservedAt string
 	Values                              map[string]string
 	Evidence                            []string
 }
-type PriceQuery struct{ ItemID, Retailer, Currency string }
-type PriceResult struct {
-	ItemID, Retailer, Currency, Amount, ObservedAt string
-	Conditions                                     []string
-}
-type ReceiptInput struct{ SourceID, Text string }
-type ReceiptResult struct {
-	SourceID, TransactionID string
-	Lines                   []ReceiptLine
-	Warnings                []string
-}
+type (
+	PriceQuery  struct{ ItemID, Retailer, Currency string }
+	PriceResult struct {
+		ItemID, Retailer, Currency, Amount, ObservedAt string
+		Conditions                                     []string
+	}
+)
+type (
+	ReceiptInput  struct{ SourceID, Text string }
+	ReceiptResult struct {
+		SourceID, TransactionID string
+		Lines                   []ReceiptLine
+		Warnings                []string
+	}
+)
 type ReceiptLine struct{ Description, ItemID, Amount, Unit, Price string }
 
 func ReceiptDedupKey(result ReceiptResult, line ReceiptLine) string {
@@ -73,18 +79,23 @@ type Disabled struct{ Name string }
 func (d Disabled) Status() Status {
 	return Status{Name: d.Name, State: "not_configured", Reason: "manual entry and deterministic planning remain available"}
 }
+
 func (d Disabled) Lookup(context.Context, NutritionQuery) (NutritionResult, error) {
 	return NutritionResult{}, ErrNotConfigured
 }
+
 func (d Disabled) Search(context.Context, NutritionSearchQuery) ([]NutritionSearchResult, error) {
 	return nil, ErrNotConfigured
 }
+
 func (d Disabled) Detail(ctx context.Context, query NutritionQuery) (NutritionResult, error) {
 	return d.Lookup(ctx, query)
 }
+
 func (d Disabled) Observe(context.Context, PriceQuery) (PriceResult, error) {
 	return PriceResult{}, ErrNotConfigured
 }
+
 func (d Disabled) Parse(context.Context, ReceiptInput) (ReceiptResult, error) {
 	return ReceiptResult{}, ErrNotConfigured
 }

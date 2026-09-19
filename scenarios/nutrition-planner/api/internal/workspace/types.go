@@ -39,6 +39,7 @@ type ErrIdempotencyConflict struct{ Key string }
 func (e ErrIdempotencyConflict) Error() string {
 	return fmt.Sprintf("idempotency key %q was used with a different payload", e.Key)
 }
+
 func ValidateName(name string) error {
 	if strings.TrimSpace(name) == "" {
 		return ErrInvalid{"name", "must not be empty"}

@@ -3,10 +3,11 @@ package routine
 import (
 	"context"
 	"database/sql"
+	"testing"
+
 	"github.com/vrooli/api-core/schedule"
 	_ "modernc.org/sqlite"
 	"nutrition-planner/internal/decimalx"
-	"testing"
 )
 
 func TestRoutineRepositoryCreatesImmutableRevision(t *testing.T) {

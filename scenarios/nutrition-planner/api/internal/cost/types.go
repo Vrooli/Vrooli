@@ -123,9 +123,20 @@ func Calculate(requirement Requirement, stock Stock, offers []Package) (ItemResu
 	if stock.Unit != "" && stock.Unit != requirement.Unit {
 		return ItemResult{}, fmt.Errorf("stock unit is incompatible with requirement")
 	}
+	allocated := decimalx.Unknown
+	if offer.Price.Known {
+		priceTimesAmount, err := decimalx.Mul(decimalx.KnownInt(offer.Price.Minor), requirement.Amount)
+		if err != nil {
+			return ItemResult{}, err
+		}
+		allocated, err = decimalx.Div(priceTimesAmount, offer.Amount)
+		if err != nil {
+			return ItemResult{}, err
+		}
+	}
 	available := stock.Amount
 	if available.IsUnknown() {
-		return ItemResult{ItemID: requirement.ItemID, Required: requirement.Amount, Available: available, Missing: decimalx.Unknown, PackagesToBuy: decimalx.Unknown, AllocatedMinorCost: decimalx.Unknown, CheckoutMinorCost: decimalx.Unknown, Currency: offer.Price.Currency, PriceKnown: offer.Price.Known, Complete: false, Reason: "available stock is unknown"}, nil
+		return ItemResult{ItemID: requirement.ItemID, Required: requirement.Amount, Available: available, Missing: decimalx.Unknown, PackagesToBuy: decimalx.Unknown, AllocatedMinorCost: allocated, CheckoutMinorCost: decimalx.Unknown, Currency: offer.Price.Currency, PriceKnown: offer.Price.Known, Complete: false, Reason: "available stock is unknown"}, nil
 	}
 	missing := decimalx.KnownInt(0)
 	if comparison, err := decimalx.Compare(requirement.Amount, available); err != nil {
@@ -156,18 +167,8 @@ func Calculate(requirement Requirement, stock Stock, offers []Package) (ItemResu
 			checkout = decimalx.Unknown
 		}
 	}
-	allocated := decimalx.KnownInt(0)
 	if !offer.Price.Known {
 		allocated = decimalx.Unknown
-	} else {
-		priceTimesAmount, err := decimalx.Mul(decimalx.KnownInt(offer.Price.Minor), requirement.Amount)
-		if err != nil {
-			return ItemResult{}, err
-		}
-		allocated, err = decimalx.Div(priceTimesAmount, offer.Amount)
-		if err != nil {
-			return ItemResult{}, err
-		}
 	}
 	return ItemResult{ItemID: requirement.ItemID, Required: requirement.Amount, Available: available, Missing: missing, PackagesToBuy: packages, AllocatedMinorCost: allocated, CheckoutMinorCost: checkout, Currency: offer.Price.Currency, PriceKnown: offer.Price.Known, Complete: offer.Price.Known, Reason: "selected lowest known compatible offer"}, nil
 }
@@ -185,13 +186,16 @@ func CalculateMany(requirements []Requirement, stock map[string]Stock, offers ma
 		if item.Currency != "" && result.Currency == "" {
 			result.Currency = item.Currency
 		}
+		if !item.AllocatedMinorCost.IsUnknown() {
+			result.AllocatedMinorCost, _ = decimalx.Add(result.AllocatedMinorCost, item.AllocatedMinorCost)
+		}
+		if !item.CheckoutMinorCost.IsUnknown() {
+			result.CheckoutMinorCost, _ = decimalx.Add(result.CheckoutMinorCost, item.CheckoutMinorCost)
+		}
 		if item.AllocatedMinorCost.IsUnknown() || item.CheckoutMinorCost.IsUnknown() || item.Available.IsUnknown() || !item.PriceKnown {
 			result.Complete = false
 			result.Unknown = append(result.Unknown, item.ItemID)
-			continue
 		}
-		result.AllocatedMinorCost, _ = decimalx.Add(result.AllocatedMinorCost, item.AllocatedMinorCost)
-		result.CheckoutMinorCost, _ = decimalx.Add(result.CheckoutMinorCost, item.CheckoutMinorCost)
 	}
 	return result, nil
 }

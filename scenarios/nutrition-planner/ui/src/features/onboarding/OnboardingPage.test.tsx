@@ -12,7 +12,7 @@ vi.mock("../../api/workspace", () => ({ ensureWorkspace: vi.fn().mockResolvedVal
 import { OnboardingPage } from "./OnboardingPage";
 
 describe("OnboardingPage", () => {
-  beforeEach(() => { vi.clearAllMocks(); getProfile.mockResolvedValue(undefined); saveProfileDraft.mockResolvedValue({}); applyProfile.mockResolvedValue({ profile: {} }); });
+  beforeEach(() => { vi.clearAllMocks(); getProfile.mockResolvedValue(undefined); saveProfileDraft.mockResolvedValue({}); applyProfile.mockResolvedValue({ profile: {}, matchingMeals: 2n, needsReviewMeals: 1n, excludedMeals: 3n }); });
 
   it("preserves a draft while moving through steps", async () => {
     const user = userEvent.setup();
@@ -32,7 +32,17 @@ describe("OnboardingPage", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "Make your plan fit your life" })).toBeInTheDocument());
     for (let index = 0; index < 3; index += 1) await user.click(screen.getByRole("button", { name: "Save and next" }));
     await user.click(screen.getByRole("button", { name: "Apply profile" }));
-    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Active profile applied"));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Fits: 2"));
     expect(applyProfile).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: "w1", appliances: [] }));
+  });
+
+  it("explains when no cataloged meal matches without relaxing restrictions", async () => {
+    const user = userEvent.setup();
+    applyProfile.mockResolvedValue({ profile: {}, matchingMeals: 0n, needsReviewMeals: 1n, excludedMeals: 4n });
+    renderWithProviders(<OnboardingPage />);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Make your plan fit your life" })).toBeInTheDocument());
+    for (let index = 0; index < 3; index += 1) await user.click(screen.getByRole("button", { name: "Save and next" }));
+    await user.click(screen.getByRole("button", { name: "Apply profile" }));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("No cataloged meals currently fit"));
   });
 });

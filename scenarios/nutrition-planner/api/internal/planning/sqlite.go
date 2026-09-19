@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/vrooli/api-core/schedule"
 	"time"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 type SQLExecutor interface {
@@ -33,6 +34,7 @@ type ErrStaleInputs struct {
 func (e ErrStaleInputs) Error() string {
 	return fmt.Sprintf("plan inputs are stale for workspace %q: expected revision %d, actual %d", e.WorkspaceID, e.Expected, e.Actual)
 }
+
 func (r *sqliteRepository) Get(ctx context.Context, id string) (int64, string, error) {
 	var revision int64
 	var plan string
@@ -42,6 +44,7 @@ func (r *sqliteRepository) Get(ctx context.Context, id string) (int64, string, e
 	}
 	return revision, plan, err
 }
+
 func (r *sqliteRepository) Apply(ctx context.Context, id string, expected int64, plan string) (int64, error) {
 	next := expected + 1
 	result, err := r.db.ExecContext(ctx, `INSERT INTO plans(workspace_id,revision,plan_json,updated_at) SELECT ?,?,?,? WHERE ?=0 ON CONFLICT(workspace_id) DO UPDATE SET revision=excluded.revision,plan_json=excluded.plan_json,updated_at=excluded.updated_at WHERE plans.revision=?`, id, next, plan, r.clock.Now().UTC().Format(time.RFC3339Nano), expected, expected)

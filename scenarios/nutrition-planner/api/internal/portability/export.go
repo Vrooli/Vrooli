@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"nutrition-planner/internal/recipe"
 )
 
@@ -59,7 +60,7 @@ func Workspace(snapshot WorkspaceSnapshot) ([]byte, error) {
 	if snapshot.ID == "" {
 		return nil, errors.New("workspace export requires an id")
 	}
-	out := Export{Format: "daily.workspace", SchemaVersion: 2, ExportID: "workspace-" + snapshot.ID, Scope: Scope{Kind: "workspace_backup"}, Manifest: Manifest{RecordKinds: []string{"workspace", "recipe", "recipe_revision", "recipe_method", "recipe_step", "plan"}, AttachmentsIncluded: true, Omissions: []string{"profile", "catalog", "nutrition_targets", "supplements", "inventory", "prices", "feedback", "jobs", "provider_credentials", "authentication", "entitlements"}}}
+	out := Export{Format: "daily.workspace", SchemaVersion: 2, ExportID: "workspace-" + snapshot.ID, Scope: Scope{Kind: "workspace_backup"}, Manifest: Manifest{RecordKinds: []string{"workspace", "recipe", "recipe_revision", "plan"}, AttachmentsIncluded: false, Omissions: []string{"profile", "catalog", "nutrition_targets", "supplements", "inventory", "prices", "feedback", "jobs", "provider_credentials", "authentication", "entitlements"}}}
 	workspaceData, _ := json.Marshal(map[string]any{"name": snapshot.Name, "revision": snapshot.Revision})
 	out.Records = append(out.Records, Record{Kind: "workspace", ID: snapshot.ID, Revision: snapshot.Revision, Data: workspaceData})
 	for _, item := range snapshot.Recipes {
@@ -100,6 +101,8 @@ func ImportWorkspace(data []byte) (Export, error) {
 	}
 	allowed := map[string]bool{"workspace": true, "recipe": true, "recipe_revision": true, "plan": true}
 	workspaceCount := 0
+	recipeCount := 0
+	ingredientUses := 0
 	for _, record := range envelope.Records {
 		if !allowed[record.Kind] {
 			return Export{}, fmt.Errorf("workspace export contains unsupported record kind %q", record.Kind)
@@ -110,35 +113,52 @@ func ImportWorkspace(data []byte) (Export, error) {
 		if record.Kind == "workspace" {
 			workspaceCount++
 		}
+		if record.Kind == "recipe_revision" {
+			var item Recipe
+			if err := json.Unmarshal(record.Data, &item); err != nil {
+				return Export{}, fmt.Errorf("record %s: %w", record.ID, err)
+			}
+			if err := validatePortableRecipe(item); err != nil {
+				return Export{}, fmt.Errorf("record %s: %w", record.ID, err)
+			}
+			recipeCount++
+			ingredientUses += len(item.Ingredients)
+		}
 	}
 	if workspaceCount != 1 {
 		return Export{}, errors.New("workspace export must contain exactly one workspace record")
+	}
+	if recipeCount > 200 || ingredientUses > 80 {
+		return Export{}, errors.New("workspace export exceeds recipe or ingredient-use limit")
 	}
 	return envelope, nil
 }
 
 type Recipe struct {
-	ID                 string            `json:"id"`
-	Revision           int64             `json:"revision"`
-	Name               string            `json:"name"`
-	Notes              string            `json:"notes,omitempty"`
-	SourceURL          string            `json:"sourceUrl,omitempty"`
-	SourceType         string            `json:"sourceType,omitempty"`
-	OriginalText       string            `json:"originalText,omitempty"`
-	Status             string            `json:"status"`
-	Groups             []string          `json:"groups,omitempty"`
-	RequiredAppliances []string          `json:"requiredAppliances,omitempty"`
-	AllergenEvidence   map[string]string `json:"allergenEvidence,omitempty"`
-	Methods            []recipe.Method   `json:"methods,omitempty"`
+	ID                 string              `json:"id"`
+	Revision           int64               `json:"revision"`
+	Name               string              `json:"name"`
+	Notes              string              `json:"notes,omitempty"`
+	SourceURL          string              `json:"sourceUrl,omitempty"`
+	SourceType         string              `json:"sourceType,omitempty"`
+	OriginalText       string              `json:"originalText,omitempty"`
+	Status             string              `json:"status"`
+	CanonicalYield     string              `json:"canonicalYield,omitempty"`
+	ServingUnit        string              `json:"servingUnit,omitempty"`
+	Ingredients        []recipe.Ingredient `json:"ingredients,omitempty"`
+	Groups             []string            `json:"groups,omitempty"`
+	RequiredAppliances []string            `json:"requiredAppliances,omitempty"`
+	AllergenEvidence   map[string]string   `json:"allergenEvidence,omitempty"`
+	Methods            []recipe.Method     `json:"methods,omitempty"`
 }
 
 func Recipes(items []recipe.Recipe) ([]byte, error) {
 	out := Export{Format: "daily.recipes", SchemaVersion: 2, Manifest: Manifest{
-		RecordKinds: []string{"recipe", "recipe_revision", "recipe_method", "recipe_step"}, AttachmentsIncluded: true,
-		Omissions: []string{"nutrition", "cost", "ingredients"},
+		RecordKinds: []string{"recipe", "recipe_revision"}, AttachmentsIncluded: false,
+		Omissions: []string{"nutrition", "cost"},
 	}, Scope: Scope{Kind: "recipe_collection"}, Recipes: make([]Recipe, 0, len(items)), Records: make([]Record, 0, len(items)*2)}
 	for _, r := range items {
-		portable := Recipe{ID: r.ID, Revision: r.Revision, Name: r.Name, Notes: r.Notes, SourceURL: r.SourceURL, SourceType: r.SourceType, OriginalText: r.OriginalText, Status: r.Status, Groups: r.Groups, RequiredAppliances: r.RequiredAppliances, AllergenEvidence: r.AllergenEvidence, Methods: r.Methods}
+		portable := Recipe{ID: r.ID, Revision: r.Revision, Name: r.Name, Notes: r.Notes, SourceURL: r.SourceURL, SourceType: r.SourceType, OriginalText: r.OriginalText, Status: r.Status, CanonicalYield: r.CanonicalYield, ServingUnit: r.ServingUnit, Ingredients: r.Ingredients, Groups: r.Groups, RequiredAppliances: r.RequiredAppliances, AllergenEvidence: r.AllergenEvidence, Methods: r.Methods}
 		out.Recipes = append(out.Recipes, portable)
 		out.Scope.RecipeIDs = append(out.Scope.RecipeIDs, r.ID)
 		identity, _ := json.Marshal(map[string]any{"currentRevision": r.Revision, "status": r.Status})
@@ -163,6 +183,9 @@ func ImportRecipes(data []byte) (Export, error) {
 	if envelope.Format != "daily.recipes" || envelope.SchemaVersion != 2 {
 		return Export{}, errors.New("unsupported recipe export format or schema version")
 	}
+	if envelope.Manifest.RecordCount != len(envelope.Records) {
+		return Export{}, errors.New("recipe export record count does not match manifest")
+	}
 	if len(envelope.Recipes) == 0 && len(envelope.Records) > 0 {
 		for _, record := range envelope.Records {
 			if record.Kind != "recipe_revision" {
@@ -179,17 +202,39 @@ func ImportRecipes(data []byte) (Export, error) {
 		return Export{}, errors.New("recipe export exceeds 200 recipe limit")
 	}
 	seen := map[string]bool{}
+	ingredientUses := 0
 	for _, item := range envelope.Recipes {
-		if item.ID == "" || item.Revision < 1 || item.Name == "" {
-			return Export{}, errors.New("recipe export contains an invalid recipe")
+		if err := validatePortableRecipe(item); err != nil {
+			return Export{}, err
 		}
 		key := fmt.Sprintf("%s:%d", item.ID, item.Revision)
 		if seen[key] {
 			return Export{}, fmt.Errorf("duplicate recipe revision %s", key)
 		}
 		seen[key] = true
+		ingredientUses += len(item.Ingredients)
+	}
+	if ingredientUses > 80 {
+		return Export{}, errors.New("recipe export exceeds 80 ingredient-use limit")
 	}
 	return envelope, nil
+}
+
+func validatePortableRecipe(item Recipe) error {
+	if item.ID == "" || item.Revision < 1 || item.Name == "" {
+		return errors.New("recipe export contains an invalid recipe")
+	}
+	if len(item.Notes) > 10_000 {
+		return fmt.Errorf("recipe %q notes exceed 10,000 characters", item.ID)
+	}
+	steps := 0
+	for _, method := range item.Methods {
+		steps += len(method.Steps)
+	}
+	if steps > 30 {
+		return fmt.Errorf("recipe %q exceeds 30 preparation steps", item.ID)
+	}
+	return nil
 }
 
 type GroceryRow struct {

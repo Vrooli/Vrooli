@@ -3,11 +3,11 @@ import { PlanningService } from "@vrooli/proto-types/nutrition-planner/v1/planni
 import { transport } from "./client";
 
 const client = createClient(PlanningService, transport);
-export type PlanOccurrence = { date: string; recipeId: string; recipeName: string; reason: string; locked: boolean };
+export type PlanOccurrence = { date: string; slotName?: string; mode?: string; quantity?: string; recipeId: string; recipeName: string; reason: string; locked: boolean };
 export type PlanDraft = { occurrences: PlanOccurrence[]; unresolved: { date: string; code: string; message: string }[]; inputReferences: string[]; runId: string; seed: number; currentRevision: bigint };
 
-export async function generatePlan(input: { workspaceId: string; dates: string[] }): Promise<PlanDraft> {
-  const response = await client.generatePlan({ workspaceId: input.workspaceId, dates: input.dates, lockedRecipeIds: {}, seed: 0n, costWeight: 0.34, effortWeight: 0.33, repetitionWeight: 0.33 });
+export async function generatePlan(input: { workspaceId: string; dates: string[]; mealSlots?: { date: string; slotName: string; mode?: string; quantity?: string; lockedRecipeId?: string }[]; lockedRecipeIds?: Record<string, string> }): Promise<PlanDraft> {
+  const response = await client.generatePlan({ workspaceId: input.workspaceId, dates: input.dates, mealSlots: (input.mealSlots ?? []).map((slot) => ({ date: slot.date, slotName: slot.slotName, mode: slot.mode ?? "flexible", quantity: slot.quantity ?? "1", lockedRecipeId: slot.lockedRecipeId ?? "" })), lockedRecipeIds: input.lockedRecipeIds ?? {}, seed: 0n, costWeight: 0.34, effortWeight: 0.33, repetitionWeight: 0.33 });
   try { return { ...JSON.parse(response.draftJson) as Omit<PlanDraft, "currentRevision">, currentRevision: response.currentRevision }; } catch { throw new Error("The API returned an unreadable plan draft."); }
 }
 

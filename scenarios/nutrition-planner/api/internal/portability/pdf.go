@@ -15,10 +15,14 @@ import (
 
 const unicodeFontPath = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
-// RecipePDF renders a print-friendly A4 recipe document. The font is loaded
-// explicitly so non-ASCII recipe names, notes, and instructions survive export.
+// RecipePDF renders a print-friendly A4 recipe document.
 func RecipePDF(item recipe.Recipe) ([]byte, error) {
-	pdf, err := newPDF()
+	return RecipePDFWithPageSize(item, "A4")
+}
+
+// RecipePDFWithPageSize renders a recipe using A4 or US Letter paper.
+func RecipePDFWithPageSize(item recipe.Recipe, pageSize string) ([]byte, error) {
+	pdf, err := newPDF(pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -27,10 +31,32 @@ func RecipePDF(item recipe.Recipe) ([]byte, error) {
 	pdf.CellFormat(0, 12, item.Name, "", 1, "L", false, 0, "")
 	pdf.SetFont("DejaVu", "", 10)
 	pdf.CellFormat(0, 7, "Status: "+unknownIfEmpty(item.Status), "", 1, "L", false, 0, "")
+	if item.CanonicalYield != "" || item.ServingUnit != "" {
+		section(pdf, "Yield", unknownIfEmpty(item.CanonicalYield)+" "+unknownIfEmpty(item.ServingUnit))
+	}
+	if len(item.Ingredients) > 0 {
+		lines := make([]string, 0, len(item.Ingredients))
+		for _, ingredient := range item.Ingredients {
+			amount := unknownIfEmpty(ingredient.Amount + " " + ingredient.Unit)
+			label := amount + " — " + unknownIfEmpty(ingredient.Name)
+			if ingredient.Preparation != "" {
+				label += " (" + ingredient.Preparation + ")"
+			}
+			lines = append(lines, label)
+		}
+		section(pdf, "Ingredients", strings.Join(lines, "\n"))
+	}
 	if item.Notes != "" {
 		section(pdf, "Notes", item.Notes)
 	}
 	for _, method := range item.Methods {
+		mapLines := make([]string, 0, len(method.Steps))
+		for _, step := range method.Steps {
+			mapLines = append(mapLines, fmt.Sprintf("%s: %s → %s; after %s", unknownIfEmpty(step.ID), unknownIfEmpty(strings.Join(step.Inputs, ", ")), unknownIfEmpty(strings.Join(step.Outputs, ", ")), unknownIfEmpty(strings.Join(step.DependsOn, ", "))))
+		}
+		if len(mapLines) > 0 {
+			section(pdf, "Preparation map — "+unknownIfEmpty(method.Name), strings.Join(mapLines, "\n"))
+		}
 		pdf.SetFont("DejaVu", "B", 13)
 		pdf.CellFormat(0, 9, unknownIfEmpty(method.Name), "", 1, "L", false, 0, "")
 		pdf.SetFont("DejaVu", "", 10)
@@ -46,7 +72,13 @@ func RecipePDF(item recipe.Recipe) ([]byte, error) {
 // WeeklyPDF renders the generated week and its shopping context. Open/social
 // slots and unknown values are written literally, never silently omitted.
 func WeeklyPDF(draft planning.Draft, lines []shopping.Line) ([]byte, error) {
-	pdf, err := newPDF()
+	return WeeklyPDFWithPageSize(draft, lines, "A4")
+}
+
+// WeeklyPDFWithPageSize renders the generated week and shopping context using
+// A4 or US Letter paper.
+func WeeklyPDFWithPageSize(draft planning.Draft, lines []shopping.Line, pageSize string) ([]byte, error) {
+	pdf, err := newPDF(pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -85,12 +117,27 @@ func WeeklyPDF(draft planning.Draft, lines []shopping.Line) ([]byte, error) {
 	return finishPDF(pdf)
 }
 
-func newPDF() (*gofpdf.Fpdf, error) {
+func newPDF(pageSize string) (*gofpdf.Fpdf, error) {
 	if _, err := os.Stat(unicodeFontPath); err != nil {
 		return nil, errors.New("unicode PDF font is unavailable: " + unicodeFontPath)
 	}
-	pdf := gofpdf.New("P", "mm", "A4", "")
+	format := strings.ToUpper(strings.TrimSpace(pageSize))
+	if format == "" {
+		format = "A4"
+	}
+	if format != "A4" && format != "LETTER" {
+		return nil, fmt.Errorf("unsupported PDF page size %q; use A4 or LETTER", pageSize)
+	}
+	pdf := gofpdf.New("P", "mm", format, "")
 	pdf.SetMargins(16, 16, 16)
+	pdf.SetFooterFunc(func() {
+		pdf.SetY(-12)
+		pdf.SetFont("DejaVu", "", 8)
+		pdf.SetTextColor(90, 90, 90)
+		pdf.CellFormat(0, 6, fmt.Sprintf("Page %d of {nb}", pdf.PageNo()), "", 0, "C", false, 0, "")
+		pdf.SetTextColor(0, 0, 0)
+	})
+	pdf.AliasNbPages("")
 	pdf.SetFontLocation("/usr/share/fonts/truetype/dejavu")
 	pdf.AddUTF8Font("DejaVu", "", "DejaVuSans.ttf")
 	pdf.AddUTF8Font("DejaVu", "B", "DejaVuSans.ttf")

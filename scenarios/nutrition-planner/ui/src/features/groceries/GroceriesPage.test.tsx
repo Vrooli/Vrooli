@@ -7,15 +7,20 @@ const getShoppingPreview = vi.hoisted(() => vi.fn());
 const setShoppingChecked = vi.hoisted(() => vi.fn());
 const listInventoryEvents = vi.hoisted(() => vi.fn());
 const recordInventoryEvent = vi.hoisted(() => vi.fn());
+const prepareInventoryBatch = vi.hoisted(() => vi.fn());
+const consumeInventoryBatchPortion = vi.hoisted(() => vi.fn());
+const undoInventoryBatchPortion = vi.hoisted(() => vi.fn());
+const listRecipes = vi.hoisted(() => vi.fn());
 const exportGroceriesCSV = vi.hoisted(() => vi.fn());
 vi.mock("../../api/planning", () => ({ getShoppingPreview, setShoppingChecked }));
-vi.mock("../../api/inventory", () => ({ listInventoryEvents, recordInventoryEvent }));
+vi.mock("../../api/inventory", () => ({ listInventoryEvents, recordInventoryEvent, prepareInventoryBatch, consumeInventoryBatchPortion, undoInventoryBatchPortion }));
+vi.mock("../../api/recipes", () => ({ listRecipes }));
 vi.mock("../../api/portability", () => ({ exportGroceriesCSV }));
 vi.mock("../../api/workspace", () => ({ ensureWorkspace: vi.fn().mockResolvedValue({ id: "w1" }) }));
 import { GroceriesPage } from "./GroceriesPage";
 
 describe("GroceriesPage", () => {
-  beforeEach(() => { vi.clearAllMocks(); setShoppingChecked.mockResolvedValue(true); listInventoryEvents.mockResolvedValue([]); recordInventoryEvent.mockResolvedValue({ id: "p1", workspaceId: "w1", kind: "purchase", itemId: "rice", batchId: "", amount: "500", unit: "g", recipeId: "", createdAt: "2026-09-18T00:00:00Z" }); exportGroceriesCSV.mockResolvedValue({ filename: "daily-groceries.csv", content: "key,label\n", revision: 1n }); });
+  beforeEach(() => { vi.clearAllMocks(); setShoppingChecked.mockResolvedValue(true); listInventoryEvents.mockResolvedValue([]); listRecipes.mockResolvedValue([]); recordInventoryEvent.mockResolvedValue({ id: "p1", workspaceId: "w1", kind: "purchase", itemId: "rice", batchId: "", amount: "500", unit: "g", recipeId: "", createdAt: "2026-09-18T00:00:00Z" }); exportGroceriesCSV.mockResolvedValue({ filename: "daily-groceries.csv", content: "key,label\n", revision: 1n }); });
   it("shows unknown facts and persists checklist-only state", async () => {
     getShoppingPreview.mockResolvedValue({ revision: 1n, lines: [{ key: "ingredient:rice", label: "rice", need: "unknown", stock: "unknown", missing: "unknown", packageCount: "unknown", price: "unknown", sourceRecipeIds: ["r1"], checked: false }] });
     renderWithProviders(<GroceriesPage />);
@@ -40,6 +45,19 @@ describe("GroceriesPage", () => {
     await userEvent.type(screen.getByRole("textbox", { name: "Inventory amount" }), "500");
     await userEvent.click(screen.getByRole("button", { name: "Record purchase" }));
     expect(recordInventoryEvent).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: "w1", kind: "purchase", itemId: "rice", amount: "500", unit: "g" }));
+  });
+  it("prepares and portions a declared recipe batch", async () => {
+    getShoppingPreview.mockResolvedValue({ revision: 1n, lines: [] });
+    listRecipes.mockResolvedValue([{ id: "r1", revision: 2n, name: "Soup", canonicalYield: "4", servingUnit: "serving", ingredients: [{ id: "rice", name: "Rice", amount: "500", unit: "g" }] }]);
+    prepareInventoryBatch.mockResolvedValue({ id: "b1", recipeId: "r1", recipeRevision: 2n, yieldAmount: "4", availableAmount: "4", unit: "serving" });
+    consumeInventoryBatchPortion.mockResolvedValue({ id: "b1", recipeId: "r1", recipeRevision: 2n, yieldAmount: "4", availableAmount: "3", unit: "serving" });
+    renderWithProviders(<GroceriesPage />);
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Batch recipe" })).toBeInTheDocument());
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Batch recipe" }), "r1");
+    await userEvent.click(screen.getByRole("button", { name: "Prepare batch" }));
+    await waitFor(() => expect(screen.getByText(/4 serving available/)).toBeInTheDocument());
+    await userEvent.click(screen.getByRole("button", { name: "Consume portion" }));
+    expect(consumeInventoryBatchPortion).toHaveBeenCalledWith(expect.objectContaining({ batchId: "b1", amount: "1", recipeId: "r1" }));
   });
   it("downloads the current checklist as CSV", async () => {
     getShoppingPreview.mockResolvedValue({ revision: 1n, lines: [] });

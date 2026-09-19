@@ -25,6 +25,7 @@ func NewConnectHandler(repo internal.Repository, ws workspace.Service, logger *l
 	}
 	return &connectHandler{repo: repo, ws: ws, logger: logger}
 }
+
 func (h *connectHandler) scope(ctx context.Context, id string) error {
 	p, ok := identity.PrincipalFromContext(ctx)
 	if !ok {
@@ -61,6 +62,7 @@ func (h *connectHandler) ListTemplates(ctx context.Context, req *connect.Request
 	}
 	return connect.NewResponse(out), nil
 }
+
 func (h *connectHandler) CreateTemplate(ctx context.Context, req *connect.Request[v1.CreateTemplateRequest]) (*connect.Response[v1.CreateTemplateResponse], error) {
 	if err := h.scope(ctx, req.Msg.WorkspaceId); err != nil {
 		return nil, err
@@ -75,6 +77,7 @@ func (h *connectHandler) CreateTemplate(ctx context.Context, req *connect.Reques
 	}
 	return connect.NewResponse(&v1.CreateTemplateResponse{Template: toProto(created)}), nil
 }
+
 func (h *connectHandler) UpdateTemplate(ctx context.Context, req *connect.Request[v1.UpdateTemplateRequest]) (*connect.Response[v1.UpdateTemplateResponse], error) {
 	if err := h.scope(ctx, req.Msg.WorkspaceId); err != nil {
 		return nil, err
@@ -93,6 +96,7 @@ func (h *connectHandler) UpdateTemplate(ctx context.Context, req *connect.Reques
 	}
 	return connect.NewResponse(&v1.UpdateTemplateResponse{Template: toProto(updated)}), nil
 }
+
 func (h *connectHandler) GenerateOccurrences(ctx context.Context, req *connect.Request[v1.GenerateOccurrencesRequest]) (*connect.Response[v1.GenerateOccurrencesResponse], error) {
 	if err := h.scope(ctx, req.Msg.WorkspaceId); err != nil {
 		return nil, err
@@ -119,9 +123,11 @@ func fromCreate(req *v1.CreateTemplateRequest) (internal.Template, error) {
 	}
 	return internal.Template{WorkspaceID: req.WorkspaceId, SlotName: req.SlotName, RecipeID: req.RecipeId, Quantity: q, Weekdays: ints(req.Weekdays), StartDate: req.StartDate, EndDate: req.EndDate, Mode: req.Mode, Active: req.Active}, nil
 }
+
 func toProto(t internal.Template) *v1.Template {
 	return &v1.Template{Id: t.ID, Revision: t.Revision, SlotName: t.SlotName, RecipeId: t.RecipeID, Quantity: t.Quantity.String(), Weekdays: ints32(t.Weekdays), StartDate: t.StartDate, EndDate: t.EndDate, Mode: t.Mode, Active: t.Active}
 }
+
 func ints(v []int32) []int {
 	out := make([]int, 0, len(v))
 	for _, item := range v {
@@ -129,6 +135,7 @@ func ints(v []int32) []int {
 	}
 	return out
 }
+
 func ints32(v []int) []int32 {
 	out := make([]int32, 0, len(v))
 	for _, item := range v {

@@ -33,7 +33,7 @@ export function MealsPage() {
 
   async function downloadPDF(recipe: Recipe) {
     setExportingId(recipe.id); setError("");
-    try { const result = await exportRecipePDF({ workspaceId, recipeId: recipe.id }); const bytes = new Uint8Array(result.content); const url = URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" })); const anchor = document.createElement("a"); anchor.href = url; anchor.download = result.filename; anchor.click(); URL.revokeObjectURL(url); } catch (err: unknown) { setError(err instanceof Error ? err.message : "Unable to export this recipe."); } finally { setExportingId(""); }
+    try { const result = await exportRecipePDF({ workspaceId, recipeId: recipe.id }); const bytes = new Uint8Array(result.content); const url = URL.createObjectURL(new Blob([bytes.buffer], { type: "application/pdf" })); const anchor = document.createElement("a"); anchor.href = url; anchor.download = result.filename; anchor.click(); URL.revokeObjectURL(url); } catch (err: unknown) { setError(err instanceof Error ? err.message : "Unable to export this recipe."); } finally { setExportingId(""); }
   }
 
   return <section aria-labelledby="meals-heading" className="flex flex-col gap-6">

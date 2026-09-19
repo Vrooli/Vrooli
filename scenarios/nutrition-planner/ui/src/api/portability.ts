@@ -9,12 +9,12 @@ export async function exportGroceriesCSV(input: { workspaceId: string; expectedR
   return { filename: response.filename, content: response.contentCsv, revision: response.revision };
 }
 
-export async function exportRecipePDF(input: { workspaceId: string; recipeId: string }): Promise<{ filename: string; content: Uint8Array }> {
+export async function exportRecipePDF(input: { workspaceId: string; recipeId: string; pageSize?: string }): Promise<{ filename: string; content: Uint8Array }> {
   const response = await client.exportRecipePDF(input);
   return { filename: response.filename, content: response.content };
 }
 
-export async function exportWeeklyPDF(input: { workspaceId: string; expectedRevision: bigint }): Promise<{ filename: string; content: Uint8Array; revision: bigint }> {
+export async function exportWeeklyPDF(input: { workspaceId: string; expectedRevision: bigint; pageSize?: string }): Promise<{ filename: string; content: Uint8Array; revision: bigint }> {
   const response = await client.exportWeeklyPDF(input);
   return { filename: response.filename, content: response.content, revision: response.revision };
 }
@@ -22,6 +22,11 @@ export async function exportWeeklyPDF(input: { workspaceId: string; expectedRevi
 export async function exportWorkspace(workspaceId: string): Promise<{ filename: string; content: string; omissions: string[] }> {
   const response = await client.exportWorkspace({ workspaceId });
   return { filename: "daily-workspace.json", content: response.contentJson, omissions: response.omissions };
+}
+
+export async function exportRecipes(workspaceId: string): Promise<{ filename: string; content: string; omissions: string[] }> {
+  const response = await client.exportRecipes({ workspaceId });
+  return { filename: "daily-recipes.json", content: response.contentJson, omissions: response.omissions };
 }
 
 export async function previewWorkspaceImport(input: { workspaceId: string; contentJson: string }): Promise<{ valid: boolean; format: string; schemaVersion: number; recordCount: number; recordKinds: string[]; omissions: string[]; errors: string[] }> {
@@ -32,4 +37,14 @@ export async function previewWorkspaceImport(input: { workspaceId: string; conte
 export async function applyWorkspaceImport(input: { workspaceId: string; expectedWorkspaceRevision: bigint; contentJson: string; idempotencyKey: string }): Promise<{ workspaceRevision: bigint; recipesApplied: number; checkpointId: string }> {
   const response = await client.applyWorkspaceImport(input);
   return { workspaceRevision: response.workspaceRevision, recipesApplied: response.recipesApplied, checkpointId: response.checkpointId };
+}
+
+export async function previewRecipesImport(input: { workspaceId: string; contentJson: string }): Promise<{ valid: boolean; format: string; schemaVersion: number; recipeCount: number; duplicateCount: number; conflictCount: number; errors: string[] }> {
+  const response = await client.previewRecipesImport(input);
+  return { valid: response.valid, format: response.format, schemaVersion: response.schemaVersion, recipeCount: response.recipeCount, duplicateCount: response.duplicateCount, conflictCount: response.conflictCount, errors: response.errors };
+}
+
+export async function applyRecipesImport(input: { workspaceId: string; expectedWorkspaceRevision: bigint; contentJson: string; idempotencyKey: string; conflictPolicy?: string }): Promise<{ workspaceRevision: bigint; recipesApplied: number; recipesSkipped: number; remappedIds: string[] }> {
+  const response = await client.applyRecipesImport(input);
+  return { workspaceRevision: response.workspaceRevision, recipesApplied: response.recipesApplied, recipesSkipped: response.recipesSkipped, remappedIds: response.remappedIds };
 }

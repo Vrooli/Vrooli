@@ -142,6 +142,7 @@ func scan(s interface{ Scan(...any) error }) (Schedule, error) {
 	v.CreatedAt, err = time.Parse(time.RFC3339Nano, created)
 	return v, err
 }
+
 func boolInt(v bool) int {
 	if v {
 		return 1

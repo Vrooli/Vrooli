@@ -66,6 +66,7 @@ func (s State) ReserveOptional(units int64) (State, error) {
 	s.Used += units
 	return s, nil
 }
+
 func (s State) ApplyEvent(event Event) (State, error) {
 	if event.ID == "" || event.Version < 1 || event.Version < s.Version {
 		return s, nil

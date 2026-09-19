@@ -401,6 +401,22 @@
       "category": "portability"
     },
     {
+      "id": "portability_preview_recipes_import",
+      "path": "/vrooli.nutrition_planner.v1.portability.PortabilityService/PreviewRecipesImport",
+      "method": "POST",
+      "summary": "Review a recipe collection import before applying it",
+      "description": "",
+      "category": "portability"
+    },
+    {
+      "id": "portability_apply_recipes_import",
+      "path": "/vrooli.nutrition_planner.v1.portability.PortabilityService/ApplyRecipesImport",
+      "method": "POST",
+      "summary": "Apply a recipe collection import atomically",
+      "description": "",
+      "category": "portability"
+    },
+    {
       "id": "portability_export_groceries_csv",
       "path": "/vrooli.nutrition_planner.v1.portability.PortabilityService/ExportGroceriesCSV",
       "method": "POST",

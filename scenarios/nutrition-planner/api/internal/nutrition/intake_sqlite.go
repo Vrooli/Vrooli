@@ -16,10 +16,23 @@ type intakeSQLExecutor interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
-type intakeSQLiteRepository struct{ db intakeSQLExecutor }
+type intakeClock interface{ Now() time.Time }
 
-func NewSQLiteIntakeRepository(db intakeSQLExecutor) IntakeRepository {
-	return &intakeSQLiteRepository{db: db}
+type wallClock struct{}
+
+func (wallClock) Now() time.Time { return time.Now() }
+
+type intakeSQLiteRepository struct {
+	db    intakeSQLExecutor
+	clock intakeClock
+}
+
+func NewSQLiteIntakeRepository(db intakeSQLExecutor, clocks ...intakeClock) IntakeRepository {
+	clock := intakeClock(wallClock{})
+	if len(clocks) > 0 && clocks[0] != nil {
+		clock = clocks[0]
+	}
+	return &intakeSQLiteRepository{db: db, clock: clock}
 }
 
 func (r *intakeSQLiteRepository) Append(ctx context.Context, workspaceID string, event IntakeEvent) error {
@@ -27,7 +40,7 @@ func (r *intakeSQLiteRepository) Append(ctx context.Context, workspaceID string,
 		return errors.New("intake event requires workspace, id, date, nutrient, known amount, and unit")
 	}
 	if event.timeRecorded.IsZero() {
-		event.timeRecorded = time.Now().UTC()
+		event.timeRecorded = r.clock.Now().UTC()
 	}
 	_, err := r.db.ExecContext(ctx, `INSERT INTO nutrition_intake_events(workspace_id,event_id,event_date,recipe_id,recipe_revision,nutrient_id,amount,unit,reason,correction_of,recorded_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, workspaceID, event.ID, event.Date, event.RecipeID, event.RecipeRevision, event.NutrientID, event.Amount.String(), event.Unit, event.Reason, event.CorrectionOf, event.timeRecorded.UTC().Format(time.RFC3339Nano))
 	if err == nil {

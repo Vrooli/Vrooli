@@ -8,8 +8,10 @@ import (
 
 const ObjectiveVersion = "normalized-loss-v1"
 
-type ObjectiveWeights struct{ Cost, Effort, Variety float64 }
-type Losses struct{ Cost, Effort, Repetition float64 }
+type (
+	ObjectiveWeights struct{ Cost, Effort, Variety float64 }
+	Losses           struct{ Cost, Effort, Repetition float64 }
+)
 
 // Score uses fixed normalized loss inputs and normalizes only the configured
 // preference weights. Candidate pools never change the metric scales.

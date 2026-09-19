@@ -1,16 +1,19 @@
 package inventory
 
 import (
-	"connectrpc.com/connect"
 	"context"
 	"errors"
+	"log"
+	"time"
+
+	"connectrpc.com/connect"
+
 	"github.com/vrooli/api-core/identity"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/inventory"
-	"log"
+
 	"nutrition-planner/internal/decimalx"
 	internal "nutrition-planner/internal/inventory"
 	"nutrition-planner/internal/workspace"
-	"time"
 )
 
 type connectHandler struct {

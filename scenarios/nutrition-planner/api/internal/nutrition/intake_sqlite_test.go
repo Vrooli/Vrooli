@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+	"time"
 
 	_ "modernc.org/sqlite"
 	"nutrition-planner/internal/decimalx"
@@ -42,5 +43,33 @@ func TestSQLiteIntakeEventsAreImmutableAndIdempotent(t *testing.T) {
 	}
 	if got, _ := repo.List(context.Background(), "w2"); len(got) != 0 {
 		t.Fatal("events crossed workspace boundary")
+	}
+}
+
+type fixedIntakeClock struct{ now time.Time }
+
+func (c fixedIntakeClock) Now() time.Time { return c.now }
+
+func TestSQLiteIntakeRepositoryUsesInjectedClock(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err = db.Exec(Schema()); err != nil {
+		t.Fatal(err)
+	}
+	clock := fixedIntakeClock{now: time.Date(2026, 9, 18, 12, 30, 0, 0, time.FixedZone("EDT", -4*60*60))}
+	repo := NewSQLiteIntakeRepository(db, clock)
+	amount, _ := decimalx.Parse("1")
+	if err = repo.Append(context.Background(), "w1", IntakeEvent{ID: "eat-clock", Date: "2026-09-18", NutrientID: "protein", Amount: amount, Unit: "g"}); err != nil {
+		t.Fatal(err)
+	}
+	items, err := repo.List(context.Background(), "w1")
+	if err != nil || len(items) != 1 {
+		t.Fatalf("items=%#v err=%v", items, err)
+	}
+	if got := items[0].RecordedAt(); !got.Equal(clock.now.UTC()) {
+		t.Fatalf("recorded at = %s, want %s", got, clock.now.UTC())
 	}
 }

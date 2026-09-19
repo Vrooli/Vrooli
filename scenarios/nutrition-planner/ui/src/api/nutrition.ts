@@ -5,6 +5,7 @@ import { transport } from "./client";
 const client = createClient(NutritionService, transport);
 export type NutritionTarget = { id: string; revision: bigint; nutrientId: string; lower: string; upper: string; period: string; scope: string; enforcement: string; provenance: string; effectiveFrom: string; effectiveTo: string; active: boolean };
 export type IntakeEvent = { id: string; date: string; recipeId: string; recipeRevision: bigint; nutrientId: string; amount: string; unit: string; reason: string; correctionOf: string; recordedAt: string };
+export type NutritionEvaluation = { nutrientId: string; known: string; complete: boolean; unresolved: string[]; status: string; reason: string };
 
 export async function listTargets(workspaceId: string): Promise<NutritionTarget[]> {
   const response = await client.listTargets({ workspaceId });
@@ -31,4 +32,9 @@ export async function recordIntake(input: { workspaceId: string; id: string; dat
   const response = await client.recordIntake({ ...input, recipeId: input.recipeId ?? "", recipeRevision: input.recipeRevision ?? 0n, reason: input.reason ?? "", correctionOf: input.correctionOf ?? "" });
   if (!response.event) throw new Error("The API returned no intake event.");
   return mapIntake(response.event);
+}
+
+export async function evaluateScope(input: { workspaceId: string; targetId: string; targetRevision: bigint; nutrientId: string; scope: string; intakes: Array<{ date: string; nutrientId: string; planned?: string; actual?: string; recorded: boolean; past: boolean }> }): Promise<NutritionEvaluation> {
+  const response = await client.evaluateScope({ ...input, intakes: input.intakes.map((item) => ({ ...item, planned: item.planned ?? "", actual: item.actual ?? "" })) });
+  return { nutrientId: response.nutrientId, known: response.known, complete: response.complete, unresolved: response.unresolved, status: response.status, reason: response.reason };
 }
