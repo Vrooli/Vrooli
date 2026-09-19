@@ -51,16 +51,21 @@ func (r *sqliteRepository) ListToday(ctx context.Context, date string) (Today, e
 	if err != nil {
 		return Today{}, err
 	}
+	routineIntervals, err := r.routineBusy(ctx, date)
+	if err != nil {
+		return Today{}, err
+	}
 	today := Today{AvailableMinutes: capacity - reserve, Allocations: rangeResult.Allocations, ExternalBusyMinutes: external.minutes, ExternalEventCount: external.events, ExternalFreshness: external.freshness}
 	if today.AvailableMinutes < 0 {
 		today.AvailableMinutes = 0
 	}
-	occupied := make([]capacityInterval, 0, len(today.Allocations)+len(external.intervals))
+	occupied := make([]capacityInterval, 0, len(today.Allocations)+len(external.intervals)+len(routineIntervals))
 	for _, a := range today.Allocations {
 		today.PlannedMinutes += a.DurationMinutes
 		occupied = append(occupied, capacityInterval{start: a.StartMinutes, end: a.StartMinutes + a.DurationMinutes})
 	}
 	occupied = append(occupied, external.intervals...)
+	occupied = append(occupied, routineIntervals...)
 	today.BreathingRoomMinutes = today.AvailableMinutes - intervalUnionMinutes(occupied)
 	if today.BreathingRoomMinutes < 0 {
 		today.BreathingRoomMinutes = 0
@@ -68,11 +73,450 @@ func (r *sqliteRepository) ListToday(ctx context.Context, date string) (Today, e
 	return today, nil
 }
 
+func (r *sqliteRepository) Preview(ctx context.Context, in PreviewInput) (PlacementProposal, error) {
+	today, err := r.ListToday(ctx, in.LocalDate)
+	if err != nil {
+		return PlacementProposal{}, err
+	}
+	routineIntervals, routineErr := r.routineBusy(ctx, in.LocalDate)
+	if routineErr != nil {
+		return PlacementProposal{}, routineErr
+	}
+	occupied := make([]capacityInterval, 0, len(today.Allocations)+len(routineIntervals)+4)
+	for _, allocation := range today.Allocations {
+		occupied = append(occupied, capacityInterval{start: allocation.StartMinutes, end: allocation.StartMinutes + allocation.DurationMinutes})
+	}
+	if external, externalErr := r.externalBusy(ctx, in.LocalDate); externalErr == nil {
+		occupied = append(occupied, external.intervals...)
+	}
+	occupied = append(occupied, routineIntervals...)
+	requested := in.StartMinutes
+	proposal := PlacementProposal{ID: r.id(), WorkItemID: in.WorkItemID, LocalDate: in.LocalDate, StartMinutes: requested, DurationMinutes: in.DurationMinutes, BaseRevision: r.scheduleRevision(ctx, r.db)}
+	if remaining, known, demandErr := r.remainingSchedulableMinutes(ctx, in.WorkItemID); demandErr != nil {
+		return PlacementProposal{}, demandErr
+	} else if known && in.DurationMinutes > remaining {
+		proposal.State, proposal.Reason = "blocked", fmt.Sprintf("The requested %d-minute session exceeds the %d minutes of remaining effort.", in.DurationMinutes, remaining)
+		return r.persistProposal(ctx, proposal)
+	}
+	for candidate := requested; candidate+in.DurationMinutes <= 1440; candidate += 15 {
+		if !overlapsAny(occupied, candidate, candidate+in.DurationMinutes) {
+			reason := "Requested time is available."
+			if candidate != requested {
+				reason = fmt.Sprintf("Moved to the next open 15-minute slot after the requested time (%s).", clockLabel(requested))
+			}
+			proposal.State, proposal.StartMinutes, proposal.Reason = "feasible", candidate, reason
+			return r.persistProposal(ctx, proposal)
+		}
+	}
+	proposal.State, proposal.Reason = "blocked", "No contiguous open slot remains after the requested time."
+	return r.persistProposal(ctx, proposal)
+}
+
+func (r *sqliteRepository) persistProposal(ctx context.Context, proposal PlacementProposal) (PlacementProposal, error) {
+	_, err := r.db.ExecContext(ctx, `INSERT INTO placement_proposals (id,work_item_id,local_date,start_minutes,duration_minutes,state,reason,base_revision,created_at) VALUES (?,?,?,?,?,?,?,?,?)`, proposal.ID, proposal.WorkItemID, proposal.LocalDate, proposal.StartMinutes, proposal.DurationMinutes, proposal.State, proposal.Reason, proposal.BaseRevision, r.clock.Now().UTC().Format(time.RFC3339Nano))
+	if err != nil && !strings.Contains(err.Error(), "no such table") {
+		return PlacementProposal{}, fmt.Errorf("persist placement proposal: %w", err)
+	}
+	return proposal, nil
+}
+
+func (r *sqliteRepository) scheduleRevision(ctx context.Context, db SQLExecutor) int64 {
+	var revision int64
+	if err := db.QueryRowContext(ctx, `SELECT revision FROM calendar_schedule_state WHERE id='default'`).Scan(&revision); err != nil || revision < 1 {
+		return 1
+	}
+	return revision
+}
+
+func bumpScheduleRevision(ctx context.Context, db SQLExecutor) error {
+	_, err := db.ExecContext(ctx, `UPDATE calendar_schedule_state SET revision=revision+1 WHERE id='default'`)
+	if err != nil && strings.Contains(err.Error(), "no such table") {
+		return nil
+	}
+	return err
+}
+
+func (r *sqliteRepository) ApplyProposal(ctx context.Context, in ApplyProposalInput) (Allocation, error) {
+	beginner, ok := r.db.(interface {
+		BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+	})
+	if !ok {
+		return Allocation{}, fmt.Errorf("calendar storage does not support transactional proposal application")
+	}
+	tx, err := beginner.BeginTx(ctx, nil)
+	if err != nil {
+		return Allocation{}, fmt.Errorf("begin apply proposal: %w", err)
+	}
+	fail := func(cause error) (Allocation, error) { _ = tx.Rollback(); return Allocation{}, cause }
+	var proposal PlacementProposal
+	var appliedID, appliedKey string
+	err = tx.QueryRowContext(ctx, `SELECT id,work_item_id,local_date,start_minutes,duration_minutes,state,reason,base_revision,applied_allocation_id,applied_idempotency_key FROM placement_proposals WHERE id=?`, in.ProposalID).Scan(&proposal.ID, &proposal.WorkItemID, &proposal.LocalDate, &proposal.StartMinutes, &proposal.DurationMinutes, &proposal.State, &proposal.Reason, &proposal.BaseRevision, &appliedID, &appliedKey)
+	if errors.Is(err, sql.ErrNoRows) {
+		return fail(ErrProposalNotFound{in.ProposalID})
+	}
+	if err != nil {
+		return fail(fmt.Errorf("read placement proposal: %w", err))
+	}
+	if appliedID != "" {
+		if appliedKey == in.IdempotencyKey {
+			allocation, loadErr := loadAllocation(ctx, tx, appliedID)
+			if loadErr != nil {
+				return fail(loadErr)
+			}
+			if commitErr := tx.Commit(); commitErr != nil {
+				return Allocation{}, fmt.Errorf("commit idempotent proposal: %w", commitErr)
+			}
+			return allocation, nil
+		}
+		return fail(ErrProposalAlreadyApplied{in.ProposalID})
+	}
+	current := r.scheduleRevision(ctx, tx)
+	if current != in.ExpectedRevision {
+		return fail(ErrScheduleRevisionConflict{Expected: in.ExpectedRevision, Current: current})
+	}
+	if proposal.State != "feasible" {
+		return fail(ErrProposalNotFeasible{in.ProposalID})
+	}
+	var item Allocation
+	if err := tx.QueryRowContext(ctx, `SELECT id,title,source_label FROM work_items WHERE id=?`, proposal.WorkItemID).Scan(&item.WorkItemID, &item.Title, &item.SourceLabel); errors.Is(err, sql.ErrNoRows) {
+		return fail(ErrWorkItemNotFound{proposal.WorkItemID})
+	} else if err != nil {
+		return fail(err)
+	}
+	var count int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(1) FROM calendar_allocations WHERE local_date=? AND state='accepted' AND start_minutes < ? AND start_minutes + duration_minutes > ?`, proposal.LocalDate, proposal.StartMinutes+proposal.DurationMinutes, proposal.StartMinutes).Scan(&count); err != nil {
+		return fail(err)
+	}
+	if count > 0 {
+		return fail(ErrAllocationConflict{})
+	}
+	busy, err := importedOverlap(ctx, tx, proposal.LocalDate, proposal.StartMinutes, proposal.DurationMinutes)
+	if err != nil {
+		return fail(err)
+	}
+	if busy {
+		return fail(ErrAllocationConflict{})
+	}
+	if routineIntervals, routineErr := r.routineBusy(ctx, proposal.LocalDate); routineErr != nil {
+		return fail(routineErr)
+	} else if overlapsAny(routineIntervals, proposal.StartMinutes, proposal.StartMinutes+proposal.DurationMinutes) {
+		return fail(ErrAllocationConflict{})
+	}
+	if remaining, known, demandErr := r.remainingSchedulableMinutesOn(ctx, tx, proposal.WorkItemID); demandErr != nil {
+		return fail(demandErr)
+	} else if known && proposal.DurationMinutes > remaining {
+		return fail(ErrDemandExceeded{proposal.WorkItemID})
+	}
+	item.ID, item.LocalDate, item.StartMinutes, item.DurationMinutes, item.State, item.CreatedAt = r.id(), proposal.LocalDate, proposal.StartMinutes, proposal.DurationMinutes, "accepted", r.clock.Now().UTC()
+	if _, err := tx.ExecContext(ctx, `INSERT INTO calendar_allocations (id,work_item_id,local_date,start_minutes,duration_minutes,state,created_at) VALUES (?,?,?,?,?,?,?)`, item.ID, item.WorkItemID, item.LocalDate, item.StartMinutes, item.DurationMinutes, item.State, item.CreatedAt.Format(time.RFC3339Nano)); err != nil {
+		return fail(fmt.Errorf("insert applied allocation: %w", err))
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE placement_proposals SET applied_allocation_id=?,applied_idempotency_key=? WHERE id=? AND applied_allocation_id=''`, item.ID, in.IdempotencyKey, proposal.ID); err != nil {
+		return fail(err)
+	}
+	if err := bumpScheduleRevision(ctx, tx); err != nil {
+		return fail(err)
+	}
+	if err := tx.Commit(); err != nil {
+		return Allocation{}, fmt.Errorf("commit proposal application: %w", err)
+	}
+	return item, nil
+}
+
+func (r *sqliteRepository) PreviewSchedule(ctx context.Context, in SchedulePreviewInput) (ScheduleProposal, error) {
+	today, err := r.ListToday(ctx, in.LocalDate)
+	if err != nil {
+		return ScheduleProposal{}, err
+	}
+	routineIntervals, routineErr := r.routineBusy(ctx, in.LocalDate)
+	if routineErr != nil {
+		return ScheduleProposal{}, routineErr
+	}
+	occupied := make([]capacityInterval, 0, len(today.Allocations)+len(routineIntervals)+8)
+	for _, allocation := range today.Allocations {
+		occupied = append(occupied, capacityInterval{start: allocation.StartMinutes, end: allocation.StartMinutes + allocation.DurationMinutes})
+	}
+	if external, externalErr := r.externalBusy(ctx, in.LocalDate); externalErr == nil {
+		occupied = append(occupied, external.intervals...)
+	}
+	occupied = append(occupied, routineIntervals...)
+	proposal := ScheduleProposal{ID: r.id(), LocalDate: in.LocalDate, StartMinutes: in.StartMinutes, BaseRevision: r.scheduleRevision(ctx, r.db), Placements: []ProposedPlacement{}}
+	remainingBudget := today.BreathingRoomMinutes
+	for _, id := range in.WorkItemIDs {
+		item, itemErr := r.WorkItem(ctx, id)
+		if itemErr != nil {
+			return ScheduleProposal{}, itemErr
+		}
+		placement := ProposedPlacement{WorkItemID: id, Title: item.Title, LocalDate: in.LocalDate, State: "unresolved"}
+		remainingMinutes, demandKnown, remainingErr := r.remainingSchedulableMinutes(ctx, id)
+		if remainingErr != nil {
+			return ScheduleProposal{}, remainingErr
+		}
+		if !demandKnown {
+			placement.Reason = "Remaining effort is unknown; no placement was invented."
+			proposal.Placements = append(proposal.Placements, placement)
+			continue
+		}
+		if remainingMinutes <= 0 {
+			placement.Reason = "Remaining effort is unknown or already complete; no session was invented."
+			proposal.Placements = append(proposal.Placements, placement)
+			continue
+		}
+		duration := remainingMinutes
+		if duration > 90 {
+			duration = 90
+		}
+		if duration > remainingBudget {
+			placement.Reason = fmt.Sprintf("The next %d-minute session exceeds the remaining breathing room.", duration)
+			proposal.Placements = append(proposal.Placements, placement)
+			continue
+		}
+		found := false
+		for candidate := in.StartMinutes; candidate+duration <= 1440; candidate += 15 {
+			if !overlapsAny(occupied, candidate, candidate+duration) {
+				placement.State, placement.StartMinutes, placement.DurationMinutes = "feasible", candidate, duration
+				placement.Reason = "First feasible session in stable request order."
+				occupied = append(occupied, capacityInterval{start: candidate, end: candidate + duration})
+				remainingBudget -= duration
+				found = true
+				break
+			}
+		}
+		if !found {
+			placement.Reason = "No contiguous open slot remains after the requested time."
+		}
+		proposal.Placements = append(proposal.Placements, placement)
+	}
+	feasible := 0
+	for _, placement := range proposal.Placements {
+		if placement.State == "feasible" {
+			feasible++
+		}
+	}
+	if feasible == 0 {
+		proposal.State, proposal.Reason = "blocked", "No selected work item has a feasible session in the requested scope."
+	} else if feasible < len(proposal.Placements) {
+		proposal.State, proposal.Reason = "partial", fmt.Sprintf("Placed %d of %d selected work items; unresolved items remain visible.", feasible, len(proposal.Placements))
+	} else {
+		proposal.State, proposal.Reason = "feasible", fmt.Sprintf("Placed all %d selected work items in stable request order.", feasible)
+	}
+	return r.persistScheduleProposal(ctx, proposal)
+}
+
+func (r *sqliteRepository) remainingSchedulableMinutes(ctx context.Context, workItemID string) (int, bool, error) {
+	return r.remainingSchedulableMinutesOn(ctx, r.db, workItemID)
+}
+
+func (r *sqliteRepository) remainingSchedulableMinutesOn(ctx context.Context, db SQLExecutor, workItemID string) (int, bool, error) {
+	var remaining int
+	err := db.QueryRowContext(ctx, `SELECT remaining_minutes FROM work_items WHERE id=?`, workItemID).Scan(&remaining)
+	if err != nil && strings.Contains(err.Error(), "no such column") {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, err
+	}
+	var scheduled int
+	if err := db.QueryRowContext(ctx, `SELECT COALESCE(SUM(duration_minutes),0) FROM calendar_allocations WHERE work_item_id=? AND state='accepted'`, workItemID).Scan(&scheduled); err != nil {
+		return 0, false, err
+	}
+	remaining -= scheduled
+	if remaining < 0 {
+		remaining = 0
+	}
+	return remaining, true, nil
+}
+
+func (r *sqliteRepository) persistScheduleProposal(ctx context.Context, proposal ScheduleProposal) (ScheduleProposal, error) {
+	beginner, ok := r.db.(interface {
+		BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+	})
+	if !ok {
+		return ScheduleProposal{}, fmt.Errorf("calendar storage does not support transactional schedule proposals")
+	}
+	tx, err := beginner.BeginTx(ctx, nil)
+	if err != nil {
+		return ScheduleProposal{}, err
+	}
+	rollback := func(cause error) (ScheduleProposal, error) { _ = tx.Rollback(); return ScheduleProposal{}, cause }
+	if _, err := tx.ExecContext(ctx, `INSERT INTO schedule_proposals (id,local_date,start_minutes,state,reason,base_revision,created_at) VALUES (?,?,?,?,?,?,?)`, proposal.ID, proposal.LocalDate, proposal.StartMinutes, proposal.State, proposal.Reason, proposal.BaseRevision, r.clock.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+		return rollback(err)
+	}
+	for _, placement := range proposal.Placements {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO schedule_proposal_placements (id,proposal_id,work_item_id,title,local_date,start_minutes,duration_minutes,state,reason) VALUES (?,?,?,?,?,?,?,?,?)`, r.id(), proposal.ID, placement.WorkItemID, placement.Title, placement.LocalDate, placement.StartMinutes, placement.DurationMinutes, placement.State, placement.Reason); err != nil {
+			return rollback(err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return ScheduleProposal{}, err
+	}
+	return proposal, nil
+}
+
+func (r *sqliteRepository) ApplyScheduleProposal(ctx context.Context, in ApplyScheduleProposalInput) ([]Allocation, error) {
+	beginner, ok := r.db.(interface {
+		BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("calendar storage does not support transactional schedule proposal application")
+	}
+	tx, err := beginner.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	fail := func(cause error) ([]Allocation, error) { _ = tx.Rollback(); return nil, cause }
+	var proposalID, state, appliedKey string
+	var baseRevision int64
+	if err := tx.QueryRowContext(ctx, `SELECT id,state,base_revision,applied_idempotency_key FROM schedule_proposals WHERE id=?`, in.ProposalID).Scan(&proposalID, &state, &baseRevision, &appliedKey); errors.Is(err, sql.ErrNoRows) {
+		return fail(ErrProposalNotFound{in.ProposalID})
+	} else if err != nil {
+		return fail(err)
+	}
+	if appliedKey != "" {
+		if appliedKey != in.IdempotencyKey {
+			return fail(ErrProposalAlreadyApplied{in.ProposalID})
+		}
+		allocations, loadErr := loadScheduleProposalAllocations(ctx, tx, in.ProposalID)
+		if loadErr != nil {
+			return fail(loadErr)
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+		return allocations, nil
+	}
+	current := r.scheduleRevision(ctx, tx)
+	if current != in.ExpectedRevision {
+		return fail(ErrScheduleRevisionConflict{Expected: in.ExpectedRevision, Current: current})
+	}
+	if state == "blocked" {
+		return fail(ErrProposalNotFeasible{in.ProposalID})
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT id,work_item_id,title,local_date,start_minutes,duration_minutes,state FROM schedule_proposal_placements WHERE proposal_id=? AND state='feasible' ORDER BY id`, in.ProposalID)
+	if err != nil {
+		return fail(err)
+	}
+	defer rows.Close()
+	allocations := []Allocation{}
+	for rows.Next() {
+		var placementID, workItemID, title, date, placementState string
+		var start, duration int
+		if err := rows.Scan(&placementID, &workItemID, &title, &date, &start, &duration, &placementState); err != nil {
+			return fail(err)
+		}
+		var count int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(1) FROM calendar_allocations WHERE local_date=? AND state='accepted' AND start_minutes < ? AND start_minutes + duration_minutes > ?`, date, start+duration, start).Scan(&count); err != nil {
+			return fail(err)
+		}
+		if count > 0 {
+			return fail(ErrAllocationConflict{})
+		}
+		busy, busyErr := importedOverlap(ctx, tx, date, start, duration)
+		if busyErr != nil {
+			return fail(busyErr)
+		}
+		if busy {
+			return fail(ErrAllocationConflict{})
+		}
+		routineIntervals, routineErr := r.routineBusy(ctx, date)
+		if routineErr != nil {
+			return fail(routineErr)
+		}
+		if overlapsAny(routineIntervals, start, start+duration) {
+			return fail(ErrAllocationConflict{})
+		}
+		if remaining, known, demandErr := r.remainingSchedulableMinutesOn(ctx, tx, workItemID); demandErr != nil {
+			return fail(demandErr)
+		} else if known && duration > remaining {
+			return fail(ErrDemandExceeded{workItemID})
+		}
+		allocation := Allocation{ID: r.id(), WorkItemID: workItemID, Title: title, LocalDate: date, StartMinutes: start, DurationMinutes: duration, State: "accepted", CreatedAt: r.clock.Now().UTC()}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO calendar_allocations (id,work_item_id,local_date,start_minutes,duration_minutes,state,created_at) VALUES (?,?,?,?,?,?,?)`, allocation.ID, allocation.WorkItemID, allocation.LocalDate, allocation.StartMinutes, allocation.DurationMinutes, allocation.State, allocation.CreatedAt.Format(time.RFC3339Nano)); err != nil {
+			return fail(err)
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE schedule_proposal_placements SET applied_allocation_id=? WHERE id=? AND applied_allocation_id=''`, allocation.ID, placementID); err != nil {
+			return fail(err)
+		}
+		allocations = append(allocations, allocation)
+	}
+	if err := rows.Err(); err != nil {
+		return fail(err)
+	}
+	if len(allocations) == 0 {
+		return fail(ErrProposalNotFeasible{in.ProposalID})
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE schedule_proposals SET applied_idempotency_key=? WHERE id=? AND applied_idempotency_key=''`, in.IdempotencyKey, proposalID); err != nil {
+		return fail(err)
+	}
+	if err := bumpScheduleRevision(ctx, tx); err != nil {
+		return fail(err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return allocations, nil
+}
+
+func loadScheduleProposalAllocations(ctx context.Context, db SQLExecutor, proposalID string) ([]Allocation, error) {
+	rows, err := db.QueryContext(ctx, `SELECT a.id,a.work_item_id,w.title,w.source_label,a.local_date,a.start_minutes,a.duration_minutes,a.state,a.created_at FROM schedule_proposal_placements p JOIN calendar_allocations a ON a.id=p.applied_allocation_id JOIN work_items w ON w.id=a.work_item_id WHERE p.proposal_id=? AND p.applied_allocation_id<>'' ORDER BY p.id`, proposalID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []Allocation
+	for rows.Next() {
+		var allocation Allocation
+		var created string
+		if err := rows.Scan(&allocation.ID, &allocation.WorkItemID, &allocation.Title, &allocation.SourceLabel, &allocation.LocalDate, &allocation.StartMinutes, &allocation.DurationMinutes, &allocation.State, &created); err != nil {
+			return nil, err
+		}
+		allocation.CreatedAt, err = time.Parse(time.RFC3339Nano, created)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, allocation)
+	}
+	return result, rows.Err()
+}
+
+func overlapsAny(items []capacityInterval, start, end int) bool {
+	for _, item := range items {
+		if start < item.end && end > item.start {
+			return true
+		}
+	}
+	return false
+}
+
+func clockLabel(minutes int) string { return fmt.Sprintf("%02d:%02d", minutes/60, minutes%60) }
+
 type externalBusyResult struct {
 	intervals []capacityInterval
 	minutes   int
 	events    int
 	freshness string
+}
+
+// routineBusy turns generated local routine demand into capacity intervals.
+// Routines remain distinct from accepted work allocations, but they still
+// consume the time in which a proposal may be placed. Older focused fixtures
+// predate the routine tables, so their absence is treated as no routine demand.
+func (r *sqliteRepository) routineBusy(ctx context.Context, date string) ([]capacityInterval, error) {
+	occurrences, err := r.ListRoutineOccurrences(ctx, date, date)
+	if err != nil {
+		if strings.Contains(err.Error(), "no such table") {
+			return nil, nil
+		}
+		return nil, err
+	}
+	intervals := make([]capacityInterval, 0, len(occurrences))
+	for _, occurrence := range occurrences {
+		intervals = append(intervals, capacityInterval{
+			start: occurrence.StartMinute,
+			end:   occurrence.StartMinute + occurrence.DurationMinutes,
+		})
+	}
+	return intervals, nil
 }
 
 func (r *sqliteRepository) externalBusy(ctx context.Context, date string) (externalBusyResult, error) {
@@ -236,11 +680,38 @@ func (r *sqliteRepository) Create(ctx context.Context, a Allocation) (Allocation
 	if count > 0 {
 		return Allocation{}, ErrAllocationConflict{}
 	}
-	_, err := r.db.ExecContext(ctx, `INSERT INTO calendar_allocations (id,work_item_id,local_date,start_minutes,duration_minutes,state,created_at) VALUES (?,?,?,?,?,?,?)`, a.ID, a.WorkItemID, a.LocalDate, a.StartMinutes, a.DurationMinutes, a.State, a.CreatedAt.Format(time.RFC3339Nano))
+	busy, err := importedOverlap(ctx, r.db, a.LocalDate, a.StartMinutes, a.DurationMinutes)
+	if err != nil {
+		return Allocation{}, err
+	}
+	if busy {
+		return Allocation{}, ErrAllocationConflict{}
+	}
+	if remaining, known, demandErr := r.remainingSchedulableMinutes(ctx, a.WorkItemID); demandErr != nil {
+		return Allocation{}, demandErr
+	} else if known && a.DurationMinutes > remaining {
+		return Allocation{}, ErrDemandExceeded{a.WorkItemID}
+	}
+	_, err = r.db.ExecContext(ctx, `INSERT INTO calendar_allocations (id,work_item_id,local_date,start_minutes,duration_minutes,state,created_at) VALUES (?,?,?,?,?,?,?)`, a.ID, a.WorkItemID, a.LocalDate, a.StartMinutes, a.DurationMinutes, a.State, a.CreatedAt.Format(time.RFC3339Nano))
 	if err != nil {
 		return Allocation{}, fmt.Errorf("insert allocation: %w", err)
 	}
+	if err := bumpScheduleRevision(ctx, r.db); err != nil {
+		return Allocation{}, fmt.Errorf("advance schedule revision: %w", err)
+	}
 	return a, nil
+}
+
+func importedOverlap(ctx context.Context, db SQLExecutor, date string, start, duration int) (bool, error) {
+	var count int
+	err := db.QueryRowContext(ctx, `SELECT COUNT(1) FROM imported_events e JOIN provider_connections c ON c.id=e.connection_id WHERE e.local_date=? AND e.status='active' AND e.busy=1 AND c.status IN ('connected','synced') AND e.start_minutes < ? AND e.start_minutes + e.duration_minutes > ?`, date, start+duration, start).Scan(&count)
+	if err != nil && strings.Contains(err.Error(), "no such table") {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 func (r *sqliteRepository) CarryForward(ctx context.Context, in CarryForwardInput) (Allocation, error) {
@@ -310,6 +781,9 @@ func (r *sqliteRepository) CarryForward(ctx context.Context, in CarryForwardInpu
 	}
 	if err := tx.Commit(); err != nil {
 		return Allocation{}, fmt.Errorf("commit carry-forward: %w", err)
+	}
+	if err := bumpScheduleRevision(ctx, r.db); err != nil {
+		return Allocation{}, fmt.Errorf("advance schedule revision: %w", err)
 	}
 	return carried, nil
 }

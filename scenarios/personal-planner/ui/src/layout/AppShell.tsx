@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 import { AppShell as LibraryAppShell, type AppShellNavItem } from "@vrooli/react-component-library/AppShell/2";
 
@@ -36,6 +38,25 @@ export function AppShell() {
   const { t } = useTranslation();
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("personal-planner.sidebar-collapsed") === "true";
+  });
+  const [sidebarWidth, setSidebarWidth] = useState(256);
+
+  useEffect(() => {
+    window.localStorage.setItem("personal-planner.sidebar-collapsed", String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
+
+  useEffect(() => {
+    const sidebar = document.querySelector<HTMLElement>(`[data-testid="${selectors.layout.shell}-sidebar"]`);
+    if (!sidebar || typeof ResizeObserver === "undefined") return;
+    const update = () => setSidebarWidth(sidebar.getBoundingClientRect().width);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(sidebar);
+    return () => observer.disconnect();
+  }, []);
 
   const items: AppShellNavItem[] = NAV_ITEMS.map((item) => ({
     id: item.key,
@@ -47,29 +68,44 @@ export function AppShell() {
   }));
 
   return (
-    <LibraryAppShell
-      brand={<span className="planner-brand" data-testid={selectors.app.title}><strong>{t(strings.app.title)}</strong><small>Observatory</small></span>}
-      brandMark={<BrandMark />}
-      brandHref="/"
-      items={items}
-      density={SHELL.density}
-      mobileNav={SHELL.mobileNav}
-      mainMode={SHELL.mainMode}
-      renderLink={(item, { href, children, onClick, ...rest }) => (
-        <NavLink to={href} end={item.id === "brand" || NAV_ITEMS.find((entry) => entry.key === item.id)?.end === true} onClick={onClick} {...rest}>
-          {children}
-        </NavLink>
-      )}
-      onNavigate={(item) => navigate(item.href)}
-      navigationLabel={t(strings.layout.navigationLabel)}
-      mobileNavigationLabel={t(strings.layout.mobileNavigationLabel)}
-      skipLabel={t(strings.layout.skipToContent)}
-      menuLabel={t(strings.layout.openNavigation)}
-      closeLabel={t(strings.layout.closeNavigation)}
-      sidebarStorageKey="personal-planner.sidebar-width"
-      testId={selectors.layout.shell}
-    >
-      <Outlet />
-    </LibraryAppShell>
+    <>
+      <LibraryAppShell
+        className={`planner-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`}
+        brand={<span className="planner-brand" data-testid={selectors.app.title}><strong>{t(strings.app.title)}</strong></span>}
+        brandMark={<BrandMark />}
+        brandHref="/"
+        items={items}
+        density={SHELL.density}
+        mobileNav={SHELL.mobileNav}
+        mainMode={SHELL.mainMode}
+        mainClassName="planner-app-main"
+        renderLink={(item, { href, children, onClick, ...rest }) => (
+          <NavLink to={href} end={item.id === "brand" || NAV_ITEMS.find((entry) => entry.key === item.id)?.end === true} onClick={onClick} {...rest}>
+            {children}
+          </NavLink>
+        )}
+        onNavigate={(item) => navigate(item.href)}
+        navigationLabel={t(strings.layout.navigationLabel)}
+        mobileNavigationLabel={t(strings.layout.mobileNavigationLabel)}
+        skipLabel={t(strings.layout.skipToContent)}
+        menuLabel={t(strings.layout.openNavigation)}
+        closeLabel={t(strings.layout.closeNavigation)}
+        sidebarStorageKey="personal-planner.sidebar-width"
+        testId={selectors.layout.shell}
+      >
+        <Outlet />
+      </LibraryAppShell>
+      <button
+        type="button"
+        className="planner-sidebar-toggle"
+        style={{ insetInlineStart: `${Math.max(12, (sidebarCollapsed ? 72 : sidebarWidth) - 44)}px` }}
+        aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        aria-pressed={sidebarCollapsed}
+        title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+      >
+        {sidebarCollapsed ? <PanelLeftOpen size={17} aria-hidden="true" /> : <PanelLeftClose size={17} aria-hidden="true" />}
+      </button>
+    </>
   );
 }

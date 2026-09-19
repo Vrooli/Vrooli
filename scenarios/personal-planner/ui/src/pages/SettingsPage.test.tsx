@@ -49,7 +49,8 @@ describe("SettingsPage", () => {
     await user.click(screen.getByLabelText("Art-free mode"));
     await user.clear(timezone);
     await user.type(timezone, "America/New_York");
-    await user.selectOptions(screen.getByLabelText("Week starts"), "sunday");
+    await user.click(screen.getByRole("button", { name: "Week starts" }));
+    await user.click(await screen.findByRole("option", { name: "Sunday" }));
     await user.clear(screen.getByLabelText("Daily capacity (minutes)"));
     await user.type(screen.getByLabelText("Daily capacity (minutes)"), "420");
     await user.clear(screen.getByLabelText("Protected reserve (minutes)"));

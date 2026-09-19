@@ -1,8 +1,8 @@
 # Monetization — Personal Planner
 
 This document records how Personal Planner could create revenue. It is
-kept honest: the product is pre-implementation, so every number here is a
-labelled hypothesis to validate, not a claim. The single strategic bet is
+kept honest: the R1 product implementation is now running locally, while
+commercial numbers remain labelled hypotheses to validate, not claims. The single strategic bet is
 stated up front because it shapes everything else.
 
 **The bet:** the personal-planning market is saturated with capable tools,
@@ -125,11 +125,12 @@ in that order; do not price before retention:
 
 ## Current Status
 
-`stub → active hypothesis`. The commercial *strategy* (freemium built on
-retention from beauty + honesty; internal scheduling-owner value now;
-billing deferred to R3) is defined and recorded. No pricing is committed
-and no revenue exists; this is a pre-implementation product. Update this
-document as retention and willingness-to-pay evidence accrues.
+`active hypothesis → R1 validation`. The commercial *strategy* (freemium
+built on retention from beauty + honesty; internal scheduling-owner value
+now; billing deferred to R3) is defined and recorded. No pricing is
+committed and no revenue exists; the product is in local R1 validation, not
+commercial launch. Update this document as retention and willingness-to-pay
+evidence accrues.
 
 ## Cross-References
 

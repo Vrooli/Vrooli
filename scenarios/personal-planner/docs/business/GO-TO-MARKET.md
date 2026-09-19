@@ -2,8 +2,8 @@
 
 This document records how Personal Planner would reach users and validate
 demand. Like [`MONETIZATION.md`](MONETIZATION.md), it is honest about
-stage: the product is pre-implementation, so this is a plan and a set of
-experiments, not a launched motion.
+stage: the R1 product is implemented for local validation, so this is a
+launch plan and a set of hypotheses, not a market or revenue claim.
 
 The strategy follows directly from the monetization bet — in a saturated
 market, **beauty and honest planning are the story**, and the go-to-market

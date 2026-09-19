@@ -16,6 +16,45 @@ type CreateInput struct {
 	StartMinutes, DurationMinutes int
 }
 
+type PreviewInput struct {
+	WorkItemID, LocalDate         string
+	StartMinutes, DurationMinutes int
+}
+
+type PlacementProposal struct {
+	ID, WorkItemID, LocalDate, State, Reason string
+	StartMinutes, DurationMinutes            int
+	BaseRevision                             int64
+}
+
+type ApplyProposalInput struct {
+	ProposalID, IdempotencyKey string
+	ExpectedRevision           int64
+}
+
+type SchedulePreviewInput struct {
+	LocalDate    string
+	StartMinutes int
+	WorkItemIDs  []string
+}
+
+type ProposedPlacement struct {
+	WorkItemID, Title, LocalDate, State, Reason string
+	StartMinutes, DurationMinutes               int
+}
+
+type ScheduleProposal struct {
+	ID, LocalDate, State, Reason string
+	StartMinutes                 int
+	BaseRevision                 int64
+	Placements                   []ProposedPlacement
+}
+
+type ApplyScheduleProposalInput struct {
+	ProposalID, IdempotencyKey string
+	ExpectedRevision           int64
+}
+
 type CarryForwardInput struct {
 	AllocationID, TargetLocalDate string
 	StartMinutes                  int
@@ -74,6 +113,12 @@ func (e ErrAllocationConflict) Error() string {
 	return "allocation overlaps an existing accepted allocation"
 }
 
+type ErrDemandExceeded struct{ WorkItemID string }
+
+func (e ErrDemandExceeded) Error() string {
+	return fmt.Sprintf("accepted planning time exceeds remaining demand for work item %q", e.WorkItemID)
+}
+
 type ErrAllocationNotFound struct{ ID string }
 
 func (e ErrAllocationNotFound) Error() string { return fmt.Sprintf("allocation %q not found", e.ID) }
@@ -82,4 +127,28 @@ type ErrAllocationAlreadyCarried struct{ ID string }
 
 func (e ErrAllocationAlreadyCarried) Error() string {
 	return fmt.Sprintf("allocation %q was already carried forward", e.ID)
+}
+
+type ErrScheduleRevisionConflict struct{ Expected, Current int64 }
+
+func (e ErrScheduleRevisionConflict) Error() string {
+	return fmt.Sprintf("schedule changed from revision %d to %d; refresh the proposal", e.Expected, e.Current)
+}
+
+type ErrProposalNotFound struct{ ID string }
+
+func (e ErrProposalNotFound) Error() string {
+	return fmt.Sprintf("placement proposal %q not found", e.ID)
+}
+
+type ErrProposalNotFeasible struct{ ID string }
+
+func (e ErrProposalNotFeasible) Error() string {
+	return fmt.Sprintf("placement proposal %q is not feasible", e.ID)
+}
+
+type ErrProposalAlreadyApplied struct{ ID string }
+
+func (e ErrProposalAlreadyApplied) Error() string {
+	return fmt.Sprintf("placement proposal %q was already applied", e.ID)
 }

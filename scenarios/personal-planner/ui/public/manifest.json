@@ -1,0 +1,20 @@
+{
+  "_brand_display_name": "Personal Planner",
+  "_brand_id": "70f742d8-6aa3-4482-a1ac-cabf205c3b00",
+  "_brand_version": 3,
+  "id": "/",
+  "name": "Personal Planner",
+  "short_name": "Personal Planner",
+  "description": "A calmer personal planner for realistic commitments, focused work, and useful reflection.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8f4ec",
+  "theme_color": "#f8f4ec",
+  "icons": [
+    { "src": "/public/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/public/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/public/maskable-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/public/maskable-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

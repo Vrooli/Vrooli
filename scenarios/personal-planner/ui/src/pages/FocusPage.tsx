@@ -97,7 +97,7 @@ export function FocusPage() {
         <div className="actuals-heading"><div><span className="card-kicker">HONEST CATCH-UP</span><h2 id="actuals-heading">Record time you already spent</h2></div><span className="actuals-date">{actualDate}</span></div>
         <p className="actuals-intro">A rough memory is useful when it stays labeled as a report, not a fabricated timer interval.</p>
         <form className="actual-form" onSubmit={(event) => { event.preventDefault(); actualMutation.mutate(); }}>
-          <label>What did you work on?<input value={actualTitle} onChange={(event) => setActualTitle(event.target.value)} required placeholder="e.g. Review the launch notes" /></label>
+          <label>What did you work on?<input value={actualTitle} onChange={(event) => setActualTitle(event.target.value)} required placeholder="e.g. Review the launch brief" /></label>
           <label>Minutes<input type="number" min="1" step="1" value={actualMinutes} onChange={(event) => setActualMinutes(event.target.value)} required /></label>
           <label className="actual-note-field">Context (optional)<input value={actualNote} onChange={(event) => setActualNote(event.target.value)} placeholder="Approximate, interrupted, or complete" /></label>
           <button className="quiet-action" type="submit" disabled={actualMutation.isPending}>{actualMutation.isPending ? "Saving…" : "Record actual"}</button>

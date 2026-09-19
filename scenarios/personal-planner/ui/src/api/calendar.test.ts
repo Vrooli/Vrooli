@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const client = vi.hoisted(() => ({ listTodayAllocations: vi.fn(), listAllocations: vi.fn(), createAllocation: vi.fn(), carryForwardAllocation: vi.fn(), listRoutines: vi.fn(), createRoutine: vi.fn(), listRoutineOccurrences: vi.fn(), skipRoutineOccurrence: vi.fn(), rescheduleRoutineOccurrence: vi.fn() }));
+const client = vi.hoisted(() => ({ listTodayAllocations: vi.fn(), listAllocations: vi.fn(), createAllocation: vi.fn(), previewAllocation: vi.fn(), applyAllocationProposal: vi.fn(), previewSchedule: vi.fn(), applyScheduleProposal: vi.fn(), carryForwardAllocation: vi.fn(), listRoutines: vi.fn(), createRoutine: vi.fn(), listRoutineOccurrences: vi.fn(), skipRoutineOccurrence: vi.fn(), rescheduleRoutineOccurrence: vi.fn() }));
 vi.mock("@connectrpc/connect", () => ({ createClient: () => client }));
 
-import { carryForwardAllocation, createAllocation, createRoutine, fetchAllocations, fetchRoutineOccurrences, fetchRoutines, fetchTodayAllocations, rescheduleRoutineOccurrence, skipRoutineOccurrence } from "./calendar";
+import { applyAllocationProposal, applyScheduleProposal, carryForwardAllocation, createAllocation, createRoutine, fetchAllocations, fetchRoutineOccurrences, fetchRoutines, fetchTodayAllocations, previewAllocation, previewSchedule, rescheduleRoutineOccurrence, skipRoutineOccurrence } from "./calendar";
 
 afterEach(() => vi.clearAllMocks());
 
@@ -42,6 +42,37 @@ describe("calendar API transport", () => {
     expect(client.createAllocation).toHaveBeenCalledWith({ workItemId: "w-1", localDate: "2026-09-19", startMinutes: 600, durationMinutes: 45 });
     client.createAllocation.mockResolvedValueOnce({});
     await expect(createAllocation({ workItemId: "w-1", localDate: "2026-09-19", startMinutes: 600, durationMinutes: 45 })).rejects.toThrow("allocation was not returned");
+  });
+
+  it("previews a placement and rejects an empty proposal", async () => {
+    const proposal = { state: "feasible", startMinutes: 615, durationMinutes: 45, reason: "Moved" } as never;
+    client.previewAllocation.mockResolvedValueOnce({ proposal });
+    expect(await previewAllocation({ workItemId: "w-1", localDate: "2026-09-19", startMinutes: 600, durationMinutes: 45 })).toBe(proposal);
+    expect(client.previewAllocation).toHaveBeenCalledWith({ workItemId: "w-1", localDate: "2026-09-19", startMinutes: 600, durationMinutes: 45 });
+    client.previewAllocation.mockResolvedValueOnce({});
+    await expect(previewAllocation({ workItemId: "w-1", localDate: "2026-09-19", startMinutes: 600, durationMinutes: 45 })).rejects.toThrow("placement proposal was not returned");
+  });
+
+  it("applies a proposal and rejects an empty allocation", async () => {
+    const allocation = { id: "a-1" } as never;
+    client.applyAllocationProposal.mockResolvedValueOnce({ allocation });
+    expect(await applyAllocationProposal({ proposalId: "p-1", expectedRevision: 1n, idempotencyKey: "p-1:apply" })).toBe(allocation);
+    expect(client.applyAllocationProposal).toHaveBeenCalledWith({ proposalId: "p-1", expectedRevision: 1n, idempotencyKey: "p-1:apply" });
+    client.applyAllocationProposal.mockResolvedValueOnce({});
+    await expect(applyAllocationProposal({ proposalId: "p-1", expectedRevision: 1n, idempotencyKey: "p-1:apply" })).rejects.toThrow("applied allocation was not returned");
+  });
+
+  it("previews and applies a multi-item schedule proposal", async () => {
+    const proposal = { id: "sp-1", state: "partial", baseRevision: 2n, placements: [{ workItemId: "w-1", state: "feasible" }] } as never;
+    const allocations = [{ id: "a-1" }] as never;
+    client.previewSchedule.mockResolvedValueOnce({ proposal });
+    client.applyScheduleProposal.mockResolvedValueOnce({ allocations });
+    expect(await previewSchedule({ localDate: "2026-09-19", startMinutes: 540, workItemIds: ["w-1", "w-2"] })).toBe(proposal);
+    expect(await applyScheduleProposal({ proposalId: "sp-1", expectedRevision: 2n, idempotencyKey: "sp-1:apply" })).toBe(allocations);
+    expect(client.previewSchedule).toHaveBeenCalledWith({ localDate: "2026-09-19", startMinutes: 540, workItemIds: ["w-1", "w-2"] });
+    expect(client.applyScheduleProposal).toHaveBeenCalledWith({ proposalId: "sp-1", expectedRevision: 2n, idempotencyKey: "sp-1:apply" });
+    client.previewSchedule.mockResolvedValueOnce({});
+    await expect(previewSchedule({ localDate: "2026-09-19", startMinutes: 540, workItemIds: ["w-1"] })).rejects.toThrow("schedule proposal was not returned");
   });
 
   it("reads, creates, and expands routines", async () => {

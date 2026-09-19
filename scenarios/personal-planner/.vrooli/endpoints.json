@@ -141,6 +141,38 @@
       "category": "calendar"
     },
     {
+      "id": "calendar_preview",
+      "path": "/vrooli.personal_planner.v1.calendar.CalendarService/PreviewAllocation",
+      "method": "POST",
+      "summary": "Preview placement",
+      "description": "Calculates the next open placement without changing accepted schedule state.",
+      "category": "calendar"
+    },
+    {
+      "id": "calendar_apply_proposal",
+      "path": "/vrooli.personal_planner.v1.calendar.CalendarService/ApplyAllocationProposal",
+      "method": "POST",
+      "summary": "Apply placement proposal",
+      "description": "Atomically applies a still-current placement proposal with an idempotency key.",
+      "category": "calendar"
+    },
+    {
+      "id": "calendar_preview_schedule",
+      "path": "/vrooli.personal_planner.v1.calendar.CalendarService/PreviewSchedule",
+      "method": "POST",
+      "summary": "Preview a multi-item schedule",
+      "description": "Builds a deterministic one-day proposal for selected work without changing accepted schedule state.",
+      "category": "calendar"
+    },
+    {
+      "id": "calendar_apply_schedule",
+      "path": "/vrooli.personal_planner.v1.calendar.CalendarService/ApplyScheduleProposal",
+      "method": "POST",
+      "summary": "Apply a multi-item schedule proposal",
+      "description": "Atomically applies all feasible changes in a current multi-item schedule proposal.",
+      "category": "calendar"
+    },
+    {
       "id": "calendar_carry_forward",
       "path": "/vrooli.personal_planner.v1.calendar.CalendarService/CarryForwardAllocation",
       "method": "POST",

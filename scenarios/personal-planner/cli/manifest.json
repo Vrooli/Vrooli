@@ -19,6 +19,55 @@
         "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
         "architecture": {"primitive": "proto_mutation"}
       },
+      {
+        "name": "preview-placement",
+        "description": "Preview the next open placement without changing accepted schedule state",
+        "flags": [
+          {"name": "work-item-id", "required": true, "description": "Work item id"},
+          {"name": "date", "required": true, "description": "Local date in YYYY-MM-DD format", "bind": {"field": "local_date"}},
+          {"name": "start-minute", "required": true, "description": "Requested local wall-clock start minute", "bind": {"field": "start_minutes"}},
+          {"name": "duration-minutes", "required": true, "description": "Requested duration in minutes"}
+        ],
+        "binding": {"kind": "connect-rpc", "service": "CalendarService", "method": "PreviewAllocation"},
+        "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+        "architecture": {"primitive": "proto_list"}
+      },
+      {
+        "name": "apply-placement",
+        "description": "Apply a current placement proposal atomically",
+        "flags": [
+          {"name": "proposal-id", "required": true, "description": "Placement proposal id"},
+          {"name": "revision", "required": true, "description": "Expected calendar schedule revision", "bind": {"field": "expected_revision"}},
+          {"name": "idempotency-key", "required": true, "description": "Stable retry key"}
+        ],
+        "binding": {"kind": "connect-rpc", "service": "CalendarService", "method": "ApplyAllocationProposal"},
+        "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+        "architecture": {"primitive": "proto_mutation"}
+      },
+      {
+        "name": "preview-schedule",
+        "description": "Preview a deterministic multi-item day schedule",
+        "flags": [
+          {"name": "date", "required": true, "description": "Local date in YYYY-MM-DD format", "bind": {"field": "local_date"}},
+          {"name": "start-minute", "required": true, "description": "Requested local wall-clock start minute", "bind": {"field": "start_minutes"}},
+          {"name": "work-items-json", "required": true, "description": "JSON array of work item ids in desired order", "bind": {"field": "work_item_ids", "kind": "json_inline"}}
+        ],
+        "binding": {"kind": "connect-rpc", "service": "CalendarService", "method": "PreviewSchedule"},
+        "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+        "architecture": {"primitive": "proto_list"}
+      },
+      {
+        "name": "apply-schedule",
+        "description": "Apply all feasible changes in a current multi-item schedule proposal",
+        "flags": [
+          {"name": "proposal-id", "required": true, "description": "Schedule proposal id"},
+          {"name": "revision", "required": true, "description": "Expected calendar schedule revision", "bind": {"field": "expected_revision"}},
+          {"name": "idempotency-key", "required": true, "description": "Stable retry key"}
+        ],
+        "binding": {"kind": "connect-rpc", "service": "CalendarService", "method": "ApplyScheduleProposal"},
+        "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+        "architecture": {"primitive": "proto_mutation"}
+      },
         {
           "name": "routines",
           "description": "List active routines",

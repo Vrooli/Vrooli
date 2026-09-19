@@ -32,5 +32,25 @@ func ToConnectError(err error) error {
 	if errors.As(err, &conflict) {
 		return connect.NewError(connect.CodeAlreadyExists, err)
 	}
+	var demand ErrDemandExceeded
+	if errors.As(err, &demand) {
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	var revision ErrScheduleRevisionConflict
+	if errors.As(err, &revision) {
+		return connect.NewError(connect.CodeAborted, err)
+	}
+	var proposalMissing ErrProposalNotFound
+	if errors.As(err, &proposalMissing) {
+		return connect.NewError(connect.CodeNotFound, err)
+	}
+	var proposalNotFeasible ErrProposalNotFeasible
+	if errors.As(err, &proposalNotFeasible) {
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	var proposalApplied ErrProposalAlreadyApplied
+	if errors.As(err, &proposalApplied) {
+		return connect.NewError(connect.CodeAlreadyExists, err)
+	}
 	return connect.NewError(connect.CodeInternal, fmt.Errorf("calendar: %w", err))
 }

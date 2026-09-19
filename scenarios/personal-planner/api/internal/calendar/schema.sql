@@ -9,6 +9,51 @@ CREATE TABLE IF NOT EXISTS calendar_allocations (
 );
 CREATE INDEX IF NOT EXISTS idx_calendar_allocations_date ON calendar_allocations(local_date, start_minutes);
 
+CREATE TABLE IF NOT EXISTS calendar_schedule_state (
+  id TEXT PRIMARY KEY,
+  revision INTEGER NOT NULL DEFAULT 1
+);
+INSERT OR IGNORE INTO calendar_schedule_state (id, revision) VALUES ('default', 1);
+
+CREATE TABLE IF NOT EXISTS placement_proposals (
+  id TEXT PRIMARY KEY,
+  work_item_id TEXT NOT NULL,
+  local_date TEXT NOT NULL,
+  start_minutes INTEGER NOT NULL,
+  duration_minutes INTEGER NOT NULL,
+  state TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  base_revision INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  applied_allocation_id TEXT NOT NULL DEFAULT '',
+  applied_idempotency_key TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_placement_proposals_created ON placement_proposals(created_at);
+
+CREATE TABLE IF NOT EXISTS schedule_proposals (
+  id TEXT PRIMARY KEY,
+  local_date TEXT NOT NULL,
+  start_minutes INTEGER NOT NULL,
+  state TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  base_revision INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  applied_idempotency_key TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS schedule_proposal_placements (
+  id TEXT PRIMARY KEY,
+  proposal_id TEXT NOT NULL REFERENCES schedule_proposals(id),
+  work_item_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  local_date TEXT NOT NULL,
+  start_minutes INTEGER NOT NULL,
+  duration_minutes INTEGER NOT NULL,
+  state TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  applied_allocation_id TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_schedule_proposal_placements_proposal ON schedule_proposal_placements(proposal_id);
+
 -- A carry-forward preserves the original accepted promise as history while
 -- making exactly one new accepted placement. The source key makes retries
 -- idempotent and keeps one planning demand from becoming two active blocks.

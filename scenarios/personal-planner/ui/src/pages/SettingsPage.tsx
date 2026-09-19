@@ -1,5 +1,8 @@
 import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
+import { Input } from "@vrooli/react-component-library/Input/1";
+import { Select } from "@vrooli/react-component-library/Select/1";
+import { Button } from "@vrooli/react-component-library/Button/2";
 
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
@@ -11,6 +14,7 @@ import { fetchAvailability, fetchPlanningProfile, replaceAvailability, updatePla
 import { createFixtureConnection, disconnectConnection, fetchConnections, syncConnection } from "../api/integrations";
 import { create } from "@bufbuild/protobuf";
 import { AvailabilityExceptionSchema, AvailabilityWindowSchema, type AvailabilityException, type AvailabilityWindow } from "@vrooli/proto-types/personal-planner/v1/workspace/workspace_pb";
+import { DEFAULT_TRANSITION_HOURS, OBSERVATORY_DAY_START_KEY, OBSERVATORY_NIGHT_START_KEY } from "../theme/observatoryAppearance";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 // Literal references so the strings lint can see every catalog key in use.
@@ -33,6 +37,8 @@ export function SettingsPage() {
   const [artFree, setArtFree] = usePreference("planner.art-free");
   const [reducedScenery, setReducedScenery] = usePreference("planner.reduced-scenery");
   const [subduedNight, setSubduedNight] = usePreference("planner.subdued-night");
+  const [autoDayStart, setAutoDayStart] = useStoredPreference(OBSERVATORY_DAY_START_KEY, DEFAULT_TRANSITION_HOURS.dayStart);
+  const [autoNightStart, setAutoNightStart] = useStoredPreference(OBSERVATORY_NIGHT_START_KEY, DEFAULT_TRANSITION_HOURS.nightStart);
   const profile = useQuery({ queryKey: ["planning-profile"], queryFn: fetchPlanningProfile });
   const availability = useQuery({ queryKey: ["planning-availability"], queryFn: fetchAvailability });
   const connections = useQuery({ queryKey: ["calendar-connections"], queryFn: fetchConnections });
@@ -66,9 +72,9 @@ export function SettingsPage() {
   const setWindow = (weekday: number, field: "startMinute" | "endMinute", value: number) => setWindows((current) => { const existing = current.find((item) => item.weekday === weekday); const next = existing ? create(AvailabilityWindowSchema, { ...existing, [field]: value }) : create(AvailabilityWindowSchema, { id: `weekday-${weekday}`, weekday, startMinute: 540, endMinute: 1020, timezone: timezone || "UTC", [field]: value }); return [...current.filter((item) => item.weekday !== weekday), next].sort((a, b) => a.weekday - b.weekday); });
 
   return (
-    <section data-testid={selectors.pages.settings} aria-labelledby="settings-heading" className="flex flex-col gap-space-md">
+    <section data-testid={selectors.pages.settings} aria-labelledby="settings-heading" className="settings-page flex flex-col gap-space-md">
       <PageHeader headingId="settings-heading" title={t(strings.pages.settings.title)} description={t(strings.pages.settings.description)} />
-      <SettingsList variant="auto">
+      <SettingsList variant="auto" density="compact" className="settings-list">
         <SettingsList.Group label={t(strings.pages.settings.preferences)}>
           <SettingsList.Row label={t(strings.pages.settings.themeHeading)} hint={t(strings.pages.settings.themeHint)}>
             <div className="settings-choice-group" role="radiogroup" aria-label={t(strings.theme.switcherLabel)} data-testid={selectors.settingsPage.themeSelect}>
@@ -81,14 +87,13 @@ export function SettingsPage() {
             </div>
           </SettingsList.Row>
           <SettingsList.Row label={t(strings.pages.settings.localeHeading)} hint={t(strings.pages.settings.localeHint)}>
-            <select
+            <Select
               aria-label={t(strings.locale.switcherLabel)}
               data-testid={selectors.settingsPage.localeSelect}
               value={currentLocale}
               onChange={(event) => void setLocale(event.target.value as Locale)}
-            >
-              {SUPPORTED_LOCALES.map((lng) => <option key={lng} value={lng}>{getLocaleConfig(lng).nativeLabel}</option>)}
-            </select>
+              options={SUPPORTED_LOCALES.map((lng) => ({ value: lng, label: getLocaleConfig(lng).nativeLabel }))}
+            />
           </SettingsList.Row>
           <SettingsList.Row label={t(strings.pages.settings.sceneryHeading)} hint={t(strings.pages.settings.sceneryHint)}>
             <div className="settings-toggle-list">
@@ -97,16 +102,22 @@ export function SettingsPage() {
               <label><input type="checkbox" checked={subduedNight} onChange={(event) => setSubduedNight(event.target.checked)} /> {t(strings.pages.settings.subduedNight)}</label>
             </div>
           </SettingsList.Row>
+          <SettingsList.Row label={t(strings.pages.settings.transitionHeading)} hint={t(strings.pages.settings.transitionHint)}>
+            <div className="settings-transition-grid">
+              <label>{t(strings.pages.settings.dayBegins)}<Input type="time" value={autoDayStart} onChange={(event) => setAutoDayStart(event.target.value)} /></label>
+              <label>{t(strings.pages.settings.nightBegins)}<Input type="time" value={autoNightStart} onChange={(event) => setAutoNightStart(event.target.value)} /></label>
+            </div>
+          </SettingsList.Row>
           <SettingsList.Row label={t(strings.pages.settings.planningHeading)} hint={t(strings.pages.settings.planningHint)}>
             {profile.isError && <p role="alert">{t(strings.pages.settings.planningUnavailable)}</p>}
             {profile.isLoading && <p role="status">{t(strings.pages.settings.planningLoading)}</p>}
             {profile.data && <form className="settings-profile-form" onSubmit={(event) => { event.preventDefault(); profileMutation.mutate(); }}>
-              <label>{t(strings.pages.settings.timezone)}<input value={timezone} onChange={(event) => setTimezone(event.target.value)} placeholder="America/New_York" required /></label>
-              <label>{t(strings.pages.settings.weekStart)}<select value={weekStart} onChange={(event) => setWeekStart(event.target.value)}><option value="monday">{t(strings.pages.settings.monday)}</option><option value="sunday">{t(strings.pages.settings.sunday)}</option></select></label>
-              <label>{t(strings.pages.settings.dailyCapacity)}<input type="number" min="0" max="1440" value={dailyCapacityMinutes} onChange={(event) => setDailyCapacityMinutes(Number(event.target.value))} /></label>
-              <label>{t(strings.pages.settings.reserve)}<input type="number" min="0" max={dailyCapacityMinutes} value={reserveMinutes} onChange={(event) => setReserveMinutes(Number(event.target.value))} /></label>
-              <label>{t(strings.pages.settings.focusSession)}<input type="number" min="5" max="240" value={focusSessionMinutes} onChange={(event) => setFocusSessionMinutes(Number(event.target.value))} /></label>
-              <button className="secondary-action" type="submit" disabled={profileMutation.isPending}>{t(strings.pages.settings.savePlanning)}</button>
+              <label>{t(strings.pages.settings.timezone)}<Input value={timezone} onChange={(event) => setTimezone(event.target.value)} placeholder="America/New_York" required /></label>
+              <label>{t(strings.pages.settings.weekStart)}<Select aria-label={t(strings.pages.settings.weekStart)} value={weekStart} onChange={(event) => setWeekStart(event.target.value)} options={[{ value: "monday", label: t(strings.pages.settings.monday) }, { value: "sunday", label: t(strings.pages.settings.sunday) }]} /></label>
+              <label>{t(strings.pages.settings.dailyCapacity)}<Input type="number" min="0" max="1440" value={dailyCapacityMinutes} onChange={(event) => setDailyCapacityMinutes(Number(event.target.value))} /></label>
+              <label>{t(strings.pages.settings.reserve)}<Input type="number" min="0" max={dailyCapacityMinutes} value={reserveMinutes} onChange={(event) => setReserveMinutes(Number(event.target.value))} /></label>
+              <label>{t(strings.pages.settings.focusSession)}<Input type="number" min="5" max="240" value={focusSessionMinutes} onChange={(event) => setFocusSessionMinutes(Number(event.target.value))} /></label>
+              <Button className="secondary-action" variant="secondary" type="submit" disabled={profileMutation.isPending} pending={profileMutation.isPending} pendingLabel={t(strings.pages.settings.savePlanning)}>{t(strings.pages.settings.savePlanning)}</Button>
               {profileMutation.isError && <p role="alert">{t(strings.pages.settings.planningSaveError)}</p>}
               {profileMutation.isSuccess && <p role="status">{t(strings.pages.settings.planningSaved)}</p>}
             </form>}
@@ -115,10 +126,10 @@ export function SettingsPage() {
             {availability.isLoading && <p role="status">{t(strings.pages.settings.availabilityLoading)}</p>}
             {availability.data && <form className="settings-availability-form" onSubmit={(event) => { event.preventDefault(); availabilityMutation.mutate(); }}>
               <div className="availability-grid" aria-label={t(strings.pages.settings.availabilityHeading)}>
-                {[1, 2, 3, 4, 5, 6, 7].map((weekday) => { const item = windows.find((window) => window.weekday === weekday); return <label key={weekday}><span>{t(strings.pages.settings[`weekday${weekday}` as keyof typeof strings.pages.settings] as never)}</span><input aria-label={`${weekday} start`} type="time" value={minuteToTime(item?.startMinute ?? 540)} onChange={(event) => setWindow(weekday, "startMinute", timeToMinute(event.target.value))} /><input aria-label={`${weekday} end`} type="time" value={minuteToTime(item?.endMinute ?? 1020)} onChange={(event) => setWindow(weekday, "endMinute", timeToMinute(event.target.value))} /></label>; })}
+                {[1, 2, 3, 4, 5, 6, 7].map((weekday) => { const item = windows.find((window) => window.weekday === weekday); return <label key={weekday}><span>{t(strings.pages.settings[`weekday${weekday}` as keyof typeof strings.pages.settings] as never)}</span><Input aria-label={`${weekday} start`} type="time" value={minuteToTime(item?.startMinute ?? 540)} onChange={(event) => setWindow(weekday, "startMinute", timeToMinute(event.target.value))} /><Input aria-label={`${weekday} end`} type="time" value={minuteToTime(item?.endMinute ?? 1020)} onChange={(event) => setWindow(weekday, "endMinute", timeToMinute(event.target.value))} /></label>; })}
               </div>
-              <div className="availability-exception"><strong>{t(strings.pages.settings.protectedTime)}</strong><input type="date" value={exception.date} onChange={(event) => setException({ ...exception, date: event.target.value })} /><input placeholder={t(strings.pages.settings.protectedReason)} value={exception.reason} onChange={(event) => setException({ ...exception, reason: event.target.value })} /></div>
-              <button className="secondary-action" type="submit" disabled={availabilityMutation.isPending}>{t(strings.pages.settings.saveAvailability)}</button>
+              <div className="availability-exception"><strong>{t(strings.pages.settings.protectedTime)}</strong><Input type="date" value={exception.date} onChange={(event) => setException({ ...exception, date: event.target.value })} /><Input placeholder={t(strings.pages.settings.protectedReason)} value={exception.reason} onChange={(event) => setException({ ...exception, reason: event.target.value })} /></div>
+              <Button className="secondary-action" variant="secondary" type="submit" disabled={availabilityMutation.isPending} pending={availabilityMutation.isPending} pendingLabel={t(strings.pages.settings.saveAvailability)}>{t(strings.pages.settings.saveAvailability)}</Button>
               {availabilityMutation.isError && <p role="alert">{t(strings.pages.settings.availabilitySaveError)}</p>}
               {availabilityMutation.isSuccess && <p role="status">{t(strings.pages.settings.availabilitySaved)}</p>}
             </form>}
@@ -129,9 +140,9 @@ export function SettingsPage() {
             {connections.data?.length === 0 && <p className="settings-inline-note">{t(strings.pages.settings.integrationsEmpty)}</p>}
             {connections.data?.map((connection) => <article className="integration-connection" key={connection.id}>
               <div><strong>{connection.displayName}</strong><span>{connection.sourceKind === "fixture" ? t(strings.pages.settings.connectionFixture) : connection.provider} · {t(strings.pages.settings.connectionReadOnly)} · {connection.status}</span><small>{t(strings.pages.settings.connectionEvents, { count: connection.importedEventCount })} · {t(strings.pages.settings.connectionBusy, { count: Number(connection.busyMinutes) })}</small>{connection.healthMessage && <small>{connection.healthMessage}</small>}</div>
-              <div className="integration-actions"><button className="secondary-action" type="button" onClick={() => syncMutation.mutate(connection)} disabled={syncMutation.isPending || connection.status === "disconnected"}>{t(strings.pages.settings.syncConnection)}</button><button className="quiet-action" type="button" onClick={() => disconnectMutation.mutate(connection)} disabled={disconnectMutation.isPending || connection.status === "disconnected"}>{t(strings.pages.settings.disconnectConnection)}</button></div>
+                <div className="integration-actions"><Button className="secondary-action" variant="secondary" type="button" onClick={() => syncMutation.mutate(connection)} disabled={syncMutation.isPending || connection.status === "disconnected"} pending={syncMutation.isPending} pendingLabel={t(strings.pages.settings.syncConnection)}>{t(strings.pages.settings.syncConnection)}</Button><Button className="quiet-action" variant="ghost" type="button" onClick={() => disconnectMutation.mutate(connection)} disabled={disconnectMutation.isPending || connection.status === "disconnected"}>{t(strings.pages.settings.disconnectConnection)}</Button></div>
             </article>)}
-            <div className="integration-fixture-callout"><p>{t(strings.pages.settings.fixtureConnectionHelp)}</p><button className="secondary-action" type="button" onClick={() => fixtureMutation.mutate()} disabled={fixtureMutation.isPending}>{t(strings.pages.settings.fixtureConnection)}</button></div>
+            <div className="integration-fixture-callout"><p>{t(strings.pages.settings.fixtureConnectionHelp)}</p><Button className="secondary-action" variant="secondary" type="button" onClick={() => fixtureMutation.mutate()} disabled={fixtureMutation.isPending} pending={fixtureMutation.isPending} pendingLabel={t(strings.pages.settings.fixtureConnection)}>{t(strings.pages.settings.fixtureConnection)}</Button></div>
             {(fixtureMutation.isSuccess || syncMutation.isSuccess || disconnectMutation.isSuccess) && <p role="status">{fixtureMutation.isSuccess ? t(strings.pages.settings.connectionCreated) : syncMutation.isSuccess ? t(strings.pages.settings.connectionSynced) : t(strings.pages.settings.connectionDisconnected)}</p>}
             {(fixtureMutation.isError || syncMutation.isError || disconnectMutation.isError) && <p role="alert">{t(strings.pages.settings.connectionError)}</p>}
             <p className="settings-story-note">{t(strings.pages.settings.integrationBoundary)}</p>
@@ -161,5 +172,11 @@ function usePreference(key: string): [boolean, (value: boolean) => void] {
   useEffect(() => {
     window.localStorage.setItem(key, String(value));
   }, [key, value]);
+  return [value, setValue];
+}
+
+function useStoredPreference(key: string, fallback: string): [string, (value: string) => void] {
+  const [value, setValue] = useState(() => typeof window !== "undefined" ? window.localStorage.getItem(key) ?? fallback : fallback);
+  useEffect(() => { window.localStorage.setItem(key, value); }, [key, value]);
   return [value, setValue];
 }

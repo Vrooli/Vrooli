@@ -1,6 +1,12 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "branding": {
+    "brand": "personal-planner",
+    "targets": [
+      "web-public-v1"
+    ]
+  },
   "storage": {
     "entries": {
       "data": {

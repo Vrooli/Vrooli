@@ -194,7 +194,7 @@ integration gate complete.
 - Rung: W3
 - Evidence: focused API, CLI, UI coverage, Focus/Goals/Review/Plan UI, Today, Workspace profile, availability, profile-backed capacity, weekly Review, Focus actuals, reflection, correction history, and goal prerequisite/rollup tests pass; focused receipt `20260919-122802-b345ac2d` passes unit/contracts/experience, measures receipt `20260919-124657-216206ea` passes domain coverage, and comprehensive receipt `20260919-122840-a6789844` passes 26/27 with security green. The only failed phase is portability; narrow receipt `20260919-123437-8b8b6355` identifies the shared trusted-base closure error.
 - Blocker: portability requires a control-plane repair for the shared trusted-base closure `agent-manager -> workspace-sandbox`; this is outside Personal Planner's declared resource surface. Scenario-owned maturity debt remains UI component-adoption/template reporting, documentation snippet debt, and measure tier fallback. Product work still has provider recurrence operations, richer routine-demand capacity accounting, and broader hosted authorization scoping remaining.
-- Note: focused Test Genie runs `20260919-090516-29764305` and `20260919-092558-f15f9dd0` both terminated `provider_unavailable`; local API/CLI/UI/build and lifecycle evidence is retained separately and is not promoted to a Test Genie pass.
+- Note: focused Test Genie runs `20260919-090516-29764305` and `20260919-092558-f15f9dd0` both terminated `provider_unavailable`; local API/CLI/UI/build and lifecycle evidence is retained separately and is not promoted to a Test Genie pass. Later scenario-owned receipts `20260919-142916-abab670a` and its predecessors pass the requested unit/contracts/experience/measures phases.
 - Measured: 2026-09-19
 
 ## Architecture Drift
@@ -206,7 +206,7 @@ a migration handoff with a planned retirement path back into
 
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
-| Today timeline/capacity | Today reads accepted Calendar allocations and measured capacity; native routine occurrences are generated projections with skip-once/reschedule overrides, but are not yet demand/accepted-block state. | W3 partial. | Add routine-demand conservation, provider recurrence semantics, and prove responsive geometry. |
+| Today timeline/capacity | Today reads accepted Calendar allocations and measured capacity; native routine occurrences are generated projections with skip-once/reschedule overrides, while work-item demand now conserves accepted planned minutes but routine demand is not yet an accepted-block state. | W3 partial. | Add routine-demand conservation, provider recurrence semantics, split/setup policies, and prove responsive geometry. |
 | Goal milestone depth | Goal milestones now persist criteria, due dates, validated optional work-item links, prerequisite edges, and revision-safe open/complete state; milestone-mode goals derive completed/total progress. | W3 partial. | Add richer prerequisite editing/visual evidence and re-run the full scenario gate. |
 | UI health/template adoption | Runtime rendering and responsive behavior are healthy, but the provider still reports the scenario as L0 because legacy template-slot and standard-component adoption contracts remain. The mobile text-entry zoom risk was corrected by enforcing the 16px floor at the mobile breakpoint. | W3 partial. | Migrate/remap the remaining declared slots and adopt the governed component contracts where they materially improve the Observatory surface; retain the provider report as a release prerequisite. |
 

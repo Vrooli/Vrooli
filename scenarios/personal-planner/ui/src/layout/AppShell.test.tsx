@@ -4,7 +4,7 @@
  * and that the landmarks a page relies on are present. Page content is
  * exercised in the per-page tests.
  */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -22,6 +22,8 @@ const renderShell = (path = "/") =>
 describe("AppShell structure (cimode)", () => {
   afterEach(() => {
     cleanup();
+    window.localStorage.removeItem("personal-planner.sidebar-collapsed");
+    vi.unstubAllGlobals();
   });
 
   it("renders the shell landmarks, the brand, and the main outlet", () => {
@@ -66,6 +68,27 @@ describe("AppShell structure (cimode)", () => {
       expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument();
     });
   });
+
+  it("supports an icon-only collapse state and tracks the resizable shell", async () => {
+    const user = userEvent.setup();
+    let observed = false;
+    let disconnected = false;
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(private readonly callback: ResizeObserverCallback) {}
+      observe() { observed = true; this.callback([], this as unknown as ResizeObserver); }
+      disconnect() { disconnected = true; }
+      unobserve() {}
+    });
+    renderShell();
+    const toggle = screen.getByRole("button", { name: "Collapse sidebar" });
+    expect(observed).toBe(true);
+    await user.click(toggle);
+    expect(screen.getByRole("button", { name: "Expand sidebar" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "Expand sidebar" }));
+    expect(screen.getByRole("button", { name: "Collapse sidebar" })).toHaveAttribute("aria-pressed", "false");
+    cleanup();
+    expect(disconnected).toBe(true);
+  });
 });
 
 describe("Locale switching through the shell (real locales)", () => {
@@ -88,7 +111,8 @@ describe("Locale switching through the shell (real locales)", () => {
   it("switches to Japanese when 日本語 is selected", async () => {
     const user = userEvent.setup();
     renderShell("/settings");
-    await user.selectOptions(screen.getByTestId(selectors.settingsPage.localeSelect), "ja");
+    await user.click(screen.getByTestId(selectors.settingsPage.localeSelect));
+    await user.click(await screen.findByRole("option", { name: "日本語" }));
 
     await waitFor(() => {
       expect(screen.getAllByText(ja.layout.nav.dashboard).length).toBeGreaterThan(0);
@@ -99,7 +123,8 @@ describe("Locale switching through the shell (real locales)", () => {
   it("flips <html dir> to rtl when an RTL locale (ar) is chosen", async () => {
     const user = userEvent.setup();
     renderShell("/settings");
-    await user.selectOptions(screen.getByTestId(selectors.settingsPage.localeSelect), "ar");
+    await user.click(screen.getByTestId(selectors.settingsPage.localeSelect));
+    await user.click(await screen.findByRole("option", { name: "العربية" }));
 
     await waitFor(() => {
       expect(document.documentElement.dir).toBe("rtl");

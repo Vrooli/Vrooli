@@ -16,6 +16,7 @@ import { renderWithProviders } from "./test-utils";
 import { Providers } from "./app/providers";
 import { TestAppRouter } from "./app/routes";
 import { selectors } from "./consts/selectors";
+import App from "./App";
 
 describe("App composition", () => {
   afterEach(() => {
@@ -30,6 +31,11 @@ describe("App composition", () => {
       { withoutRouter: true },
     );
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+  });
+
+  it("keeps the production entrypoint composed from the shared providers", () => {
+    const element = App();
+    expect(element.type).toBe(Providers);
   });
 });
 

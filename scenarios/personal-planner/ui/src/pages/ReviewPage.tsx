@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { fetchDailyReview, fetchReflection, fetchWeeklyReview, saveReflection } from "../api/review";
 import { carryForwardAllocation, fetchAllocations, fetchTodayAllocations, type Allocation } from "../api/calendar";
 import { selectors } from "../consts/selectors";
+import { EvidenceInsight } from "../components/EvidenceInsight";
 
 export function ReviewPage() {
   const queryClient = useQueryClient();
@@ -62,6 +63,7 @@ export function ReviewPage() {
     {view === "day" && daily.data && <>
       <div className="review-summary-grid"><article><span className="card-kicker">RECORDED ACTIVE TIME</span><strong>{Number(daily.data.recordedActiveMinutes)} min</strong><p>Focus sessions and manual actuals.</p></article><article><span className="card-kicker">FOCUS SESSIONS</span><strong>{Number(daily.data.focusSessionCount)}</strong><p>Sessions with a recorded start.</p></article><article><span className="card-kicker">ACTIVE GOALS</span><strong>{Number(daily.data.activeGoalCount)}</strong><p>Outcome direction, not achievement.</p></article></div>
       <div className="review-honesty-card"><span className="card-kicker">COVERAGE</span><p>{daily.data.coverageNote}</p><p className="review-unknown">Planned: {Number(daily.data.plannedMinutes)} min · Unrecorded: unknown</p></div>
+      <EvidenceInsight planned={Number(daily.data.plannedMinutes)} recorded={Number(daily.data.recordedActiveMinutes)} />
       <section className="review-carry-card" aria-labelledby="review-carry-heading">
         <div className="review-carry-heading"><div><span className="card-kicker">SELECTIVE CARRY-FORWARD</span><h2 id="review-carry-heading">Choose what still deserves tomorrow</h2><p>Nothing is assumed unfinished. Select an accepted placement only when it remains a promise you want to keep.</p></div><label>Carry to<input type="date" value={carryTargetDate} onChange={(event) => setCarryTargetDate(event.target.value)} /></label></div>
         {carryTarget.data && <p className="review-carry-preview">Target capacity preview: {Number(carryTarget.data.availableMinutes)} min available · {Number(carryTarget.data.breathingRoomMinutes)} min breathing room before this move.</p>}
@@ -83,6 +85,7 @@ export function ReviewPage() {
       <div className="review-summary-grid"><article><span className="card-kicker">PLANNED TIME</span><strong>{Number(weekly.data.plannedMinutes)} min</strong><p>Accepted calendar allocations.</p></article><article><span className="card-kicker">RECORDED ACTIVE TIME</span><strong>{Number(weekly.data.recordedActiveMinutes)} min</strong><p>Focus sessions and manual actuals.</p></article><article><span className="card-kicker">FOCUS SESSIONS</span><strong>{Number(weekly.data.focusSessionCount)}</strong><p>Sessions with a recorded start.</p></article></div>
       <div className="review-week-table-wrap"><table className="review-week-table"><caption>Planned and recorded activity by day</caption><thead><tr><th scope="col">Day</th><th scope="col">Planned</th><th scope="col">Recorded</th><th scope="col">Sessions</th></tr></thead><tbody>{weekly.data.days.map((day) => <tr key={day.localDate}><th scope="row">{day.localDate}</th><td>{Number(day.plannedMinutes)} min</td><td>{Number(day.recordedActiveMinutes)} min</td><td>{Number(day.focusSessionCount)}</td></tr>)}</tbody></table></div>
       <div className="review-honesty-card"><span className="card-kicker">COVERAGE</span><p>{weekly.data.coverageNote}</p><p className="review-unknown">Active goals: {Number(weekly.data.activeGoalCount)} · Unrecorded time: unknown</p></div>
+      <EvidenceInsight planned={Number(weekly.data.plannedMinutes)} recorded={Number(weekly.data.recordedActiveMinutes)} />
     </>}
   </section>;
 }

@@ -10,6 +10,10 @@ type Service interface {
 	ListToday(context.Context, string) (Today, error)
 	ListRange(context.Context, string, string) (DateRange, error)
 	Create(context.Context, CreateInput) (Allocation, error)
+	Preview(context.Context, PreviewInput) (PlacementProposal, error)
+	ApplyProposal(context.Context, ApplyProposalInput) (Allocation, error)
+	PreviewSchedule(context.Context, SchedulePreviewInput) (ScheduleProposal, error)
+	ApplyScheduleProposal(context.Context, ApplyScheduleProposalInput) ([]Allocation, error)
 	CarryForward(context.Context, CarryForwardInput) (Allocation, error)
 	ListRoutines(context.Context) ([]Routine, error)
 	CreateRoutine(context.Context, CreateRoutineInput) (Routine, error)
@@ -145,6 +149,71 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Allocation, error
 	}
 	a.LocalDate, a.StartMinutes, a.DurationMinutes = in.LocalDate, in.StartMinutes, in.DurationMinutes
 	return s.repo.Create(ctx, a)
+}
+
+func (s *service) Preview(ctx context.Context, in PreviewInput) (PlacementProposal, error) {
+	if strings.TrimSpace(in.WorkItemID) == "" {
+		return PlacementProposal{}, ErrInvalidAllocation{"work_item_id", "required"}
+	}
+	if _, err := time.Parse("2006-01-02", in.LocalDate); err != nil {
+		return PlacementProposal{}, ErrInvalidAllocation{"local_date", "must be YYYY-MM-DD"}
+	}
+	if in.StartMinutes < 0 || in.StartMinutes >= 1440 {
+		return PlacementProposal{}, ErrInvalidAllocation{"start_minutes", "must be within the day"}
+	}
+	if in.DurationMinutes <= 0 || in.DurationMinutes > 480 || in.StartMinutes+in.DurationMinutes > 1440 {
+		return PlacementProposal{}, ErrInvalidAllocation{"duration_minutes", "must be between 1 and 480 and fit within the day"}
+	}
+	if _, err := s.repo.WorkItem(ctx, in.WorkItemID); err != nil {
+		return PlacementProposal{}, err
+	}
+	return s.repo.Preview(ctx, in)
+}
+
+func (s *service) ApplyProposal(ctx context.Context, in ApplyProposalInput) (Allocation, error) {
+	if strings.TrimSpace(in.ProposalID) == "" {
+		return Allocation{}, ErrInvalidAllocation{"proposal_id", "required"}
+	}
+	if strings.TrimSpace(in.IdempotencyKey) == "" {
+		return Allocation{}, ErrInvalidAllocation{"idempotency_key", "required"}
+	}
+	if in.ExpectedRevision <= 0 {
+		return Allocation{}, ErrInvalidAllocation{"expected_revision", "must be positive"}
+	}
+	return s.repo.ApplyProposal(ctx, in)
+}
+
+func (s *service) PreviewSchedule(ctx context.Context, in SchedulePreviewInput) (ScheduleProposal, error) {
+	if _, err := time.Parse("2006-01-02", in.LocalDate); err != nil {
+		return ScheduleProposal{}, ErrInvalidAllocation{"local_date", "must be YYYY-MM-DD"}
+	}
+	if in.StartMinutes < 0 || in.StartMinutes >= 1440 {
+		return ScheduleProposal{}, ErrInvalidAllocation{"start_minutes", "must be within the day"}
+	}
+	if len(in.WorkItemIDs) == 0 || len(in.WorkItemIDs) > 20 {
+		return ScheduleProposal{}, ErrInvalidAllocation{"work_item_ids", "must contain between 1 and 20 items"}
+	}
+	seen := map[string]bool{}
+	for _, id := range in.WorkItemIDs {
+		if strings.TrimSpace(id) == "" || seen[id] {
+			return ScheduleProposal{}, ErrInvalidAllocation{"work_item_ids", "must contain unique non-empty ids"}
+		}
+		seen[id] = true
+	}
+	return s.repo.PreviewSchedule(ctx, in)
+}
+
+func (s *service) ApplyScheduleProposal(ctx context.Context, in ApplyScheduleProposalInput) ([]Allocation, error) {
+	if strings.TrimSpace(in.ProposalID) == "" {
+		return nil, ErrInvalidAllocation{"proposal_id", "required"}
+	}
+	if strings.TrimSpace(in.IdempotencyKey) == "" {
+		return nil, ErrInvalidAllocation{"idempotency_key", "required"}
+	}
+	if in.ExpectedRevision <= 0 {
+		return nil, ErrInvalidAllocation{"expected_revision", "must be positive"}
+	}
+	return s.repo.ApplyScheduleProposal(ctx, in)
 }
 
 func (s *service) CarryForward(ctx context.Context, in CarryForwardInput) (Allocation, error) {

@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { createAllocation, createRoutine, fetchAllocations, fetchRoutineOccurrences, fetchRoutines, fetchTodayAllocations, rescheduleRoutineOccurrence, skipRoutineOccurrence } from "../api/calendar";
+import { applyAllocationProposal, applyScheduleProposal, createRoutine, fetchAllocations, fetchRoutineOccurrences, fetchRoutines, fetchTodayAllocations, previewAllocation, previewSchedule, rescheduleRoutineOccurrence, skipRoutineOccurrence } from "../api/calendar";
 import { fetchWorkItems } from "../api/work";
 import { renderWithProviders } from "../test-utils";
 import { PlanPage } from "./PlanPage";
 
-vi.mock("../api/calendar", () => ({ fetchTodayAllocations: vi.fn(), fetchAllocations: vi.fn(), createAllocation: vi.fn(), fetchRoutines: vi.fn(), createRoutine: vi.fn(), fetchRoutineOccurrences: vi.fn(), rescheduleRoutineOccurrence: vi.fn(), skipRoutineOccurrence: vi.fn() }));
+vi.mock("../api/calendar", () => ({ fetchTodayAllocations: vi.fn(), fetchAllocations: vi.fn(), applyAllocationProposal: vi.fn(), applyScheduleProposal: vi.fn(), previewAllocation: vi.fn(), previewSchedule: vi.fn(), fetchRoutines: vi.fn(), createRoutine: vi.fn(), fetchRoutineOccurrences: vi.fn(), rescheduleRoutineOccurrence: vi.fn(), skipRoutineOccurrence: vi.fn() }));
 vi.mock("../api/work", () => ({ fetchWorkItems: vi.fn() }));
 
 afterEach(() => {
@@ -39,6 +39,23 @@ describe("PlanPage", () => {
     expect(screen.getByText("Accepted placement is durable schedule state. Completing focus does not silently mark an allocation or work item complete.")).toBeInTheDocument();
   });
 
+  it("preserves short allocation geometry and opens accepted details", async () => {
+    vi.mocked(fetchTodayAllocations).mockResolvedValue({
+      plannedMinutes: 15,
+      availableMinutes: 345,
+      breathingRoomMinutes: 45,
+      allocations: [{ id: "allocation-short", workItemId: "work-1", title: "Quick check", startMinutes: 600, durationMinutes: 15, sourceLabel: "Cadence", state: "accepted" }],
+    } as never);
+    vi.mocked(fetchWorkItems).mockResolvedValue([]);
+
+    renderWithProviders(<PlanPage />);
+
+    const block = await screen.findByRole("button", { name: "Quick check, 10:00, 15 minutes" });
+    expect(block).toHaveStyle({ width: "2.5%" });
+    await userEvent.click(block);
+    expect(screen.getByRole("dialog", { name: "Accepted allocation details" })).toHaveTextContent("10:00 · 15 min");
+  });
+
   it("keeps an empty plan explicit", async () => {
     vi.mocked(fetchTodayAllocations).mockResolvedValue({ plannedMinutes: 0, availableMinutes: 360, breathingRoomMinutes: 60, allocations: [] } as never);
     vi.mocked(fetchWorkItems).mockResolvedValue([]);
@@ -52,29 +69,80 @@ describe("PlanPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Today’s plan is unavailable right now.");
   });
 
-  it("places the next work item into the accepted schedule", async () => {
+  it("previews and then places the next work item into the accepted schedule", async () => {
     vi.mocked(fetchTodayAllocations).mockResolvedValue({ plannedMinutes: 0, availableMinutes: 480, breathingRoomMinutes: 480, allocations: [] } as never);
     vi.mocked(fetchWorkItems).mockResolvedValue([{ id: "work-1", title: "Draft", remainingMinutes: 45, sourceLabel: "Cadence" }] as never);
-    vi.mocked(createAllocation).mockResolvedValue({ id: "allocation-1" } as never);
+    vi.mocked(previewAllocation).mockResolvedValue({ id: "proposal-1", baseRevision: 1n, state: "feasible", startMinutes: 810, durationMinutes: 60, reason: "Requested time is available." } as never);
+    vi.mocked(applyAllocationProposal).mockResolvedValue({ id: "allocation-1" } as never);
     renderWithProviders(<PlanPage />);
-    const placementButton = await screen.findByRole("button", { name: "Accept placement" });
+    const placementButton = await screen.findByRole("button", { name: "Preview placement" });
     await waitFor(() => expect(placementButton).toBeEnabled());
     await userEvent.clear(screen.getByLabelText("Start"));
     await userEvent.type(screen.getByLabelText("Start"), "13:30");
     await userEvent.clear(screen.getByLabelText("Minutes"));
     await userEvent.type(screen.getByLabelText("Minutes"), "60");
     await userEvent.click(placementButton);
-    expect(createAllocation).toHaveBeenCalledWith(expect.objectContaining({ workItemId: "work-1", startMinutes: 810, durationMinutes: 60 }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Placed on today’s accepted schedule.");
+    expect(previewAllocation).toHaveBeenCalledWith(expect.objectContaining({ workItemId: "work-1", startMinutes: 810, durationMinutes: 60 }));
+    expect(screen.getByText("Requested 13:30")).toBeInTheDocument();
+    expect(screen.getByText("Proposed 13:30")).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: "Accept 13:30" }));
+    expect(applyAllocationProposal).toHaveBeenCalledWith({ proposalId: "proposal-1", expectedRevision: 1n, idempotencyKey: "proposal-1:apply" });
+    expect(await screen.findByRole("status")).toHaveTextContent("Placed on today’s accepted schedule");
   });
 
   it("keeps rejected placement explicit", async () => {
     vi.mocked(fetchTodayAllocations).mockResolvedValue({ plannedMinutes: 0, availableMinutes: 480, breathingRoomMinutes: 480, allocations: [] } as never);
     vi.mocked(fetchWorkItems).mockResolvedValue([{ id: "work-1", title: "Draft", remainingMinutes: 45 }] as never);
-    vi.mocked(createAllocation).mockRejectedValue(new Error("overlap"));
+    vi.mocked(previewAllocation).mockRejectedValue(new Error("overlap"));
     renderWithProviders(<PlanPage />);
-    await userEvent.click(await screen.findByRole("button", { name: "Accept placement" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("That placement could not be accepted.");
+    await userEvent.click(await screen.findByRole("button", { name: "Preview placement" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("could not be previewed");
+  });
+
+  it("does not hide a stale proposal during acceptance", async () => {
+    vi.mocked(fetchTodayAllocations).mockResolvedValue({ plannedMinutes: 0, availableMinutes: 480, breathingRoomMinutes: 480, allocations: [] } as never);
+    vi.mocked(fetchWorkItems).mockResolvedValue([{ id: "work-1", title: "Draft", remainingMinutes: 45 }] as never);
+    vi.mocked(previewAllocation).mockResolvedValue({ id: "proposal-1", baseRevision: 4n, state: "feasible", startMinutes: 540, durationMinutes: 45, reason: "Requested time is available." } as never);
+    vi.mocked(applyAllocationProposal).mockRejectedValue(new Error("stale"));
+    renderWithProviders(<PlanPage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Preview placement" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Accept 09:00" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("stale or could not be accepted");
+    expect(screen.queryByRole("button", { name: "Accept 09:00" })).not.toBeInTheDocument();
+  });
+
+  it("reviews and applies a bounded multi-item backlog proposal", async () => {
+    vi.mocked(fetchTodayAllocations).mockResolvedValue({ plannedMinutes: 0, availableMinutes: 480, breathingRoomMinutes: 480, allocations: [] } as never);
+    vi.mocked(fetchWorkItems).mockResolvedValue([{ id: "work-1", title: "Draft", remainingMinutes: 45 }, { id: "work-2", title: "Review", remainingMinutes: 30 }] as never);
+    vi.mocked(previewSchedule).mockResolvedValue({ id: "schedule-1", state: "feasible", baseRevision: 2n, reason: "Placed all 2 selected work items.", placements: [{ workItemId: "work-1", title: "Draft", state: "feasible", startMinutes: 540, durationMinutes: 45, reason: "First feasible" }, { workItemId: "work-2", title: "Review", state: "feasible", startMinutes: 585, durationMinutes: 30, reason: "First feasible" }] } as never);
+    vi.mocked(applyScheduleProposal).mockResolvedValue([{ id: "a-1" }, { id: "a-2" }] as never);
+    renderWithProviders(<PlanPage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Preview next 3" }));
+    expect(previewSchedule).toHaveBeenCalledWith(expect.objectContaining({ workItemIds: ["work-1", "work-2"] }));
+    expect(await screen.findByText("Next sessions in request order")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Accept feasible sessions" }));
+    expect(applyScheduleProposal).toHaveBeenCalledWith({ proposalId: "schedule-1", expectedRevision: 2n, idempotencyKey: "schedule-1:apply" });
+    expect(await screen.findByRole("status")).toHaveTextContent("Accepted 2 sessions");
+  });
+
+  it("keeps a failed backlog preview explicit", async () => {
+    vi.mocked(fetchTodayAllocations).mockResolvedValue({ plannedMinutes: 0, availableMinutes: 480, breathingRoomMinutes: 480, allocations: [] } as never);
+    vi.mocked(fetchWorkItems).mockResolvedValue([{ id: "work-1", title: "Draft", remainingMinutes: 45 }, { id: "work-2", title: "Review", remainingMinutes: 30 }] as never);
+    vi.mocked(previewSchedule).mockRejectedValue(new Error("offline"));
+    renderWithProviders(<PlanPage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Preview next 3" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("could not be previewed");
+  });
+
+  it("keeps a failed backlog apply explicit", async () => {
+    vi.mocked(fetchTodayAllocations).mockResolvedValue({ plannedMinutes: 0, availableMinutes: 480, breathingRoomMinutes: 480, allocations: [] } as never);
+    vi.mocked(fetchWorkItems).mockResolvedValue([{ id: "work-1", title: "Draft", remainingMinutes: 45 }, { id: "work-2", title: "Review", remainingMinutes: 30 }] as never);
+    vi.mocked(previewSchedule).mockResolvedValue({ id: "schedule-1", state: "feasible", baseRevision: 2n, reason: "Placed all 2 selected work items.", placements: [{ workItemId: "work-1", title: "Draft", state: "feasible", startMinutes: 540, durationMinutes: 45, reason: "First feasible" }] } as never);
+    vi.mocked(applyScheduleProposal).mockRejectedValue(new Error("stale"));
+    renderWithProviders(<PlanPage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Preview next 3" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Accept feasible sessions" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("stale or could not be accepted");
   });
 
   it("projects the shared allocation set as a week", async () => {

@@ -71,7 +71,7 @@ describe("FocusPage", () => {
 
   it("records a manual actual and preserves an explicit correction path", async () => {
     const user = userEvent.setup();
-    const actual: Actual = { id: "actual-1", workItemId: "", title: "Review notes", localDate: "2026-09-19", reportedMinutes: 45n, certainty: "user_reported_approximate", note: "", createdAtUnixSeconds: 0n, revision: 1n };
+    const actual: Actual = { id: "actual-1", workItemId: "", title: "Review launch brief", localDate: "2026-09-19", reportedMinutes: 45n, certainty: "user_reported_approximate", note: "", createdAtUnixSeconds: 0n, revision: 1n };
     vi.mocked(fetchCurrentFocus).mockResolvedValue(null);
     vi.mocked(fetchWorkItems).mockResolvedValue(work as never);
     vi.mocked(fetchActuals).mockResolvedValue([actual]);
@@ -80,10 +80,10 @@ describe("FocusPage", () => {
     vi.mocked(correctActual).mockResolvedValue({ ...actual, reportedMinutes: 30n, revision: 2n });
     renderWithProviders(<FocusPage />);
     expect(await screen.findByText("1 correction preserved")).toBeInTheDocument();
-    await user.type(await screen.findByLabelText("What did you work on?"), "Review notes");
+    await user.type(await screen.findByLabelText("What did you work on?"), "Review launch brief");
     await user.type(screen.getByLabelText("Minutes"), "45");
     await user.click(screen.getByRole("button", { name: "Record actual" }));
-    expect(recordManualActual).toHaveBeenCalledWith(expect.objectContaining({ title: "Review notes", reportedMinutes: 45 }));
+    expect(recordManualActual).toHaveBeenCalledWith(expect.objectContaining({ title: "Review launch brief", reportedMinutes: 45 }));
     await user.click(await screen.findByRole("button", { name: "Correct" }));
     const correctionInput = screen.getAllByLabelText("Minutes")[1];
     if (!correctionInput) throw new Error("correction minutes input missing");

@@ -22,14 +22,15 @@ const noFocus = null;
 describe("Observatory Today", () => {
   it("renders the first real work item from the work domain", async () => {
     vi.mocked(fetchWorkItems).mockResolvedValue([create(WorkItemSchema, {
+      id: "w-1",
       title: "Draft the Aquila launch story",
       description: "Explain one useful workflow.",
       remainingMinutes: 45,
       sourceLabel: "Cadence",
     })]);
     vi.mocked(fetchTodayAllocations).mockResolvedValue({ ...emptyPlan, allocations: [
-      { id: "a-1", title: "Draft block", sourceLabel: "Cadence", startMinutes: 600, durationMinutes: 45 },
-      { id: "a-2", title: "Review block", sourceLabel: "Projects", startMinutes: 720, durationMinutes: 30 },
+      { id: "a-1", workItemId: "w-1", title: "Draft the Aquila launch story", sourceLabel: "Cadence", startMinutes: 600, durationMinutes: 45 },
+      { id: "a-2", workItemId: "w-2", title: "Review block", sourceLabel: "Projects", startMinutes: 720, durationMinutes: 30 },
     ] } as never);
     vi.mocked(fetchCurrentFocus).mockResolvedValue(noFocus);
 
@@ -38,7 +39,11 @@ describe("Observatory Today", () => {
     expect(await screen.findByRole("heading", { name: "Draft the Aquila launch story" })).toBeInTheDocument();
     expect(screen.getAllByText("Cadence").length).toBeGreaterThan(0);
     expect(screen.queryByText("Capture your next useful action")).not.toBeInTheDocument();
+    expect(screen.getByText("UP NEXT · ACCEPTED")).toBeInTheDocument();
+    expect(screen.getByText("Accepted for 10:00 · 45 minutes")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Day" }));
+    await userEvent.click(screen.getByRole("button", { name: "Night" }));
+    await userEvent.click(screen.getByRole("button", { name: "Auto" }));
     await userEvent.click(screen.getByRole("button", { name: "Open draft" }));
     expect(screen.getByRole("dialog", { name: "Work item details" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Close draft" }));
@@ -101,7 +106,27 @@ describe("Observatory Today", () => {
     vi.mocked(fetchTodayAllocations).mockResolvedValue({ ...emptyPlan, externalEventCount: 2, externalBusyMinutes: 90 } as never);
     vi.mocked(fetchCurrentFocus).mockResolvedValue(noFocus);
     renderWithProviders(<DashboardPage />);
-    expect(await screen.findByText(/2 read-only calendar events occupy 90 minutes/)).toBeInTheDocument();
+    expect(await screen.findByLabelText("2 read-only calendar events occupy 90 minutes. Accepted work and provider time are unioned, not double-counted.")).toBeInTheDocument();
+  });
+
+  it("makes accepted timeline items actionable and separates overlaps into lanes", async () => {
+    vi.mocked(fetchWorkItems).mockResolvedValue([]);
+    vi.mocked(fetchTodayAllocations).mockResolvedValue({ ...emptyPlan, allocations: [
+      { id: "a-1", workItemId: "w-1", title: "First block", sourceLabel: "Work", startMinutes: 600, durationMinutes: 60 },
+      { id: "a-2", workItemId: "w-2", title: "Overlapping block", sourceLabel: "Home", startMinutes: 630, durationMinutes: 45 },
+    ] } as never);
+    vi.mocked(fetchCurrentFocus).mockResolvedValue(noFocus);
+    renderWithProviders(<DashboardPage />);
+
+    const first = await screen.findByRole("button", { name: /First block, 10:00, 60 min/ });
+    const second = screen.getByRole("button", { name: /Overlapping block, 10:30, 45 min/ });
+    expect(first).toHaveStyle({ top: "calc(2rem + 0 * 6.2rem)" });
+    expect(second).toHaveStyle({ top: "calc(2rem + 1 * 6.2rem)" });
+    await userEvent.click(screen.getByRole("button", { name: "Focus" }));
+    expect(screen.getByRole("list", { name: /Timeline from/ })).toHaveAttribute("aria-label", "Timeline from 09:00 to 13:00");
+    await userEvent.click(screen.getByRole("button", { name: "Day" }));
+    await userEvent.click(second);
+    expect(screen.getByRole("dialog", { name: "Timeline item details" })).toHaveTextContent("Overlapping block");
   });
 
   it("pauses the durable current session instead of toggling local state", async () => {

@@ -79,6 +79,90 @@ func (h *handlers) carryForwardReport(_ cliapp.OperationContext, response *v.Car
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Carried unfinished work to %s at %02d:%02d.", response.Allocation.LocalDate, response.Allocation.StartMinutes/60, response.Allocation.StartMinutes%60)}, NextCommand: []string{"`calendar routines` — inspect related planning state"}}
 }
 
+func (h *handlers) previewPlacementCall(c cliapp.OperationContext) (*v.PreviewAllocationResponse, error) {
+	start, err := parseIntFlag(c, "start-minute")
+	if err != nil {
+		return nil, err
+	}
+	duration, err := parseIntFlag(c, "duration-minutes")
+	if err != nil {
+		return nil, err
+	}
+	response, err := h.client.PreviewAllocation(context.Background(), connect.NewRequest(&v.PreviewAllocationRequest{WorkItemId: c.Flag("work-item-id"), LocalDate: c.Flag("date"), StartMinutes: int32(start), DurationMinutes: int32(duration)}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("preview placement", err, nil)
+	}
+	return response.Msg, nil
+}
+
+func (h *handlers) previewPlacementReport(_ cliapp.OperationContext, response *v.PreviewAllocationResponse) cliapp.ListReport {
+	proposal := response.Proposal
+	if proposal == nil {
+		return cliapp.ListReport{Summary: []string{"No placement proposal returned."}}
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Placement %s: %s", proposal.State, proposal.Reason)}, ResultsHeading: "Proposed placement", Results: []string{fmt.Sprintf("%s %02d:%02d for %dm", proposal.LocalDate, proposal.StartMinutes/60, proposal.StartMinutes%60, proposal.DurationMinutes)}}
+}
+
+func (h *handlers) applyPlacementCall(c cliapp.OperationContext) (*v.ApplyAllocationProposalResponse, error) {
+	revision, err := parseIntFlag(c, "revision")
+	if err != nil {
+		return nil, err
+	}
+	response, err := h.client.ApplyAllocationProposal(context.Background(), connect.NewRequest(&v.ApplyAllocationProposalRequest{ProposalId: c.Flag("proposal-id"), ExpectedRevision: int64(revision), IdempotencyKey: c.Flag("idempotency-key")}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("apply placement proposal", err, nil)
+	}
+	return response.Msg, nil
+}
+
+func (h *handlers) applyPlacementReport(_ cliapp.OperationContext, response *v.ApplyAllocationProposalResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Applied placement %q at %s %02d:%02d for %dm.", response.Allocation.Title, response.Allocation.LocalDate, response.Allocation.StartMinutes/60, response.Allocation.StartMinutes%60, response.Allocation.DurationMinutes)}, NextCommand: []string{"`calendar routines` — inspect related planning state"}}
+}
+
+func (h *handlers) previewScheduleCall(c cliapp.OperationContext) (*v.PreviewScheduleResponse, error) {
+	start, err := parseIntFlag(c, "start-minute")
+	if err != nil {
+		return nil, err
+	}
+	var ids []string
+	if err := json.Unmarshal([]byte(c.Flag("work-items-json")), &ids); err != nil {
+		return nil, fmt.Errorf("work-items-json must be a JSON array: %w", err)
+	}
+	response, err := h.client.PreviewSchedule(context.Background(), connect.NewRequest(&v.PreviewScheduleRequest{LocalDate: c.Flag("date"), StartMinutes: int32(start), WorkItemIds: ids}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("preview schedule", err, nil)
+	}
+	return response.Msg, nil
+}
+
+func (h *handlers) previewScheduleReport(_ cliapp.OperationContext, response *v.PreviewScheduleResponse) cliapp.ListReport {
+	proposal := response.Proposal
+	if proposal == nil {
+		return cliapp.ListReport{Summary: []string{"No schedule proposal returned."}}
+	}
+	results := make([]string, len(proposal.Placements))
+	for i, placement := range proposal.Placements {
+		results[i] = fmt.Sprintf("%s %02d:%02d %dm %s (%s)", placement.LocalDate, placement.StartMinutes/60, placement.StartMinutes%60, placement.DurationMinutes, placement.Title, placement.State)
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Schedule %s: %s", proposal.State, proposal.Reason)}, ResultsHeading: "Proposed sessions", Results: results}
+}
+
+func (h *handlers) applyScheduleCall(c cliapp.OperationContext) (*v.ApplyScheduleProposalResponse, error) {
+	revision, err := parseIntFlag(c, "revision")
+	if err != nil {
+		return nil, err
+	}
+	response, err := h.client.ApplyScheduleProposal(context.Background(), connect.NewRequest(&v.ApplyScheduleProposalRequest{ProposalId: c.Flag("proposal-id"), ExpectedRevision: int64(revision), IdempotencyKey: c.Flag("idempotency-key")}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("apply schedule proposal", err, nil)
+	}
+	return response.Msg, nil
+}
+
+func (h *handlers) applyScheduleReport(_ cliapp.OperationContext, response *v.ApplyScheduleProposalResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Applied %d accepted sessions.", len(response.Allocations))}, NextCommand: []string{"`calendar preview-schedule --date <date> --start-minute <minute> --work-items-json <json>` — review the next proposal"}}
+}
+
 func (h *handlers) occurrencesCall(c cliapp.OperationContext) (*v.ListRoutineOccurrencesResponse, error) {
 	response, err := h.client.ListRoutineOccurrences(context.Background(), connect.NewRequest(&v.ListRoutineOccurrencesRequest{StartLocalDate: c.Flag("start-date"), EndLocalDate: c.Flag("end-date")}))
 	if err != nil {

@@ -11,7 +11,11 @@ const GroupName = "calendar"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]cliapp.PrimitiveHandler{
-		"CalendarService.CarryForwardAllocation":     cliapp.ProtoMutation(h.carryForwardCall, h.carryForwardReport),
+		"CalendarService.CarryForwardAllocation":      cliapp.ProtoMutation(h.carryForwardCall, h.carryForwardReport),
+		"CalendarService.PreviewAllocation":           cliapp.ProtoList(h.previewPlacementCall, h.previewPlacementReport),
+		"CalendarService.ApplyAllocationProposal":     cliapp.ProtoMutation(h.applyPlacementCall, h.applyPlacementReport),
+		"CalendarService.PreviewSchedule":             cliapp.ProtoList(h.previewScheduleCall, h.previewScheduleReport),
+		"CalendarService.ApplyScheduleProposal":       cliapp.ProtoMutation(h.applyScheduleCall, h.applyScheduleReport),
 		"CalendarService.ListRoutines":                cliapp.ProtoList(h.listRoutinesCall, h.listRoutinesReport),
 		"CalendarService.CreateRoutine":               cliapp.ProtoMutation(h.createRoutineCall, h.createRoutineReport),
 		"CalendarService.ListRoutineOccurrences":      cliapp.ProtoList(h.occurrencesCall, h.occurrencesReport),

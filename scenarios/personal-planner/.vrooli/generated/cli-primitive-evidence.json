@@ -4,8 +4,24 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "personal-planner",
   "generator": "v1.0.0",
-  "manifest_hash": "28dd617a124f0756537f441c1e6cc563fd13e71d70b633643fd16d8acbb9d2f0",
+  "manifest_hash": "2849c9acf3fde07ad8491e51a8ffb37d1aee12c6882da22728bfaea402940eca",
   "commands": [
+    {
+      "path": "calendar apply-placement",
+      "group": "calendar",
+      "command": "apply-placement",
+      "binding": "CalendarService.ApplyAllocationProposal",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "calendar apply-schedule",
+      "group": "calendar",
+      "command": "apply-schedule",
+      "binding": "CalendarService.ApplyScheduleProposal",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
     {
       "path": "calendar carry-forward",
       "group": "calendar",
@@ -21,6 +37,22 @@
       "binding": "CalendarService.CreateRoutine",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "calendar preview-placement",
+      "group": "calendar",
+      "command": "preview-placement",
+      "binding": "CalendarService.PreviewAllocation",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "calendar preview-schedule",
+      "group": "calendar",
+      "command": "preview-schedule",
+      "binding": "CalendarService.PreviewSchedule",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "calendar reschedule-routine-occurrence",

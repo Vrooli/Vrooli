@@ -151,7 +151,7 @@ func TestServiceRecordsAndCorrectsApproximateActual(t *testing.T) {
 	clock := schedule.NewFake(time.Date(2026, 9, 19, 9, 0, 0, 0, time.UTC))
 	repo := &fakeRepository{}
 	service := NewService(repo, clock)
-	actual, err := service.RecordActual(context.Background(), RecordActualInput{Title: "Review notes", LocalDate: "2026-09-19", ReportedMinutes: 45})
+	actual, err := service.RecordActual(context.Background(), RecordActualInput{Title: "Review launch brief", LocalDate: "2026-09-19", ReportedMinutes: 45})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +182,7 @@ func TestSQLiteActualCorrectionRetainsAuditAndEffectiveValue(t *testing.T) {
 	}
 	clock := schedule.NewFake(time.Date(2026, 9, 19, 9, 0, 0, 0, time.UTC))
 	service := NewService(NewSQLiteRepository(db, clock), clock)
-	actual, err := service.RecordActual(context.Background(), RecordActualInput{Title: "Review notes", LocalDate: "2026-09-19", ReportedMinutes: 45})
+	actual, err := service.RecordActual(context.Background(), RecordActualInput{Title: "Review launch brief", LocalDate: "2026-09-19", ReportedMinutes: 45})
 	if err != nil {
 		t.Fatal(err)
 	}

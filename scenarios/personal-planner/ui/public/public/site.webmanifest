@@ -1,37 +1,41 @@
 {
-  "id": ".",
-  "name": "Personal Planner",
-  "short_name": "personal-planner",
-  "description": "A personal planning and focus application that helps people make realistic commitments, follow through, and plan better from what actually happens.",
-  "start_url": ".",
-  "scope": ".",
+  "_brand": {
+    "slug": "personal-planner",
+    "version": 3
+  },
+  "background_color": "#f8f4ec",
+  "description": "A calmer personal planner for realistic commitments, focused work, and useful reflection.",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#f8f4ec",
   "icons": [
     {
+      "purpose": "any",
+      "sizes": "192x192",
       "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
+      "type": "image/png"
     },
     {
+      "purpose": "any",
+      "sizes": "512x512",
       "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
+      "type": "image/png"
     },
     {
-      "src": "maskable-icon-192.png",
+      "purpose": "maskable",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
+      "src": "maskable-icon-192.png",
+      "type": "image/png"
     },
     {
-      "src": "maskable-icon-512.png",
+      "purpose": "maskable",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "src": "maskable-icon-512.png",
+      "type": "image/png"
     }
-  ]
+  ],
+  "id": "/",
+  "name": "Personal Planner",
+  "scope": "/",
+  "short_name": "Personal Planner",
+  "start_url": "/",
+  "theme_color": "#f8f4ec"
 }

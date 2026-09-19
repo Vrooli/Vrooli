@@ -1,5 +1,5 @@
 import { createClient } from "@connectrpc/connect";
-import { CalendarService, type ListAllocationsResponse, type ListTodayAllocationsResponse, type Allocation, type Routine, type RoutineOccurrence } from "@vrooli/proto-types/personal-planner/v1/calendar/calendar_pb";
+import { CalendarService, type ListAllocationsResponse, type ListTodayAllocationsResponse, type Allocation, type Routine, type RoutineOccurrence, type PlacementProposal, type ScheduleProposal } from "@vrooli/proto-types/personal-planner/v1/calendar/calendar_pb";
 
 import { transport } from "./client";
 
@@ -12,6 +12,25 @@ export async function createAllocation(input: { workItemId: string; localDate: s
   const response = await calendarClient.createAllocation(input);
   if (!response.allocation) throw new Error("allocation was not returned");
   return response.allocation;
+}
+export async function previewAllocation(input: { workItemId: string; localDate: string; startMinutes: number; durationMinutes: number }): Promise<PlacementProposal> {
+  const response = await calendarClient.previewAllocation(input);
+  if (!response.proposal) throw new Error("placement proposal was not returned");
+  return response.proposal;
+}
+export async function applyAllocationProposal(input: { proposalId: string; expectedRevision: bigint; idempotencyKey: string }): Promise<Allocation> {
+  const response = await calendarClient.applyAllocationProposal(input);
+  if (!response.allocation) throw new Error("applied allocation was not returned");
+  return response.allocation;
+}
+export async function previewSchedule(input: { localDate: string; startMinutes: number; workItemIds: string[] }): Promise<ScheduleProposal> {
+  const response = await calendarClient.previewSchedule(input);
+  if (!response.proposal) throw new Error("schedule proposal was not returned");
+  return response.proposal;
+}
+export async function applyScheduleProposal(input: { proposalId: string; expectedRevision: bigint; idempotencyKey: string }): Promise<Allocation[]> {
+  const response = await calendarClient.applyScheduleProposal(input);
+  return response.allocations;
 }
 export async function carryForwardAllocation(input: { allocationId: string; targetLocalDate: string; startMinutes: number }): Promise<Allocation> {
   const response = await calendarClient.carryForwardAllocation(input);
@@ -36,4 +55,4 @@ export async function rescheduleRoutineOccurrence(input: { routineId: string; lo
   const response = await calendarClient.rescheduleRoutineOccurrence(input);
   if (!response.rescheduled) throw new Error("routine occurrence was not rescheduled");
 }
-export type { Allocation, Routine, RoutineOccurrence };
+export type { Allocation, Routine, RoutineOccurrence, PlacementProposal, ScheduleProposal };

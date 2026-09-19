@@ -20,6 +20,18 @@ func (f *fakeRepository) Create(_ context.Context, item Allocation) (Allocation,
 	f.created = item
 	return item, f.createErr
 }
+func (f *fakeRepository) Preview(context.Context, PreviewInput) (PlacementProposal, error) {
+	return PlacementProposal{State: "feasible", StartMinutes: 600, DurationMinutes: 45}, nil
+}
+func (f *fakeRepository) ApplyProposal(context.Context, ApplyProposalInput) (Allocation, error) {
+	return Allocation{ID: "allocation-1", State: "accepted"}, nil
+}
+func (f *fakeRepository) PreviewSchedule(context.Context, SchedulePreviewInput) (ScheduleProposal, error) {
+	return ScheduleProposal{ID: "schedule-proposal-1", State: "feasible", BaseRevision: 1}, nil
+}
+func (f *fakeRepository) ApplyScheduleProposal(context.Context, ApplyScheduleProposalInput) ([]Allocation, error) {
+	return []Allocation{{ID: "allocation-1", State: "accepted"}}, nil
+}
 
 func (f *fakeRepository) CarryForward(_ context.Context, in CarryForwardInput) (Allocation, error) {
 	return Allocation{ID: "carried-1", CarriedFromID: in.AllocationID, LocalDate: in.TargetLocalDate, StartMinutes: in.StartMinutes}, nil
@@ -57,6 +69,17 @@ func TestServiceCreateEnrichesAcceptedAllocationFromWork(t *testing.T) {
 	}
 	if got.Title != "Draft" || got.SourceLabel != "Cadence" || repo.created.State != "" {
 		t.Fatalf("unexpected allocation %#v", got)
+	}
+}
+
+func TestServicePreviewValidatesAndDelegates(t *testing.T) {
+	repo := &fakeRepository{item: Allocation{WorkItemID: "work-1"}}
+	proposal, err := NewService(repo).Preview(context.Background(), PreviewInput{WorkItemID: "work-1", LocalDate: "2026-09-19", StartMinutes: 600, DurationMinutes: 45})
+	if err != nil || proposal.State != "feasible" {
+		t.Fatalf("proposal=%#v err=%v", proposal, err)
+	}
+	if _, err := NewService(repo).Preview(context.Background(), PreviewInput{WorkItemID: "work-1", LocalDate: "bad", StartMinutes: 600, DurationMinutes: 45}); err == nil {
+		t.Fatal("expected invalid date")
 	}
 }
 

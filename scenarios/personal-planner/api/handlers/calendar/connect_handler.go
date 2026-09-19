@@ -65,6 +65,46 @@ func (h *connectHandler) CreateAllocation(ctx context.Context, req *connect.Requ
 	return connect.NewResponse(&v.CreateAllocationResponse{Allocation: toProto(a)}), nil
 }
 
+func (h *connectHandler) PreviewAllocation(ctx context.Context, req *connect.Request[v.PreviewAllocationRequest]) (*connect.Response[v.PreviewAllocationResponse], error) {
+	proposal, err := h.deps.Service.Preview(ctx, d.PreviewInput{WorkItemID: req.Msg.WorkItemId, LocalDate: req.Msg.LocalDate, StartMinutes: int(req.Msg.StartMinutes), DurationMinutes: int(req.Msg.DurationMinutes)})
+	if err != nil {
+		return nil, d.ToConnectError(err)
+	}
+	return connect.NewResponse(&v.PreviewAllocationResponse{Proposal: &v.PlacementProposal{Id: proposal.ID, WorkItemId: proposal.WorkItemID, LocalDate: proposal.LocalDate, State: proposal.State, StartMinutes: int32(proposal.StartMinutes), DurationMinutes: int32(proposal.DurationMinutes), Reason: proposal.Reason, BaseRevision: proposal.BaseRevision}}), nil
+}
+
+func (h *connectHandler) ApplyAllocationProposal(ctx context.Context, req *connect.Request[v.ApplyAllocationProposalRequest]) (*connect.Response[v.ApplyAllocationProposalResponse], error) {
+	a, err := h.deps.Service.ApplyProposal(ctx, d.ApplyProposalInput{ProposalID: req.Msg.ProposalId, ExpectedRevision: req.Msg.ExpectedRevision, IdempotencyKey: req.Msg.IdempotencyKey})
+	if err != nil {
+		return nil, d.ToConnectError(err)
+	}
+	return connect.NewResponse(&v.ApplyAllocationProposalResponse{Allocation: toProto(a)}), nil
+}
+
+func (h *connectHandler) PreviewSchedule(ctx context.Context, req *connect.Request[v.PreviewScheduleRequest]) (*connect.Response[v.PreviewScheduleResponse], error) {
+	proposal, err := h.deps.Service.PreviewSchedule(ctx, d.SchedulePreviewInput{LocalDate: req.Msg.LocalDate, StartMinutes: int(req.Msg.StartMinutes), WorkItemIDs: req.Msg.WorkItemIds})
+	if err != nil {
+		return nil, d.ToConnectError(err)
+	}
+	out := &v.ScheduleProposal{Id: proposal.ID, LocalDate: proposal.LocalDate, BaseRevision: proposal.BaseRevision, State: proposal.State, Reason: proposal.Reason}
+	for _, placement := range proposal.Placements {
+		out.Placements = append(out.Placements, &v.ProposedPlacement{WorkItemId: placement.WorkItemID, Title: placement.Title, LocalDate: placement.LocalDate, StartMinutes: int32(placement.StartMinutes), DurationMinutes: int32(placement.DurationMinutes), State: placement.State, Reason: placement.Reason})
+	}
+	return connect.NewResponse(&v.PreviewScheduleResponse{Proposal: out}), nil
+}
+
+func (h *connectHandler) ApplyScheduleProposal(ctx context.Context, req *connect.Request[v.ApplyScheduleProposalRequest]) (*connect.Response[v.ApplyScheduleProposalResponse], error) {
+	allocations, err := h.deps.Service.ApplyScheduleProposal(ctx, d.ApplyScheduleProposalInput{ProposalID: req.Msg.ProposalId, ExpectedRevision: req.Msg.ExpectedRevision, IdempotencyKey: req.Msg.IdempotencyKey})
+	if err != nil {
+		return nil, d.ToConnectError(err)
+	}
+	out := &v.ApplyScheduleProposalResponse{}
+	for _, allocation := range allocations {
+		out.Allocations = append(out.Allocations, toProto(allocation))
+	}
+	return connect.NewResponse(out), nil
+}
+
 func (h *connectHandler) CarryForwardAllocation(ctx context.Context, req *connect.Request[v.CarryForwardAllocationRequest]) (*connect.Response[v.CarryForwardAllocationResponse], error) {
 	a, err := h.deps.Service.CarryForward(ctx, d.CarryForwardInput{AllocationID: req.Msg.AllocationId, TargetLocalDate: req.Msg.TargetLocalDate, StartMinutes: int(req.Msg.StartMinutes)})
 	if err != nil {
