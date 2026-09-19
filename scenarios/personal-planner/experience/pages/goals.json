@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "goals",
+    "title": "Goals",
+    "routes": ["/goals"],
+    "purpose": "Show outcomes, milestone status, linked work, and time allocation so a person can see which goals receive attention — without treating elapsed hours as achievement.",
+    "prd_refs": ["OT-P1-001"]
+  },
+  "priorities": [
+    { "statement": "Linked hours are shown as effort exposure, visually distinct from outcome progress; a goal with no linked work and work with no goal are both valid, legible states.", "notes": "Plan §9.1." },
+    { "statement": "A milestone shows its observable completion criteria and what evidence is missing; a non-empty checklist is not presented as a finished deliverable.", "notes": "Plan §9.2." },
+    { "statement": "Manual outcome updates and work-derived indicators are always distinguishable.", "notes": "Plan §9.1." }
+  ],
+  "states": [
+    { "id": "loading", "description": "Goals, milestones, and linked-work rollups resolve." },
+    { "id": "success", "description": "Goals with progress method, milestone status, and linked work are visible." },
+    { "id": "empty", "description": "No goals yet: explain that maintenance, rest, and obligations are valid uses of time without a productivity goal, and offer to add one." },
+    { "id": "partial", "description": "A milestone's completion evidence is incomplete: show what is missing rather than a false 'done'." },
+    { "id": "stale", "description": "A milestone forecast is stale after an input change: mark why and recompute rather than showing an old outlook as current." },
+    { "id": "request-error", "description": "A load failed: retain last-known goal state with a retry." }
+  ]
+}

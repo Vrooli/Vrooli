@@ -4,6 +4,8 @@ package vrooli.vrooli_bridge.v1.channel;
 
 import "google/protobuf/timestamp.proto";
 import "vrooli-bridge/v1/shared/shared.proto";
+import "vrooli-bridge/v1/companion/companion.proto";
+import "vrooli-bridge/v1/interactive/interactive.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel;channel_v1";
 
@@ -170,6 +172,11 @@ message ArtifactDelivery {
 
   // When true, the agent installs the downloaded file with executable mode.
   bool executable = 6;
+
+  // Companion artifacts are the only placement allowed while the node remains
+  // in presence-only posture. The agent still enforces the approved companion
+  // destination and never executes a generic artifact from this flag.
+  bool companion_artifact = 7;
 }
 
 message CredentialInjection {
@@ -225,6 +232,9 @@ message CredentialPush {
   string retention = 6;
   bytes sealed_value = 7;
   bytes aad = 8;
+  // Signed grant class for atomic node-side consent recovery when the
+  // preceding metadata-only frame was lost or reordered.
+  string class = 9;
 }
 
 message CredentialPurge {
@@ -378,6 +388,7 @@ message InteractiveSignal {
   string request_id = 7;
   string session_id = 8;
   string lease_id = 9;
+  repeated interactive.RouteCandidate routes = 10;
 }
 
 message InteractiveSignalResponse {
@@ -390,6 +401,18 @@ message InteractiveSignalResponse {
   string reason_code = 7;
   string request_id = 8;
   string node_id = 10;
+}
+
+// InteractiveRevoke is a signed control-plane kill signal for the
+// node-local Device Control session. It carries no pixels, input, or
+// credentials and is scoped to one channel/session lease.
+message InteractiveRevoke {
+  string channel_id = 1;
+  string node_id = 2;
+  string session_id = 3;
+  string lease_id = 4;
+  uint64 lease_epoch = 5;
+  string reason = 6;
 }
 
 // RunEvent streams a durable run's progress back to the control plane (node →
@@ -419,6 +442,8 @@ message ServerFrame {
     ScenarioRequest scenario_request = 14;
     ArtifactDelivery artifact_delivery = 15;
     InteractiveSignal interactive_signal = 16;
+    vrooli.vrooli_bridge.v1.companion.CompanionCommand companion_command = 17;
+    InteractiveRevoke interactive_revoke = 18;
   }
 }
 
@@ -461,5 +486,6 @@ message NodeFrame {
     shared.ScenarioResponse scenario_response = 8;
     shared.ArtifactReceipt artifact_receipt = 9;
     InteractiveSignalResponse interactive_signal_response = 10;
+    vrooli.vrooli_bridge.v1.companion.CompanionResponse companion_response = 11;
   }
 }

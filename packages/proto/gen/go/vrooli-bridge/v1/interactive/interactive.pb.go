@@ -289,8 +289,11 @@ type ChannelGrant struct {
 	Role           ChannelRole            `protobuf:"varint,8,opt,name=role,proto3,enum=vrooli.vrooli_bridge.v1.interactive.ChannelRole" json:"role,omitempty"`
 	ExpiresAt      *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	PolicyRevision string                 `protobuf:"bytes,10,opt,name=policy_revision,json=policyRevision,proto3" json:"policy_revision,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Ephemeral ICE route metadata is carried to the node-local peer for the
+	// same channel. TURN credentials remain short-lived and are never persisted.
+	Routes        []*RouteCandidate `protobuf:"bytes,11,rep,name=routes,proto3" json:"routes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ChannelGrant) Reset() {
@@ -391,6 +394,13 @@ func (x *ChannelGrant) GetPolicyRevision() string {
 		return x.PolicyRevision
 	}
 	return ""
+}
+
+func (x *ChannelGrant) GetRoutes() []*RouteCandidate {
+	if x != nil {
+		return x.Routes
+	}
+	return nil
 }
 
 type OpenChannelRequest struct {
@@ -1003,7 +1013,7 @@ var File_vrooli_bridge_v1_interactive_interactive_proto protoreflect.FileDescrip
 
 const file_vrooli_bridge_v1_interactive_interactive_proto_rawDesc = "" +
 	"\n" +
-	".vrooli-bridge/v1/interactive/interactive.proto\x12#vrooli.vrooli_bridge.v1.interactive\x1a\x17common/v1/surface.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xce\x03\n" +
+	".vrooli-bridge/v1/interactive/interactive.proto\x12#vrooli.vrooli_bridge.v1.interactive\x1a\x17common/v1/surface.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9b\x04\n" +
 	"\fChannelGrant\x12\x1d\n" +
 	"\n" +
 	"channel_id\x18\x01 \x01(\tR\tchannelId\x12\x17\n" +
@@ -1019,7 +1029,8 @@ const file_vrooli_bridge_v1_interactive_interactive_proto_rawDesc = "" +
 	"\n" +
 	"expires_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12'\n" +
 	"\x0fpolicy_revision\x18\n" +
-	" \x01(\tR\x0epolicyRevision\"\xad\x03\n" +
+	" \x01(\tR\x0epolicyRevision\x12K\n" +
+	"\x06routes\x18\v \x03(\v23.vrooli.vrooli_bridge.v1.interactive.RouteCandidateR\x06routes\"\xad\x03\n" +
 	"\x12OpenChannelRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12/\n" +
 	"\asurface\x18\x02 \x01(\v2\x15.common.v1.SurfaceRefR\asurface\x12\x1d\n" +
@@ -1148,30 +1159,31 @@ var file_vrooli_bridge_v1_interactive_interactive_proto_depIdxs = []int32{
 	0,  // 1: vrooli.vrooli_bridge.v1.interactive.ChannelGrant.protocol:type_name -> vrooli.vrooli_bridge.v1.interactive.ChannelProtocol
 	1,  // 2: vrooli.vrooli_bridge.v1.interactive.ChannelGrant.role:type_name -> vrooli.vrooli_bridge.v1.interactive.ChannelRole
 	16, // 3: vrooli.vrooli_bridge.v1.interactive.ChannelGrant.expires_at:type_name -> google.protobuf.Timestamp
-	15, // 4: vrooli.vrooli_bridge.v1.interactive.OpenChannelRequest.surface:type_name -> common.v1.SurfaceRef
-	0,  // 5: vrooli.vrooli_bridge.v1.interactive.OpenChannelRequest.protocol:type_name -> vrooli.vrooli_bridge.v1.interactive.ChannelProtocol
-	1,  // 6: vrooli.vrooli_bridge.v1.interactive.OpenChannelRequest.role:type_name -> vrooli.vrooli_bridge.v1.interactive.ChannelRole
-	2,  // 7: vrooli.vrooli_bridge.v1.interactive.RouteCandidate.kind:type_name -> vrooli.vrooli_bridge.v1.interactive.RouteKind
-	5,  // 8: vrooli.vrooli_bridge.v1.interactive.OpenChannelResponse.grant:type_name -> vrooli.vrooli_bridge.v1.interactive.ChannelGrant
-	7,  // 9: vrooli.vrooli_bridge.v1.interactive.OpenChannelResponse.routes:type_name -> vrooli.vrooli_bridge.v1.interactive.RouteCandidate
-	5,  // 10: vrooli.vrooli_bridge.v1.interactive.SignalRequest.grant:type_name -> vrooli.vrooli_bridge.v1.interactive.ChannelGrant
-	3,  // 11: vrooli.vrooli_bridge.v1.interactive.SignalRequest.kind:type_name -> vrooli.vrooli_bridge.v1.interactive.SignalKind
-	5,  // 12: vrooli.vrooli_bridge.v1.interactive.CloseChannelRequest.grant:type_name -> vrooli.vrooli_bridge.v1.interactive.ChannelGrant
-	4,  // 13: vrooli.vrooli_bridge.v1.interactive.RevokeChannelRequest.reason:type_name -> vrooli.vrooli_bridge.v1.interactive.RevokeReason
-	16, // 14: vrooli.vrooli_bridge.v1.interactive.RevokeChannelResponse.revoked_at:type_name -> google.protobuf.Timestamp
-	6,  // 15: vrooli.vrooli_bridge.v1.interactive.InteractiveDesktopService.OpenChannel:input_type -> vrooli.vrooli_bridge.v1.interactive.OpenChannelRequest
-	9,  // 16: vrooli.vrooli_bridge.v1.interactive.InteractiveDesktopService.Signal:input_type -> vrooli.vrooli_bridge.v1.interactive.SignalRequest
-	11, // 17: vrooli.vrooli_bridge.v1.interactive.InteractiveDesktopService.CloseChannel:input_type -> vrooli.vrooli_bridge.v1.interactive.CloseChannelRequest
-	13, // 18: vrooli.vrooli_bridge.v1.interactive.InteractiveDesktopService.RevokeChannel:input_type -> vrooli.vrooli_bridge.v1.interactive.RevokeChannelRequest
-	8,  // 19: vrooli.vrooli_bridge.v1.interactive.InteractiveDesktopService.OpenChannel:output_type -> vrooli.vrooli_bridge.v1.interactive.OpenChannelResponse
-	10, // 20: vrooli.vrooli_bridge.v1.interactive.InteractiveDesktopService.Signal:output_type -> vrooli.vrooli_bridge.v1.interactive.SignalResponse
-	12, // 21: vrooli.vrooli_bridge.v1.interactive.InteractiveDesktopService.CloseChannel:output_type -> vrooli.vrooli_bridge.v1.interactive.CloseChannelResponse
-	14, // 22: vrooli.vrooli_bridge.v1.interactive.InteractiveDesktopService.RevokeChannel:output_type -> vrooli.vrooli_bridge.v1.interactive.RevokeChannelResponse
-	19, // [19:23] is the sub-list for method output_type
-	15, // [15:19] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	7,  // 4: vrooli.vrooli_bridge.v1.interactive.ChannelGrant.routes:type_name -> vrooli.vrooli_bridge.v1.interactive.RouteCandidate
+	15, // 5: vrooli.vrooli_bridge.v1.interactive.OpenChannelRequest.surface:type_name -> common.v1.SurfaceRef
+	0,  // 6: vrooli.vrooli_bridge.v1.interactive.OpenChannelRequest.protocol:type_name -> vrooli.vrooli_bridge.v1.interactive.ChannelProtocol
+	1,  // 7: vrooli.vrooli_bridge.v1.interactive.OpenChannelRequest.role:type_name -> vrooli.vrooli_bridge.v1.interactive.ChannelRole
+	2,  // 8: vrooli.vrooli_bridge.v1.interactive.RouteCandidate.kind:type_name -> vrooli.vrooli_bridge.v1.interactive.RouteKind
+	5,  // 9: vrooli.vrooli_bridge.v1.interactive.OpenChannelResponse.grant:type_name -> vrooli.vrooli_bridge.v1.interactive.ChannelGrant
+	7,  // 10: vrooli.vrooli_bridge.v1.interactive.OpenChannelResponse.routes:type_name -> vrooli.vrooli_bridge.v1.interactive.RouteCandidate
+	5,  // 11: vrooli.vrooli_bridge.v1.interactive.SignalRequest.grant:type_name -> vrooli.vrooli_bridge.v1.interactive.ChannelGrant
+	3,  // 12: vrooli.vrooli_bridge.v1.interactive.SignalRequest.kind:type_name -> vrooli.vrooli_bridge.v1.interactive.SignalKind
+	5,  // 13: vrooli.vrooli_bridge.v1.interactive.CloseChannelRequest.grant:type_name -> vrooli.vrooli_bridge.v1.interactive.ChannelGrant
+	4,  // 14: vrooli.vrooli_bridge.v1.interactive.RevokeChannelRequest.reason:type_name -> vrooli.vrooli_bridge.v1.interactive.RevokeReason
+	16, // 15: vrooli.vrooli_bridge.v1.interactive.RevokeChannelResponse.revoked_at:type_name -> google.protobuf.Timestamp
+	6,  // 16: vrooli.vrooli_bridge.v1.interactive.InteractiveDesktopService.OpenChannel:input_type -> vrooli.vrooli_bridge.v1.interactive.OpenChannelRequest
+	9,  // 17: vrooli.vrooli_bridge.v1.interactive.InteractiveDesktopService.Signal:input_type -> vrooli.vrooli_bridge.v1.interactive.SignalRequest
+	11, // 18: vrooli.vrooli_bridge.v1.interactive.InteractiveDesktopService.CloseChannel:input_type -> vrooli.vrooli_bridge.v1.interactive.CloseChannelRequest
+	13, // 19: vrooli.vrooli_bridge.v1.interactive.InteractiveDesktopService.RevokeChannel:input_type -> vrooli.vrooli_bridge.v1.interactive.RevokeChannelRequest
+	8,  // 20: vrooli.vrooli_bridge.v1.interactive.InteractiveDesktopService.OpenChannel:output_type -> vrooli.vrooli_bridge.v1.interactive.OpenChannelResponse
+	10, // 21: vrooli.vrooli_bridge.v1.interactive.InteractiveDesktopService.Signal:output_type -> vrooli.vrooli_bridge.v1.interactive.SignalResponse
+	12, // 22: vrooli.vrooli_bridge.v1.interactive.InteractiveDesktopService.CloseChannel:output_type -> vrooli.vrooli_bridge.v1.interactive.CloseChannelResponse
+	14, // 23: vrooli.vrooli_bridge.v1.interactive.InteractiveDesktopService.RevokeChannel:output_type -> vrooli.vrooli_bridge.v1.interactive.RevokeChannelResponse
+	20, // [20:24] is the sub-list for method output_type
+	16, // [16:20] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_bridge_v1_interactive_interactive_proto_init() }

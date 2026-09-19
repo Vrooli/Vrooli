@@ -60,6 +60,9 @@ message ChannelGrant {
   ChannelRole role = 8;
   google.protobuf.Timestamp expires_at = 9;
   string policy_revision = 10;
+  // Ephemeral ICE route metadata is carried to the node-local peer for the
+  // same channel. TURN credentials remain short-lived and are never persisted.
+  repeated RouteCandidate routes = 11;
 }
 
 message OpenChannelRequest {

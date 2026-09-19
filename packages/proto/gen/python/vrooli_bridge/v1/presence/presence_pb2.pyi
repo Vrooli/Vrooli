@@ -1,5 +1,6 @@
 from vrooli_bridge.v1.shared import shared_pb2 as _shared_pb2
 from vrooli_bridge.v1.channel import channel_pb2 as _channel_pb2
+from vrooli_bridge.v1.companion import companion_pb2 as _companion_pb2
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Mapping as _Mapping
@@ -118,6 +119,18 @@ class ReportInteractiveSignalResponseRequest(_message.Message):
     def __init__(self, response: _Optional[_Union[_channel_pb2.InteractiveSignalResponse, _Mapping]] = ...) -> None: ...
 
 class ReportInteractiveSignalResponseResponse(_message.Message):
+    __slots__ = ("accepted",)
+    ACCEPTED_FIELD_NUMBER: _ClassVar[int]
+    accepted: bool
+    def __init__(self, accepted: _Optional[bool] = ...) -> None: ...
+
+class ReportCompanionResponseRequest(_message.Message):
+    __slots__ = ("response",)
+    RESPONSE_FIELD_NUMBER: _ClassVar[int]
+    response: _companion_pb2.CompanionResponse
+    def __init__(self, response: _Optional[_Union[_companion_pb2.CompanionResponse, _Mapping]] = ...) -> None: ...
+
+class ReportCompanionResponseResponse(_message.Message):
     __slots__ = ("accepted",)
     ACCEPTED_FIELD_NUMBER: _ClassVar[int]
     accepted: bool

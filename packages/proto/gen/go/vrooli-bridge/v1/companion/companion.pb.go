@@ -86,13 +86,80 @@ func (CompanionState) EnumDescriptor() ([]byte, []int) {
 	return file_vrooli_bridge_v1_companion_companion_proto_rawDescGZIP(), []int{0}
 }
 
+// CompanionCommand is carried only on the authenticated Bridge node channel.
+// It contains operation metadata, never binary contents, credentials, or a
+// shell command. The node-local Device Control lifecycle adapter owns the
+// user LaunchAgent and reports the observed result.
+type CompanionOperationKind int32
+
+const (
+	CompanionOperationKind_COMPANION_OPERATION_KIND_UNSPECIFIED CompanionOperationKind = 0
+	CompanionOperationKind_COMPANION_OPERATION_KIND_INSTALL     CompanionOperationKind = 1
+	CompanionOperationKind_COMPANION_OPERATION_KIND_INSPECT     CompanionOperationKind = 2
+	CompanionOperationKind_COMPANION_OPERATION_KIND_UPGRADE     CompanionOperationKind = 3
+	CompanionOperationKind_COMPANION_OPERATION_KIND_REVOKE      CompanionOperationKind = 4
+	CompanionOperationKind_COMPANION_OPERATION_KIND_REMOVE      CompanionOperationKind = 5
+)
+
+// Enum value maps for CompanionOperationKind.
+var (
+	CompanionOperationKind_name = map[int32]string{
+		0: "COMPANION_OPERATION_KIND_UNSPECIFIED",
+		1: "COMPANION_OPERATION_KIND_INSTALL",
+		2: "COMPANION_OPERATION_KIND_INSPECT",
+		3: "COMPANION_OPERATION_KIND_UPGRADE",
+		4: "COMPANION_OPERATION_KIND_REVOKE",
+		5: "COMPANION_OPERATION_KIND_REMOVE",
+	}
+	CompanionOperationKind_value = map[string]int32{
+		"COMPANION_OPERATION_KIND_UNSPECIFIED": 0,
+		"COMPANION_OPERATION_KIND_INSTALL":     1,
+		"COMPANION_OPERATION_KIND_INSPECT":     2,
+		"COMPANION_OPERATION_KIND_UPGRADE":     3,
+		"COMPANION_OPERATION_KIND_REVOKE":      4,
+		"COMPANION_OPERATION_KIND_REMOVE":      5,
+	}
+)
+
+func (x CompanionOperationKind) Enum() *CompanionOperationKind {
+	p := new(CompanionOperationKind)
+	*p = x
+	return p
+}
+
+func (x CompanionOperationKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (CompanionOperationKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_vrooli_bridge_v1_companion_companion_proto_enumTypes[1].Descriptor()
+}
+
+func (CompanionOperationKind) Type() protoreflect.EnumType {
+	return &file_vrooli_bridge_v1_companion_companion_proto_enumTypes[1]
+}
+
+func (x CompanionOperationKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use CompanionOperationKind.Descriptor instead.
+func (CompanionOperationKind) EnumDescriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_companion_companion_proto_rawDescGZIP(), []int{1}
+}
+
 type InstallRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
-	DisplayId     string                 `protobuf:"bytes,3,opt,name=display_id,json=displayId,proto3" json:"display_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	NodeId    string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Version   string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	DisplayId string                 `protobuf:"bytes,3,opt,name=display_id,json=displayId,proto3" json:"display_id,omitempty"`
+	// Optional artifact source metadata. When supplied, Bridge completes the
+	// directed placement and only then sends the lifecycle command to the node.
+	ArtifactSourceRef       string `protobuf:"bytes,4,opt,name=artifact_source_ref,json=artifactSourceRef,proto3" json:"artifact_source_ref,omitempty"`
+	ArtifactName            string `protobuf:"bytes,5,opt,name=artifact_name,json=artifactName,proto3" json:"artifact_name,omitempty"`
+	ArtifactDestinationPath string `protobuf:"bytes,6,opt,name=artifact_destination_path,json=artifactDestinationPath,proto3" json:"artifact_destination_path,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *InstallRequest) Reset() {
@@ -146,6 +213,27 @@ func (x *InstallRequest) GetDisplayId() string {
 	return ""
 }
 
+func (x *InstallRequest) GetArtifactSourceRef() string {
+	if x != nil {
+		return x.ArtifactSourceRef
+	}
+	return ""
+}
+
+func (x *InstallRequest) GetArtifactName() string {
+	if x != nil {
+		return x.ArtifactName
+	}
+	return ""
+}
+
+func (x *InstallRequest) GetArtifactDestinationPath() string {
+	if x != nil {
+		return x.ArtifactDestinationPath
+	}
+	return ""
+}
+
 type InspectRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
@@ -191,11 +279,14 @@ func (x *InspectRequest) GetNodeId() string {
 }
 
 type UpgradeRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	NodeId                  string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Version                 string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	ArtifactSourceRef       string                 `protobuf:"bytes,3,opt,name=artifact_source_ref,json=artifactSourceRef,proto3" json:"artifact_source_ref,omitempty"`
+	ArtifactName            string                 `protobuf:"bytes,4,opt,name=artifact_name,json=artifactName,proto3" json:"artifact_name,omitempty"`
+	ArtifactDestinationPath string                 `protobuf:"bytes,5,opt,name=artifact_destination_path,json=artifactDestinationPath,proto3" json:"artifact_destination_path,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *UpgradeRequest) Reset() {
@@ -238,6 +329,27 @@ func (x *UpgradeRequest) GetNodeId() string {
 func (x *UpgradeRequest) GetVersion() string {
 	if x != nil {
 		return x.Version
+	}
+	return ""
+}
+
+func (x *UpgradeRequest) GetArtifactSourceRef() string {
+	if x != nil {
+		return x.ArtifactSourceRef
+	}
+	return ""
+}
+
+func (x *UpgradeRequest) GetArtifactName() string {
+	if x != nil {
+		return x.ArtifactName
+	}
+	return ""
+}
+
+func (x *UpgradeRequest) GetArtifactDestinationPath() string {
+	if x != nil {
+		return x.ArtifactDestinationPath
 	}
 	return ""
 }
@@ -339,17 +451,18 @@ func (x *RemoveRequest) GetNodeId() string {
 }
 
 type CompanionOperation struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	OperationId     string                 `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
-	NodeId          string                 `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	Version         string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
-	State           CompanionState         `protobuf:"varint,4,opt,name=state,proto3,enum=vrooli.vrooli_bridge.v1.companion.CompanionState" json:"state,omitempty"`
-	ReasonCode      string                 `protobuf:"bytes,5,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
-	Recovery        string                 `protobuf:"bytes,6,opt,name=recovery,proto3" json:"recovery,omitempty"`
-	UserLaunchAgent bool                   `protobuf:"varint,7,opt,name=user_launch_agent,json=userLaunchAgent,proto3" json:"user_launch_agent,omitempty"`
-	ObservedAt      *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	OperationId            string                 `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	NodeId                 string                 `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Version                string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	State                  CompanionState         `protobuf:"varint,4,opt,name=state,proto3,enum=vrooli.vrooli_bridge.v1.companion.CompanionState" json:"state,omitempty"`
+	ReasonCode             string                 `protobuf:"bytes,5,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	Recovery               string                 `protobuf:"bytes,6,opt,name=recovery,proto3" json:"recovery,omitempty"`
+	UserLaunchAgent        bool                   `protobuf:"varint,7,opt,name=user_launch_agent,json=userLaunchAgent,proto3" json:"user_launch_agent,omitempty"`
+	ObservedAt             *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	ArtifactDistributionId string                 `protobuf:"bytes,9,opt,name=artifact_distribution_id,json=artifactDistributionId,proto3" json:"artifact_distribution_id,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *CompanionOperation) Reset() {
@@ -438,27 +551,244 @@ func (x *CompanionOperation) GetObservedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *CompanionOperation) GetArtifactDistributionId() string {
+	if x != nil {
+		return x.ArtifactDistributionId
+	}
+	return ""
+}
+
+type CompanionCommand struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	OperationId            string                 `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	NodeId                 string                 `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Kind                   CompanionOperationKind `protobuf:"varint,3,opt,name=kind,proto3,enum=vrooli.vrooli_bridge.v1.companion.CompanionOperationKind" json:"kind,omitempty"`
+	Version                string                 `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	DisplayId              string                 `protobuf:"bytes,5,opt,name=display_id,json=displayId,proto3" json:"display_id,omitempty"`
+	ArtifactDistributionId string                 `protobuf:"bytes,6,opt,name=artifact_distribution_id,json=artifactDistributionId,proto3" json:"artifact_distribution_id,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *CompanionCommand) Reset() {
+	*x = CompanionCommand{}
+	mi := &file_vrooli_bridge_v1_companion_companion_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompanionCommand) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompanionCommand) ProtoMessage() {}
+
+func (x *CompanionCommand) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_companion_companion_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompanionCommand.ProtoReflect.Descriptor instead.
+func (*CompanionCommand) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_companion_companion_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *CompanionCommand) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+func (x *CompanionCommand) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *CompanionCommand) GetKind() CompanionOperationKind {
+	if x != nil {
+		return x.Kind
+	}
+	return CompanionOperationKind_COMPANION_OPERATION_KIND_UNSPECIFIED
+}
+
+func (x *CompanionCommand) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *CompanionCommand) GetDisplayId() string {
+	if x != nil {
+		return x.DisplayId
+	}
+	return ""
+}
+
+func (x *CompanionCommand) GetArtifactDistributionId() string {
+	if x != nil {
+		return x.ArtifactDistributionId
+	}
+	return ""
+}
+
+type CompanionResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	OperationId     string                 `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	NodeId          string                 `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Version         string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	State           CompanionState         `protobuf:"varint,4,opt,name=state,proto3,enum=vrooli.vrooli_bridge.v1.companion.CompanionState" json:"state,omitempty"`
+	ReasonCode      string                 `protobuf:"bytes,5,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	Recovery        string                 `protobuf:"bytes,6,opt,name=recovery,proto3" json:"recovery,omitempty"`
+	UserLaunchAgent bool                   `protobuf:"varint,7,opt,name=user_launch_agent,json=userLaunchAgent,proto3" json:"user_launch_agent,omitempty"`
+	ObservedAt      *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *CompanionResponse) Reset() {
+	*x = CompanionResponse{}
+	mi := &file_vrooli_bridge_v1_companion_companion_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompanionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompanionResponse) ProtoMessage() {}
+
+func (x *CompanionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_companion_companion_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompanionResponse.ProtoReflect.Descriptor instead.
+func (*CompanionResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_companion_companion_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *CompanionResponse) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+func (x *CompanionResponse) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *CompanionResponse) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *CompanionResponse) GetState() CompanionState {
+	if x != nil {
+		return x.State
+	}
+	return CompanionState_COMPANION_STATE_UNSPECIFIED
+}
+
+func (x *CompanionResponse) GetReasonCode() string {
+	if x != nil {
+		return x.ReasonCode
+	}
+	return ""
+}
+
+func (x *CompanionResponse) GetRecovery() string {
+	if x != nil {
+		return x.Recovery
+	}
+	return ""
+}
+
+func (x *CompanionResponse) GetUserLaunchAgent() bool {
+	if x != nil {
+		return x.UserLaunchAgent
+	}
+	return false
+}
+
+func (x *CompanionResponse) GetObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return nil
+}
+
 var File_vrooli_bridge_v1_companion_companion_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_companion_companion_proto_rawDesc = "" +
 	"\n" +
-	"*vrooli-bridge/v1/companion/companion.proto\x12!vrooli.vrooli_bridge.v1.companion\x1a\x1fgoogle/protobuf/timestamp.proto\"b\n" +
+	"*vrooli-bridge/v1/companion/companion.proto\x12!vrooli.vrooli_bridge.v1.companion\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf3\x01\n" +
 	"\x0eInstallRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x1d\n" +
 	"\n" +
-	"display_id\x18\x03 \x01(\tR\tdisplayId\")\n" +
+	"display_id\x18\x03 \x01(\tR\tdisplayId\x12.\n" +
+	"\x13artifact_source_ref\x18\x04 \x01(\tR\x11artifactSourceRef\x12#\n" +
+	"\rartifact_name\x18\x05 \x01(\tR\fartifactName\x12:\n" +
+	"\x19artifact_destination_path\x18\x06 \x01(\tR\x17artifactDestinationPath\")\n" +
 	"\x0eInspectRequest\x12\x17\n" +
-	"\anode_id\x18\x01 \x01(\tR\x06nodeId\"C\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\"\xd4\x01\n" +
 	"\x0eUpgradeRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\tR\aversion\"@\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\x12.\n" +
+	"\x13artifact_source_ref\x18\x03 \x01(\tR\x11artifactSourceRef\x12#\n" +
+	"\rartifact_name\x18\x04 \x01(\tR\fartifactName\x12:\n" +
+	"\x19artifact_destination_path\x18\x05 \x01(\tR\x17artifactDestinationPath\"@\n" +
 	"\rRevokeRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\"(\n" +
 	"\rRemoveRequest\x12\x17\n" +
-	"\anode_id\x18\x01 \x01(\tR\x06nodeId\"\xd9\x02\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\"\x93\x03\n" +
 	"\x12CompanionOperation\x12!\n" +
+	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12\x17\n" +
+	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\x12G\n" +
+	"\x05state\x18\x04 \x01(\x0e21.vrooli.vrooli_bridge.v1.companion.CompanionStateR\x05state\x12\x1f\n" +
+	"\vreason_code\x18\x05 \x01(\tR\n" +
+	"reasonCode\x12\x1a\n" +
+	"\brecovery\x18\x06 \x01(\tR\brecovery\x12*\n" +
+	"\x11user_launch_agent\x18\a \x01(\bR\x0fuserLaunchAgent\x12;\n" +
+	"\vobserved_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"observedAt\x128\n" +
+	"\x18artifact_distribution_id\x18\t \x01(\tR\x16artifactDistributionId\"\x90\x02\n" +
+	"\x10CompanionCommand\x12!\n" +
+	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12\x17\n" +
+	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12M\n" +
+	"\x04kind\x18\x03 \x01(\x0e29.vrooli.vrooli_bridge.v1.companion.CompanionOperationKindR\x04kind\x12\x18\n" +
+	"\aversion\x18\x04 \x01(\tR\aversion\x12\x1d\n" +
+	"\n" +
+	"display_id\x18\x05 \x01(\tR\tdisplayId\x128\n" +
+	"\x18artifact_distribution_id\x18\x06 \x01(\tR\x16artifactDistributionId\"\xd8\x02\n" +
+	"\x11CompanionResponse\x12!\n" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12\x17\n" +
 	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12\x18\n" +
 	"\aversion\x18\x03 \x01(\tR\aversion\x12G\n" +
@@ -477,7 +807,14 @@ const file_vrooli_bridge_v1_companion_companion_proto_rawDesc = "" +
 	"\x18COMPANION_STATE_DEGRADED\x10\x04\x12\x1b\n" +
 	"\x17COMPANION_STATE_REVOKED\x10\x05\x12\x1b\n" +
 	"\x17COMPANION_STATE_REMOVED\x10\x06\x12\x1a\n" +
-	"\x16COMPANION_STATE_FAILED\x10\a2\xd7\x04\n" +
+	"\x16COMPANION_STATE_FAILED\x10\a*\xfe\x01\n" +
+	"\x16CompanionOperationKind\x12(\n" +
+	"$COMPANION_OPERATION_KIND_UNSPECIFIED\x10\x00\x12$\n" +
+	" COMPANION_OPERATION_KIND_INSTALL\x10\x01\x12$\n" +
+	" COMPANION_OPERATION_KIND_INSPECT\x10\x02\x12$\n" +
+	" COMPANION_OPERATION_KIND_UPGRADE\x10\x03\x12#\n" +
+	"\x1fCOMPANION_OPERATION_KIND_REVOKE\x10\x04\x12#\n" +
+	"\x1fCOMPANION_OPERATION_KIND_REMOVE\x10\x052\xd7\x04\n" +
 	"\x10CompanionService\x12s\n" +
 	"\aInstall\x121.vrooli.vrooli_bridge.v1.companion.InstallRequest\x1a5.vrooli.vrooli_bridge.v1.companion.CompanionOperation\x12s\n" +
 	"\aInspect\x121.vrooli.vrooli_bridge.v1.companion.InspectRequest\x1a5.vrooli.vrooli_bridge.v1.companion.CompanionOperation\x12s\n" +
@@ -497,36 +834,42 @@ func file_vrooli_bridge_v1_companion_companion_proto_rawDescGZIP() []byte {
 	return file_vrooli_bridge_v1_companion_companion_proto_rawDescData
 }
 
-var file_vrooli_bridge_v1_companion_companion_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_vrooli_bridge_v1_companion_companion_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_vrooli_bridge_v1_companion_companion_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_vrooli_bridge_v1_companion_companion_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_vrooli_bridge_v1_companion_companion_proto_goTypes = []any{
 	(CompanionState)(0),           // 0: vrooli.vrooli_bridge.v1.companion.CompanionState
-	(*InstallRequest)(nil),        // 1: vrooli.vrooli_bridge.v1.companion.InstallRequest
-	(*InspectRequest)(nil),        // 2: vrooli.vrooli_bridge.v1.companion.InspectRequest
-	(*UpgradeRequest)(nil),        // 3: vrooli.vrooli_bridge.v1.companion.UpgradeRequest
-	(*RevokeRequest)(nil),         // 4: vrooli.vrooli_bridge.v1.companion.RevokeRequest
-	(*RemoveRequest)(nil),         // 5: vrooli.vrooli_bridge.v1.companion.RemoveRequest
-	(*CompanionOperation)(nil),    // 6: vrooli.vrooli_bridge.v1.companion.CompanionOperation
-	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
+	(CompanionOperationKind)(0),   // 1: vrooli.vrooli_bridge.v1.companion.CompanionOperationKind
+	(*InstallRequest)(nil),        // 2: vrooli.vrooli_bridge.v1.companion.InstallRequest
+	(*InspectRequest)(nil),        // 3: vrooli.vrooli_bridge.v1.companion.InspectRequest
+	(*UpgradeRequest)(nil),        // 4: vrooli.vrooli_bridge.v1.companion.UpgradeRequest
+	(*RevokeRequest)(nil),         // 5: vrooli.vrooli_bridge.v1.companion.RevokeRequest
+	(*RemoveRequest)(nil),         // 6: vrooli.vrooli_bridge.v1.companion.RemoveRequest
+	(*CompanionOperation)(nil),    // 7: vrooli.vrooli_bridge.v1.companion.CompanionOperation
+	(*CompanionCommand)(nil),      // 8: vrooli.vrooli_bridge.v1.companion.CompanionCommand
+	(*CompanionResponse)(nil),     // 9: vrooli.vrooli_bridge.v1.companion.CompanionResponse
+	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
 }
 var file_vrooli_bridge_v1_companion_companion_proto_depIdxs = []int32{
-	0, // 0: vrooli.vrooli_bridge.v1.companion.CompanionOperation.state:type_name -> vrooli.vrooli_bridge.v1.companion.CompanionState
-	7, // 1: vrooli.vrooli_bridge.v1.companion.CompanionOperation.observed_at:type_name -> google.protobuf.Timestamp
-	1, // 2: vrooli.vrooli_bridge.v1.companion.CompanionService.Install:input_type -> vrooli.vrooli_bridge.v1.companion.InstallRequest
-	2, // 3: vrooli.vrooli_bridge.v1.companion.CompanionService.Inspect:input_type -> vrooli.vrooli_bridge.v1.companion.InspectRequest
-	3, // 4: vrooli.vrooli_bridge.v1.companion.CompanionService.Upgrade:input_type -> vrooli.vrooli_bridge.v1.companion.UpgradeRequest
-	4, // 5: vrooli.vrooli_bridge.v1.companion.CompanionService.Revoke:input_type -> vrooli.vrooli_bridge.v1.companion.RevokeRequest
-	5, // 6: vrooli.vrooli_bridge.v1.companion.CompanionService.Remove:input_type -> vrooli.vrooli_bridge.v1.companion.RemoveRequest
-	6, // 7: vrooli.vrooli_bridge.v1.companion.CompanionService.Install:output_type -> vrooli.vrooli_bridge.v1.companion.CompanionOperation
-	6, // 8: vrooli.vrooli_bridge.v1.companion.CompanionService.Inspect:output_type -> vrooli.vrooli_bridge.v1.companion.CompanionOperation
-	6, // 9: vrooli.vrooli_bridge.v1.companion.CompanionService.Upgrade:output_type -> vrooli.vrooli_bridge.v1.companion.CompanionOperation
-	6, // 10: vrooli.vrooli_bridge.v1.companion.CompanionService.Revoke:output_type -> vrooli.vrooli_bridge.v1.companion.CompanionOperation
-	6, // 11: vrooli.vrooli_bridge.v1.companion.CompanionService.Remove:output_type -> vrooli.vrooli_bridge.v1.companion.CompanionOperation
-	7, // [7:12] is the sub-list for method output_type
-	2, // [2:7] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	0,  // 0: vrooli.vrooli_bridge.v1.companion.CompanionOperation.state:type_name -> vrooli.vrooli_bridge.v1.companion.CompanionState
+	10, // 1: vrooli.vrooli_bridge.v1.companion.CompanionOperation.observed_at:type_name -> google.protobuf.Timestamp
+	1,  // 2: vrooli.vrooli_bridge.v1.companion.CompanionCommand.kind:type_name -> vrooli.vrooli_bridge.v1.companion.CompanionOperationKind
+	0,  // 3: vrooli.vrooli_bridge.v1.companion.CompanionResponse.state:type_name -> vrooli.vrooli_bridge.v1.companion.CompanionState
+	10, // 4: vrooli.vrooli_bridge.v1.companion.CompanionResponse.observed_at:type_name -> google.protobuf.Timestamp
+	2,  // 5: vrooli.vrooli_bridge.v1.companion.CompanionService.Install:input_type -> vrooli.vrooli_bridge.v1.companion.InstallRequest
+	3,  // 6: vrooli.vrooli_bridge.v1.companion.CompanionService.Inspect:input_type -> vrooli.vrooli_bridge.v1.companion.InspectRequest
+	4,  // 7: vrooli.vrooli_bridge.v1.companion.CompanionService.Upgrade:input_type -> vrooli.vrooli_bridge.v1.companion.UpgradeRequest
+	5,  // 8: vrooli.vrooli_bridge.v1.companion.CompanionService.Revoke:input_type -> vrooli.vrooli_bridge.v1.companion.RevokeRequest
+	6,  // 9: vrooli.vrooli_bridge.v1.companion.CompanionService.Remove:input_type -> vrooli.vrooli_bridge.v1.companion.RemoveRequest
+	7,  // 10: vrooli.vrooli_bridge.v1.companion.CompanionService.Install:output_type -> vrooli.vrooli_bridge.v1.companion.CompanionOperation
+	7,  // 11: vrooli.vrooli_bridge.v1.companion.CompanionService.Inspect:output_type -> vrooli.vrooli_bridge.v1.companion.CompanionOperation
+	7,  // 12: vrooli.vrooli_bridge.v1.companion.CompanionService.Upgrade:output_type -> vrooli.vrooli_bridge.v1.companion.CompanionOperation
+	7,  // 13: vrooli.vrooli_bridge.v1.companion.CompanionService.Revoke:output_type -> vrooli.vrooli_bridge.v1.companion.CompanionOperation
+	7,  // 14: vrooli.vrooli_bridge.v1.companion.CompanionService.Remove:output_type -> vrooli.vrooli_bridge.v1.companion.CompanionOperation
+	10, // [10:15] is the sub-list for method output_type
+	5,  // [5:10] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_bridge_v1_companion_companion_proto_init() }
@@ -539,8 +882,8 @@ func file_vrooli_bridge_v1_companion_companion_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_bridge_v1_companion_companion_proto_rawDesc), len(file_vrooli_bridge_v1_companion_companion_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   6,
+			NumEnums:      2,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

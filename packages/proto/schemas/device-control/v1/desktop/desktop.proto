@@ -314,8 +314,17 @@ message DesktopSignalRequest {
  string lease_id = 2;
  uint64 lease_epoch = 3;
  DesktopSignalKind kind = 4;
- string generation = 5;
- bytes payload = 6;
+  string generation = 5;
+  bytes payload = 6;
+  repeated IceServer ice_servers = 7;
+}
+
+// Ephemeral browser/companion ICE configuration. Credentials are accepted
+// only on the signal boundary and are never stored with the desktop session.
+message IceServer {
+  string url = 1;
+  string username = 2;
+  string credential = 3;
 }
 
 message DesktopSignalResponse {
@@ -324,6 +333,19 @@ message DesktopSignalResponse {
  string generation = 3;
  bytes payload = 4;
  string reason_code = 5;
+  DesktopTransportStats transport_stats = 6;
+}
+
+// Ephemeral transport counters are safe operational metadata. They contain no
+// frame bytes, input payloads, clipboard text, or ICE credentials.
+message DesktopTransportStats {
+  uint64 frames_sent = 1;
+  uint64 bytes_sent = 2;
+  uint64 frames_dropped = 3;
+  uint64 control_messages_sent = 4;
+  uint64 data_messages_sent = 5;
+  uint64 control_messages_rejected = 6;
+  uint64 data_messages_rejected = 7;
 }
 
 enum ReadinessState {
@@ -392,6 +414,7 @@ message DesktopSession {
   bool controller = 9;
   google.protobuf.Timestamp expires_at = 10;
   string geometry_revision = 11;
+  DesktopTransportStats transport_stats = 12;
 }
 
 message OpenSessionRequest {

@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n*vrooli-bridge/v1/companion/companion.proto\x12!vrooli.vrooli_bridge.v1.companion\x1a\x1fgoogle/protobuf/timestamp.proto\"b\n\x0eInstallRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x18\n\x07version\x18\x02 \x01(\tR\x07version\x12\x1d\n\ndisplay_id\x18\x03 \x01(\tR\tdisplayId\")\n\x0eInspectRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\"C\n\x0eUpgradeRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x18\n\x07version\x18\x02 \x01(\tR\x07version\"@\n\rRevokeRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x16\n\x06reason\x18\x02 \x01(\tR\x06reason\"(\n\rRemoveRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\"\xd9\x02\n\x12\x43ompanionOperation\x12!\n\x0coperation_id\x18\x01 \x01(\tR\x0boperationId\x12\x17\n\x07node_id\x18\x02 \x01(\tR\x06nodeId\x12\x18\n\x07version\x18\x03 \x01(\tR\x07version\x12G\n\x05state\x18\x04 \x01(\x0e\x32\x31.vrooli.vrooli_bridge.v1.companion.CompanionStateR\x05state\x12\x1f\n\x0breason_code\x18\x05 \x01(\tR\nreasonCode\x12\x1a\n\x08recovery\x18\x06 \x01(\tR\x08recovery\x12*\n\x11user_launch_agent\x18\x07 \x01(\x08R\x0fuserLaunchAgent\x12;\n\x0bobserved_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nobservedAt*\xfc\x01\n\x0e\x43ompanionState\x12\x1f\n\x1b\x43OMPANION_STATE_UNSPECIFIED\x10\x00\x12\x1a\n\x16\x43OMPANION_STATE_ABSENT\x10\x01\x12\x1e\n\x1a\x43OMPANION_STATE_INSTALLING\x10\x02\x12\x19\n\x15\x43OMPANION_STATE_READY\x10\x03\x12\x1c\n\x18\x43OMPANION_STATE_DEGRADED\x10\x04\x12\x1b\n\x17\x43OMPANION_STATE_REVOKED\x10\x05\x12\x1b\n\x17\x43OMPANION_STATE_REMOVED\x10\x06\x12\x1a\n\x16\x43OMPANION_STATE_FAILED\x10\x07\x32\xd7\x04\n\x10\x43ompanionService\x12s\n\x07Install\x12\x31.vrooli.vrooli_bridge.v1.companion.InstallRequest\x1a\x35.vrooli.vrooli_bridge.v1.companion.CompanionOperation\x12s\n\x07Inspect\x12\x31.vrooli.vrooli_bridge.v1.companion.InspectRequest\x1a\x35.vrooli.vrooli_bridge.v1.companion.CompanionOperation\x12s\n\x07Upgrade\x12\x31.vrooli.vrooli_bridge.v1.companion.UpgradeRequest\x1a\x35.vrooli.vrooli_bridge.v1.companion.CompanionOperation\x12q\n\x06Revoke\x12\x30.vrooli.vrooli_bridge.v1.companion.RevokeRequest\x1a\x35.vrooli.vrooli_bridge.v1.companion.CompanionOperation\x12q\n\x06Remove\x12\x30.vrooli.vrooli_bridge.v1.companion.RemoveRequest\x1a\x35.vrooli.vrooli_bridge.v1.companion.CompanionOperationBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/companion;companionv1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n*vrooli-bridge/v1/companion/companion.proto\x12!vrooli.vrooli_bridge.v1.companion\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf3\x01\n\x0eInstallRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x18\n\x07version\x18\x02 \x01(\tR\x07version\x12\x1d\n\ndisplay_id\x18\x03 \x01(\tR\tdisplayId\x12.\n\x13\x61rtifact_source_ref\x18\x04 \x01(\tR\x11\x61rtifactSourceRef\x12#\n\rartifact_name\x18\x05 \x01(\tR\x0c\x61rtifactName\x12:\n\x19\x61rtifact_destination_path\x18\x06 \x01(\tR\x17\x61rtifactDestinationPath\")\n\x0eInspectRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\"\xd4\x01\n\x0eUpgradeRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x18\n\x07version\x18\x02 \x01(\tR\x07version\x12.\n\x13\x61rtifact_source_ref\x18\x03 \x01(\tR\x11\x61rtifactSourceRef\x12#\n\rartifact_name\x18\x04 \x01(\tR\x0c\x61rtifactName\x12:\n\x19\x61rtifact_destination_path\x18\x05 \x01(\tR\x17\x61rtifactDestinationPath\"@\n\rRevokeRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x16\n\x06reason\x18\x02 \x01(\tR\x06reason\"(\n\rRemoveRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\"\x93\x03\n\x12\x43ompanionOperation\x12!\n\x0coperation_id\x18\x01 \x01(\tR\x0boperationId\x12\x17\n\x07node_id\x18\x02 \x01(\tR\x06nodeId\x12\x18\n\x07version\x18\x03 \x01(\tR\x07version\x12G\n\x05state\x18\x04 \x01(\x0e\x32\x31.vrooli.vrooli_bridge.v1.companion.CompanionStateR\x05state\x12\x1f\n\x0breason_code\x18\x05 \x01(\tR\nreasonCode\x12\x1a\n\x08recovery\x18\x06 \x01(\tR\x08recovery\x12*\n\x11user_launch_agent\x18\x07 \x01(\x08R\x0fuserLaunchAgent\x12;\n\x0bobserved_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nobservedAt\x12\x38\n\x18\x61rtifact_distribution_id\x18\t \x01(\tR\x16\x61rtifactDistributionId\"\x90\x02\n\x10\x43ompanionCommand\x12!\n\x0coperation_id\x18\x01 \x01(\tR\x0boperationId\x12\x17\n\x07node_id\x18\x02 \x01(\tR\x06nodeId\x12M\n\x04kind\x18\x03 \x01(\x0e\x32\x39.vrooli.vrooli_bridge.v1.companion.CompanionOperationKindR\x04kind\x12\x18\n\x07version\x18\x04 \x01(\tR\x07version\x12\x1d\n\ndisplay_id\x18\x05 \x01(\tR\tdisplayId\x12\x38\n\x18\x61rtifact_distribution_id\x18\x06 \x01(\tR\x16\x61rtifactDistributionId\"\xd8\x02\n\x11\x43ompanionResponse\x12!\n\x0coperation_id\x18\x01 \x01(\tR\x0boperationId\x12\x17\n\x07node_id\x18\x02 \x01(\tR\x06nodeId\x12\x18\n\x07version\x18\x03 \x01(\tR\x07version\x12G\n\x05state\x18\x04 \x01(\x0e\x32\x31.vrooli.vrooli_bridge.v1.companion.CompanionStateR\x05state\x12\x1f\n\x0breason_code\x18\x05 \x01(\tR\nreasonCode\x12\x1a\n\x08recovery\x18\x06 \x01(\tR\x08recovery\x12*\n\x11user_launch_agent\x18\x07 \x01(\x08R\x0fuserLaunchAgent\x12;\n\x0bobserved_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nobservedAt*\xfc\x01\n\x0e\x43ompanionState\x12\x1f\n\x1b\x43OMPANION_STATE_UNSPECIFIED\x10\x00\x12\x1a\n\x16\x43OMPANION_STATE_ABSENT\x10\x01\x12\x1e\n\x1a\x43OMPANION_STATE_INSTALLING\x10\x02\x12\x19\n\x15\x43OMPANION_STATE_READY\x10\x03\x12\x1c\n\x18\x43OMPANION_STATE_DEGRADED\x10\x04\x12\x1b\n\x17\x43OMPANION_STATE_REVOKED\x10\x05\x12\x1b\n\x17\x43OMPANION_STATE_REMOVED\x10\x06\x12\x1a\n\x16\x43OMPANION_STATE_FAILED\x10\x07*\xfe\x01\n\x16\x43ompanionOperationKind\x12(\n$COMPANION_OPERATION_KIND_UNSPECIFIED\x10\x00\x12$\n COMPANION_OPERATION_KIND_INSTALL\x10\x01\x12$\n COMPANION_OPERATION_KIND_INSPECT\x10\x02\x12$\n COMPANION_OPERATION_KIND_UPGRADE\x10\x03\x12#\n\x1f\x43OMPANION_OPERATION_KIND_REVOKE\x10\x04\x12#\n\x1f\x43OMPANION_OPERATION_KIND_REMOVE\x10\x05\x32\xd7\x04\n\x10\x43ompanionService\x12s\n\x07Install\x12\x31.vrooli.vrooli_bridge.v1.companion.InstallRequest\x1a\x35.vrooli.vrooli_bridge.v1.companion.CompanionOperation\x12s\n\x07Inspect\x12\x31.vrooli.vrooli_bridge.v1.companion.InspectRequest\x1a\x35.vrooli.vrooli_bridge.v1.companion.CompanionOperation\x12s\n\x07Upgrade\x12\x31.vrooli.vrooli_bridge.v1.companion.UpgradeRequest\x1a\x35.vrooli.vrooli_bridge.v1.companion.CompanionOperation\x12q\n\x06Revoke\x12\x30.vrooli.vrooli_bridge.v1.companion.RevokeRequest\x1a\x35.vrooli.vrooli_bridge.v1.companion.CompanionOperation\x12q\n\x06Remove\x12\x30.vrooli.vrooli_bridge.v1.companion.RemoveRequest\x1a\x35.vrooli.vrooli_bridge.v1.companion.CompanionOperationBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/companion;companionv1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,20 +33,26 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'vrooli_bridge.v1.companion.
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZUgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/companion;companionv1'
-  _globals['_COMPANIONSTATE']._serialized_start=783
-  _globals['_COMPANIONSTATE']._serialized_end=1035
-  _globals['_INSTALLREQUEST']._serialized_start=114
-  _globals['_INSTALLREQUEST']._serialized_end=212
-  _globals['_INSPECTREQUEST']._serialized_start=214
-  _globals['_INSPECTREQUEST']._serialized_end=255
-  _globals['_UPGRADEREQUEST']._serialized_start=257
-  _globals['_UPGRADEREQUEST']._serialized_end=324
-  _globals['_REVOKEREQUEST']._serialized_start=326
-  _globals['_REVOKEREQUEST']._serialized_end=390
-  _globals['_REMOVEREQUEST']._serialized_start=392
-  _globals['_REMOVEREQUEST']._serialized_end=432
-  _globals['_COMPANIONOPERATION']._serialized_start=435
-  _globals['_COMPANIONOPERATION']._serialized_end=780
-  _globals['_COMPANIONSERVICE']._serialized_start=1038
-  _globals['_COMPANIONSERVICE']._serialized_end=1637
+  _globals['_COMPANIONSTATE']._serialized_start=1755
+  _globals['_COMPANIONSTATE']._serialized_end=2007
+  _globals['_COMPANIONOPERATIONKIND']._serialized_start=2010
+  _globals['_COMPANIONOPERATIONKIND']._serialized_end=2264
+  _globals['_INSTALLREQUEST']._serialized_start=115
+  _globals['_INSTALLREQUEST']._serialized_end=358
+  _globals['_INSPECTREQUEST']._serialized_start=360
+  _globals['_INSPECTREQUEST']._serialized_end=401
+  _globals['_UPGRADEREQUEST']._serialized_start=404
+  _globals['_UPGRADEREQUEST']._serialized_end=616
+  _globals['_REVOKEREQUEST']._serialized_start=618
+  _globals['_REVOKEREQUEST']._serialized_end=682
+  _globals['_REMOVEREQUEST']._serialized_start=684
+  _globals['_REMOVEREQUEST']._serialized_end=724
+  _globals['_COMPANIONOPERATION']._serialized_start=727
+  _globals['_COMPANIONOPERATION']._serialized_end=1130
+  _globals['_COMPANIONCOMMAND']._serialized_start=1133
+  _globals['_COMPANIONCOMMAND']._serialized_end=1405
+  _globals['_COMPANIONRESPONSE']._serialized_start=1408
+  _globals['_COMPANIONRESPONSE']._serialized_end=1752
+  _globals['_COMPANIONSERVICE']._serialized_start=2267
+  _globals['_COMPANIONSERVICE']._serialized_end=2866
 # @@protoc_insertion_point(module_scope)

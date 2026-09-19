@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "scenario": "personal-planner",
+  "input_digest": "sha256:a62fc2916e1d731bbdedd0c841af3a6ab8734bb388fe55ddd2ad3bc2bf1170bb",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "schemas/personal-planner/v1/notes/attachments.proto",
+    "schemas/personal-planner/v1/notes/notes.proto",
+    "schemas/personal-planner/v1/shared/errors.proto",
+    "schemas/personal-planner/v1/shared/health.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/personal-planner/v1/notes/attachments.pb.go": "sha256:bee6f7121c03be65bac7ce1b0832c04a119e619895002ce020fb34a048ad1f58",
+    "gen/go/personal-planner/v1/notes/notes.pb.go": "sha256:f82efc890334722e6a245e70558483a59d3bcd39a3230f2a78f921c0509ec9df",
+    "gen/go/personal-planner/v1/notes/notes_v1connect/notes.connect.go": "sha256:1c07e1cfbdfa113e25d34d98937a54cbca7dea9519df8ca1a58f8ae8e0829041",
+    "gen/go/personal-planner/v1/shared/errors.pb.go": "sha256:098d5c49d594ddc2c740f6efdcc10c25a1536429f33c9151364603640139d042",
+    "gen/go/personal-planner/v1/shared/health.pb.go": "sha256:0075e9269306f34f089a102596f3eacfa09dd5dc37d7eed369669487d7db9ac6",
+    "gen/python/personal_planner/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/personal_planner/v1/notes/attachments_pb2.py": "sha256:2d1cc2f3c4afdbd6a4887a19f073f284dd24f16518a4f2c9ef1a36431b1aa2dc",
+    "gen/python/personal_planner/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/personal_planner/v1/notes/notes_pb2.py": "sha256:90d42054c873d29cf7626413232bd7a88715ee30052408550f74dce1501599fe",
+    "gen/python/personal_planner/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/personal_planner/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/personal_planner/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/personal_planner/v1/shared/errors_pb2.py": "sha256:33ad567f41f317f3759b7a260573d433d2a2cb12d66a991c603d83f11b6f7c82",
+    "gen/python/personal_planner/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/personal_planner/v1/shared/health_pb2.py": "sha256:b0c0d939929dd96a98edf2824f7fa353d9f8712a938956bd24a2a0635aa33411",
+    "gen/python/personal_planner/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/personal_planner/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/personal-planner/v1/notes/attachments_pb.ts": "sha256:ebadb9f9b3a1350631ad866a6b882002042a11338c5838521f161a2e939b50b2",
+    "gen/typescript/personal-planner/v1/notes/notes_pb.ts": "sha256:5c204e95efb7fdae5a2210d50695f4c6e18ecd762982c73af09d2bf3ad61b091",
+    "gen/typescript/personal-planner/v1/shared/errors_pb.ts": "sha256:3356d5e2fbdfbaa6e018d7a6bd0a2a4e4f638a1ad8cf891ba6ffdbc10781a8eb",
+    "gen/typescript/personal-planner/v1/shared/health_pb.ts": "sha256:07327a5a173f362309dcaf818b2c321cc4dfd7027efea53c5d3d64bea9a49667"
+  }
+}

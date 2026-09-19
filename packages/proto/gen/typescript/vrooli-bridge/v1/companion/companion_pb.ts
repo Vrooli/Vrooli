@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-bridge/v1/companion/companion.proto.
  */
 export const file_vrooli_bridge_v1_companion_companion: GenFile = /*@__PURE__*/
-  fileDesc("Cip2cm9vbGktYnJpZGdlL3YxL2NvbXBhbmlvbi9jb21wYW5pb24ucHJvdG8SIXZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNvbXBhbmlvbiJGCg5JbnN0YWxsUmVxdWVzdBIPCgdub2RlX2lkGAEgASgJEg8KB3ZlcnNpb24YAiABKAkSEgoKZGlzcGxheV9pZBgDIAEoCSIhCg5JbnNwZWN0UmVxdWVzdBIPCgdub2RlX2lkGAEgASgJIjIKDlVwZ3JhZGVSZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkSDwoHdmVyc2lvbhgCIAEoCSIwCg1SZXZva2VSZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkSDgoGcmVhc29uGAIgASgJIiAKDVJlbW92ZVJlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCSKBAgoSQ29tcGFuaW9uT3BlcmF0aW9uEhQKDG9wZXJhdGlvbl9pZBgBIAEoCRIPCgdub2RlX2lkGAIgASgJEg8KB3ZlcnNpb24YAyABKAkSQAoFc3RhdGUYBCABKA4yMS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jb21wYW5pb24uQ29tcGFuaW9uU3RhdGUSEwoLcmVhc29uX2NvZGUYBSABKAkSEAoIcmVjb3ZlcnkYBiABKAkSGQoRdXNlcl9sYXVuY2hfYWdlbnQYByABKAgSLwoLb2JzZXJ2ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wKvwBCg5Db21wYW5pb25TdGF0ZRIfChtDT01QQU5JT05fU1RBVEVfVU5TUEVDSUZJRUQQABIaChZDT01QQU5JT05fU1RBVEVfQUJTRU5UEAESHgoaQ09NUEFOSU9OX1NUQVRFX0lOU1RBTExJTkcQAhIZChVDT01QQU5JT05fU1RBVEVfUkVBRFkQAxIcChhDT01QQU5JT05fU1RBVEVfREVHUkFERUQQBBIbChdDT01QQU5JT05fU1RBVEVfUkVWT0tFRBAFEhsKF0NPTVBBTklPTl9TVEFURV9SRU1PVkVEEAYSGgoWQ09NUEFOSU9OX1NUQVRFX0ZBSUxFRBAHMtcEChBDb21wYW5pb25TZXJ2aWNlEnMKB0luc3RhbGwSMS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jb21wYW5pb24uSW5zdGFsbFJlcXVlc3QaNS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jb21wYW5pb24uQ29tcGFuaW9uT3BlcmF0aW9uEnMKB0luc3BlY3QSMS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jb21wYW5pb24uSW5zcGVjdFJlcXVlc3QaNS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jb21wYW5pb24uQ29tcGFuaW9uT3BlcmF0aW9uEnMKB1VwZ3JhZGUSMS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jb21wYW5pb24uVXBncmFkZVJlcXVlc3QaNS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jb21wYW5pb24uQ29tcGFuaW9uT3BlcmF0aW9uEnEKBlJldm9rZRIwLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNvbXBhbmlvbi5SZXZva2VSZXF1ZXN0GjUudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY29tcGFuaW9uLkNvbXBhbmlvbk9wZXJhdGlvbhJxCgZSZW1vdmUSMC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jb21wYW5pb24uUmVtb3ZlUmVxdWVzdBo1LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNvbXBhbmlvbi5Db21wYW5pb25PcGVyYXRpb25CV1pVZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYnJpZGdlL3YxL2NvbXBhbmlvbjtjb21wYW5pb252MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("Cip2cm9vbGktYnJpZGdlL3YxL2NvbXBhbmlvbi9jb21wYW5pb24ucHJvdG8SIXZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNvbXBhbmlvbiKdAQoOSW5zdGFsbFJlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgJEhIKCmRpc3BsYXlfaWQYAyABKAkSGwoTYXJ0aWZhY3Rfc291cmNlX3JlZhgEIAEoCRIVCg1hcnRpZmFjdF9uYW1lGAUgASgJEiEKGWFydGlmYWN0X2Rlc3RpbmF0aW9uX3BhdGgYBiABKAkiIQoOSW5zcGVjdFJlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCSKJAQoOVXBncmFkZVJlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgJEhsKE2FydGlmYWN0X3NvdXJjZV9yZWYYAyABKAkSFQoNYXJ0aWZhY3RfbmFtZRgEIAEoCRIhChlhcnRpZmFjdF9kZXN0aW5hdGlvbl9wYXRoGAUgASgJIjAKDVJldm9rZVJlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCRIOCgZyZWFzb24YAiABKAkiIAoNUmVtb3ZlUmVxdWVzdBIPCgdub2RlX2lkGAEgASgJIqMCChJDb21wYW5pb25PcGVyYXRpb24SFAoMb3BlcmF0aW9uX2lkGAEgASgJEg8KB25vZGVfaWQYAiABKAkSDwoHdmVyc2lvbhgDIAEoCRJACgVzdGF0ZRgEIAEoDjIxLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNvbXBhbmlvbi5Db21wYW5pb25TdGF0ZRITCgtyZWFzb25fY29kZRgFIAEoCRIQCghyZWNvdmVyeRgGIAEoCRIZChF1c2VyX2xhdW5jaF9hZ2VudBgHIAEoCBIvCgtvYnNlcnZlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASIAoYYXJ0aWZhY3RfZGlzdHJpYnV0aW9uX2lkGAkgASgJIskBChBDb21wYW5pb25Db21tYW5kEhQKDG9wZXJhdGlvbl9pZBgBIAEoCRIPCgdub2RlX2lkGAIgASgJEkcKBGtpbmQYAyABKA4yOS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jb21wYW5pb24uQ29tcGFuaW9uT3BlcmF0aW9uS2luZBIPCgd2ZXJzaW9uGAQgASgJEhIKCmRpc3BsYXlfaWQYBSABKAkSIAoYYXJ0aWZhY3RfZGlzdHJpYnV0aW9uX2lkGAYgASgJIoACChFDb21wYW5pb25SZXNwb25zZRIUCgxvcGVyYXRpb25faWQYASABKAkSDwoHbm9kZV9pZBgCIAEoCRIPCgd2ZXJzaW9uGAMgASgJEkAKBXN0YXRlGAQgASgOMjEudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY29tcGFuaW9uLkNvbXBhbmlvblN0YXRlEhMKC3JlYXNvbl9jb2RlGAUgASgJEhAKCHJlY292ZXJ5GAYgASgJEhkKEXVzZXJfbGF1bmNoX2FnZW50GAcgASgIEi8KC29ic2VydmVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCr8AQoOQ29tcGFuaW9uU3RhdGUSHwobQ09NUEFOSU9OX1NUQVRFX1VOU1BFQ0lGSUVEEAASGgoWQ09NUEFOSU9OX1NUQVRFX0FCU0VOVBABEh4KGkNPTVBBTklPTl9TVEFURV9JTlNUQUxMSU5HEAISGQoVQ09NUEFOSU9OX1NUQVRFX1JFQURZEAMSHAoYQ09NUEFOSU9OX1NUQVRFX0RFR1JBREVEEAQSGwoXQ09NUEFOSU9OX1NUQVRFX1JFVk9LRUQQBRIbChdDT01QQU5JT05fU1RBVEVfUkVNT1ZFRBAGEhoKFkNPTVBBTklPTl9TVEFURV9GQUlMRUQQByr+AQoWQ29tcGFuaW9uT3BlcmF0aW9uS2luZBIoCiRDT01QQU5JT05fT1BFUkFUSU9OX0tJTkRfVU5TUEVDSUZJRUQQABIkCiBDT01QQU5JT05fT1BFUkFUSU9OX0tJTkRfSU5TVEFMTBABEiQKIENPTVBBTklPTl9PUEVSQVRJT05fS0lORF9JTlNQRUNUEAISJAogQ09NUEFOSU9OX09QRVJBVElPTl9LSU5EX1VQR1JBREUQAxIjCh9DT01QQU5JT05fT1BFUkFUSU9OX0tJTkRfUkVWT0tFEAQSIwofQ09NUEFOSU9OX09QRVJBVElPTl9LSU5EX1JFTU9WRRAFMtcEChBDb21wYW5pb25TZXJ2aWNlEnMKB0luc3RhbGwSMS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jb21wYW5pb24uSW5zdGFsbFJlcXVlc3QaNS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jb21wYW5pb24uQ29tcGFuaW9uT3BlcmF0aW9uEnMKB0luc3BlY3QSMS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jb21wYW5pb24uSW5zcGVjdFJlcXVlc3QaNS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jb21wYW5pb24uQ29tcGFuaW9uT3BlcmF0aW9uEnMKB1VwZ3JhZGUSMS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jb21wYW5pb24uVXBncmFkZVJlcXVlc3QaNS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jb21wYW5pb24uQ29tcGFuaW9uT3BlcmF0aW9uEnEKBlJldm9rZRIwLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNvbXBhbmlvbi5SZXZva2VSZXF1ZXN0GjUudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY29tcGFuaW9uLkNvbXBhbmlvbk9wZXJhdGlvbhJxCgZSZW1vdmUSMC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jb21wYW5pb24uUmVtb3ZlUmVxdWVzdBo1LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNvbXBhbmlvbi5Db21wYW5pb25PcGVyYXRpb25CV1pVZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYnJpZGdlL3YxL2NvbXBhbmlvbjtjb21wYW5pb252MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.companion.InstallRequest
@@ -32,6 +32,24 @@ export type InstallRequest = Message<"vrooli.vrooli_bridge.v1.companion.InstallR
    * @generated from field: string display_id = 3;
    */
   displayId: string;
+
+  /**
+   * Optional artifact source metadata. When supplied, Bridge completes the
+   * directed placement and only then sends the lifecycle command to the node.
+   *
+   * @generated from field: string artifact_source_ref = 4;
+   */
+  artifactSourceRef: string;
+
+  /**
+   * @generated from field: string artifact_name = 5;
+   */
+  artifactName: string;
+
+  /**
+   * @generated from field: string artifact_destination_path = 6;
+   */
+  artifactDestinationPath: string;
 };
 
 /**
@@ -71,6 +89,21 @@ export type UpgradeRequest = Message<"vrooli.vrooli_bridge.v1.companion.UpgradeR
    * @generated from field: string version = 2;
    */
   version: string;
+
+  /**
+   * @generated from field: string artifact_source_ref = 3;
+   */
+  artifactSourceRef: string;
+
+  /**
+   * @generated from field: string artifact_name = 4;
+   */
+  artifactName: string;
+
+  /**
+   * @generated from field: string artifact_destination_path = 5;
+   */
+  artifactDestinationPath: string;
 };
 
 /**
@@ -162,6 +195,11 @@ export type CompanionOperation = Message<"vrooli.vrooli_bridge.v1.companion.Comp
    * @generated from field: google.protobuf.Timestamp observed_at = 8;
    */
   observedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string artifact_distribution_id = 9;
+   */
+  artifactDistributionId: string;
 };
 
 /**
@@ -170,6 +208,100 @@ export type CompanionOperation = Message<"vrooli.vrooli_bridge.v1.companion.Comp
  */
 export const CompanionOperationSchema: GenMessage<CompanionOperation> = /*@__PURE__*/
   messageDesc(file_vrooli_bridge_v1_companion_companion, 5);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.companion.CompanionCommand
+ */
+export type CompanionCommand = Message<"vrooli.vrooli_bridge.v1.companion.CompanionCommand"> & {
+  /**
+   * @generated from field: string operation_id = 1;
+   */
+  operationId: string;
+
+  /**
+   * @generated from field: string node_id = 2;
+   */
+  nodeId: string;
+
+  /**
+   * @generated from field: vrooli.vrooli_bridge.v1.companion.CompanionOperationKind kind = 3;
+   */
+  kind: CompanionOperationKind;
+
+  /**
+   * @generated from field: string version = 4;
+   */
+  version: string;
+
+  /**
+   * @generated from field: string display_id = 5;
+   */
+  displayId: string;
+
+  /**
+   * @generated from field: string artifact_distribution_id = 6;
+   */
+  artifactDistributionId: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.companion.CompanionCommand.
+ * Use `create(CompanionCommandSchema)` to create a new message.
+ */
+export const CompanionCommandSchema: GenMessage<CompanionCommand> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_companion_companion, 6);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.companion.CompanionResponse
+ */
+export type CompanionResponse = Message<"vrooli.vrooli_bridge.v1.companion.CompanionResponse"> & {
+  /**
+   * @generated from field: string operation_id = 1;
+   */
+  operationId: string;
+
+  /**
+   * @generated from field: string node_id = 2;
+   */
+  nodeId: string;
+
+  /**
+   * @generated from field: string version = 3;
+   */
+  version: string;
+
+  /**
+   * @generated from field: vrooli.vrooli_bridge.v1.companion.CompanionState state = 4;
+   */
+  state: CompanionState;
+
+  /**
+   * @generated from field: string reason_code = 5;
+   */
+  reasonCode: string;
+
+  /**
+   * @generated from field: string recovery = 6;
+   */
+  recovery: string;
+
+  /**
+   * @generated from field: bool user_launch_agent = 7;
+   */
+  userLaunchAgent: boolean;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp observed_at = 8;
+   */
+  observedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.companion.CompanionResponse.
+ * Use `create(CompanionResponseSchema)` to create a new message.
+ */
+export const CompanionResponseSchema: GenMessage<CompanionResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_companion_companion, 7);
 
 /**
  * @generated from enum vrooli.vrooli_bridge.v1.companion.CompanionState
@@ -221,6 +353,52 @@ export enum CompanionState {
  */
 export const CompanionStateSchema: GenEnum<CompanionState> = /*@__PURE__*/
   enumDesc(file_vrooli_bridge_v1_companion_companion, 0);
+
+/**
+ * CompanionCommand is carried only on the authenticated Bridge node channel.
+ * It contains operation metadata, never binary contents, credentials, or a
+ * shell command. The node-local Device Control lifecycle adapter owns the
+ * user LaunchAgent and reports the observed result.
+ *
+ * @generated from enum vrooli.vrooli_bridge.v1.companion.CompanionOperationKind
+ */
+export enum CompanionOperationKind {
+  /**
+   * @generated from enum value: COMPANION_OPERATION_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: COMPANION_OPERATION_KIND_INSTALL = 1;
+   */
+  INSTALL = 1,
+
+  /**
+   * @generated from enum value: COMPANION_OPERATION_KIND_INSPECT = 2;
+   */
+  INSPECT = 2,
+
+  /**
+   * @generated from enum value: COMPANION_OPERATION_KIND_UPGRADE = 3;
+   */
+  UPGRADE = 3,
+
+  /**
+   * @generated from enum value: COMPANION_OPERATION_KIND_REVOKE = 4;
+   */
+  REVOKE = 4,
+
+  /**
+   * @generated from enum value: COMPANION_OPERATION_KIND_REMOVE = 5;
+   */
+  REMOVE = 5,
+}
+
+/**
+ * Describes the enum vrooli.vrooli_bridge.v1.companion.CompanionOperationKind.
+ */
+export const CompanionOperationKindSchema: GenEnum<CompanionOperationKind> = /*@__PURE__*/
+  enumDesc(file_vrooli_bridge_v1_companion_companion, 1);
 
 /**
  * Bridge owns the lifecycle request and audit-safe state; Device Control owns

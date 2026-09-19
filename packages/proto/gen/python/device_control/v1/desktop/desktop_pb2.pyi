@@ -766,34 +766,66 @@ class OwnerCompanionActivationRequest(_message.Message):
     def __init__(self, session: _Optional[_Union[_surface_pb2.SessionRef, _Mapping]] = ..., companion_window: _Optional[int] = ..., include_image: _Optional[bool] = ...) -> None: ...
 
 class DesktopSignalRequest(_message.Message):
-    __slots__ = ("session", "lease_id", "lease_epoch", "kind", "generation", "payload")
+    __slots__ = ("session", "lease_id", "lease_epoch", "kind", "generation", "payload", "ice_servers")
     SESSION_FIELD_NUMBER: _ClassVar[int]
     LEASE_ID_FIELD_NUMBER: _ClassVar[int]
     LEASE_EPOCH_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     GENERATION_FIELD_NUMBER: _ClassVar[int]
     PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    ICE_SERVERS_FIELD_NUMBER: _ClassVar[int]
     session: _surface_pb2.SessionRef
     lease_id: str
     lease_epoch: int
     kind: DesktopSignalKind
     generation: str
     payload: bytes
-    def __init__(self, session: _Optional[_Union[_surface_pb2.SessionRef, _Mapping]] = ..., lease_id: _Optional[str] = ..., lease_epoch: _Optional[int] = ..., kind: _Optional[_Union[DesktopSignalKind, str]] = ..., generation: _Optional[str] = ..., payload: _Optional[bytes] = ...) -> None: ...
+    ice_servers: _containers.RepeatedCompositeFieldContainer[IceServer]
+    def __init__(self, session: _Optional[_Union[_surface_pb2.SessionRef, _Mapping]] = ..., lease_id: _Optional[str] = ..., lease_epoch: _Optional[int] = ..., kind: _Optional[_Union[DesktopSignalKind, str]] = ..., generation: _Optional[str] = ..., payload: _Optional[bytes] = ..., ice_servers: _Optional[_Iterable[_Union[IceServer, _Mapping]]] = ...) -> None: ...
+
+class IceServer(_message.Message):
+    __slots__ = ("url", "username", "credential")
+    URL_FIELD_NUMBER: _ClassVar[int]
+    USERNAME_FIELD_NUMBER: _ClassVar[int]
+    CREDENTIAL_FIELD_NUMBER: _ClassVar[int]
+    url: str
+    username: str
+    credential: str
+    def __init__(self, url: _Optional[str] = ..., username: _Optional[str] = ..., credential: _Optional[str] = ...) -> None: ...
 
 class DesktopSignalResponse(_message.Message):
-    __slots__ = ("accepted", "kind", "generation", "payload", "reason_code")
+    __slots__ = ("accepted", "kind", "generation", "payload", "reason_code", "transport_stats")
     ACCEPTED_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     GENERATION_FIELD_NUMBER: _ClassVar[int]
     PAYLOAD_FIELD_NUMBER: _ClassVar[int]
     REASON_CODE_FIELD_NUMBER: _ClassVar[int]
+    TRANSPORT_STATS_FIELD_NUMBER: _ClassVar[int]
     accepted: bool
     kind: DesktopSignalKind
     generation: str
     payload: bytes
     reason_code: str
-    def __init__(self, accepted: _Optional[bool] = ..., kind: _Optional[_Union[DesktopSignalKind, str]] = ..., generation: _Optional[str] = ..., payload: _Optional[bytes] = ..., reason_code: _Optional[str] = ...) -> None: ...
+    transport_stats: DesktopTransportStats
+    def __init__(self, accepted: _Optional[bool] = ..., kind: _Optional[_Union[DesktopSignalKind, str]] = ..., generation: _Optional[str] = ..., payload: _Optional[bytes] = ..., reason_code: _Optional[str] = ..., transport_stats: _Optional[_Union[DesktopTransportStats, _Mapping]] = ...) -> None: ...
+
+class DesktopTransportStats(_message.Message):
+    __slots__ = ("frames_sent", "bytes_sent", "frames_dropped", "control_messages_sent", "data_messages_sent", "control_messages_rejected", "data_messages_rejected")
+    FRAMES_SENT_FIELD_NUMBER: _ClassVar[int]
+    BYTES_SENT_FIELD_NUMBER: _ClassVar[int]
+    FRAMES_DROPPED_FIELD_NUMBER: _ClassVar[int]
+    CONTROL_MESSAGES_SENT_FIELD_NUMBER: _ClassVar[int]
+    DATA_MESSAGES_SENT_FIELD_NUMBER: _ClassVar[int]
+    CONTROL_MESSAGES_REJECTED_FIELD_NUMBER: _ClassVar[int]
+    DATA_MESSAGES_REJECTED_FIELD_NUMBER: _ClassVar[int]
+    frames_sent: int
+    bytes_sent: int
+    frames_dropped: int
+    control_messages_sent: int
+    data_messages_sent: int
+    control_messages_rejected: int
+    data_messages_rejected: int
+    def __init__(self, frames_sent: _Optional[int] = ..., bytes_sent: _Optional[int] = ..., frames_dropped: _Optional[int] = ..., control_messages_sent: _Optional[int] = ..., data_messages_sent: _Optional[int] = ..., control_messages_rejected: _Optional[int] = ..., data_messages_rejected: _Optional[int] = ...) -> None: ...
 
 class Display(_message.Message):
     __slots__ = ("id", "name", "width", "height", "scale", "selected")
@@ -854,7 +886,7 @@ class GetReadinessRequest(_message.Message):
     def __init__(self, surface: _Optional[_Union[_surface_pb2.SurfaceRef, _Mapping]] = ..., display_id: _Optional[str] = ...) -> None: ...
 
 class DesktopSession(_message.Message):
-    __slots__ = ("ref", "channel_id", "lease_id", "lease_epoch", "selected_display_id", "codec", "connection_state", "viewer_count", "controller", "expires_at", "geometry_revision")
+    __slots__ = ("ref", "channel_id", "lease_id", "lease_epoch", "selected_display_id", "codec", "connection_state", "viewer_count", "controller", "expires_at", "geometry_revision", "transport_stats")
     REF_FIELD_NUMBER: _ClassVar[int]
     CHANNEL_ID_FIELD_NUMBER: _ClassVar[int]
     LEASE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -866,6 +898,7 @@ class DesktopSession(_message.Message):
     CONTROLLER_FIELD_NUMBER: _ClassVar[int]
     EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
     GEOMETRY_REVISION_FIELD_NUMBER: _ClassVar[int]
+    TRANSPORT_STATS_FIELD_NUMBER: _ClassVar[int]
     ref: _surface_pb2.SessionRef
     channel_id: str
     lease_id: str
@@ -877,7 +910,8 @@ class DesktopSession(_message.Message):
     controller: bool
     expires_at: _timestamp_pb2.Timestamp
     geometry_revision: str
-    def __init__(self, ref: _Optional[_Union[_surface_pb2.SessionRef, _Mapping]] = ..., channel_id: _Optional[str] = ..., lease_id: _Optional[str] = ..., lease_epoch: _Optional[int] = ..., selected_display_id: _Optional[str] = ..., codec: _Optional[str] = ..., connection_state: _Optional[str] = ..., viewer_count: _Optional[int] = ..., controller: _Optional[bool] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., geometry_revision: _Optional[str] = ...) -> None: ...
+    transport_stats: DesktopTransportStats
+    def __init__(self, ref: _Optional[_Union[_surface_pb2.SessionRef, _Mapping]] = ..., channel_id: _Optional[str] = ..., lease_id: _Optional[str] = ..., lease_epoch: _Optional[int] = ..., selected_display_id: _Optional[str] = ..., codec: _Optional[str] = ..., connection_state: _Optional[str] = ..., viewer_count: _Optional[int] = ..., controller: _Optional[bool] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., geometry_revision: _Optional[str] = ..., transport_stats: _Optional[_Union[DesktopTransportStats, _Mapping]] = ...) -> None: ...
 
 class OpenSessionRequest(_message.Message):
     __slots__ = ("surface", "display_id", "ttl_seconds", "control", "clipboard", "request_id")

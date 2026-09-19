@@ -63,7 +63,7 @@ REVOKE_REASON_COMPANION_LOST: RevokeReason
 REVOKE_REASON_POLICY: RevokeReason
 
 class ChannelGrant(_message.Message):
-    __slots__ = ("channel_id", "node_id", "surface", "session_id", "lease_id", "lease_epoch", "protocol", "role", "expires_at", "policy_revision")
+    __slots__ = ("channel_id", "node_id", "surface", "session_id", "lease_id", "lease_epoch", "protocol", "role", "expires_at", "policy_revision", "routes")
     CHANNEL_ID_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     SURFACE_FIELD_NUMBER: _ClassVar[int]
@@ -74,6 +74,7 @@ class ChannelGrant(_message.Message):
     ROLE_FIELD_NUMBER: _ClassVar[int]
     EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
     POLICY_REVISION_FIELD_NUMBER: _ClassVar[int]
+    ROUTES_FIELD_NUMBER: _ClassVar[int]
     channel_id: str
     node_id: str
     surface: _surface_pb2.SurfaceRef
@@ -84,7 +85,8 @@ class ChannelGrant(_message.Message):
     role: ChannelRole
     expires_at: _timestamp_pb2.Timestamp
     policy_revision: str
-    def __init__(self, channel_id: _Optional[str] = ..., node_id: _Optional[str] = ..., surface: _Optional[_Union[_surface_pb2.SurfaceRef, _Mapping]] = ..., session_id: _Optional[str] = ..., lease_id: _Optional[str] = ..., lease_epoch: _Optional[int] = ..., protocol: _Optional[_Union[ChannelProtocol, str]] = ..., role: _Optional[_Union[ChannelRole, str]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., policy_revision: _Optional[str] = ...) -> None: ...
+    routes: _containers.RepeatedCompositeFieldContainer[RouteCandidate]
+    def __init__(self, channel_id: _Optional[str] = ..., node_id: _Optional[str] = ..., surface: _Optional[_Union[_surface_pb2.SurfaceRef, _Mapping]] = ..., session_id: _Optional[str] = ..., lease_id: _Optional[str] = ..., lease_epoch: _Optional[int] = ..., protocol: _Optional[_Union[ChannelProtocol, str]] = ..., role: _Optional[_Union[ChannelRole, str]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., policy_revision: _Optional[str] = ..., routes: _Optional[_Iterable[_Union[RouteCandidate, _Mapping]]] = ...) -> None: ...
 
 class OpenChannelRequest(_message.Message):
     __slots__ = ("node_id", "surface", "session_id", "lease_id", "lease_epoch", "protocol", "role", "takeover", "ttl_seconds", "request_id")

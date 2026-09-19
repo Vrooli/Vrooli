@@ -2,6 +2,8 @@ import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from vrooli_bridge.v1.shared import shared_pb2 as _shared_pb2
+from vrooli_bridge.v1.companion import companion_pb2 as _companion_pb2
+from vrooli_bridge.v1.interactive import interactive_pb2 as _interactive_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -89,20 +91,22 @@ class JobPush(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., verb: _Optional[str] = ..., args: _Optional[_Iterable[str]] = ..., timeout_seconds: _Optional[int] = ..., outputs: _Optional[_Iterable[_Union[ArtifactOutput, _Mapping]]] = ..., credential_injections: _Optional[_Iterable[_Union[CredentialInjection, _Mapping]]] = ...) -> None: ...
 
 class ArtifactDelivery(_message.Message):
-    __slots__ = ("distribution_id", "item_id", "name", "destination_path", "device_sync_url", "executable")
+    __slots__ = ("distribution_id", "item_id", "name", "destination_path", "device_sync_url", "executable", "companion_artifact")
     DISTRIBUTION_ID_FIELD_NUMBER: _ClassVar[int]
     ITEM_ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESTINATION_PATH_FIELD_NUMBER: _ClassVar[int]
     DEVICE_SYNC_URL_FIELD_NUMBER: _ClassVar[int]
     EXECUTABLE_FIELD_NUMBER: _ClassVar[int]
+    COMPANION_ARTIFACT_FIELD_NUMBER: _ClassVar[int]
     distribution_id: str
     item_id: str
     name: str
     destination_path: str
     device_sync_url: str
     executable: bool
-    def __init__(self, distribution_id: _Optional[str] = ..., item_id: _Optional[str] = ..., name: _Optional[str] = ..., destination_path: _Optional[str] = ..., device_sync_url: _Optional[str] = ..., executable: _Optional[bool] = ...) -> None: ...
+    companion_artifact: bool
+    def __init__(self, distribution_id: _Optional[str] = ..., item_id: _Optional[str] = ..., name: _Optional[str] = ..., destination_path: _Optional[str] = ..., device_sync_url: _Optional[str] = ..., executable: _Optional[bool] = ..., companion_artifact: _Optional[bool] = ...) -> None: ...
 
 class CredentialInjection(_message.Message):
     __slots__ = ("logical_id", "field", "env_name")
@@ -152,6 +156,7 @@ class CredentialPush(_message.Message):
     RETENTION_FIELD_NUMBER: _ClassVar[int]
     SEALED_VALUE_FIELD_NUMBER: _ClassVar[int]
     AAD_FIELD_NUMBER: _ClassVar[int]
+    CLASS_FIELD_NUMBER: _ClassVar[int]
     grant_id: str
     node_id: str
     logical_id: str
@@ -160,7 +165,7 @@ class CredentialPush(_message.Message):
     retention: str
     sealed_value: bytes
     aad: bytes
-    def __init__(self, grant_id: _Optional[str] = ..., node_id: _Optional[str] = ..., logical_id: _Optional[str] = ..., field: _Optional[str] = ..., generation: _Optional[int] = ..., retention: _Optional[str] = ..., sealed_value: _Optional[bytes] = ..., aad: _Optional[bytes] = ...) -> None: ...
+    def __init__(self, grant_id: _Optional[str] = ..., node_id: _Optional[str] = ..., logical_id: _Optional[str] = ..., field: _Optional[str] = ..., generation: _Optional[int] = ..., retention: _Optional[str] = ..., sealed_value: _Optional[bytes] = ..., aad: _Optional[bytes] = ..., **kwargs) -> None: ...
 
 class CredentialPurge(_message.Message):
     __slots__ = ("node_id", "addresses", "grant_id", "generation")
@@ -296,7 +301,7 @@ class RelayCancel(_message.Message):
     def __init__(self, correlation_id: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class InteractiveSignal(_message.Message):
-    __slots__ = ("channel_id", "node_id", "lease_epoch", "kind", "generation", "payload", "request_id", "session_id", "lease_id")
+    __slots__ = ("channel_id", "node_id", "lease_epoch", "kind", "generation", "payload", "request_id", "session_id", "lease_id", "routes")
     CHANNEL_ID_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     LEASE_EPOCH_FIELD_NUMBER: _ClassVar[int]
@@ -306,6 +311,7 @@ class InteractiveSignal(_message.Message):
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     LEASE_ID_FIELD_NUMBER: _ClassVar[int]
+    ROUTES_FIELD_NUMBER: _ClassVar[int]
     channel_id: str
     node_id: str
     lease_epoch: int
@@ -315,7 +321,8 @@ class InteractiveSignal(_message.Message):
     request_id: str
     session_id: str
     lease_id: str
-    def __init__(self, channel_id: _Optional[str] = ..., node_id: _Optional[str] = ..., lease_epoch: _Optional[int] = ..., kind: _Optional[int] = ..., generation: _Optional[str] = ..., payload: _Optional[bytes] = ..., request_id: _Optional[str] = ..., session_id: _Optional[str] = ..., lease_id: _Optional[str] = ...) -> None: ...
+    routes: _containers.RepeatedCompositeFieldContainer[_interactive_pb2.RouteCandidate]
+    def __init__(self, channel_id: _Optional[str] = ..., node_id: _Optional[str] = ..., lease_epoch: _Optional[int] = ..., kind: _Optional[int] = ..., generation: _Optional[str] = ..., payload: _Optional[bytes] = ..., request_id: _Optional[str] = ..., session_id: _Optional[str] = ..., lease_id: _Optional[str] = ..., routes: _Optional[_Iterable[_Union[_interactive_pb2.RouteCandidate, _Mapping]]] = ...) -> None: ...
 
 class InteractiveSignalResponse(_message.Message):
     __slots__ = ("channel_id", "lease_epoch", "kind", "generation", "payload", "accepted", "reason_code", "request_id", "node_id")
@@ -339,8 +346,24 @@ class InteractiveSignalResponse(_message.Message):
     node_id: str
     def __init__(self, channel_id: _Optional[str] = ..., lease_epoch: _Optional[int] = ..., kind: _Optional[int] = ..., generation: _Optional[str] = ..., payload: _Optional[bytes] = ..., accepted: _Optional[bool] = ..., reason_code: _Optional[str] = ..., request_id: _Optional[str] = ..., node_id: _Optional[str] = ...) -> None: ...
 
+class InteractiveRevoke(_message.Message):
+    __slots__ = ("channel_id", "node_id", "session_id", "lease_id", "lease_epoch", "reason")
+    CHANNEL_ID_FIELD_NUMBER: _ClassVar[int]
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    LEASE_ID_FIELD_NUMBER: _ClassVar[int]
+    LEASE_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    channel_id: str
+    node_id: str
+    session_id: str
+    lease_id: str
+    lease_epoch: int
+    reason: str
+    def __init__(self, channel_id: _Optional[str] = ..., node_id: _Optional[str] = ..., session_id: _Optional[str] = ..., lease_id: _Optional[str] = ..., lease_epoch: _Optional[int] = ..., reason: _Optional[str] = ...) -> None: ...
+
 class ServerFrame(_message.Message):
-    __slots__ = ("frame_id", "ack", "job", "provision", "ping", "abort", "session", "relay", "relay_cancel", "cleanup", "credential_push", "credential_purge", "credential_grant", "scenario_request", "artifact_delivery", "interactive_signal")
+    __slots__ = ("frame_id", "ack", "job", "provision", "ping", "abort", "session", "relay", "relay_cancel", "cleanup", "credential_push", "credential_purge", "credential_grant", "scenario_request", "artifact_delivery", "interactive_signal", "companion_command", "interactive_revoke")
     FRAME_ID_FIELD_NUMBER: _ClassVar[int]
     ACK_FIELD_NUMBER: _ClassVar[int]
     JOB_FIELD_NUMBER: _ClassVar[int]
@@ -357,6 +380,8 @@ class ServerFrame(_message.Message):
     SCENARIO_REQUEST_FIELD_NUMBER: _ClassVar[int]
     ARTIFACT_DELIVERY_FIELD_NUMBER: _ClassVar[int]
     INTERACTIVE_SIGNAL_FIELD_NUMBER: _ClassVar[int]
+    COMPANION_COMMAND_FIELD_NUMBER: _ClassVar[int]
+    INTERACTIVE_REVOKE_FIELD_NUMBER: _ClassVar[int]
     frame_id: str
     ack: HandshakeAck
     job: JobPush
@@ -373,7 +398,9 @@ class ServerFrame(_message.Message):
     scenario_request: ScenarioRequest
     artifact_delivery: ArtifactDelivery
     interactive_signal: InteractiveSignal
-    def __init__(self, frame_id: _Optional[str] = ..., ack: _Optional[_Union[HandshakeAck, _Mapping]] = ..., job: _Optional[_Union[JobPush, _Mapping]] = ..., provision: _Optional[_Union[ProvisionCommand, _Mapping]] = ..., ping: _Optional[_Union[ControlPing, _Mapping]] = ..., abort: _Optional[_Union[AbortJob, _Mapping]] = ..., session: _Optional[_Union[_shared_pb2.SessionFrame, _Mapping]] = ..., relay: _Optional[_Union[RelayRequest, _Mapping]] = ..., relay_cancel: _Optional[_Union[RelayCancel, _Mapping]] = ..., cleanup: _Optional[_Union[CleanupCommand, _Mapping]] = ..., credential_push: _Optional[_Union[CredentialPush, _Mapping]] = ..., credential_purge: _Optional[_Union[CredentialPurge, _Mapping]] = ..., credential_grant: _Optional[_Union[CredentialGrant, _Mapping]] = ..., scenario_request: _Optional[_Union[ScenarioRequest, _Mapping]] = ..., artifact_delivery: _Optional[_Union[ArtifactDelivery, _Mapping]] = ..., interactive_signal: _Optional[_Union[InteractiveSignal, _Mapping]] = ...) -> None: ...
+    companion_command: _companion_pb2.CompanionCommand
+    interactive_revoke: InteractiveRevoke
+    def __init__(self, frame_id: _Optional[str] = ..., ack: _Optional[_Union[HandshakeAck, _Mapping]] = ..., job: _Optional[_Union[JobPush, _Mapping]] = ..., provision: _Optional[_Union[ProvisionCommand, _Mapping]] = ..., ping: _Optional[_Union[ControlPing, _Mapping]] = ..., abort: _Optional[_Union[AbortJob, _Mapping]] = ..., session: _Optional[_Union[_shared_pb2.SessionFrame, _Mapping]] = ..., relay: _Optional[_Union[RelayRequest, _Mapping]] = ..., relay_cancel: _Optional[_Union[RelayCancel, _Mapping]] = ..., cleanup: _Optional[_Union[CleanupCommand, _Mapping]] = ..., credential_push: _Optional[_Union[CredentialPush, _Mapping]] = ..., credential_purge: _Optional[_Union[CredentialPurge, _Mapping]] = ..., credential_grant: _Optional[_Union[CredentialGrant, _Mapping]] = ..., scenario_request: _Optional[_Union[ScenarioRequest, _Mapping]] = ..., artifact_delivery: _Optional[_Union[ArtifactDelivery, _Mapping]] = ..., interactive_signal: _Optional[_Union[InteractiveSignal, _Mapping]] = ..., companion_command: _Optional[_Union[_companion_pb2.CompanionCommand, _Mapping]] = ..., interactive_revoke: _Optional[_Union[InteractiveRevoke, _Mapping]] = ...) -> None: ...
 
 class SignedServerFrame(_message.Message):
     __slots__ = ("frame", "signature")
@@ -384,7 +411,7 @@ class SignedServerFrame(_message.Message):
     def __init__(self, frame: _Optional[bytes] = ..., signature: _Optional[bytes] = ...) -> None: ...
 
 class NodeFrame(_message.Message):
-    __slots__ = ("handshake", "heartbeat", "run_event", "delivery_ack", "session", "relay_response", "credential_receipt", "scenario_response", "artifact_receipt", "interactive_signal_response")
+    __slots__ = ("handshake", "heartbeat", "run_event", "delivery_ack", "session", "relay_response", "credential_receipt", "scenario_response", "artifact_receipt", "interactive_signal_response", "companion_response")
     HANDSHAKE_FIELD_NUMBER: _ClassVar[int]
     HEARTBEAT_FIELD_NUMBER: _ClassVar[int]
     RUN_EVENT_FIELD_NUMBER: _ClassVar[int]
@@ -395,6 +422,7 @@ class NodeFrame(_message.Message):
     SCENARIO_RESPONSE_FIELD_NUMBER: _ClassVar[int]
     ARTIFACT_RECEIPT_FIELD_NUMBER: _ClassVar[int]
     INTERACTIVE_SIGNAL_RESPONSE_FIELD_NUMBER: _ClassVar[int]
+    COMPANION_RESPONSE_FIELD_NUMBER: _ClassVar[int]
     handshake: Handshake
     heartbeat: _shared_pb2.Heartbeat
     run_event: _shared_pb2.RunEvent
@@ -405,4 +433,5 @@ class NodeFrame(_message.Message):
     scenario_response: _shared_pb2.ScenarioResponse
     artifact_receipt: _shared_pb2.ArtifactReceipt
     interactive_signal_response: InteractiveSignalResponse
-    def __init__(self, handshake: _Optional[_Union[Handshake, _Mapping]] = ..., heartbeat: _Optional[_Union[_shared_pb2.Heartbeat, _Mapping]] = ..., run_event: _Optional[_Union[_shared_pb2.RunEvent, _Mapping]] = ..., delivery_ack: _Optional[_Union[_shared_pb2.DeliveryAck, _Mapping]] = ..., session: _Optional[_Union[_shared_pb2.SessionFrame, _Mapping]] = ..., relay_response: _Optional[_Union[_shared_pb2.RelayResponse, _Mapping]] = ..., credential_receipt: _Optional[_Union[CredentialReceipt, _Mapping]] = ..., scenario_response: _Optional[_Union[_shared_pb2.ScenarioResponse, _Mapping]] = ..., artifact_receipt: _Optional[_Union[_shared_pb2.ArtifactReceipt, _Mapping]] = ..., interactive_signal_response: _Optional[_Union[InteractiveSignalResponse, _Mapping]] = ...) -> None: ...
+    companion_response: _companion_pb2.CompanionResponse
+    def __init__(self, handshake: _Optional[_Union[Handshake, _Mapping]] = ..., heartbeat: _Optional[_Union[_shared_pb2.Heartbeat, _Mapping]] = ..., run_event: _Optional[_Union[_shared_pb2.RunEvent, _Mapping]] = ..., delivery_ack: _Optional[_Union[_shared_pb2.DeliveryAck, _Mapping]] = ..., session: _Optional[_Union[_shared_pb2.SessionFrame, _Mapping]] = ..., relay_response: _Optional[_Union[_shared_pb2.RelayResponse, _Mapping]] = ..., credential_receipt: _Optional[_Union[CredentialReceipt, _Mapping]] = ..., scenario_response: _Optional[_Union[_shared_pb2.ScenarioResponse, _Mapping]] = ..., artifact_receipt: _Optional[_Union[_shared_pb2.ArtifactReceipt, _Mapping]] = ..., interactive_signal_response: _Optional[_Union[InteractiveSignalResponse, _Mapping]] = ..., companion_response: _Optional[_Union[_companion_pb2.CompanionResponse, _Mapping]] = ...) -> None: ...

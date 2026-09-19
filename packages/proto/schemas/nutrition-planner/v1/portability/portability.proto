@@ -1,0 +1,21 @@
+syntax = "proto3";
+package vrooli.nutrition_planner.v1.portability;
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/portability;portability_v1";
+service PortabilityService { rpc ExportRecipes(ExportRecipesRequest) returns (ExportRecipesResponse); rpc ExportWorkspace(ExportWorkspaceRequest) returns (ExportWorkspaceResponse); rpc PreviewWorkspaceImport(PreviewWorkspaceImportRequest) returns (PreviewWorkspaceImportResponse); rpc ApplyWorkspaceImport(ApplyWorkspaceImportRequest) returns (ApplyWorkspaceImportResponse); rpc PreviewRecipesImport(PreviewRecipesImportRequest) returns (PreviewRecipesImportResponse); rpc ApplyRecipesImport(ApplyRecipesImportRequest) returns (ApplyRecipesImportResponse); rpc ExportGroceriesCSV(ExportGroceriesCSVRequest) returns (ExportGroceriesCSVResponse); rpc ExportRecipePDF(ExportRecipePDFRequest) returns (ExportPDFResponse); rpc ExportWeeklyPDF(ExportWeeklyPDFRequest) returns (ExportPDFResponse); }
+message ExportRecipesRequest { string workspace_id = 1; }
+message ExportRecipesResponse { string format = 1; int32 schema_version = 2; string content_json = 3; repeated string omissions = 4; }
+message ExportWorkspaceRequest { string workspace_id = 1; }
+message ExportWorkspaceResponse { string format = 1; int32 schema_version = 2; string content_json = 3; repeated string omissions = 4; int64 plan_revision = 5; }
+message PreviewWorkspaceImportRequest { string workspace_id = 1; string content_json = 2; }
+message PreviewWorkspaceImportResponse { bool valid = 1; string format = 2; int32 schema_version = 3; int32 record_count = 4; repeated string record_kinds = 5; repeated string omissions = 6; repeated string errors = 7; }
+message ApplyWorkspaceImportRequest { string workspace_id = 1; int64 expected_workspace_revision = 2; string content_json = 3; string idempotency_key = 4; }
+message ApplyWorkspaceImportResponse { int64 workspace_revision = 1; int32 recipes_applied = 2; string checkpoint_id = 3; }
+message PreviewRecipesImportRequest { string workspace_id = 1; string content_json = 2; }
+message PreviewRecipesImportResponse { bool valid = 1; string format = 2; int32 schema_version = 3; int32 recipe_count = 4; int32 duplicate_count = 5; int32 conflict_count = 6; repeated string errors = 7; }
+message ApplyRecipesImportRequest { string workspace_id = 1; int64 expected_workspace_revision = 2; string content_json = 3; string idempotency_key = 4; string conflict_policy = 5; }
+message ApplyRecipesImportResponse { int64 workspace_revision = 1; int32 recipes_applied = 2; int32 recipes_skipped = 3; repeated string remapped_ids = 4; }
+message ExportGroceriesCSVRequest { string workspace_id = 1; int64 expected_revision = 2; }
+message ExportGroceriesCSVResponse { string filename = 1; string content_csv = 2; int64 revision = 3; }
+message ExportRecipePDFRequest { string workspace_id = 1; string recipe_id = 2; string page_size = 3; }
+message ExportWeeklyPDFRequest { string workspace_id = 1; int64 expected_revision = 2; string page_size = 3; }
+message ExportPDFResponse { string filename = 1; bytes content = 2; int64 revision = 3; }

@@ -4,6 +4,7 @@ package vrooli.vrooli_bridge.v1.presence;
 
 import "vrooli-bridge/v1/shared/shared.proto";
 import "vrooli-bridge/v1/channel/channel.proto";
+import "vrooli-bridge/v1/companion/companion.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence;presence_v1";
 
@@ -59,6 +60,10 @@ service PresenceService {
   // ReportInteractiveSignalResponse returns the bounded answer/ICE response
   // from the node-local Device Control companion to an owner signal call.
   rpc ReportInteractiveSignalResponse(ReportInteractiveSignalResponseRequest) returns (ReportInteractiveSignalResponseResponse);
+
+  // ReportCompanionResponse returns the node-local lifecycle observation for a
+  // Bridge-managed Device Control companion operation.
+  rpc ReportCompanionResponse(ReportCompanionResponseRequest) returns (ReportCompanionResponseResponse);
 }
 
 message ReportHeartbeatRequest {
@@ -136,5 +141,13 @@ message ReportInteractiveSignalResponseRequest {
 }
 
 message ReportInteractiveSignalResponseResponse {
+  bool accepted = 1;
+}
+
+message ReportCompanionResponseRequest {
+  vrooli.vrooli_bridge.v1.companion.CompanionResponse response = 1;
+}
+
+message ReportCompanionResponseResponse {
   bool accepted = 1;
 }

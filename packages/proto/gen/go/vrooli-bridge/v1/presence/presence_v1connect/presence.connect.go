@@ -57,6 +57,9 @@ const (
 	// PresenceServiceReportInteractiveSignalResponseProcedure is the fully-qualified name of the
 	// PresenceService's ReportInteractiveSignalResponse RPC.
 	PresenceServiceReportInteractiveSignalResponseProcedure = "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportInteractiveSignalResponse"
+	// PresenceServiceReportCompanionResponseProcedure is the fully-qualified name of the
+	// PresenceService's ReportCompanionResponse RPC.
+	PresenceServiceReportCompanionResponseProcedure = "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportCompanionResponse"
 )
 
 // PresenceServiceClient is a client for the vrooli.vrooli_bridge.v1.presence.PresenceService
@@ -89,6 +92,9 @@ type PresenceServiceClient interface {
 	// ReportInteractiveSignalResponse returns the bounded answer/ICE response
 	// from the node-local Device Control companion to an owner signal call.
 	ReportInteractiveSignalResponse(context.Context, *connect.Request[presence.ReportInteractiveSignalResponseRequest]) (*connect.Response[presence.ReportInteractiveSignalResponseResponse], error)
+	// ReportCompanionResponse returns the node-local lifecycle observation for a
+	// Bridge-managed Device Control companion operation.
+	ReportCompanionResponse(context.Context, *connect.Request[presence.ReportCompanionResponseRequest]) (*connect.Response[presence.ReportCompanionResponseResponse], error)
 }
 
 // NewPresenceServiceClient constructs a client for the
@@ -151,6 +157,12 @@ func NewPresenceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(presenceServiceMethods.ByName("ReportInteractiveSignalResponse")),
 			connect.WithClientOptions(opts...),
 		),
+		reportCompanionResponse: connect.NewClient[presence.ReportCompanionResponseRequest, presence.ReportCompanionResponseResponse](
+			httpClient,
+			baseURL+PresenceServiceReportCompanionResponseProcedure,
+			connect.WithSchema(presenceServiceMethods.ByName("ReportCompanionResponse")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -164,6 +176,7 @@ type presenceServiceClient struct {
 	reportArtifactReceipt           *connect.Client[presence.ReportArtifactReceiptRequest, presence.ReportArtifactReceiptResponse]
 	reportScenarioResponse          *connect.Client[presence.ReportScenarioResponseRequest, presence.ReportScenarioResponseResponse]
 	reportInteractiveSignalResponse *connect.Client[presence.ReportInteractiveSignalResponseRequest, presence.ReportInteractiveSignalResponseResponse]
+	reportCompanionResponse         *connect.Client[presence.ReportCompanionResponseRequest, presence.ReportCompanionResponseResponse]
 }
 
 // ReportHeartbeat calls vrooli.vrooli_bridge.v1.presence.PresenceService.ReportHeartbeat.
@@ -210,6 +223,12 @@ func (c *presenceServiceClient) ReportInteractiveSignalResponse(ctx context.Cont
 	return c.reportInteractiveSignalResponse.CallUnary(ctx, req)
 }
 
+// ReportCompanionResponse calls
+// vrooli.vrooli_bridge.v1.presence.PresenceService.ReportCompanionResponse.
+func (c *presenceServiceClient) ReportCompanionResponse(ctx context.Context, req *connect.Request[presence.ReportCompanionResponseRequest]) (*connect.Response[presence.ReportCompanionResponseResponse], error) {
+	return c.reportCompanionResponse.CallUnary(ctx, req)
+}
+
 // PresenceServiceHandler is an implementation of the
 // vrooli.vrooli_bridge.v1.presence.PresenceService service.
 type PresenceServiceHandler interface {
@@ -240,6 +259,9 @@ type PresenceServiceHandler interface {
 	// ReportInteractiveSignalResponse returns the bounded answer/ICE response
 	// from the node-local Device Control companion to an owner signal call.
 	ReportInteractiveSignalResponse(context.Context, *connect.Request[presence.ReportInteractiveSignalResponseRequest]) (*connect.Response[presence.ReportInteractiveSignalResponseResponse], error)
+	// ReportCompanionResponse returns the node-local lifecycle observation for a
+	// Bridge-managed Device Control companion operation.
+	ReportCompanionResponse(context.Context, *connect.Request[presence.ReportCompanionResponseRequest]) (*connect.Response[presence.ReportCompanionResponseResponse], error)
 }
 
 // NewPresenceServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -297,6 +319,12 @@ func NewPresenceServiceHandler(svc PresenceServiceHandler, opts ...connect.Handl
 		connect.WithSchema(presenceServiceMethods.ByName("ReportInteractiveSignalResponse")),
 		connect.WithHandlerOptions(opts...),
 	)
+	presenceServiceReportCompanionResponseHandler := connect.NewUnaryHandler(
+		PresenceServiceReportCompanionResponseProcedure,
+		svc.ReportCompanionResponse,
+		connect.WithSchema(presenceServiceMethods.ByName("ReportCompanionResponse")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_bridge.v1.presence.PresenceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case PresenceServiceReportHeartbeatProcedure:
@@ -315,6 +343,8 @@ func NewPresenceServiceHandler(svc PresenceServiceHandler, opts ...connect.Handl
 			presenceServiceReportScenarioResponseHandler.ServeHTTP(w, r)
 		case PresenceServiceReportInteractiveSignalResponseProcedure:
 			presenceServiceReportInteractiveSignalResponseHandler.ServeHTTP(w, r)
+		case PresenceServiceReportCompanionResponseProcedure:
+			presenceServiceReportCompanionResponseHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -354,4 +384,8 @@ func (UnimplementedPresenceServiceHandler) ReportScenarioResponse(context.Contex
 
 func (UnimplementedPresenceServiceHandler) ReportInteractiveSignalResponse(context.Context, *connect.Request[presence.ReportInteractiveSignalResponseRequest]) (*connect.Response[presence.ReportInteractiveSignalResponseResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.presence.PresenceService.ReportInteractiveSignalResponse is not implemented"))
+}
+
+func (UnimplementedPresenceServiceHandler) ReportCompanionResponse(context.Context, *connect.Request[presence.ReportCompanionResponseRequest]) (*connect.Response[presence.ReportCompanionResponseResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.presence.PresenceService.ReportCompanionResponse is not implemented"))
 }
