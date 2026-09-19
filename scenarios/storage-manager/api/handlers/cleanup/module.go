@@ -344,11 +344,82 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 		},
 		OwnerProviderConfigs: ownerScenarioProviderConfigs(repoRoot),
 		Broker:               providers.NewPrivilegeBrokerClient(),
+
+		InstanceLiveness:          hostfs.NewInstanceRegistryLiveness(scenarioProcessRecordsRoot(home)),
+		InstanceNamespaceRoots:    instanceNamespaceRoots(),
+		KnownScenarios:            knownScenarioSlugs(repoRoot),
+		InstanceStorageQuarantine: filepath.Join(home, ".vrooli", "state", "storage-manager", "quarantine", "instances"),
 	})
 	if err != nil {
 		return nil, err
 	}
 	return providers.NewRegistry(builtIns...)
+}
+
+// instanceNamespaceProbe is a scenario id used only to read the shape of the
+// class roots. It must not be a real scenario: resolving a real one could pick
+// up this process's own injected storage namespace and return an instance
+// directory instead of the root that contains instance directories.
+const instanceNamespaceProbe = "storage-manager-namespace-probe"
+
+// instanceNamespaceRoots returns the "<class-root>/<app>" directories whose
+// immediate children are per-instance namespaces.
+//
+// They are read back from the storage resolver rather than rebuilt from $HOME,
+// so a profile or an environment override moves this provider with every other
+// storage consumer instead of leaving it scanning a root nothing writes to.
+// test_runs is deliberately absent: that class is not variant-scoped.
+func instanceNamespaceRoots() []providers.InstanceNamespaceRoot {
+	resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{AppID: "vrooli", Profile: corestorage.ProfileAuto})
+	if err != nil {
+		return nil
+	}
+	paths, err := resolver.Resolve(corestorage.Options{ScenarioID: instanceNamespaceProbe})
+	if err != nil {
+		return nil
+	}
+	classes := []struct {
+		name string
+		dir  string
+	}{
+		{"config", paths.ConfigDir},
+		{"data", paths.DataDir},
+		{"cache", paths.CacheDir},
+		{"logs", paths.LogsDir},
+		{"state", paths.StateDir},
+	}
+	roots := make([]providers.InstanceNamespaceRoot, 0, len(classes))
+	for _, class := range classes {
+		if strings.TrimSpace(class.dir) == "" {
+			continue
+		}
+		roots = append(roots, providers.InstanceNamespaceRoot{Class: class.name, Path: filepath.Dir(class.dir)})
+	}
+	return roots
+}
+
+// knownScenarioSlugs is the scenario inventory a namespace directory prefix is
+// resolved against. Directory names are "<scenario>_<variant>" and both halves
+// may contain hyphens, so attribution is a lookup against real scenarios, never
+// a split on the separator.
+func knownScenarioSlugs(repoRoot string) []string {
+	manifests, _ := filepath.Glob(filepath.Join(repoRoot, "scenarios", "*", ".vrooli", "service.json"))
+	slugs := make([]string, 0, len(manifests))
+	for _, manifestPath := range manifests {
+		slugs = append(slugs, filepath.Base(filepath.Dir(filepath.Dir(manifestPath))))
+	}
+	sort.Strings(slugs)
+	return slugs
+}
+
+// scenarioProcessRecordsRoot is the lifecycle's per-instance record directory,
+// keyed by the canonical "<scenario>@<variant>" slug.
+func scenarioProcessRecordsRoot(home string) string {
+	root, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyProcesses)
+	if err != nil || strings.TrimSpace(root) == "" {
+		return ""
+	}
+	return filepath.Join(root, "scenarios")
 }
 
 func autohealLiveDatabasePath(home string) string {

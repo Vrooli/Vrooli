@@ -67,6 +67,7 @@ const onboarding = {
     valueFor: "Value for {{label}}",
     saveSecurely: "Save securely",
     saving: "Saving…",
+    credentialSaved: "{{label}} was stored securely. The credential status below is being refreshed.",
     ready: "Ready",
     actionRequired: "{{status}}: action required",
     setupProgress: "Setup progress",

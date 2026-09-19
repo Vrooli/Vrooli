@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"time"
 )
 
@@ -58,6 +59,21 @@ type ProviderMetadata struct {
 	// OwnerBudget is an explicit owner declaration that authorizes bounded
 	// pressure cleanup for a safe_with_owner provider.
 	OwnerBudget bool
+	// ProvenOrphanRoots names directories, inside contract-protected runtime
+	// home entries, where this provider is authorized to surface individual
+	// proven orphans.
+	//
+	// Protection exists to stop bulk age-or-size rules from walking a tree
+	// whose entries are load-bearing while they exist. It was never meant to
+	// stop a provider that proves a SPECIFIC entry has no owner -- the
+	// repository contract says as much in its rationale for `bin`. Without
+	// this declaration such a provider runs, finds the orphan, and has its
+	// finding silently dropped at the orchestration boundary, which is how a
+	// detector ends up reporting nothing while the bytes stay on disk.
+	//
+	// The exemption is strict containment only: an item equal to, or an
+	// ancestor of, a protected root is never exempt.
+	ProvenOrphanRoots []string
 }
 
 // RegenerableProof records why an autonomous cache deletion is safe. All four
@@ -137,6 +153,27 @@ func (m ProviderMetadata) validateSafetyPolicy() error {
 	}
 	if m.SafetyTier == SafetyTierForbidden && (m.DefaultMode != ProviderModeDisabled || m.DefaultApproval != ApprovalModeDisabled) {
 		return fmt.Errorf("forbidden provider %q must be disabled", m.ID)
+	}
+	return m.validateProvenOrphanRoots()
+}
+
+// validateProvenOrphanRoots keeps the protection exemption narrow. It is an
+// authority to delete inside a tree the contract protects, so it is available
+// only to an owner-approved provider and only for absolute roots.
+func (m ProviderMetadata) validateProvenOrphanRoots() error {
+	if len(m.ProvenOrphanRoots) == 0 {
+		return nil
+	}
+	if m.SafetyTier != SafetyTierSafeWithOwner {
+		return fmt.Errorf("provider %q may declare proven orphan roots only at the safe_with_owner tier", m.ID)
+	}
+	if m.DefaultApproval != ApprovalModeOwner && m.DefaultApproval != ApprovalModeOperator {
+		return fmt.Errorf("provider %q must require owner or operator approval to declare proven orphan roots", m.ID)
+	}
+	for _, root := range m.ProvenOrphanRoots {
+		if !filepath.IsAbs(root) {
+			return fmt.Errorf("provider %q proven orphan root %q must be absolute", m.ID, root)
+		}
 	}
 	return nil
 }

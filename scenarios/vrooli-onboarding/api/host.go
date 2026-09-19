@@ -199,20 +199,8 @@ func probeOnboardingTarget(ctx context.Context, reacher onboardingScenarioReache
 func bridgeClientConfig() nodereach.Config {
 	return nodereach.Config{
 		Token:         firstNonEmpty(os.Getenv("VROOLI_BRIDGE_API_TOKEN"), os.Getenv("VROOLI_API_TOKEN")),
-		TokenProvider: resolveLocalOwnerToken,
+		TokenProvider: operatorsession.LocalOwnerTokenProvider(),
 	}
-}
-
-func resolveLocalOwnerToken(_ context.Context) (string, error) {
-	store, err := operatorsession.DefaultFileStore()
-	if err != nil {
-		return "", nil
-	}
-	resolution, err := (operatorsession.LocalResolver{Store: store}).Resolve()
-	if err != nil || strings.TrimSpace(resolution.Token) == "" {
-		return "", nil
-	}
-	return operatorsession.LocalSessionScheme + " " + resolution.Token, nil
 }
 
 func firstNonEmpty(values ...string) string {

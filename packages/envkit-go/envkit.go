@@ -114,7 +114,43 @@ func keepInherited(key string, relationship Relationship, platform Platform) boo
 	if isNonInheritableIdentity(normalized) {
 		return relationship == DelegatedAgent && normalized == "VROOLI_AGENT_IDENTITY_TOKEN"
 	}
+	// A caller session variable describes the terminal or agent session that
+	// ran a command, not the process the command starts. A scenario or resource
+	// started from an agent terminal is not part of that session, so it must not
+	// carry the session's socket, token, or state directories. A delegated
+	// agent is the exception: its launcher composes the session it is meant to
+	// run in (cli-core's agent launcher derives the per-session agent home from
+	// exactly these variables) and passes it deliberately.
+	if isCallerSession(normalized) {
+		return relationship == SameScenario || relationship == DelegatedAgent
+	}
 	return true
+}
+
+func isCallerSession(key string) bool {
+	switch key {
+	// Terminal multiplexers and remote shells.
+	case "TMUX", "TMUX_PANE", "STY", "TERM_PROGRAM", "TERM_PROGRAM_VERSION",
+		"SSH_CLIENT", "SSH_CONNECTION", "SSH_TTY":
+		return true
+	// Claude Code session plumbing.
+	case "CLAUDECODE", "CLAUDE_PID", "CLAUDE_EFFORT",
+		"CLAUDE_CODE_ENTRYPOINT", "CLAUDE_CODE_EXECPATH", "CLAUDE_CODE_CHILD_SESSION",
+		"CLAUDE_CODE_SESSION_ATTENDED", "CLAUDE_CODE_MESSAGING_SOCKET",
+		"CLAUDE_CODE_MESSAGING_TOKEN":
+		return true
+	// Codex session plumbing. CODEX_HOME is session-scoped when a web-console
+	// terminal launches Codex.
+	case "CODEX_SESSION_ID", "CODEX_CI", "CODEX_HOME", "CODEX_MANAGED_BY_NPM",
+		"CODEX_MANAGED_PACKAGE_ROOT":
+		return true
+	// Vrooli agent and web-console terminal session markers.
+	case "VROOLI_AGENT_SESSION", "WC_WEB_CONSOLE_SESSION_ID", "WC_SESSION_STATE_ROOT",
+		"WC_CODEX_SESSIONS_DIR":
+		return true
+	default:
+		return false
+	}
 }
 
 func isNonInheritableIdentity(key string) bool {

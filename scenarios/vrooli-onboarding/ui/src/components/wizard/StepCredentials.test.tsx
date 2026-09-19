@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from "../../test-utils";
 import { renderWithProviders } from "@vrooli/api-base/testing";
 import { Code, ConnectError } from "@connectrpc/connect";
-import { vi } from "vitest";
+import { beforeEach, vi } from "vitest";
 import { StepCredentials } from "./StepCredentials";
 
 const readinessApi = vi.hoisted(() => ({ fetchReadiness: vi.fn() }));
@@ -16,6 +16,10 @@ vi.mock("../../api/operatorinputs", () => operatorInputsApi);
 vi.mock("../../api/auth", () => authApi);
 
 describe("StepCredentials", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("renders the owner purpose and declared acquisition link", async () => {
     readinessApi.fetchReadiness.mockResolvedValue({
       status: "ready",
@@ -39,6 +43,7 @@ describe("StepCredentials", () => {
     expect(screen.getByRole("searchbox", { name: "Search credential inputs" })).toBeInTheDocument();
     expect(screen.getByTestId("credential-filter")).toBeInTheDocument();
     expect(screen.getByTestId("credential-sort")).toBeInTheDocument();
+
   });
 
   it("renders the credential rows from readiness while the richer inventory is still loading", async () => {
@@ -64,6 +69,14 @@ describe("StepCredentials", () => {
     expect(screen.getByTestId("credential-input")).toHaveAttribute("placeholder", "mail-api-key-example");
     expect(screen.getByRole("button", { name: "Save securely" })).toBeInTheDocument();
     expect(screen.queryByRole("status", { name: "Checking credential requirements…" })).not.toBeInTheDocument();
+
+    credentialsApi.provisionCredential.mockResolvedValueOnce({ status: "provisioned" });
+    fireEvent.change(screen.getByTestId("credential-input"), { target: { value: "mailgun-api-key" } });
+    fireEvent.click(screen.getByTestId("credential-save"));
+    expect(await screen.findByTestId("credential-save-success")).toHaveTextContent("Mail API key was stored securely");
+    await waitFor(() => expect(screen.queryByTestId("credential-save")).not.toBeInTheDocument());
+    expect(screen.getByTestId("credential-reveal")).toBeInTheDocument();
+    expect(screen.queryByTestId("credential-recovery-dialog")).not.toBeInTheDocument();
   });
 
   it("explains operator authentication failures and offers recovery actions", async () => {

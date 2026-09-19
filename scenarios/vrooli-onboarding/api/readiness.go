@@ -454,7 +454,10 @@ func credentialMetadataInventory(closure closureResult) ([]credentialReadiness, 
 }
 
 func credentialReadinessInventoryContext(ctx context.Context, closure closureResult) ([]credentialReadiness, error) {
-	return credentialReadinessInventoryContextWithOptions(ctx, closure, false)
+	// The interactive credentials screen must read back optional values too.
+	// Otherwise a successfully provisioned optional credential is rendered as
+	// deferred after reload, making a durable write look like it disappeared.
+	return credentialReadinessInventoryContextWithOptions(ctx, closure, true)
 }
 
 // credentialReadinessInventoryForApply uses the same contextual projection as

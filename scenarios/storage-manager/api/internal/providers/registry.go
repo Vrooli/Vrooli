@@ -138,6 +138,16 @@ func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 	if deps.OrphanedDatabaseProvider != nil {
 		providers = append(providers, deps.OrphanedDatabaseProvider)
 	}
+	// Non-live instance storage is only discoverable with the scenario
+	// inventory and a liveness source. Without either, registering the provider
+	// would put a detector in the catalog that can never prove an orphan.
+	if deps.InstanceLiveness != nil && len(deps.InstanceNamespaceRoots) > 0 && len(deps.KnownScenarios) > 0 {
+		providers = append(providers, NewOrphanedInstanceStorageProvider(deps.FileSystem, deps.InstanceLiveness, deps.Clock, OrphanedInstanceStorageProviderConfig{
+			NamespaceRoots: deps.InstanceNamespaceRoots,
+			KnownScenarios: deps.KnownScenarios,
+			Quarantine:     deps.InstanceStorageQuarantine,
+		}))
+	}
 
 	for _, provider := range providers {
 		if err := cleanup.ValidateProvider(provider); err != nil {
@@ -177,7 +187,13 @@ type BuiltInDeps struct {
 	GovernedRootProviders    []FileProviderConfig
 	GovernedRootSpecs        []RootSpec
 	OrphanedDatabaseProvider cleanup.Provider
-	Saturated                func(context.Context) (bool, error)
+	// InstanceLiveness, InstanceNamespaceRoots, and KnownScenarios together
+	// enable the orphaned non-live instance storage provider.
+	InstanceLiveness          InstanceLiveness
+	InstanceNamespaceRoots    []InstanceNamespaceRoot
+	KnownScenarios            []string
+	InstanceStorageQuarantine string
+	Saturated                 func(context.Context) (bool, error)
 	// RemovalLedger makes reclamations attributable. A built-in that deletes
 	// install-root artifacts refuses to run without it.
 	RemovalLedger *artifactledger.Ledger

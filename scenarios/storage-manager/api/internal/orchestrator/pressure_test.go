@@ -30,6 +30,7 @@ type tierProvider struct {
 	ownerBudget   bool
 	zeroReclaim   bool
 	oneShot       bool
+	provenRoots   []string
 
 	mu          sync.Mutex
 	applied     bool
@@ -94,6 +95,7 @@ func (p *tierProvider) Metadata() cleanup.ProviderMetadata {
 		TestSubstitute:      "tier-provider",
 		RegenerableProof:    cleanup.RegenerableProof{Derived: true, ToolRecreates: true, ExactRoot: true, NoLease: p.tier == cleanup.SafetyTierRegenerable},
 		NoLease:             p.tier == cleanup.SafetyTierRegenerable,
+		ProvenOrphanRoots:   p.provenRoots,
 	}
 }
 
@@ -1192,4 +1194,58 @@ func TestReportPressure_ClassifiesCallerErrors(t *testing.T) {
 			t.Errorf("err = %v, want it to wrap ErrInvalidPressureSignal", err)
 		}
 	})
+}
+
+// A provider that proves a specific orphan inside a protected root is the one
+// caller the protection filter must let through. Without the exemption the
+// provider runs, finds the orphan, and the plan reports nothing -- a detector
+// that is silently disarmed by the boundary it was written to work inside.
+func TestPlanSurfacesProvenOrphanInsideProtectedRoot(t *testing.T) {
+	protectedRoot := filepath.Join(t.TempDir(), "data")
+	namespaceRoot := filepath.Join(protectedRoot, "vrooli")
+	provider := &tierProvider{
+		id:          "orphaned-instance-storage",
+		tier:        cleanup.SafetyTierSafeWithOwner,
+		approval:    cleanup.ApprovalModeOwner,
+		previewPath: filepath.Join(namespaceRoot, "web-console_presentation"),
+		provenRoots: []string{namespaceRoot},
+	}
+	svc := newPressureService(t, provider)
+	if err := svc.SetProtectedRoots([]string{protectedRoot}); err != nil {
+		t.Fatalf("SetProtectedRoots: %v", err)
+	}
+
+	plan, err := svc.planSync(context.Background(), "census-proven-orphan", cleanup.ObservationScope{})
+	if err != nil {
+		t.Fatalf("planSync: %v", err)
+	}
+	if len(plan.Providers) != 1 || len(plan.Providers[0].Preview.Items) != 1 {
+		t.Fatalf("plan providers = %#v, want the proven orphan surfaced", plan.Providers)
+	}
+}
+
+// The exemption is strict containment. A declared root is not a licence to
+// prune the protected tree it lives in.
+func TestPlanStillFiltersProtectedRootItselfForProvenOrphanProvider(t *testing.T) {
+	protectedRoot := filepath.Join(t.TempDir(), "data")
+	namespaceRoot := filepath.Join(protectedRoot, "vrooli")
+	provider := &tierProvider{
+		id:          "orphaned-instance-storage",
+		tier:        cleanup.SafetyTierSafeWithOwner,
+		approval:    cleanup.ApprovalModeOwner,
+		previewPath: namespaceRoot,
+		provenRoots: []string{namespaceRoot},
+	}
+	svc := newPressureService(t, provider)
+	if err := svc.SetProtectedRoots([]string{protectedRoot}); err != nil {
+		t.Fatalf("SetProtectedRoots: %v", err)
+	}
+
+	plan, err := svc.planSync(context.Background(), "census-proven-orphan-root", cleanup.ObservationScope{})
+	if err != nil {
+		t.Fatalf("planSync: %v", err)
+	}
+	if len(plan.Providers) != 1 || len(plan.Providers[0].Preview.Items) != 0 {
+		t.Fatalf("plan providers = %#v, want the declared root itself still filtered", plan.Providers)
+	}
 }

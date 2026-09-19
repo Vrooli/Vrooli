@@ -329,7 +329,32 @@ func resolveExistingPreviewPath(candidate string) (string, bool) {
 	}
 }
 
-func (s *Service) filterProtectedPreview(preview cleanup.Preview) (cleanup.Preview, bool) {
+// provenOrphanExempt reports whether meta authorizes surfacing candidate inside
+// a protected root.
+//
+// The exemption is strict containment: a declared root itself, or any ancestor
+// of it, is never exempt, so a declaration can never widen into a licence to
+// prune the protected tree wholesale.
+func provenOrphanExempt(meta cleanup.ProviderMetadata, candidate string) bool {
+	if len(meta.ProvenOrphanRoots) == 0 || !filepath.IsAbs(candidate) {
+		return false
+	}
+	paths := []string{filepath.Clean(candidate)}
+	if resolved, ok := resolveExistingPreviewPath(candidate); ok {
+		paths = append(paths, resolved)
+	}
+	for _, root := range meta.ProvenOrphanRoots {
+		root = filepath.Clean(root)
+		for _, path := range paths {
+			if coreRetention.PathContains(root, path) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (s *Service) filterProtectedPreview(meta cleanup.ProviderMetadata, preview cleanup.Preview) (cleanup.Preview, bool) {
 	s.protectionMu.RLock()
 	roots := append([]string(nil), s.protectedRoots...)
 	s.protectionMu.RUnlock()
@@ -340,6 +365,10 @@ func (s *Service) filterProtectedPreview(preview cleanup.Preview) (cleanup.Previ
 	out.Items = out.Items[:0]
 	filtered := false
 	for _, item := range preview.Items {
+		if provenOrphanExempt(meta, item.Path) {
+			out.Items = append(out.Items, item)
+			continue
+		}
 		if protectedPreviewPathOverlap(item.Path, roots) {
 			filtered = true
 			out.Warnings = append(out.Warnings, "protected contract path excluded from cleanup preview")
@@ -575,7 +604,7 @@ func (s *Service) planSync(ctx context.Context, censusID string, scope cleanup.O
 			return Plan{}, fmt.Errorf("preview %s: %w", meta.ID, err)
 		}
 		var filtered bool
-		preview, filtered = s.filterProtectedPreview(preview)
+		preview, filtered = s.filterProtectedPreview(meta, preview)
 		if filtered {
 			// Estimate and preview are one checkpoint after contract-protected
 			// items are removed, so a protected path is neither offered as
@@ -670,11 +699,11 @@ func (s *Service) Apply(ctx context.Context, input ApplyInput) (ApplyReport, err
 }
 
 func (s *Service) applyProvider(ctx context.Context, plan Plan, pp ProviderPlan, input ApplyInput) (cleanup.ApplyResult, bool, error) {
-	pp.Preview, _ = s.filterProtectedPreview(pp.Preview)
 	provider, err := s.providerForPlan(pp)
 	if err != nil {
 		return cleanup.ApplyResult{}, false, err
 	}
+	pp.Preview, _ = s.filterProtectedPreview(provider.Metadata(), pp.Preview)
 	oneOffApproval := oneOffConditionalApproval(pp, provider.Metadata(), input)
 	if !providerPolicyRunnable(pp.Policy) && !oneOffApproval {
 		return cleanup.ApplyResult{}, false, nil

@@ -104,6 +104,11 @@ func assessCompletion(readiness readinessResponse, run *applyRun) completionAsse
 		})
 	}
 	for _, host := range readiness.Hosts {
+		// A host safeguard can be validly inapplicable on another OS. It is
+		// evidence that no action is required, not an onboarding blocker.
+		if host.Status == "not_applicable" {
+			continue
+		}
 		if host.Status == "pending" {
 			assessment.Blockers = append(assessment.Blockers, completionBlocker{
 				Kind:        "readiness",

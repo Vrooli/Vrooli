@@ -46,6 +46,18 @@ type scenarioInstallMetadata struct {
 }
 
 func NewScenarioBinariesProvider(files cleanup.FileSystem, liveness cleanup.ProcessLiveness, clock cleanup.Clock, cfg ScenarioBinariesProviderConfig) *ScenarioBinariesProvider {
+	root := filepath.Clean(strings.TrimSpace(cfg.Root))
+	// The runtime home's bin entry is contract-protected, and the orchestrator
+	// drops every preview item inside a protected root. Without this
+	// declaration the provider runs, identifies orphaned binaries, and has
+	// every finding silently discarded — which is the state it was in. The
+	// repository contract's rationale for `bin` names this provider as its
+	// legitimate reclaimer. Strict containment still applies: the root itself
+	// and its ancestors are never exempt.
+	var proven []string
+	if filepath.IsAbs(root) {
+		proven = []string{root}
+	}
 	return &ScenarioBinariesProvider{
 		meta: cleanup.ProviderMetadata{
 			ID:                  "scenario-binaries",
@@ -58,10 +70,11 @@ func NewScenarioBinariesProvider(files cleanup.FileSystem, liveness cleanup.Proc
 			SupportedPlatforms:  []string{"linux", "darwin", "windows"},
 			IrreversibleEffects: []string{"removes an orphaned scenario CLI binary and its build and manifest sidecars"},
 			TestSubstitute:      "fake-filesystem-and-process-liveness",
+			ProvenOrphanRoots:   proven,
 		},
 		files:    files,
 		liveness: liveness,
-		root:     filepath.Clean(strings.TrimSpace(cfg.Root)),
+		root:     root,
 		clock:    clock,
 		ledger:   cfg.Ledger,
 	}

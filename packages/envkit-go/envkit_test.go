@@ -51,6 +51,51 @@ func TestDelegatedAgentPreservesOnlyItsExplicitToken(t *testing.T) {
 	}
 }
 
+// TestCallerSessionStaysWithTheCaller covers a scenario started from an agent
+// terminal. It must not inherit the terminal's session socket, token, or state
+// directories; web-console used an inherited WC_SESSION_STATE_ROOT to find the
+// caller's tmux server.
+func TestCallerSessionStaysWithTheCaller(t *testing.T) {
+	parent := Env{
+		"HOME=/home/op",
+		"PATH=/usr/bin",
+		"SSH_AUTH_SOCK=/run/agent.sock",
+		"CLAUDE_CODE_URL=http://localhost:8100",
+		"TMUX=/sock,1,0",
+		"CLAUDECODE=1",
+		"CLAUDE_CODE_MESSAGING_SOCKET=/run/cc.sock",
+		"CLAUDE_CODE_MESSAGING_TOKEN=secret",
+		"CODEX_HOME=/state/web-console/sessions/codex/abc",
+		"VROOLI_AGENT_SESSION=1",
+		"WC_WEB_CONSOLE_SESSION_ID=abc",
+		"WC_SESSION_STATE_ROOT=/state/web-console/sessions",
+	}
+	callerSession := []string{"TMUX", "CLAUDECODE", "CLAUDE_CODE_MESSAGING_SOCKET", "CLAUDE_CODE_MESSAGING_TOKEN", "CODEX_HOME", "VROOLI_AGENT_SESSION", "WC_WEB_CONSOLE_SESSION_ID", "WC_SESSION_STATE_ROOT"}
+	for _, relationship := range []Relationship{ForeignScenario, Resource} {
+		got := ForChildWithPlatform(parent, relationship, Platform{})
+		for _, key := range callerSession {
+			if contains(got, key) {
+				t.Errorf("%v inherited caller session variable %s", relationship, key)
+			}
+		}
+		for _, key := range []string{"HOME", "PATH", "SSH_AUTH_SOCK", "CLAUDE_CODE_URL"} {
+			if !contains(got, key) {
+				t.Errorf("%v dropped host variable %s", relationship, key)
+			}
+		}
+	}
+	same := ForChildWithPlatform(parent, SameScenario, Platform{})
+	if !contains(same, "WC_SESSION_STATE_ROOT") || !contains(same, "TMUX") {
+		t.Fatalf("same-scenario child lost its own session environment: %#v", same)
+	}
+	// A delegated agent keeps the session its launcher composed for it: the
+	// agent home is derived from WC_SESSION_STATE_ROOT + WC_WEB_CONSOLE_SESSION_ID.
+	delegated := ForChildWithPlatform(parent, DelegatedAgent, Platform{})
+	if !contains(delegated, "WC_SESSION_STATE_ROOT") || !contains(delegated, "WC_WEB_CONSOLE_SESSION_ID") {
+		t.Fatalf("delegated agent lost the session its launcher composed: %#v", delegated)
+	}
+}
+
 func TestWindowsFoldsEnvironmentNames(t *testing.T) {
 	got := WithOverlayWithPlatform(Env{"Path=parent", "PATH=overlay"}, Resource, nil, Platform{CaseInsensitive: true})
 	if len(got) != 1 || got[0] != "PATH=overlay" {

@@ -150,6 +150,7 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
   }, [title, data?.status, plan?.items.length]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [provisioning, setProvisioning] = useState<string | null>(null);
+  const [provisionedCredential, setProvisionedCredential] = useState<string | null>(null);
   const [provisionError, setProvisionError] = useState<ProvisionError | null>(null);
   const [revealedValues, setRevealedValues] = useState<Record<string, string>>({});
   const [revealing, setRevealing] = useState<string | null>(null);
@@ -218,10 +219,15 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
     if (!value) return;
     setProvisioning(key);
     setProvisionError(null);
+    setProvisionedCredential(null);
     try {
       await provisionCredential({ logical_id: logicalID, field, value }, target);
       setValues((current) => ({ ...current, [key]: "" }));
-      await Promise.all([refetch(), refetchCredentials()]);
+      setProvisionedCredential(key);
+      // The write is complete at this point. Refreshing readiness is useful
+      // follow-up work, but it must not delay or hide confirmation of the
+      // successful credential save when either read is slow or unavailable.
+      void Promise.all([refetch(), refetchCredentials()]).catch(() => undefined);
     } catch (error) {
       setProvisionError({
         kind: error instanceof ConnectError && error.code === Code.Unauthenticated ? "operator" : "generic",
@@ -438,6 +444,7 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
         error={credentialListError}
         values={values}
         provisioning={provisioning}
+        lastSavedCredential={provisionedCredential}
         onValueChange={(key, value) => setValues((current) => ({ ...current, [key]: value }))}
         onProvision={(logicalID, field) => { void provision(logicalID, field); }}
         revealedValues={revealedValues}
@@ -541,6 +548,7 @@ function CredentialList({
   error,
   values,
   provisioning,
+  lastSavedCredential,
   onValueChange,
   onProvision,
   revealedValues,
@@ -556,6 +564,7 @@ function CredentialList({
   error: boolean;
   values: Record<string, string>;
   provisioning: string | null;
+  lastSavedCredential: string | null;
   onValueChange: (key: string, value: string) => void;
   onProvision: (logicalID: string, field: string) => void;
   revealedValues: Record<string, string>;
@@ -575,7 +584,7 @@ function CredentialList({
   const visibleCredentials = useMemo(() => {
     const query = search.trim().toLowerCase();
     const filtered = credentials.filter((credential) => {
-      const stored = credential.status === "configured";
+      const stored = credential.status === "configured" || `${credential.logical_id}/${credential.field}` === lastSavedCredential;
       const attention = credentialNeedsAttention(credential);
       const matchesFilter = filter === "all"
         || (filter === "attention" && attention)
@@ -594,7 +603,7 @@ function CredentialList({
         || Number(right.required) - Number(left.required)
         || (left.label || left.field).localeCompare(right.label || right.field);
     });
-  }, [credentials, filter, search, sort]);
+  }, [credentials, filter, lastSavedCredential, search, sort]);
   return <section className="credential-list" data-testid="credential-list" aria-labelledby="credential-list-title">
     <div className="credential-list__heading">
       <div>
@@ -623,14 +632,17 @@ function CredentialList({
     {!loading && !error && credentials.length > 0 && <ul className="credential-list__items">{visibleCredentials.map((credential) => {
       const key = `${credential.logical_id}/${credential.field}`;
       const componentSupplied = credential.provisioning === "derived" || credential.provisioning === "generated";
-      const stored = credential.status === "configured";
+      const justSaved = key === lastSavedCredential;
+      const stored = credential.status === "configured" || justSaved;
       const verified = credential.evidence_status === "verified";
       const canProvision = !componentSupplied && !stored;
       const checking = credential.status === "pending";
       const deferred = credential.status === "deferred";
       const revealable = stored && !componentSupplied;
       const revealValue = revealedValues[key];
-      const evidenceLabel = deferred
+      const evidenceLabel = justSaved
+        ? `${i18n.t("onboarding.readiness.credentialStored")} · ${i18n.t("onboarding.readiness.credentialVerificationPending")}`
+        : deferred
         ? i18n.t("onboarding.readiness.credentialDeferred")
         : checking
         ? i18n.t("onboarding.readiness.credentialChecking")
@@ -641,7 +653,9 @@ function CredentialList({
         : stored
           ? `${i18n.t("onboarding.readiness.credentialStored")} · ${i18n.t("onboarding.readiness.credentialVerificationPending")}`
           : i18n.t("onboarding.readiness.credentialVerificationUnavailable");
-      const taskStatus: SetupTaskStatus = checking
+      const taskStatus: SetupTaskStatus = justSaved
+        ? "ready"
+        : checking
         ? "checking"
         : credential.status === "unsupported"
           ? "unavailable"
@@ -669,7 +683,7 @@ function CredentialList({
               </InputGroup.Field>
               <InputGroup.Segment side="trailing" emphasis="solid" aria-label={provisioning === key ? i18n.t("onboarding.readiness.saving") : i18n.t("onboarding.readiness.saveSecurely")} title={provisioning === key ? i18n.t("onboarding.readiness.saving") : i18n.t("onboarding.readiness.saveSecurely")} testId="credential-save" onClick={() => onProvision(credential.logical_id, credential.field)} disabled={!values[key]?.trim() || provisioning === key}>
                 {provisioning === key ? <Loader2 className="credential-list__save-icon credential-list__save-icon--loading" aria-hidden="true" /> : <Save className="credential-list__save-icon" aria-hidden="true" />}
-                <span className="sr-only">{provisioning === key ? i18n.t("onboarding.readiness.saving") : i18n.t("onboarding.readiness.saveSecurely")}</span>
+                <span className={provisioning === key ? "text-xs font-medium" : "sr-only"}>{provisioning === key ? i18n.t("onboarding.readiness.saving") : i18n.t("onboarding.readiness.saveSecurely")}</span>
               </InputGroup.Segment>
             </InputGroup> : revealable ? (
               <div className="credential-list__reveal">
@@ -686,6 +700,7 @@ function CredentialList({
             ) : undefined}
           >
             {credential.description && <p className="credential-list__item-copy" data-testid="credential-purpose">{credential.description}</p>}
+            {justSaved && <p className="mt-3 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary" data-testid="credential-save-success" role="status">{i18n.t("onboarding.readiness.credentialSaved", { label: credential.label || credential.field })}</p>}
             {credential.provisioning === "derived" && <p className="credential-list__item-copy">{i18n.t("onboarding.readiness.derived", { source: credential.derived_from || "the owning component" })}</p>}
             {credential.provisioning === "generated" && <p className="credential-list__item-copy">{i18n.t("onboarding.readiness.generated")}</p>}
             {credential.detail && <p className="credential-list__item-copy">{credential.detail}</p>}

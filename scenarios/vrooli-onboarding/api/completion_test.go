@@ -128,6 +128,15 @@ func TestAssessCompletionAcceptsNotApplicableApplyItems(t *testing.T) {
 	}
 }
 
+func TestAssessCompletionIgnoresNotApplicableHostRequirements(t *testing.T) {
+	assessment := assessCompletion(readinessResponse{Hosts: []hostReadiness{
+		host("graphical_session", "safeguard", "not_applicable", true),
+	}}, nil)
+	if len(assessment.Blockers) != 0 || len(assessment.Degraded) != 0 {
+		t.Fatalf("not-applicable host blocked completion: %+v / %+v", assessment.Blockers, assessment.Degraded)
+	}
+}
+
 // [REQ:ONB-READY-DEGRADED-CONTINUE]
 // The acknowledgement names the exact degraded set it accepted, so accepting
 // one gap cannot authorise completion over a different one later.

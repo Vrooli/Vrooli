@@ -389,3 +389,29 @@ func TestFirstObservationNeverReclaims(t *testing.T) {
 		t.Fatal("the refusal produced no reason")
 	}
 }
+
+// scenario-binaries reclaims inside the runtime home's contract-protected `bin`
+// entry, which the repository contract names it as the legitimate reclaimer
+// for. Without a declared proven-orphan root the orchestrator silently drops
+// every item it finds, so the provider runs, reports nothing, and the bytes
+// stay on disk — the state it was in until 2026-09-17.
+func TestScenarioBinariesDeclaresItsProtectedRoot(t *testing.T) {
+	provider := NewScenarioBinariesProvider(nil, nil, nil, ScenarioBinariesProviderConfig{Root: "/home/someone/.vrooli/bin"})
+	meta := provider.Metadata()
+	if len(meta.ProvenOrphanRoots) != 1 || meta.ProvenOrphanRoots[0] != "/home/someone/.vrooli/bin" {
+		t.Fatalf("proven orphan roots = %#v, want the configured bin root", meta.ProvenOrphanRoots)
+	}
+	// The declaration is an authority to act inside a protected tree, so it
+	// must keep the tier and approval the validator requires.
+	if err := meta.Validate(); err != nil {
+		t.Fatalf("metadata invalid: %v", err)
+	}
+
+	// A relative or empty root must not become a declaration at all.
+	for _, root := range []string{"", "relative/bin"} {
+		got := NewScenarioBinariesProvider(nil, nil, nil, ScenarioBinariesProviderConfig{Root: root}).Metadata()
+		if len(got.ProvenOrphanRoots) != 0 {
+			t.Errorf("root %q produced roots %#v; only absolute roots may be declared", root, got.ProvenOrphanRoots)
+		}
+	}
+}
