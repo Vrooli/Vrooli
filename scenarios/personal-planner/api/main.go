@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"personal-planner/internal/capabilities"
+
 	"personal-planner/internal/modules"
 	"personal-planner/internal/server"
 
@@ -22,9 +22,14 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
-	capsH "personal-planner/handlers/capabilities"
+	calendarH "personal-planner/handlers/calendar"
+	focusH "personal-planner/handlers/focus"
+	goalsH "personal-planner/handlers/goals"
 	healthH "personal-planner/handlers/health"
-	notesH "personal-planner/handlers/notes" // EXAMPLE-DOMAIN:notes
+	integrationsH "personal-planner/handlers/integrations"
+	reviewH "personal-planner/handlers/review"
+	workH "personal-planner/handlers/work"
+	workspaceH "personal-planner/handlers/workspace"
 )
 
 // scenarioStorageRoots resolves all filesystem storage classes once at
@@ -74,8 +79,13 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "personal-planner-api", "1.0.0"),
-		capsH.Module(capabilities.NewRegistry()),
-		notesH.Module(db, schedule.System(), log.Default()), // EXAMPLE-DOMAIN:notes
+		focusH.Module(db, schedule.System(), log.Default()),
+		calendarH.Module(db, schedule.System(), log.Default()),
+		goalsH.Module(db, schedule.System(), log.Default()),
+		integrationsH.Module(db, schedule.System(), log.Default()),
+		reviewH.Module(db, schedule.System(), log.Default()),
+		workH.Module(db, schedule.System(), log.Default()),
+		workspaceH.Module(db, schedule.System(), log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -83,19 +93,6 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, schedule.System())
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
 
 	rootMux.Handle("/", srv.Handler())
 	authConfig, err := authn.FromEnvironment(os.Getenv)

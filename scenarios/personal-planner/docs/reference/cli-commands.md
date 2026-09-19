@@ -110,11 +110,11 @@ Read values back without an argument:
 personal-planner configure api_base
 ```
 
-## Scenario commands — planned domain verbs (target contract)
+## Scenario commands — implemented and planned domain verbs
 
-> **Status: planned.** Only the built-in commands above and the removable
-> `notes` group below exist in the scaffold today. The verbs in this
-> section describe the **target** CLI surface derived from the
+> **Status: mixed.** The built-in commands and the implemented product domain
+> groups are real; the remaining verbs in this section describe the **target**
+> CLI surface derived from the
 > implementation plan (§21.1) — recommended logical names to map into the
 > manifest as each domain lands, not commands that already exist.
 
@@ -124,18 +124,30 @@ endpoint and renders the result through one of the three output
 contracts below, mirroring the endpoints it calls in
 [`api-endpoints.md`](api-endpoints.md).
 
+### `personal-planner calendar carry-forward`
+
+Carry one accepted placement to a selected local date. The API preserves the
+source allocation as history and creates one new accepted placement; retrying
+the same source returns the existing carried placement.
+
+```bash
+personal-planner calendar carry-forward \
+  --allocation-id <id> --target-date 2026-09-22 --start-minute 660
+```
+
 The planned scenario verbs (plan §21.1 naming suggestions) group as:
 
 | Group | Planned commands | Mirrors |
 |---|---|---|
 | `schedule` | `schedule query` | `CalendarService.QueryRange` and allocate/split/move/lock operations |
 | `capacity` | `capacity explain` | `CapacityService.Explain` (known/unknown/fragmentation, not one percentage) |
-| `work` | `work capture`, `work revise-remaining` | `WorkService.Capture`, `WorkService.UpdateRemaining` |
+| `work` | `work list`, `work create`, `work get`, `work plan` | `WorkService.ListWorkItems`, `CreateWork`, `GetWork`, `GetTodayPlan` |
 | `proposal` | `proposal create`, `proposal inspect`, `proposal apply` | `PlanningService.GenerateProposal` / `GetProposal` / `ApplyProposal` |
 | `forecast` | `forecast inspect` | `ForecastsService.GetLatest` / `GetExplanation` |
-| `focus` | `focus start`, `focus pause`, `focus finish` | `FocusService.StartSession` / `PauseSession` / `FinishSession` |
-| `actuals` | `actuals record` | `FocusService.AddActual` |
-| `review` | `review summarize` | `ReviewService.GetDailySummary` / `GetWeeklySummary` |
+| `focus` | `focus current`, `focus start`, `focus pause`, `focus resume`, `focus end`, `focus record-actual`, `focus actuals`, `focus corrections`, `focus correct-actual` | `FocusService.GetCurrentSession` / `StartFocus` / `PauseFocus` / `ResumeFocus` / `EndFocus` / `RecordManualActual` / `ListActuals` / `ListActualCorrections` / `CorrectActual` |
+| `integrations` | `integrations list`, `integrations create-fixture`, `integrations sync`, `integrations disconnect` | `IntegrationsService.ListConnections` / `CreateFixtureConnection` / `SyncConnection` / `DisconnectConnection` |
+| `goals` | `goals list`, `goals create`, `goals progress`, `goals milestones`, `goals create-milestone`, `goals complete-milestone` | `GoalsService.ListGoals` / `CreateGoal` / `UpdateGoalProgress` / `ListMilestones` / `CreateMilestone` / `UpdateMilestoneStatus`; create supports `manual` or `milestones` progress, and milestone creation accepts comma-separated prerequisite ids. |
+| `review` | `review daily`, `review weekly`, `review reflection`, `review save-reflection` | `ReviewService.GetDailySummary` / `GetWeeklySummary` / `GetReflection` / `SaveReflection` |
 | `commitment` | `commitment inspect` | `CommitmentsService.InspectCommitment` |
 
 **UI / CLI / tool parity is a hard rule** (plan §21.1): these verbs, the
@@ -164,59 +176,6 @@ the one multipart-upload REST exception. It is **not** product scope — it
 is a copyable reference removed by `template-manager detemplate
 personal-planner` once the first real domain is green. Copy its layout
 when adding a real domain, then delete it.
-
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The `notes` domain is the canonical worked example. Copy its layout
-when adding the first non-trivial domain to your scenario, then remove
-it.
-
-#### `personal-planner notes list`
-
-List notes, newest-first. Calls the generated Connect-RPC
-`Notes/List` method. Uses the
-**data-retrieval contract**: `Summary → Results → Retrieval Hints`.
-
-```bash
-personal-planner notes list
-personal-planner notes list --json
-```
-
-#### `personal-planner notes create --title <title> [--body <body>]`
-
-Create a note. Calls the generated Connect-RPC `Notes/Create` method. Uses the **mutation
-contract**: `Result → What Changed → Next Command`.
-
-```bash
-personal-planner notes create --title "First note" --body "Hello world"
-```
-
-`--title` is required. `--body` is optional. Validation lives in the
-API service, so an empty title surfaces as an `invalid_argument`
-Connect error rather than a CLI-side check.
-
-#### `personal-planner notes get <id>`
-
-Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
-
-```bash
-personal-planner notes get abc123
-```
-
-A non-existent id surfaces as `not_found`; the CLI translates the
-typed Connect code to an actionable error message.
-
-#### `personal-planner notes attach <id> --file <path>`
-
-Attach a file to a note. This is the documented REST multipart
-exception because the request body contains opaque bytes. The response
-is proto-typed attachment metadata.
-
-```bash
-personal-planner notes attach abc123 --file ./example.png
-```
-<!-- EXAMPLE-DOMAIN:notes END -->
 
 ## Output contracts
 

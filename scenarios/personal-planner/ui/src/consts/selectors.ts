@@ -23,29 +23,6 @@ const literalSelectors = {
   notifications: {
     summary: "notifications-summary",
   },
-  // EXAMPLE-DOMAIN:notes START
-  notes: {
-    surface: "notes-surface",
-    card: "notes-card",
-    list: "notes-list",
-    loading: "notes-loading",
-    empty: "notes-empty",
-    error: "notes-error",
-    createButton: "notes-create-button",
-    createdAt: "notes-created-at",
-    attachmentCount: "notes-attachment-count",
-    attachmentUpload: "notes-attachment-upload",
-    attachmentFile: "notes-attachment-file",
-    attachmentButton: "notes-attachment-button",
-    attachmentStatus: "notes-attachment-status",
-    measure: {
-      card: "notes-measure-card",
-      value: "notes-measure-value",
-      loading: "notes-measure-loading",
-      error: "notes-measure-error",
-    },
-  },
-  // EXAMPLE-DOMAIN:notes END
   layout: {
     // The library AppShell derives every part id from the root id it is given.
     shell: "layout-shell",
@@ -60,10 +37,14 @@ const literalSelectors = {
     localeSelect: "page-settings-locale",
   },
   pages: {
-    dashboard: "page-dashboard",
+    dashboard: "page-today",
+    today: "page-today",
     dashboardHeader: "page-dashboard-header",
     dashboardPlaceholder: "page-dashboard-placeholder",
-    notes: "page-notes", // EXAMPLE-DOMAIN:notes
+    plan: "page-plan",
+    goals: "page-goals",
+    focus: "page-focus",
+    review: "page-review",
     settings: "page-settings",
   },
   errorBoundary: {
@@ -82,7 +63,10 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
-            "notes", // EXAMPLE-DOMAIN:notes
+            "plan",
+            "goals",
+            "focus",
+            "review",
             "settings",
           ] as const,
         },
@@ -94,12 +78,24 @@ const dynamicSelectorDefinitions = {
       params: {
         key: {
           type: "enum",
-          values: [
+        values: [
             "dashboard",
-            "notes", // EXAMPLE-DOMAIN:notes
+            "plan",
+            "goals",
+            "focus",
+            "review",
             "settings",
           ] as const,
         },
+      },
+    }),
+  },
+  settingsPage: {
+    themeOption: defineDynamicSelector({
+      description: "Appearance choice by canonical theme value",
+      testIdPattern: "page-settings-theme-option-${choice}",
+      params: {
+        choice: { type: "enum", values: ["light", "dark", "system"] as const },
       },
     }),
   },

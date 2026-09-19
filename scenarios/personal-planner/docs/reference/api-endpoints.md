@@ -54,9 +54,11 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ## Planned product service surface (target contract)
 
-> **Status: planned.** Only `health` (above) and the removable `notes`
-> example (below) exist in the scaffold today. Everything in this section
-> describes the **target** Connect-RPC surface derived from the
+> **Status: incrementally implemented.** `health`, work, calendar, workspace,
+> focus, goals, review, and the provider-connection read model are now real
+> Connect-RPC surfaces. The remaining
+> rows are still target contract work; this section describes the **target**
+> surface derived from the
 > implementation plan's logical endpoint inventory (plan §20.2). The
 > route names are illustrative logical operations under the versioned
 > `vrooli.personal_planner.v1.<domain>` namespace — not assertions that
@@ -99,18 +101,17 @@ One `<Domain>Service` per product domain, mounted at
 | Domain (service) | Key planned operations | Notable behavior |
 |---|---|---|
 | workspace | `GetProfile`, `UpdateProfile`, `ListAvailabilityRules`, `UpdateAvailabilityRule`, `UpdateAvailabilityException`, `GetAppearance`, `UpdateAppearance` | Preview material capacity effects before broad policy changes; accepted settings invalidate proposals. |
-| work | `CreateWork`, `GetWork`, `UpdateWork`, `ArchiveWork`, `ReviseEffort`, `UpdateRemaining`, `CompleteWork`, `ReopenWork`, `Capture` | Estimate / remaining / actual never collapse; completion is explicit; source-owned status routes through its owner. |
-| calendar | `QueryRange`, `CreateEvent`, `UpdateEvent`, `CancelEvent`, `CreateRoutine`, `UpdateRoutine`, `MoveOccurrence`, `SkipOccurrence`, `AllocateDate`, `AllocateTimed`, `SplitAllocation`, `MoveAllocation`, `LockAllocation`, `ReleaseAllocation` | Split/move conserve demand (not delete-plus-create); recurring edits require instance/series scope. |
-| goals | `CreateGoal`, `UpdateGoal`, `RecordOutcomeProgress`, `LinkWork`, `CreateMilestone`, `CompleteMilestone` | Achievement is never derived from elapsed time alone. |
+| work | `CreateWork`, `GetWork`, `ListWorkItems`, `GetTodayPlan`, `UpdateWork`, `ArchiveWork`, `ReviseEffort`, `UpdateRemaining`, `CompleteWork`, `ReopenWork`, `Capture` | Estimate / remaining / actual never collapse; completion is explicit; Today/Plan projections are labeled until schedule data exists. |
+| calendar | `ListTodayAllocations`, `ListAllocations`, `CreateAllocation`, `CarryForwardAllocation`, `ListRoutines`, `CreateRoutine`, `ListRoutineOccurrences`, `SkipRoutineOccurrence`, `RescheduleRoutineOccurrence` | Accepted allocations are durable, non-overlapping, and distinct from work recommendations. Carry-forward preserves the original as history, creates one new accepted placement transactionally, and is idempotent on retry. Native routines expand in local time and support revision-checked overrides. Today capacity reports active imported busy minutes/events and unions them with accepted work without double-counting overlap; provider recurrence remains open. |
+| goals | `ListGoals`, `CreateGoal`, `UpdateGoalProgress`, `ListMilestones`, `CreateMilestone`, `UpdateMilestoneStatus` | Goals choose manual or milestone-derived progress; milestones carry criteria, due dates, optional validated work-item links, prerequisite edges, and revision-safe completion blocked until prerequisites are complete. |
 | commitments | `CreateDraft`, `AcceptPromise`, `ProposeRevision`, `AcceptRevision`, `Withdraw`, `ListHistory`, `InspectCommitment` | A forecast update can never invoke revision acceptance. |
 | capacity | `Query`, `Explain` | Returns known + unknown quantities and fragmentation, not one ambiguous percentage. |
 | planning | `GenerateProposal`, `GetProposal`, `CompareProposal`, `RejectProposal`, `ApplyProposal`, `UndoApplication`, `WhatIf` | Generation may be async; apply reloads the stored proposal, revalidates, and commits atomically. |
 | forecasts | `GetLatest`, `RequestRecompute`, `GetSnapshot`, `GetHistory`, `GetExplanation` | Freshness + model/scenario labels accompany every result; no accepted allocations created. |
-| focus | `StartSession`, `PauseSession`, `ResumeSession`, `ChangePhase`, `FinishSession`, `GetCurrentSession` | One authoritative session per person; transitions carry an expected session revision. |
-| focus (actuals) | `AddActual`, `CorrectActual`, `ClassifyActual`, `RemoveActual` | Provenance and coverage survive corrections; overlaps are checked. |
-| review | `GetDailySummary`, `GetWeeklySummary`, `SaveReflection`, `ListInsights`, `InspectInsight`, `AcceptAdjustment`, `DismissInsight`, `ResetDerivedProfile` | No mandatory completion ceremony; accepting an insight is a separate auditable setting change. |
+| focus | `StartFocus`, `PauseFocus`, `ResumeFocus`, `EndFocus`, `GetCurrentSession`, `RecordManualActual`, `ListActuals`, `ListActualCorrections`, `CorrectActual` | One authoritative current session; transitions carry an expected session revision. Manual/approximate actuals are local-date records, and bounded correction history exposes preserved before/after provenance. |
+| review | `GetDailySummary`, `GetWeeklySummary`, `GetReflection`, `SaveReflection`, `ListInsights`, `InspectInsight`, `AcceptAdjustment`, `DismissInsight`, `ResetDerivedProfile` | Daily/weekly summaries combine focus-session and manual-actual time, keep focus-session counts separate, and label planned/unrecorded coverage honestly. The current UI offers selective carry-forward through Calendar with a target-day capacity preview and durable optional daily reflection; learning insights remain open. |
 | integrations (sources) | `RegisterSource`, `IngestIntent`, `IngestChange`, `QueryScheduleProjection` | Registration is privileged; app scope cannot become whole-workspace access by default. |
-| integrations (providers) | `InitiateConnection`, `HandleCallback` *(REST redirect exception)*, `ListCalendars`, `SelectCalendars`, `Sync`, `Disconnect` | No provider write endpoints in R1; secrets are never returned to the UI. |
+| integrations (providers) | `ListConnections`, `CreateFixtureConnection`, `SyncConnection`, `DisconnectConnection` | The provider-neutral read model and synthetic fixture adapter are real; live OAuth/callback, credential-owner storage, calendar selection, imported-event projections, and provider write endpoints remain open. Secrets are never returned to the UI. |
 | sharing | `PreviewProjection`, `CreateGrant`, `RedeemGrant`, `RevokeGrant`, `ListOwnerGrants`, `ViewGrantedRecords` | Separate viewer DTOs and authorization path; server-side field masks. |
 | notifications | `GetPreferences`, `UpdatePreferences`, `ListNotices`, `AcknowledgeNotice` | Delivery and read state are separate. |
 | workspace (data/ops) | `Export`, `ValidateImport`, `ApplyImport`, `RequestDeletion`, `GetJobStatus` | Native restore/import requires preview then explicit apply. |
@@ -150,109 +151,6 @@ a copyable reference removed by `template-manager detemplate
 personal-planner` once the first real domain is green. Copy its layering
 (thin Connect handler, service-owned validation, generated types) when
 adding a real domain, then delete it.
-
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The `notes` domain is the canonical worked example. Copy its layering
-when adding the first non-trivial mutation in your scenario, then
-remove it.
-
-#### `POST /vrooli.personal_planner.v1.notes.NotesService/ListNotes`
-
-List notes through the generated Connect-RPC service, newest-first.
-
-| | |
-|---|---|
-| **Auth** | None (template default; scenarios add auth as needed) |
-| **Response** | `ListNotesResponse { notes: Note[] }` (capped at 100 by `notes.Service`) |
-| **Errors** | `500 internal` — repository read failure |
-| **CLI** | `personal-planner notes list` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.personal_planner.v1.notes.NotesService/ListNotes" \
-  -H 'Content-Type: application/json' \
-  -d '{}'
-```
-
-UI and CLI code should normally use the generated client instead of
-calling this path by hand.
-
-#### `POST /vrooli.personal_planner.v1.notes.NotesService/CreateNote`
-
-Create a note through the generated Connect-RPC service.
-
-| | |
-|---|---|
-| **Auth** | None (template default) |
-| **Request** | `CreateNoteRequest { title: string (required), body: string (optional) }` |
-| **Response** | `CreateNoteResponse { note: Note }` |
-| **Errors** | `invalid_argument` — missing/whitespace-only title<br>`internal` — repository write failure |
-| **CLI** | `personal-planner notes create --title <title> [--body <body>]` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.personal_planner.v1.notes.NotesService/CreateNote" \
-  -H 'Content-Type: application/json' \
-  -d '{"title":"first","body":"hello"}'
-```
-
-Title validation (non-empty after whitespace trim) lives in
-`internal/notes/service.go`, **not** the handler. The Connect handler
-only translates `notes.ErrInvalidNote` into `invalid_argument`.
-
-#### `POST /vrooli.personal_planner.v1.notes.NotesService/GetNote`
-
-Fetch a note by id through the generated Connect-RPC service.
-
-| | |
-|---|---|
-| **Auth** | None (template default) |
-| **Request** | `GetNoteRequest { id: string }` |
-| **Response** | `GetNoteResponse { note: Note }` |
-| **Errors** | `not_found` — no note with that id<br>`internal` — repository read failure |
-| **CLI** | `personal-planner notes get <id>` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.personal_planner.v1.notes.NotesService/GetNote" \
-  -H 'Content-Type: application/json' \
-  -d '{"id":"abc123"}'
-```
-
-`notes.ErrNoteNotFound` returned by the service is translated into the
-typed `not_found` Connect error at the handler edge.
-
-#### `POST /api/v1/notes/{id}/attachments`
-
-Upload opaque file bytes through the documented REST multipart exception.
-The response is still proto-typed metadata.
-
-| | |
-|---|---|
-| **Auth** | None (template default) |
-| **Path params** | `id` — note identifier |
-| **Request** | `multipart/form-data` with `file` part |
-| **Response** | `UploadAttachmentResponse { attachment: Attachment }` |
-| **Errors** | `400 invalid_request` — malformed multipart or missing file<br>`404 not_found` — no note with that id<br>`500 internal` — blob or metadata persistence failure |
-| **CLI** | `personal-planner notes attach <id> --file <path>` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/api/v1/notes/abc123/attachments" \
-  -F file=@./example.png
-```
-
-#### `Note` shape
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | string (UUID) | Server-generated |
-| `title` | string | Required, non-empty after trim |
-| `body` | string | Optional |
-| `created_at` | `google.protobuf.Timestamp` | Server-set on create |
-| `updated_at` | `google.protobuf.Timestamp` | Server-set on create / future update |
-| `attachment_keys` | `string[]` | Keys of uploaded note attachments |
-
-Defined in `packages/proto/schemas/personal-planner/v1/notes/notes.proto`.
-<!-- EXAMPLE-DOMAIN:notes END -->
 
 ---
 

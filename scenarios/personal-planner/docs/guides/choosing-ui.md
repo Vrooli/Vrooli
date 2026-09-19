@@ -4,7 +4,7 @@
 
 Walk a scenario author through the one path from a generated scaffold to a
 product-shaped UI: decide, configure, adopt, build. Gate 5 in
-`path:../START-HERE.md` is the checklist; this guide is the reasoning and the
+`path:scenarios/personal-planner/docs/START-HERE.md` is the checklist; this guide is the reasoning and the
 reference for what the shell and the library can do.
 
 ## Why the order matters
@@ -145,8 +145,8 @@ react-component-library components ingest personal-planner ui/src/features/<name
 
 ## Cross-references
 
-- `path:../START-HERE.md` — Gate 5, the checklist this guide explains
-- `path:../concepts/UI-ARCHITECTURE.md` — where files go and why
-- `path:../concepts/EXPERIENCE.md` — where the decision is written
-- `path:../../DESIGN.md` — the token contract the kit provides
-- `path:../../experience/README.md` — turning the decision into typed claims
+- `path:scenarios/personal-planner/docs/START-HERE.md` — Gate 5, the checklist this guide explains
+- `path:scenarios/personal-planner/docs/concepts/UI-ARCHITECTURE.md` — where files go and why
+- `path:scenarios/personal-planner/docs/concepts/EXPERIENCE.md` — where the decision is written
+- `path:scenarios/personal-planner/DESIGN.md` — the token contract the kit provides
+- `path:scenarios/personal-planner/experience/README.md` — turning the decision into typed claims

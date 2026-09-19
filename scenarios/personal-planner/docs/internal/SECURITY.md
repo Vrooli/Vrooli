@@ -15,13 +15,14 @@ to answer, for reviewers and future agents:
 - Which threats are known, and which of the mitigations are actually
   built versus only designed?
 
-**Maturity note (read first):** Personal Planner is at design stage. Only
-the `health` domain and the removable `notes` worked example are real
-code. Everything in "Auth And Authorization", "Secrets", and "Threat
-Model" below describes the *intended* posture derived from the
-implementation plan (§17, §23.3) and the domain map ([`../concepts/DATA.md`](../concepts/DATA.md),
-[`../concepts/FLOWS.md`](../concepts/FLOWS.md)). None of it is implemented
-yet. The gaps are enumerated honestly in "Security Gaps".
+**Maturity note (read first):** Product domains now exist through real
+proto/API/SQLite/CLI/UI paths. The API uses the shared `api-core` auth
+boundary when authentication is configured, and the central router applies
+baseline security headers. The current local workspace storage is not yet
+subject-scoped on every domain query, and provider/share secrets are not yet
+implemented; those gaps remain explicit below. Security Health currently
+passes the scenario with no ERROR finding; advisory dependency/toolchain
+intelligence remains visible in the validation receipt.
 
 ## Data Sensitivity
 
@@ -44,19 +45,11 @@ through a share.
 | Share grants (which fields, to whom) | Medium | sharing | Grant metadata, not the shared content itself; still workspace-scoped and revocable. |
 | Appearance / availability / notification preferences | Low–Medium | workspace / notifications | Reveal habits and protected time; scoped like all other workspace data. |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain carries placeholder data only
-(removed by `template-manager detemplate`):
-
-| Data | Sensitivity | Owner | Details |
-|---|---|---|---|
-| Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
-| Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Auth And Authorization
 
-**Design-stage; not implemented.** The intended model:
+**Partially implemented.** The shared API boundary and baseline transport
+hardening are implemented, but local records are not yet subject/workspace
+scoped on every domain query. The intended authorization model is:
 
 - **Identity comes from scenario-authenticator** (a required dependency —
   see [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md)).
@@ -129,21 +122,22 @@ reflects design intent, not verified enforcement.
 
 ## Security Gaps
 
-Because Personal Planner is at design stage, **the entire security posture
-above is unbuilt.** This section lists that honestly so no reviewer
-mistakes design intent for enforcement.
+The shared auth boundary is real, but the product is not yet safe to treat as
+a multi-subject hosted workspace. The gaps below separate verified
+enforcement from design intent so a passing security-health scan is not
+mistaken for complete authorization coverage.
 
 | Gap | Severity | Revisit Trigger |
 |---|---|---|
-| No auth integration exists yet (scenario-authenticator not wired) | High | Before any real workspace data is persisted (P01). |
-| Per-record authorization (INV-01) not implemented on any path | High | With the first domain service that reads/writes workspace data (P01–P02). |
+| Auth boundary is configured, but subject/workspace ownership is not yet enforced in every domain query and mutation | High | Before multi-subject or hosted workspace data is enabled (P01–P02). |
+| Local domain records are not yet proven by cross-workspace authorization regression tests | High | Alongside subject-scoped storage and the first hosted deployment path. |
 | No-leak sharing DTOs / field masks (INV-12) not implemented | High | With the sharing feature (P09). |
 | Secret handling (credential owner, redaction) not implemented | High | With external-calendar integration and sharing (P08–P09). |
 | Untrusted-text sanitization for imported events not implemented | Medium | With provider/ICS import (P08). |
 | CSRF/origin and provider-callback binding not implemented | Medium | With the command surface and provider connect flow (P07-ish, P08). |
 | Read-only provider scope enforcement not implemented | High | With the first real provider adapter (P08). |
 | Bounded import/recurrence/request limits not implemented | Medium | With import, recurrence expansion, and history endpoints (P08, P10). |
-| No security regression tests (network-level no-leak, cross-workspace) | High | Alongside the corresponding feature; no-leak tests are a sharing release gate. |
+| No security regression tests yet prove cross-workspace no-leak behavior | High | Alongside subject-scoped storage and sharing; no-leak tests are a release gate. |
 
 ## Cross-References
 

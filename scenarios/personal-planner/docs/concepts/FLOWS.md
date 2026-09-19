@@ -116,7 +116,9 @@ recorded only if actually supplied, and is shown as unknown otherwise.
 Review shows planned vs recorded activity with unrecorded periods
 explicitly visible, asks only about material differences, and always
 allows Skip. Unfinished work does not become an endless overdue queue;
-mass rollover offers a capacity preview. Learning begins as descriptive
+selective carry-forward preserves the original placement as history, creates
+one new accepted placement after a target-day capacity preview, and is
+idempotent on retry. Learning begins as descriptive
 history; a recommendation changes a setting only on explicit acceptance,
 which is recorded as an auditable setting command (INV-14).
 

@@ -19,16 +19,26 @@ package modules
 import (
 	"personal-planner/internal/module"
 
-	capsH "personal-planner/handlers/capabilities"
-
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	calendarH "personal-planner/handlers/calendar"
+	focusH "personal-planner/handlers/focus"
+	goalsH "personal-planner/handlers/goals"
 	healthH "personal-planner/handlers/health"
-	notesH "personal-planner/handlers/notes" // EXAMPLE-DOMAIN:notes
+	integrationsH "personal-planner/handlers/integrations"
+	reviewH "personal-planner/handlers/review"
+	workH "personal-planner/handlers/work"
+	workspaceH "personal-planner/handlers/workspace"
 	localdb "personal-planner/internal/database"
 
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/notes" // EXAMPLE-DOMAIN:notes
+	calendarv1 "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/calendar"
+	focusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/focus"
+	goalsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/goals"
+	integrationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/integrations"
+	reviewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/review"
+	workv1 "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/work"
+	workspacev1 "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/workspace"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -38,8 +48,13 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
-	out = append(out, capsH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, focusH.Endpoints...)
+	out = append(out, calendarH.Endpoints...)
+	out = append(out, goalsH.Endpoints...)
+	out = append(out, integrationsH.Endpoints...)
+	out = append(out, reviewH.Endpoints...)
+	out = append(out, workH.Endpoints...)
+	out = append(out, workspaceH.Endpoints...)
 	return out
 }
 
@@ -66,7 +81,13 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_personal_planner_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
+		{Module: "focus", File: focusv1.File_personal_planner_v1_focus_focus_proto},
+		{Module: "calendar", File: calendarv1.File_personal_planner_v1_calendar_calendar_proto},
+		{Module: "goals", File: goalsv1.File_personal_planner_v1_goals_goals_proto},
+		{Module: "integrations", File: integrationsv1.File_personal_planner_v1_integrations_integrations_proto},
+		{Module: "review", File: reviewv1.File_personal_planner_v1_review_review_proto},
+		{Module: "work", File: workv1.File_personal_planner_v1_work_work_proto},
+		{Module: "workspace", File: workspacev1.File_personal_planner_v1_workspace_workspace_proto},
 	}
 }
 
@@ -81,6 +102,12 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(focusH.Schema),
+		apidb.SchemaProviderFunc(calendarH.Schema),
+		apidb.SchemaProviderFunc(goalsH.Schema),
+		apidb.SchemaProviderFunc(integrationsH.Schema),
+		apidb.SchemaProviderFunc(workH.Schema),
+		apidb.SchemaProviderFunc(workspaceH.Schema),
+		apidb.SchemaProviderFunc(reviewH.Schema),
 	}
 }

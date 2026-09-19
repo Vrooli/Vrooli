@@ -27,17 +27,17 @@
   /* @tier Rhythm */
   --border-thin: 1px;
   /* @tier Expression */
-  --color-accent: #0891b2;
+  --color-accent: #9a3f24;
   /* @tier Expression */
   --color-accent-subtle: color-mix(in srgb, var(--color-accent) 14%, transparent);
   /* @tier Expression */
-  --color-background: #f8fafc;
+  --color-background: #f3efe5;
   /* @tier Expression */
-  --color-border: #cbd5e1;
+  --color-border: #d8d0c1;
   /* @tier Expression */
   --color-border-strong: color-mix(in srgb, var(--color-border) 72%, var(--color-foreground));
   /* @tier Expression */
-  --color-danger: #dc2626;
+  --color-danger: #b91c1c;
   /* @tier Expression */
   --color-danger-border: color-mix(in srgb, var(--color-danger) 38%, var(--color-border));
   /* @tier Expression */
@@ -53,17 +53,17 @@
   /* @tier Contract */
   --color-focus-ring: var(--color-focus);
   /* @tier Expression */
-  --color-foreground: #0f172a;
+  --color-foreground: #192622;
   /* @tier Expression */
-  --color-info: #0284c7;
+  --color-info: #0369a1;
   /* @tier Expression */
-  --color-muted-foreground: #64748b;
+  --color-muted-foreground: #52606b;
   /* @tier Expression */
   --color-on-primary: var(--color-primary-foreground);
   /* @tier Expression */
   --color-overlay: var(--color-shell);
   /* @tier Expression */
-  --color-primary: #2563eb;
+  --color-primary: #6b5c99;
   /* @tier Expression */
   --color-primary-foreground: #ffffff;
   /* @tier Expression */
@@ -73,21 +73,21 @@
   /* @tier Expression */
   --color-scrim: color-mix(in srgb, var(--color-shell) 52%, transparent);
   /* @tier Expression */
-  --color-shell: #020617;
+  --color-shell: #192622;
   /* @tier Expression */
-  --color-success: #16a34a;
+  --color-success: #166534;
   /* @tier Expression */
   --color-success-foreground: color-mix(in srgb, var(--color-success) 76%, var(--color-foreground));
   /* @tier Expression */
-  --color-surface: #ffffff;
+  --color-surface: #fffdf7;
   /* @tier Expression */
-  --color-surface-muted: #f1f5f9;
+  --color-surface-muted: #ebe5d8;
   /* @tier Expression */
-  --color-surface-raised: #ffffff;
+  --color-surface-raised: #fffdf7;
   /* @tier Expression */
   --color-surface-sunken: color-mix(in srgb, var(--color-surface-muted) 72%, var(--color-background));
   /* @tier Expression */
-  --color-warning: #d97706;
+  --color-warning: #92400e;
   /* @tier Expression */
   --color-warning-foreground: color-mix(in srgb, var(--color-warning) 72%, var(--color-foreground));
   /* @tier Expression */
@@ -161,9 +161,9 @@
   /* @tier Contract */
   --focus-ring-width: 2px;
   /* @tier Expression */
-  --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  --font-mono: monospace;
   /* @tier Expression */
-  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans: sans-serif;
   /* @tier Expression */
   --font-size-lg: 18px;
   /* @tier Expression */

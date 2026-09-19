@@ -55,5 +55,5 @@ transient.
 
 ## Cross-References
 
-- `path:../guides/choosing-ui.md` — when to eject and when to record a gap
-- `path:../concepts/UI-ARCHITECTURE.md` — where local components live
+- `path:scenarios/personal-planner/docs/guides/choosing-ui.md` — when to eject and when to record a gap
+- `path:scenarios/personal-planner/docs/concepts/UI-ARCHITECTURE.md` — where local components live

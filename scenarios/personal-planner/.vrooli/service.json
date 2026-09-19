@@ -1,6 +1,45 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Personal Planner's durable local workspace data.",
+        "budget": {
+          "max_bytes": "1GiB",
+          "rationale": "Planner records are bounded by the local workspace budget."
+        }
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "retention/enforcement-receipt.json",
+        "regenerable": true,
+        "rationale": "Shared storage retention enforcement writes a compact receipt under the planner state namespace.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "The receipt is regenerated on each enforcement run."
+        }
+      }
+    },
+    "rationale": "The scenario owns its local durable workspace; external identity and notification data remain external."
+  },
+  "skills": {
+    "feature": [],
+    "waivers": {
+      "usage": {
+        "reason": "Personal Planner has no stable operator-facing skill contract yet; the current release exposes its product surfaces through the UI, API, and CLI while those workflows mature.",
+        "declared_at": "2026-09-19"
+      }
+    }
+  },
   "service": {
     "parent": "vrooli",
     "name": "personal-planner",
@@ -62,7 +101,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "React UI",
-      "range": "20000-24999"
+      "port": 20003
     }
   },
   "components": {
@@ -145,11 +184,5 @@
       }
     }
   },
-  "credentials": {},
-  "branding": {
-    "brand": "personal-planner",
-    "targets": [
-      "web-public-v1"
-    ]
-  }
+  "credentials": {}
 }

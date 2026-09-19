@@ -17,15 +17,8 @@ describe("AppRouter", () => {
 
   it("renders the dashboard at /", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/"]} />, { withoutRouter: true });
-    expect(screen.getByTestId(selectors.pages.dashboard)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.pages.today)).toBeInTheDocument();
   });
-
-  // EXAMPLE-DOMAIN:notes START
-  it("renders the notes page at /notes", () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/notes"]} />, { withoutRouter: true });
-    expect(screen.getByTestId(selectors.pages.notes)).toBeInTheDocument();
-  });
-  // EXAMPLE-DOMAIN:notes END
 
   it("renders the settings page at /settings", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });

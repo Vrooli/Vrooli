@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
 	"personal-planner/internal/middleware"
 
 	"github.com/stretchr/testify/require"

@@ -86,27 +86,34 @@ per row when a normalized representation is simpler.
 
 Schemas live next to the domain that interprets them
 (`api/internal/<domain>/schema.sql` + `schema.go`). The map below is the
-target shape; it describes intended tables, not files that exist yet.
+target shape; entries marked implemented are current vertical slices, while
+the remaining tables are still planned.
 
-- **workspace:** `workspaces`, `planning_profiles`, `availability_rules`,
-  `availability_exceptions`, `appearance_preferences`.
+- **workspace:** `planning_profiles`, `availability_rules`, and
+  `availability_exceptions` are implemented in `api/internal/workspace/schema.sql`;
+  multi-workspace identity binding and `appearance_preferences` remain planned.
 - **work:** `work_items`, `effort_revisions`, `dependency_edges`,
   `capture_inbox`.
-- **calendar:** `events`, `routines`, `routine_occurrences`,
-  `allocations` (with a `parent_allocation_id` lineage column so a
-  date-level parent and its timed children share a conserved quantity).
-- **goals:** `goals`, `initiative_refs`, `milestones`,
-  `milestone_prerequisites`.
+- **calendar:** native `routines` and `routine_occurrence_overrides` are
+  implemented in `api/internal/calendar/schema.sql`; bounded occurrence
+  expansion and skip-once projection semantics are exposed through Calendar;
+  `events`, persisted `routine_occurrences`, and richer allocation lineage
+  remain planned.
+- **goals:** `goals`, `initiative_refs`, `milestones` (criteria, due date, optional work-item links, explicit open/complete state, and prerequisite edges now native),
+  `milestone_prerequisites`; milestone-mode goals expose a conservative completed/total rollup.
 - **commitments:** `commitments`, `commitment_revisions`.
 - **planning:** `proposals`, `proposal_operations`,
   `proposal_applications`.
 - **forecasts:** `forecast_snapshots`, `change_records`.
-- **focus:** `focus_sessions`, `session_segments`, `manual_actuals`,
-  `actual_corrections`.
+- **focus:** `focus_sessions`, `manual_actuals`, and `actual_corrections` are
+  implemented in `api/internal/focus/schema.sql`; session segments and richer
+  attribution remain planned.
 - **review:** `reviews`, `learning_insights`.
-- **integrations:** `source_registrations`, `source_projections`,
-  `provider_connections`, `provider_calendars`, `imported_events`,
-  `integration_receipts`, `outbox`.
+- **integrations:** `provider_connections` and bounded synthetic
+  `imported_events` are now implemented; source registrations, provider
+  calendars, cursors/receipts, and outbox remain planned. Imported busy
+  intervals are unioned with accepted allocations in Calendar capacity when
+  their connection is active.
 - **sharing:** `share_grants`.
 - **notifications:** `notification_intents`, `notification_preferences`.
 

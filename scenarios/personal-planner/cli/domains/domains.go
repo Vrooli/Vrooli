@@ -1,7 +1,13 @@
 package domains
 
 import (
-	"personal-planner/cli/domains/notes" // EXAMPLE-DOMAIN:notes
+	"personal-planner/cli/domains/calendar"
+	"personal-planner/cli/domains/focus"
+	"personal-planner/cli/domains/goals"
+	"personal-planner/cli/domains/integrations"
+	"personal-planner/cli/domains/review"
+	"personal-planner/cli/domains/work"
+	"personal-planner/cli/domains/workspace"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -37,12 +43,40 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
+	calendarGroup, err := calendar.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
+	groups = append(groups, calendarGroup)
+	workspaceGroup, err := workspace.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, workspaceGroup)
+	goalsGroup, err := goals.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, goalsGroup)
+	integrationsGroup, err := integrations.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, integrationsGroup)
+	reviewGroup, err := review.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, reviewGroup)
+	focusGroup, err := focus.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, focusGroup)
+	workGroup, err := work.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, workGroup)
 	return groups, nil
 }

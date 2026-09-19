@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
 	"personal-planner/internal/modules"
 
 	gen "github.com/vrooli/api-core/endpoints/gen"

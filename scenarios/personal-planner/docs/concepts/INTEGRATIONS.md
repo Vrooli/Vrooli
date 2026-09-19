@@ -130,6 +130,14 @@ adapter supplies that distinction explicitly.
 - **ICS** import/export is a separate manual fallback (see
   [`DATA.md`](DATA.md)).
 
+The first provider adapter seam now exists in
+`api/internal/integrations/google.go`. It is read-only, accepts a credential
+from the credential owner, paginates calendar and event reads, normalizes
+timed/all-day/transparent events, captures the final incremental sync token,
+and reports HTTP 410 token invalidation as a scoped full-reset signal. The
+adapter is covered by HTTP fixtures; it is not yet wired to OAuth, durable
+cursor storage, or a live provider account.
+
 ## Failure Modes
 
 | Dependency | Failure | Behavior |

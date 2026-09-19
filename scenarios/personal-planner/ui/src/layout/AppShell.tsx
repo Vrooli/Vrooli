@@ -48,7 +48,7 @@ export function AppShell() {
 
   return (
     <LibraryAppShell
-      brand={<span data-testid={selectors.app.title}>{t(strings.app.title)}</span>}
+      brand={<span className="planner-brand" data-testid={selectors.app.title}><strong>{t(strings.app.title)}</strong><small>Observatory</small></span>}
       brandMark={<BrandMark />}
       brandHref="/"
       items={items}

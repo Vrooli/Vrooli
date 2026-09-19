@@ -1,6 +1,9 @@
 import {
-  Home,
-  NotebookPen, // EXAMPLE-DOMAIN:notes
+  Sun,
+  ListChecks,
+  Target,
+  Timer,
+  LineChart,
   Settings,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -19,7 +22,10 @@ export interface NavItem {
   /** Selector parameter; stable across locales. */
   key:
     | "dashboard"
-    | "notes" // EXAMPLE-DOMAIN:notes
+    | "plan"
+    | "goals"
+    | "focus"
+    | "review"
     | "settings";
   /** Router path. */
   path: string;
@@ -32,8 +38,11 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard, icon: <Home aria-hidden="true" /> },
-  { key: "notes", path: "/notes", labelKey: strings.layout.nav.notes, icon: <NotebookPen aria-hidden="true" /> }, // EXAMPLE-DOMAIN:notes
+  { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard, icon: <Sun aria-hidden="true" /> },
+  { key: "plan", path: "/plan", labelKey: strings.layout.nav.plan, icon: <ListChecks aria-hidden="true" /> },
+  { key: "goals", path: "/goals", labelKey: strings.layout.nav.goals, icon: <Target aria-hidden="true" /> },
+  { key: "focus", path: "/focus", labelKey: strings.layout.nav.focus, icon: <Timer aria-hidden="true" /> },
+  { key: "review", path: "/review", labelKey: strings.layout.nav.review, icon: <LineChart aria-hidden="true" /> },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings, icon: <Settings aria-hidden="true" /> },
 ];
 

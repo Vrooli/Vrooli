@@ -1,19 +1,440 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "personal-planner",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Personal Planner CLI surface for work capture and honest focus sessions.",
   "groups": [
+  {
+    "name": "calendar",
+      "description": "Inspect routines and accepted calendar time",
+    "commands": [
+      {
+        "name": "carry-forward",
+        "description": "Carry one accepted allocation to a new local date",
+        "flags": [
+          {"name": "allocation-id", "required": true, "description": "Accepted allocation id"},
+          {"name": "target-date", "required": true, "description": "Destination local date in YYYY-MM-DD format", "bind": {"field": "target_local_date"}},
+          {"name": "start-minute", "required": true, "description": "Destination local wall-clock start minute", "bind": {"field": "start_minutes"}}
+        ],
+        "binding": {"kind": "connect-rpc", "service": "CalendarService", "method": "CarryForwardAllocation"},
+        "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+        "architecture": {"primitive": "proto_mutation"}
+      },
+        {
+          "name": "routines",
+          "description": "List active routines",
+          "binding": { "kind": "connect-rpc", "service": "CalendarService", "method": "ListRoutines" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" },
+          "measure": {
+            "domain": "routines",
+            "intent": "Show the durable routines currently configured in Personal Planner.",
+            "questions": ["what routines are configured", "show my routines", "list planning routines"],
+            "result": { "kind": "table", "value_field": "routines", "unit": "routines", "summary_template": "configured routines" }
+          }
+        },
+        {
+          "name": "create-routine",
+          "description": "Create a fixed or flexible routine",
+          "flags": [
+            { "name": "title", "required": true, "description": "Routine title" },
+            { "name": "kind", "required": true, "description": "fixed or flexible" },
+            { "name": "timezone", "required": true, "description": "IANA schedule timezone" },
+            { "name": "start-date", "required": true, "description": "First eligible local date" },
+            { "name": "end-date", "description": "Optional last eligible local date" },
+            { "name": "weekdays-json", "required": true, "description": "JSON array of ISO weekdays (1 Monday through 7 Sunday)", "bind": { "field": "weekdays", "kind": "json_inline" } },
+            { "name": "start-minute", "required": true, "description": "Local wall-clock start minute" },
+            { "name": "duration-minutes", "required": true, "description": "Planned duration" },
+            { "name": "frequency-per-week", "description": "Flexible target within eligible weekdays" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CalendarService", "method": "CreateRoutine" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "routine-occurrences",
+          "description": "Expand routines across a local-date range",
+          "flags": [
+            { "name": "start-date", "required": true, "description": "Inclusive local start date", "bind": { "field": "start_local_date" } },
+            { "name": "end-date", "required": true, "description": "Inclusive local end date", "bind": { "field": "end_local_date" } }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CalendarService", "method": "ListRoutineOccurrences" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        },
+        {
+          "name": "skip-routine-occurrence",
+          "description": "Skip one generated routine occurrence",
+          "flags": [
+            { "name": "routine-id", "required": true, "description": "Routine id" },
+            { "name": "date", "required": true, "description": "Local occurrence date in YYYY-MM-DD format", "bind": { "field": "local_date" } },
+            { "name": "revision", "required": true, "description": "Expected routine revision", "bind": { "field": "expected_revision" } }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CalendarService", "method": "SkipRoutineOccurrence" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "reschedule-routine-occurrence",
+          "description": "Move one generated routine occurrence without changing the series",
+          "flags": [
+            { "name": "routine-id", "required": true, "description": "Routine id" },
+            { "name": "date", "required": true, "description": "Local occurrence date in YYYY-MM-DD format", "bind": { "field": "local_date" } },
+            { "name": "start-minute", "required": true, "description": "New local wall-clock start minute" },
+            { "name": "revision", "required": true, "description": "Expected routine revision", "bind": { "field": "expected_revision" } }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CalendarService", "method": "RescheduleRoutineOccurrence" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        }
+      ]
+    },
     {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
+      "name": "workspace",
+      "description": "Inspect and update the private planning profile",
+      "commands": [
+        {
+          "name": "profile",
+          "description": "Show the planning profile",
+          "binding": { "kind": "connect-rpc", "service": "WorkspaceService", "method": "GetProfile" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        },
+        {
+          "name": "update-profile",
+          "description": "Update timezone, capacity, reserve, and focus defaults",
+          "flags": [
+            { "name": "timezone", "required": true, "description": "IANA timezone, for example America/New_York" },
+            { "name": "week-start", "required": true, "description": "Week start: monday or sunday" },
+            { "name": "daily-capacity-minutes", "required": true, "description": "Usable daily planning capacity in minutes" },
+            { "name": "reserve-minutes", "required": true, "description": "Protected daily reserve in minutes" },
+            { "name": "focus-session-minutes", "required": true, "description": "Preferred focus session length in minutes" },
+            { "name": "revision", "required": true, "description": "Expected profile revision", "bind": { "field": "expected_revision" } }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorkspaceService", "method": "UpdateProfile" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "availability",
+          "description": "Show weekly availability windows and date exceptions",
+          "binding": { "kind": "connect-rpc", "service": "WorkspaceService", "method": "ListAvailability" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        },
+        {
+          "name": "replace-availability",
+          "description": "Replace availability windows and exceptions",
+          "flags": [
+            { "name": "windows-json", "required": true, "description": "JSON array of weekday interval objects", "bind": { "field": "windows", "kind": "json_inline" } },
+            { "name": "exceptions-json", "required": true, "description": "JSON array of date exception objects", "bind": { "field": "exceptions", "kind": "json_inline" } },
+            { "name": "revision", "required": true, "description": "Expected profile revision", "bind": { "field": "expected_revision" } }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorkspaceService", "method": "ReplaceAvailability" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        }
+      ]
+    },
+    {
+      "name": "integrations",
+      "description": "Inspect honest read-only calendar connection state",
       "commands": [
         {
           "name": "list",
-          "description": "List all notes",
+          "description": "List calendar connections without exposing secrets",
+          "binding": { "kind": "connect-rpc", "service": "IntegrationsService", "method": "ListConnections" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" },
+          "measure": { "domain": "provider_connections", "intent": "Show configured read-only calendar connections.", "questions": ["show calendar connections", "list integrations"], "result": { "kind": "table", "value_field": "connections", "unit": "connections", "summary_template": "calendar connections" } }
+        },
+        {
+          "name": "create-fixture",
+          "description": "Create a clearly synthetic connection for UI and contract verification",
+          "flags": [{ "name": "display-name", "description": "Optional display name" }],
+          "binding": { "kind": "connect-rpc", "service": "IntegrationsService", "method": "CreateFixtureConnection" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "sync",
+          "description": "Refresh a read-only calendar connection",
+          "flags": [
+            { "name": "id", "required": true, "description": "Connection id" },
+            { "name": "revision", "required": true, "description": "Expected connection revision", "bind": { "field": "expected_revision" } }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "IntegrationsService", "method": "SyncConnection" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "disconnect",
+          "description": "Disconnect a read-only calendar connection",
+          "flags": [
+            { "name": "id", "required": true, "description": "Connection id" },
+            { "name": "revision", "required": true, "description": "Expected connection revision", "bind": { "field": "expected_revision" } }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "IntegrationsService", "method": "DisconnectConnection" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        }
+      ]
+    },
+    {
+      "name": "review",
+      "description": "Inspect recorded activity with honest coverage",
+      "commands": [
+        {
+          "name": "daily",
+          "description": "Show the daily review",
+          "flags": [{ "name": "date", "description": "Local date in YYYY-MM-DD format", "bind": { "field": "local_date" } }],
+          "binding": { "kind": "connect-rpc", "service": "ReviewService", "method": "GetDailySummary" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        },
+        {
+          "name": "weekly",
+          "description": "Show the weekly review",
+          "flags": [{ "name": "week-start", "description": "Monday local date in YYYY-MM-DD format", "bind": { "field": "week_start_local_date" } }],
+          "binding": { "kind": "connect-rpc", "service": "ReviewService", "method": "GetWeeklySummary" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        },
+        {
+          "name": "reflection",
+          "description": "Read the optional daily reflection",
+          "flags": [{ "name": "date", "description": "Local date in YYYY-MM-DD format", "bind": { "field": "local_date" } }],
+          "binding": { "kind": "connect-rpc", "service": "ReviewService", "method": "GetReflection" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        },
+        {
+          "name": "save-reflection",
+          "description": "Save an optional daily reflection",
+          "flags": [
+            { "name": "date", "description": "Local date in YYYY-MM-DD format", "bind": { "field": "local_date" } },
+            { "name": "text", "required": true, "description": "Reflection text" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ReviewService", "method": "SaveReflection" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        }
+      ]
+    },
+    {
+      "name": "goals",
+      "description": "Create goals and record explicit progress",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List goals",
+          "binding": { "kind": "connect-rpc", "service": "GoalsService", "method": "ListGoals" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" },
+          "measure": {
+            "domain": "goals",
+            "intent": "List the durable goals currently recorded in Personal Planner.",
+            "questions": ["show my goals", "which goals are recorded", "list personal planner goals"],
+            "result": { "kind": "table", "value_field": "goals", "unit": "goals", "summary_template": "recorded goals" }
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a goal",
+          "flags": [
+            { "name": "title", "required": true, "description": "Goal title" },
+            { "name": "purpose", "description": "Why this outcome matters" },
+            { "name": "progress-method", "description": "Progress method: manual or milestones" },
+            { "name": "target-percent", "description": "Target percentage, normally 100", "bind": { "field": "target_basis_points" }, "bind_waiver": "The CLI accepts a human percentage and the handler converts it to basis points." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "GoalsService", "method": "CreateGoal" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "progress",
+          "description": "Record explicit goal progress",
+          "positionals": [{ "name": "id", "required": true, "description": "Goal id" }],
+          "flags": [
+            { "name": "percent", "required": true, "description": "Progress percentage from 0 to 100", "bind": { "field": "progress_basis_points" }, "bind_waiver": "The CLI accepts a human percentage and the handler converts it to basis points." },
+            { "name": "revision", "required": true, "description": "Expected goal revision", "bind": { "field": "expected_revision" } }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "GoalsService", "method": "UpdateGoalProgress" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "milestones",
+          "description": "List milestones for a goal",
+          "positionals": [{ "name": "goal-id", "required": true, "description": "Goal id" }],
+          "binding": { "kind": "connect-rpc", "service": "GoalsService", "method": "ListMilestones" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" },
+          "measure": {
+            "domain": "milestones",
+            "intent": "Show the durable milestones attached to a goal.",
+            "questions": ["what milestones does this goal have", "show goal milestones", "list milestones"],
+            "result": { "kind": "table", "value_field": "milestones", "unit": "milestones", "summary_template": "goal milestones" }
+          }
+        },
+        {
+          "name": "create-milestone",
+          "description": "Create a measurable goal milestone",
+          "flags": [
+            { "name": "goal-id", "required": true, "description": "Goal id" },
+            { "name": "title", "required": true, "description": "Milestone title" },
+            { "name": "criteria", "description": "What makes this milestone complete" },
+            { "name": "due-date", "description": "Due date in YYYY-MM-DD format" },
+            { "name": "work-item-id", "description": "Optional linked work item id", "bind": { "field": "linked_work_item_id" } },
+            { "name": "prerequisite-ids", "description": "Comma-separated prerequisite milestone ids", "bind": { "field": "prerequisite_milestone_ids" }, "bind_waiver": "The handler converts the comma-separated human flag into repeated proto ids." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "GoalsService", "method": "CreateMilestone" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "complete-milestone",
+          "description": "Mark a milestone complete",
+          "positionals": [{ "name": "id", "required": true, "description": "Milestone id" }],
+          "flags": [{ "name": "revision", "required": true, "description": "Expected milestone revision", "bind": { "field": "expected_revision" } }],
+          "binding": { "kind": "connect-rpc", "service": "GoalsService", "method": "UpdateMilestoneStatus" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        }
+      ]
+    },
+    {
+      "name": "focus",
+      "description": "Start and account for focused work sessions",
+      "commands": [
+        {
+          "name": "current",
+          "description": "Show the current focus session",
+          "binding": { "kind": "connect-rpc", "service": "FocusService", "method": "GetCurrentSession" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" },
+          "measure": {
+            "domain": "focus",
+            "intent": "Show the currently authoritative focus session, if one is active.",
+            "questions": ["what am I focused on", "show my current focus session", "is a focus session running"],
+            "result": { "kind": "table", "value_field": "session", "unit": "focus sessions", "summary_template": "current focus session" }
+          }
+        },
+        {
+          "name": "start",
+          "description": "Start a focus session",
+          "flags": [
+            { "name": "title", "required": true, "description": "Session title" },
+            { "name": "work-item-id", "description": "Optional work item id" },
+            { "name": "mode", "description": "Focus mode (open, pomodoro, timed, untimed)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "FocusService", "method": "StartFocus" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "pause",
+          "description": "Pause a focus session",
+          "positionals": [{ "name": "id", "required": true, "description": "Focus session id", "bind": { "field": "session_id" } }],
+          "flags": [{ "name": "revision", "required": true, "description": "Expected session revision", "bind": { "field": "expected_revision" } }],
+          "binding": { "kind": "connect-rpc", "service": "FocusService", "method": "PauseFocus" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "resume",
+          "description": "Resume a paused focus session",
+          "positionals": [{ "name": "id", "required": true, "description": "Focus session id", "bind": { "field": "session_id" } }],
+          "flags": [{ "name": "revision", "required": true, "description": "Expected session revision", "bind": { "field": "expected_revision" } }],
+          "binding": { "kind": "connect-rpc", "service": "FocusService", "method": "ResumeFocus" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "end",
+          "description": "End a focus session",
+          "positionals": [{ "name": "id", "required": true, "description": "Focus session id", "bind": { "field": "session_id" } }],
+          "flags": [
+            { "name": "revision", "required": true, "description": "Expected session revision", "bind": { "field": "expected_revision" } },
+            { "name": "reported-remaining-minutes", "description": "Remaining active effort after the session" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "FocusService", "method": "EndFocus" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "record-actual",
+          "description": "Record manual or approximate active time",
+          "flags": [
+            { "name": "title", "required": true, "description": "What the time was spent on" },
+            { "name": "date", "required": true, "description": "Local date in YYYY-MM-DD format", "bind": { "field": "local_date" } },
+            { "name": "minutes", "required": true, "description": "Recorded active minutes", "bind": { "field": "reported_minutes" } },
+            { "name": "work-item-id", "description": "Optional linked work item" },
+            { "name": "certainty", "description": "timed_observed or user_reported_approximate" },
+            { "name": "note", "description": "Correction or context note" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "FocusService", "method": "RecordManualActual" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "actuals",
+          "description": "List recorded actual activity",
+          "flags": [{ "name": "date", "description": "Optional local date in YYYY-MM-DD format", "bind": { "field": "local_date" } }],
+          "binding": { "kind": "connect-rpc", "service": "FocusService", "method": "ListActuals" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" },
+          "measure": {
+            "domain": "manual_actuals",
+            "intent": "Show durable manual actual activity recorded by the user.",
+            "questions": ["what time did I record", "show manual actuals", "list recorded activity"],
+            "result": { "kind": "table", "value_field": "actuals", "unit": "manual actuals", "summary_template": "recorded manual activity" }
+          }
+        },
+        {
+          "name": "corrections",
+          "description": "List preserved manual-actual correction history",
+          "flags": [
+            { "name": "actualId", "description": "Optional actual record id" },
+            { "name": "date", "description": "Optional local date in YYYY-MM-DD format", "bind": { "field": "local_date" } },
+            { "name": "limit", "description": "Maximum number of corrections (default 100)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "FocusService", "method": "ListActualCorrections" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" },
+          "measure": {
+            "domain": "actual_corrections",
+            "intent": "Show preserved provenance for manual actual corrections.",
+            "questions": ["what actuals changed", "show correction history", "how were my recorded minutes corrected"],
+            "result": { "kind": "table", "value_field": "corrections", "unit": "actual corrections", "summary_template": "actual correction history" }
+          }
+        },
+        {
+          "name": "correct-actual",
+          "description": "Correct a manual actual with preserved provenance",
+          "positionals": [{ "name": "id", "required": true, "description": "Actual record id" }],
+          "flags": [
+            { "name": "revision", "required": true, "description": "Expected actual revision", "bind": { "field": "expected_revision" } },
+            { "name": "minutes", "required": true, "description": "Corrected active minutes", "bind": { "field": "reported_minutes" } },
+            { "name": "certainty", "description": "timed_observed or user_reported_approximate" },
+            { "name": "note", "description": "Why the actual was corrected" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "FocusService", "method": "CorrectActual" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        }
+      ]
+    },
+    {
+      "name": "work",
+      "description": "Capture and inspect work items",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List work items",
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "ListNotes"
+            "service": "WorkService",
+            "method": "ListWorkItems"
           },
           "governance": {
             "effect": "read",
@@ -24,26 +445,40 @@
           },
           "architecture": {
             "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "work_items",
+            "intent": "Show today's currently projected work blocks and capacity quantities.",
+            "questions": ["what work is planned today", "how much work is planned today", "show today's planning capacity"],
+            "result": { "kind": "table", "value_field": "entries", "unit": "planned work blocks", "summary_template": "today's projected work" }
           }
         },
         {
           "name": "create",
-          "description": "Create a note",
+          "description": "Capture a work item",
           "flags": [
             {
               "name": "title",
               "required": true,
-              "description": "Note title"
+              "description": "Work item title"
             },
             {
-              "name": "body",
-              "description": "Note body"
+              "name": "description",
+              "description": "Definition of done or context"
+            },
+            {
+              "name": "remaining-minutes",
+              "description": "Remaining active effort in minutes"
+            },
+            {
+              "name": "source-label",
+              "description": "Origin label shown in Today"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CreateNote"
+            "service": "WorkService",
+            "method": "CreateWorkItem"
           },
           "governance": {
             "effect": "write",
@@ -58,18 +493,18 @@
         },
         {
           "name": "get",
-          "description": "Get a note by id",
+          "description": "Get a work item by id",
           "positionals": [
             {
               "name": "id",
               "required": true,
-              "description": "Note id"
+              "description": "Work item id"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "GetNote"
+            "service": "WorkService",
+            "method": "GetWorkItem"
           },
           "governance": {
             "effect": "read",
@@ -83,18 +518,12 @@
           }
         },
         {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
-          "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
-            }
-          ],
+          "name": "plan",
+          "description": "Show today's placed work and capacity",
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CountNotes"
+            "service": "WorkService",
+            "method": "GetTodayPlan"
           },
           "governance": {
             "effect": "read",
@@ -105,26 +534,6 @@
           },
           "architecture": {
             "primitive": "proto_list"
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
-            }
           }
         }
       ]
@@ -132,19 +541,26 @@
   ],
   "measures": {
     "domains": [
-      {
-        "domain": "notes",
-        "stateful": true,
-        "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier."
-      }
+      { "domain": "focus", "stateful": true, "reason": "Focus sessions are durable user activity records." },
+      { "domain": "manual_actuals", "stateful": true, "reason": "Manual actuals are durable user activity records." },
+      { "domain": "actual_corrections", "stateful": true, "reason": "Actual corrections are durable provenance records." },
+      { "domain": "goals", "stateful": true, "reason": "Goals and explicit progress are durable outcome records." },
+      { "domain": "milestones", "stateful": true, "reason": "Milestones are durable goal outcome records." },
+      { "domain": "routines", "stateful": true, "reason": "Routines are durable planning records." },
+      { "domain": "review", "stateful": false, "reason": "Review is a derived read model over recorded activity and goals." },
+      { "domain": "work_items", "stateful": true, "reason": "Work items are durable planning records." }
+    ],
+    "omitted": [
+      { "domain": "calendar_allocations", "reason": "Accepted calendar time is operational planning state; Today and Plan consume it as a live read model, while a historical measure contract is deferred until allocation semantics stabilize." },
+      { "domain": "allocation_carry_forwards", "reason": "Carry-forward rows are idempotency/lineage metadata for accepted allocations, not an independent user-facing historical entity." },
+      { "domain": "milestone_work_links", "reason": "Work links are relationship metadata already returned with milestone records; they have no independent user-facing history." },
+      { "domain": "milestone_prerequisites", "reason": "Prerequisite edges are relationship metadata already returned with milestone records; they have no independent user-facing history." }
     ]
   },
-  "exceptions": [
-    {
-      "command": "notes attach",
-      "class": "upload",
-      "reason": "Multipart file upload is exposed through the notes REST attachment endpoint, while cli-manifest/v1 only models Connect-RPC bindings."
-    }
-  ],
-  "omitted": []
+  "exceptions": [],
+  "omitted": [
+    { "service": "CalendarService", "method": "ListTodayAllocations", "reason": "The first calendar vertical slice is UI/API-owned; CLI placement is intentionally deferred until the date and overlap UX is finalized." },
+    { "service": "CalendarService", "method": "CreateAllocation", "reason": "The first calendar vertical slice is UI/API-owned; CLI placement is intentionally deferred until the date and overlap UX is finalized." },
+    { "service": "CalendarService", "method": "ListAllocations", "reason": "The calendar range projection is UI/API-owned while Day, Week, and Agenda view semantics stabilize; CLI range selection is intentionally deferred." }
+  ]
 }

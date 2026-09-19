@@ -7,7 +7,10 @@ import {
 
 import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
-import { NotesPage } from "../pages/NotesPage"; // EXAMPLE-DOMAIN:notes
+import { FocusPage } from "../pages/FocusPage";
+import { GoalsPage } from "../pages/GoalsPage";
+import { ReviewPage } from "../pages/ReviewPage";
+import { PlanPage } from "../pages/PlanPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { ThemeProvider } from "../theme/ThemeProvider";
 
@@ -23,7 +26,10 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
-      { path: "notes", element: <NotesPage /> }, // EXAMPLE-DOMAIN:notes
+      { path: "plan", element: <PlanPage /> },
+      { path: "goals", element: <GoalsPage /> },
+      { path: "focus", element: <FocusPage /> },
+      { path: "review", element: <ReviewPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

@@ -25,6 +25,7 @@ import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 //              that channel, so the selection is argv the whole way down and
 //              carries no shell conditional.
 export default defineConfig(({ mode }): UserConfig => {
+  // INTEROP-CRITICAL: keep the embedded base and profile aliases stable for host-frame loading.
   const isProfile = mode === "profile";
 
   return {

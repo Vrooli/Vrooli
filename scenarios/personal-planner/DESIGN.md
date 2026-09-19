@@ -173,6 +173,13 @@ This is a binding correctness rule, not styling (plan §6.6, fixture F14):
 
 ## Scene Assets
 
+The concrete integration recipe — layer stack, sky-to-app blending, focal
+points, responsive scenery behavior, the durable asset inventory, and the
+visual acceptance loop — lives in
+[`docs/reference/scene-integration-contract.md`](docs/reference/scene-integration-contract.md).
+The approved visual oracle is `docs/reference/mockups/`. This section owns the
+design-language rules; that reference owns the how.
+
 Treat the landscape as a **replaceable decorative asset with all meaningful,
 accessible content outside it** (plan §6.4):
 

@@ -41,74 +41,6 @@
       "testId": "notifications-summary",
       "selector": "[data-testid=\"notifications-summary\"]"
     },
-    "notes.surface": {
-      "testId": "notes-surface",
-      "selector": "[data-testid=\"notes-surface\"]"
-    },
-    "notes.card": {
-      "testId": "notes-card",
-      "selector": "[data-testid=\"notes-card\"]"
-    },
-    "notes.list": {
-      "testId": "notes-list",
-      "selector": "[data-testid=\"notes-list\"]"
-    },
-    "notes.loading": {
-      "testId": "notes-loading",
-      "selector": "[data-testid=\"notes-loading\"]"
-    },
-    "notes.empty": {
-      "testId": "notes-empty",
-      "selector": "[data-testid=\"notes-empty\"]"
-    },
-    "notes.error": {
-      "testId": "notes-error",
-      "selector": "[data-testid=\"notes-error\"]"
-    },
-    "notes.createButton": {
-      "testId": "notes-create-button",
-      "selector": "[data-testid=\"notes-create-button\"]"
-    },
-    "notes.createdAt": {
-      "testId": "notes-created-at",
-      "selector": "[data-testid=\"notes-created-at\"]"
-    },
-    "notes.attachmentCount": {
-      "testId": "notes-attachment-count",
-      "selector": "[data-testid=\"notes-attachment-count\"]"
-    },
-    "notes.attachmentUpload": {
-      "testId": "notes-attachment-upload",
-      "selector": "[data-testid=\"notes-attachment-upload\"]"
-    },
-    "notes.attachmentFile": {
-      "testId": "notes-attachment-file",
-      "selector": "[data-testid=\"notes-attachment-file\"]"
-    },
-    "notes.attachmentButton": {
-      "testId": "notes-attachment-button",
-      "selector": "[data-testid=\"notes-attachment-button\"]"
-    },
-    "notes.attachmentStatus": {
-      "testId": "notes-attachment-status",
-      "selector": "[data-testid=\"notes-attachment-status\"]"
-    },
-    "notes.measure.card": {
-      "testId": "notes-measure-card",
-      "selector": "[data-testid=\"notes-measure-card\"]"
-    },
-    "notes.measure.value": {
-      "testId": "notes-measure-value",
-      "selector": "[data-testid=\"notes-measure-value\"]"
-    },
-    "notes.measure.loading": {
-      "testId": "notes-measure-loading",
-      "selector": "[data-testid=\"notes-measure-loading\"]"
-    },
-    "notes.measure.error": {
-      "testId": "notes-measure-error",
-      "selector": "[data-testid=\"notes-measure-error\"]"
-    },
     "layout.shell": {
       "testId": "layout-shell",
       "selector": "[data-testid=\"layout-shell\"]"
@@ -142,8 +74,12 @@
       "selector": "[data-testid=\"page-settings-locale\"]"
     },
     "pages.dashboard": {
-      "testId": "page-dashboard",
-      "selector": "[data-testid=\"page-dashboard\"]"
+      "testId": "page-today",
+      "selector": "[data-testid=\"page-today\"]"
+    },
+    "pages.today": {
+      "testId": "page-today",
+      "selector": "[data-testid=\"page-today\"]"
     },
     "pages.dashboardHeader": {
       "testId": "page-dashboard-header",
@@ -153,9 +89,21 @@
       "testId": "page-dashboard-placeholder",
       "selector": "[data-testid=\"page-dashboard-placeholder\"]"
     },
-    "pages.notes": {
-      "testId": "page-notes",
-      "selector": "[data-testid=\"page-notes\"]"
+    "pages.plan": {
+      "testId": "page-plan",
+      "selector": "[data-testid=\"page-plan\"]"
+    },
+    "pages.goals": {
+      "testId": "page-goals",
+      "selector": "[data-testid=\"page-goals\"]"
+    },
+    "pages.focus": {
+      "testId": "page-focus",
+      "selector": "[data-testid=\"page-focus\"]"
+    },
+    "pages.review": {
+      "testId": "page-review",
+      "selector": "[data-testid=\"page-review\"]"
     },
     "pages.settings": {
       "testId": "page-settings",
@@ -181,7 +129,10 @@
           "type": "enum",
           "values": [
             "dashboard",
-            "notes",
+            "plan",
+            "goals",
+            "focus",
+            "review",
             "settings"
           ]
         }
@@ -197,8 +148,27 @@
           "type": "enum",
           "values": [
             "dashboard",
-            "notes",
+            "plan",
+            "goals",
+            "focus",
+            "review",
             "settings"
+          ]
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Appearance choice by canonical theme value",
+      "selectorPattern": "[data-testid=\"page-settings-theme-option-${choice}\"]",
+      "testIdPattern": "page-settings-theme-option-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
           ]
         }
       ]
@@ -206,6 +176,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
-    "ui/src/consts/selectors.ts": "a306280718f1779c672cd1bb510b0e846f1f600b49a46c3864f00cb31cca5e5a"
+    "ui/src/consts/selectors.ts": "52dfcb4da6962a26ff87dd9feb6d6888395fe9b8bc4c4d0ac363f1b8c24a739c"
   }
 }
