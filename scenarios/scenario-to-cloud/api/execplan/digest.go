@@ -12,14 +12,20 @@ import (
 const DigestPrefix = "sha256:"
 
 // CanonicalJSON returns the canonical bytes the digest covers: the plan with
-// the presentation block zeroed, encoded by encoding/json (object keys are
-// emitted in struct order, map keys sorted, no insignificant whitespace).
+// the presentation block and the advisories zeroed, encoded by encoding/json
+// (object keys are emitted in struct order, map keys sorted, no insignificant
+// whitespace).
+//
+// Advisories are excluded for the same reason as the presentation: they
+// describe conditions around the plan, not the effects it will cause. A
+// warning that clears between review and apply must not refuse the apply.
 func CanonicalJSON(plan *Plan) ([]byte, error) {
 	if plan == nil {
 		return nil, fmt.Errorf("execplan: nil plan")
 	}
 	semantic := *plan
 	semantic.Presentation = Presentation{}
+	semantic.Advisories = nil
 	semantic.Preconditions = nonNilPreconditions(semantic.Preconditions)
 	semantic.Actions = nonNilActions(semantic.Actions)
 	var buf bytes.Buffer

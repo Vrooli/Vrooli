@@ -124,6 +124,50 @@ Declare required resources and scenarios.
 | `resources` | string[] | Resource IDs to start |
 | `scenarios` | string[] | Dependent scenario IDs |
 
+## Secrets Section
+
+`secrets.bundle_secrets[]` declares the credentials a deployment needs. Two
+fields decide what happens when one is unsatisfied, and they are not
+alternatives:
+
+| Field | Effect when nothing satisfies the secret |
+|-------|------------------------------------------|
+| `required: true` | **Blocks.** The plan compiles as `needs_input` with an operator handoff, and no action runs. |
+| `capability: "<name>"` | **Warns.** The plan still applies and carries an advisory naming the capability. |
+| neither | **Silent.** Nothing mentions it. |
+
+```json
+{
+  "secrets": {
+    "bundle_secrets": [
+      {
+        "id": "sendgrid-api-key",
+        "class": "user_prompt",
+        "required": false,
+        "capability": "customer sign-in email",
+        "description": "Restricted SendGrid API key for transactional sign-in email delivery.",
+        "target": { "type": "env", "name": "SENDGRID_API_KEY" },
+        "descriptor": { "logical_id": "vrooli/landing-page-business-suite", "field": "sendgrid-api-key" }
+      }
+    ]
+  }
+}
+```
+
+Declare `capability` for any secret that is optional for the deployment but
+load-bearing for something a customer pays for: mail delivery, payments,
+storage. Without it, "optional" also means "unmentioned" — the condition that
+let a deployment ship with customer sign-in email unconfigured and review as
+clean.
+
+Write the capability in operator words ("customer sign-in email", not
+"SENDGRID_API_KEY"): it is printed to a person deciding whether to approve the
+deploy. `capability` on a `required` secret is ignored, because a blocker is
+already reported.
+
+Advisories are excluded from the plan's semantic digest, so a warning
+appearing or clearing between review and apply never invalidates the review.
+
 ## Identity topology
 
 The cloud manifest selects what is deployed; it does not invent a second

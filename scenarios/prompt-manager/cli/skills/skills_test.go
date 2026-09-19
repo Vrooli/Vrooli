@@ -153,3 +153,27 @@ func TestCmdReadPostsContractPayload(t *testing.T) {
 		t.Fatalf("unexpected read payload: %+v", payload)
 	}
 }
+
+func TestThirdPartyHeaderNamesSourceAndExternalTools(t *testing.T) {
+	skill := SkillResponse{ID: "brag", SkillDir: "/packs/vendor/brag", Origin: &SkillOriginView{Kind: "imported", SourceURL: "https://github.com/latent-spaces/brag", Commit: "1f8d9ade", License: "MIT"}, ExternalTools: []ExternalToolView{{Name: "hyperframes", URL: "https://hyperframes.heygen.com/", Purpose: "renders video"}}}
+	skill.Origin.Review.Verdict = "passed"
+	header := thirdPartyHeader(skill)
+	for _, want := range []string{"THIRD-PARTY SKILL brag", "https://github.com/latent-spaces/brag", "license MIT", "/packs/vendor/brag", "not provided or managed by Vrooli", "hyperframes: renders video"} {
+		if !strings.Contains(header, want) {
+			t.Fatalf("header missing %q:\n%s", want, header)
+		}
+	}
+	if thirdPartyHeader(SkillResponse{ID: "authored"}) != "" {
+		t.Fatal("authored skills must not get a third-party header")
+	}
+}
+
+func TestParseExternalToolRequiresName(t *testing.T) {
+	tool, err := parseExternalTool("node | https://nodejs.org | runs hyperframes (>=22)")
+	if err != nil || tool.Name != "node" || tool.URL != "https://nodejs.org" || tool.Purpose != "runs hyperframes (>=22)" {
+		t.Fatalf("unexpected parse: %#v %v", tool, err)
+	}
+	if _, err := parseExternalTool(" |https://x"); err == nil {
+		t.Fatal("empty name must be rejected")
+	}
+}

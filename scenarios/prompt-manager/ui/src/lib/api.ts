@@ -662,6 +662,13 @@ export const FOLDERS: Folder[] = [
     icon: 'package',
     skillCount: 0,
   },
+  {
+    id: 'vendor',
+    name: 'Third-party',
+    description: 'Imported from an external source (gitignored, read-only)',
+    icon: 'package',
+    skillCount: 0,
+  },
 ]
 
 /**
@@ -746,7 +753,7 @@ class ApiClient {
   async getFolders(): Promise<Folder[]> {
     // Get all skills and compute folder counts
     const skills = await this.getSkills()
-    const counts: Record<FolderType, number> = { core: 0, local: 0, drafts: 0, scenario: 0 }
+    const counts: Record<FolderType, number> = { core: 0, local: 0, drafts: 0, scenario: 0, vendor: 0 }
 
     for (const skill of skills) {
       if (skill.folder in counts) {

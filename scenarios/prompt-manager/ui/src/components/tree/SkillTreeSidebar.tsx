@@ -113,7 +113,7 @@ function FolderContextMenu({ x, y, folderLabel, skillCount, onClose, onAddSkill,
   return <ContextMenu open onOpenChange={(open) => { if (!open) onClose() }} position={{ x, y }} title={`Actions for ${folderLabel}`} closeLabel="Close folder actions" triggers={[]} items={items} />
 }
 
-const STORAGE_LABELS: Partial<Record<FolderType, string>> = { core: 'Core', local: 'Local', drafts: 'Drafts', scenario: 'Scenario' }
+const STORAGE_LABELS: Partial<Record<FolderType, string>> = { core: 'Core', local: 'Local', drafts: 'Drafts', scenario: 'Scenario', vendor: 'Third-party' }
 
 function skillTreeActions(availableModePaths: string[][], onCopySkill: () => void, onMoveToFolder: (path: string[]) => void, onChangeStorage: (folder: FolderType) => void, onCreateNewFolder: () => void): RowAction<TreeActionRow>[] {
   const uniqueModePaths = Array.from(new Set(availableModePaths.map((path) => path.join('/')))).map((path) => path.split('/').filter(Boolean))

@@ -167,6 +167,37 @@ type Handoff struct {
 	SelectionDigest string   `json:"selection_digest"`
 }
 
+// AdvisorySeverityWarning is the only advisory severity. An advisory never
+// blocks: anything that must block is a precondition, a missing input or a
+// failing preflight check.
+const AdvisorySeverityWarning = "warning"
+
+// Advisory is a non-blocking finding an operator should know about before or
+// after a deploy. It exists because the plan previously had two states —
+// blocked on a required input, or silent — so a deployment that would come up
+// with a dead capability reviewed as clean.
+//
+// Advisories are excluded from the semantic digest: they describe what the
+// operator is walking into, not what the plan will do, so one appearing or
+// clearing must never invalidate a reviewed plan.
+type Advisory struct {
+	// ID is a stable identifier for the finding (for example
+	// "secret_unsatisfied:sendgrid-api-key").
+	ID string `json:"id"`
+	// Severity is always AdvisorySeverityWarning today. The field is
+	// explicit so a future severity cannot be introduced silently.
+	Severity string `json:"severity"`
+	// Capability is the customer-facing capability at risk, in the words the
+	// manifest declared.
+	Capability string `json:"capability,omitempty"`
+	// Summary is one line an operator can act on.
+	Summary string `json:"summary"`
+	// Detail carries the specifics, such as which credential is unsatisfied.
+	Detail string `json:"detail,omitempty"`
+	// Hint is the remedy when one is known.
+	Hint string `json:"hint,omitempty"`
+}
+
 // Presentation is human text. It is excluded from the semantic digest.
 type Presentation struct {
 	Title        string `json:"title"`
@@ -192,6 +223,7 @@ type Plan struct {
 	Preconditions       []Precondition `json:"preconditions"`
 	Actions             []Action       `json:"actions"`
 	Handoff             *Handoff       `json:"handoff,omitempty"`
+	Advisories          []Advisory     `json:"advisories,omitempty"`
 	Presentation        Presentation   `json:"presentation"`
 }
 

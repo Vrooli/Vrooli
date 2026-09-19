@@ -194,6 +194,10 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 	if err != nil {
 		return MiniBundleSpec{}, err
 	}
+	goWorkSum, err := buildMiniGoWorkSum(repoRoot, roots, excludes)
+	if err != nil {
+		return MiniBundleSpec{}, err
+	}
 
 	serviceJSON, err := buildMiniServiceJSON(repoRoot, manifest)
 	if err != nil {
@@ -218,8 +222,9 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 		// repo contract still requires its root marker for source-root
 		// resolution. Keep the release a valid contract root without shipping
 		// the full template payload.
-		"templates/.keep": []byte{},
+		"templates/.keep": {},
 		"go.work":         []byte(goWork),
+		"go.work.sum":     []byte(goWorkSum),
 	}
 	if len(serviceJSON) > 0 {
 		extra[".vrooli/service.json"] = serviceJSON
@@ -354,6 +359,43 @@ func buildMiniGoWork(repoRoot string, includeRoots, excludes []string) (string, 
 	}
 	out.WriteString(")\n")
 	return out.String(), nil
+}
+
+// buildMiniGoWorkSum merges the checksums owned by the modules in the mini
+// workspace. A target build runs with the generated go.work file active, so
+// its workspace checksum file must cover dependencies that are intentionally
+// absent from the repository root module's go.sum.
+func buildMiniGoWorkSum(repoRoot string, includeRoots, excludes []string) (string, error) {
+	moduleDirs, err := discoverGoModDirs(repoRoot, includeRoots, excludes)
+	if err != nil {
+		return "", err
+	}
+	lines := map[string]struct{}{}
+	for _, dir := range moduleDirs {
+		path := filepath.Join(repoRoot, filepath.FromSlash(dir), "go.sum")
+		contents, readErr := os.ReadFile(path)
+		if os.IsNotExist(readErr) {
+			continue
+		}
+		if readErr != nil {
+			return "", readErr
+		}
+		for _, line := range strings.Split(string(contents), "\n") {
+			line = strings.TrimSpace(line)
+			if line != "" {
+				lines[line] = struct{}{}
+			}
+		}
+	}
+	merged := make([]string, 0, len(lines))
+	for line := range lines {
+		merged = append(merged, line)
+	}
+	sort.Strings(merged)
+	if len(merged) == 0 {
+		return "", nil
+	}
+	return strings.Join(merged, "\n") + "\n", nil
 }
 
 func goDirective(path string) (string, bool) {

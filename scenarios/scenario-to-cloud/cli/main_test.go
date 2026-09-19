@@ -378,13 +378,25 @@ func TestPreflightPostsToPreflightEndpoint(t *testing.T) {
 
 	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
 
+	// The default output is the human report: an operator scanning a
+	// terminal has to be able to read the verdict.
 	output := captureStdout(t, func() {
 		if err := app.Run([]string{"preflight", "run", manifestPath}); err != nil {
 			t.Fatalf("preflight failed: %v", err)
 		}
 	})
-	if !strings.Contains(output, "\"ok\": true") {
-		t.Fatalf("expected preflight output, got: %s", output)
+	if !strings.Contains(output, "Every check passed.") {
+		t.Fatalf("expected the human report, got: %s", output)
+	}
+
+	// --json keeps the machine-readable body for scripted callers.
+	jsonOutput := captureStdout(t, func() {
+		if err := app.Run([]string{"preflight", "run", manifestPath, "--json"}); err != nil {
+			t.Fatalf("preflight --json failed: %v", err)
+		}
+	})
+	if !strings.Contains(jsonOutput, "\"ok\": true") {
+		t.Fatalf("expected raw JSON with --json, got: %s", jsonOutput)
 	}
 }
 

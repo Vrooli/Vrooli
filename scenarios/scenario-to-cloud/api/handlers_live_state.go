@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -94,8 +95,11 @@ func (s *Server) handleGetFiles(w http.ResponseWriter, r *http.Request) {
 		requestedPath = dc.Workdir
 	}
 
-	// Security: Ensure path is within workdir to prevent directory traversal
-	if !vps.IsPathWithinWorkdir(requestedPath, dc.Workdir) {
+	// Security: Ensure path is within workdir or this deployment's own staged
+	// release tree or lifecycle log directory to prevent directory traversal.
+	releaseRoot := filepath.Join(filepath.Dir(dc.Workdir), ".vrooli", "cloud", "deployments", dc.Deployment.ID, "releases")
+	logRoot := filepath.Join(filepath.Dir(dc.Workdir), ".vrooli", "logs")
+	if !vps.IsPathWithinWorkdir(requestedPath, dc.Workdir) && !vps.IsPathWithinWorkdir(requestedPath, releaseRoot) && !vps.IsPathWithinWorkdir(requestedPath, logRoot) {
 		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
 			Code:    "path_not_allowed",
 			Message: "Path must be within the deployment workdir",
@@ -153,9 +157,20 @@ func (s *Server) handleGetFileContent(w http.ResponseWriter, r *http.Request) {
 		requestedPath = dc.Workdir + "/" + requestedPath
 	}
 
-	// Security: Ensure path is within workdir (with exception for common config files)
+	// Security: Ensure path is within workdir (with exception for this
+	// deployment's own staged release tree, lifecycle logs, and common config files). Release
+	// inspection is read-only and remains deployment-scoped so activation
+	// failures can be diagnosed without granting arbitrary host file access.
 	allowedPaths := []string{"/etc/caddy/Caddyfile"}
 	pathAllowed := vps.IsPathWithinWorkdir(requestedPath, dc.Workdir)
+	if !pathAllowed {
+		releaseRoot := filepath.Join(filepath.Dir(dc.Workdir), ".vrooli", "cloud", "deployments", dc.Deployment.ID, "releases")
+		pathAllowed = vps.IsPathWithinWorkdir(requestedPath, releaseRoot)
+	}
+	if !pathAllowed {
+		logRoot := filepath.Join(filepath.Dir(dc.Workdir), ".vrooli", "logs")
+		pathAllowed = vps.IsPathWithinWorkdir(requestedPath, logRoot)
+	}
 	for _, allowed := range allowedPaths {
 		if requestedPath == allowed {
 			pathAllowed = true

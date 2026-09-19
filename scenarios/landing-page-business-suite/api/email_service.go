@@ -15,6 +15,7 @@ import (
 	"net"
 	"net/http"
 	"net/smtp"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -62,11 +63,15 @@ type EmailServiceOptions struct {
 	// SendGridEndpoint is injectable so provider behavior can be tested against
 	// a bounded local server without weakening the production endpoint.
 	SendGridEndpoint string
-	HTTPClient       *http.Client
-	SMTPSender       SMTPSenderFunc
+	// MailgunEndpoint is injectable so provider behavior can be tested against
+	// a bounded local server without weakening the production endpoint.
+	MailgunEndpoint string
+	HTTPClient      *http.Client
+	SMTPSender      SMTPSenderFunc
 	// SMTPPasswordResolver supplies the authority-owned SMTP secret. The
 	// branding model deliberately cannot provide this value.
 	SMTPPasswordResolver func() (string, error)
+	MailgunKeyResolver   func() string
 }
 
 // EmailService handles sending emails using public branding settings plus
@@ -81,9 +86,12 @@ type EmailService struct {
 	developmentRecorder  func(to, subject, text, html string) error
 	sendGridKeyResolver  func() string
 	mailer               *emaildelivery.Mailer
+	mailgunEndpoint      string
+	mailgunKeyResolver   func() string
 }
 
 const defaultSendGridEndpoint = "https://api.sendgrid.com/v3/mail/send"
+const defaultMailgunEndpoint = "https://api.mailgun.net"
 
 func firstNonEmpty(value, fallback string) string {
 	if strings.TrimSpace(value) != "" {
@@ -149,12 +157,14 @@ func NewEmailService() *EmailService {
 	service := &EmailService{
 		sendGridConfig:   sgConfig,
 		sendGridEndpoint: defaultSendGridEndpoint,
+		mailgunEndpoint:  firstNonEmpty(resolveConfig("MAILGUN_API_BASE_URL"), defaultMailgunEndpoint),
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
 		smtpSender:           secureSMTPSend,
 		smtpPasswordResolver: func() (string, error) { return administration.ResolveAuthorityCredential("SMTP_PASSWORD") },
 		sendGridKeyResolver:  func() string { return resolveSecret("SENDGRID_API_KEY") },
+		mailgunKeyResolver:   func() string { return resolveSecret("MAILGUN_API_KEY") },
 	}
 	if !isProductionSecurityEnvironment() {
 		service.developmentRecorder = recordDevelopmentEmail
@@ -181,9 +191,11 @@ func NewEmailServiceWithOptions(opts EmailServiceOptions) *EmailService {
 	return &EmailService{
 		sendGridConfig:       opts.SendGridConfig,
 		sendGridEndpoint:     firstNonEmpty(opts.SendGridEndpoint, defaultSendGridEndpoint),
+		mailgunEndpoint:      firstNonEmpty(opts.MailgunEndpoint, defaultMailgunEndpoint),
 		httpClient:           httpClient,
 		smtpSender:           sender,
 		smtpPasswordResolver: passwordResolver,
+		mailgunKeyResolver:   opts.MailgunKeyResolver,
 	}
 }
 
@@ -613,6 +625,116 @@ func (s *EmailService) sendViaSendGridCategory(ctx context.Context, to, subject,
 	})
 
 	return &administration.SignInDelivery{Provider: emaildelivery.ProviderSendGrid, ProviderMessageID: strings.TrimSpace(resp.Header.Get("X-Message-Id"))}, nil
+}
+
+func (s *EmailService) mailgunAPIKey() string {
+	if s == nil || s.mailgunKeyResolver == nil {
+		return ""
+	}
+	key := strings.TrimSpace(s.mailgunKeyResolver())
+	return strings.TrimPrefix(key, "api:")
+}
+
+func (s *EmailService) mailgunDomain(sender string) string {
+	parts := strings.Split(strings.TrimSpace(strings.ToLower(sender)), "@")
+	if len(parts) != 2 {
+		return ""
+	}
+	return strings.TrimSuffix(parts[1], ".")
+}
+
+func (s *EmailService) mailgunBaseURL() string {
+	if s == nil || strings.TrimSpace(s.mailgunEndpoint) == "" {
+		return defaultMailgunEndpoint
+	}
+	return strings.TrimRight(strings.TrimSpace(s.mailgunEndpoint), "/")
+}
+
+// verifyMailgunAPI performs a read-only domain lookup. It returns the HTTP
+// status (or zero when the provider could not be reached) and a redacted
+// operator-facing detail.
+func (s *EmailService) verifyMailgunAPI(ctx context.Context) (int, string) {
+	key := s.mailgunAPIKey()
+	domain := s.mailgunDomain(s.senderIdentity())
+	if key == "" {
+		return http.StatusUnauthorized, "no Mailgun API key is configured"
+	}
+	if domain == "" {
+		return http.StatusBadRequest, "the sender address does not identify a Mailgun sending domain"
+	}
+	endpoint := s.mailgunBaseURL() + "/v3/" + url.PathEscape(domain)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return 0, "Mailgun verification request could not be created"
+	}
+	req.SetBasicAuth("api", key)
+	client := s.httpClient
+	if client == nil {
+		client = &http.Client{Timeout: 10 * time.Second}
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, "Mailgun could not be reached to verify the API key"
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return resp.StatusCode, fmt.Sprintf("Mailgun rejected the API key (HTTP %d)", resp.StatusCode)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return resp.StatusCode, fmt.Sprintf("Mailgun answered HTTP %d when asked to verify the sending domain", resp.StatusCode)
+	}
+	return resp.StatusCode, "the Mailgun API key authenticates for the sending domain"
+}
+
+// sendViaMailgun sends through Mailgun's HTTPS API using the provider API key
+// and the domain portion of the configured sender address. The API key never
+// enters a URL, payload, log, or returned error.
+func (s *EmailService) sendViaMailgun(ctx context.Context, to, sender, subject, textContent, htmlContent string) (*administration.SignInDelivery, error) {
+	key := s.mailgunAPIKey()
+	domain := s.mailgunDomain(sender)
+	if key == "" {
+		return nil, fmt.Errorf("Mailgun API key is not configured")
+	}
+	if domain == "" {
+		return nil, fmt.Errorf("sender address does not identify a Mailgun sending domain")
+	}
+	form := url.Values{}
+	form.Set("from", sender)
+	form.Set("to", to)
+	form.Set("subject", subject)
+	form.Set("text", textContent)
+	if strings.TrimSpace(htmlContent) != "" {
+		form.Set("html", htmlContent)
+	}
+	endpoint := s.mailgunBaseURL() + "/v3/" + url.PathEscape(domain) + "/messages"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(form.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("create Mailgun request: %w", err)
+	}
+	req.SetBasicAuth("api", key)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	client := s.httpClient
+	if client == nil {
+		client = &http.Client{Timeout: 10 * time.Second}
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Mailgun request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<10))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		bodyText := strings.TrimSpace(string(body))
+		if len(bodyText) > 500 {
+			bodyText = bodyText[:500] + "..."
+		}
+		return nil, fmt.Errorf("Mailgun API error: %d - %s", resp.StatusCode, bodyText)
+	}
+	var response struct {
+		ID string `json:"id"`
+	}
+	_ = json.Unmarshal(body, &response)
+	return &administration.SignInDelivery{Provider: emaildelivery.ProviderMailgun, ProviderMessageID: strings.TrimSpace(response.ID)}, nil
 }
 
 // buildMagicLinkHTML creates an HTML email for magic link authentication

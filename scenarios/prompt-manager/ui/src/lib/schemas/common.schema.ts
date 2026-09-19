@@ -10,8 +10,9 @@ import { z } from 'zod'
  * - local: Personal skills (gitignored)
  * - drafts: Work in progress skills
  * - scenario: Skills owned by a scenario and read from its own skills/ root
+ * - vendor: Third-party skills imported from an external source (gitignored, read-only)
  */
-export const FolderTypeSchema = z.enum(['core', 'local', 'drafts', 'scenario'])
+export const FolderTypeSchema = z.enum(['core', 'local', 'drafts', 'scenario', 'vendor'])
 export type FolderType = z.infer<typeof FolderTypeSchema>
 
 /**

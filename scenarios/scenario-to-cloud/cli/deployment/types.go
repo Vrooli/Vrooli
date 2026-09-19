@@ -43,6 +43,21 @@ type CreateResponse struct {
 	Timestamp  string  `json:"timestamp"`
 }
 
+// ExecuteRequest carries optional operator inputs for a deployment run.
+// Secret values are read from stdin by the CLI and are never placed in argv.
+type ExecuteRequest struct {
+	ProvidedSecrets  map[string]string `json:"provided_secrets,omitempty"`
+	RunPreflight     bool              `json:"run_preflight,omitempty"`
+	ForceBundleBuild bool              `json:"force_bundle_build,omitempty"`
+	RequestKey       string            `json:"request_key,omitempty"`
+}
+
+type ExecuteResponse struct {
+	OperationID string `json:"operation_id,omitempty"`
+	PlanDigest  string `json:"plan_digest,omitempty"`
+	State       string `json:"state,omitempty"`
+}
+
 // DeleteResponse is the response from deleting a deployment.
 type DeleteResponse struct {
 	Deleted   bool   `json:"deleted"`

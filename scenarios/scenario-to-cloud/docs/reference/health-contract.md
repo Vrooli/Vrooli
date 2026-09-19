@@ -73,6 +73,7 @@ checks:
 | `host_presence` | Did the target answer the inspection? | SSH connectivity probe |
 | `transport_reach` | Is the pinned transport identity authorized? | SSH key authorization state |
 | `application_readiness` | Are the scenario and its resources running? | Process inspection |
+| `application_dependencies` | Do the capabilities the application declares actually work? | The application's own `/health` body |
 | `release_freshness` | Does the deployed bundle match local scenario state? | Version and bundle fingerprint parity |
 | `edge_dns` | Do the edge records point at the target? | DNS evaluation |
 | `edge_tls` | Is the certificate valid and renewable? | TLS probe and ALPN check |
@@ -81,6 +82,28 @@ checks:
 
 Check statuses: `PASSED`, `WARNED`, `FAILED`, `SKIPPED` (did not apply),
 `UNAVAILABLE` (evidence could not be gathered).
+
+#### application_dependencies
+
+`application_readiness` asks whether the workload runs. This asks whether it
+can do its job. The producer reads the deployed application's own `/health`
+body — not just its status code — and republishes each declared dependency.
+
+A 2xx status code with a degraded body is the shape that hides real outages: a
+scenario that cannot reach its mail or payment provider still answers 200, and
+every reachability check passes. Reading only the code reported such a
+deployment `HEALTHY`.
+
+| Application state | Check | Observation status |
+|---|---|---|
+| Every dependency connected | `PASSED` | unchanged |
+| One or more dependencies failing | `WARNED` (`app_dependency_failing`) | `DEGRADED` |
+| Body unreadable, absent or non-JSON | `SKIPPED` (`app_dependencies_not_observed`) | unchanged |
+
+A failing dependency is `WARNED`, never `FAILED`: the deployment serves, so it
+is not broken, but a capability is unavailable and the operator must be told.
+A body that could not be read is `SKIPPED`, because an unread body is not
+evidence of health and must never render as a pass.
 
 ### Status and freshness are independent
 

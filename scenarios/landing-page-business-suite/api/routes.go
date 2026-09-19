@@ -593,6 +593,7 @@ func registerAdminCoreRoutes(s *Server) {
 	s.router.HandleFunc("/api/v1/admin/auth/delivery", s.requireMetricsReader(s.signInDeliveryReport)).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/auth/email-readiness", s.requireAdmin(s.emailReadinessReport)).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/provider-credentials", s.requireAdmin(s.providerVerificationReport)).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/provider-credentials", s.requireAdmin(s.adminProviderCredentialWrite)).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/security-events", s.requireAdmin(s.adminSecurityEvents)).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/auth/delivery-probe", s.requireAdmin(s.signInDeliveryProbe)).Methods("POST")
 	profileDeps := s.adminProfileDependencies()

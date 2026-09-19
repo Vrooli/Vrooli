@@ -34,6 +34,7 @@ import { DraftStatusChip } from '../shared/DraftStatusChip'
 import { ExpandableDescription } from '../shared/ExpandableDescription'
 import { TagChipsEditor } from '../shared/TagChipsEditor'
 import { CrossReferencePanel } from './CrossReferencePanel'
+import { ThirdPartySkillPanel } from './ThirdPartySkillPanel'
 import { StartChatDialog } from '../chat/StartChatDialog'
 import { LineagePanel, type LineageTab } from './LineagePanel'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
@@ -438,6 +439,8 @@ export function SkillEditorPanel({
                 </ToolbarDropdown>
             </span>
           </div>
+
+          <ThirdPartySkillPanel skill={currentSkill} />
         </div>
 
         {/* Content area with optional right sidebar */}

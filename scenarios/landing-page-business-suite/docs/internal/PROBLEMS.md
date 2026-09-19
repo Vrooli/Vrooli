@@ -365,3 +365,10 @@ matcher supports canonical nested source paths.
 - Evidence: the admin portal had no global page search; navigation was limited to nested header menus, despite the centralized navigation catalog and existing `getAllNavItems` search-oriented utility.
 - Resolution: added an accessible global admin search palette with name, section, and description matching; ranked results; keyboard navigation; Ctrl/Cmd+K opening; responsive header access; and direct route navigation.
 - Measured: 2026-09-18 with focused AdminLayout tests, targeted ESLint, and a successful production UI build.
+
+## Work ladder
+
+- Rung: W3
+- Evidence: the admin email-delivery surface exposed useful telemetry but made operators synthesize health, provider blockers, queue state, and test procedure from dense undifferentiated sections.
+- Resolution: added an explicit overall health verdict, delivery summary metrics, clearer authorization and routing explanations, queue/quota cards, guided external-delivery testing, and more readable message history while preserving existing diagnostics and actions.
+- Measured: 2026-09-18 with the focused EmailDelivery test, targeted ESLint, and a successful production UI build.

@@ -16,11 +16,13 @@ import type { TreeNode as TreeNodeType } from '@/types/editor'
 import type { Skill } from '@/types'
 import type { DetailMode } from '@/types/filterSort'
 import { selectors } from '@/constants/selectors'
+import { isThirdPartySkill } from '@/lib/skillOrigin'
 
 const FOLDER_DOT_COLORS: Record<string, string> = {
   core: 'bg-blue-400',
   local: 'bg-green-400',
   drafts: 'bg-amber-400',
+  vendor: 'bg-violet-400',
 }
 
 function getHealthTextColor(score: number): string {
@@ -268,6 +270,15 @@ function TreeNodeComponentImpl({
               <span className={cn('w-1.5 h-1.5 rounded-full', FOLDER_DOT_COLORS[skill.folder] ?? 'bg-muted')} />
               {skill.folder}
             </span>
+            {isThirdPartySkill(skill) && (
+              <span
+                className="text-violet-300"
+                title={`Third-party skill from ${skill.origin?.sourceUrl}`}
+                data-testid="tree-third-party-badge"
+              >
+                third-party
+              </span>
+            )}
             {skill.draft && (
               <span className="text-amber-400">draft</span>
             )}

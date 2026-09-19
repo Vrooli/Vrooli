@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"scenario-to-cloud/apierrors"
+	"scenario-to-cloud/apphealth"
+	"scenario-to-cloud/domain"
 	"scenario-to-cloud/execplan"
 	"scenario-to-cloud/faultinject"
 	"scenario-to-cloud/reach"
@@ -405,7 +407,56 @@ func runVerifyReadiness(ctx context.Context, e *executor, action execplan.Action
 			return "", fmt.Errorf("unknown readiness check %q", check)
 		}
 	}
-	return "checks passed: " + strings.Join(checks, ","), nil
+	detail := "checks passed: " + strings.Join(checks, ",")
+	if warning := appDependencyWarning(ctx, domainName, action.Inputs["health_path"], checks); warning != "" {
+		detail += "; " + warning
+	}
+	return detail, nil
+}
+
+// appHealthFetchForReadiness is the application health seam; tests replace it.
+var appHealthFetchForReadiness = func(ctx context.Context, url string) apphealth.Report {
+	return apphealth.Fetch(ctx, nil, url, 5*time.Second)
+}
+
+// appDependencyWarning reads the application's own health body after the
+// readiness checks pass and reports failing dependencies as a warning on the
+// step receipt. It never returns an error: the deployment answered, so it is
+// not this step's place to fail it. Without this, a deployment whose mail or
+// payment provider is unusable records "checks passed" and nothing else.
+func appDependencyWarning(ctx context.Context, domainName, healthPath string, checks []string) string {
+	probed := false
+	for _, check := range checks {
+		if check == "https" || check == "public" {
+			probed = true
+			break
+		}
+	}
+	if !probed || strings.TrimSpace(domainName) == "" {
+		return ""
+	}
+	if strings.TrimSpace(healthPath) == "" {
+		healthPath = domain.DefaultHealthPath
+	}
+	report := appHealthFetchForReadiness(ctx, fmt.Sprintf("https://%s%s", domainName, healthPath))
+	if report.Unavailable {
+		// The readiness checks above already proved reachability, so silence
+		// here would be misleading; say the body was not readable.
+		return "warning: " + report.Summary()
+	}
+	warnings := report.Warnings()
+	if len(warnings) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(warnings))
+	for _, dep := range warnings {
+		part := dep.Name
+		if strings.TrimSpace(dep.Detail) != "" {
+			part += " (" + strings.TrimSpace(dep.Detail) + ")"
+		}
+		parts = append(parts, part)
+	}
+	return "warning: the application reports failing dependencies: " + strings.Join(parts, "; ")
 }
 
 func runReleaseRetainPredecessor(ctx context.Context, e *executor, action execplan.Action) (string, error) {

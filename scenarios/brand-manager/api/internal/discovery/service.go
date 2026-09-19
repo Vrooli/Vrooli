@@ -5,24 +5,71 @@ import (
 	"encoding/json"
 	"log"
 	"path"
+	"regexp"
 	"strings"
+
+	"brand-manager/internal/brandsurface"
 )
 
 // Scanned file locations within a scenario's source tree, in priority order.
 const (
 	serviceJSONPath  = ".vrooli/service.json"
 	brandingJSONPath = ".vrooli/branding.json"
-	manifestPath     = "ui/public/manifest.json"
-	publicDir        = "ui/public"
 )
 
+// manifestCandidates are the web-app-manifest locations the scanner probes, in
+// priority order. The fleet's /public/ convention (brandsurface) nests publicly
+// fetchable branding assets in ui/public/public so they stay world-readable
+// behind an access-gated app; ui/public is the pre-convention location.
+var manifestCandidates = []string{
+	path.Join(brandsurface.PublicAssetSourceDir, "manifest.json"),
+	path.Join(brandsurface.RootAssetSourceDir, "manifest.json"),
+}
+
+// assetDirCandidates are the directories the scanner lists for favicon/logo
+// files, in the same priority order as manifestCandidates.
+var assetDirCandidates = []string{
+	brandsurface.PublicAssetSourceDir,
+	brandsurface.RootAssetSourceDir,
+}
+
 // themeCSSCandidates are the CSS files the scanner probes for brand-related
-// custom properties, in priority order.
+// custom properties, in priority order. ui/src/design-tokens.css is the
+// template's canonical brand-token file (the `--color-*` / `--font-*` contract
+// scenarios declare their identity in); the rest are older or hand-rolled
+// layouts.
 var themeCSSCandidates = []string{
+	"ui/src/design-tokens.css",
+	"ui/src/styles.css",
 	"ui/src/styles/theme.css",
 	"ui/src/styles/brand.css",
 	"ui/src/index.css",
 }
+
+// brandColorAliases maps a draft color slot onto the CSS custom properties that
+// carry it, in priority order. The canonical `--color-*` names come first, then
+// the `--brand-*` and bare fallbacks older scenarios use.
+var brandColorAliases = []struct {
+	slot  func(*Colors) *string
+	props []string
+}{
+	{func(c *Colors) *string { return &c.Primary }, []string{"--color-primary", "--brand-primary", "--primary"}},
+	{func(c *Colors) *string { return &c.Secondary }, []string{"--color-secondary", "--brand-secondary", "--secondary"}},
+	{func(c *Colors) *string { return &c.Accent }, []string{"--color-accent", "--brand-accent", "--accent"}},
+	{func(c *Colors) *string { return &c.Background }, []string{"--color-background", "--brand-background", "--background"}},
+	{func(c *Colors) *string { return &c.Surface }, []string{"--color-surface", "--brand-surface", "--surface"}},
+	{func(c *Colors) *string { return &c.Text }, []string{"--color-foreground", "--color-text", "--brand-text", "--text"}},
+	{func(c *Colors) *string { return &c.Error }, []string{"--color-danger", "--color-error", "--brand-error"}},
+}
+
+// cssDeclRe matches one custom-property declaration (`--name: value;`).
+var cssDeclRe = regexp.MustCompile(`(--[A-Za-z0-9_-]+)\s*:\s*([^;{}]+);`)
+
+// cssLiteralColorRe matches a color value that is statically known — a hex,
+// rgb()/rgba() or hsl()/hsla() literal. A value built from var() or color-mix()
+// resolves only in the browser, so the scanner records it as signal but never
+// as a color.
+var cssLiteralColorRe = regexp.MustCompile(`^(#[0-9A-Fa-f]{3,8}|rgba?\([^()]*\)|hsla?\([^()]*\))$`)
 
 // brandCSSProps are the CSS custom-property names that count as branding signal.
 var brandCSSProps = []string{
@@ -136,14 +183,27 @@ func (s *service) scan(ctx context.Context, scenario string) (Result, error) {
 	return result, nil
 }
 
-// scanServiceJSON reads .vrooli/service.json for branding hints.
+// scanServiceJSON reads .vrooli/service.json for branding hints. The identity
+// fields live in the document's `service` block (the service.schema.json shape
+// brandsurface.ParseService reads); a flat document is tolerated so a
+// hand-rolled or legacy file still yields signal.
 func (s *service) scanServiceJSON(ctx context.Context, scenario string, result *Result) error {
-	svc, err := s.readJSON(ctx, scenario, serviceJSONPath)
-	if err != nil || svc == nil {
+	doc, err := s.readJSON(ctx, scenario, serviceJSONPath)
+	if err != nil || doc == nil {
 		return err
 	}
+	svc := doc
+	if nested, ok := doc["service"].(map[string]interface{}); ok {
+		svc = nested
+	}
 	fields := 0
-	if name := jsonString(svc, "name"); name != "" {
+	// displayName is the human brand name; name is the scenario slug and only a
+	// fallback for a document that carries no display name.
+	name := jsonString(svc, "displayName")
+	if name == "" {
+		name = jsonString(svc, "name")
+	}
+	if name != "" {
 		result.Draft.Identity.DisplayName = name
 		fields++
 	}
@@ -197,12 +257,26 @@ func (s *service) scanBrandingJSON(ctx context.Context, scenario string, result 
 	return nil
 }
 
-// scanManifest reads ui/public/manifest.json for PWA branding, filling only the
-// fields a higher-priority source did not already set.
+// scanManifest reads the web-app manifest for PWA branding, filling only the
+// fields a higher-priority source did not already set. The first candidate
+// location that exists wins.
 func (s *service) scanManifest(ctx context.Context, scenario string, result *Result) error {
-	manifest, err := s.readJSON(ctx, scenario, manifestPath)
-	if err != nil || manifest == nil {
-		return err
+	var (
+		manifest     map[string]interface{}
+		manifestPath string
+	)
+	for _, rel := range manifestCandidates {
+		doc, err := s.readJSON(ctx, scenario, rel)
+		if err != nil {
+			return err
+		}
+		if doc != nil {
+			manifest, manifestPath = doc, rel
+			break
+		}
+	}
+	if manifest == nil {
+		return nil
 	}
 	fields := 0
 	if name := jsonString(manifest, "name"); name != "" {
@@ -237,9 +311,11 @@ func (s *service) scanManifest(ctx context.Context, scenario string, result *Res
 	return nil
 }
 
-// scanThemeCSS probes common theme files for brand-related CSS custom
-// properties. It records the signal (which file, how many props) but does not
-// extract color values — a CSS variable's resolved value is not statically known.
+// scanThemeCSS probes the scenario's brand-token CSS files for brand-related
+// custom properties and lifts every statically-known color literal into the
+// draft, filling only slots a higher-priority source left empty. A property
+// whose value is a var()/color-mix() expression still counts as signal, because
+// only the browser can resolve it.
 func (s *service) scanThemeCSS(ctx context.Context, scenario string, result *Result) error {
 	for _, rel := range themeCSSCandidates {
 		data, err := s.scanner.ReadFile(ctx, scenario, rel)
@@ -250,10 +326,14 @@ func (s *service) scanThemeCSS(ctx context.Context, scenario string, result *Res
 			continue
 		}
 		content := string(data)
-		fields := 0
-		for _, prop := range brandCSSProps {
-			if strings.Contains(content, prop) {
-				fields++
+		fields := applyCSSColors(parseCSSColorVars(content), &result.Draft.Colors)
+		if fields == 0 {
+			// Nothing resolvable — fall back to counting the properties present,
+			// so the file is still reported as branding signal.
+			for _, prop := range brandCSSProps {
+				if strings.Contains(content, prop) {
+					fields++
+				}
 			}
 		}
 		if fields > 0 {
@@ -265,40 +345,98 @@ func (s *service) scanThemeCSS(ctx context.Context, scenario string, result *Res
 	return nil
 }
 
-// scanAssets scans ui/public for the first favicon and logo files, recording each
-// as a source and pinning its path on the draft identity.
+// scanAssets scans the public asset directories for the first favicon and logo
+// files, recording each as a source and pinning its path on the draft identity.
 func (s *service) scanAssets(ctx context.Context, scenario string, result *Result) error {
-	entries, err := s.scanner.ListDir(ctx, scenario, publicDir)
-	if err != nil {
-		return err
+	type dirEntries struct {
+		dir     string
+		entries []string
 	}
-	if len(entries) == 0 {
-		return nil
+	var dirs []dirEntries
+	for _, dir := range assetDirCandidates {
+		entries, err := s.scanner.ListDir(ctx, scenario, dir)
+		if err != nil {
+			return err
+		}
+		if len(entries) > 0 {
+			dirs = append(dirs, dirEntries{dir: dir, entries: entries})
+		}
 	}
 	// Probe in a stable order so the first-match-per-type is deterministic.
 	for _, kind := range []string{"favicon", "logo"} {
-		for _, entry := range entries {
-			if !strings.HasPrefix(strings.ToLower(entry), kind) {
-				continue
-			}
-			rel := path.Join(publicDir, entry)
-			result.Sources = append(result.Sources, Source{
-				File: rel, Type: SourceAsset, Confidence: 0.8, Fields: 1,
-			})
-			switch kind {
-			case "favicon":
-				if result.Draft.Identity.FaviconPath == "" {
-					result.Draft.Identity.FaviconPath = rel
-				}
-			case "logo":
-				if result.Draft.Identity.LogoPath == "" {
-					result.Draft.Identity.LogoPath = rel
+		rel := ""
+		for _, d := range dirs {
+			for _, entry := range d.entries {
+				if strings.HasPrefix(strings.ToLower(entry), kind) {
+					rel = path.Join(d.dir, entry)
+					break
 				}
 			}
-			break // only the first match per type
+			if rel != "" {
+				break
+			}
+		}
+		if rel == "" {
+			continue
+		}
+		result.Sources = append(result.Sources, Source{
+			File: rel, Type: SourceAsset, Confidence: 0.8, Fields: 1,
+		})
+		switch kind {
+		case "favicon":
+			if result.Draft.Identity.FaviconPath == "" {
+				result.Draft.Identity.FaviconPath = rel
+			}
+		case "logo":
+			if result.Draft.Identity.LogoPath == "" {
+				result.Draft.Identity.LogoPath = rel
+			}
 		}
 	}
 	return nil
+}
+
+// parseCSSColorVars extracts every custom property whose value is a statically
+// known color literal, keyed by the lower-cased property name. The first
+// declaration of a property wins, matching the cascade for a single file's
+// :root block.
+func parseCSSColorVars(content string) map[string]string {
+	out := map[string]string{}
+	for _, m := range cssDeclRe.FindAllStringSubmatch(content, -1) {
+		name := strings.ToLower(m[1])
+		value := strings.TrimSpace(m[2])
+		if i := strings.Index(value, "/*"); i >= 0 {
+			value = strings.TrimSpace(value[:i])
+		}
+		if !cssLiteralColorRe.MatchString(value) {
+			continue
+		}
+		if _, seen := out[name]; !seen {
+			out[name] = value
+		}
+	}
+	return out
+}
+
+// applyCSSColors maps parsed custom properties onto the draft color slots,
+// returning how many slots it filled. An already-set slot is left alone so a
+// higher-priority source keeps precedence.
+func applyCSSColors(vars map[string]string, colors *Colors) int {
+	set := 0
+	for _, alias := range brandColorAliases {
+		dst := alias.slot(colors)
+		if *dst != "" {
+			continue
+		}
+		for _, prop := range alias.props {
+			if v := vars[prop]; v != "" {
+				*dst = v
+				set++
+				break
+			}
+		}
+	}
+	return set
 }
 
 // readJSON reads and unmarshals a scenario file into a generic map. A missing

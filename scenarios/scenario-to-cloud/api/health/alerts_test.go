@@ -87,7 +87,7 @@ func observationFor(t *testing.T, live *domain.LiveStateResult, tlsSnap *tlsinfo
 	if tlsSnap == nil {
 		tlsSnap = fixtureTLS()
 	}
-	report := vps.ComputeHealth(dep, fixtureManifest(), fixtureIdentity(), live, fixtureDNS(), tlsSnap, nil)
+	report := vps.ComputeHealth(dep, fixtureManifest(), fixtureIdentity(), live, fixtureDNS(), tlsSnap, nil, nil)
 	report.Freshness = &domain.FreshnessStatus{Status: domain.FreshnessCurrent}
 	obs := Build(Input{Deployment: dep, Report: report, LiveState: live, Now: now}, DefaultPolicy())
 	return obs, report

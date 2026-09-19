@@ -64,6 +64,90 @@ func TestDiscover_AssetLogoFillsWhenNoLogoURL(t *testing.T) {
 	require.Equal(t, "ui/public/logo.svg", res.Draft.Identity.LogoPath)
 }
 
+// seedFleetShaped wires a scanner carrying the shapes a real scenario ships:
+// identity nested under service.json's `service` block, the canonical
+// ui/src/design-tokens.css token file, and branding assets under the /public/
+// convention directory (ui/public/public). No .vrooli/branding.json and no
+// ui/src/styles/theme.css exist anywhere in the fleet.
+func seedFleetShaped(t *testing.T, scenario string) *mocks.FakeScanner {
+	t.Helper()
+	sc := &mocks.FakeScanner{}
+	sc.SeedScenario(scenario)
+	sc.SeedFile(scenario, ".vrooli/service.json", []byte(`{
+		"version": "1.0.0",
+		"service": {
+			"name": "web-console",
+			"displayName": "Aquila",
+			"description": "Standalone browser terminal"
+		}
+	}`))
+	sc.SeedFile(scenario, "ui/src/design-tokens.css", []byte(`:root {
+  --color-background: #020617; /* slate-950 */
+  --color-foreground: #f8fafc;
+  --color-primary: #22d3ee;
+  --color-secondary: #0ea5b7;
+  --color-surface: #0f172a;
+  --color-accent: #22d3ee;
+  --color-danger: #f87171;
+  --wc-device-frame-surface: color-mix(in srgb, var(--color-surface) 88%, transparent);
+}`))
+	sc.SeedDir(scenario, "ui/public/public", []string{"favicon-32.png", "logo.svg", "README.md"})
+	return sc
+}
+
+// A scenario in the shape the fleet actually ships must yield its identity and
+// its color system. Before the path/nesting fix every probe missed and the scan
+// reported zero sources, which rendered "_Not yet defined._" in DESIGN.md.
+func TestDiscover_ReadsFleetShapedScenario(t *testing.T) {
+	sc := seedFleetShaped(t, "web-console")
+	svc := discovery.NewService(sc, &mocks.FakeBrandStore{}, nil)
+
+	res, err := svc.Discover(context.Background(), "web-console")
+	require.NoError(t, err)
+
+	// service.json, design-tokens.css, favicon asset, logo asset.
+	require.Len(t, res.Sources, 4)
+
+	// Identity comes from the nested service block, preferring displayName over
+	// the scenario slug.
+	require.Equal(t, "Aquila", res.Draft.Identity.DisplayName)
+	require.Equal(t, "Standalone browser terminal", res.Draft.Description)
+
+	// The canonical token file carries the color system.
+	require.Equal(t, "#22d3ee", res.Draft.Colors.Primary)
+	require.Equal(t, "#0ea5b7", res.Draft.Colors.Secondary)
+	require.Equal(t, "#22d3ee", res.Draft.Colors.Accent)
+	require.Equal(t, "#020617", res.Draft.Colors.Background)
+	require.Equal(t, "#0f172a", res.Draft.Colors.Surface)
+	require.Equal(t, "#f8fafc", res.Draft.Colors.Text)
+	require.Equal(t, "#f87171", res.Draft.Colors.Error)
+
+	// Assets under the /public/ convention directory are found.
+	require.Equal(t, "ui/public/public/favicon-32.png", res.Draft.Identity.FaviconPath)
+	require.Equal(t, "ui/public/public/logo.svg", res.Draft.Identity.LogoPath)
+
+	// Only the tagline is still missing, so it is the sole suggestion.
+	require.Equal(t, []string{"No tagline found. Consider adding a brand tagline."}, res.Suggestions)
+}
+
+// A token whose value is a var()/color-mix() expression is signal, not a color:
+// the scanner must not persist an unresolvable string as a brand color.
+func TestDiscover_SkipsUnresolvableTokenValues(t *testing.T) {
+	sc := &mocks.FakeScanner{}
+	sc.SeedScenario("derived")
+	sc.SeedFile("derived", "ui/src/design-tokens.css", []byte(`:root {
+  --color-primary: var(--wc-accent);
+  --color-surface: color-mix(in srgb, #fff 10%, transparent);
+}`))
+	svc := discovery.NewService(sc, &mocks.FakeBrandStore{}, nil)
+
+	res, err := svc.Discover(context.Background(), "derived")
+	require.NoError(t, err)
+	require.Len(t, res.Sources, 1)
+	require.Equal(t, "ui/src/design-tokens.css", res.Sources[0].File)
+	require.False(t, res.Draft.Colors.HasAny())
+}
+
 func TestDiscover_EmptyScenarioYieldsNoSourcesAndSuggestions(t *testing.T) {
 	sc := &mocks.FakeScanner{}
 	sc.SeedScenario("blank")

@@ -168,7 +168,7 @@ Target readiness checks and host fixes
 
 | Command | Effect | Agent-runnable | Binding | Description |
 |---|---|---|---|---|
-| `preflight run` | read | true | local | Run preflight checks for a manifest |
+| `preflight run` | read | true | local | Run preflight checks for a manifest. Human report by default, --json for the raw body. Exits non-zero on a failing check; warnings print and never fail. |
 | `preflight requirements` | read | true | local | Print the canonical VPS requirement policy |
 | `preflight fix-firewall` | destructive | false | local | Open the required inbound ports on the target (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
 | `preflight fix-processes` | destructive | false | local | Stop stale scenario processes on the target (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |

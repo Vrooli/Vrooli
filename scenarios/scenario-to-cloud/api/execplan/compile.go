@@ -157,6 +157,10 @@ func Compile(_ context.Context, in CompileInputs) (*Plan, error) {
 		Preconditions:       []Precondition{},
 		Actions:             []Action{},
 	}
+	// Advisories are informational and apply to every outcome, including a
+	// no-op: a deployment already at the desired release can still be missing
+	// the credential one of its capabilities needs.
+	plan.Advisories = capabilityAdvisories(in)
 
 	if missing := missingInputs(in); len(missing) > 0 && in.Scope != ScopeRetire && in.Scope != ScopeStop {
 		plan.Outcome = OutcomeNeedsInput
@@ -320,6 +324,55 @@ func desiredStateSatisfied(plan *Plan, obs Observations) bool {
 		return false
 	}
 	return true
+}
+
+// capabilityAdvisories reports declared capabilities whose secret nothing has
+// satisfied. These are the optional secrets missingInputs deliberately skips:
+// optional means "do not block", which until now also meant "do not mention",
+// so a deployment could go out with its mail or payment provider unconfigured
+// and nothing in the review said so.
+//
+// Only secrets that name a capability produce an advisory. A required secret
+// is already a blocker and is not repeated here.
+func capabilityAdvisories(in CompileInputs) []Advisory {
+	if in.Manifest.Secrets == nil {
+		return nil
+	}
+	satisfied := map[string]bool{}
+	for _, key := range in.Observations.SatisfiedInputs {
+		if key = strings.TrimSpace(key); key != "" {
+			satisfied[key] = true
+		}
+	}
+	var out []Advisory
+	for _, secret := range in.Manifest.Secrets.BundleSecrets {
+		capability := strings.TrimSpace(secret.Capability)
+		if capability == "" || secret.Required {
+			continue
+		}
+		envName := strings.TrimSpace(secret.Target.Name)
+		address := envName
+		if secret.Descriptor != nil {
+			address = strings.TrimSpace(secret.Descriptor.LogicalID) + ":" + strings.TrimSpace(secret.Descriptor.Field)
+		}
+		if satisfied[envName] || satisfied[address] || satisfied[strings.TrimSpace(secret.ID)] {
+			continue
+		}
+		id := strings.TrimSpace(secret.ID)
+		if id == "" {
+			id = envName
+		}
+		out = append(out, Advisory{
+			ID:         "secret_unsatisfied:" + id,
+			Severity:   AdvisorySeverityWarning,
+			Capability: capability,
+			Summary:    fmt.Sprintf("%s will not work: no value satisfies %s", capability, id),
+			Detail:     strings.TrimSpace(secret.Description),
+			Hint:       fmt.Sprintf("scenario-to-cloud secrets set %s --deployment %s --scenario %s", envName, in.Deployment.ID, in.Deployment.ScenarioID),
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
 }
 
 // missingInputs derives the operator inputs the closure and manifest declare
@@ -855,11 +908,12 @@ func readinessAction(in CompileInputs, deps []string) Action {
 		Effect:             EffectNone,
 		RequiredCapability: "health:observe",
 		Inputs: map[string]string{
-			"checks":     strings.Join(checks, ","),
-			"domain":     strings.TrimSpace(in.Manifest.Edge.Domain),
-			"ui_port":    strconv.Itoa(in.Manifest.Ports["ui"]),
-			"host":       strings.TrimSpace(in.Manifest.Target.VPS.Host),
-			"release_id": in.ReleaseArtifacts.ID,
+			"checks":      strings.Join(checks, ","),
+			"domain":      strings.TrimSpace(in.Manifest.Edge.Domain),
+			"health_path": in.Manifest.Edge.AppHealthPath(),
+			"ui_port":     strconv.Itoa(in.Manifest.Ports["ui"]),
+			"host":        strings.TrimSpace(in.Manifest.Target.VPS.Host),
+			"release_id":  in.ReleaseArtifacts.ID,
 		},
 		DependsOn:    deps,
 		Verification: "readiness_checks_pass",

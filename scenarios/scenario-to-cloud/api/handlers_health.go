@@ -2,13 +2,16 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
 
 	"scenario-to-cloud/apierrors"
+	"scenario-to-cloud/apphealth"
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/health"
@@ -24,6 +27,16 @@ import (
 // console is an operator surface, so an unreachable target must settle to a
 // typed unknown/degraded observation within a bounded interactive interval.
 const healthInspectionTimeout = 15 * time.Second
+
+// appHealthTimeout bounds the application health-body read. It is short: the
+// body is an advisory warning source, so a slow application must not consume
+// the whole inspection budget the reachability checks depend on.
+const appHealthTimeout = 5 * time.Second
+
+// appHealthFetch is the application health seam; tests replace it.
+var appHealthFetch = func(ctx context.Context, url string, timeout time.Duration) apphealth.Report {
+	return apphealth.Fetch(ctx, nil, url, timeout)
+}
 
 // registerHealthRoutes mounts the typed observation surface beside the
 // legacy report. The legacy GET /deployments/{id}/health route stays where
@@ -69,6 +82,7 @@ func (s *Server) inspectDeploymentHealth(parent context.Context, dc *DeploymentC
 		dnsEval   *dns.Evaluation
 		tlsSnap   *tlsinfo.Snapshot
 		tlsErr    error
+		appReport *apphealth.Report
 		wg        sync.WaitGroup
 	)
 
@@ -108,6 +122,19 @@ func (s *Server) inspectDeploymentHealth(parent context.Context, dc *DeploymentC
 		}
 	}()
 
+	// 4. The application's own health body. A 2xx proves it answers; the body
+	// is the only place a working-but-degraded capability is visible.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		edgeDomain := strings.TrimSpace(dc.Manifest.Edge.Domain)
+		if edgeDomain == "" {
+			return
+		}
+		report := appHealthFetch(ctx, fmt.Sprintf("https://%s%s", edgeDomain, dc.Manifest.Edge.AppHealthPath()), appHealthTimeout)
+		appReport = &report
+	}()
+
 	wg.Wait()
 	if liveState != nil && liveState.OK && liveState.System != nil {
 		verified := sshidentity.ApplyVerificationResult(
@@ -120,7 +147,7 @@ func (s *Server) inspectDeploymentHealth(parent context.Context, dc *DeploymentC
 	}
 
 	// Compute the legacy report
-	report := vps.ComputeHealth(dc.Deployment, dc.Manifest, identity, liveState, dnsEval, tlsSnap, tlsErr)
+	report := vps.ComputeHealth(dc.Deployment, dc.Manifest, identity, liveState, dnsEval, tlsSnap, tlsErr, appReport)
 	report.Freshness = evaluateFreshnessForHealth(s, ctx, dc.Deployment, dc.Manifest)
 	if report.Freshness != nil && report.Freshness.Status == domain.FreshnessOutdated {
 		report.Recommendations = append(report.Recommendations, domain.Recommendation{

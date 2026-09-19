@@ -235,6 +235,14 @@
       "category": "admin"
     },
     {
+      "id": "post-api-v1-admin-provider-credentials",
+      "path": "/api/v1/admin/provider-credentials",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/provider-credentials",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
       "id": "get-api-v1-admin-remote-profile-sessions",
       "path": "/api/v1/admin/remote-profile-sessions",
       "method": "GET",

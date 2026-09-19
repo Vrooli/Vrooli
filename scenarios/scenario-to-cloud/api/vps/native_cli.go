@@ -63,6 +63,7 @@ func runReleaseDeliver(ctx context.Context, e *executor, action execplan.Action)
 			reach.ArtifactFile{Role: "repo_contract", LocalPath: filepath.Join(repoRoot, ".vrooli", "repo-contract.json"), RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, ".vrooli", "repo-contract.json")},
 			reach.ArtifactFile{Role: "repo_service_manifest", LocalPath: filepath.Join(repoRoot, ".vrooli", "service.json"), RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, ".vrooli", "service.json")},
 			reach.ArtifactFile{Role: "repo_go_mod", LocalPath: filepath.Join(repoRoot, "go.mod"), RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, "go.mod")},
+			reach.ArtifactFile{Role: "repo_go_sum", LocalPath: filepath.Join(repoRoot, "go.sum"), RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, "go.sum")},
 		)
 		autohealService := filepath.Join(repoRoot, "scenarios", "vrooli-autoheal", ".vrooli", "service.json")
 		if fileExists(autohealService) {
@@ -87,6 +88,20 @@ func runReleaseDeliver(ctx context.Context, e *executor, action execplan.Action)
 				Role: "scenario_service_manifest_" + scenarioID, LocalPath: serviceManifest,
 				RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, "scenarios", scenarioID, ".vrooli", "service.json"),
 			})
+			// Scenario APIs are independent Go modules. Keep their checksums beside
+			// the staged source so target-side setup can build without consulting a
+			// network-only module resolver or mutating the release checkout.
+			for _, name := range []string{"go.mod", "go.sum"} {
+				local := filepath.Join(repoRoot, "scenarios", scenarioID, "api", name)
+				if !fileExists(local) {
+					continue
+				}
+				delivery.Files = append(delivery.Files, reach.ArtifactFile{
+					Role:       "scenario_api_" + scenarioID + "_" + strings.ReplaceAll(name, ".", "_"),
+					LocalPath:  local,
+					RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, "scenarios", scenarioID, "api", name),
+				})
+			}
 		}
 		for _, dir := range []string{"templates", "cmd", "internal"} {
 			delivery.Files = append(delivery.Files, reach.ArtifactFile{
@@ -133,6 +148,13 @@ func runReleaseDeliver(ctx context.Context, e *executor, action execplan.Action)
 		}
 		if goWorkPath != "" {
 			defer os.Remove(goWorkPath)
+			goWorkSumPath, sumErr := appendBundleFile(&delivery, local, "go.work.sum", filepath.Join(e.rt.Target.Locator.Workdir, "go.work.sum"))
+			if sumErr != nil {
+				return "", sumErr
+			}
+			if goWorkSumPath != "" {
+				defer os.Remove(goWorkSumPath)
+			}
 			if err := appendWorkspaceModuleManifests(&delivery, goWorkPath, repoRoot, e.rt.Target.Locator.Workdir); err != nil {
 				return "", err
 			}

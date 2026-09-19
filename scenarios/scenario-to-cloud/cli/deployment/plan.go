@@ -127,6 +127,7 @@ func runPlanThenApply(client *Client, verb, fixedScope string, args []string) er
 	pf := registerPlanFlags(fs)
 	yes := fs.Bool("yes", false, "Skip printing the plan review before applying")
 	af := registerApplyFlags(fs)
+	providedSecretKey := fs.String("provided-secret-stdin", "", "For execute only, read one operator secret from stdin under this key")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
@@ -140,6 +141,32 @@ func runPlanThenApply(client *Client, verb, fixedScope string, args []string) er
 	ref, err := resolveArgs(client, fs, pf.sel)
 	if err != nil {
 		return err
+	}
+	if strings.TrimSpace(*providedSecretKey) != "" {
+		if verb != "execute" {
+			return apierr.Refused("--provided-secret-stdin is supported only by deployment execute")
+		}
+		rawSecret, readErr := io.ReadAll(os.Stdin)
+		if readErr != nil {
+			return fmt.Errorf("read provided secret: %w", readErr)
+		}
+		secret := strings.TrimSuffix(strings.TrimSuffix(string(rawSecret), "\n"), "\r")
+		if secret == "" {
+			return apierr.Refused("--provided-secret-stdin received an empty secret")
+		}
+		_, executed, executeErr := client.Execute(ref.GetId(), ExecuteRequest{
+			ProvidedSecrets:  map[string]string{strings.TrimSpace(*providedSecretKey): secret},
+			RunPreflight:     *af.preflight,
+			ForceBundleBuild: *pf.forceBundle,
+			RequestKey:       *af.requestKey,
+		})
+		if executeErr != nil {
+			return executeErr
+		}
+		if strings.TrimSpace(executed.OperationID) == "" {
+			return nil
+		}
+		return operation.WaitAndReport(context.Background(), client.Operations, executed.OperationID, *af.timeout, *pf.jsonOutput)
 	}
 	compiled, err := client.CompilePlan(context.Background(), ref.GetId(), CompileOptions{Scope: scope, ForceBundleBuild: *pf.forceBundle})
 	if err != nil {
@@ -311,6 +338,23 @@ func WritePreview(w io.Writer, ref *identityv1.DeploymentRef, compiled *plansv1.
 		}
 		if p.GetRecoveryNote() != "" {
 			fmt.Fprintf(w, "recovery note: %s\n", p.GetRecoveryNote())
+		}
+	}
+	// Warnings come before the handoff: an operator reading top-to-bottom
+	// must see a dead capability even when nothing blocks the deploy.
+	if advisories := preview.GetAdvisories(); len(advisories) > 0 {
+		fmt.Fprintf(w, "warnings (%d, non-blocking):\n", len(advisories))
+		for _, advisory := range advisories {
+			fmt.Fprintf(w, "  ! %s\n", advisory.GetSummary())
+			if advisory.GetCapability() != "" {
+				fmt.Fprintf(w, "      capability: %s\n", advisory.GetCapability())
+			}
+			if advisory.GetDetail() != "" {
+				fmt.Fprintf(w, "      detail: %s\n", advisory.GetDetail())
+			}
+			if advisory.GetHint() != "" {
+				fmt.Fprintf(w, "      fix: %s\n", advisory.GetHint())
+			}
 		}
 	}
 	if h := plan.GetHandoff(); h != nil && h.GetReference() != "" {

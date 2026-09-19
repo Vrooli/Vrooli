@@ -27,6 +27,7 @@ func Run(client *deployment.Client, args []string) error {
 	requestKey := fs.String("request-key", "", "Idempotency key for the admitted operation")
 	forceBundle := fs.Bool("force-bundle", false, "Rebuild the release bundle before compiling the plan")
 	preflight := fs.Bool("preflight", false, "Run the target preflight checks as part of the operation")
+	providedSecretStdin := fs.String("provided-secret-stdin", "", "Read one required operator secret from stdin under this key")
 	timeout := fs.Duration("timeout", 0, "Observer bound for the wait (default 300s)")
 	showCommands := fs.Bool("show-commands", false, "Also print the derived shell preview")
 	jsonOutput := fs.Bool("json", false, "Output proto JSON")
@@ -73,6 +74,9 @@ func Run(client *deployment.Client, args []string) error {
 	if *preflight {
 		executeArgs = append(executeArgs, "--preflight")
 	}
+	if strings.TrimSpace(*providedSecretStdin) != "" {
+		executeArgs = append(executeArgs, "--provided-secret-stdin", *providedSecretStdin)
+	}
 	if strings.TrimSpace(*requestKey) != "" {
 		executeArgs = append(executeArgs, "--request-key", *requestKey)
 	}
@@ -98,6 +102,8 @@ Options:
   --request-key <key>  Idempotency key for the admitted operation
   --force-bundle       Rebuild the release bundle before compiling the plan
   --preflight          Run the target preflight checks as part of the operation
+  --provided-secret-stdin <key>
+                       Read one required operator secret from stdin without placing it in argv
   --timeout <dur>      Observer bound for the wait (default 300s)
   --show-commands      Also print the derived shell preview
   --json               Output proto JSON

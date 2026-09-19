@@ -27,7 +27,7 @@ describe('EmailDelivery admin surface', () => {
       chosen_provider: '',
       quotas: [{ provider_id: 'mailgun', window: 'daily', used: 8, ceiling: 10, started_at: new Date().toISOString(), ends_at: new Date().toISOString() }],
       queue_health: { by_priority: [{ priority: 80, depth: 2, oldest_age_seconds: 12 }], oldest_wait_seconds: 12, median_acceptance_seconds_24h: 4 },
-      history: [{ id: 'message-1', purpose: 'signin', recipient: 'person@example.net', requested_at: new Date().toISOString(), provider_id: 'mailgun', status: 'failed', last_error: 'credential rejected', attempts: [{ attempt: 1, provider_id: 'mailgun', outcome: 'permanent', diagnostic: '535' }] }],
+      history: [{ id: 'message-1', purpose: 'signin', recipient: 'person@example.net', requested_at: new Date().toISOString(), provider_id: 'mailgun', status: 'failed', last_error: 'credential rejected', attempts: [{ attempt: 1, provider_id: 'mailgun', outcome: 'permanent', diagnostic: '535', started_at: new Date().toISOString() }] }],
     });
   });
 
@@ -40,6 +40,6 @@ describe('EmailDelivery admin surface', () => {
     expect(screen.getByText('mailgun · daily: 8/10')).toBeInTheDocument();
     expect(screen.getByText(/Oldest waiting message: 12s/)).toBeInTheDocument();
     expect(screen.getByText(/person@example.net/)).toBeInTheDocument();
-    expect(screen.queryByText(/secret|password|api.?key/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('SMTP password')).toHaveValue('');
   });
 });

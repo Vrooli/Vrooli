@@ -232,7 +232,20 @@ func ShellRenderer(manifest domain.CloudManifest) execplan.ShellRenderer {
 	locator := domain.TargetRefFromManifest(manifest).Locator
 	workdir := locator.Workdir
 	return func(action execplan.Action) string {
-		cc := CommandContext{DeploymentID: "deployment", ScenarioID: manifest.Scenario.ID, Identity: PreviewIdentity, Manifest: manifest}
+		// The preview uses a placeholder operation identity, but edge_spec is
+		// already bound to the real deployment identity by the compiler. Use
+		// that identity while rendering the typed owner command so preview
+		// validation does not report a false edge.route.apply refusal.
+		deploymentID := "deployment"
+		if encoded := strings.TrimSpace(action.Inputs["edge_spec"]); encoded != "" {
+			if raw, err := DecodeJSONArg(JSONArgPrefix + encoded); err == nil {
+				var spec domain.EdgeSpec
+				if err := json.Unmarshal(raw, &spec); err == nil && strings.TrimSpace(spec.DeploymentID) != "" {
+					deploymentID = spec.DeploymentID
+				}
+			}
+		}
+		cc := CommandContext{DeploymentID: deploymentID, ScenarioID: manifest.Scenario.ID, Identity: PreviewIdentity, Manifest: manifest}
 		remote := func(argv []string) string {
 			return sshadapter.LocalSSHCommand(locator, sshadapter.RemoteCommand(workdir, argv))
 		}

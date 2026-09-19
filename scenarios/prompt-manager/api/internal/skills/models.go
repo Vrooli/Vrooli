@@ -2,6 +2,8 @@
 // This is the heart of the prompt-manager scenario - all skill-related concepts live here.
 package skills
 
+import "prompt-manager/internal/store"
+
 // Metadata represents a skill entry in metadata.json.
 // Skills are stored as markdown files with metadata tracked in JSON.
 type Metadata struct {
@@ -26,6 +28,10 @@ type Metadata struct {
 	CreatedAt        string  `json:"createdAt"`
 	UpdatedAt        string  `json:"updatedAt"`
 	Revision         int     `json:"revision,omitempty"`
+	// Origin and ExternalTools identify a third-party skill and the tools it
+	// needs that Vrooli does not provide. Nil for authored skills.
+	Origin        *store.SkillOrigin   `json:"origin,omitempty"`
+	ExternalTools []store.ExternalTool `json:"externalTools,omitempty"`
 }
 
 // MetadataFile represents the structure of metadata.json files in each folder.
@@ -35,30 +41,32 @@ type MetadataFile struct {
 
 // Response is the API response for a skill, enriched with content and metrics.
 type Response struct {
-	ID                  string     `json:"id"`
-	File                string     `json:"file"`
-	Name                string     `json:"name"`
-	Description         string     `json:"description"`
-	Content             string     `json:"content"`
-	Modes               []string   `json:"modes"`
-	Tags                []string   `json:"tags"`
-	Icon                string     `json:"icon,omitempty"`
-	TargetToolID        *string    `json:"targetToolId,omitempty"`
-	DefaultScope        string     `json:"defaultScope,omitempty"` // Default scope skill to include with this skill
-	TargetDimensions    []string   `json:"targetDimensions,omitempty"`
-	ProgrammaticHome    *string    `json:"programmaticHome,omitempty"`
-	Draft               bool       `json:"draft"`
-	Folder              string     `json:"folder"`
-	SkillDir            string     `json:"skillDir,omitempty"`    // Absolute path to skill directory
-	ContentPath         string     `json:"contentPath,omitempty"` // Absolute path to SKILL.md file
-	CreatedAt           string     `json:"createdAt"`
-	UpdatedAt           string     `json:"updatedAt"`
-	Revision            int        `json:"revision,omitempty"`
-	ContentHash         string     `json:"contentHash,omitempty"`
-	UsageCount          int        `json:"usageCount"`
-	LastUsed            *string    `json:"lastUsed,omitempty"`
-	EffectivenessRating *int       `json:"effectivenessRating,omitempty"`
-	Variables           []Variable `json:"variables,omitempty"`
+	ID                  string               `json:"id"`
+	File                string               `json:"file"`
+	Name                string               `json:"name"`
+	Description         string               `json:"description"`
+	Content             string               `json:"content"`
+	Modes               []string             `json:"modes"`
+	Tags                []string             `json:"tags"`
+	Icon                string               `json:"icon,omitempty"`
+	TargetToolID        *string              `json:"targetToolId,omitempty"`
+	DefaultScope        string               `json:"defaultScope,omitempty"` // Default scope skill to include with this skill
+	TargetDimensions    []string             `json:"targetDimensions,omitempty"`
+	ProgrammaticHome    *string              `json:"programmaticHome,omitempty"`
+	Draft               bool                 `json:"draft"`
+	Folder              string               `json:"folder"`
+	SkillDir            string               `json:"skillDir,omitempty"`    // Absolute path to skill directory
+	ContentPath         string               `json:"contentPath,omitempty"` // Absolute path to SKILL.md file
+	CreatedAt           string               `json:"createdAt"`
+	UpdatedAt           string               `json:"updatedAt"`
+	Revision            int                  `json:"revision,omitempty"`
+	ContentHash         string               `json:"contentHash,omitempty"`
+	UsageCount          int                  `json:"usageCount"`
+	LastUsed            *string              `json:"lastUsed,omitempty"`
+	EffectivenessRating *int                 `json:"effectivenessRating,omitempty"`
+	Variables           []Variable           `json:"variables,omitempty"`
+	Origin              *store.SkillOrigin   `json:"origin,omitempty"`
+	ExternalTools       []store.ExternalTool `json:"externalTools,omitempty"`
 }
 
 // SyncResponse is returned by the sync endpoint for catalog consumers.
@@ -109,7 +117,9 @@ type UpdateRequest struct {
 // Folders defines the valid folder names for skill storage.
 // "scenario" is readable but never writable: scenario-owned skills live in
 // scenarios/<name>/skills/<name>/SKILL.md and are owned by that scenario.
-var Folders = []string{"core", "local", "drafts", "scenario"}
+// "vendor" is readable but never writable: third-party skills enter only
+// through governed import and keep their pinned upstream bytes.
+var Folders = []string{"core", "local", "drafts", "scenario", "vendor"}
 
 // WritableFolders defines folders where skills can be created/updated/deleted.
 var WritableFolders = []string{"core", "local", "drafts"}

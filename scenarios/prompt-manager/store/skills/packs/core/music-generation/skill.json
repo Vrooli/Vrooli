@@ -1,0 +1,35 @@
+{
+  "createdAt": "2026-09-18T20:00:00Z",
+  "description": "Generate original, permissively licensed instrumental music locally with ACE-Step 1.5, as a batch of takes to select from, for launch videos and other marketing assets that need a soundtrack with no licence to resolve.",
+  "entry": "SKILL.md",
+  "icon": "music",
+  "id": "music-generation",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "tools"
+  ],
+  "name": "music-generation",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill read",
+      "vrooli capacity policy get"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "marketing",
+    "audio",
+    "music",
+    "video"
+  ],
+  "updatedAt": "2026-09-18T20:00:00Z"
+}

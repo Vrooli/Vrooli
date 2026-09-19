@@ -1031,6 +1031,11 @@ function SkillManagerLayoutImpl() {
       console.error('Cannot move a skill into the scenario pack; it is owned by its scenario.')
       return
     }
+    // Third-party skills enter only through governed import, never by a move.
+    if (folder === 'vendor') {
+      console.error('Cannot move a skill into the third-party pack; use prompt-manager skill import.')
+      return
+    }
     try {
       const updates = new Map<string, { folder: 'local' | 'core' | 'drafts' }>()
       updates.set(skillId, { folder })

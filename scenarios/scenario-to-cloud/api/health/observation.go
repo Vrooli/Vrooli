@@ -45,10 +45,15 @@ const (
 	CheckHostPresence         = "host_presence"
 	CheckTransportReach       = "transport_reach"
 	CheckApplicationReadiness = "application_readiness"
-	CheckReleaseFreshness     = "release_freshness"
-	CheckEdgeDNS              = "edge_dns"
-	CheckEdgeTLS              = "edge_tls"
-	CheckSystemResources      = "system_resources"
+	// CheckApplicationDependencies is what the deployed application says
+	// about its own dependencies. It is distinct from readiness: readiness
+	// asks whether the application runs and answers, this asks whether the
+	// capabilities it declares are actually working.
+	CheckApplicationDependencies = "application_dependencies"
+	CheckReleaseFreshness        = "release_freshness"
+	CheckEdgeDNS                 = "edge_dns"
+	CheckEdgeTLS                 = "edge_tls"
+	CheckSystemResources         = "system_resources"
 )
 
 // Evidence sources named in missing_dependencies.
@@ -138,6 +143,7 @@ func Build(in Input, policy Policy) *healthv1.HealthObservation {
 
 	obs.Checks = append(obs.Checks, deploymentRecordCheck(sections["deployment"]))
 	obs.Checks = append(obs.Checks, applicationCheck(sections["processes"]))
+	obs.Checks = append(obs.Checks, applicationDependenciesCheck(sections["app_dependencies"]))
 	obs.Checks = append(obs.Checks, releaseFreshnessCheck(in.Report.Freshness))
 
 	dnsCheck, dnsMissing := edgeCheck(CheckEdgeDNS, sections["dns"], "dns_unavailable", "dns_not_evaluated", "dns_mismatch", "dns_proxied")
@@ -337,6 +343,38 @@ func applicationCheck(sec *domain.HealthSection) *healthv1.HealthCheck {
 	}
 }
 
+// applicationDependenciesCheck publishes what the application said about its
+// own dependencies. A failing dependency is WARNED, not FAILED: the
+// deployment serves, and refusing a deploy over an optional provider is not
+// this producer's call. An unobserved report is SKIPPED, because a body that
+// could not be read is not evidence of health.
+func applicationDependenciesCheck(sec *domain.HealthSection) *healthv1.HealthCheck {
+	if sec == nil {
+		return check(CheckApplicationDependencies, healthv1.CheckStatus_CHECK_STATUS_SKIPPED,
+			"app_dependencies_not_observed", "The application health body was not read")
+	}
+	if c := findCheck(sec, "app_dependencies_unavailable"); c != nil {
+		return check(CheckApplicationDependencies, healthv1.CheckStatus_CHECK_STATUS_SKIPPED,
+			"app_dependencies_not_observed", c.Message)
+	}
+	if c := findCheck(sec, "app_dependencies_none"); c != nil {
+		return check(CheckApplicationDependencies, healthv1.CheckStatus_CHECK_STATUS_SKIPPED,
+			"app_dependencies_none_declared", c.Message)
+	}
+	var failing []string
+	for _, c := range sec.Checks {
+		if c.Status == domain.HealthCheckWarn || c.Status == domain.HealthCheckFail || c.Status == domain.HealthCheckError {
+			failing = append(failing, c.Message)
+		}
+	}
+	if len(failing) > 0 {
+		return check(CheckApplicationDependencies, healthv1.CheckStatus_CHECK_STATUS_WARNED,
+			"app_dependency_failing", strings.Join(failing, "; "))
+	}
+	return check(CheckApplicationDependencies, healthv1.CheckStatus_CHECK_STATUS_PASSED, "",
+		fmt.Sprintf("%d application dependencies pass", len(sec.Checks)))
+}
+
 func releaseFreshnessCheck(f *domain.FreshnessStatus) *healthv1.HealthCheck {
 	if f == nil {
 		return check(CheckReleaseFreshness, healthv1.CheckStatus_CHECK_STATUS_SKIPPED, "freshness_not_evaluated", "Release parity was not evaluated")
@@ -413,10 +451,18 @@ func statusFor(level domain.HealthLevel, inspected bool, checks []*healthv1.Heal
 			return healthv1.HealthStatus_HEALTH_STATUS_UNKNOWN
 		}
 		// The typed checks are the consumer contract. If the legacy aggregate
-		// says degraded but every exposed check passes, do not publish a stale
+		// says degraded but no exposed check complains, do not publish a stale
 		// warning that operators cannot act on.
+		//
+		// SKIPPED is not a complaint: a check that did not apply (no edge TLS
+		// configured, no application health body served) says nothing about
+		// the deployment. UNAVAILABLE still blocks the downgrade, because
+		// evidence that could not be gathered is not evidence of health.
 		for _, c := range checks {
-			if c.GetStatus() != healthv1.CheckStatus_CHECK_STATUS_PASSED {
+			switch c.GetStatus() {
+			case healthv1.CheckStatus_CHECK_STATUS_PASSED, healthv1.CheckStatus_CHECK_STATUS_SKIPPED:
+				continue
+			default:
 				return healthv1.HealthStatus_HEALTH_STATUS_DEGRADED
 			}
 		}

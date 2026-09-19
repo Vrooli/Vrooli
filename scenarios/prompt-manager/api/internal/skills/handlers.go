@@ -857,6 +857,8 @@ func (h *Handlers) toResponse(p Metadata) Response {
 		TargetDimensions: p.TargetDimensions,
 		ProgrammaticHome: p.ProgrammaticHome,
 		Draft:            p.Draft,
+		Origin:           p.Origin,
+		ExternalTools:    p.ExternalTools,
 		CreatedAt:        p.CreatedAt,
 		UpdatedAt:        p.UpdatedAt,
 		Revision:         p.Revision,

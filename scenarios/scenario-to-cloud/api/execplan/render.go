@@ -35,14 +35,18 @@ type ShellPreviewLine struct {
 
 // Preview is the review surface rendered from a plan.
 type Preview struct {
-	Target           string             `json:"target"`
-	Outcome          string             `json:"outcome"`
-	Changes          []Change           `json:"changes"`
-	DataEffects      []DataEffect       `json:"data_effects"`
-	Downtime         Downtime           `json:"downtime"`
-	RecoveryStrategy string             `json:"recovery_strategy"`
-	Handoff          *Handoff           `json:"handoff,omitempty"`
-	ShellPreview     []ShellPreviewLine `json:"shell_preview"`
+	Target           string       `json:"target"`
+	Outcome          string       `json:"outcome"`
+	Changes          []Change     `json:"changes"`
+	DataEffects      []DataEffect `json:"data_effects"`
+	Downtime         Downtime     `json:"downtime"`
+	RecoveryStrategy string       `json:"recovery_strategy"`
+	Handoff          *Handoff     `json:"handoff,omitempty"`
+	// Advisories are non-blocking findings the operator should read before
+	// approving. They are the review's warning channel: before it existed,
+	// a preview could only block or stay silent.
+	Advisories   []Advisory         `json:"advisories,omitempty"`
+	ShellPreview []ShellPreviewLine `json:"shell_preview"`
 }
 
 // ShellRenderer derives a display command for an action. Returning "" omits
@@ -78,6 +82,7 @@ func Render(plan *Plan, opts ...RenderOption) Preview {
 	preview.Target = targetLabel(plan.Target)
 	preview.Outcome = plan.Outcome
 	preview.Handoff = plan.Handoff
+	preview.Advisories = plan.Advisories
 	preview.Downtime = Downtime{ExpectedSeconds: totalDowntime(plan.Actions)}
 	recovery := map[string]bool{}
 	for _, action := range plan.Actions {

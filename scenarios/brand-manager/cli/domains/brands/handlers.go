@@ -94,7 +94,7 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary:        []string{fmt.Sprintf("Fetched brand %s.", resp.Msg.Brand.Id)},
 		ResultsHeading: "Brand",
-		Results:        []string{formatBrand(resp.Msg.Brand)},
+		Results:        formatBrandDetail(resp.Msg.Brand),
 	})
 }
 
@@ -107,6 +107,8 @@ func (h *handlers) update(ctx cliapp.RunContext) error {
 		Notes:           ctx.Flag("notes"),
 		Identity:        identityFromFlags(ctx),
 		Colors:          colorsFromFlags(ctx),
+		Typography:      typographyFromFlags(ctx),
+		Voice:           voiceFromFlags(ctx),
 		ExpectedVersion: atoiOrZero(ctx.Flag("expected-version")),
 	}))
 	if err != nil {
@@ -203,6 +205,43 @@ func colorsFromFlags(ctx cliapp.RunContext) *brandsv1.Colors {
 	return c
 }
 
+// typographyFromFlags builds the typography facet from flags. Until these
+// flags existed the only way to set typography was `generation elements`, an
+// LLM path that produced plausible but factually wrong fonts for a scenario
+// whose real stack is declared in its design tokens — and nothing could correct
+// it. The proto already carried the facet; only this surface was missing.
+func typographyFromFlags(ctx cliapp.RunContext) *brandsv1.Typography {
+	t := &brandsv1.Typography{
+		HeadingFont:  ctx.Flag("heading-font"),
+		BodyFont:     ctx.Flag("body-font"),
+		MonoFont:     ctx.Flag("mono-font"),
+		BaseFontSize: ctx.Flag("base-font-size"),
+	}
+	if t.HeadingFont == "" && t.BodyFont == "" && t.MonoFont == "" && t.BaseFontSize == "" {
+		return nil
+	}
+	return t
+}
+
+// voiceFromFlags builds the voice facet from flags, for the same reason.
+func voiceFromFlags(ctx cliapp.RunContext) *brandsv1.Voice {
+	keywords := []string{}
+	for _, field := range strings.Split(ctx.Flag("voice-keywords"), ",") {
+		if trimmed := strings.TrimSpace(field); trimmed != "" {
+			keywords = append(keywords, trimmed)
+		}
+	}
+	v := &brandsv1.Voice{
+		Tone:     ctx.Flag("tone"),
+		Style:    ctx.Flag("voice-style"),
+		Keywords: keywords,
+	}
+	if v.Tone == "" && v.Style == "" && len(v.Keywords) == 0 {
+		return nil
+	}
+	return v
+}
+
 // atoiOrZero parses s as a 32-bit int, returning 0 for empty, unparseable, or
 // out-of-range input. ParseInt with bitSize 32 bounds the result so the int32
 // conversion can't overflow (gosec G109). The server clamps/validates ranges,
@@ -224,6 +263,62 @@ func formatBrand(b *brandsv1.Brand) string {
 		updated = b.UpdatedAt.AsTime().Format(time.RFC3339)
 	}
 	return fmt.Sprintf("%s — %s [v%d updated=%s]", b.Id, b.Name, b.Version, updated)
+}
+
+// formatBrandDetail renders a single brand for `brands get`. The one-line
+// summary used by list views omits the slug and the references that say where a
+// brand's palette actually comes from, so a brand whose colors are unset read as
+// having no identity at all — when in fact its colors live in its container
+// style and product line. Those references are in the JSON output; showing them
+// here keeps the human view from contradicting it.
+func formatBrandDetail(b *brandsv1.Brand) []string {
+	if b == nil {
+		return []string{"(nil)"}
+	}
+	lines := []string{formatBrand(b)}
+	add := func(label, value string) {
+		if strings.TrimSpace(value) != "" {
+			lines = append(lines, fmt.Sprintf("  %s: %s", label, value))
+		}
+	}
+	add("slug", b.Slug)
+	add("description", b.Description)
+	if b.Identity != nil {
+		add("tagline", b.Identity.Tagline)
+	}
+	add("mark asset", b.MarkAssetId)
+	add("small mark asset", b.SmallMarkAssetId)
+	add("container style", b.ContainerStyleId)
+	add("product line", b.ProductLineId)
+	// An unset palette is a real, reportable state: the brand inherits its
+	// colors from the container style above rather than declaring its own.
+	if b.Colors == nil || (b.Colors.Primary == "" && b.Colors.Accent == "" && b.Colors.Background == "") {
+		hint := "colors: not set on the brand"
+		if strings.TrimSpace(b.ContainerStyleId) != "" {
+			hint += " (inherited from the container style above)"
+		}
+		lines = append(lines, "  "+hint)
+		return lines
+	}
+	// A declared palette is the thing a reader came for; printing only that it
+	// exists would repeat the original defect in a smaller form.
+	swatches := make([]string, 0, 6)
+	for _, pair := range [][2]string{
+		{"primary", b.Colors.Primary},
+		{"secondary", b.Colors.Secondary},
+		{"accent", b.Colors.Accent},
+		{"background", b.Colors.Background},
+		{"surface", b.Colors.Surface},
+		{"text", b.Colors.Text},
+	} {
+		if strings.TrimSpace(pair[1]) != "" {
+			swatches = append(swatches, pair[0]+"="+pair[1])
+		}
+	}
+	if len(swatches) > 0 {
+		lines = append(lines, "  colors: "+strings.Join(swatches, " "))
+	}
+	return lines
 }
 
 func formatVersion(v *brandsv1.BrandVersion) string {

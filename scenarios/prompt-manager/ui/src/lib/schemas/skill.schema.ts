@@ -23,6 +23,35 @@ const nullableStringArray = z
   .optional()
   .transform((val) => val ?? [])
 
+/** Immutable provenance of a skill imported from a third party. */
+export const SkillOriginSchema = z.object({
+  kind: z.string(),
+  sourceUrl: z.string(),
+  commit: z.string(),
+  license: z.string(),
+  checksum: z.string().optional(),
+  treeChecksum: z.string().optional(),
+  importedBy: z.string().optional(),
+  importedAt: z.string().optional(),
+  upstreamVersion: z.string().optional(),
+  review: z
+    .object({
+      verdict: z.string().optional().transform((val) => val ?? 'pending'),
+      reviewer: z.string().optional(),
+      reviewedAt: z.string().optional(),
+    })
+    .optional(),
+})
+export type SkillOrigin = z.infer<typeof SkillOriginSchema>
+
+/** A tool outside Vrooli's managed toolchain that a third-party skill depends on. */
+export const ExternalToolSchema = z.object({
+  name: z.string(),
+  url: z.string().optional(),
+  purpose: z.string().optional(),
+})
+export type ExternalTool = z.infer<typeof ExternalToolSchema>
+
 /**
  * Skill schema matching the API's Response type.
  *
@@ -56,6 +85,10 @@ export const SkillSchema = z.object({
   usageCount: z.number().optional().transform((val) => val ?? 0),
   lastUsed: z.string().nullable().optional(),
   effectivenessRating: z.number().nullable().optional(),
+  // Third-party provenance. Present only for skills imported from an external source.
+  origin: SkillOriginSchema.nullable().optional(),
+  // Tools a third-party skill needs that Vrooli does not provide or manage.
+  externalTools: z.array(ExternalToolSchema).nullable().optional(),
 })
 
 export type Skill = z.infer<typeof SkillSchema>

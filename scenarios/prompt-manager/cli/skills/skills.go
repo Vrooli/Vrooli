@@ -27,20 +27,108 @@ import (
 
 // SkillResponse matches the API response for skills
 type SkillResponse struct {
-	ID                  string   `json:"id"`
-	Name                string   `json:"name"`
-	Description         string   `json:"description"`
-	Content             string   `json:"content"`
-	Modes               []string `json:"modes"`
-	Tags                []string `json:"tags"`
-	Icon                string   `json:"icon,omitempty"`
-	ProgrammaticHome    *string  `json:"programmaticHome,omitempty"`
-	Draft               bool     `json:"draft"`
-	Folder              string   `json:"folder"`
-	CreatedAt           string   `json:"createdAt"`
-	UpdatedAt           string   `json:"updatedAt"`
-	UsageCount          int      `json:"usageCount"`
-	EffectivenessRating *int     `json:"effectivenessRating,omitempty"`
+	ID                  string             `json:"id"`
+	Name                string             `json:"name"`
+	Description         string             `json:"description"`
+	Content             string             `json:"content"`
+	Modes               []string           `json:"modes"`
+	Tags                []string           `json:"tags"`
+	Icon                string             `json:"icon,omitempty"`
+	ProgrammaticHome    *string            `json:"programmaticHome,omitempty"`
+	Draft               bool               `json:"draft"`
+	Folder              string             `json:"folder"`
+	CreatedAt           string             `json:"createdAt"`
+	UpdatedAt           string             `json:"updatedAt"`
+	UsageCount          int                `json:"usageCount"`
+	EffectivenessRating *int               `json:"effectivenessRating,omitempty"`
+	SkillDir            string             `json:"skillDir,omitempty"`
+	Origin              *SkillOriginView   `json:"origin,omitempty"`
+	ExternalTools       []ExternalToolView `json:"externalTools,omitempty"`
+}
+
+// SkillOriginView is the provenance of a third-party (imported) skill.
+type SkillOriginView struct {
+	Kind            string `json:"kind"`
+	SourceURL       string `json:"sourceUrl"`
+	Commit          string `json:"commit"`
+	License         string `json:"license"`
+	TreeChecksum    string `json:"treeChecksum,omitempty"`
+	ImportedAt      string `json:"importedAt"`
+	UpstreamVersion string `json:"upstreamVersion,omitempty"`
+	Review          struct {
+		Verdict  string `json:"verdict"`
+		Reviewer string `json:"reviewer,omitempty"`
+	} `json:"review"`
+}
+
+// ExternalToolView is a tool a third-party skill needs that Vrooli does not provide.
+type ExternalToolView struct {
+	Name    string `json:"name"`
+	URL     string `json:"url,omitempty"`
+	Purpose string `json:"purpose,omitempty"`
+}
+
+// thirdPartyHeader states a skill's third-party origin before its content so
+// an agent never mistakes imported guidance or its external tools for Vrooli's.
+func thirdPartyHeader(skill SkillResponse) string {
+	if skill.Origin == nil || skill.Origin.Kind != "imported" {
+		return ""
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "> THIRD-PARTY SKILL %s. It is not authored or maintained by Vrooli.\n", skill.ID)
+	fmt.Fprintf(&b, "> Source: %s (commit %s, license %s)\n", skill.Origin.SourceURL, skill.Origin.Commit, skill.Origin.License)
+	review := skill.Origin.Review.Verdict
+	if skill.Origin.Review.Reviewer != "" {
+		review += " by " + skill.Origin.Review.Reviewer
+	}
+	fmt.Fprintf(&b, "> Review: %s\n", review)
+	if skill.SkillDir != "" {
+		fmt.Fprintf(&b, "> Skill directory (relative paths in the skill resolve here): %s\n", skill.SkillDir)
+	}
+	if len(skill.ExternalTools) > 0 {
+		b.WriteString("> External tools, not provided or managed by Vrooli:\n")
+		for _, tool := range skill.ExternalTools {
+			line := "> - " + tool.Name
+			if tool.Purpose != "" {
+				line += ": " + tool.Purpose
+			}
+			if tool.URL != "" {
+				line += " (" + tool.URL + ")"
+			}
+			b.WriteString(line + "\n")
+		}
+	}
+	b.WriteString("\n")
+	return b.String()
+}
+
+// externalToolFlags collects repeatable --external-tool 'name|url|purpose' values.
+type externalToolFlags []ExternalToolView
+
+func (f *externalToolFlags) String() string { return fmt.Sprint(len(*f)) }
+
+func (f *externalToolFlags) Set(value string) error {
+	tool, err := parseExternalTool(value)
+	if err != nil {
+		return err
+	}
+	*f = append(*f, tool)
+	return nil
+}
+
+func parseExternalTool(value string) (ExternalToolView, error) {
+	parts := strings.SplitN(value, "|", 3)
+	tool := ExternalToolView{Name: strings.TrimSpace(parts[0])}
+	if len(parts) > 1 {
+		tool.URL = strings.TrimSpace(parts[1])
+	}
+	if len(parts) > 2 {
+		tool.Purpose = strings.TrimSpace(parts[2])
+	}
+	if tool.Name == "" {
+		return tool, fmt.Errorf("--external-tool needs 'name|url|purpose' with a non-empty name")
+	}
+	return tool, nil
 }
 
 // CreateSkillRequest matches the API request for creating skills
@@ -300,6 +388,8 @@ func cmdImport(ctx appctx.Context, args []string) error {
 	importedBy := fs.String("imported-by", "", "Importer identity")
 	version := fs.String("upstream-version", "", "Upstream version")
 	id := fs.String("id", "", "Skill ID (must match frontmatter name)")
+	var tools externalToolFlags
+	fs.Var(&tools, "external-tool", "Repeatable 'name|url|purpose' for a tool Vrooli does not provide")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
@@ -313,11 +403,13 @@ func cmdImport(ctx appctx.Context, args []string) error {
 		Checksum      string `json:"checksum"`
 		ReviewVerdict string `json:"reviewVerdict"`
 		ImportedAt    string `json:"importedAt"`
+		TreeChecksum  string `json:"treeChecksum"`
 	}
-	if err := ctx.Post("/skills/import", map[string]string{"sourceDir": *sourceDir, "sourceUrl": *sourceURL, "commit": *commit, "license": *license, "checksum": *checksum, "importedBy": *importedBy, "upstreamVersion": *version, "id": *id}, &response); err != nil {
+	payload := map[string]any{"sourceDir": *sourceDir, "sourceUrl": *sourceURL, "commit": *commit, "license": *license, "checksum": *checksum, "importedBy": *importedBy, "upstreamVersion": *version, "id": *id, "externalTools": []ExternalToolView(tools)}
+	if err := ctx.Post("/skills/import", payload, &response); err != nil {
 		return fmt.Errorf("import skill: %w", err)
 	}
-	fmt.Printf("Imported %s into %s pack: status=%s review=%s checksum=%s\n", response.ID, response.Pack, response.Status, response.ReviewVerdict, response.Checksum)
+	fmt.Printf("Imported %s into %s pack: status=%s review=%s checksum=%s tree=%s external_tools=%d\n", response.ID, response.Pack, response.Status, response.ReviewVerdict, response.Checksum, response.TreeChecksum, len(tools))
 	return nil
 }
 
@@ -652,6 +744,9 @@ func cmdShow(ctx appctx.Context, args []string) error {
 	if skill.ProgrammaticHome != nil && *skill.ProgrammaticHome != "" {
 		fmt.Printf("Programmatic Home: %s\n", *skill.ProgrammaticHome)
 	}
+	if header := thirdPartyHeader(skill); header != "" {
+		fmt.Printf("\n%s", header)
+	}
 	fmt.Printf("\nContent:\n%s\n", skill.Content)
 	return nil
 }
@@ -735,6 +830,11 @@ func cmdRead(ctx appctx.Context, args []string) error {
 
 	printed := false
 	if printCombined && resp.Combined != "" {
+		if !printSkills {
+			for _, skill := range resp.Skills {
+				fmt.Print(thirdPartyHeader(skill))
+			}
+		}
 		fmt.Print(resp.Combined)
 		printed = true
 	}
@@ -744,6 +844,7 @@ func cmdRead(ctx appctx.Context, args []string) error {
 			if printed || i > 0 {
 				fmt.Print(*separator)
 			}
+			fmt.Print(thirdPartyHeader(skill))
 			fmt.Print(skill.Content)
 			printed = true
 		}

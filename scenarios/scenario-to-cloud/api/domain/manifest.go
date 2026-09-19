@@ -1,7 +1,11 @@
 // Package domain defines the core domain types for the scenario-to-cloud scenario.
 package domain
 
-import "scenario-to-cloud/identity"
+import (
+	"strings"
+
+	"scenario-to-cloud/identity"
+)
 
 // TargetRefFromManifest derives the target binding from a manifest's VPS
 // block. The manifest is the SSH transport configuration, so the derived
@@ -106,8 +110,9 @@ type ManifestPorts map[string]int
 
 // ManifestEdge configures edge/TLS settings.
 type ManifestEdge struct {
-	Domain    string    `json:"domain"`
-	DNSPolicy DNSPolicy `json:"dns_policy,omitempty"`
+	Domain    string               `json:"domain"`
+	DNSPolicy DNSPolicy            `json:"dns_policy,omitempty"`
+	MailDNS   []MailDNSRequirement `json:"mail_dns,omitempty"`
 	// ManagedDNSProfile opts this deployment into the typed tunnel-manager DNS
 	// operation. Empty means DNS remains operator-managed.
 	ManagedDNSProfile string        `json:"managed_dns_profile,omitempty"`
@@ -116,6 +121,49 @@ type ManifestEdge struct {
 	// derives it: production for the production environment, staging
 	// otherwise (production elsewhere needs the EXT-04 authority).
 	ACMEEnvironment string `json:"acme_environment,omitempty"`
+	// HealthPath is the public path serving the application's own health
+	// document, the one whose body names its dependencies. Empty means
+	// "/health".
+	//
+	// It is declared because the reachable path and the informative path are
+	// often different: a scenario's root /health may be answered by its UI
+	// server while the dependency report lives under its API prefix (for
+	// example "/api/v1/health"). Probing the wrong one reports "no
+	// dependencies declared", which is honest but useless.
+	HealthPath string `json:"health_path,omitempty"`
+}
+
+// MailDNSRequirement declares provider records that must authorize outbound
+// mail for this deployment. Verification is read-only and uses the reviewed
+// manifest; DNS-write credentials remain outside scenario-to-cloud.
+type MailDNSRequirement struct {
+	Name         string                `json:"name"`
+	SPFMechanism string                `json:"spf_mechanism,omitempty"`
+	SPFHost      string                `json:"spf_host,omitempty"`
+	DKIM         []MailDKIMRequirement `json:"dkim,omitempty"`
+}
+
+type MailDKIMRequirement struct {
+	Selector string `json:"selector"`
+	Type     string `json:"type"`
+	Expected string `json:"expected,omitempty"`
+}
+
+// DefaultHealthPath is the application health path used when the manifest
+// declares none.
+const DefaultHealthPath = "/health"
+
+// AppHealthPath is the declared application health path, normalised to a
+// rooted path.
+func (e ManifestEdge) AppHealthPath() string {
+	path := strings.TrimSpace(e.HealthPath)
+	if path == "" {
+		return DefaultHealthPath
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	return path
 }
 
 // ManifestCaddy configures Caddy reverse proxy and TLS.
@@ -143,6 +191,16 @@ type BundleSecretPlan struct {
 	DescriptorReason string                 `json:"descriptor_reason,omitempty"`
 	Prompt           *SecretPromptMetadata  `json:"prompt,omitempty"`
 	Generator        map[string]interface{} `json:"generator,omitempty"`
+
+	// Capability names the customer-facing capability this secret powers,
+	// in the operator's words ("customer sign-in email", "card payments").
+	//
+	// Required is binary and blocks: a required secret nothing satisfied
+	// stops the plan. Capability is the middle tier. A secret that is
+	// optional for the deployment but load-bearing for a capability declares
+	// it here, and a plan that cannot satisfy the secret warns by capability
+	// name instead of failing or, as before, saying nothing at all.
+	Capability string `json:"capability,omitempty"`
 }
 
 // DescriptorAddress is the canonical credential-authority address satisfied

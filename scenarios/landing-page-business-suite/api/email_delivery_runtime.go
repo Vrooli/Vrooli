@@ -25,6 +25,12 @@ func (a emailDeliveryAdapter) Send(ctx context.Context, provider emaildelivery.P
 		return emaildelivery.Outcome{Kind: emaildelivery.OutcomePermanent, Detail: "email service unavailable"}
 	}
 	switch provider.Transport {
+	case "mailgun_http":
+		delivery, err := a.service.sendViaMailgun(ctx, message.Recipient, message.Sender, message.Subject, message.TextBody, message.HTMLBody)
+		if err == nil {
+			return emaildelivery.Outcome{Kind: emaildelivery.OutcomeAccepted, ProviderMessageID: delivery.ProviderMessageID}
+		}
+		return classifyEmailTransportError(err)
 	case "sendgrid_http":
 		delivery, err := a.service.sendViaSendGridCategory(ctx, message.Recipient, message.Subject, message.TextBody, message.HTMLBody, message.IdempotencyKey, string(message.Purpose))
 		if err == nil {
@@ -121,11 +127,14 @@ func (c emailCircuitChecker) Available(ctx context.Context, provider emaildelive
 	return false, "provider circuit is open until " + openUntil.Time.UTC().Format(time.RFC3339)
 }
 
-func (c emailCredentialChecker) Verify(_ context.Context, provider emaildelivery.Provider) (bool, string) {
+func (c emailCredentialChecker) Verify(ctx context.Context, provider emaildelivery.Provider) (bool, string) {
 	if c.service == nil {
 		return false, "email service unavailable"
 	}
 	switch provider.Transport {
+	case "mailgun_http":
+		status, detail := c.service.verifyMailgunAPI(ctx)
+		return status >= 200 && status < 300, detail
 	case "sendgrid_http":
 		if c.service.IsSendGridConfigured() {
 			return true, "SendGrid credential and sender are configured"

@@ -3,6 +3,7 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -42,11 +43,13 @@ func (h *handlers) scan(ctx cliapp.RunContext) error {
 	if m.DraftBrand != nil {
 		hints = append(hints, fmt.Sprintf("`discovery import --scenario %s` — create a brand from this state", m.Scenario))
 	}
+	summary := []string{fmt.Sprintf(
+		"Discovered %d source(s) in %s (confidence %.0f%%).",
+		len(m.Sources), m.Scenario, m.Confidence*100,
+	)}
+	summary = append(summary, draftLines(m.DraftBrand)...)
 	return cliapp.RenderProtoList(ctx, m, cliapp.ListReport{
-		Summary: []string{fmt.Sprintf(
-			"Discovered %d source(s) in %s (confidence %.0f%%).",
-			len(m.Sources), m.Scenario, m.Confidence*100,
-		)},
+		Summary:        summary,
 		ResultsHeading: "Sources",
 		Results:        sourceLines(m.Sources),
 		RetrievalHints: hints,
@@ -71,9 +74,41 @@ func (h *handlers) importBrand(ctx cliapp.RunContext) error {
 		)},
 		Changes: sourceLines(m.Sources),
 		NextCommand: []string{
-			fmt.Sprintf("`brands get --id %s` — inspect the imported brand", m.BrandId),
+			fmt.Sprintf("`brands get %s` — inspect the imported brand", m.BrandId),
 		},
 	})
+}
+
+// draftLines renders the facets a scan actually inferred, so the human output
+// shows the values an import would persist rather than only which files matched.
+func draftLines(d *discoveryv1.DraftBrand) []string {
+	if d == nil {
+		return nil
+	}
+	var out []string
+	if id := d.Identity; id != nil && id.DisplayName != "" {
+		out = append(out, fmt.Sprintf("Identity: %s", id.DisplayName))
+	}
+	if c := d.Colors; c != nil {
+		var pairs []string
+		for _, e := range []struct{ label, value string }{
+			{"primary", c.Primary},
+			{"secondary", c.Secondary},
+			{"accent", c.Accent},
+			{"background", c.Background},
+			{"surface", c.Surface},
+			{"text", c.Text},
+			{"error", c.Error},
+		} {
+			if e.value != "" {
+				pairs = append(pairs, fmt.Sprintf("%s=%s", e.label, e.value))
+			}
+		}
+		if len(pairs) > 0 {
+			out = append(out, "Colors: "+strings.Join(pairs, " "))
+		}
+	}
+	return out
 }
 
 // sourceLines renders each discovered source as a human line.

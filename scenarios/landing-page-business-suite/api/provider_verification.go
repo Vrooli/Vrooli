@@ -98,6 +98,17 @@ func (s *Server) verifySignInProviders(ctx context.Context) []providerprobe.Resu
 	for _, provider := range providers {
 		var result providerprobe.Result
 		switch provider.Transport {
+		case "mailgun_http":
+			status, detail := s.emailService.verifyMailgunAPI(ctx)
+			result = providerprobe.Result{Provider: provider.ID, Capability: "customer sign-in email", Detail: detail, CheckedAt: time.Now().UTC()}
+			switch {
+			case status >= 200 && status < 300:
+				result.Status = providerprobe.StatusPass
+			case status == http.StatusUnauthorized || status == http.StatusForbidden || status == http.StatusBadRequest:
+				result.Status = providerprobe.StatusFail
+			default:
+				result.Status = providerprobe.StatusUnknown
+			}
 		case "sendgrid_http":
 			result = providerprobe.VerifySendGrid(ctx, nil, resolveSecret("SENDGRID_API_KEY"), envx.Get("LPBS_SENDGRID_SCOPES_URL"))
 		case "mailgun_smtp", "smtp":

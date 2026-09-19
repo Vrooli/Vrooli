@@ -431,7 +431,7 @@ func buildObservationWithStatus(dep *domain.Deployment, inspected, now time.Time
 		Statuses:   []dns.DomainStatus{{Role: "apex", Host: "example.com", PointsToVPS: true, Lookup: domain.DNSLookupResult{IPs: []string{"1.2.3.4"}}}},
 	}
 	tlsSnap := &tlsinfo.Snapshot{Probe: tlsinfo.ProbeResult{Valid: true, Issuer: "Let's Encrypt", DaysRemaining: 60}, ALPN: tlsinfo.ALPNCheck{Status: tlsinfo.ALPNPass, Message: "ok"}}
-	report := vps.ComputeHealth(dep, manifest, ident, live, dnsEval, tlsSnap, nil)
+	report := vps.ComputeHealth(dep, manifest, ident, live, dnsEval, tlsSnap, nil, nil)
 	report.Freshness = &domain.FreshnessStatus{Status: domain.FreshnessCurrent, Summary: "bundle matches"}
 	return health.Build(health.Input{Deployment: dep, Report: report, LiveState: live, Now: now}, health.DefaultPolicy())
 }

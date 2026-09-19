@@ -17,3 +17,6 @@ export type SignInDeliveryAdminReport = {
 export const getEmailReadiness = () => apiCall<EmailReadinessReport>('/admin/auth/email-readiness');
 export const getSignInDeliveryAdminReport = (recipient = '') => apiCall<SignInDeliveryAdminReport>(`/admin/auth/delivery${recipient ? `?recipient=${encodeURIComponent(recipient)}` : ''}`);
 export const sendDeliveryProbe = (to: string) => apiCall<{ request_id: string; expires_at: string }>('/admin/auth/delivery-probe', { method: 'POST', body: JSON.stringify({ to }) });
+export type ProviderCredentialField = 'mailgun-api-key' | 'smtp-password' | 'sendgrid-api-key' | 'sendgrid-webhook-public-key';
+export type ProviderCredentialWriteResponse = { stored: boolean; field: ProviderCredentialField; results?: Array<{ provider: string; capability: string; status: string; detail: string; checked_at: string }> };
+export const saveProviderCredential = (field: ProviderCredentialField, value: string) => apiCall<ProviderCredentialWriteResponse>('/admin/provider-credentials', { method: 'POST', body: JSON.stringify({ field, value }) });

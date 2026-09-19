@@ -18,7 +18,7 @@ func SeedDefaults(ctx context.Context, db ExecStore) error {
 		rank                                             int
 		recommended, enabled                             bool
 	}{
-		{ProviderMailgun, "mailgun_smtp", "vrooli/landing-page-business-suite:mailgun-smtp-password", `{"spf_mechanism":"include:mailgun.org","dkim":[{"selector":"k1","type":"TXT"}]}`, `{"day":100}`, `["signin","security_alert","passkey_notice","contact_form","magic_link"]`, 10, true, true},
+		{ProviderMailgun, "mailgun_http", "vrooli/landing-page-business-suite:mailgun-api-key", `{"spf_mechanism":"include:mailgun.org","dkim":[{"selector":"k1","type":"TXT"}]}`, `{"day":100}`, `["signin","security_alert","passkey_notice","contact_form","magic_link"]`, 10, true, true},
 		{ProviderSendGrid, "sendgrid_http", "vrooli/landing-page-business-suite:sendgrid-api-key", `{"spf_mechanism":"include:sendgrid.net","dkim":[{"selector":"s1","type":"CNAME","expected":"sendgrid.net"},{"selector":"s2","type":"CNAME","expected":"sendgrid.net"}]}`, `{"day":100}`, `["signin","security_alert","passkey_notice","contact_form","magic_link"]`, 20, false, false},
 		// These catalog entries keep the surveyed alternatives visible to
 		// operators without claiming that an account, credential, or
@@ -35,7 +35,7 @@ func SeedDefaults(ctx context.Context, db ExecStore) error {
 		{"ses", "https_api", "vrooli/landing-page-business-suite:ses-api-credentials", `{"spf_mechanism":"include:amazonses.com","dkim_dynamic":true}`, `{"month":0}`, `["signin","security_alert","passkey_notice","contact_form","magic_link"]`, 100, true, false},
 	}
 	for _, provider := range defaults {
-		if _, err := db.ExecContext(ctx, `INSERT INTO email_providers (id, transport, credential_ref, dns_requirements, published_limits, supported_purposes, cost_rank, recommended, enabled) VALUES ($1,$2,$3,$4::jsonb,$5::jsonb,$6::jsonb,$7,$8,$9) ON CONFLICT (id) DO UPDATE SET published_limits=CASE WHEN email_providers.published_limits='{}'::jsonb THEN EXCLUDED.published_limits ELSE email_providers.published_limits END`, provider.id, provider.transport, provider.credential, provider.dns, provider.limits, provider.purposes, provider.rank, provider.recommended, provider.enabled); err != nil {
+		if _, err := db.ExecContext(ctx, `INSERT INTO email_providers (id, transport, credential_ref, dns_requirements, published_limits, supported_purposes, cost_rank, recommended, enabled) VALUES ($1,$2,$3,$4::jsonb,$5::jsonb,$6::jsonb,$7,$8,$9) ON CONFLICT (id) DO UPDATE SET transport=CASE WHEN email_providers.id='mailgun' AND email_providers.credential_ref IN ('vrooli/landing-page-business-suite:mailgun-smtp-password','vrooli/landing-page-business-suite:smtp-password') THEN EXCLUDED.transport ELSE email_providers.transport END, credential_ref=CASE WHEN email_providers.id='mailgun' AND email_providers.credential_ref IN ('vrooli/landing-page-business-suite:mailgun-smtp-password','vrooli/landing-page-business-suite:smtp-password') THEN EXCLUDED.credential_ref ELSE email_providers.credential_ref END, published_limits=CASE WHEN email_providers.published_limits='{}'::jsonb THEN EXCLUDED.published_limits ELSE email_providers.published_limits END`, provider.id, provider.transport, provider.credential, provider.dns, provider.limits, provider.purposes, provider.rank, provider.recommended, provider.enabled); err != nil {
 			return err
 		}
 	}

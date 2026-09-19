@@ -30,12 +30,13 @@ its actions. There is no second, independently constructed step list.
 | `preconditions[]` | Material facts: `deployment_revision`, `target_enrollment`, `release_digest`, `closure_digest`, `configuration_digest`, `data_schema`, `privilege_set`. |
 | `actions[]` | The action graph (below). |
 | `handoff` | Present only for `needs_input`. |
+| `advisories[]` | Non-blocking warnings about the conditions the plan runs under. Excluded from the digest. |
 | `presentation` | Human text. Excluded from the digest. |
 
 ## Semantic digest
 
 `sha256:` + SHA-256 over the canonical JSON of the envelope with
-`presentation` zeroed (struct field order, sorted map keys, `[]` for empty
+`presentation` and `advisories` zeroed (struct field order, sorted map keys, `[]` for empty
 lists). Properties enforced by `api/execplan/execplan_test.go`:
 
 - Equal material inputs give one digest (map ordering, JSON round trips).
@@ -101,6 +102,24 @@ exist (`workload.stop` declares the policy's downtime bound, default 60 s);
   "resume_handoff", reference, missing[]}` and one effect-free
   `input.resume_handoff` action. Apply refuses with `needs_input` (HTTP 428)
   carrying the same reference as `next_action`.
+
+### Advisories
+
+An advisory is the middle tier between "blocks the deploy" and "says
+nothing". It applies to every outcome, including `no_op`: a deployment already
+at the desired release can still be missing the credential one of its
+capabilities needs.
+
+Today one source emits them: a manifest secret that is not `required` but
+declares a `capability` nothing has satisfied. The advisory names the
+capability in the manifest's words, carries the secret and a `secrets set`
+hint, and never changes the outcome.
+
+`{id, severity: "warning", capability, summary, detail, hint}`
+
+Advisories are excluded from the semantic digest, so one appearing or
+clearing between review and apply never refuses the apply. Anything that must
+block belongs in a precondition, a missing input or a preflight check.
 
 ## Preview, policy, apply
 

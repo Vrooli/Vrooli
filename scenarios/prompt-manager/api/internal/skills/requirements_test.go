@@ -1,6 +1,8 @@
 package skills
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -24,5 +26,23 @@ func TestReplaceFrontmatterRequirementsPreservesBody(t *testing.T) {
 	}
 	if !strings.Contains(updated, `commands: ["prompt-manager skill read"]`) || !strings.HasSuffix(updated, "Body\n") {
 		t.Fatalf("requirements/body not preserved: %s", updated)
+	}
+}
+
+func TestSyncCorpusRequirementsSkipsThirdPartyVendorPack(t *testing.T) {
+	root := t.TempDir()
+	vendorSkill := filepath.Join(root, "packs", "vendor", "brag", "SKILL.md")
+	if err := os.MkdirAll(filepath.Dir(vendorSkill), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	pinned := "---\nname: brag\ndescription: third-party\n---\n\nRun npx hyperframes check.\n"
+	if err := os.WriteFile(vendorSkill, []byte(pinned), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := SyncCorpusRequirements(root); err != nil {
+		t.Fatalf("vendor skill without a requires block must not fail the sync: %v", err)
+	}
+	if got, _ := os.ReadFile(vendorSkill); string(got) != pinned {
+		t.Fatalf("pinned third-party bytes changed:\n%s", got)
 	}
 }

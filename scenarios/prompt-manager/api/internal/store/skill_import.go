@@ -1,28 +1,39 @@
 package store
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
 
-var immutableCommit = regexp.MustCompile(`^[0-9a-fA-F]{7,64}$`)
-var checksumPattern = regexp.MustCompile(`^sha256:[0-9a-fA-F]{64}$`)
+var (
+	immutableCommit = regexp.MustCompile(`^[0-9a-fA-F]{7,64}$`)
+	checksumPattern = regexp.MustCompile(`^sha256:[0-9a-fA-F]{64}$`)
+)
 
 // ImportRequest accepts only caller-pinned local material. Network fetching is
 // intentionally outside the store so the bytes can be reviewed and hashed.
 type ImportRequest struct {
 	SourceDir, SourceURL, Commit, License, Checksum, ImportedBy, UpstreamVersion, ID string
+	// ExternalTools are dependencies Vrooli does not provide or manage.
+	ExternalTools []ExternalTool
 }
 
 // ImportSkill verifies pinned material and writes it to an inactive vendor pack.
-func (s *FileSkillStore) ImportSkill(req ImportRequest) (*Skill, error) {
+func (s *FileSkillStore) ImportSkill(ctx context.Context, req ImportRequest) (*Skill, error) {
+	s, err := s.forContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if strings.TrimSpace(req.SourceURL) == "" || !immutableCommit.MatchString(req.Commit) {
 		return nil, errors.New("import requires a source URL and immutable hexadecimal commit")
 	}
@@ -45,6 +56,15 @@ func (s *FileSkillStore) ImportSkill(req ImportRequest) (*Skill, error) {
 	if !strings.EqualFold(actual, req.Checksum) {
 		return nil, fmt.Errorf("checksum mismatch: expected %s, got %s", req.Checksum, actual)
 	}
+	for _, tool := range req.ExternalTools {
+		if strings.TrimSpace(tool.Name) == "" {
+			return nil, errors.New("external tools require a name")
+		}
+	}
+	supporting, treeChecksum, err := scanImportTree(req.SourceDir)
+	if err != nil {
+		return nil, err
+	}
 
 	skillDir := filepath.Join(s.packsDir(), "vendor", req.ID)
 	if _, err := os.Stat(skillDir); err == nil {
@@ -56,7 +76,7 @@ func (s *FileSkillStore) ImportSkill(req ImportRequest) (*Skill, error) {
 		return nil, fmt.Errorf("create vendor skill: %w", err)
 	}
 	importedAt := time.Now().UTC().Format(time.RFC3339)
-	skill := &Skill{BaseEntity: BaseEntity{Kind: KindSkill, SchemaVersion: CurrentSchemaVersion}, ID: req.ID, Name: req.ID, Status: StatusDraft, Entry: "SKILL.md", Pack: "vendor", Timestamps: NewTimestamps(), Origin: &SkillOrigin{Kind: OriginImported, SourceURL: req.SourceURL, Commit: req.Commit, License: req.License, Checksum: actual, ImportedBy: req.ImportedBy, ImportedAt: importedAt, UpstreamVersion: req.UpstreamVersion, Review: SkillReview{Verdict: ReviewVerdictPending}}}
+	skill := &Skill{BaseEntity: BaseEntity{Kind: KindSkill, SchemaVersion: CurrentSchemaVersion}, ID: req.ID, Name: req.ID, Status: StatusDraft, Entry: "SKILL.md", Pack: "vendor", Timestamps: NewTimestamps(), Origin: &SkillOrigin{Kind: OriginImported, SourceURL: req.SourceURL, Commit: req.Commit, License: req.License, Checksum: actual, TreeChecksum: treeChecksum, ImportedBy: req.ImportedBy, ImportedAt: importedAt, UpstreamVersion: req.UpstreamVersion, Review: SkillReview{Verdict: ReviewVerdictPending}}, ExternalTools: req.ExternalTools}
 	if err := SaveJSON(filepath.Join(skillDir, "skill.json"), skill); err != nil {
 		_ = os.RemoveAll(skillDir)
 		return nil, fmt.Errorf("write imported metadata: %w", err)
@@ -70,11 +90,80 @@ func (s *FileSkillStore) ImportSkill(req ImportRequest) (*Skill, error) {
 		_ = os.RemoveAll(skillDir)
 		return nil, fmt.Errorf("write imported content: %w", err)
 	}
+	if err := copyImportFiles(req.SourceDir, skillDir, supporting); err != nil {
+		_ = os.RemoveAll(skillDir)
+		return nil, err
+	}
 	if err := s.ensureVendorInactive(); err != nil {
 		_ = os.RemoveAll(skillDir)
 		return nil, err
 	}
 	return skill, nil
+}
+
+// scanImportTree lists the supporting files of a pinned skill directory and
+// returns a checksum over every upstream file, SKILL.md included. Symlinks
+// and nested skill manifests are refused: a symlink could reach outside the
+// pinned tree, and a nested SKILL.md or skill.json would be indexed as a
+// separate skill.
+func scanImportTree(root string) ([]string, string, error) {
+	var supporting []string
+	lines := []string{}
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		if entry.Type()&fs.ModeSymlink != 0 {
+			return fmt.Errorf("import refuses symlink %s", rel)
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		if !entry.Type().IsRegular() {
+			return fmt.Errorf("import refuses non-regular file %s", rel)
+		}
+		base := filepath.Base(rel)
+		if rel != "SKILL.md" && (base == "SKILL.md" || base == "skill.json") {
+			return fmt.Errorf("import refuses nested skill manifest %s", rel)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		sum := sha256.Sum256(data)
+		lines = append(lines, filepath.ToSlash(rel)+"\x00"+hex.EncodeToString(sum[:])+"\n")
+		if rel != "SKILL.md" {
+			supporting = append(supporting, rel)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, "", fmt.Errorf("scan pinned skill: %w", err)
+	}
+	sort.Strings(lines)
+	tree := sha256.Sum256([]byte(strings.Join(lines, "")))
+	return supporting, "sha256:" + hex.EncodeToString(tree[:]), nil
+}
+
+func copyImportFiles(sourceRoot, targetRoot string, files []string) error {
+	for _, rel := range files {
+		data, err := os.ReadFile(filepath.Join(sourceRoot, rel))
+		if err != nil {
+			return fmt.Errorf("read supporting file %s: %w", rel, err)
+		}
+		target := filepath.Join(targetRoot, rel)
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return fmt.Errorf("create supporting directory for %s: %w", rel, err)
+		}
+		if err := os.WriteFile(target, data, 0o644); err != nil {
+			return fmt.Errorf("write supporting file %s: %w", rel, err)
+		}
+	}
+	return nil
 }
 
 func addImportedOriginFrontmatter(content string, origin SkillOrigin) (string, error) {
@@ -108,6 +197,7 @@ func addImportedOriginFrontmatter(content string, origin SkillOrigin) (string, e
 		"    commit: "+yamlQuote(origin.Commit),
 		"    license: "+yamlQuote(origin.License),
 		"    checksum: "+yamlQuote(origin.Checksum),
+		"    tree_checksum: "+yamlQuote(origin.TreeChecksum),
 		"    imported_by: "+yamlQuote(origin.ImportedBy),
 		"    imported_at: "+yamlQuote(origin.ImportedAt),
 	)
@@ -119,6 +209,41 @@ func addImportedOriginFrontmatter(content string, origin SkillOrigin) (string, e
 	return strings.Join(lines, "\n"), nil
 }
 
+// replaceImportedReviewFrontmatter keeps the SKILL.md origin block truthful
+// after review. Only the review lines Vrooli added are rewritten; the pinned
+// upstream body is untouched.
+func replaceImportedReviewFrontmatter(content string, review SkillReview) (string, error) {
+	lines := strings.Split(content, "\n")
+	start := -1
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "---" {
+			break
+		}
+		if lines[i] == "    review:" {
+			start = i
+			break
+		}
+	}
+	if start < 0 {
+		return "", errors.New("imported content has no origin review block")
+	}
+	end := start + 1
+	for end < len(lines) && strings.HasPrefix(lines[end], "      ") {
+		end++
+	}
+	block := []string{"      verdict: " + review.Verdict}
+	if review.Reviewer != "" {
+		block = append(block, "      reviewer: "+yamlQuote(review.Reviewer))
+	}
+	if review.ReviewedAt != "" {
+		block = append(block, "      reviewed_at: "+yamlQuote(review.ReviewedAt))
+	}
+	result := append([]string{}, lines[:start+1]...)
+	result = append(result, block...)
+	result = append(result, lines[end:]...)
+	return strings.Join(result, "\n"), nil
+}
+
 func yamlQuote(value string) string {
 	return `"` + strings.ReplaceAll(strings.ReplaceAll(value, `\`, `\\`), `"`, `\"`) + `"`
 }
@@ -126,7 +251,11 @@ func yamlQuote(value string) string {
 // ReviewImportedSkill records an independent human verdict without changing
 // immutable origin fields. A passed skill becomes active; a rejected one stays
 // out of every active projection.
-func (s *FileSkillStore) ReviewImportedSkill(id, reviewer, verdict string) error {
+func (s *FileSkillStore) ReviewImportedSkill(ctx context.Context, id, reviewer, verdict string) error {
+	s, err := s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	skill, err := s.loadSkill("vendor", id)
 	if err != nil {
 		return err
@@ -141,6 +270,18 @@ func (s *FileSkillStore) ReviewImportedSkill(id, reviewer, verdict string) error
 		return errors.New("verdict must be passed or rejected")
 	}
 	skill.Origin.Review = SkillReview{Verdict: verdict, Reviewer: reviewer, ReviewedAt: time.Now().UTC().Format(time.RFC3339)}
+	contentPath := filepath.Join(s.packsDir(), "vendor", id, "SKILL.md")
+	content, err := os.ReadFile(contentPath)
+	if err != nil {
+		return fmt.Errorf("read imported content: %w", err)
+	}
+	updated, err := replaceImportedReviewFrontmatter(string(content), skill.Origin.Review)
+	if err != nil {
+		return err
+	}
+	if err := WriteContent(contentPath, updated); err != nil {
+		return fmt.Errorf("record review in imported content: %w", err)
+	}
 	if verdict == ReviewVerdictPassed {
 		skill.Status = StatusActive
 		if err := s.activateVendor(); err != nil {
@@ -161,7 +302,11 @@ func (s *FileSkillStore) ImportedSkillOverlayPath(id string) string {
 // WriteImportedSkillOverlay stores a patch beside, rather than over, the
 // pinned upstream bytes. The filename is intentionally constrained so an
 // overlay cannot escape its skill's overlay directory.
-func (s *FileSkillStore) WriteImportedSkillOverlay(id, filename, patch string) (string, error) {
+func (s *FileSkillStore) WriteImportedSkillOverlay(ctx context.Context, id, filename, patch string) (string, error) {
+	s, err := s.forContext(ctx)
+	if err != nil {
+		return "", err
+	}
 	if _, err := s.loadSkill("vendor", id); err != nil {
 		return "", err
 	}
@@ -181,7 +326,11 @@ func (s *FileSkillStore) WriteImportedSkillOverlay(id, filename, patch string) (
 
 // ImportedSkillStaleness compares the recorded upstream version with a caller
 // supplied current version. The source fetcher remains outside the store.
-func (s *FileSkillStore) ImportedSkillStaleness(id, currentVersion string) (recorded string, stale bool, err error) {
+func (s *FileSkillStore) ImportedSkillStaleness(ctx context.Context, id, currentVersion string) (recorded string, stale bool, err error) {
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return "", false, err
+	}
 	skill, err := s.loadSkill("vendor", id)
 	if err != nil {
 		return "", false, err
@@ -236,8 +385,10 @@ func (s *FileSkillStore) activateVendor() error {
 			active = true
 		}
 	}
+	// Third-party skills take the lowest precedence so an import can never
+	// shadow an authored skill that shares its ID.
 	if !active {
-		order.ActivePacks = append([]string{"vendor"}, order.ActivePacks...)
+		order.ActivePacks = append(order.ActivePacks, "vendor")
 	}
 	return SaveJSON(filepath.Join(s.skillsDir(), "_pack-order.json"), order)
 }

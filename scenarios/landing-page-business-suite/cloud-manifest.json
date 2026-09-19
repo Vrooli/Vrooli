@@ -80,6 +80,15 @@
         }
       },
       {
+        "id": "mailgun-api-key",
+        "class": "user_prompt",
+        "required": false,
+        "description": "Mailgun API key for transactional sign-in email delivery through the HTTPS API.",
+        "capability": "customer sign-in email (Mailgun)",
+        "target": { "type": "env", "name": "MAILGUN_API_KEY" },
+        "descriptor": { "logical_id": "vrooli/landing-page-business-suite", "field": "mailgun-api-key" }
+      },
+      {
         "id": "smtp-password",
         "class": "user_prompt",
         "required": false,

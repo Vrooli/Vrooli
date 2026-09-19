@@ -22,6 +22,10 @@ func Run(client *Client, args []string) error {
 		return runPreflight(client, args[1:])
 	case "requirements":
 		return runRequirements(client, args[1:])
+	case "mail-dns-diff":
+		return runMailDNSDiff(args[1:])
+	case "mail-dns-apply":
+		return runMailDNSApply(args[1:])
 	case "fix-firewall":
 		return runFixFirewall(client, args[1:])
 	case "fix-processes":
@@ -38,6 +42,8 @@ func printUsage() error {
 
 Commands:
   run <manifest.json>    Run VPS preflight checks for a cloud manifest
+  mail-dns-diff <manifest.json>  Show desired versus published mail DNS; never writes
+  mail-dns-apply <manifest.json> Apply reviewed mail DNS with --confirm
   requirements           Show canonical VPS requirements/policy
   fix-firewall           Open required firewall ports
   fix-processes          Stop stale scenario processes on target VPS
@@ -51,19 +57,117 @@ Run 'scenario-to-cloud preflight <command> -h' for command-specific options.`)
 }
 
 func runPreflight(client *Client, args []string) error {
-	if len(args) != 1 {
+	jsonOutput := false
+	var manifestPath string
+	for _, arg := range args {
+		switch arg {
+		case "-h", "--help":
+			fmt.Println(`Usage: scenario-to-cloud preflight run <manifest.json> [flags]
+
+Run VPS preflight checks for a cloud manifest.
+
+Flags:
+  --json    Output raw JSON
+
+Exit codes: 0 when no check failed (warnings do not fail), 1 on a failing
+check. Warnings are printed and are never fatal.`)
+			return nil
+		case "--json":
+			jsonOutput = true
+		default:
+			if strings.HasPrefix(arg, "-") {
+				return fmt.Errorf("unknown flag: %s", arg)
+			}
+			if manifestPath != "" {
+				return fmt.Errorf("usage: scenario-to-cloud preflight run <manifest.json>")
+			}
+			manifestPath = arg
+		}
+	}
+	if manifestPath == "" {
 		return fmt.Errorf("usage: scenario-to-cloud preflight run <manifest.json>")
 	}
-	manifest, err := internalmanifest.ReadJSONFile(args[0])
+	manifest, err := internalmanifest.ReadJSONFile(manifestPath)
 	if err != nil {
 		return err
 	}
-	body, _, err := client.Run(manifest)
+	body, resp, err := client.Run(manifest)
 	if err != nil {
 		return err
 	}
-	cliutil.PrintJSON(body)
-	return nil
+	if jsonOutput {
+		cliutil.PrintJSON(body)
+	} else {
+		printPreflightReport(resp)
+	}
+	return preflightVerdict(resp)
+}
+
+// printPreflightReport renders the checks as three named groups. Warnings
+// were previously invisible in a terminal: the command printed raw JSON, so
+// an operator scanning output had nothing to read.
+func printPreflightReport(resp Response) {
+	failed, warned, passed := groupChecks(resp.Checks)
+
+	fmt.Printf("Preflight: %d passed  |  %d warning  |  %d failed\n", len(passed), len(warned), len(failed))
+	printCheckGroup("Failed", failed)
+	printCheckGroup("Warnings", warned)
+
+	for _, issue := range resp.Issues {
+		fmt.Printf("  [%s] %s: %s\n", issue.Severity, issue.Path, issue.Message)
+		if strings.TrimSpace(issue.Hint) != "" {
+			fmt.Printf("      hint: %s\n", issue.Hint)
+		}
+	}
+	if len(failed) == 0 && len(warned) == 0 {
+		fmt.Println("Every check passed.")
+	}
+}
+
+func printCheckGroup(label string, checks []Check) {
+	if len(checks) == 0 {
+		return
+	}
+	fmt.Printf("\n%s:\n", label)
+	for _, check := range checks {
+		title := strings.TrimSpace(check.Title)
+		if title == "" {
+			title = check.ID
+		}
+		fmt.Printf("  %s — %s\n", title, strings.TrimSpace(check.Details))
+		if strings.TrimSpace(check.Hint) != "" {
+			fmt.Printf("      hint: %s\n", check.Hint)
+		}
+	}
+}
+
+func groupChecks(checks []Check) (failed, warned, passed []Check) {
+	for _, check := range checks {
+		switch check.Status {
+		case CheckFail:
+			failed = append(failed, check)
+		case CheckWarn:
+			warned = append(warned, check)
+		default:
+			passed = append(passed, check)
+		}
+	}
+	return failed, warned, passed
+}
+
+// preflightVerdict makes the exit code follow the report. A failing check
+// used to exit 0, so a scripted deploy could not tell a clean target from a
+// broken one. Warnings deliberately keep the exit code at 0.
+func preflightVerdict(resp Response) error {
+	failed, _, _ := groupChecks(resp.Checks)
+	if len(failed) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(failed))
+	for _, check := range failed {
+		names = append(names, check.ID)
+	}
+	return fmt.Errorf("preflight failed: %s", strings.Join(names, ", "))
 }
 
 func runRequirements(client *Client, args []string) error {

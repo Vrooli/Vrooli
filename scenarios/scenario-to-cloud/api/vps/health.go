@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"scenario-to-cloud/apphealth"
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/sshidentity"
@@ -26,6 +27,7 @@ func ComputeHealth(
 	dnsEval *dns.Evaluation,
 	tlsSnap *tlsinfo.Snapshot,
 	tlsErr error,
+	app *apphealth.Report,
 ) domain.HealthResponse {
 	resp := domain.HealthResponse{
 		OK:             true,
@@ -58,6 +60,9 @@ func ComputeHealth(
 
 	// --- System section ---
 	allSections = append(allSections, buildSystemSection(liveState))
+
+	// --- Application dependencies section ---
+	allSections = append(allSections, buildAppDependenciesSection(app))
 
 	resp.Sections = allSections
 
@@ -714,6 +719,79 @@ func buildSystemSection(liveState *domain.LiveStateResult) domain.HealthSection 
 	return sec
 }
 
+// appDependenciesCategory is the section category for what the deployed
+// application says about its own dependencies.
+const appDependenciesCategory = "app_dependencies"
+
+// appDependencyCheckID is the check id prefix for one application dependency.
+const appDependencyCheckID = "app_dependency_"
+
+// buildAppDependenciesSection reports the deployed application's own view of
+// its dependencies. A failing dependency is a warning, never a failure: the
+// application is serving, so the deployment is not broken, but a capability
+// the operator paid for is unavailable and nothing else in this report would
+// say so. A report that could not be observed is a skip, so "not observed"
+// never renders as "everything passes".
+func buildAppDependenciesSection(app *apphealth.Report) domain.HealthSection {
+	sec := domain.HealthSection{
+		Category: appDependenciesCategory,
+		Title:    "Application Dependencies",
+	}
+
+	if app == nil {
+		addCheckToSection(&sec, domain.HealthCheck{
+			ID:      "app_dependencies_unavailable",
+			Title:   "Application dependencies",
+			Status:  domain.HealthCheckSkip,
+			Message: "The application health body was not read",
+		})
+		return sec
+	}
+	if app.Unavailable {
+		addCheckToSection(&sec, domain.HealthCheck{
+			ID:      "app_dependencies_unavailable",
+			Title:   "Application dependencies",
+			Status:  domain.HealthCheckSkip,
+			Message: app.Summary(),
+			Details: map[string]string{"url": app.URL},
+		})
+		return sec
+	}
+
+	for _, dep := range app.Dependencies {
+		status := domain.HealthCheckPass
+		message := dep.Name + " is working"
+		if dep.Status == apphealth.DependencyWarn {
+			status = domain.HealthCheckWarn
+			message = dep.Name + " is failing"
+			if strings.TrimSpace(dep.Detail) != "" {
+				message += ": " + strings.TrimSpace(dep.Detail)
+			}
+		}
+		details := map[string]string{"dependency": dep.Name}
+		if strings.TrimSpace(app.Status) != "" {
+			details["app_status"] = strings.TrimSpace(app.Status)
+		}
+		addCheckToSection(&sec, domain.HealthCheck{
+			ID:      appDependencyCheckID + dep.Name,
+			Title:   dep.Name,
+			Status:  status,
+			Message: message,
+			Details: details,
+		})
+	}
+	if len(sec.Checks) == 0 {
+		addCheckToSection(&sec, domain.HealthCheck{
+			ID:      "app_dependencies_none",
+			Title:   "Application dependencies",
+			Status:  domain.HealthCheckSkip,
+			Message: app.Summary(),
+			Details: map[string]string{"url": app.URL},
+		})
+	}
+	return sec
+}
+
 // --- Helpers ---
 
 // addCheckToSection appends a check and updates the section's counters and status.
@@ -900,6 +978,16 @@ func checkToRecommendation(deploymentID string, manifest domain.CloudManifest, c
 			Category: "deployment",
 			Summary:  "Deployment in failed state",
 			Command:  fmt.Sprintf("scenario-to-cloud deployment history %s", deploymentID),
+		}
+	case category == appDependenciesCategory && check.Status == domain.HealthCheckWarn:
+		// The remedy is the application's own, not this scenario's: point the
+		// operator at the failing dependency by name and at the deployment's
+		// own health report, which carries the application's reason verbatim.
+		return &domain.Recommendation{
+			Priority: 2,
+			Category: appDependenciesCategory,
+			Summary:  "The deployed application reports a failing dependency: " + strings.TrimPrefix(check.ID, appDependencyCheckID),
+			Command:  fmt.Sprintf("scenario-to-cloud deployment health %s", deploymentID),
 		}
 	case category == "deployment" && check.Status == domain.HealthCheckWarn:
 		if strings.Contains(check.Message, "stopped") {

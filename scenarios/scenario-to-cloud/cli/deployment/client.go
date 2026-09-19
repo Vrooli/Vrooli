@@ -162,6 +162,13 @@ func (c *Client) Create(req CreateRequest) ([]byte, CreateResponse, error) {
 	return raw, resp, err
 }
 
+// Execute submits a deployment run with optional operator-supplied secrets.
+func (c *Client) Execute(id string, req ExecuteRequest) ([]byte, ExecuteResponse, error) {
+	var resp ExecuteResponse
+	raw, err := c.rest("POST", "/api/v1/deployments/"+url.PathEscape(id)+"/execute", nil, req, &resp)
+	return raw, resp, err
+}
+
 // Delete removes a deployment record.
 func (c *Client) Delete(id string, opts DeleteOptions) ([]byte, DeleteResponse, error) {
 	query := url.Values{}

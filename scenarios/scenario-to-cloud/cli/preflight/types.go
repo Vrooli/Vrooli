@@ -1,20 +1,46 @@
 // Package preflight provides VPS preflight check commands for the CLI.
 package preflight
 
-// Response represents the response from preflight checks.
+// Response represents the response from preflight checks. The field names
+// mirror the API's domain.PreflightResponse exactly; an earlier shape here
+// used `name`/`passed`, which no producer ever sent, so every check decoded
+// as an unnamed failure and the CLI could not tell pass from warn from fail.
 type Response struct {
-	OK        bool     `json:"ok"`
-	Checks    []Check  `json:"checks"`
-	Issues    []string `json:"issues,omitempty"`
-	Timestamp string   `json:"timestamp"`
+	OK        bool              `json:"ok"`
+	Checks    []Check           `json:"checks"`
+	Issues    []ValidationIssue `json:"issues,omitempty"`
+	Timestamp string            `json:"timestamp"`
 }
+
+// CheckStatus is a preflight check's outcome.
+type CheckStatus string
+
+const (
+	// CheckPass means the condition holds.
+	CheckPass CheckStatus = "pass"
+	// CheckWarn means the condition is imperfect but does not block a
+	// deployment. Warnings are printed and never change the exit code.
+	CheckWarn CheckStatus = "warn"
+	// CheckFail means the condition blocks a deployment.
+	CheckFail CheckStatus = "fail"
+)
 
 // Check represents a single preflight check result.
 type Check struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Passed  bool   `json:"passed"`
-	Message string `json:"message,omitempty"`
+	ID      string            `json:"id"`
+	Title   string            `json:"title"`
+	Status  CheckStatus       `json:"status"`
+	Details string            `json:"details,omitempty"`
+	Hint    string            `json:"hint,omitempty"`
+	Data    map[string]string `json:"data,omitempty"`
+}
+
+// ValidationIssue is one manifest problem reported alongside the checks.
+type ValidationIssue struct {
+	Path     string `json:"path"`
+	Message  string `json:"message"`
+	Hint     string `json:"hint,omitempty"`
+	Severity string `json:"severity"`
 }
 
 // FixResponse represents a generic response from fix operations.

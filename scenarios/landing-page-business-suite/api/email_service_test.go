@@ -854,3 +854,56 @@ func TestSendViaSendGrid_APIError(t *testing.T) {
 		t.Fatalf("expected provider error detail, got: %v", err)
 	}
 }
+
+func TestMailgunAPI_VerifiesAndSendsWithAPIKey(t *testing.T) {
+	t.Setenv("EMAIL_FROM_ADDRESS", "noreply@vrooli.com")
+	var receivedForm map[string][]string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if username, password, ok := r.BasicAuth(); !ok || username != "api" || password != "key-test" {
+			t.Fatalf("unexpected Mailgun credentials: username=%q ok=%v", username, ok)
+		}
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/v3/vrooli.com":
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"name":"vrooli.com"}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/v3/vrooli.com/messages":
+			if err := r.ParseForm(); err != nil {
+				t.Fatalf("parse Mailgun form: %v", err)
+			}
+			receivedForm = r.PostForm
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"<mailgun-message-123>"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	svc := NewEmailServiceWithOptions(EmailServiceOptions{
+		MailgunEndpoint: server.URL,
+		HTTPClient:      server.Client(),
+		MailgunKeyResolver: func() string {
+			return "key-test"
+		},
+	})
+	status, detail := svc.verifyMailgunAPI(context.Background())
+	if status != http.StatusOK || !strings.Contains(detail, "authenticates") {
+		t.Fatalf("verifyMailgunAPI = (%d, %q)", status, detail)
+	}
+	delivery, err := svc.sendViaMailgun(context.Background(), "user@example.com", "noreply@vrooli.com", "Sign in", "plain body", "<p>html body</p>")
+	if err != nil {
+		t.Fatalf("sendViaMailgun failed: %v", err)
+	}
+	if delivery.Provider != "mailgun" || delivery.ProviderMessageID != "<mailgun-message-123>" {
+		t.Fatalf("delivery = %+v", delivery)
+	}
+	for field, want := range map[string]string{"from": "noreply@vrooli.com", "to": "user@example.com", "subject": "Sign in", "text": "plain body", "html": "<p>html body</p>"} {
+		got := ""
+		if values := receivedForm[field]; len(values) > 0 {
+			got = values[0]
+		}
+		if got != want {
+			t.Errorf("Mailgun form %s = %q, want %q", field, got, want)
+		}
+	}
+}

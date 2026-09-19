@@ -44,7 +44,7 @@ func (h *handlers) generate(ctx cliapp.RunContext) error {
 		// caller can pipe it straight into a file.
 		Changes: []string{m.Markdown},
 		NextCommand: []string{
-			fmt.Sprintf("`brands get --id %s` — inspect the brand this was rendered from", m.BrandId),
+			fmt.Sprintf("`brands get %s` — inspect the brand this was rendered from", m.BrandId),
 		},
 	})
 }

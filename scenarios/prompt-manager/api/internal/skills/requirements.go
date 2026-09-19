@@ -63,6 +63,11 @@ func SyncCorpusRequirements(root string) (map[string][]string, error) {
 		if walkErr != nil {
 			return walkErr
 		}
+		// Third-party skills keep their pinned upstream bytes; their external
+		// dependencies are declared as externalTools, not inferred requires.
+		if entry.IsDir() && entry.Name() == "vendor" && filepath.Base(filepath.Dir(path)) == "packs" {
+			return filepath.SkipDir
+		}
 		if entry.IsDir() || entry.Name() != "SKILL.md" {
 			return nil
 		}

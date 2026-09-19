@@ -26,6 +26,10 @@ type Skill struct {
 	TargetDimensions []string       `json:"targetDimensions,omitempty"`
 	Requires         *SkillRequires `json:"requires,omitempty"`
 	Origin           *SkillOrigin   `json:"origin,omitempty"`
+	// ExternalTools are tools a third-party skill needs that Vrooli neither
+	// provides nor manages. They stay apart from Requires, which describes
+	// Vrooli-owned commands and is regenerated from skill bodies.
+	ExternalTools []ExternalTool `json:"externalTools,omitempty"`
 	// ProgrammaticHome is a record-of-fact pointer (format "engine:identifier",
 	// e.g. "test-genie:architecture") set when this skill's detection has
 	// graduated into a programmatic engine. Nil while detection is still agentic.
@@ -47,10 +51,18 @@ type SkillOrigin struct {
 	Commit          string      `json:"commit"`
 	License         string      `json:"license"`
 	Checksum        string      `json:"checksum"`
+	TreeChecksum    string      `json:"treeChecksum,omitempty"`
 	ImportedBy      string      `json:"importedBy"`
 	ImportedAt      string      `json:"importedAt"`
 	UpstreamVersion string      `json:"upstreamVersion,omitempty"`
 	Review          SkillReview `json:"review"`
+}
+
+// ExternalTool declares a dependency outside Vrooli's managed toolchain.
+type ExternalTool struct {
+	Name    string `json:"name"`
+	URL     string `json:"url,omitempty"`
+	Purpose string `json:"purpose,omitempty"`
 }
 
 type SkillReview struct {

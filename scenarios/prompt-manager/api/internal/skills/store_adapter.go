@@ -446,6 +446,8 @@ func (a *StoreAdapter) toMetadata(s store.Skill) Metadata {
 		CreatedAt:        s.CreatedAt,
 		UpdatedAt:        s.UpdatedAt,
 		Revision:         s.Revision,
+		Origin:           s.Origin,
+		ExternalTools:    s.ExternalTools,
 	}
 }
 
@@ -473,6 +475,8 @@ func (a *StoreAdapter) fromMetadata(m Metadata, pack string) store.Skill {
 		DefaultScope:     m.DefaultScope,
 		TargetDimensions: m.TargetDimensions,
 		ProgrammaticHome: m.ProgrammaticHome,
+		Origin:           m.Origin,
+		ExternalTools:    m.ExternalTools,
 		Timestamps: store.Timestamps{
 			CreatedAt: m.CreatedAt,
 			UpdatedAt: m.UpdatedAt,

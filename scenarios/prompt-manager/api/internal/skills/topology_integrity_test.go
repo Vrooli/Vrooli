@@ -128,3 +128,40 @@ func contains(values []string, want string) bool {
 	}
 	return false
 }
+
+func TestThirdPartyVendorSkillsResolveThroughReadIndexButStayReadOnly(t *testing.T) {
+	if !contains(Folders, "vendor") {
+		t.Fatal(`Folders must include "vendor" so reviewed third-party skills are readable`)
+	}
+	if contains(WritableFolders, "vendor") {
+		t.Fatal(`WritableFolders must not include "vendor"`)
+	}
+	configRoot := t.TempDir()
+	skillDir := filepath.Join(configRoot, "skills", "packs", "vendor", "brag")
+	if err := os.MkdirAll(skillDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("---\nname: brag\ndescription: third-party\n---\n\nBody.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	skill := &store.Skill{BaseEntity: store.BaseEntity{Kind: store.KindSkill, SchemaVersion: store.CurrentSchemaVersion}, ID: "brag", Name: "brag", Status: store.StatusActive, Entry: "SKILL.md", Origin: &store.SkillOrigin{Kind: store.OriginImported, SourceURL: "https://github.com/latent-spaces/brag", Commit: "1f8d9ade", License: "MIT", Review: store.SkillReview{Verdict: store.ReviewVerdictPassed, Reviewer: "operator"}}}
+	if err := store.SaveJSON(filepath.Join(skillDir, "skill.json"), skill); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveJSON(filepath.Join(configRoot, "skills", "_pack-order.json"), &store.PackOrder{ActivePacks: []string{"local", "core", "vendor"}}); err != nil {
+		t.Fatal(err)
+	}
+	indexed, err := loadIndexedSkills(NewStoreAdapter(store.NewFileSkillStore(configRoot), store.NewFileContentIO()))
+	if err != nil {
+		t.Fatalf("load vendor skill index: %v", err)
+	}
+	for _, entry := range indexed {
+		if entry.meta.ID == "brag" {
+			if entry.folder != "vendor" || entry.meta.Origin == nil || entry.meta.Origin.SourceURL != "https://github.com/latent-spaces/brag" {
+				t.Fatalf("vendor skill indexed without its origin: %#v", entry)
+			}
+			return
+		}
+	}
+	t.Fatal("reviewed vendor skill missing from read index")
+}

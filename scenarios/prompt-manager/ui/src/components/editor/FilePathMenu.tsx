@@ -285,6 +285,8 @@ export function FilePathMenu({
         return { icon: FolderOpen, label: 'Core', description: 'Shared skill, git-tracked' }
       case 'drafts':
         return { icon: HardDrive, label: 'Drafts', description: 'Draft skill' }
+      case 'vendor':
+        return { icon: HardDrive, label: 'Third-party', description: 'Imported third-party skill, gitignored and read-only' }
       default:
         return { icon: HardDrive, label: 'Local', description: 'Personal skill' }
     }

@@ -88,6 +88,34 @@
             {
               "name": "text",
               "description": "Colors: text (CSS color)"
+            },
+            {
+              "name": "heading-font",
+              "description": "Typography: heading font"
+            },
+            {
+              "name": "body-font",
+              "description": "Typography: body font"
+            },
+            {
+              "name": "mono-font",
+              "description": "Typography: monospace font"
+            },
+            {
+              "name": "base-font-size",
+              "description": "Typography: base font size"
+            },
+            {
+              "name": "tone",
+              "description": "Voice: tone"
+            },
+            {
+              "name": "voice-style",
+              "description": "Voice: style"
+            },
+            {
+              "name": "voice-keywords",
+              "description": "Voice: comma-separated keywords"
             }
           ],
           "binding": {
@@ -180,6 +208,34 @@
             {
               "name": "text",
               "description": "Colors: text (CSS color)"
+            },
+            {
+              "name": "heading-font",
+              "description": "Typography: heading font"
+            },
+            {
+              "name": "body-font",
+              "description": "Typography: body font"
+            },
+            {
+              "name": "mono-font",
+              "description": "Typography: monospace font"
+            },
+            {
+              "name": "base-font-size",
+              "description": "Typography: base font size"
+            },
+            {
+              "name": "tone",
+              "description": "Voice: tone"
+            },
+            {
+              "name": "voice-style",
+              "description": "Voice: style"
+            },
+            {
+              "name": "voice-keywords",
+              "description": "Voice: comma-separated keywords"
             },
             {
               "name": "expected-version",
@@ -387,7 +443,7 @@
     },
     {
       "name": "assets",
-      "description": "Upload, fetch, and remove brand asset files (logo, favicon, icon, \u2026)",
+      "description": "Upload, fetch, and remove brand asset files (logo, favicon, icon, …)",
       "commands": [
         {
           "name": "list",
@@ -530,7 +586,7 @@
     },
     {
       "name": "generation",
-      "description": "Generate brand text facets (Ollama \u2192 OpenRouter) and brand images via image-tools",
+      "description": "Generate brand text facets (Ollama → OpenRouter) and brand images via image-tools",
       "commands": [
         {
           "name": "status",
@@ -684,7 +740,9 @@
             },
             {
               "name": "instruction",
-              "aliases": ["prompt"],
+              "aliases": [
+                "prompt"
+              ],
               "required": true,
               "description": "Natural-language edit instruction"
             },

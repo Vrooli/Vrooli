@@ -9,10 +9,13 @@ import (
 
 	"github.com/gorilla/mux"
 
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"scenario-to-cloud/apierrors"
 	"scenario-to-cloud/closure"
+	"scenario-to-cloud/credentials"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/execplan"
 	"scenario-to-cloud/internal/httputil"
@@ -62,9 +65,11 @@ var planObserverOverride PlanObserver
 // them as required operator prompts: the secrets plan is the authority on
 // which inputs an operator must supply; generated and infrastructure
 // credentials are provisioned by credentials.provision.
-type recordObserver struct{}
+type recordObserver struct {
+	listBindings func(context.Context, string) ([]credentials.BindingView, error)
+}
 
-func (recordObserver) Observe(_ context.Context, dep *domain.Deployment, manifest domain.CloudManifest, closure *domain.Closure) (execplan.Observations, error) {
+func (o recordObserver) Observe(ctx context.Context, dep *domain.Deployment, manifest domain.CloudManifest, closure *domain.Closure) (execplan.Observations, error) {
 	obs := execplan.Observations{}
 	if dep != nil {
 		obs.DeploymentRevision = dep.Fence
@@ -82,6 +87,29 @@ func (recordObserver) Observe(_ context.Context, dep *domain.Deployment, manifes
 			}
 		}
 	}
+	if dep != nil && o.listBindings != nil {
+		if bindings, err := o.listBindings(ctx, dep.ID); err == nil {
+			for _, view := range bindings {
+				binding := view.Binding
+				if binding.State != domain.CredentialBindingMaterialized || binding.Version.Number <= 0 {
+					continue
+				}
+				address := strings.TrimSpace(binding.Descriptor.LogicalID) + ":" + strings.TrimSpace(binding.Descriptor.Field)
+				if address != ":" {
+					prompted[address] = false
+				}
+			}
+		}
+	}
+	// A secret that declares a capability is only satisfied when a value
+	// actually exists. "Satisfied" here otherwise means "not an operator
+	// blocker", which is the right answer for the handoff and the wrong one
+	// for a capability warning: without this, an optional credential nothing
+	// has ever provisioned still counted as satisfied and the warning could
+	// never fire.
+	for _, address := range unconfiguredCapabilityCredentials(manifest) {
+		prompted[address] = true
+	}
 	if closure != nil {
 		for _, component := range closure.ComponentsOfKind(domain.ClosureKindCredentialDescriptor) {
 			if component.Credential == nil {
@@ -96,11 +124,61 @@ func (recordObserver) Observe(_ context.Context, dep *domain.Deployment, manifes
 	return obs, nil
 }
 
-func planObserver() PlanObserver {
+// unconfiguredCapabilityCredentials asks the local credential authority which
+// capability-bearing manifest secrets have no value. Only presence is read;
+// no credential is ever materialised into this process.
+//
+// An unreachable authority returns nothing: a warning must rest on evidence,
+// and "the authority could not be asked" is not evidence that a credential is
+// missing. Preflight reports authority availability separately.
+func unconfiguredCapabilityCredentials(manifest domain.CloudManifest) []string {
+	if manifest.Secrets == nil {
+		return nil
+	}
+	var capabilityBearing []domain.BundleSecretPlan
+	for _, secret := range manifest.Secrets.BundleSecrets {
+		if strings.TrimSpace(secret.Capability) != "" && !secret.Required && secret.Descriptor != nil {
+			capabilityBearing = append(capabilityBearing, secret)
+		}
+	}
+	if len(capabilityBearing) == 0 {
+		return nil
+	}
+	client, err := capabilityCredentialClient()
+	if err != nil || client == nil {
+		return nil
+	}
+	var unconfigured []string
+	for _, secret := range capabilityBearing {
+		logicalID := strings.TrimSpace(secret.Descriptor.LogicalID)
+		field := strings.TrimSpace(secret.Descriptor.Field)
+		status, statusErr := client.Status(context.Background(), logicalID, field)
+		if statusErr != nil {
+			continue
+		}
+		if !status.Configured {
+			unconfigured = append(unconfigured, logicalID+":"+field)
+		}
+	}
+	return unconfigured
+}
+
+// capabilityCredentialClient is the local authority seam; tests replace it.
+var capabilityCredentialClient = func() (credentialclient.Client, error) {
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return nil, err
+	}
+	return credentialclient.NewClient(credentialclient.ClientOptions{Authority: authority})
+}
+
+func planObserver(s *Server) PlanObserver {
 	if planObserverOverride != nil {
 		return planObserverOverride
 	}
-	return recordObserver{}
+	return recordObserver{listBindings: func(ctx context.Context, deploymentID string) ([]credentials.BindingView, error) {
+		return s.credentialLifecycle().ListBindings(ctx, deploymentID)
+	}}
 }
 
 // CompiledPlan is what the plan endpoint and the Connect service return.
@@ -229,7 +307,7 @@ func (s *Server) compileDeploymentPlanWith(ctx context.Context, deploymentID, sc
 	} else {
 		closureStatus = "unavailable: closure service not configured"
 	}
-	obs, oerr := planObserver().Observe(ctx, dctx.Deployment, dctx.Manifest, req.Closure)
+	obs, oerr := planObserver(s).Observe(ctx, dctx.Deployment, dctx.Manifest, req.Closure)
 	if oerr != nil {
 		return nil, apierrors.Internal("Failed to observe deployment", oerr)
 	}

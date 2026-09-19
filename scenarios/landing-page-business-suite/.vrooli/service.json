@@ -329,34 +329,49 @@
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
+        "field": "mailgun-api-key",
+        "env": "MAILGUN_API_KEY",
+        "label": "Mailgun API key",
+        "description": "Authenticates outbound transactional email through the Mailgun HTTPS API for the configured sender domain. Keep a recovery copy locally and provision the production copy through the credential authority.",
+        "placeholder": "key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://app.mailgun.com/app/account/security/api_keys",
+        "tiers": ["tier-1-local", "tier-4-saas"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
         "field": "sendgrid-api-key",
         "env": "SENDGRID_API_KEY",
         "label": "SendGrid API key",
-        "description": "Authenticates outbound transactional email delivery. Create a restricted API key with only the mail-send permission and provision it through the credential authority.",
+        "description": "Optional outbound transactional email credential. Create a restricted API key with only the mail-send permission, keep a recovery copy in the local credential authority, and provision the production copy through the production credential authority.",
         "placeholder": "SG.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
         "required": false,
         "provisioning": "operator",
-        "obtain_url": "https://app.sendgrid.com/settings/api_keys"
+        "obtain_url": "https://app.sendgrid.com/settings/api_keys",
+        "tiers": ["tier-1-local", "tier-4-saas"]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
         "field": "sendgrid-webhook-public-key",
         "env": "SENDGRID_WEBHOOK_PUBLIC_KEY",
         "label": "SendGrid Signed Event Webhook public key",
-        "description": "Public verification key copied from the SendGrid Signed Event Webhook settings. It is safe to store as operator configuration but must be provisioned through the credential authority.",
+        "description": "Optional public verification key copied from SendGrid Signed Event Webhook settings. Keep a recovery copy locally and provision the production copy through the credential authority.",
         "required": false,
         "provisioning": "operator",
-        "obtain_url": "https://www.twilio.com/docs/sendgrid/for-developers/tracking-events/getting-started-event-webhook-security-features"
+        "obtain_url": "https://www.twilio.com/docs/sendgrid/for-developers/tracking-events/getting-started-event-webhook-security-features",
+        "tiers": ["tier-1-local", "tier-4-saas"]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
         "field": "smtp-password",
         "label": "SMTP password",
-        "description": "Authenticates the configured SMTP delivery provider. Create or retrieve it from the selected provider's SMTP settings; the value is stored only in the shared credential authority, never in branding JSON.",
+        "description": "Optional password for legacy SMTP delivery and feedback notifications. Mailgun transactional sign-in delivery uses the separate Mailgun API key credential.",
         "placeholder": "Your SMTP provider password",
         "required": false,
         "provisioning": "operator",
-        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/landing-page-business-suite/docs/guides/CONFIGURATION_GUIDE.md"
+        "obtain_url": "https://app.mailgun.com/app/sending/domains",
+        "tiers": ["tier-1-local", "tier-4-saas"]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -587,9 +602,10 @@
       {"logical_id":"vrooli/landing-page-business-suite","field":"admin-mfa-encryption-key","kind":"generated","consumer":"admin two-factor secret encryption ring","source_ref":"api/admin_mfa_composition.go:12","required":true},
       {"logical_id":"vrooli/landing-page-business-suite","field":"consumer-auth-private-key","kind":"generated","consumer":"customer token signer","source_ref":"api/main.go:464","required":true},
       {"logical_id":"vrooli/landing-page-business-suite","field":"admin-default-password","kind":"authority","consumer":"seeded administrator bootstrap","source_ref":"api/auth.go:79","required":true},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"sendgrid-api-key","kind":"authority","consumer":"sign-in code and link mail delivery","source_ref":"api/email_service.go:70","required":false},
+      {"logical_id":"vrooli/landing-page-business-suite","field":"mailgun-api-key","kind":"authority","consumer":"Mailgun HTTPS API sign-in email delivery","source_ref":"api/email_service.go:570; api/internal/emaildelivery/registry.go:21","required":false},
+      {"logical_id":"vrooli/landing-page-business-suite","field":"sendgrid-api-key","kind":"authority","consumer":"SendGrid sign-in code and link mail delivery","source_ref":"api/email_service.go:70","required":false},
       {"logical_id":"vrooli/landing-page-business-suite","field":"sendgrid-webhook-public-key","kind":"authority","consumer":"signed SendGrid delivery event verification","source_ref":"api/routes.go:355","required":false},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"smtp-password","kind":"authority","consumer":"feedback SMTP delivery","source_ref":"api/email_service.go:197","required":false},
+      {"logical_id":"vrooli/landing-page-business-suite","field":"smtp-password","kind":"authority","consumer":"legacy SMTP and feedback notification delivery","source_ref":"api/email_service.go:197","required":false},
       {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-secret-key","kind":"authority","consumer":"Stripe API migration fallback","source_ref":"api/internal/commerce/payment_settings_service.go:100","required":false,"reason":"Legacy fallback only when STRIPE_MODE=live and the explicit live field is absent."},
       {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-webhook-secret","kind":"authority","consumer":"Stripe webhook migration fallback","source_ref":"api/internal/commerce/payment_settings_service.go:103","required":false,"reason":"Legacy fallback only when STRIPE_MODE=live and the explicit live field is absent."},
       {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-publishable-key","kind":"environment","consumer":"browser checkout migration fallback","source_ref":"api/internal/commerce/payment_settings_service.go:101","required":false,"reason":"Legacy fallback only; active mode-specific credentials are authority-backed."},

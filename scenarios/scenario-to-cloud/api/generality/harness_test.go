@@ -625,7 +625,7 @@ func (d *deployment) observeHealth(now time.Time) *healthv1.HealthObservation {
 	dep := d.record()
 	dep.Status = domain.StatusDeployed
 	ident := sshidentity.DeploymentSSHIdentity{KeyPath: "~/.ssh/id_ed25519", PublicKeyFingerprint: "SHA256:fixture", AuthMode: sshidentity.AuthModeExplicitKey, VerificationState: sshidentity.VerificationAuthorized}
-	report := vps.ComputeHealth(dep, d.manifest, ident, live, nil, nil, nil)
+	report := vps.ComputeHealth(dep, d.manifest, ident, live, nil, nil, nil, nil)
 	report.Freshness = &domain.FreshnessStatus{Status: domain.FreshnessCurrent, Summary: "bundle matches the deployed release"}
 	return health.Build(health.Input{Deployment: dep, Report: report, LiveState: live, Now: now}, health.DefaultPolicy())
 }

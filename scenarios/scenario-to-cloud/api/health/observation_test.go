@@ -91,7 +91,7 @@ func fixtureTLS() *tlsinfo.Snapshot {
 
 func build(t *testing.T, dep *domain.Deployment, live *domain.LiveStateResult, dnsEval *dns.Evaluation, tlsSnap *tlsinfo.Snapshot, now time.Time) *healthv1.HealthObservation {
 	t.Helper()
-	report := vps.ComputeHealth(dep, fixtureManifest(), fixtureIdentity(), live, dnsEval, tlsSnap, nil)
+	report := vps.ComputeHealth(dep, fixtureManifest(), fixtureIdentity(), live, dnsEval, tlsSnap, nil, nil)
 	report.Freshness = &domain.FreshnessStatus{Status: domain.FreshnessCurrent, Summary: "bundle matches"}
 	return Build(Input{Deployment: dep, Report: report, LiveState: live, Now: now}, DefaultPolicy())
 }

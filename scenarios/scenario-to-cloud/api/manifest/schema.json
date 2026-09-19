@@ -101,6 +101,30 @@
         "domain": { "type": "string", "minLength": 1 },
         "dns_policy": { "type": "string", "enum": ["required", "warn", "skip"] },
         "managed_dns_profile": { "type": "string", "minLength": 1 },
+        "mail_dns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "spf_mechanism": { "type": "string" },
+              "spf_host": { "type": "string" },
+              "dkim": { "type": "array", "items": { "type": "object", "required": ["selector", "type"], "additionalProperties": false, "properties": { "selector": { "type": "string", "minLength": 1 }, "type": { "type": "string", "enum": ["TXT", "CNAME"] }, "expected": { "type": "string" } } } }
+            }
+          }
+        },
+        "acme_environment": {
+          "type": "string",
+          "enum": ["staging", "production"],
+          "description": "Requests staging or production ACME issuance. Empty derives it: production for the production environment, staging otherwise."
+        },
+        "health_path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Public path serving the application's own health document, the one whose body names its dependencies (default \"/health\"). Declare it when the informative path differs from the root, for example \"/api/v1/health\"."
+        },
         "caddy": {
           "type": "object",
           "required": ["enabled"],
@@ -113,7 +137,47 @@
       }
     },
     "secrets": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "bundle_secrets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "class": {
+                "type": "string",
+                "enum": ["per_install_generated", "user_prompt", "remote_fetch", "infrastructure"]
+              },
+              "required": {
+                "type": "boolean",
+                "description": "Blocking. A required secret nothing satisfies stops the plan with an operator handoff."
+              },
+              "capability": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Non-blocking. Names the customer-facing capability this secret powers, in operator words (\"customer sign-in email\", \"card payments\"). A plan that cannot satisfy an optional secret with a declared capability emits a warning naming that capability instead of staying silent."
+              },
+              "description": { "type": "string" },
+              "format": { "type": "string" },
+              "target": {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "enum": ["env", "file"] },
+                  "name": { "type": "string", "minLength": 1 }
+                }
+              },
+              "descriptor": {
+                "type": "object",
+                "properties": {
+                  "logical_id": { "type": "string", "minLength": 1 },
+                  "field": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "local_credential_handoffs": {
       "type": "array",

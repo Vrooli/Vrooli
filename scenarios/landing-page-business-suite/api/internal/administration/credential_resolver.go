@@ -46,6 +46,8 @@ func AuthorityFieldForKey(key string) string {
 		return "stripe-webhook-secret"
 	case "SENDGRID_WEBHOOK_PUBLIC_KEY":
 		return "sendgrid-webhook-public-key"
+	case "MAILGUN_API_KEY":
+		return "mailgun-api-key"
 	case "SMTP_PASSWORD":
 		return "smtp-password"
 	}
@@ -100,7 +102,7 @@ func DeleteAuthorityCredential(key string) error {
 // declared credential through the authority resolver.
 func ResolveSecret(key string, log func(string, map[string]interface{})) string {
 	switch key {
-	case "SENDGRID_API_KEY", "SENDGRID_WEBHOOK_PUBLIC_KEY", "SMTP_PASSWORD", "ADMIN_DEFAULT_PASSWORD", "SESSION_SECRET", "SESSION_SECRET_PREVIOUS", "LPBS_" + "SERVICE_SECRET", "CONSUMER_AUTH_PRIVATE_KEY", "LPBS_API_KEY_ENCRYPTION_KEY", "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY", "LPBS_ADMIN_MFA_ENCRYPTION_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET":
+	case "SENDGRID_API_KEY", "SENDGRID_WEBHOOK_PUBLIC_KEY", "MAILGUN_API_KEY", "SMTP_PASSWORD", "ADMIN_DEFAULT_PASSWORD", "SESSION_SECRET", "SESSION_SECRET_PREVIOUS", "LPBS_" + "SERVICE_SECRET", "CONSUMER_AUTH_PRIVATE_KEY", "LPBS_API_KEY_ENCRYPTION_KEY", "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY", "LPBS_ADMIN_MFA_ENCRYPTION_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET":
 		value, err := ResolveAuthorityCredential(key)
 		if err != nil {
 			if log != nil {

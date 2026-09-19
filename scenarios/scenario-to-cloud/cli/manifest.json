@@ -1845,7 +1845,7 @@
       "commands": [
         {
           "name": "run",
-          "description": "Run preflight checks for a manifest",
+          "description": "Run preflight checks for a manifest. Human report by default, --json for the raw body. Exits non-zero on a failing check; warnings print and never fail.",
           "positionals": [
             {
               "name": "manifest",

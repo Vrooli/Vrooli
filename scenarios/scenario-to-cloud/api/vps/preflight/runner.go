@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	maildns "github.com/vrooli/vrooli/packages/maildns-go"
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/identity"
@@ -118,6 +119,15 @@ func Run(
 
 	dnsEval := dns.Evaluate(ctx, dnsService, manifest.Edge.Domain, host)
 	checks = append(checks, dns.PreflightChecksFromEvaluation(dnsEval, manifest.Edge.DNSPolicy)...)
+	mailRequirements := make([]maildns.ProviderRequirement, 0, len(manifest.Edge.MailDNS))
+	for _, requirement := range manifest.Edge.MailDNS {
+		converted := maildns.ProviderRequirement{Name: requirement.Name, SPFMechanism: requirement.SPFMechanism, SPFHost: requirement.SPFHost}
+		for _, dkim := range requirement.DKIM {
+			converted.DKIM = append(converted.DKIM, maildns.DKIMRequirement{Selector: dkim.Selector, Type: dkim.Type, Expected: dkim.Expected})
+		}
+		mailRequirements = append(mailRequirements, converted)
+	}
+	checks = append(checks, dns.MailDNSChecks(ctx, manifest.Edge.Domain, mailRequirements, manifest.Edge.DNSPolicy)...)
 
 	if manifest.Edge.Domain != "" {
 		dns01Token := ""

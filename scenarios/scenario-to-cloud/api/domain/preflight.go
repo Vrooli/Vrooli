@@ -19,6 +19,7 @@ const (
 	PreflightDNSOGWorkerID   = "dns_og_worker_ready"
 	PreflightDNSEdgeIPv6ID   = "dns_edge_ipv6"
 	PreflightDNSProxyModeID  = "dns_proxy_mode"
+	PreflightDNSMailID       = "dns_mail_authorization"
 	PreflightFirewallID      = "firewall_inbound"
 	PreflightPublicPortsID   = "public_ports_reachable"
 	PreflightTLSALPNID       = "tls_alpn_compat"
