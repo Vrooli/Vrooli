@@ -221,6 +221,54 @@
       "category": "calendar"
     },
     {
+      "id": "commitments_list",
+      "path": "/vrooli.personal_planner.v1.commitments.CommitmentsService/ListCommitments",
+      "method": "POST",
+      "summary": "List commitments",
+      "description": "Lists explicit promises and their current lifecycle state.",
+      "category": "commitments"
+    },
+    {
+      "id": "commitments_create",
+      "path": "/vrooli.personal_planner.v1.commitments.CommitmentsService/CreateCommitment",
+      "method": "POST",
+      "summary": "Create commitment",
+      "description": "Records a proposed or active promise without inventing acknowledgment.",
+      "category": "commitments"
+    },
+    {
+      "id": "commitments_update_state",
+      "path": "/vrooli.personal_planner.v1.commitments.CommitmentsService/UpdateCommitmentState",
+      "method": "POST",
+      "summary": "Update commitment state",
+      "description": "Moves a commitment through its explicit lifecycle.",
+      "category": "commitments"
+    },
+    {
+      "id": "commitments_revise",
+      "path": "/vrooli.personal_planner.v1.commitments.CommitmentsService/ReviseCommitment",
+      "method": "POST",
+      "summary": "Revise commitment",
+      "description": "Stores a new promise revision while retaining the original boundary.",
+      "category": "commitments"
+    },
+    {
+      "id": "forecasts_get",
+      "path": "/vrooli.personal_planner.v1.forecasts.ForecastsService/GetForecast",
+      "method": "POST",
+      "summary": "Get forecast",
+      "description": "Returns the current deterministic central and cautious completion outlook.",
+      "category": "forecasts"
+    },
+    {
+      "id": "forecasts_history",
+      "path": "/vrooli.personal_planner.v1.forecasts.ForecastsService/ListForecastSnapshots",
+      "method": "POST",
+      "summary": "List forecast history",
+      "description": "Returns recent durable forecast snapshots and changes.",
+      "category": "forecasts"
+    },
+    {
       "id": "goals_list",
       "path": "/vrooli.personal_planner.v1.goals.GoalsService/ListGoals",
       "method": "POST",

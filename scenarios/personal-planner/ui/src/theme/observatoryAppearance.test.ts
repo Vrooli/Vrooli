@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appearanceAt, parseClock, readTransitionMinutes } from "./observatoryAppearance";
+import { appearanceAt, parseClock, readSceneryPreferences, readTransitionMinutes } from "./observatoryAppearance";
 
 describe("observatory appearance transitions", () => {
   it("uses configured local-time boundaries", () => {
@@ -27,5 +27,15 @@ describe("observatory appearance transitions", () => {
     expect(readTransitionMinutes(storage)).toEqual({ dayStart: 405, nightStart: 1215 });
     storage.clear();
     expect(readTransitionMinutes(storage)).toEqual({ dayStart: 420, nightStart: 1140 });
+  });
+
+  it("reads scenery controls as a durable scene contract", () => {
+    const storage = window.localStorage;
+    storage.setItem("planner.art-free", "true");
+    storage.setItem("planner.reduced-scenery", "false");
+    storage.setItem("planner.subdued-night", "true");
+    expect(readSceneryPreferences(storage)).toEqual({ artFree: true, reducedScenery: false, subduedNight: true });
+    storage.clear();
+    expect(readSceneryPreferences(storage)).toEqual({ artFree: false, reducedScenery: false, subduedNight: false });
   });
 });

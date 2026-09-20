@@ -3,8 +3,8 @@
     "slug": "personal-planner",
     "version": 3
   },
-  "background_color": "#f8f4ec",
-  "description": "A calmer personal planner for realistic commitments, focused work, and useful reflection.",
+  "background_color": "#f8fafc",
+  "description": "Personal Planner",
   "display": "standalone",
   "icons": [
     {
@@ -37,5 +37,5 @@
   "scope": "/",
   "short_name": "Personal Planner",
   "start_url": "/",
-  "theme_color": "#f8f4ec"
+  "theme_color": "#ebe5d8"
 }

@@ -163,7 +163,7 @@
   /* @tier Expression */
   --font-mono: monospace;
   /* @tier Expression */
-  --font-sans: sans-serif;
+  --font-sans: "Planner Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   /* @tier Expression */
   --font-size-lg: 18px;
   /* @tier Expression */

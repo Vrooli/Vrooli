@@ -81,14 +81,6 @@
       "testId": "page-today",
       "selector": "[data-testid=\"page-today\"]"
     },
-    "pages.dashboardHeader": {
-      "testId": "page-dashboard-header",
-      "selector": "[data-testid=\"page-dashboard-header\"]"
-    },
-    "pages.dashboardPlaceholder": {
-      "testId": "page-dashboard-placeholder",
-      "selector": "[data-testid=\"page-dashboard-placeholder\"]"
-    },
     "pages.plan": {
       "testId": "page-plan",
       "selector": "[data-testid=\"page-plan\"]"
@@ -166,9 +158,9 @@
           "name": "choice",
           "type": "enum",
           "values": [
-            "light",
-            "dark",
-            "system"
+            "auto",
+            "day",
+            "night"
           ]
         }
       ]
@@ -176,6 +168,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
-    "ui/src/consts/selectors.ts": "52dfcb4da6962a26ff87dd9feb6d6888395fe9b8bc4c4d0ac363f1b8c24a739c"
+    "ui/src/consts/selectors.ts": "27edc8aa33b9063b10dae130e64322e3502b24bf30ad98cb0caab9fbe24e5b81"
   }
 }

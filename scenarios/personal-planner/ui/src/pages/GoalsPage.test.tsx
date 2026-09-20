@@ -20,7 +20,8 @@ describe("GoalsPage", () => {
     renderWithProviders(<GoalsPage />);
     await user.type(await screen.findByLabelText("Goal title"), "Protect mornings");
     await user.type(screen.getByLabelText("Purpose"), "Be deliberate");
-    await user.selectOptions(screen.getByLabelText("Progress"), "milestones");
+    await user.click(screen.getByRole("button", { name: "Progress" }));
+    await user.click(screen.getByRole("option", { name: "Derive from milestones" }));
     await user.click(screen.getByRole("button", { name: "Create goal" }));
     expect(createGoal).toHaveBeenCalledWith({ title: "Protect mornings", purpose: "Be deliberate", progressMethod: "milestones", targetBasisPoints: 10000n });
   });
@@ -50,7 +51,8 @@ describe("GoalsPage", () => {
     await user.type(await screen.findByLabelText("Milestone title"), "No meetings");
     await user.type(screen.getByLabelText("Completion criteria"), "No meetings before 10");
     fireEvent.change(screen.getByLabelText("Due date"), { target: { value: "2026-10-01" } });
-    await user.selectOptions(screen.getByLabelText("Linked work"), "work-1");
+    await user.click(screen.getByRole("button", { name: "Linked work" }));
+    await user.click(screen.getByRole("option", { name: "Draft morning plan" }));
     await user.click(screen.getByRole("button", { name: "Add milestone" }));
     expect(createMilestone).toHaveBeenCalledWith({ goalId: "goal-1", title: "No meetings", criteria: "No meetings before 10", dueDate: "2026-10-01", linkedWorkItemId: "work-1", prerequisiteMilestoneIds: [] });
   });

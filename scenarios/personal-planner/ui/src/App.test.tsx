@@ -54,12 +54,12 @@ it("changes the theme when the focused setting receives gamepad Select", async (
     { withoutRouter: true },
   );
   try {
-    const dark = screen.getByTestId(selectors.settingsPage.themeOption({ choice: "dark" }));
-    expect(dark).toHaveAttribute("aria-checked", "false");
-    dark.focus();
+    const night = screen.getByTestId(selectors.settingsPage.themeOption({ choice: "night" }));
+    expect(night).not.toBeChecked();
+    night.focus();
     window.dispatchEvent(new Event("gamepadconnected"));
-    await waitFor(() => expect(dark).toHaveAttribute("aria-checked", "true"));
-    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    await waitFor(() => expect(night).toBeChecked());
+    expect(document.documentElement).toHaveAttribute("data-theme", "night");
   } finally {
     view.unmount();
     controller.dispose();

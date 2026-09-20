@@ -23,6 +23,7 @@ describe("AppShell structure (cimode)", () => {
   afterEach(() => {
     cleanup();
     window.localStorage.removeItem("personal-planner.sidebar-collapsed");
+    window.localStorage.removeItem("vrooli.theme");
     vi.unstubAllGlobals();
   });
 
@@ -40,6 +41,32 @@ describe("AppShell structure (cimode)", () => {
     renderShell();
     expect(screen.queryByTestId(selectors.settingsPage.localeSelect)).not.toBeInTheDocument();
     expect(screen.queryByTestId(selectors.settingsPage.themeSelect)).not.toBeInTheDocument();
+  });
+
+  it("uses the Observatory day/night chrome vocabulary on every route", async () => {
+    window.localStorage.setItem("vrooli.theme", "dark");
+    renderShell("/settings");
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.layout.shell)).toHaveClass("appearance-night");
+    });
+    expect(screen.getByTestId(selectors.layout.shell)).not.toHaveClass("appearance-dark");
+  });
+
+  it("paints the browser chrome and safe-area strip from the resolved Night appearance", async () => {
+    window.localStorage.setItem("vrooli.theme", "night");
+    renderShell("/settings");
+    await waitFor(() => expect(screen.getByTestId(selectors.layout.shell)).toHaveClass("appearance-night"));
+    expect(screen.getByTestId("planner-status-fill")).toBeInTheDocument();
+    expect(document.documentElement.style.getPropertyValue("--rcl-status-fill")).toBe("rgb(23 22 52)");
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute("content")).toBe("rgb(23 22 52)");
+  });
+
+  it("starts the rendered shell in the URL-requested Night appearance", async () => {
+    window.history.replaceState({}, "", "/settings?appearance=night");
+    renderShell("/settings?appearance=night");
+    await waitFor(() => expect(screen.getByTestId(selectors.layout.shell)).toHaveClass("appearance-night"));
+    expect(document.querySelector('[data-testid="layout-shell-sidebar"]')).toHaveStyle({ "--rcl-panel-size": "144px" });
+    expect(document.documentElement.getAttribute("data-theme")).toBe("night");
   });
 
   it("renders every nav item as a desktop link and a phone tab", () => {
@@ -69,6 +96,47 @@ describe("AppShell structure (cimode)", () => {
     });
   });
 
+  it("restores the main scroll position when navigation changes the route", async () => {
+    const user = userEvent.setup();
+    const originalScrollTo = HTMLElement.prototype.scrollTo;
+    const scrollTo = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "scrollTo", { configurable: true, value: scrollTo });
+    const view = renderShell();
+    const sidebarContent = document.querySelector<HTMLElement>(".rcl-sidebar-shell__content");
+    if (sidebarContent) sidebarContent.scrollTop = 42;
+    scrollTo.mockClear();
+    try {
+      await user.click(screen.getByTestId(selectors.layout.navTab({ key: "settings" })));
+      await waitFor(() => expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument());
+      expect(scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" });
+      expect(sidebarContent?.scrollTop ?? 0).toBe(0);
+    } finally {
+      view.unmount();
+      Object.defineProperty(HTMLElement.prototype, "scrollTo", { configurable: true, value: originalScrollTo });
+    }
+  });
+
+  it("restores nested sidebar scroll containers when navigation changes the route", async () => {
+    const user = userEvent.setup();
+    const originalScrollTo = HTMLElement.prototype.scrollTo;
+    const scrollTo = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "scrollTo", { configurable: true, value: scrollTo });
+    const view = renderShell();
+    const sidebar = screen.getByTestId("layout-shell-sidebar");
+    const nestedScrollContainer = document.createElement("div");
+    nestedScrollContainer.scrollTop = 36;
+    sidebar.querySelector(".rcl-sidebar-shell__content")?.appendChild(nestedScrollContainer);
+    try {
+      await user.click(screen.getByTestId(selectors.layout.navTab({ key: "review" })));
+      await waitFor(() => expect(screen.getByTestId(selectors.pages.review)).toBeInTheDocument());
+      expect(nestedScrollContainer.scrollTop).toBe(0);
+      expect(scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" });
+    } finally {
+      view.unmount();
+      Object.defineProperty(HTMLElement.prototype, "scrollTo", { configurable: true, value: originalScrollTo });
+    }
+  });
+
   it("supports an icon-only collapse state and tracks the resizable shell", async () => {
     const user = userEvent.setup();
     let observed = false;
@@ -88,6 +156,13 @@ describe("AppShell structure (cimode)", () => {
     expect(screen.getByRole("button", { name: "Collapse sidebar" })).toHaveAttribute("aria-pressed", "false");
     cleanup();
     expect(disconnected).toBe(true);
+  });
+
+  it("exposes a useful Observatory sidebar resize range", () => {
+    renderShell();
+    const separator = screen.getByRole("separator", { name: /Resize layout\.navigationLabel/i });
+    expect(separator).toHaveAttribute("aria-valuemin", "128");
+    expect(separator).toHaveAttribute("aria-valuemax", "280");
   });
 });
 

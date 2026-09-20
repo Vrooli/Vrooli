@@ -189,6 +189,33 @@ integration gate complete.
 **Refs:** `api/internal/integrations`, `ui/src/api/integrations.ts`,
 `ui/src/pages/SettingsPage.tsx`, source plan §16.
 
+### 2026-09-19 — Observatory bespoke controls remain standards debt
+
+**Symptom:** UI-health still reports project-standards advisory findings for
+raw color literals in the Observatory stylesheet and may report the aggregate
+of anchored detail surfaces as raw dialogs.
+
+**Root cause:** The approved Today oracle needs custom scenic colors, a compact
+appearance segmented control, and anchored timeline disclosure geometry. The
+interactive controls and Today draft/capture surfaces now compose over shared
+Button/Dialog primitives; timeline and allocation details intentionally remain
+anchored Popovers, while the standards aggregate still needs a narrower
+recognizer.
+
+**Workaround:** Shared Button/Input/Select/RadioGroup/Switch/Textarea/FormField,
+PageHeader, SettingsList, and EmptyState are used everywhere their interaction
+contract fits. The current UI-health receipt passes with project standards at
+L3; runtime, manifest, interop, freshness, and PWA capabilities are L5.
+
+**Real fix:** Keep the anchored Popover geometry while narrowing the standards
+recognizer, then map the remaining Observatory palette to named token variables
+and rerun UI-health plus the visual experience gate.
+
+**Owner:** product implementation.
+
+**Refs:** `ui/src/pages/DashboardPage.tsx`, `ui/src/pages/PlanPage.tsx`,
+`ui/src/styles.css`, UI-health receipt `20260919-174124-c14934ac`.
+
 ## Work ladder
 
 - Rung: W3
@@ -209,6 +236,42 @@ a migration handoff with a planned retirement path back into
 | Today timeline/capacity | Today reads accepted Calendar allocations and measured capacity; native routine occurrences are generated projections with skip-once/reschedule overrides, while work-item demand now conserves accepted planned minutes but routine demand is not yet an accepted-block state. | W3 partial. | Add routine-demand conservation, provider recurrence semantics, split/setup policies, and prove responsive geometry. |
 | Goal milestone depth | Goal milestones now persist criteria, due dates, validated optional work-item links, prerequisite edges, and revision-safe open/complete state; milestone-mode goals derive completed/total progress. | W3 partial. | Add richer prerequisite editing/visual evidence and re-run the full scenario gate. |
 | UI health/template adoption | Runtime rendering and responsive behavior are healthy, but the provider still reports the scenario as L0 because legacy template-slot and standard-component adoption contracts remain. The mobile text-entry zoom risk was corrected by enforcing the 16px floor at the mobile breakpoint. | W3 partial. | Migrate/remap the remaining declared slots and adopt the governed component contracts where they materially improve the Observatory surface; retain the provider report as a release prerequisite. |
+
+## UX Issues
+
+### UI design-system migration brief
+
+**Intent:** Make the shell feel like one calm Observatory product across every route: translucent, theme-aware, editorial, and quiet rather than library-default.
+
+**References:** `DESIGN.md`, the Today Day/Night mockups, and the shared React Component Library `AppShell`, `SettingsList`, and `ChromeTheme` contracts.
+
+**Constraints:** Preserve navigation selectors, keyboard/focus behavior, 44px touch targets, safe-area handling, Auto/Day/Night semantics, and mobile bottom navigation. Keep route composition in the scenario; do not fork shared primitives.
+
+**Scope:** Scenario-level shell/theme layout refresh using semantic tokens and existing primitives. Shared-library changes are reserved for a demonstrated contract gap.
+
+**Current debt:** the generated token file still contains its canonical palette literals, and ThemeProvider retains browser-safe RGB fallbacks; Observatory scenic overlays now consume scene-local semantic variables. Runtime adoption is strong but the visual oracle and responsive contrast sweep remain open.
+
+### 2026-09-19 — remaining visual-oracle and responsive sweep
+
+**Status:** reduced; secondary-surface review remains open
+
+**Observed:** Today now has desktop oracle captures and governed 390×844 Day/Night runtime evidence. Secondary surfaces still need a separate adversarial visual review, and the broader product/monetization scope is not complete.
+
+**Addressed in this loop:** fixed scenic background behavior, theme chrome propagation, sidebar collapse/resize, timeline lane reuse and disclosure, shared form controls, mobile secondary-surface spacing, and Settings desktop hierarchy.
+
+**Next evidence:** review secondary routes by surface and preserve any residual geometry/contrast issue as a targeted follow-up instead of treating the runtime receipt as visual completion.
+
+### 2026-09-20 — comprehensive gate limitations after chrome fix
+
+**Status:** open; scenario-owned branding repair complete
+
+**Observed:** Comprehensive Test Genie run `20260920-000129-85e490c3` completed 25/27. Portability and performance failed, while the branding phase identified and then the scoped rerun `20260920-001027-c46e8d58` closed the HTML/manifest theme-color mismatch and missing dark fallback.
+
+**Root cause:** Portability/performance are broader release-gate findings; the branding defect was a stale install-surface contract rather than a React runtime defect. The requirements-sync snapshot is also older than the scoped branding run because Test Genie owns that artifact.
+
+**Workaround:** Treat the scoped branding receipt and direct brand-manager validation as the authoritative proof for the chrome repair. Do not call the comprehensive run a release certification; retain portability/performance and evidence freshness as explicit follow-ups.
+
+**Refs:** `ui/index.html`, `ui/public/public/site.webmanifest`, Test Genie runs above, and `coverage/requirements-sync/latest.json`.
 
 ## Cross-references
 

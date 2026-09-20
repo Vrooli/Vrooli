@@ -1,13 +1,14 @@
 /**
  * ThemeProvider tests — verify the data-theme / data-resolved-theme attributes toggle in response to
- * user choice and that the choice persists to localStorage. `system` is the
- * only branch that consults matchMedia; covered by stubbing matchMedia.
+ * user choice and that the choice persists to localStorage. `auto` is the
+ * only branch that follows the local Observatory day/night window.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 import { ThemeProvider, useTheme, type ThemeChoice } from "./ThemeProvider";
+import { OBSERVATORY_NIGHT_START_KEY, OBSERVATORY_PREFERENCES_EVENT } from "./observatoryAppearance";
 
 const STORAGE_KEY = "vrooli.theme";
 
@@ -19,61 +20,85 @@ const wrapper =
 describe("ThemeProvider", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    window.history.replaceState({}, "", "/");
     document.documentElement.removeAttribute("data-theme");
     document.documentElement.removeAttribute("data-resolved-theme");
+    vi.useRealTimers();
   });
 
   afterEach(() => {
     cleanup();
   });
 
-  it("sets data-theme on the html element for an explicit light choice", () => {
-    renderHook(() => useTheme(), { wrapper: wrapper("light") });
-    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+  it("sets data-theme on the html element for an explicit day choice", () => {
+    renderHook(() => useTheme(), { wrapper: wrapper("day") });
+    expect(document.documentElement.getAttribute("data-theme")).toBe("day");
     expect(document.documentElement.getAttribute("data-resolved-theme")).toBe("light");
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute("content")).toBe("rgb(235 229 216)");
   });
 
-  it("sets data-theme to dark when the user chooses dark", () => {
-    const { result } = renderHook(() => useTheme(), { wrapper: wrapper("light") });
-    act(() => result.current.setTheme("dark"));
-    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+  it("resolves a URL appearance override before the shell mounts", () => {
+    window.history.replaceState({}, "", "/?appearance=night");
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper() });
+    expect(result.current.choice).toBe("night");
+    expect(result.current.resolved).toBe("dark");
+    expect(document.documentElement.getAttribute("data-theme")).toBe("night");
+  });
+
+  it("sets data-theme to night when the user chooses night", () => {
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper("day") });
+    act(() => result.current.setTheme("night"));
+    expect(document.documentElement.getAttribute("data-theme")).toBe("night");
     // The design kit's dark palette keys on this attribute, so an explicit
     // choice must reach it even when the OS prefers light.
     expect(document.documentElement.getAttribute("data-resolved-theme")).toBe("dark");
-    expect(result.current.choice).toBe("dark");
+    expect(result.current.choice).toBe("night");
     expect(result.current.resolved).toBe("dark");
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute("content")).toBe("rgb(23 22 52)");
   });
 
-  it("removes data-theme when the user chooses system", () => {
-    // matchMedia in jsdom defaults to no-match; resolved should be "light".
-    const { result } = renderHook(() => useTheme(), { wrapper: wrapper("light") });
-    act(() => result.current.setTheme("system"));
+  it("keeps media-specific browser chrome colors aligned with the resolved appearance", async () => {
+    const darkVariant = document.createElement("meta");
+    darkVariant.name = "theme-color";
+    darkVariant.setAttribute("media", "(prefers-color-scheme: dark)");
+    document.head.appendChild(darkVariant);
+    renderHook(() => useTheme(), { wrapper: wrapper("night") });
+    await waitFor(() => expect(darkVariant.content).toBe("rgb(23 22 52)"));
+    darkVariant.remove();
+  });
+
+  it("removes data-theme when the user chooses auto", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T12:00:00"));
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper("day") });
+    act(() => result.current.setTheme("auto"));
     expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
     expect(document.documentElement.getAttribute("data-resolved-theme")).toBe("light");
-    expect(result.current.choice).toBe("system");
+    expect(result.current.choice).toBe("auto");
   });
 
   it("persists the choice to localStorage", () => {
-    const { result } = renderHook(() => useTheme(), { wrapper: wrapper("light") });
-    act(() => result.current.setTheme("dark"));
-    expect(window.localStorage.getItem(STORAGE_KEY)).toBe("dark");
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper("day") });
+    act(() => result.current.setTheme("night"));
+    expect(window.localStorage.getItem(STORAGE_KEY)).toBe("night");
   });
 
-  it("resolves system to dark when prefers-color-scheme matches", () => {
-    const matchMediaSpy = vi.spyOn(window, "matchMedia").mockImplementation((q) => ({
-      matches: q === "(prefers-color-scheme: dark)",
-      media: q,
-      onchange: null,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    }));
+  it("resolves auto to dark during the local night window", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T20:00:00"));
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper("auto") });
+    expect(result.current.resolved).toBe("dark");
+  });
 
-    const { result } = renderHook(() => useTheme(), { wrapper: wrapper("system") });
+  it("updates the auto theme when the local night boundary changes", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T20:00:00"));
+    window.localStorage.setItem(OBSERVATORY_NIGHT_START_KEY, "19:00");
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper("auto") });
     expect(result.current.resolved).toBe("dark");
 
-    matchMediaSpy.mockRestore();
+    window.localStorage.setItem(OBSERVATORY_NIGHT_START_KEY, "21:00");
+    act(() => window.dispatchEvent(new Event(OBSERVATORY_PREFERENCES_EVENT)));
+    expect(result.current.resolved).toBe("light");
   });
 });

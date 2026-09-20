@@ -4,15 +4,24 @@ import {
   RouterProvider,
   type RouteObject,
 } from "react-router-dom";
+import { lazy, Suspense, type ReactNode } from "react";
 
 import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
-import { FocusPage } from "../pages/FocusPage";
-import { GoalsPage } from "../pages/GoalsPage";
-import { ReviewPage } from "../pages/ReviewPage";
-import { PlanPage } from "../pages/PlanPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { ThemeProvider } from "../theme/ThemeProvider";
+
+// Keep the first Today/Settings path lean. The deeper planning surfaces are
+// independent route chunks so a new user does not download every form,
+// timeline, review table, and goal editor before seeing the first useful view.
+const PlanPage = lazy(() => import("../pages/PlanPage").then(({ PlanPage: page }) => ({ default: page })));
+const GoalsPage = lazy(() => import("../pages/GoalsPage").then(({ GoalsPage: page }) => ({ default: page })));
+const FocusPage = lazy(() => import("../pages/FocusPage").then(({ FocusPage: page }) => ({ default: page })));
+const ReviewPage = lazy(() => import("../pages/ReviewPage").then(({ ReviewPage: page }) => ({ default: page })));
+
+function DeferredRoute({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<p className="route-loading" role="status">Loading surface…</p>}>{children}</Suspense>;
+}
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -26,10 +35,10 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
-      { path: "plan", element: <PlanPage /> },
-      { path: "goals", element: <GoalsPage /> },
-      { path: "focus", element: <FocusPage /> },
-      { path: "review", element: <ReviewPage /> },
+      { path: "plan", element: <DeferredRoute><PlanPage /></DeferredRoute> },
+      { path: "goals", element: <DeferredRoute><GoalsPage /></DeferredRoute> },
+      { path: "focus", element: <DeferredRoute><FocusPage /></DeferredRoute> },
+      { path: "review", element: <DeferredRoute><ReviewPage /></DeferredRoute> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

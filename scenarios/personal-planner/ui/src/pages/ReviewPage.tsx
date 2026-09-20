@@ -1,5 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { BookOpenCheck } from "lucide-react";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
+import { Input } from "@vrooli/react-component-library/Input/1";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1";
+import { DataTable } from "@vrooli/react-component-library/DataTable/1.4.3";
+import { FormField } from "@vrooli/react-component-library/FormField/1";
 
 import { fetchDailyReview, fetchReflection, fetchWeeklyReview, saveReflection } from "../api/review";
 import { carryForwardAllocation, fetchAllocations, fetchTodayAllocations, type Allocation } from "../api/calendar";
@@ -47,43 +55,58 @@ export function ReviewPage() {
     setCarryTargetDate(addDays(nextLocalDate, 1));
   };
   return <section className="planner-surface review-surface" data-testid={selectors.pages.review} aria-labelledby="review-heading">
-    <p className="eyebrow">A truthful look back</p><h1 id="review-heading">Review</h1>
-    <p className="planner-surface-description">Notice what happened without turning missing data into a story.</p>
+    <PageHeader className="planner-page-header" headingId="review-heading" eyebrow="A truthful look back" title="Review" description="Notice what happened without turning missing data into a story." leading={<span className="planner-page-mark" aria-hidden="true"><BookOpenCheck size={21} /></span>} />
     <div className="review-view-switcher" role="tablist" aria-label="Review period">
-      <button type="button" role="tab" aria-selected={view === "day"} onClick={() => setView("day")}>Day</button>
-      <button type="button" role="tab" aria-selected={view === "week"} onClick={() => setView("week")}>Week</button>
+      <Button type="button" variant={view === "day" ? "primary" : "secondary"} role="tab" aria-selected={view === "day"} onClick={() => setView("day")}>Day</Button>
+      <Button type="button" variant={view === "week" ? "primary" : "secondary"} role="tab" aria-selected={view === "week"} onClick={() => setView("week")}>Week</Button>
     </div>
     <div className="review-date-controls" aria-label={view === "day" ? "Review date" : "Review week"}>
-      <button type="button" className="quiet-action" onClick={() => shiftDate(view === "day" ? -1 : -7)} aria-label={view === "day" ? "Previous day" : "Previous week"}>←</button>
-      <label>{view === "day" ? "Day" : "Week starting"}<input type="date" value={view === "day" ? localDate : weekStart} onChange={(event) => { setLocalDate(event.target.value); setCarryTargetDate(addDays(event.target.value, 1)); }} /></label>
-      <button type="button" className="quiet-action" onClick={() => shiftDate(view === "day" ? 1 : 7)} aria-label={view === "day" ? "Next day" : "Next week"}>→</button>
+      <Button type="button" className="quiet-action" variant="secondary" onClick={() => shiftDate(view === "day" ? -1 : -7)} aria-label={view === "day" ? "Previous day" : "Previous week"}>←</Button>
+      <FormField required label={view === "day" ? "Day" : "Week starting"} control={<Input required aria-label={view === "day" ? "Day" : "Week starting"} type="date" value={view === "day" ? localDate : weekStart} onChange={(event) => { setLocalDate(event.target.value); setCarryTargetDate(addDays(event.target.value, 1)); }} />} />
+      <Button type="button" className="quiet-action" variant="secondary" onClick={() => shiftDate(view === "day" ? 1 : 7)} aria-label={view === "day" ? "Next day" : "Next week"}>→</Button>
     </div>
+    <div className="review-compass"><div><span className="card-kicker">{view === "day" ? "ONE DAY, CLEARLY" : "A WEEK IN VIEW"}</span><h2>{view === "day" ? "Notice what the day is telling you." : "Look for a pattern, not a verdict."}</h2><p>{view === "day" ? "Measured activity, accepted plans, and one small observation are enough. Missing data stays visibly missing." : "Compare planned and recorded time across the week without turning the difference into a diagnosis."}</p></div><span className="review-compass-mark" aria-hidden="true">{view === "day" ? "01" : "07"}</span></div>
     {review.isLoading && <p role="status">Preparing this review…</p>}
     {review.isError && <p role="alert">Review data is unavailable right now.</p>}
     {view === "day" && daily.data && <>
-      <div className="review-summary-grid"><article><span className="card-kicker">RECORDED ACTIVE TIME</span><strong>{Number(daily.data.recordedActiveMinutes)} min</strong><p>Focus sessions and manual actuals.</p></article><article><span className="card-kicker">FOCUS SESSIONS</span><strong>{Number(daily.data.focusSessionCount)}</strong><p>Sessions with a recorded start.</p></article><article><span className="card-kicker">ACTIVE GOALS</span><strong>{Number(daily.data.activeGoalCount)}</strong><p>Outcome direction, not achievement.</p></article></div>
-      <div className="review-honesty-card"><span className="card-kicker">COVERAGE</span><p>{daily.data.coverageNote}</p><p className="review-unknown">Planned: {Number(daily.data.plannedMinutes)} min · Unrecorded: unknown</p></div>
+      <div className="review-summary-grid"><article className="review-summary-recorded"><span className="card-kicker">RECORDED ACTIVE TIME</span><strong>{Number(daily.data.recordedActiveMinutes)} min</strong><p>Focus sessions and manual actuals.</p></article><article className="review-summary-sessions"><span className="card-kicker">FOCUS SESSIONS</span><strong>{Number(daily.data.focusSessionCount)}</strong><p>Sessions with a recorded start.</p></article><article className="review-summary-goals"><span className="card-kicker">ACTIVE GOALS</span><strong>{Number(daily.data.activeGoalCount)}</strong><p>Outcome direction, not achievement.</p></article></div>
+      <div className="review-honesty-card"><div className="review-honesty-heading"><span className="card-kicker">COVERAGE</span><span className="review-evidence-dot" aria-hidden="true" /></div><p>{daily.data.coverageNote}</p><p className="review-unknown">Planned: {Number(daily.data.plannedMinutes)} min · Unrecorded: unknown</p></div>
       <EvidenceInsight planned={Number(daily.data.plannedMinutes)} recorded={Number(daily.data.recordedActiveMinutes)} />
       <section className="review-carry-card" aria-labelledby="review-carry-heading">
-        <div className="review-carry-heading"><div><span className="card-kicker">SELECTIVE CARRY-FORWARD</span><h2 id="review-carry-heading">Choose what still deserves tomorrow</h2><p>Nothing is assumed unfinished. Select an accepted placement only when it remains a promise you want to keep.</p></div><label>Carry to<input type="date" value={carryTargetDate} onChange={(event) => setCarryTargetDate(event.target.value)} /></label></div>
+        <div className="review-carry-heading"><div><span className="card-kicker">SELECTIVE CARRY-FORWARD</span><h2 id="review-carry-heading">Choose what still deserves tomorrow</h2><p>Nothing is assumed unfinished. Select an accepted placement only when it remains a promise you want to keep.</p></div><FormField required label="Carry to" control={<Input required aria-label="Carry to" type="date" value={carryTargetDate} onChange={(event) => setCarryTargetDate(event.target.value)} />} /></div>
         {carryTarget.data && <p className="review-carry-preview">Target capacity preview: {Number(carryTarget.data.availableMinutes)} min available · {Number(carryTarget.data.breathingRoomMinutes)} min breathing room before this move.</p>}
         {carryCandidates.isLoading && <p role="status">Loading accepted placements…</p>}
         {carryCandidates.isError && <p role="alert">Accepted placements are unavailable for carry-forward.</p>}
-        {carryCandidates.data?.allocations.length === 0 && <p className="planner-empty">No accepted placements need a decision for this day.</p>}
-        {carryCandidates.data && carryCandidates.data.allocations.length > 0 && <div className="review-carry-list">{carryCandidates.data.allocations.map((allocation) => <article key={allocation.id}><div><strong>{allocation.title}</strong><span>{clock(Number(allocation.startMinutes))} · {Number(allocation.durationMinutes)} min</span></div><button type="button" className="quiet-action" onClick={() => carryMutation.mutate(allocation)} disabled={carryMutation.isPending}>{carryMutation.isPending ? "Moving…" : "Carry this"}</button></article>)}</div>}
+        {carryCandidates.data?.allocations.length === 0 && <EmptyState className="planner-empty-state" title="No accepted placements need a decision for this day." />}
+        {carryCandidates.data && carryCandidates.data.allocations.length > 0 && <div className="review-carry-list">{carryCandidates.data.allocations.map((allocation) => <article key={allocation.id}><div><strong>{allocation.title}</strong><span>{clock(Number(allocation.startMinutes))} · {Number(allocation.durationMinutes)} min</span></div><Button type="button" className="quiet-action" variant="secondary" onClick={() => carryMutation.mutate(allocation)} disabled={carryMutation.isPending} pending={carryMutation.isPending} pendingLabel="Moving…">Carry this</Button></article>)}</div>}
         {carryMessage && <p role="status" className="review-carry-message">{carryMessage}</p>}
       </section>
       <section className="review-reflection-card" aria-labelledby="review-reflection-heading">
         <div><span className="card-kicker">OPTIONAL REFLECTION</span><h2 id="review-reflection-heading">What did you learn?</h2><p>Keep the observation, not a forced conclusion. This note is saved for {localDate}.</p></div>
-        <textarea aria-label="Daily reflection" value={reflectionText} onChange={(event) => setReflectionText(event.target.value)} maxLength={4000} placeholder="A small observation about energy, focus, or what to try next…" />
-        <div className="review-reflection-footer"><span>{reflectionText.length}/4000</span><button type="button" onClick={() => reflectionMutation.mutate()} disabled={reflectionMutation.isPending || reflectionText.trim() === ""}>{reflectionMutation.isPending ? "Saving…" : "Save reflection"}</button></div>
+        <Textarea aria-label="Daily reflection" value={reflectionText} onChange={(event) => setReflectionText(event.target.value)} maxLength={4000} placeholder="A small observation about energy, focus, or what to try next…" />
+        <div className="review-reflection-footer"><span>{reflectionText.length}/4000</span><Button type="button" onClick={() => reflectionMutation.mutate()} disabled={reflectionMutation.isPending || reflectionText.trim() === ""} pending={reflectionMutation.isPending} pendingLabel="Saving…">Save reflection</Button></div>
         {reflectionMutation.isSuccess && <p role="status">Reflection saved.</p>}
         {reflectionMutation.isError && <p role="alert">Reflection could not be saved.</p>}
       </section>
     </>}
     {view === "week" && weekly.data && <>
-      <div className="review-summary-grid"><article><span className="card-kicker">PLANNED TIME</span><strong>{Number(weekly.data.plannedMinutes)} min</strong><p>Accepted calendar allocations.</p></article><article><span className="card-kicker">RECORDED ACTIVE TIME</span><strong>{Number(weekly.data.recordedActiveMinutes)} min</strong><p>Focus sessions and manual actuals.</p></article><article><span className="card-kicker">FOCUS SESSIONS</span><strong>{Number(weekly.data.focusSessionCount)}</strong><p>Sessions with a recorded start.</p></article></div>
-      <div className="review-week-table-wrap"><table className="review-week-table"><caption>Planned and recorded activity by day</caption><thead><tr><th scope="col">Day</th><th scope="col">Planned</th><th scope="col">Recorded</th><th scope="col">Sessions</th></tr></thead><tbody>{weekly.data.days.map((day) => <tr key={day.localDate}><th scope="row">{day.localDate}</th><td>{Number(day.plannedMinutes)} min</td><td>{Number(day.recordedActiveMinutes)} min</td><td>{Number(day.focusSessionCount)}</td></tr>)}</tbody></table></div>
+      <div className="review-summary-grid"><article className="review-summary-planned"><span className="card-kicker">PLANNED TIME</span><strong>{Number(weekly.data.plannedMinutes)} min</strong><p>Accepted calendar allocations.</p></article><article className="review-summary-recorded"><span className="card-kicker">RECORDED ACTIVE TIME</span><strong>{Number(weekly.data.recordedActiveMinutes)} min</strong><p>Focus sessions and manual actuals.</p></article><article className="review-summary-sessions"><span className="card-kicker">FOCUS SESSIONS</span><strong>{Number(weekly.data.focusSessionCount)}</strong><p>Sessions with a recorded start.</p></article></div>
+      <DataTable
+        className="review-week-table"
+        rows={weekly.data.days}
+        columns={[
+          { id: "day", header: "Day", accessor: (day) => day.localDate, sortValue: (day) => day.localDate },
+          { id: "planned", header: "Planned", accessor: (day) => `${Number(day.plannedMinutes)} min`, sortValue: (day) => Number(day.plannedMinutes) },
+          { id: "recorded", header: "Recorded", accessor: (day) => `${Number(day.recordedActiveMinutes)} min`, sortValue: (day) => Number(day.recordedActiveMinutes) },
+          { id: "sessions", header: "Sessions", accessor: (day) => Number(day.focusSessionCount), sortValue: (day) => Number(day.focusSessionCount) },
+        ]}
+        getRowKey={(day) => day.localDate}
+        caption="Planned and recorded activity by day"
+        hideQueryControls
+        hideDensityControl
+        density="compact"
+        tableTestId="review-week-table"
+      />
       <div className="review-honesty-card"><span className="card-kicker">COVERAGE</span><p>{weekly.data.coverageNote}</p><p className="review-unknown">Active goals: {Number(weekly.data.activeGoalCount)} · Unrecorded time: unknown</p></div>
       <EvidenceInsight planned={Number(weekly.data.plannedMinutes)} recorded={Number(weekly.data.recordedActiveMinutes)} />
     </>}

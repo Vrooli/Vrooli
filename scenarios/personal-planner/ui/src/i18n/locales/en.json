@@ -21,25 +21,22 @@
   "theme": {
     "switcherLabel": "Theme",
     "choice": {
-      "light": "Light",
-      "dark": "Dark",
-      "system": "System"
+      "auto": "Auto",
+      "day": "Day",
+      "night": "Night"
     }
   },
   "pages": {
     "dashboard": {
-      "title": "Today",
-      "description": "The first thing an operator sees. Decide what belongs here before you ship.",
-      "placeholderTitle": "This scenario has not decided its home surface yet",
-      "placeholderDescription": "Open START-HERE, Gate 5, and name the one question this page answers. Replace this placeholder with that surface. The health card beside it is the example of a scenario-owned feature built from library parts."
+      "title": "Today"
     },
     "settings": {
       "title": "Settings",
       "themeHeading": "Appearance",
       "localeHeading": "Language",
-      "description": "Preferences for this browser. Add every setting your scenario actually needs; nothing else in the shell duplicates one.",
+      "description": "Shape the Observatory around your day—appearance, capacity, availability, and connections.",
       "preferences": "Preferences",
-      "themeHint": "Light, dark, or follow the system.",
+      "themeHint": "Follow the local day/night cycle, or choose a scene.",
       "localeHint": "Applies to this console only.",
       "storyKicker": "THE PLANNER PROMISE",
       "storyTitle": "A calm core, kept honest",

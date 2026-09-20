@@ -4,11 +4,15 @@ import userEvent from "@testing-library/user-event";
 
 import { applyAllocationProposal, applyScheduleProposal, createRoutine, fetchAllocations, fetchRoutineOccurrences, fetchRoutines, fetchTodayAllocations, previewAllocation, previewSchedule, rescheduleRoutineOccurrence, skipRoutineOccurrence } from "../api/calendar";
 import { fetchWorkItems } from "../api/work";
+import { createCommitment, fetchCommitments } from "../api/commitments";
+import { fetchForecast, fetchForecastHistory } from "../api/forecasts";
 import { renderWithProviders } from "../test-utils";
 import { PlanPage } from "./PlanPage";
 
 vi.mock("../api/calendar", () => ({ fetchTodayAllocations: vi.fn(), fetchAllocations: vi.fn(), applyAllocationProposal: vi.fn(), applyScheduleProposal: vi.fn(), previewAllocation: vi.fn(), previewSchedule: vi.fn(), fetchRoutines: vi.fn(), createRoutine: vi.fn(), fetchRoutineOccurrences: vi.fn(), rescheduleRoutineOccurrence: vi.fn(), skipRoutineOccurrence: vi.fn() }));
 vi.mock("../api/work", () => ({ fetchWorkItems: vi.fn() }));
+vi.mock("../api/commitments", () => ({ createCommitment: vi.fn(), fetchCommitments: vi.fn(), updateCommitmentState: vi.fn() }));
+vi.mock("../api/forecasts", () => ({ fetchForecast: vi.fn(), fetchForecastHistory: vi.fn() }));
 
 afterEach(() => {
   cleanup();
@@ -19,6 +23,9 @@ beforeEach(() => {
   vi.mocked(fetchAllocations).mockResolvedValue({ allocations: [] } as never);
   vi.mocked(fetchRoutines).mockResolvedValue([]);
   vi.mocked(fetchRoutineOccurrences).mockResolvedValue([]);
+  vi.mocked(fetchCommitments).mockResolvedValue([]);
+  vi.mocked(fetchForecast).mockResolvedValue({ centralFinish: "2026-10-02", cautiousFinish: "2026-10-03", resultState: "feasible_in_scenario", riskState: "on_track", explanation: "Known work fits.", horizonStart: "2026-10-01", horizonEnd: "2026-10-28", knownWorkMinutes: 60n, reserveMinutes: 1680n, freshness: "current", commitmentOutlooks: [{ id: "commitment-1", result: "Send the brief", promisedBoundary: "2026-10-02", forecastFinish: "2026-10-02", riskState: "on_track", explanation: "Both labeled scenarios finish by the promised boundary of 2026-10-02." }] } as never);
+  vi.mocked(fetchForecastHistory).mockResolvedValue([]);
 });
 
 describe("PlanPage", () => {
@@ -33,7 +40,8 @@ describe("PlanPage", () => {
 
     renderWithProviders(<PlanPage />);
 
-    expect(await screen.findByRole("heading", { name: "Draft the launch story" })).toBeInTheDocument();
+    const block = await screen.findByRole("group", { name: "Draft the launch story, 10:00, 45 minutes" });
+    expect(block.querySelector("h2")).toHaveTextContent("45m");
     expect(screen.getAllByText("45 min")).toHaveLength(2);
     expect(screen.getByText("10:00 · 45 min")).toBeInTheDocument();
     expect(screen.getByText("Accepted placement is durable schedule state. Completing focus does not silently mark an allocation or work item complete.")).toBeInTheDocument();
@@ -50,10 +58,48 @@ describe("PlanPage", () => {
 
     renderWithProviders(<PlanPage />);
 
-    const block = await screen.findByRole("button", { name: "Quick check, 10:00, 15 minutes" });
+    const block = await screen.findByRole("group", { name: "Quick check, 10:00, 15 minutes" });
     expect(block).toHaveStyle({ width: "2.5%" });
+    expect(block.querySelector("h2")).toHaveTextContent("15m");
     await userEvent.click(block);
     expect(screen.getByRole("dialog", { name: "Accepted allocation details" })).toHaveTextContent("10:00 · 15 min");
+  });
+
+  it("projects truthful capacity as its own planning view", async () => {
+    vi.mocked(fetchTodayAllocations).mockResolvedValue({
+      plannedMinutes: 90,
+      availableMinutes: 270,
+      breathingRoomMinutes: 60,
+      externalBusyMinutes: 45,
+      externalEventCount: 2,
+      externalFreshness: "fresh",
+      allocations: [{ id: "allocation-1", workItemId: "work-1", title: "Draft the launch story", startMinutes: 600, durationMinutes: 90, sourceLabel: "Cadence", state: "accepted" }],
+    } as never);
+    vi.mocked(fetchWorkItems).mockResolvedValue([]);
+
+    renderWithProviders(<PlanPage />);
+
+    await userEvent.click(await screen.findByRole("tab", { name: "Capacity" }));
+    expect(await screen.findByRole("heading", { name: "Make room before you make promises." })).toBeInTheDocument();
+    expect(screen.getByText("90 min accepted")).toBeInTheDocument();
+    expect(screen.getByText("45 min")).toBeInTheDocument();
+    expect(screen.getByText("2 read-only calendar holds.")).toBeInTheDocument();
+    expect(screen.getByText("Provider freshness: fresh.")).toBeInTheDocument();
+    expect(screen.getByText("10:00 · Draft the launch story")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Today’s accepted schedule")).not.toBeInTheDocument();
+  });
+
+  it("shows deterministic central and cautious outlooks without calling them probabilities", async () => {
+    vi.mocked(fetchTodayAllocations).mockResolvedValue({ plannedMinutes: 0, availableMinutes: 360, breathingRoomMinutes: 60, allocations: [] } as never);
+    vi.mocked(fetchWorkItems).mockResolvedValue([]);
+    renderWithProviders(<PlanPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Outlook" }));
+    expect(await screen.findByRole("heading", { name: "See what the shared resource can carry." })).toBeInTheDocument();
+    expect(screen.getByText("2026-10-02")).toBeInTheDocument();
+    expect(screen.getByText("Known work fits.")).toBeInTheDocument();
+    expect(screen.getByText(/not probabilities/)).toBeInTheDocument();
+    expect(screen.getByText("Promise and outlook, side by side")).toBeInTheDocument();
+    expect(screen.getByText("Send the brief")).toBeInTheDocument();
   });
 
   it("keeps an empty plan explicit", async () => {
@@ -61,6 +107,22 @@ describe("PlanPage", () => {
     vi.mocked(fetchWorkItems).mockResolvedValue([]);
     renderWithProviders(<PlanPage />);
     expect(await screen.findByText("No accepted allocations yet. Place the next work item when you are ready.")).toBeInTheDocument();
+  });
+
+  it("records an explicit commitment and keeps its lifecycle separate from the schedule", async () => {
+    vi.mocked(fetchTodayAllocations).mockResolvedValue({ plannedMinutes: 0, availableMinutes: 360, breathingRoomMinutes: 60, allocations: [] } as never);
+    vi.mocked(fetchWorkItems).mockResolvedValue([]);
+    vi.mocked(createCommitment).mockResolvedValue({ id: "commitment-1", result: "Send the brief", promisedBoundary: "2026-10-01", state: "proposed", risk: "unknown", acknowledgmentStatus: "unknown", revision: 1n } as never);
+    renderWithProviders(<PlanPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Commitments" }));
+    expect(await screen.findByRole("heading", { name: "Keep the promise visible." })).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText("Promised result"), "Send the brief");
+    await userEvent.type(screen.getByLabelText("Promise boundary"), "2026-10-01");
+    await userEvent.type(screen.getByLabelText("What counts as done?"), "A reviewed brief is sent");
+    await userEvent.type(screen.getByLabelText("Out of scope"), "Follow-up campaign");
+    await userEvent.click(screen.getByRole("button", { name: "Record commitment" }));
+    await waitFor(() => expect(createCommitment).toHaveBeenCalledWith(expect.objectContaining({ result: "Send the brief", promisedBoundary: "2026-10-01", definitionOfDone: "A reviewed brief is sent", scopeExclusions: "Follow-up campaign", state: "proposed" })));
+    expect(await screen.findByRole("status")).toHaveTextContent("Commitment recorded");
   });
 
   it("announces an unavailable plan", async () => {
@@ -156,6 +218,12 @@ describe("PlanPage", () => {
     expect(screen.getByText("11:00 · 30 min")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("tab", { name: "Agenda" }));
     expect(await screen.findByRole("heading", { name: "Upcoming accepted work" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: "Month" }));
+    expect(await screen.findByLabelText("Accepted month")).toBeInTheDocument();
+    expect(screen.getByText("Review the brief")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: "Timeline" }));
+    expect(await screen.findByLabelText("Accepted timeline")).toBeInTheDocument();
+    expect(screen.getByText("Review the brief")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("tab", { name: "Day" }));
     expect(screen.getByText("PLANNED")).toBeInTheDocument();
   });
@@ -176,6 +244,8 @@ describe("PlanPage", () => {
     vi.mocked(fetchRoutineOccurrences).mockResolvedValue([]);
     vi.mocked(createRoutine).mockResolvedValue({ id: "routine-1", title: "Morning run", kind: "fixed", durationMinutes: 30 } as never);
     renderWithProviders(<PlanPage />);
+    expect(await screen.findByLabelText("Routine start")).toBeInTheDocument();
+    expect(screen.getByLabelText("Routine minutes")).toBeInTheDocument();
     await userEvent.type(await screen.findByLabelText("Routine title"), "Morning run");
     await userEvent.click(screen.getByRole("button", { name: "Add routine" }));
     await waitFor(() => expect(createRoutine).toHaveBeenCalledWith(expect.objectContaining({ title: "Morning run", kind: "fixed", weekdays: [1] })));

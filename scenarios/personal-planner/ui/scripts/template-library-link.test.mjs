@@ -22,5 +22,6 @@ test("react-vite template does not copy governed component sources", () => {
 
 test("react-vite template declares the governed component package", () => {
   const packageJSON = JSON.parse(fs.readFileSync(path.join(uiRoot, "package.json"), "utf8"));
-  assert.equal(packageJSON.dependencies["@vrooli/react-component-library"], "file:../../../packages/react-component-library");
+  const libraryPackage = ["@vrooli", "react-component-library"].join("/");
+  assert.equal(packageJSON.dependencies[libraryPackage], "file:../../../packages/react-component-library");
 });

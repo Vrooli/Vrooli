@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen } from "@testing-library/react";
+import { act, cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { create } from "@bufbuild/protobuf";
 import { WorkItemSchema } from "@vrooli/proto-types/personal-planner/v1/work/work_pb";
@@ -9,12 +9,18 @@ import { DashboardPage } from "./DashboardPage";
 import { fetchTodayAllocations } from "../api/calendar";
 import { createWorkItem, fetchWorkItems } from "../api/work";
 import { fetchCurrentFocus, pauseFocus, startFocus } from "../api/focus";
+import { OBSERVATORY_SCENERY_EVENT } from "../theme/observatoryAppearance";
 
 vi.mock("../api/calendar", () => ({ fetchTodayAllocations: vi.fn() }));
 vi.mock("../api/work", () => ({ fetchWorkItems: vi.fn(), createWorkItem: vi.fn() }));
 vi.mock("../api/focus", () => ({ fetchCurrentFocus: vi.fn(), startFocus: vi.fn(), pauseFocus: vi.fn() }));
 
-afterEach(() => { cleanup(); vi.clearAllMocks(); });
+afterEach(async () => {
+  cleanup();
+  document.getElementById("rcl-layer-root")?.replaceChildren();
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  vi.resetAllMocks();
+});
 
 const emptyPlan = { allocations: [], plannedMinutes: 0, availableMinutes: 480, breathingRoomMinutes: 480 };
 const noFocus = null;
@@ -46,7 +52,8 @@ describe("Observatory Today", () => {
     await userEvent.click(screen.getByRole("button", { name: "Auto" }));
     await userEvent.click(screen.getByRole("button", { name: "Open draft" }));
     expect(screen.getByRole("dialog", { name: "Work item details" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Close draft" }));
+    await userEvent.click(screen.getByTestId("overlays.dialog.close"));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Work item details" })).not.toBeInTheDocument());
   });
 
   it("keeps the focus control honest and stateful", async () => {
@@ -78,6 +85,7 @@ describe("Observatory Today", () => {
     await user.type(screen.getByLabelText(/Why it matters/), "Explain the useful workflow");
     await user.click(screen.getByRole("button", { name: "Save task" }));
     expect(createWorkItem).toHaveBeenCalledWith(expect.objectContaining({ title: "Write release note", description: "Explain the useful workflow" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Capture task" })).not.toBeInTheDocument());
   });
 
   it("shows an unavailable accepted schedule honestly", async () => {
@@ -93,11 +101,12 @@ describe("Observatory Today", () => {
     vi.mocked(fetchWorkItems).mockResolvedValue([]);
     vi.mocked(fetchTodayAllocations).mockResolvedValue(emptyPlan as never);
     vi.mocked(fetchCurrentFocus).mockResolvedValue(noFocus);
-    vi.mocked(createWorkItem).mockRejectedValue(new Error("offline"));
+    vi.mocked(createWorkItem).mockRejectedValueOnce(new Error("offline"));
     renderWithProviders(<DashboardPage />);
     await user.click((await screen.findAllByRole("button", { name: "Capture task" }))[0]!);
     await user.type(screen.getByLabelText("Task title"), "Keep the error visible");
     await user.click(screen.getByRole("button", { name: "Save task" }));
+    await waitFor(() => expect(createWorkItem).toHaveBeenCalledWith(expect.objectContaining({ title: "Keep the error visible" })));
     expect(await screen.findByRole("alert")).toHaveTextContent("That task did not save");
   });
 
@@ -112,16 +121,21 @@ describe("Observatory Today", () => {
   it("makes accepted timeline items actionable and separates overlaps into lanes", async () => {
     vi.mocked(fetchWorkItems).mockResolvedValue([]);
     vi.mocked(fetchTodayAllocations).mockResolvedValue({ ...emptyPlan, allocations: [
-      { id: "a-1", workItemId: "w-1", title: "First block", sourceLabel: "Work", startMinutes: 600, durationMinutes: 60 },
       { id: "a-2", workItemId: "w-2", title: "Overlapping block", sourceLabel: "Home", startMinutes: 630, durationMinutes: 45 },
+      { id: "a-1", workItemId: "w-1", title: "First block", sourceLabel: "Work", startMinutes: 600, durationMinutes: 60 },
+      { id: "a-3", workItemId: "w-3", title: "Lane one is free again", sourceLabel: "Home", startMinutes: 675, durationMinutes: 30 },
     ] } as never);
     vi.mocked(fetchCurrentFocus).mockResolvedValue(noFocus);
     renderWithProviders(<DashboardPage />);
 
     const first = await screen.findByRole("button", { name: /First block, 10:00, 60 min/ });
     const second = screen.getByRole("button", { name: /Overlapping block, 10:30, 45 min/ });
+    const third = screen.getByRole("button", { name: /Lane one is free again, 11:15, 30 min/ });
     expect(first).toHaveStyle({ top: "calc(2rem + 0 * 6.2rem)" });
     expect(second).toHaveStyle({ top: "calc(2rem + 1 * 6.2rem)" });
+    expect(third).toHaveStyle({ top: "calc(2rem + 0 * 6.2rem)" });
+    expect(second.querySelector("strong")).toHaveTextContent("45m");
+    expect(first.querySelector("strong")).toHaveTextContent("First block");
     await userEvent.click(screen.getByRole("button", { name: "Focus" }));
     expect(screen.getByRole("list", { name: /Timeline from/ })).toHaveAttribute("aria-label", "Timeline from 09:00 to 13:00");
     await userEvent.click(screen.getByRole("button", { name: "Day" }));
@@ -147,5 +161,21 @@ describe("Observatory Today", () => {
     renderWithProviders(<DashboardPage />);
     await userEvent.click(await screen.findByRole("button", { name: "Start focus" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("That focus transition did not save.");
+  });
+
+  it("applies scenery preferences when Settings changes them", async () => {
+    vi.mocked(fetchWorkItems).mockResolvedValue([]);
+    vi.mocked(fetchTodayAllocations).mockResolvedValue(emptyPlan as never);
+    vi.mocked(fetchCurrentFocus).mockResolvedValue(noFocus);
+    renderWithProviders(<DashboardPage />);
+    await screen.findByRole("heading", { name: "Today" });
+
+    await act(async () => {
+      window.localStorage.setItem("planner.art-free", "true");
+      window.localStorage.setItem("planner.reduced-scenery", "true");
+      window.dispatchEvent(new Event(OBSERVATORY_SCENERY_EVENT));
+    });
+
+    await waitFor(() => expect(document.querySelector(".observatory")).toHaveClass("art-free", "reduced-scenery"));
   });
 });

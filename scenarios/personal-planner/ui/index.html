@@ -9,7 +9,11 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/public/apple-touch-icon.png" />
 <link rel="manifest" href="/public/site.webmanifest" crossorigin="use-credentials" />
 <!-- brand-manager:icons:end -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Keep the document layout and browser chrome aligned with the safe-area
+         owner. interactive-widget lets the viewport shrink with the keyboard;
+         viewport-fit lets the app paint the notch and home-indicator regions. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="description" content="A personal planning and focus application that helps people make realistic commitments, follow through, and plan better from what actually happens." />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Personal Planner — a calmer day" />
@@ -20,7 +24,10 @@
     <meta name="twitter:title" content="Personal Planner — a calmer day" />
     <meta name="twitter:description" content="Make realistic commitments, focus on the next useful action, and learn from what actually happens." />
     <meta name="twitter:image" content="/public/og-image.png" />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8f4ec" />
+    <!-- ChromeTheme updates the unscoped value when Auto, Day, or Night
+         changes. The media-scoped dark fallback keeps launch/browser chrome
+         correct before the runtime provider mounts. -->
+    <meta name="theme-color" content="#ebe5d8" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#171634" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

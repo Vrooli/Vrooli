@@ -35,9 +35,22 @@ describe("SettingsPage", () => {
   it("states the included core and deferred commercial hypothesis honestly", () => {
     renderWithProviders(<SettingsPage />);
 
+    expect(screen.getByText("Shape the Observatory around your day—appearance, capacity, availability, and connections.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "A calm core, kept honest" })).toBeInTheDocument();
     expect(screen.getByText(/Nothing essential is hidden behind an upgrade/)).toBeInTheDocument();
     expect(screen.getByText(/No billing is active/)).toBeInTheDocument();
+  });
+
+  it("keeps dense preference and availability controls on the shared field contract", async () => {
+    renderWithProviders(<SettingsPage />);
+
+    expect(await screen.findByLabelText("Timezone")).toBeInTheDocument();
+    expect(screen.getAllByTestId("forms.form-field").length).toBeGreaterThan(14);
+    expect(screen.getByRole("radio", { name: "Day" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Night" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Auto" })).toBeInTheDocument();
+    expect(screen.getByLabelText("1 start")).toHaveAttribute("data-rcl-form-field-control");
+    expect(screen.getByLabelText("1 end")).toHaveAttribute("data-rcl-form-field-control");
   });
 
   it("loads and saves the explicit planning profile", async () => {

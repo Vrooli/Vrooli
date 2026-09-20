@@ -1,9 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 export type ObservatoryAppearance = "day" | "night";
 
 export const OBSERVATORY_DAY_START_KEY = "planner.auto-day-start";
 export const OBSERVATORY_NIGHT_START_KEY = "planner.auto-night-start";
+export const OBSERVATORY_PREFERENCES_EVENT = "planner.appearance-preferences-changed";
+export const OBSERVATORY_SCENERY_EVENT = "planner.scenery-preferences-changed";
+
+export type ObservatorySceneryPreferences = {
+  artFree: boolean;
+  reducedScenery: boolean;
+  subduedNight: boolean;
+};
+
+export function readSceneryPreferences(storage: Storage | undefined = typeof window === "undefined" ? undefined : window.localStorage): ObservatorySceneryPreferences {
+  return {
+    artFree: storage?.getItem("planner.art-free") === "true",
+    reducedScenery: storage?.getItem("planner.reduced-scenery") === "true",
+    subduedNight: storage?.getItem("planner.subdued-night") === "true",
+  };
+}
 
 export const DEFAULT_TRANSITION_HOURS = { dayStart: "07:00", nightStart: "19:00" } as const;
 
@@ -30,11 +46,10 @@ export function appearanceAt(date: Date, dayStart: number, nightStart: number): 
   return minutes >= dayStart || minutes < nightStart ? "day" : "night";
 }
 
-export function useObservatoryAutoAppearance(focusRunning: boolean): ObservatoryAppearance {
+export function useObservatoryAutoAppearance(): ObservatoryAppearance {
   const [now, setNow] = useState(() => new Date());
-  const transition = useMemo(() => readTransitionMinutes(), []);
+  const [transition, setTransition] = useState(() => readTransitionMinutes());
   const desired = appearanceAt(now, transition.dayStart, transition.nightStart);
-  const [held, setHeld] = useState<ObservatoryAppearance>(desired);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 60_000);
@@ -42,8 +57,14 @@ export function useObservatoryAutoAppearance(focusRunning: boolean): Observatory
   }, []);
 
   useEffect(() => {
-    if (!focusRunning) setHeld(desired);
-  }, [desired, focusRunning]);
+    const refresh = () => setTransition(readTransitionMinutes());
+    window.addEventListener("storage", refresh);
+    window.addEventListener(OBSERVATORY_PREFERENCES_EVENT, refresh);
+    return () => {
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener(OBSERVATORY_PREFERENCES_EVENT, refresh);
+    };
+  }, []);
 
-  return held;
+  return desired;
 }

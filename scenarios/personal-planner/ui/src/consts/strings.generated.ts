@@ -33,17 +33,14 @@ export const strings = {
   theme: {
     switcherLabel: "theme.switcherLabel",
     choice: {
-      light: "theme.choice.light",
-      dark: "theme.choice.dark",
-      system: "theme.choice.system",
+      auto: "theme.choice.auto",
+      day: "theme.choice.day",
+      night: "theme.choice.night",
     },
   },
   pages: {
     dashboard: {
       title: "pages.dashboard.title",
-      description: "pages.dashboard.description",
-      placeholderTitle: "pages.dashboard.placeholderTitle",
-      placeholderDescription: "pages.dashboard.placeholderDescription",
     },
     settings: {
       title: "pages.settings.title",

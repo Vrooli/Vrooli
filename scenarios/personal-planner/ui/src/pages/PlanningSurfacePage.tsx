@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { fetchWorkItems } from "../api/work";
 import { selectors } from "../consts/selectors";
 
@@ -22,7 +23,7 @@ export function PlanningSurfacePage({ surface }: { surface: Surface }) {
       <p className="planner-surface-description">{description}</p>
       {isLoading && <p role="status">Loading work items…</p>}
       {isError && <p role="alert">Work data is unavailable right now.</p>}
-      {!isLoading && !isError && workItems?.length === 0 && <p className="planner-empty">{empty}</p>}
+      {!isLoading && !isError && workItems?.length === 0 && <EmptyState className="planner-empty-state" title={empty} />}
       {workItems && workItems.length > 0 && (
         <div className="planner-list" aria-label={`${title} work items`}>
           {workItems.map((item) => (

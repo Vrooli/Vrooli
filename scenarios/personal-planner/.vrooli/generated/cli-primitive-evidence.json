@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "personal-planner",
   "generator": "v1.0.0",
-  "manifest_hash": "2849c9acf3fde07ad8491e51a8ffb37d1aee12c6882da22728bfaea402940eca",
+  "manifest_hash": "450b8ba3da7d39f86e28207b2d878572ef250596af82e6bffe296c032a5d30fe",
   "commands": [
     {
       "path": "calendar apply-placement",
@@ -87,6 +87,38 @@
       "observed_primitive": "proto_mutation"
     },
     {
+      "path": "commitments create",
+      "group": "commitments",
+      "command": "create",
+      "binding": "CommitmentsService.CreateCommitment",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "commitments list",
+      "group": "commitments",
+      "command": "list",
+      "binding": "CommitmentsService.ListCommitments",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "commitments revise",
+      "group": "commitments",
+      "command": "revise",
+      "binding": "CommitmentsService.ReviseCommitment",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "commitments state",
+      "group": "commitments",
+      "command": "state",
+      "binding": "CommitmentsService.UpdateCommitmentState",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
       "path": "focus actuals",
       "group": "focus",
       "command": "actuals",
@@ -157,6 +189,22 @@
       "binding": "FocusService.StartFocus",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "forecasts get",
+      "group": "forecasts",
+      "command": "get",
+      "binding": "ForecastsService.GetForecast",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "forecasts history",
+      "group": "forecasts",
+      "command": "history",
+      "binding": "ForecastsService.ListForecastSnapshots",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "goals complete-milestone",

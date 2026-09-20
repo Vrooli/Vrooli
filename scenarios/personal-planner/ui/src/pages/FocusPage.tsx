@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { Timer } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Input } from "@vrooli/react-component-library/Input/1";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
+import { Select } from "@vrooli/react-component-library/Select/1";
+import { FormField } from "@vrooli/react-component-library/FormField/1";
 
 import { correctActual, endFocus, fetchActualCorrections, fetchActuals, fetchCurrentFocus, pauseFocus, recordManualActual, resumeFocus, startFocus, type Actual, type FocusSession } from "../api/focus";
 import { fetchWorkItems } from "../api/work";
@@ -66,9 +72,7 @@ export function FocusPage() {
 
   return (
     <section className="focus-surface" data-testid={selectors.pages.focus} aria-labelledby="focus-heading">
-      <p className="eyebrow">Deep work</p>
-      <h1 id="focus-heading">Focus</h1>
-      <p className="planner-surface-description">One protected window, with the time recorded honestly.</p>
+      <PageHeader className="planner-page-header" headingId="focus-heading" eyebrow="Deep work" title="Focus" description="One protected window, with the time recorded honestly." leading={<span className="planner-page-mark" aria-hidden="true"><Timer size={21} /></span>} />
       {current.isLoading && <p role="status">Checking for an active session…</p>}
       {current.isError && <p role="alert">The focus session is unavailable right now.</p>}
       {!current.isLoading && !current.isError && !session && (
@@ -76,19 +80,21 @@ export function FocusPage() {
           <span className="card-kicker">READY WHEN YOU ARE</span>
           <h2>{selected?.title ?? "Spontaneous focus"}</h2>
           <p>{selected ? `${selected.remainingMinutes} minutes remain on this work item.` : "Start without a task and classify the time later."}</p>
-          {work.data && work.data.length > 0 && <label>Work item<select value={selectedWorkId || work.data[0]?.id || ""} onChange={(event) => setSelectedWorkId(event.target.value)}>{work.data.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>}
-          <button className="primary-action" type="button" onClick={() => mutation.mutate("start")} disabled={mutation.isPending}>Start focus</button>
+          <div className="focus-start-guidance" aria-label="Focus session principles"><div><strong>Open timer</strong><span>Stop when the work stops.</span></div><div><strong>Active time only</strong><span>Pauses stay out of the ledger.</span></div><div><strong>Correctable</strong><span>Report a rough actual later.</span></div></div>
+          {work.data && work.data.length > 0 && <FormField required label="Work item" control={<Select required aria-label="Work item" value={selectedWorkId || work.data[0]?.id || ""} onChange={(event) => setSelectedWorkId(event.target.value)} options={work.data.map((item) => ({ value: item.id, label: item.title }))} />} />}
+          <Button className="primary-action" type="button" onClick={() => mutation.mutate("start")} disabled={mutation.isPending} pending={mutation.isPending} pendingLabel="Starting…">Start focus</Button>
         </div>
       )}
       {session && (
         <div className="focus-session-card">
-          <span className="card-kicker">{session.state === "running" ? "IN FOCUS" : "PAUSED"} · {session.mode}</span>
+          <div className="focus-session-heading"><span className="card-kicker">{session.state === "running" ? "IN FOCUS" : "PAUSED"} · {session.mode}</span><span className="focus-session-live">{session.state === "running" ? "Recording now" : "Timer held"}</span></div>
           <h2>{session.title}</h2>
           <div className="focus-timer" aria-live="polite">{formatDuration(elapsed)}</div>
           <p className="focus-evidence">Active time recorded: {formatDuration(Number(session.activeSeconds))}. Paused time is not counted as work.</p>
+          <dl className="focus-session-facts"><div><dt>Mode</dt><dd>{session.mode}</dd></div><div><dt>State</dt><dd>{session.state}</dd></div><div><dt>Evidence</dt><dd>Server saved</dd></div></dl>
           <div className="focus-actions">
-            {session.state === "running" ? <button className="primary-action" type="button" onClick={() => mutation.mutate("pause")} disabled={mutation.isPending}>Pause</button> : <button className="primary-action" type="button" onClick={() => mutation.mutate("resume")} disabled={mutation.isPending}>Resume</button>}
-            <button className="quiet-action" type="button" onClick={() => mutation.mutate("end")} disabled={mutation.isPending}>End session</button>
+            {session.state === "running" ? <Button className="primary-action" type="button" onClick={() => mutation.mutate("pause")} disabled={mutation.isPending} pending={mutation.isPending} pendingLabel="Pausing…">Pause</Button> : <Button className="primary-action" type="button" onClick={() => mutation.mutate("resume")} disabled={mutation.isPending} pending={mutation.isPending} pendingLabel="Resuming…">Resume</Button>}
+            <Button className="quiet-action" variant="secondary" type="button" onClick={() => mutation.mutate("end")} disabled={mutation.isPending}>End session</Button>
           </div>
           {mutation.isError && <p role="alert">That transition did not save. Nothing was assumed.</p>}
         </div>
@@ -97,16 +103,16 @@ export function FocusPage() {
         <div className="actuals-heading"><div><span className="card-kicker">HONEST CATCH-UP</span><h2 id="actuals-heading">Record time you already spent</h2></div><span className="actuals-date">{actualDate}</span></div>
         <p className="actuals-intro">A rough memory is useful when it stays labeled as a report, not a fabricated timer interval.</p>
         <form className="actual-form" onSubmit={(event) => { event.preventDefault(); actualMutation.mutate(); }}>
-          <label>What did you work on?<input value={actualTitle} onChange={(event) => setActualTitle(event.target.value)} required placeholder="e.g. Review the launch brief" /></label>
-          <label>Minutes<input type="number" min="1" step="1" value={actualMinutes} onChange={(event) => setActualMinutes(event.target.value)} required /></label>
-          <label className="actual-note-field">Context (optional)<input value={actualNote} onChange={(event) => setActualNote(event.target.value)} placeholder="Approximate, interrupted, or complete" /></label>
-          <button className="quiet-action" type="submit" disabled={actualMutation.isPending}>{actualMutation.isPending ? "Saving…" : "Record actual"}</button>
+          <FormField label="What did you work on?" required control={<Input aria-label="What did you work on?" value={actualTitle} onChange={(event) => setActualTitle(event.target.value)} placeholder="e.g. Review the launch brief" />} />
+          <FormField label="Minutes" required control={<Input aria-label="Minutes" type="number" min="1" step="1" value={actualMinutes} onChange={(event) => setActualMinutes(event.target.value)} />} />
+          <FormField className="actual-note-field" label="Context (optional)" control={<Input aria-label="Context (optional)" value={actualNote} onChange={(event) => setActualNote(event.target.value)} placeholder="Approximate, interrupted, or complete" />} />
+          <Button className="quiet-action" variant="secondary" type="submit" disabled={actualMutation.isPending} pending={actualMutation.isPending} pendingLabel="Saving…">Record actual</Button>
         </form>
         {actualMutation.isError && <p className="actual-error" role="alert">That actual did not save. Nothing was assumed.</p>}
         {actuals.isError && <p className="actual-error" role="alert">Recorded actuals are unavailable right now.</p>}
         {corrections.isError && <p className="actual-error" role="alert">Correction history is unavailable right now; the current actuals remain intact.</p>}
-        {actuals.data && actuals.data.length > 0 && <div className="actual-list" aria-label="Recorded actual activity">{actuals.data.map((actual) => { const history = corrections.data?.filter((correction) => correction.actualId === actual.id) ?? []; return <article className="actual-row" key={actual.id}><div><strong>{actual.title}</strong><span>{Number(actual.reportedMinutes)} min · {actual.certainty === "timed_observed" ? "observed" : "approximate"}</span>{actual.note && <small>{actual.note}</small>}{history.length > 0 && <details><summary>{history.length} correction{history.length === 1 ? "" : "s"} preserved</summary><ul>{history.map((correction) => <li key={correction.id}>{Number(correction.previousMinutes)} → {Number(correction.newMinutes)} min{correction.reason ? ` · ${correction.reason}` : ""}</li>)}</ul></details>}</div><button type="button" className="quiet-action" onClick={() => { setEditingActual(actual); setCorrectionMinutes(String(actual.reportedMinutes)); setCorrectionNote(actual.note); }}>Correct</button></article>; })}</div>}
-        {editingActual && <form className="actual-correction" onSubmit={(event) => { event.preventDefault(); correctionMutation.mutate(); }}><strong>Correct “{editingActual.title}”</strong><label>Minutes<input type="number" min="1" value={correctionMinutes} onChange={(event) => setCorrectionMinutes(event.target.value)} required /></label><label>Why did it change?<input value={correctionNote} onChange={(event) => setCorrectionNote(event.target.value)} required /></label><div className="focus-actions"><button className="primary-action" type="submit" disabled={correctionMutation.isPending}>Save correction</button><button className="quiet-action" type="button" onClick={() => setEditingActual(null)}>Cancel</button></div></form>}
+        {actuals.data && actuals.data.length > 0 && <div className="actual-list" aria-label="Recorded actual activity">{actuals.data.map((actual) => { const history = corrections.data?.filter((correction) => correction.actualId === actual.id) ?? []; return <article className="actual-row" key={actual.id}><div><strong>{actual.title}</strong><span>{Number(actual.reportedMinutes)} min · {actual.certainty === "timed_observed" ? "observed" : "approximate"}</span>{actual.note && <small>{actual.note}</small>}{history.length > 0 && <details><summary>{history.length} correction{history.length === 1 ? "" : "s"} preserved</summary><ul>{history.map((correction) => <li key={correction.id}>{Number(correction.previousMinutes)} → {Number(correction.newMinutes)} min{correction.reason ? ` · ${correction.reason}` : ""}</li>)}</ul></details>}</div><Button type="button" className="quiet-action" variant="secondary" onClick={() => { setEditingActual(actual); setCorrectionMinutes(String(actual.reportedMinutes)); setCorrectionNote(actual.note); }}>Correct</Button></article>; })}</div>}
+        {editingActual && <form className="actual-correction" onSubmit={(event) => { event.preventDefault(); correctionMutation.mutate(); }}><strong>Correct “{editingActual.title}”</strong><FormField label="Minutes" required control={<Input aria-label="Minutes" type="number" min="1" value={correctionMinutes} onChange={(event) => setCorrectionMinutes(event.target.value)} />} /><FormField label="Why did it change?" required control={<Input aria-label="Why did it change?" value={correctionNote} onChange={(event) => setCorrectionNote(event.target.value)} />} /><div className="focus-actions"><Button className="primary-action" type="submit" disabled={correctionMutation.isPending} pending={correctionMutation.isPending} pendingLabel="Saving…">Save correction</Button><Button className="quiet-action" variant="secondary" type="button" onClick={() => setEditingActual(null)}>Cancel</Button></div></form>}
       </section>
     </section>
   );

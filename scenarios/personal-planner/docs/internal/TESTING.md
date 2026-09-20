@@ -378,6 +378,8 @@ the unassigned brand-manager marker and system-font posture.
 - Adopted Test Genie receipt `20260919-130105-4151a134` completed with 26/27 phases passing after the range-component extraction. Unit, contracts, and experience passed; portability remains the sole failed phase for the shared trusted-base closure. The receipt also confirms CLI measure metadata is contract-complete with informational tier-fallback findings.
 - Provider connection slice evidence: API `go test ./...`, CLI `UPDATE_CLI_EVIDENCE=1 go test ./...`, UI coverage/build, and live CLI create/sync/list all pass. The live fixture sync returned three synthetic imported events, 120 busy minutes, and revision 2; this is contract evidence only and does not prove a real provider or capacity projection.
 - Focused post-integration Test Genie receipt `20260919-132005-d4e4f27f` completed with 26/27 phases passing. Contracts, unit, experience, and measures passed; portability remains the sole failed phase for the shared trusted-base closure. Measures now reports eight informational tier-fallback entries, including `provider_connections`.
+- Focused adaptive-chrome rerun `20260919-170222-62700a7f` initially retained one experience overflow finding on the Goals article. After switching AppShell to fill mode and constraining Goal cards with border-box/mobile stacking, experience receipt `20260919-170443-5896f992` passed at L3 Complete. UI tests remain 33 files / 178 tests; type-check and build pass. The unsupported exploratory Vitest `--runInBand` flag is not a product failure.
+- Comprehensive receipt `20260919-170849-8925c691` completed 25/27: portability remains the shared trusted-base closure failure; UI-health passed but retains advisory raw-primitive/template findings, and branding passed with install-surface/public-asset advisories. After the subsequent theme/control/Plan fixes, full UI tests pass 33 files / 179 tests, type-check/build pass, Brand Manager validation passes, and focused experience receipt `20260919-172202-e3372dee` passes at L3 Complete.
 - Imported-capacity projection evidence: Calendar SQLite regression proves active imported intervals are unioned with accepted allocations without double-counting overlap; Dashboard regression proves Today surfaces the external event/minute fact. The projection is synthetic-fixture evidence only until a real provider adapter supplies durable cursor/freshness semantics.
 - Google adapter evidence: `go test ./internal/integrations` passes HTTP fixtures for calendar pagination, timed/all-day/transparent normalization, final sync-token capture, and HTTP 410 full-reset signaling. This is adapter-contract evidence, not live OAuth/provider certification.
 - Focused Google adapter receipt `20260919-133813-6f7796c4` passed **4/4**: unit, contracts, experience, and measures. Unit remains L2 with the known `MISSING_INJECTABLE_SEAM` advisory; measures remains L1 with three `measures.tier-fallback` advisories. The receipt is scenario-owned contract evidence, not live OAuth/provider certification.
@@ -396,6 +398,40 @@ the unassigned brand-manager marker and system-font posture.
 - Ongoing feedback-loop shell/Today slice: full UI coverage passes **178 tests** with **97.83% statements, 85.83% branches, and 85.45% functions**; type-check and production build pass. The first experience rerun caught below-floor new controls before the managed rebuild; after raising the sidebar collapse and timeline view controls to 44px and rebuilding/restarting through the lifecycle, receipt `20260919-160637-4e3fe0bc` passes experience **L3 Complete**. The earlier failed receipt `20260919-160256-fcdbbe8d` is retained as regression evidence, not a release verdict.
 - Focused shell/controls receipt `20260919-161944-a00cb4cb` passes **3/3**: unit, contracts, and experience. It covers the library-owned shell refactor, completed PWA metadata, mobile collapse affordance, Review component extraction, and shared Goals controls. Unit retains the known injectable-seam advisory.
 - Comprehensive receipt `20260919-162020-12be5a0e` completed **26/27** phases. UI-health passed its runtime/PWA/branding checks; the remaining UI findings are shared adoption/template debt and secondary raw-control cleanup. The sole terminal phase failure is portability, a repository-level trusted-base closure outside Personal Planner’s declared resource surface.
+- Secondary surface control polish: full UI suite passes **33 files / 178 tests** after adopting shared Button/Input controls across Focus, Plan, and Review; type-check and production build also pass. Managed restart reports Personal Planner healthy; notification-hub remains degraded by the known tunnel-manager freshness timeout.
+- Auto appearance synchronization: targeted appearance, Settings, and Today tests pass **16/16** after adding live preference/storage event handling for configurable day/night boundaries.
+- Shared form-control adoption: Today capture, Goals purpose, and Review reflection now use the shared Input/Textarea primitives; no raw input/select/textarea controls remain in non-test page source. Full UI suite passes **33 files / 179 tests**, type-check and production build pass, and focused Test Genie receipt `20260919-172834-ec054422` passes **3/3** requested phases (unit, contracts, experience). Managed restart reports Personal Planner healthy; notification-hub remains degraded by the known tunnel-manager freshness timeout.
+- Secondary hierarchy and standards evidence: Plan, Goals, Focus, and Review use the shared PageHeader; all former planner-empty branches use governed EmptyState; theme chrome resolves through semantic tokens with browser-safe fallbacks; and Goals no longer overflows the 844×390 experience viewport. Full UI suite passes **33 files / 179 tests**, type-check and production build pass. UI-health receipt `20260919-174124-c14934ac` passes with runtime/manifest/interop/freshness/PWA at L5 and project standards at L3; focused experience receipt `20260919-174608-f5fe9e34` passes at **L3 Complete**. The immediately preceding combined receipt `20260919-174239-244c515e` correctly caught the Goals overflow and is retained as regression evidence, not a verdict. Managed Personal Planner remains healthy with notification-hub degraded by the known tunnel-manager freshness timeout.
+- Today shared-control extraction: Today appearance, capture, task-action, timeline-view, and disclosure-close controls now use a scenario-local composition over shared Button primitives; the sidebar collapse affordance follows the same library contract. Full UI suite passes **33 files / 179 tests**, type-check/build pass, and focused shell/settings tests pass **14/14**. Test Genie receipt `20260919-175630-afdcaf8c` passes unit/contracts/experience 3/3. UI-health receipt `20260919-175707-b42b2d39` passes; runtime/manifest/interop/freshness/PWA are L5. Project standards remains L3 because intentional anchored dialogs and raw Observatory palette literals remain open standards debt.
+
+ - Collision-aware timeline disclosure: Today timeline details now use the shared Popover’s collision-aware anchoring and portal rather than local `left/top` positioning. Dashboard regression, full UI suite (33 files / 179 tests), type-check, and production build pass. UI-health receipt `20260919-180852-24d59cb3` passes with runtime, manifest, interop, freshness, and PWA at L5; project standards remains L3 with raw capture/draft dialogs, stylesheet palette literals, and the unused HealthCard scaffold still open.
+- Scene contrast and Settings density checkpoint: desktop Day/Night and Settings captures verified scene-specific ink/chrome contrast, a dark Night sidebar, and compact shared RadioGroup/Switch layouts. Full UI suite passes **33 files / 179 tests**, type-check/build pass, and UI-health receipt `20260919-182121-fef704e2` passes with runtime, manifest, interop, freshness, and PWA at L5. Project standards remains L3 with raw capture/draft dialogs, stylesheet palette literals, and the unused HealthCard scaffold still open.
+- Settings geometry and timeline disclosure checkpoint: Settings planning, availability, and integration rows now span the card form area cleanly; Today timeline details remain on the shared collision-aware Popover. Full UI suite passes **33 files / 179 tests**, Settings tests pass **3/3**, type-check/build pass, and UI-health receipt `20260919-182457-5e219806` passes with runtime, manifest, interop, freshness, and PWA at L5. Project standards remains L3 with the known raw-dialog, palette-literal, unused-scaffold, and advisory text-clipping findings.
+- Appearance choice surface checkpoint: Settings now uses the shared RadioGroup card variant for the Appearance choices. Full UI suite passes **33 files / 179 tests**, Settings tests pass **3/3**, type-check/build pass, and the UI-health phase inside server-owned run `20260919-182810-3560d72d` passes with runtime at L5. The enclosing comprehensive run is not a release certification: portability and other repository/provider findings remain separate from this UI change.
+- Plan allocation disclosure checkpoint: Plan accepted schedule blocks now use the shared collision-aware Popover for their details instead of a detached raw dialog. Full UI suite passes **33 files / 179 tests**, Plan tests pass **15/15**, type-check/build pass, and the UI-health phase inside server-owned run `20260919-183459-d0abcefc` passes with runtime/manifest/interop/freshness/PWA at L5. The enclosing comprehensive run remains non-release due unrelated portability/docs/provider findings; its standards output still reports the broader raw-dialog aggregate and is retained for follow-up.
+- Today Dialog and global theme checkpoint: Today draft/capture overlays now use the shared Dialog, with an explicit regression assertion for asynchronous portal cleanup between capture flows. The shell applies the resolved day/night appearance to every route's sidebar, bottom navigation, page canvas, and ChromeTheme base. Dashboard tests pass **9/9**, full UI suite passes **33 files / 179 tests**, type-check/build pass, and UI-health run `20260919-184929-8f08fc1e` passes with runtime/manifest/interop/freshness/PWA at L5; project standards remains L3 with the documented palette and scaffold advisories.
+
+- Latest responsive form checkpoint: Settings availability/protected-time fields and Plan routine fields now use shared `FormField` composition over library `Input`/`Select` controls, with an explicit weekday grid and unique accessible names. `make orient` reports no stale orientation metadata; full UI suite passes **33 files / 180 tests**, type-check and production build pass, and the fresh managed UI-health receipt `20260919-205447-bd9d699a` passes at L5 across all seven routes and desktop/mobile runtime coverage. The broader visual/accessibility release sweep and portability closure remain open.
+- Cross-route appearance checkpoint: the shell now emits the Observatory `day`/`night` class vocabulary that its sidebar, bottom-nav, and canvas selectors consume; AppShell regression coverage proves the dark route contract. Full UI suite passes **33 files / 181 tests**, type-check/build pass, managed restart is healthy, and UI-health receipt `20260919-210311-a3d15dcc` passes **1/1** at L5 across all seven routes. The browser's non-standalone Safari chrome remains outside page control; visual oracle comparison and portability closure remain open.
+- Timeline packing checkpoint: Today coverage now proves a later non-overlapping block reuses the first collision lane after a two-block overlap. Dashboard tests pass **9/9**; full UI coverage remains **33 files / 181 tests**. This protects the intended two-row geometry instead of a monotonically growing stack.
+- Goals form checkpoint: Goal progress and milestone editing now use shared `FormField` composition over library controls, with explicit names that preserve accessible queries across required/optional field decoration. Goals tests pass **6/6**; full UI suite remains **33 files / 181 tests**, type-check/build pass. Today capture’s compact legacy markup and the broader visual oracle sweep remain open.
+
+### 2026-09-19 — mobile secondary-surface spacing
+
+- Full UI suite: **33 test files / 181 tests passed**.
+- Type-check and production build passed.
+- `git diff --check` passed for the responsive stylesheet change.
+- Static `ui-health validate scenario personal-planner --static-only --json` reported zero static findings; its only degraded status is the intentional `runtime_not_evaluated_static_only` notice.
+- Fresh managed restart completed healthy; server-owned Test Genie run `20260919-211637-5f833ee0` passed the focused `ui-health` phase at **L5** across all seven routes. The notification-hub freshness timeout remains unrelated to Personal Planner health.
+- Settings hierarchy polish: focused Settings/AppShell tests passed **14/14**; full UI suite passed **33 files / 181 tests**; type-check/build passed; server-owned Test Genie run `20260919-212246-f69a1058` passed ui-health at **L5** across all seven routes.
+- Responsive Observatory evidence: governed BAS captures completed at `390x844` for Day (`adf9cd60-9782-495c-ac5f-5686845820cd`) and Night (`3e4d97bc-6e02-4920-b629-14b9dafe0526`). These are runtime evidence artifacts; visual-oracle closure remains a separate judgment and fix loop.
+- Route-wide shell chrome: shell/theme/a11y tests **18/18**; full UI suite **33 files / 181 tests**; type-check/build passed; managed Test Genie run `20260919-213024-045099ee` passed ui-health at **L5** across all seven routes.
+- Scene palette ownership: Dashboard/theme tests **15/15**; full UI suite **33 files / 181 tests**; type-check/build passed; managed Test Genie run `20260919-213629-386da21c` passed ui-health at **L5** across all seven routes.
+- Today capture shared-field contract: Dashboard tests **9/9**; full UI suite **33 files / 181 tests**; type-check/build passed; managed Test Genie run `20260919-214124-13f9ae9a` passed ui-health at **L5** across all seven routes.
+- Observatory radius contract: focused Plan/Goals/Focus/Review/Settings tests **36/36**; full UI suite **33 files / 181 tests**; type-check, production build, and stylesheet diff-check passed. Managed restart is healthy on ports **17604/20003** with notification-hub degraded by its unrelated tunnel-manager freshness timeout. Test Genie run `20260919-214634-6a2c1eaa` passed focused ui-health at **L5** across all seven routes, with fourteen informational runtime confirmations.
+- Responsive SettingsList surface: Settings/AppShell checks **16/16**; full UI suite **33 files / 181 tests**; type-check, production build, and diff-check passed. The managed planner is healthy on **17604/20003**; Test Genie run `20260919-215224-8c673e20` passed focused ui-health at **L5** across all seven routes with fourteen informational runtime confirmations. Notification-hub remains degraded by its unrelated tunnel-manager freshness timeout.
+- Canonical Observatory appearance vocabulary: appearance/Dashboard/Settings/AppShell/controller checks **32/32**; full UI suite **33 files / 181 tests**; selector and string manifests, type-check, production build, and diff-check passed. Managed planner is healthy on **17604/20003**; Test Genie run `20260919-215915-352ca68b` passed focused ui-health at **L5** across all seven routes with fourteen informational runtime confirmations. Legacy `system/light/dark` local-storage values are covered by migration logic; notification-hub remains degraded by its unrelated tunnel-manager freshness timeout.
+- Visual evidence boundary: recent governed BAS files inspected under the shared capture store are generic health fixtures, not Observatory oracle captures. They are intentionally not promoted as visual-fidelity evidence. The source-level ChromeTheme audit confirms the supported theme-color meta, safe-area fill, and PWA channels; normal Safari browser chrome remains an explicit platform limitation.
 
 ## Binary startup
 
@@ -405,3 +441,305 @@ service name in the scenario test. Shared process machinery and failure
 regressions live in `packages/api-core/boottest`; see its package README section
 for configuration and evidence limits. The existing E2E gate runs this test.
 Durable review reflection implementation checks pass locally: API `go test ./...`, CLI `UPDATE_CLI_EVIDENCE=1 go test ./...`, UI type-check/build, and UI coverage (156 tests; 96.44% statements, 86.51% branches, 85.84% functions), with focused Test Genie receipt `20260919-120927-f6dec97a` recorded above.
+### 2026-09-19 — feedback-loop timeline regression
+
+- Focused UI regression: `DashboardPage`, `SettingsPage`, and `observatoryAppearance` — 16/16 passed.
+- Full UI suite: 33 test files / 178 tests passed.
+- Type-check and production build passed.
+- Test Genie receipt `20260919-164826-9d4babc1`: unit, contracts, and experience passed 3/3.
+- The combined `test:template-library` command remains blocked by an existing generated design-token mismatch; its template-link subtests pass.
+
+### 2026-09-20 — commitment lifecycle vertical slice
+
+- Commitment service tests pass **2/2**; Plan commitment/API UI coverage passes **18/18**; the full UI suite passes **34 files / 188 tests**.
+- API and CLI suites pass, endpoint generation is current, and live CLI smoke created, listed, and revised a commitment with preserved unknown risk/acknowledgment.
+- Managed restart is healthy and execution-enabled ui-health passes **L5** across all declared routes and desktop/mobile. The remaining advisory is the intentional Night raw-hex detector; forecast/risk derivation remains explicitly unimplemented.
+
+### 2026-09-20 — commitment boundary composer and mobile Plan navigation
+
+- Plan tests pass **17/17** after adding regression coverage for shared Textarea metadata fields in the commitment composer.
+- Full UI suite passes **34 files / 188 tests**; type-check and production build pass.
+- The Plan view switcher is now bounded and horizontally scrollable on narrow screens; no billing UI was added because monetization is explicitly deferred to R3 and remains a documented hypothesis.
+
+### 2026-09-20 — deterministic forecast outlook vertical slice
+
+- Forecast kernel tests pass **2/2**, API `go test ./...` passes, CLI `go test ./...` passes after refreshing primitive evidence, and endpoint generation is current.
+- Forecast API live smoke: `personal-planner forecasts get --local-date 2026-09-19 --timezone America/New_York --horizon-days 28 --json` returned a current forecast with input fingerprint, central/cautious dates, reserve accounting, and an explanation.
+- UI forecast API/Plan tests pass **19/19**; full UI suite passes **35 files / 190 tests**; type-check and production build pass.
+- Managed restart is healthy on ports **17604/20003** with notification-hub degraded by its unrelated tunnel-manager freshness timeout. Execution-enabled ui-health passes **L5** across all declared routes and desktop/mobile; remaining findings are informational runtime confirmations and the intentional Night warm-ivory raw-color advisory.
+
+### 2026-09-20 — promise-versus-forecast risk comparison
+
+- Forecast kernel coverage now passes **3/3**, including at-risk and cautious-only commitment boundaries; API and CLI suites pass.
+- Live Connect forecast response includes the active commitment's promised boundary, forecast finish, `on_track` risk state, and explanation.
+- Plan/API focused UI coverage passes **19/19**; full UI suite passes **35 files / 190 tests**; type-check and production build pass.
+- Fresh execution-enabled ui-health validation passes **L5** across all declared routes and desktop/mobile profiles. Informational findings remain the standard runtime confirmations plus the intentional Night warm-ivory raw-color advisory.
+
+### 2026-09-20 — durable forecast snapshots and change records
+
+- Forecast schema registration and API `go test ./...` pass; CLI `go test ./...` passes.
+- Live persistence smoke: the first forecast created one `forecast_snapshots` row; adding a real work item changed the fingerprint and created a second snapshot plus one `forecast_change_records` row. The Connect response returned both snapshot IDs and the material change explanation.
+- Full UI suite passes **35 files / 190 tests**; type-check and production build pass. Plan Outlook renders the persisted change explanation when present.
+- Fresh execution-enabled `ui-health validate scenario personal-planner --json` passes with `VALIDATION_STATUS_PASSED` at **L5**; all 15 findings are informational runtime confirmations or the documented Night warm-ivory raw-color advisory.
+
+- Experience-floor regression closure: focused Dashboard tests pass **9/9**, production build passes, and final managed Test Genie receipt `20260919-221722-0f9da741` passes **1/1 at L3 Complete**. It follows failed receipts `20260919-220409-22f36e6a` (Goal overflow plus Today negative-y geometry), `20260919-220943-22bc155c` (Goal cleared; Today remained), and `20260919-221225-c67dc897` (compact card exposed landscape action/link floor failures). The final run is clean; notification-hub remains degraded only by the recurring tunnel-manager freshness timeout.
+- Feedback-loop shell/mobile closure: full UI suite passes **33 files / 182 tests**, type-check and production build pass. The first post-change experience run correctly caught the compact Auto control at **39.19px**; after raising its minimum to 44px, receipt `20260919-224444-d0d0d602` passes **1/1 at L3 Complete** with no blocking findings. This validates the route scroll reset, bounded sidebar geometry, Plan title disclosure, and mobile tap-target correction together.
+- Review mobile hierarchy polish: Review tests pass **6/6** and the full UI suite passes **33 files / 182 tests**. The required date-field semantics remove the misleading optional annotation, mobile summary spacing is tightened, and the Today rejected-capture test waits for the mutation boundary. Type-check/build pass; experience receipt `20260919-225048-e7243910` passes **1/1 at L3 Complete** with no blocking findings. BAS mobile capture `bas-capture://eaf677c2-0d07-46c2-b4f2-701651c3f4eb/screenshot` is retained as runtime evidence, not visual-oracle certification.
+- Settings language polish: Settings tests pass **4/4** and the full UI suite passes **33 files / 182 tests**. The product-specific description is covered by a regression assertion, type-check/build pass, and experience receipt `20260919-225504-3d9ad5bf` passes **1/1 at L3 Complete**. Mobile BAS evidence `bas-capture://0246c0c5-148e-4b6b-b8ff-984852f80742/screenshot` confirms the Settings route renders without the previous scaffold-like copy.
+- Plan mobile placement hierarchy: Plan tests pass **15/15** and the full UI suite passes **33 files / 182 tests**. The mobile capacity strip is compacted, the Plan description is tightened, and placement fields are explicitly required. Type-check/build pass; managed restart is healthy; experience receipt `20260919-230345-ea56ef9c` passes **1/1 at L3 Complete**. BAS mobile evidence `bas-capture://2a9f8db0-239a-42e5-a855-9d14137f05c7/screenshot` is runtime evidence, not visual-oracle certification.
+- Focus mobile shell polish: Focus tests pass **5/5** and the full UI suite remains **33 files / 182 tests**. Horizontal overflow is constrained at the shell/content boundary, the Focus work-item selector is required, and the actuals header date is kept on one line. Type-check/build pass; experience receipt `20260919-231123-d338d184` passes **1/1 at L3 Complete**. BAS mobile evidence `bas-capture://f77e6f4a-aa19-400e-8c7c-5672ed30128c/screenshot` confirms the full bottom navigation and required selector in the built route.
+- Night Observatory visual checkpoint: Dashboard tests pass **9/9**, full UI suite passes **33 files / 182 tests**, type-check/build pass, and experience receipt `20260919-231835-7c5809dd` passes **1/1 at L3 Complete**. The built Night checkpoint `bas-capture://fdce80d1-6f46-45d7-a84b-aa57914c07a7/screenshot` confirms the approved warm-ivory next-action surface against the dark scene. The artifact has a direct-route scroll-position limitation and is evidence of the corrected region, not whole-surface visual-oracle certification.
+- Observatory shell proportion checkpoint: AppShell and shell accessibility tests pass **13/13**, type-check/build pass, managed restart is healthy, and experience receipt `20260919-232657-b2e36929` passes **1/1 at L3 Complete**. The fresh Day runtime capture `bas-capture://a2c22589-6670-4d1c-8e6c-be1490647fbe/screenshot` confirms the 144px baseline sidebar and tighter reference-like main gutter. The unrelated notification-hub/tunnel-manager freshness timeout remains outside Personal Planner health.
+- Goals progress control checkpoint: Goals tests pass **6/6**, the full UI suite passes **33 files / 182 tests**, type-check/build pass, managed restart is healthy, and experience receipt `20260919-233228-3d735d37` passes **1/1 at L3 Complete**. The raw range input is now covered by the shared Slider contract; progress persistence is commit-based rather than per-drag-frame.
+- Plan timeline clipping checkpoint: Plan tests pass **15/15**, full UI suite passes **33 files / 182 tests**, type-check/build pass, and execution-enabled UI-health validation reaches **L5** across all seven routes and desktop/mobile profiles with zero `visual_text_clipped` findings. Experience receipt `20260919-234036-858caffe` passes **1/1 at L3 Complete**. Short timeline blocks retain title/popover detail while removing only cramped secondary metadata.
+- Today focus-view geometry checkpoint: Dashboard tests pass **9/9**, type-check/build pass, managed restart is healthy, and experience receipt `20260919-234425-8377334b` passes **1/1 at L3 Complete**. The Focus ruler and grid now use the active span rather than a fixed eleven-column layout.
+- Observatory Day/Night oracle checkpoint: full UI suite passes **33 files / 182 tests**, production build pass, managed restart is healthy, and experience receipt `20260919-234855-762c41c2` passes **1/1 at L3 Complete**. Reference-width runtime evidence is Day `bas-capture://bb5fe5a4-42bf-4b8e-8243-0485ed08b8c6/screenshot` and corrected Night `bas-capture://c4a0ee34-6d71-45cb-9c17-f6ff202f5839/screenshot`. The checkpoint specifically verifies the Night ivory action surface and its light secondary action; live data/date differences from the concept remain intentional.
+- Responsive Observatory checkpoint: governed 390×844 captures confirm Day `bas-capture://4d98656a-a5e8-49ff-9949-62eff34ef197/screenshot` and Night `bas-capture://db77a784-55c0-41dd-91fa-08c801c0e18d/screenshot`. Visual inspection confirms no unintended outer shell border, correct bottom safe-area treatment, left-focused scenery, readable action card, and appearance-specific browser chrome.
+- Settings scenery contract closure: focused appearance/Settings/Dashboard tests pass **19/19**; full UI suite passes **33 files / 184 tests**; type-check and production build pass. Managed restart is healthy on **17604/20003**. Execution-enabled `ui-health validate scenario personal-planner --json` passes at **L5** across all seven routes and desktop/mobile profiles; the only finding is the intentional Night warm-ivory raw-color advisory.
+- Browser chrome branding closure: comprehensive Test Genie run `20260920-000129-85e490c3` completed **25/27**, with portability and performance failed; the scoped branding rerun `20260920-001027-c46e8d58` passes **1/1**. HTML and manifest theme colors now agree, and a dark-scheme fallback is declared. `brand-manager provider validate personal-planner` passes with Install Surface complete; only the known generated-token custom-font advisory remains.
+- Initial-load performance closure: route-level loading split Plan, Goals, Focus, and Review into deferred chunks; the initial JS bundle is **804 KB** versus the previous roughly **880 KB**. Scenery now loads only the active panorama initially. Full UI suite passes **33 files / 184 tests**, type-check/build pass, and server-owned Test Genie run `20260920-002132-eec37121` passes the performance phase **1/1 at L3 Complete**. A single earlier full-suite async capture failure reproduced cleanly on focused rerun and the final full suite passed.
+- Settings section hierarchy checkpoint: focused Settings/AppShell tests pass **17/17**, full UI suite passes **33 files / 184 tests**, type-check/build and diff-check pass. Execution-enabled `ui-health validate scenario personal-planner --json` passes at **L5** across all seven routes and desktop/mobile profiles; Test Genie experience run `20260920-002814-7492f69c` and current-build performance run `20260920-002931-67e3b25a` each pass **1/1 at L3 Complete**. The only UI-health advisory remains the intentional Night action-surface raw-color detector.
+- Dynamic mobile chrome checkpoint: ThemeProvider tests pass **7/7**, full UI suite passes **33 files / 185 tests**, type-check/build and diff-check pass, and the managed runtime is healthy. Media-specific `theme-color` declarations are now regression-tested against the resolved Night appearance. Fresh execution-enabled ui-health validation remains **L5** across all seven routes and both viewport profiles.
+- Plan routine-editor geometry closure: Plan tests pass **15/15**, full UI suite passes **33 files / 185 tests**, type-check/build and diff-check pass, managed restart is healthy, and fresh execution-enabled ui-health validation remains **L5** across all seven routes and desktop/mobile. Current-build Test Genie performance run `20260920-004309-3f0d8b52` passes **1/1 at L3 Complete**. The routine editor now has explicit responsive columns and safe label wrapping after BAS exposed an actual desktop label collision.
+- Plan Capacity perspective: Plan tests pass **16/16**, full UI suite passes **33 files / 186 tests**, type-check and production build pass, and `git diff --check -- scenarios/personal-planner` passes. The new view is covered for accepted work, provider holds, freshness, the capacity meter, and the read-only allocation list; managed runtime/UI-health evidence is still pending for this bundle.
+- Plan Month/Timeline perspective: Plan tests pass **16/16**, full UI suite passes **33 files / 186 tests**, type-check and production build pass, and scoped diff-check passes. Month and Timeline interaction coverage uses the accepted range fixture; the current Commitments gap is documented as a missing domain contract rather than represented by a fake UI state.
+## 2026-09-20 — Forecast history
+
+- `go test ./...` passed in `api`.
+- `UPDATE_CLI_EVIDENCE=1 go test ./...` passed in `cli` and refreshed primitive evidence for `forecasts history`.
+- `pnpm exec vitest run src/api/forecasts.test.ts src/pages/PlanPage.test.tsx` passed: 19 tests.
+- `pnpm exec tsc --noEmit && pnpm build` passed.
+- `make endpoints` passed.
+- Managed `make restart` reached healthy on API 17604/UI 20003; notification-hub remained a known degraded dependency because tunnel-manager freshness timed out.
+- `personal-planner forecasts history --json --limit 5` and the raw Connect list endpoint returned the two persisted forecast snapshots, including the recorded change explanation.
+
+## 2026-09-20 — Goals editorial hierarchy
+
+- `pnpm exec vitest run src/pages/GoalsPage.test.tsx` passed: 6 tests.
+- `pnpm exec tsc --noEmit && pnpm build` passed.
+- Managed `make restart` reached healthy on API 17604/UI 20003; notification-hub remained a known degraded dependency because tunnel-manager freshness timed out.
+- Execution-enabled `ui-health validate scenario personal-planner --json` passed at `L5`; the existing intentional Night warm-ivory raw-color advisory remains the only finding class.
+
+## 2026-09-20 — Focus ritual hierarchy
+
+- `pnpm exec vitest run src/pages/FocusPage.test.tsx` passed: 5 tests.
+- `pnpm exec tsc --noEmit && pnpm build` passed.
+- Managed `make restart` reached healthy on API 17604/UI 20003; notification-hub remained a known degraded dependency because tunnel-manager freshness timed out.
+- Execution-enabled `ui-health validate scenario personal-planner --json` passed at `L5` across desktop/mobile routes.
+
+## 2026-09-20 — Review reflection hierarchy
+
+- `pnpm exec vitest run src/pages/ReviewPage.test.tsx` passed: 6 tests.
+- `pnpm exec tsc --noEmit && pnpm build` passed.
+- Managed `make restart` reached healthy on API 17604/UI 20003; notification-hub remained a known degraded dependency because tunnel-manager freshness timed out.
+- Execution-enabled `ui-health validate scenario personal-planner --json` passed at `L5` across desktop/mobile routes.
+
+## 2026-09-20 — Responsive Plan chrome reconciliation
+
+- Focused Experience run `20260920-020212-5ef76e09` correctly failed on portrait Plan document overflow; after wrapping the perspective switcher, `20260920-020534-53cee519` exposed the same issue at 844×390 landscape.
+- Short-landscape four-column wrapping corrected the second profile. Authoritative receipt `20260920-021020-455eea56` passed `1/1` at **L3 Complete**, with clean structure reconciliation and no findings.
+- Focused Plan/Review tests passed 24/24 before the final CSS-only breakpoint refinement; the production build passed after it, and the managed runtime is healthy on API 17604/UI 20003. Notification-hub remains degraded by the unrelated tunnel-manager freshness timeout.
+- Visual checkpoint artifacts: Settings desktop/mobile and Review desktop BAS captures are recorded in PROGRESS; these are runtime evidence, not substitutes for the approved Today visual oracle.
+
+## 2026-09-20 — Local typography evidence
+
+- `pnpm exec vitest run` passed: **35 files / 190 tests**.
+- `pnpm type-check` and `pnpm build` passed; `git diff --check -- scenarios/personal-planner` passed.
+- `brand-manager provider validate personal-planner --json` passed at **L3** with zero findings after adding the local system-backed `Planner Sans` face.
+- Execution-enabled `ui-health validate scenario personal-planner --json` passed at **L5** across all declared routes and desktop/mobile profiles. Remaining non-render findings are the intentional Night action-surface raw-color advisory and generic shared-component text-box measurements.
+
+## 2026-09-20 — Cross-route Observatory theme parity
+
+- A live managed-bundle Playwright check visited `/settings` and `/`; both resolved `data-resolved-theme=dark`, `--color-background: #141321`, and `--color-surface: #201e30`. This catches the prior defect where secondary routes inherited the default blue library palette.
+- Runtime screenshots `/tmp/personal-planner-settings-theme.png` and `/tmp/personal-planner-today-theme.png` were inspected. Settings now uses the Observatory Night canvas, raised surface, amber selected state, and lilac section accents; Today and Settings share the same Night token family.
+- `pnpm exec vitest run` passed **35 files / 190 tests**; `pnpm type-check` and `pnpm build` passed; managed restart reports Personal Planner healthy on API `17604` / UI `20003`.
+- Final execution-enabled `ui-health validate scenario personal-planner --json` passed at **L5**. Findings are 14 runtime confirmations plus the intentional `standard_no_raw_hex` Night action-surface advisory; `git diff --check -- scenarios/personal-planner` passed.
+- Server-owned Experience receipt `20260920-023409-c7221f57` passed **1/1** at **L3 Complete**, with clean structure reconciliation and no findings.
+- A fresh 390×844 managed-browser check reports no horizontal overflow (`scrollWidth=390`, `innerWidth=390`) and produced `/tmp/personal-planner-settings-mobile-theme.png` and `/tmp/personal-planner-today-mobile-theme.png` for visual inspection.
+
+## 2026-09-20 — Settings editorial header parity
+
+- `pnpm exec vitest run src/pages/SettingsPage.test.tsx src/layout/AppShell.a11y.test.tsx` passed: **6 tests**.
+- `pnpm type-check` and `pnpm build` passed.
+- Managed `make restart` reached healthy on API `17604` / UI `20003`; notification-hub remained degraded because tunnel-manager freshness timed out.
+- Live managed Settings capture: `/tmp/personal-planner-settings-editorial.png`.
+- Experience receipt `20260920-025021-032b6ada` passed **1/1** at **L3 Complete** with clean structure reconciliation.
+
+## 2026-09-20 — Today timeline compact disclosure
+
+- `pnpm exec vitest run src/pages/DashboardPage.test.tsx` passed: **10 tests**.
+- `pnpm exec vitest run` passed: **35 files / 190 tests**.
+- `pnpm type-check`, `pnpm build`, and `git diff --check -- scenarios/personal-planner` passed.
+- Managed `make restart` reached healthy on API `17604` / UI `20003`; notification-hub remained degraded because tunnel-manager freshness timed out.
+- Final live managed Today capture: `/tmp/personal-planner-today-final-duration.png`; compact timeline labels are legible and full titles remain disclosed on interaction.
+- Experience receipt `20260920-030058-bdc96885` passed **1/1** at **L3 Complete** with clean structure reconciliation.
+
+## 2026-09-20 — Compact timeline visual-health hardening
+
+- `ui-health validate scenario personal-planner --json` passed at **L5** after the Plan compact-block adjustment; the prior two `visual_text_clipped` warnings are no longer present. Remaining findings are 14 advisory runtime confirmations plus the intentional `standard_no_raw_hex` advisory.
+- `pnpm type-check`, `pnpm build`, and `git diff --check -- scenarios/personal-planner` passed.
+- Managed restart reached healthy on API `17604` / UI `20003`; notification-hub remained degraded by tunnel-manager freshness timeout.
+- Experience receipt `20260920-030714-41b9f378` passed **1/1** at **L3 Complete** with clean structure reconciliation.
+
+## 2026-09-20 — Mobile secondary-surface and chrome evidence
+
+- 390×844 managed-browser audit captures: `/tmp/personal-planner-goals-mobile-audit.png`, `/tmp/personal-planner-focus-mobile-audit.png`, and `/tmp/personal-planner-review-mobile-audit.png`. Goals, Focus, and Review retain their editorial hierarchy, shared controls, scrollable content, and safe-area bottom navigation.
+- `pnpm exec vitest run src/layout/AppShell.test.tsx src/theme/ThemeProvider.test.tsx` passed: **19 tests**.
+- `pnpm exec vitest run` passed: **35 files / 191 tests**.
+- `pnpm type-check`, `pnpm build`, and `git diff --check -- scenarios/personal-planner` passed.
+- The new shell regression verifies Night `meta[name="theme-color"]`, `--rcl-status-fill`, and the rendered `planner-status-fill` strip.
+
+## 2026-09-20 — Plan timeline disclosure readability
+
+- `pnpm exec vitest run src/pages/PlanPage.test.tsx` passed: **18 tests**.
+- `pnpm exec vitest run` passed: **35 files / 190 tests**.
+- `pnpm type-check` and `pnpm build` passed.
+- Managed `make restart` reached healthy on API `17604` / UI `20003`; notification-hub remained degraded because tunnel-manager freshness timed out.
+- Live managed `/plan` capture: `/tmp/personal-planner-plan-after-title-fix.png`. Short blocks show duration labels; full titles remain available via title/accessible label/popover.
+- Experience receipt `20260920-024551-942e7e1d` passed **1/1** at **L3 Complete** with clean structure reconciliation.
+
+## 2026-09-20 — Day panorama contrast correction
+
+- Reduced the Observatory Day panorama scrim from the flattening 88% middle
+  surface wash to a lighter semantic blend, preserving the approved scene's
+  warm atmosphere and content readability without changing Night behavior.
+- `pnpm test` passed: **35 files / 191 tests**.
+- `pnpm type-check` and `pnpm build` passed.
+- `ui-health validate scenario personal-planner --json` passed at **L5** with
+  no `visual_text_clipped` findings; remaining findings are informational
+  runtime confirmations and the existing raw-palette advisory.
+- Managed `make restart` reached healthy on API `17604` / UI `20003`; the
+  unrelated notification-hub/tunnel-manager freshness timeout remains.
+
+## 2026-09-20 — Sidebar route-entry scroll hardening
+
+- AppShell route reset now clears every descendant scroll container inside the
+  library-owned sidebar, protecting the full navigation list across deep-link
+  and route transitions.
+- Focused AppShell validation passed: **15 tests**.
+- `pnpm test` passed: **35 files / 195 tests**.
+- `pnpm type-check` and `pnpm build` passed.
+- `git diff --check -- scenarios/personal-planner` passed.
+
+## 2026-09-20 — Mobile browser-chrome viewport contract
+
+- `ui/index.html` now follows the Web Console safe-area contract with
+  `interactive-widget=resizes-content`, `viewport-fit=cover`, explicit zoom
+  behavior, and `color-scheme=light dark`.
+- `pnpm test` passed: **35 files / 195 tests**.
+- `pnpm type-check` and `pnpm build` passed.
+- `git diff --check -- scenarios/personal-planner` passed.
+- Managed `make restart` reports the planner healthy on API `17604` / UI
+  `20003`; it continues in degraded mode only because notification-hub hit the
+  unrelated tunnel-manager freshness timeout.
+
+## 2026-09-20 — Responsive scenery and query-aware route reset
+
+- Landscape Day/Night captures at 844×390 passed readiness and visually
+  confirmed a fixed, left-focal Observatory scene without squashing; Night
+  retains visible stars:
+  `bas-capture://3db06971-b5e1-408e-a9f4-7de0774118cb/screenshot` and
+  `bas-capture://0417de08-55d2-4772-773d7b1fdea9/screenshot`.
+- AppShell route-entry reset now responds to both pathname and URL search,
+  preventing appearance/deep-link changes from carrying stale scroll state
+  through the main surface or sidebar.
+- `pnpm exec vitest run src/layout/AppShell.test.tsx` passed: **15 tests**.
+- `pnpm test` passed: **35 files / 195 tests**.
+- `pnpm type-check`, `pnpm build`, and `git diff --check -- scenarios/personal-planner` passed.
+- `ui-health validate scenario personal-planner --json` passed at **L5**.
+- Managed planner restart reached healthy on API `17604` / UI `20003`; the
+  unrelated notification-hub/tunnel-manager freshness timeout remains.
+
+## 2026-09-20 — Persistent validation-data cleanup
+
+- Read-only inspection identified three smoke work items, smoke focus sessions,
+  a smoke commitment/goal, generated proposal/forecast history, and fixture
+  provider connections in the persistent local database.
+- The database was backed up before deleting those exact validation records;
+  planning profile/schema state was retained. No production code or test
+  fixtures were removed.
+- Fresh managed Plan capture confirms the honest empty state: `0 min` planned,
+  `360 min` available, `360 min` breathing room, and no routines:
+  `bas-capture://94041309-c71c-4203-928b-c79d81c64be2/screenshot`.
+- Managed restart reports the planner healthy on API `17604` / UI `20003`;
+  notification-hub remains degraded by the unrelated tunnel-manager timeout.
+
+## 2026-09-20 — Cross-surface appearance transition contract
+
+- Secondary planner surfaces now transition background, foreground, border, and
+  elevation together when the resolved appearance changes.
+- The transition layer is disabled under `prefers-reduced-motion: reduce`.
+- The shared main scroller now publishes bottom `scroll-padding` for fixed
+  mobile navigation and safe-area space.
+- `pnpm test` passed: **35 files / 195 tests**.
+- `pnpm type-check`, `pnpm build`, and `git diff --check -- scenarios/personal-planner` passed.
+- `ui-health validate scenario personal-planner --json` passed at **L5**.
+- Managed planner restart is healthy on API `17604` / UI `20003`; the known
+  notification-hub/tunnel-manager freshness failure remains unrelated.
+- Fresh Review capture at 1585×992 with `networkidle` passed readiness and
+  visually confirmed the full sidebar: `bas-capture://2839fac0-519e-461f-b325-e525b3af2d29/screenshot`.
+- The managed restart reached healthy on API `17604` / UI `20003`; the
+  unrelated notification-hub/tunnel-manager freshness timeout remains.
+
+## 2026-09-20 — Compact Observatory appearance control
+
+- Day’s Auto/Day/Night control is icon-first, with only the selected label
+  expanded; all three buttons retain accessible names, pressed state, and
+  native titles.
+- Fresh BAS Day capture at 1585×992 with `networkidle` passed readiness and
+  visually confirmed the compact control:
+  `bas-capture://835f453b-34f9-4bd3-8b17-4f4fc8e471e8/screenshot`.
+- `pnpm test` passed: **35 files / 195 tests**.
+- `pnpm type-check` and `pnpm build` passed.
+- `git diff --check -- scenarios/personal-planner` passed.
+
+## 2026-09-20 — Day panorama atmospheric blend refinement
+
+- The Day-only scene scrim was reduced so the cloudy sky and mountain texture
+  remain visible without weakening the light-theme text contrast.
+- Fresh BAS capture at 1585×992 with `networkidle` passed readiness and was
+  visually inspected: `bas-capture://c1904fae-6c06-4273-9fcc-9ecdbc31603b/screenshot`.
+- `pnpm test` passed: **35 files / 194 tests**.
+- `git diff --check -- scenarios/personal-planner` passed.
+- `ui-health validate scenario personal-planner --json` passed at **L5** with
+  the existing informational runtime confirmations and raw-palette advisory.
+- Managed restart reached healthy on API `17604` / UI `20003`; the unrelated
+  notification-hub/tunnel-manager freshness timeout remains.
+
+The AppShell URL-override regression now passes as part of the full suite and
+asserts the rendered sidebar baseline alongside the Night shell class and
+document theme attribute. The final full-suite count for this checkpoint is
+**35 files / 194 tests**.
+
+Fresh BAS reference-width captures after the managed restart:
+
+- Day: `bas-capture://19b4e8a1-a161-470a-bba4-2f18544d2e02/screenshot`
+- Night: `bas-capture://194b7019-aa13-43c0-8644-b9df775c1dea/screenshot`
+
+Both were captured at 1585×992 with `networkidle`; visual inspection confirms
+the sidebar and Today surface now resolve together in each appearance.
+
+## 2026-09-20 — Shared appearance resolution
+
+- URL appearance overrides now resolve in `ThemeProvider` before AppShell
+  mounts, so deep-linked Day/Night captures cannot leave the sidebar, bottom
+  navigation, status strip, or browser chrome in the prior theme.
+- Focused ThemeProvider/AppShell/Dashboard validation passed: **31 tests**.
+- `pnpm test` passed: **35 files / 193 tests**.
+- `pnpm type-check` and `pnpm build` passed.
+- `ui-health validate scenario personal-planner --json` passed at **L5** with
+  only informational runtime confirmations and the existing raw-palette
+  advisory.
+- Managed `make restart` reached healthy on API `17604` / UI `20003`; the
+  unrelated notification-hub/tunnel-manager freshness timeout remains.
+
+## 2026-09-20 — Sidebar resize range correction
+
+- The AppShell resize separator now exposes `aria-valuemin=128` and
+  `aria-valuemax=280`, retaining the 144px default and adding 8px/40px
+  keyboard steps.
+- `pnpm exec vitest run src/layout/AppShell.test.tsx` passed: **13 tests**.
+- `pnpm test` passed: **35 files / 192 tests**.
+- `pnpm type-check` and `pnpm build` passed.
+- Managed `make restart` reached healthy on API `17604` / UI `20003`; the
+  unrelated notification-hub/tunnel-manager freshness timeout remains.

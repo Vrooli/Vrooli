@@ -352,6 +352,93 @@
       ]
     },
     {
+      "name": "commitments",
+      "description": "Record explicit promises and preserve their revisions",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List commitments",
+          "binding": { "kind": "connect-rpc", "service": "CommitmentsService", "method": "ListCommitments" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" },
+          "measure": { "domain": "commitments", "intent": "Show explicit promises and their current state.", "questions": ["show my commitments", "list promises", "what have I promised"], "result": { "kind": "table", "value_field": "commitments", "unit": "commitments", "summary_template": "recorded commitments" } }
+        },
+        {
+          "name": "create",
+          "description": "Create an explicit commitment",
+          "flags": [
+            { "name": "result", "required": true, "description": "Promised result" },
+            { "name": "definition-of-done", "description": "Observable completion boundary", "bind": { "field": "definition_of_done" } },
+            { "name": "promised-boundary", "required": true, "description": "Promised date or timestamp", "bind": { "field": "promised_boundary" } },
+            { "name": "timezone", "description": "IANA timezone" },
+            { "name": "beneficiary", "description": "Optional private beneficiary label" },
+            { "name": "assumptions", "description": "Assumptions behind the promise" },
+            { "name": "scope-exclusions", "description": "Explicit exclusions", "bind": { "field": "scope_exclusions" } },
+            { "name": "state", "description": "proposed or active" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CommitmentsService", "method": "CreateCommitment" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "state",
+          "description": "Update commitment lifecycle state",
+          "positionals": [{ "name": "id", "required": true, "description": "Commitment id" }],
+          "flags": [
+            { "name": "state", "required": true, "description": "proposed, active, fulfilled, or cancelled" },
+            { "name": "revision", "required": true, "description": "Expected commitment revision", "bind": { "field": "expected_revision" } }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CommitmentsService", "method": "UpdateCommitmentState" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "revise",
+          "description": "Record a new promise boundary while retaining history",
+          "positionals": [{ "name": "id", "required": true, "description": "Commitment id" }],
+          "flags": [
+            { "name": "promised-boundary", "required": true, "description": "New promised date or timestamp", "bind": { "field": "promised_boundary" } },
+            { "name": "assumptions", "description": "Updated assumptions" },
+            { "name": "scope-exclusions", "description": "Updated exclusions", "bind": { "field": "scope_exclusions" } },
+            { "name": "reason", "description": "Why the promise changed" },
+            { "name": "acknowledgment-status", "description": "unknown, pending, or acknowledged", "bind": { "field": "acknowledgment_status" } },
+            { "name": "revision", "required": true, "description": "Expected commitment revision", "bind": { "field": "expected_revision" } }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CommitmentsService", "method": "ReviseCommitment" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        }
+      ]
+    },
+    {
+      "name": "forecasts",
+      "description": "Inspect honest deterministic completion outlooks",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Get the current central and cautious forecast",
+          "flags": [
+            { "name": "local-date", "description": "Forecast start date in YYYY-MM-DD format", "bind": { "field": "local_date" } },
+            { "name": "timezone", "description": "IANA timezone used for the forecast" },
+            { "name": "horizon-days", "description": "Bounded forecast horizon in days", "bind": { "field": "horizon_days" } }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ForecastsService", "method": "GetForecast" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "history",
+          "description": "List recent forecast snapshots and changes",
+          "flags": [
+            { "name": "limit", "description": "Number of recent snapshots to return" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ForecastsService", "method": "ListForecastSnapshots" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        }
+      ]
+    },
+    {
       "name": "focus",
       "description": "Start and account for focused work sessions",
       "commands": [

@@ -39,8 +39,6 @@ const literalSelectors = {
   pages: {
     dashboard: "page-today",
     today: "page-today",
-    dashboardHeader: "page-dashboard-header",
-    dashboardPlaceholder: "page-dashboard-placeholder",
     plan: "page-plan",
     goals: "page-goals",
     focus: "page-focus",
@@ -95,7 +93,7 @@ const dynamicSelectorDefinitions = {
       description: "Appearance choice by canonical theme value",
       testIdPattern: "page-settings-theme-option-${choice}",
       params: {
-        choice: { type: "enum", values: ["light", "dark", "system"] as const },
+        choice: { type: "enum", values: ["auto", "day", "night"] as const },
       },
     }),
   },

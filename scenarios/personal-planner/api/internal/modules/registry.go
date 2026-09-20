@@ -23,7 +23,9 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	calendarH "personal-planner/handlers/calendar"
+	commitmentsH "personal-planner/handlers/commitments"
 	focusH "personal-planner/handlers/focus"
+	forecastsH "personal-planner/handlers/forecasts"
 	goalsH "personal-planner/handlers/goals"
 	healthH "personal-planner/handlers/health"
 	integrationsH "personal-planner/handlers/integrations"
@@ -33,7 +35,9 @@ import (
 	localdb "personal-planner/internal/database"
 
 	calendarv1 "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/calendar"
+	commitmentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/commitments"
 	focusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/focus"
+	forecastsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/forecasts"
 	goalsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/goals"
 	integrationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/integrations"
 	reviewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/review"
@@ -50,6 +54,8 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, healthH.Endpoints...)
 	out = append(out, focusH.Endpoints...)
 	out = append(out, calendarH.Endpoints...)
+	out = append(out, commitmentsH.Endpoints...)
+	out = append(out, forecastsH.Endpoints...)
 	out = append(out, goalsH.Endpoints...)
 	out = append(out, integrationsH.Endpoints...)
 	out = append(out, reviewH.Endpoints...)
@@ -83,6 +89,8 @@ func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "focus", File: focusv1.File_personal_planner_v1_focus_focus_proto},
 		{Module: "calendar", File: calendarv1.File_personal_planner_v1_calendar_calendar_proto},
+		{Module: "commitments", File: commitmentsv1.File_personal_planner_v1_commitments_commitments_proto},
+		{Module: "forecasts", File: forecastsv1.File_personal_planner_v1_forecasts_forecasts_proto},
 		{Module: "goals", File: goalsv1.File_personal_planner_v1_goals_goals_proto},
 		{Module: "integrations", File: integrationsv1.File_personal_planner_v1_integrations_integrations_proto},
 		{Module: "review", File: reviewv1.File_personal_planner_v1_review_review_proto},
@@ -104,6 +112,8 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(focusH.Schema),
 		apidb.SchemaProviderFunc(calendarH.Schema),
+		apidb.SchemaProviderFunc(commitmentsH.Schema),
+		apidb.SchemaProviderFunc(forecastsH.Schema),
 		apidb.SchemaProviderFunc(goalsH.Schema),
 		apidb.SchemaProviderFunc(integrationsH.Schema),
 		apidb.SchemaProviderFunc(workH.Schema),

@@ -6,6 +6,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
+import { act } from "react";
 
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
@@ -23,6 +24,9 @@ describe("AppShell accessibility", () => {
 
   it("renders the shell without axe violations in English", async () => {
     const { container } = renderWithProviders(<TestAppRouter initialEntries={["/"]} />, { withoutRouter: true });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    });
     await expectNoA11yViolations(container);
   });
 

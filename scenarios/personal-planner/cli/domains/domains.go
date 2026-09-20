@@ -2,6 +2,8 @@ package domains
 
 import (
 	"personal-planner/cli/domains/calendar"
+	"personal-planner/cli/domains/commitments"
+	"personal-planner/cli/domains/forecasts"
 	"personal-planner/cli/domains/focus"
 	"personal-planner/cli/domains/goals"
 	"personal-planner/cli/domains/integrations"
@@ -48,6 +50,16 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, calendarGroup)
+	commitmentsGroup, err := commitments.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, commitmentsGroup)
+	forecastsGroup, err := forecasts.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, forecastsGroup)
 	workspaceGroup, err := workspace.Register(core, manifest)
 	if err != nil {
 		return nil, err

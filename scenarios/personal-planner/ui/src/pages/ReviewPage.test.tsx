@@ -23,6 +23,7 @@ describe("ReviewPage", () => {
     expect(await screen.findByText("25 min")).toBeInTheDocument();
     expect(screen.getByText("Recorded focus is measured.")).toBeInTheDocument();
     expect(screen.getByText(/Unrecorded: unknown/)).toBeInTheDocument();
+    expect(screen.queryByText("Optional")).not.toBeInTheDocument();
     expect(fetchDailyReview).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/));
   });
 

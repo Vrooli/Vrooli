@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { correctActual, endFocus, fetchActualCorrections, fetchActuals, fetchCurrentFocus, pauseFocus, recordManualActual, resumeFocus, startFocus, type Actual } from "../api/focus";
@@ -26,7 +26,6 @@ describe("FocusPage", () => {
     renderWithProviders(<FocusPage />);
 
     expect(await screen.findByRole("heading", { name: "Draft the launch story" })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Work item"), { target: { value: "work-1" } });
     await user.click(screen.getByRole("button", { name: "Start focus" }));
     expect(startFocus).toHaveBeenCalledWith({ workItemId: "work-1", title: "Draft the launch story", mode: "open" });
   });

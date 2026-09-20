@@ -23,7 +23,9 @@ import (
 	_ "modernc.org/sqlite"
 
 	calendarH "personal-planner/handlers/calendar"
+	commitmentsH "personal-planner/handlers/commitments"
 	focusH "personal-planner/handlers/focus"
+	forecastsH "personal-planner/handlers/forecasts"
 	goalsH "personal-planner/handlers/goals"
 	healthH "personal-planner/handlers/health"
 	integrationsH "personal-planner/handlers/integrations"
@@ -81,6 +83,8 @@ func main() {
 		healthH.Module(db, "personal-planner-api", "1.0.0"),
 		focusH.Module(db, schedule.System(), log.Default()),
 		calendarH.Module(db, schedule.System(), log.Default()),
+		commitmentsH.Module(db, schedule.System(), log.Default()),
+		forecastsH.Module(db, schedule.System(), log.Default()),
 		goalsH.Module(db, schedule.System(), log.Default()),
 		integrationsH.Module(db, schedule.System(), log.Default()),
 		reviewH.Module(db, schedule.System(), log.Default()),
