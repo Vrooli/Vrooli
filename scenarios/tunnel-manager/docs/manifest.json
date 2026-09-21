@@ -166,11 +166,11 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "\ud83c\udfaf Overview",
-              "\ud83c\udfaf Operational Targets",
-              "\ud83e\uddf1 Tech Direction Snapshot",
-              "\ud83e\udd1d Dependencies & Launch Plan",
-              "\ud83c\udfa8 UX & Branding"
+              "🎯 Overview",
+              "🎯 Operational Targets",
+              "🧱 Tech Direction Snapshot",
+              "🤝 Dependencies & Launch Plan",
+              "🎨 UX & Branding"
             ],
             "forbiddenPlaceholders": [
               "[Summarize the permanent capability this scenario adds]",
@@ -245,10 +245,10 @@
           "validation": {
             "requiredHeadings": [
               "Prerequisites",
-              "1 \u2014 Setup",
-              "2 \u2014 Start",
-              "3 \u2014 Open",
-              "5 \u2014 Run the tests"
+              "1 — Setup",
+              "2 — Start",
+              "3 — Open",
+              "5 — Run the tests"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -1035,6 +1035,21 @@
               "[TODO]"
             ]
           }
+        },
+        {
+          "path": "reference/managed-dns-records.md",
+          "docType": "reference",
+          "title": "Managed DNS Records",
+          "description": "Record types, ownership rules, SPF merge semantics, and failure behaviour for DNS writes performed on behalf of other scenarios",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "draft",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
         }
       ]
     },
@@ -1056,7 +1071,7 @@
             "boundaries",
             "boundary-registry"
           ],
-          "description": "Boundary registry \u2014 every interface and its production / test fake",
+          "description": "Boundary registry — every interface and its production / test fake",
           "audience": [
             "developers",
             "agents"
@@ -1367,7 +1382,7 @@
             "changelog",
             "handoff-log"
           ],
-          "description": "Lifecycle log \u2014 append a row whenever work lands",
+          "description": "Lifecycle log — append a row whenever work lands",
           "audience": [
             "developers",
             "agents"

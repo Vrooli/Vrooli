@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"vrooli-bridge/internal/auth"
 	internal "vrooli-bridge/internal/scenario"
 
 	"github.com/gorilla/mux"
@@ -99,6 +100,28 @@ type scenarioTestService struct{ called bool }
 func (s *scenarioTestService) Call(context.Context, internal.Request) (internal.Response, error) {
 	s.called = true
 	return internal.Response{}, nil
+}
+
+type desktopResponseService struct{}
+
+func (desktopResponseService) Call(context.Context, internal.Request) (internal.Response, error) {
+	return internal.Response{Body: []byte(`{"state":6}`)}, nil
+}
+
+func TestDesktopScenarioProxyPreservesConnectJSONForBrowser(t *testing.T) {
+	h := NewHandler(Deps{Service: desktopResponseService{}})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/targets/node-1/scenarios/device-control/vrooli.device_control.v1.desktop.DesktopSessionService/GetReadiness", nil)
+	req = req.WithContext(auth.WithIdentity(req.Context(), auth.Identity{OwnerID: "owner-1"}))
+	req = mux.SetURLVars(req, map[string]string{
+		"node": "node-1", "scenario": "device-control", "procedure": "vrooli.device_control.v1.desktop.DesktopSessionService/GetReadiness",
+	})
+	rec := httptest.NewRecorder()
+
+	h.Call(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+	require.JSONEq(t, `{"state":6}`, rec.Body.String())
 }
 
 func TestScenarioProxyRequiresOwnerBeforeAdmission(t *testing.T) {

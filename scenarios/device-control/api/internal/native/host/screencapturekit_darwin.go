@@ -78,7 +78,14 @@ static int vrooli_sck_capture(unsigned char **outBytes, size_t *outLength, int t
     }];
     if (dispatch_semaphore_wait(contentSemaphore, dispatch_time(DISPATCH_TIME_NOW, (int64_t)timeoutMs * NSEC_PER_MSEC)) != 0 || contentError != nil || content.displays.count == 0) return 2;
 
-    SCDisplay *display = content.displays.firstObject;
+    SCDisplay *display = nil;
+    for (SCDisplay *candidate in content.displays) {
+        if (CGDisplayIsMain(candidate.displayID)) {
+            display = candidate;
+            break;
+        }
+    }
+    if (display == nil) return 2;
     SCContentFilter *filter = [[SCContentFilter alloc] initWithDisplay:display excludingWindows:@[]];
 	SCStreamConfiguration *configuration = [[SCStreamConfiguration alloc] init];
     configuration.width = display.width;

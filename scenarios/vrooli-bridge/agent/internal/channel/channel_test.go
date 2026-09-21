@@ -128,6 +128,14 @@ func (f *fakeControlPlane) ReportScenarioResponse(_ context.Context, _ *connect.
 	return connect.NewResponse(&presencev1.ReportScenarioResponseResponse{Accepted: true}), nil
 }
 
+func (f *fakeControlPlane) ReportInteractiveSignalResponse(_ context.Context, _ *connect.Request[presencev1.ReportInteractiveSignalResponseRequest]) (*connect.Response[presencev1.ReportInteractiveSignalResponseResponse], error) {
+	return connect.NewResponse(&presencev1.ReportInteractiveSignalResponseResponse{Accepted: true}), nil
+}
+
+func (f *fakeControlPlane) ReportCompanionResponse(_ context.Context, _ *connect.Request[presencev1.ReportCompanionResponseRequest]) (*connect.Response[presencev1.ReportCompanionResponseResponse], error) {
+	return connect.NewResponse(&presencev1.ReportCompanionResponseResponse{Accepted: true}), nil
+}
+
 func (f *fakeControlPlane) deliveryAckCount() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()

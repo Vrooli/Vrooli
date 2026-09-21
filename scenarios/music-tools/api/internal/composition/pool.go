@@ -208,15 +208,7 @@ func (p *Pool) Draw(styleID, holder string) (Take, bool, error) {
 		if take.StyleID != styleID || take.PoolState != "available" {
 			continue
 		}
-		now := time.Now().UTC()
-		take.PoolState, take.ReservedBy, take.ReservedAt = "reserved", holder, &now
-		// Reservation ownership is tracked separately from the immutable audio
-		// blob reference; drawing a take must never destroy its artifact path.
-		p.takes[id] = take
-		p.persist(take)
-		p.setBlobState(take, true, 1)
-		needs := p.shouldReplenishLocked(styleID)
-		needed := p.target[styleID] - p.depthLocked(styleID)
+		take, needs, needed := p.reserveLocked(id, holder)
 		p.mu.Unlock()
 		p.maybeTrigger(styleID, needs, needed)
 		return take, needs, nil
@@ -224,6 +216,46 @@ func (p *Pool) Draw(styleID, holder string) (Take, bool, error) {
 	needs := p.shouldReplenishLocked(styleID)
 	p.mu.Unlock()
 	return Take{}, needs, ErrUnavailable
+}
+
+// Reserve transitions one exact take to reserved. Draw is the style-level
+// selection operation; callers that already selected an id must use Reserve so
+// a concurrent or unrelated take cannot be reserved by mistake.
+func (p *Pool) Reserve(id, holder string) (Take, bool, error) {
+	p.mu.Lock()
+	take, ok := p.takes[id]
+	if !ok {
+		p.mu.Unlock()
+		return Take{}, false, ErrUnavailable
+	}
+	if take.PoolState == "reserved" && take.ReservedAt != nil && time.Since(*take.ReservedAt) >= p.reservationTTL {
+		take.PoolState, take.ReservedBy, take.ReservedAt = "available", "", nil
+		p.takes[id] = take
+		p.persist(take)
+		p.setBlobState(take, false, 1)
+	}
+	if take.PoolState != "available" {
+		p.mu.Unlock()
+		return Take{}, false, ErrUnavailable
+	}
+	take, needs, needed := p.reserveLocked(id, holder)
+	p.mu.Unlock()
+	p.maybeTrigger(take.StyleID, needs, needed)
+	return take, needs, nil
+}
+
+func (p *Pool) reserveLocked(id, holder string) (Take, bool, int) {
+	take := p.takes[id]
+	now := time.Now().UTC()
+	take.PoolState, take.ReservedBy, take.ReservedAt = "reserved", holder, &now
+	// Reservation ownership is tracked separately from the immutable audio
+	// blob reference; drawing a take must never destroy its artifact path.
+	p.takes[id] = take
+	p.persist(take)
+	p.setBlobState(take, true, 1)
+	needs := p.shouldReplenishLocked(take.StyleID)
+	needed := p.target[take.StyleID] - p.depthLocked(take.StyleID)
+	return take, needs, needed
 }
 
 func (p *Pool) MarkConsumed(id string) (Take, error) {

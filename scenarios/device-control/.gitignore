@@ -41,3 +41,4 @@
 # Build-freshness stamps
 /.build-fingerprint.json
 api/device-control-desktop-helper
+api/device-control-companion

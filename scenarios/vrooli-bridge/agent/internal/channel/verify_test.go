@@ -191,3 +191,15 @@ func TestHandleCredentialPurgeReportsBoundReceiptAndRevokesLocalGrant(t *testing
 	require.Equal(t, "purge", reporter.receipt.GetOperation())
 	require.True(t, reporter.receipt.GetAccepted())
 }
+
+func TestHandleCredentialPurgeIgnoresOlderGeneration(t *testing.T) {
+	store := credentialgrant.NewMemoryStore(credentialgrant.Grant{
+		ID: "grant-2", NodeID: "node-1", LogicalID: "vrooli/test", Field: "token",
+		Class: credentialgrant.ClassUserPrompt, Retention: credentialgrant.RetentionEphemeral, Generation: 5,
+	})
+	c := &Client{cfg: config.Config{NodeID: "node-1"}, grantStore: store, logger: log.New(io.Discard, "", 0)}
+	c.handleCredentialPurge(&channelv1.CredentialPurge{NodeId: "node-1", GrantId: "grant-1", Generation: 4, Addresses: []string{"vrooli/test:token"}})
+	grant, ok := store.Lookup("vrooli/test", "token")
+	require.True(t, ok)
+	require.Equal(t, int64(5), grant.Generation)
+}

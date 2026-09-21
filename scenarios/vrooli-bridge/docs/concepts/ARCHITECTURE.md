@@ -318,7 +318,7 @@ lanes, readiness states, and first-release decisions are canonical in
 flowchart LR
   WC[Web Console desktop pane] -->|typed open / input / clipboard| B[Vrooli Bridge]
   B -->|authorized signaling + dial-out channel| A[Bridge node-agent]
-  A -->|local companion RPC| DC[Device Control desktop service]
+  A -->|local companion RPC| DC[Device Control desktop companion]
   DC -->|ScreenCaptureKit + CGEvent| MAC[macOS user desktop]
   A -.->|WebRTC media/data, direct or TURN| WC
 ```
@@ -341,3 +341,12 @@ input code in Bridge is an architectural defect.
 - [`../internal/ERROR-HANDLING.md`](../internal/ERROR-HANDLING.md) — error semantics
 - [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) — known issues / tech debt
 - [`../internal/PROGRESS.md`](../internal/PROGRESS.md) — lifecycle log
+
+## Browser desktop transport
+
+Bridge exposes the typed `vrooli-bridge.v1.interactive` contract for a
+Device Control desktop channel. It authorizes the node, protocol, lease epoch,
+role, expiry, signaling payload size, route metadata, and revocation. It never
+captures pixels, injects OS input, or stores clipboard text. The node agent
+rechecks the Bridge grant before forwarding signaling to the user-session
+companion; terminal transport remains a separate lane.

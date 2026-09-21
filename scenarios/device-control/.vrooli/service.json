@@ -229,6 +229,24 @@
           "env_set": "DEVICE_CONTROL_DESKTOP_HELPER_CONFIG"
         }
       }
+    },
+    "desktop-companion": {
+      "role": "sidecar",
+      "build": {
+        "kind": "go_module",
+        "dir": "api",
+        "entry": "./cmd/desktop-companion",
+        "output": "api/device-control-companion"
+      },
+      "run": {
+        "argv": [
+          "{{bin.desktop-companion}}"
+        ],
+        "cwd": "api",
+        "condition": {
+          "env_set": "DEVICE_CONTROL_DESKTOP_COMPANION_CONFIG"
+        }
+      }
     }
   },
   "skills": {

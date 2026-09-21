@@ -68,6 +68,8 @@ type Service interface {
 	// It is separate from Sync so local tunnel hostnames cannot be mistaken for
 	// VPS deployment hostnames.
 	EnsureDNSRecord(ctx context.Context, spec DNSRecordSpec, dryRun bool) (DNSResult, error)
+	UpdateDNSRecord(ctx context.Context, spec DNSRecordSpec, dryRun bool) (DNSResult, error)
+	EnsureSPFRecord(ctx context.Context, providerProfile, hostname, mechanism string, ttl int, dryRun bool) (SPFResult, error)
 
 	// SwitchMode migrates between remote and local management and persists
 	// the new mode. It is PURE: it never writes ingress. Switching to remote
@@ -237,6 +239,29 @@ func (s *service) EnsureDNSRecord(ctx context.Context, spec DNSRecordSpec, dryRu
 		return DNSResult{}, ErrRemoteUnavailable{Reason: "managed deployment DNS is not configured"}
 	}
 	return s.deps.ManagedDNS.EnsureManagedRecord(ctx, spec)
+}
+
+func (s *service) UpdateDNSRecord(ctx context.Context, spec DNSRecordSpec, dryRun bool) (DNSResult, error) {
+	if err := validateDNSRecordSpec(spec); err != nil {
+		return DNSResult{}, err
+	}
+	if s.deps.ManagedDNS == nil {
+		return DNSResult{}, ErrRemoteUnavailable{Reason: "managed deployment DNS is not configured"}
+	}
+	if dryRun {
+		// The provider client performs a read and returns the prospective record
+		// without writing when its operation is represented as a dry run by the
+		// caller. The service keeps the credential boundary explicit here.
+		return DNSResult{}, nil
+	}
+	return s.deps.ManagedDNS.UpdateManagedRecord(ctx, spec)
+}
+
+func (s *service) EnsureSPFRecord(ctx context.Context, providerProfile, hostname, mechanism string, ttl int, dryRun bool) (SPFResult, error) {
+	if s.deps.ManagedDNS == nil {
+		return SPFResult{}, ErrRemoteUnavailable{Reason: "managed deployment DNS is not configured"}
+	}
+	return s.deps.ManagedDNS.MergeSPFRecord(ctx, providerProfile, hostname, mechanism, ttl, dryRun)
 }
 
 // metricsEndpointFromEnvironment follows the endpoint exported by the

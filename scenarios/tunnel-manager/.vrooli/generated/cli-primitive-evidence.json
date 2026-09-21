@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "tunnel-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "08cff3d5381e258bebe1fe1f0b5ff476c342b3140ce6f125107a68d4199ccfed",
+  "manifest_hash": "938346aa8828ee1faa2d9b03c25d341095357b64eaac154431a6237e42d7738e",
   "commands": [
     {
       "path": "access status",
@@ -53,6 +53,22 @@
       "binding": "ConfigService.GetCredentialStatus",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "config dns-spf",
+      "group": "config",
+      "command": "dns-spf",
+      "binding": "ConfigService.EnsureSPFRecord",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "config dns-update",
+      "group": "config",
+      "command": "dns-update",
+      "binding": "ConfigService.UpdateDNSRecord",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "config get",

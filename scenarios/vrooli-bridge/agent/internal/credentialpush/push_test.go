@@ -33,6 +33,92 @@ func TestApplyRejectsUngrantedPushWithoutLocalConsent(t *testing.T) {
 	require.Equal(t, "address is not granted to this node", result.Receipt.GetReason())
 }
 
+func TestApplyBootstrapsSignedGrantWhenMetadataFrameWasLost(t *testing.T) {
+	private, err := ecdh.X25519().GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	aad := []byte("credential-aad")
+	sealed, err := sealing.Seal(private.PublicKey().Bytes(), []byte("fixture-secret"), aad)
+	require.NoError(t, err)
+	grants := credentialgrant.NewMemoryStore()
+	var got sink
+	result, err := Apply(&channelv1.CredentialPush{
+		GrantId: "g1", NodeId: "node-1", LogicalId: "vrooli/test", Field: "api-key",
+		Generation: 1, Retention: credentialgrant.RetentionDurable, Class: credentialgrant.ClassUserPrompt,
+		SealedValue: sealed, Aad: aad,
+	}, "node-1", private, grants, &got)
+	require.NoError(t, err)
+	require.True(t, result.Receipt.GetAccepted())
+	require.Equal(t, "fixture-secret", got.value)
+	stored, ok := grants.Lookup("vrooli/test", "api-key")
+	require.True(t, ok)
+	require.Equal(t, "g1", stored.ID)
+}
+
+func TestApplyIgnoresRevokedGrantFromDifferentNodeIdentity(t *testing.T) {
+	private, err := ecdh.X25519().GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	aad := []byte("credential-aad")
+	sealed, err := sealing.Seal(private.PublicKey().Bytes(), []byte("fixture-secret"), aad)
+	require.NoError(t, err)
+	grants := credentialgrant.NewMemoryStore(credentialgrant.Grant{
+		ID: "old-grant", NodeID: "old-node", LogicalID: "vrooli/test", Field: "api-key",
+		Class: credentialgrant.ClassUserPrompt, Retention: credentialgrant.RetentionDurable, Generation: 99, Revoked: true,
+	})
+	var got sink
+	result, err := Apply(&channelv1.CredentialPush{
+		GrantId: "new-grant", NodeId: "new-node", LogicalId: "vrooli/test", Field: "api-key",
+		Generation: 1, Retention: credentialgrant.RetentionDurable, Class: credentialgrant.ClassUserPrompt,
+		SealedValue: sealed, Aad: aad,
+	}, "new-node", private, grants, &got)
+	require.NoError(t, err)
+	require.True(t, result.Receipt.GetAccepted())
+	require.Equal(t, "fixture-secret", got.value)
+}
+
+func TestApplyDoesNotResurrectRevokedGrantFromSignedPush(t *testing.T) {
+	private, err := ecdh.X25519().GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	grants := credentialgrant.NewMemoryStore(credentialgrant.Grant{
+		ID: "g1", NodeID: "node-1", LogicalID: "vrooli/test", Field: "api-key",
+		Class: credentialgrant.ClassUserPrompt, Retention: credentialgrant.RetentionDurable, Generation: 1,
+	})
+	require.NoError(t, grants.Revoke("vrooli/test", "api-key"))
+	result, err := Apply(&channelv1.CredentialPush{
+		GrantId: "g1", NodeId: "node-1", LogicalId: "vrooli/test", Field: "api-key",
+		Generation: 1, Retention: credentialgrant.RetentionDurable, Class: credentialgrant.ClassUserPrompt,
+	}, "node-1", private, grants, nil)
+	require.NoError(t, err)
+	require.True(t, result.Rejected)
+	require.Equal(t, "address is revoked on this node", result.Receipt.GetReason())
+}
+
+func TestApplyRenewsRevokedGrantOnlyWithNewerSignedGeneration(t *testing.T) {
+	private, err := ecdh.X25519().GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	aad := []byte("credential-aad")
+	sealed, err := sealing.Seal(private.PublicKey().Bytes(), []byte("renewed-secret"), aad)
+	require.NoError(t, err)
+	grants := credentialgrant.NewMemoryStore(credentialgrant.Grant{
+		ID: "g1", NodeID: "node-1", LogicalID: "vrooli/test", Field: "api-key",
+		Class: credentialgrant.ClassUserPrompt, Retention: credentialgrant.RetentionDurable, Generation: 1,
+	})
+	require.NoError(t, grants.Revoke("vrooli/test", "api-key"))
+	var got sink
+	result, err := Apply(&channelv1.CredentialPush{
+		GrantId: "g2", NodeId: "node-1", LogicalId: "vrooli/test", Field: "api-key",
+		Generation: 2, Retention: credentialgrant.RetentionDurable, Class: credentialgrant.ClassUserPrompt,
+		SealedValue: sealed, Aad: aad,
+	}, "node-1", private, grants, &got)
+	require.NoError(t, err)
+	require.True(t, result.Receipt.GetAccepted())
+	require.Equal(t, "renewed-secret", got.value)
+	stored, ok := grants.Lookup("vrooli/test", "api-key")
+	require.True(t, ok)
+	require.False(t, stored.Revoked)
+	require.Equal(t, "g2", stored.ID)
+	require.Equal(t, int64(2), stored.Generation)
+}
+
 func TestApplyDurableDecryptsAndZeroesPlaintext(t *testing.T) {
 	private, err := ecdh.X25519().GenerateKey(rand.Reader)
 	require.NoError(t, err)

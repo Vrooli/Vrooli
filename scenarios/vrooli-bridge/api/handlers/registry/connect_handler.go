@@ -54,12 +54,15 @@ type Disconnector interface {
 	Disconnect(nodeID string) int
 }
 
+type InteractiveNodeRevoker func(context.Context, string) error
+
 // Deps wires the seams the Connect registry handler needs.
 type Deps struct {
 	Service            registry.Service
 	Presence           Presence
 	Credentials        CredentialRevoker
 	Disconnect         Disconnector
+	RevokeInteractive  InteractiveNodeRevoker
 	Logger             *log.Logger
 	PresenceStaleAfter time.Duration
 }
@@ -226,6 +229,11 @@ func (h *connectHandler) RevokeNode(ctx context.Context, req *connect.Request[re
 	if h.deps.Credentials != nil {
 		if err := h.deps.Credentials.RevokeCredential(ctx, node.ID); err != nil {
 			h.deps.Logger.Printf("registry.RevokeNode(%q): revoke credential: %v", node.ID, err)
+		}
+	}
+	if h.deps.RevokeInteractive != nil {
+		if err := h.deps.RevokeInteractive(ctx, node.ID); err != nil {
+			h.deps.Logger.Printf("registry.RevokeNode(%q): revoke interactive channels: %v", node.ID, err)
 		}
 	}
 	if h.deps.Disconnect != nil {

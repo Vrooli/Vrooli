@@ -288,11 +288,12 @@ func (p channelArtifactPusher) PushArtifactWithEndpoint(_ context.Context, nodeI
 }
 
 func (p channelArtifactPusher) pushArtifact(nodeID, distributionID, itemID, name, destinationPath, endpoint string) (int, error) {
+	companionArtifact := strings.HasSuffix(filepath.ToSlash(strings.TrimSpace(destinationPath)), "/.vrooli/bin/device-control-companion")
 	frame := &channelv1.ServerFrame{
 		FrameId: uuid.NewString(),
 		Payload: &channelv1.ServerFrame_ArtifactDelivery{ArtifactDelivery: &channelv1.ArtifactDelivery{
 			DistributionId: distributionID, ItemId: itemID, Name: name, DestinationPath: destinationPath, DeviceSyncUrl: endpoint,
-			Executable: strings.Contains(destinationPath, "/.vrooli/bin/"),
+			Executable: strings.Contains(destinationPath, "/.vrooli/bin/"), CompanionArtifact: companionArtifact,
 		}},
 	}
 	payload, err := channelsign.Marshal(p.signer, frame)

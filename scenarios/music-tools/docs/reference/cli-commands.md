@@ -154,6 +154,10 @@ Two shape constraints inherited from decisions, not preferences:
 - **`compose` is a job submit, not a synchronous call.** It returns a job id and
   an ETA; callers block once on `jobs wait`. A ten-take batch is minutes of GPU
   time and cannot ride a request.
+- **`jobs wait` is a durable attachment.** The CLI uses a no-timeout request for
+  this one command, so the ordinary CLI HTTP deadline cannot interrupt a long
+  composition batch. Caller cancellation still ends the wait without canceling
+  the server-owned job; use `jobs get` to recover its durable state.
 - **Bytes do not ride proto.** Following `image-tools`, discovery and metadata
   are Connect-RPC while any edge carrying audio is a REST multipart endpoint
   with proto-typed parameters. See [`api-endpoints.md`](api-endpoints.md).

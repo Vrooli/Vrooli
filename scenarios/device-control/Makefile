@@ -14,11 +14,12 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints companion-build
 
 .DEFAULT_GOAL := help
 
 SCENARIO_NAME := $(notdir $(CURDIR))
+COMPANION_VERSION ?= 0.1.0
 
 # Shared toolchain floor (mk/toolchain.mk) and build targets (mk/scenario.mk); a custom body for one of them is declared in SCENARIO_CUSTOM_TARGETS.
 -include ../../mk/scenario.mk
@@ -36,6 +37,7 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make open                       Open the scenario in a browser\n"
 	@printf "  make orient                     Show generated-scenario orientation progress\n"
 	@printf "  make endpoints                  Regenerate .vrooli/endpoints.json from API modules\n"
+	@printf "  make companion-build            Build the Darwin Device Control companion artifact\n"
 	@printf "  make run                        Alias for make start\n"
 	@printf "  make dev                        Alias for make start\n"
 	@printf "\n"
@@ -83,6 +85,9 @@ orient: ## Show generated-scenario orientation progress
 
 endpoints: ## Regenerate .vrooli/endpoints.json from API modules (validated against cli/manifest.json)
 	@cd api && go run ./cmd/gen-endpoints --output ../.vrooli/endpoints.json
+
+companion-build: ## Build the Darwin Device Control companion artifact for Bridge delivery
+	@target_goos=$${GOOS:-darwin}; target_cgo=$${CGO_ENABLED:-1}; if [ "$$target_goos" = darwin ] && [ "$$target_cgo" != 1 ]; then echo "companion-build requires CGO_ENABLED=1 for Darwin ScreenCaptureKit/CoreGraphics support" >&2; exit 2; fi; cd api && GOOS=$$target_goos GOARCH=$${GOARCH:-amd64} CGO_ENABLED=$$target_cgo go build -trimpath -ldflags='-s -w -X main.companionVersion=$(COMPANION_VERSION)' -o device-control-companion ./cmd/desktop-companion
 
 run: start
 

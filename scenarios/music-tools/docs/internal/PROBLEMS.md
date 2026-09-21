@@ -311,6 +311,31 @@ with no trigger present at all.
 **Refs:** `internal/capacity/admission.go` (`YieldWhenIdle`, `IdleUnloadTTLSeconds`),
 `docs/internal/DECISIONS.md` (2026-09-18 batch and inventory-ownership decisions), `PRD.md` `OT-P1-005` (the target this blocks).
 
+### 2026-09-19 — Long composition waits and exact-take reservation (resolved)
+
+**Symptoms:** A ten-take composition job outlived the CLI's default HTTP timeout,
+and `takes reserve <id>` could return `409 take is not available` even when the
+requested take was reported as available.
+
+**Root causes:** `jobs wait` inherited cli-core's ordinary 120-second request
+deadline even though the job continues server-side. The reservation handler first
+looked up the requested take, then called the pool's style-level `Draw`; when
+multiple takes shared a style, `Draw` could atomically reserve a different take
+and make the requested-id comparison fail.
+
+**Fix:** The CLI wait command now uses cli-core's server-owned no-timeout client,
+preserving authentication and invocation provenance. The pool now exposes an
+atomic exact-id `Reserve` transition, and the HTTP handler uses it instead of
+style-level selection. Regression tests cover both behaviors; the live CLI path
+was verified against a persisted launch-trap take.
+
+**Remaining limitation:** A no-timeout wait still depends on caller cancellation
+or the server reaching a terminal state; the CLI does not yet expose a progress
+stream or reconnecting watch command.
+
+**Refs:** `cli/domains/domains.go`, `api/internal/composition/pool.go`,
+`api/handlers/composition/module.go`, and their regression tests.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

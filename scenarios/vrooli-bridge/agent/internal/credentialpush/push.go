@@ -111,7 +111,41 @@ func Apply(push *channelv1.CredentialPush, nodeID string, private *ecdh.PrivateK
 	}
 	grant, ok := grants.Lookup(push.GetLogicalId(), push.GetField())
 	if !ok {
-		return reject("address is not granted to this node")
+		// A signed CredentialPush carries the same consent metadata as the
+		// preceding CredentialGrant frame. Establish it atomically when the
+		// metadata frame was lost or reordered, but never resurrect a locally
+		// revoked address from a delayed push.
+		var revoked *credentialgrant.Grant
+		for _, local := range grants.List() {
+			if local.NodeID == nodeID && local.LogicalID == push.GetLogicalId() && local.Field == push.GetField() && local.Revoked {
+				copy := local
+				revoked = &copy
+				break
+			}
+		}
+		if revoked != nil && push.GetGeneration() <= revoked.Generation {
+			return reject("address is revoked on this node")
+		}
+		if push.GetClass() == "" && revoked == nil {
+			return reject("address is not granted to this node")
+		}
+		class := push.GetClass()
+		retention := push.GetRetention()
+		if revoked != nil {
+			if class == "" {
+				class = revoked.Class
+			}
+			if retention == "" {
+				retention = revoked.Retention
+			}
+		}
+		grant = credentialgrant.Grant{
+			ID: push.GetGrantId(), NodeID: nodeID, LogicalID: push.GetLogicalId(), Field: push.GetField(),
+			Class: class, Retention: retention, Generation: push.GetGeneration(),
+		}
+		if err := grants.Put(grant); err != nil {
+			return reject(fmt.Sprintf("store signed grant metadata: %v", err))
+		}
 	}
 	if grant.NodeID != nodeID || push.GetGrantId() != grant.ID {
 		return reject("credential grant identity does not match local consent")

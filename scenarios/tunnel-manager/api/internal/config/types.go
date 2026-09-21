@@ -270,6 +270,12 @@ type DNSResult struct {
 	Created  bool
 }
 
+type SPFResult struct {
+	DNSResult
+	MergedValue string
+	LookupCost  int
+}
+
 // DNSRecordSpec is the provider-neutral desired state for one DNS record.
 // Owner is an opaque deployment or exposure identity used by the caller's
 // ownership ledger; providers never receive secret material.
@@ -281,6 +287,7 @@ type DNSRecordSpec struct {
 	Hostname        string
 	Type            string
 	Content         string
+	Priority        int
 	TTL             int
 	Proxied         bool
 	Owner           string
@@ -292,6 +299,8 @@ type DNSRecordSpec struct {
 // depending on Cloudflare-specific behavior.
 type ManagedDNSClient interface {
 	EnsureManagedRecord(ctx context.Context, spec DNSRecordSpec) (DNSResult, error)
+	UpdateManagedRecord(ctx context.Context, spec DNSRecordSpec) (DNSResult, error)
+	MergeSPFRecord(ctx context.Context, providerProfile, hostname, mechanism string, ttl int, dryRun bool) (SPFResult, error)
 }
 
 // DNSClient is the seam over the Cloudflare API v4 DNS-records surface — the

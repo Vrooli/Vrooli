@@ -102,6 +102,27 @@ func TestConcurrentDrawsAreExclusive(t *testing.T) {
 	}
 }
 
+func TestReserveTargetsRequestedTake(t *testing.T) {
+	pool := NewPool()
+	takes, err := PlanBatch(BatchRequest{JobID: "job", StyleID: "style", Caption: "sound", Takes: 2, Seed: 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pool.Add(takes...)
+
+	reserved, _, err := pool.Reserve(takes[1].ID, "operator")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reserved.ID != takes[1].ID || reserved.PoolState != "reserved" || reserved.ReservedBy != "operator" {
+		t.Fatalf("reserved=%+v, want exact requested take", reserved)
+	}
+	got, ok := pool.Get(takes[0].ID)
+	if !ok || got.PoolState != "available" {
+		t.Fatalf("unrequested take state=%q, want available", got.PoolState)
+	}
+}
+
 func TestPartialBatchRetention(t *testing.T) {
 	pool := NewPool()
 	takes, err := PlanBatch(BatchRequest{JobID: "job", StyleID: "style", Caption: "sound", Takes: 3, Seed: 4})

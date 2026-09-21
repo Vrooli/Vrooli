@@ -2,9 +2,12 @@ package queue
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"vrooli-bridge/internal/channelsign"
+	internalCompanion "vrooli-bridge/internal/companion"
+	internalInteractive "vrooli-bridge/internal/interactive"
 	"vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/queue"
 	"vrooli-bridge/internal/relay"
@@ -15,6 +18,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
+	companionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/companion"
+	interactivev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/interactive"
 	queuev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/queue"
 )
 
@@ -125,6 +130,77 @@ func (c channelCanceller) CancelJob(_ context.Context, nodeID, runID, reason str
 type channelRelayPusher struct {
 	hub    *presence.Hub
 	signer channelsign.Signer
+}
+
+// interactiveSignalPusher carries opaque browser/companion signals over the
+// same signed SSE channel as relay and session frames.
+type interactiveSignalPusher struct {
+	hub    *presence.Hub
+	signer channelsign.Signer
+}
+
+func NewInteractiveSignalPusher(hub *presence.Hub, signer channelsign.Signer) internalInteractive.SignalPusher {
+	return interactiveSignalPusher{hub: hub, signer: signer}
+}
+
+func NewInteractiveRevokePusher(hub *presence.Hub, signer channelsign.Signer) internalInteractive.RevokePusher {
+	return interactiveRevokePusher{hub: hub, signer: signer}
+}
+
+type interactiveRevokePusher struct {
+	hub    *presence.Hub
+	signer channelsign.Signer
+}
+
+func (p interactiveRevokePusher) PushInteractiveRevoke(ctx context.Context, grant *interactivev1.ChannelGrant, reason string) error {
+	if grant == nil || grant.GetChannelId() == "" || grant.GetNodeId() == "" {
+		return fmt.Errorf("invalid interactive revoke grant")
+	}
+	frame := &channelv1.ServerFrame{FrameId: uuid.NewString(), Payload: &channelv1.ServerFrame_InteractiveRevoke{InteractiveRevoke: &channelv1.InteractiveRevoke{ChannelId: grant.GetChannelId(), NodeId: grant.GetNodeId(), SessionId: grant.GetSessionId(), LeaseId: grant.GetLeaseId(), LeaseEpoch: grant.GetLeaseEpoch(), Reason: reason}}}
+	payload, err := channelsign.Marshal(p.signer, frame)
+	if err != nil {
+		return err
+	}
+	if p.hub.PushFrame(grant.GetNodeId(), frame.GetFrameId(), payload) == 0 {
+		return fmt.Errorf("node %q is not accepting interactive revocation", grant.GetNodeId())
+	}
+	return nil
+}
+
+func (p interactiveSignalPusher) PushInteractiveSignal(_ context.Context, nodeID string, signal *channelv1.InteractiveSignal) error {
+	frame := &channelv1.ServerFrame{FrameId: uuid.NewString(), Payload: &channelv1.ServerFrame_InteractiveSignal{InteractiveSignal: signal}}
+	payload, err := channelsign.Marshal(p.signer, frame)
+	if err != nil {
+		return err
+	}
+	if p.hub.PushFrame(nodeID, frame.GetFrameId(), payload) == 0 {
+		return fmt.Errorf("node %q is not accepting interactive signals", nodeID)
+	}
+	return nil
+}
+
+type companionCommandPusher struct {
+	hub    *presence.Hub
+	signer channelsign.Signer
+}
+
+func NewCompanionCommandPusher(hub *presence.Hub, signer channelsign.Signer) internalCompanion.CommandPusher {
+	return companionCommandPusher{hub: hub, signer: signer}
+}
+
+func (p companionCommandPusher) PushCompanionCommand(_ context.Context, nodeID string, command *companionv1.CompanionCommand) error {
+	if command == nil || command.GetNodeId() != nodeID || command.GetOperationId() == "" {
+		return fmt.Errorf("invalid companion command")
+	}
+	frame := &channelv1.ServerFrame{FrameId: uuid.NewString(), Payload: &channelv1.ServerFrame_CompanionCommand{CompanionCommand: command}}
+	payload, err := channelsign.Marshal(p.signer, frame)
+	if err != nil {
+		return err
+	}
+	if p.hub.PushFrame(nodeID, frame.GetFrameId(), payload) == 0 {
+		return fmt.Errorf("node %q is not accepting companion commands", nodeID)
+	}
+	return nil
 }
 
 func NewChannelRelayPusher(hub *presence.Hub, signer channelsign.Signer) relay.Pusher {

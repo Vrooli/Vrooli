@@ -121,6 +121,80 @@ func (h *handlers) syncReport(ctx cliapp.OperationContext, msg *configv1.SyncRes
 	}
 }
 
+func (h *handlers) updateDNSCall(ctx cliapp.OperationContext) (*configv1.UpdateDNSRecordResponse, error) {
+	request := &configv1.UpdateDNSRecordRequest{
+		ProviderProfile: strings.TrimSpace(ctx.Flag("provider-profile")),
+		Hostname:        strings.TrimSpace(ctx.Flag("hostname")),
+		Type:            strings.ToUpper(strings.TrimSpace(ctx.Flag("type"))),
+		Content:         ctx.Flag("content"),
+		Owner:           strings.TrimSpace(ctx.Flag("owner")),
+		Ttl:             parseConfigIntFlag(ctx.Flag("ttl")),
+		Priority:        parseConfigIntFlag(ctx.Flag("priority")),
+		Proxied:         ctx.BoolFlag("proxied"),
+		DryRun:          ctx.BoolFlag("dry-run"),
+	}
+	if !request.DryRun && !ctx.BoolFlag("confirm") {
+		return nil, fmt.Errorf("--confirm is required for a live DNS update; use --dry-run to review without writing")
+	}
+	resp, err := h.client.UpdateDNSRecord(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("update DNS record", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, fmt.Errorf("server returned no DNS update response")
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) updateDNSReport(ctx cliapp.OperationContext, msg *configv1.UpdateDNSRecordResponse) cliapp.MutationReport {
+	mode := "applied"
+	if ctx.BoolFlag("dry-run") || msg.DryRun {
+		mode = "dry-run; no DNS write"
+	}
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("DNS %s %s %s (%s, changed=%t, record_id=%s).", msg.Type, msg.Hostname, mode, msg.Owner, msg.Changed, msg.RecordId)}}
+}
+
+func (h *handlers) ensureSPFCall(ctx cliapp.OperationContext) (*configv1.EnsureSPFRecordResponse, error) {
+	request := &configv1.EnsureSPFRecordRequest{
+		ProviderProfile: strings.TrimSpace(ctx.Flag("provider-profile")),
+		Hostname:        strings.TrimSpace(ctx.Flag("hostname")),
+		Mechanism:       strings.TrimSpace(ctx.Flag("mechanism")),
+		Owner:           strings.TrimSpace(ctx.Flag("owner")),
+		Ttl:             parseConfigIntFlag(ctx.Flag("ttl")),
+		DryRun:          ctx.BoolFlag("dry-run"),
+	}
+	if !request.DryRun && !ctx.BoolFlag("confirm") {
+		return nil, fmt.Errorf("--confirm is required for a live SPF update; use --dry-run to review without writing")
+	}
+	resp, err := h.client.EnsureSPFRecord(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("ensure SPF record", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, fmt.Errorf("server returned no SPF response")
+	}
+	return resp.Msg, nil
+}
+
+func parseConfigIntFlag(value string) int32 {
+	if strings.TrimSpace(value) == "" {
+		return 0
+	}
+	parsed, err := strconv.ParseInt(strings.TrimSpace(value), 10, 32)
+	if err != nil {
+		return 0
+	}
+	return int32(parsed)
+}
+
+func (h *handlers) ensureSPFReport(ctx cliapp.OperationContext, msg *configv1.EnsureSPFRecordResponse) cliapp.MutationReport {
+	mode := "applied"
+	if ctx.BoolFlag("dry-run") || msg.DryRun {
+		mode = "dry-run; no DNS write"
+	}
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("SPF %s %s (%s, changed=%t, lookup_cost=%d, record_id=%s).", msg.Hostname, mode, msg.Owner, msg.Changed, msg.LookupCost, msg.RecordId)}, Changes: []string{msg.MergedValue}}
+}
+
 func (h *handlers) credentialsStatusCall(ctx cliapp.OperationContext) (proto.Message, error) {
 	if verify, _ := strconv.ParseBool(strings.TrimSpace(ctx.Flag("verify"))); verify {
 		resp, err := h.client.VerifyCredentials(context.Background(), connect.NewRequest(&configv1.VerifyCredentialsRequest{}))

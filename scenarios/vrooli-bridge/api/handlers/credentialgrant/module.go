@@ -7,6 +7,7 @@ import (
 	"log"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"vrooli-bridge/internal/auth"
@@ -44,6 +45,7 @@ type handler struct {
 	provisionValue   func(context.Context, string, string, string) error
 	nodeVerifier     *nodeauth.Verifier
 	logger           *log.Logger
+	deliveryMu       sync.Mutex
 }
 
 func NewHandler(deps ModuleDeps) *handler {
@@ -264,6 +266,13 @@ func deliveryOrder(grants []internalgrant.Grant) []internalgrant.Grant {
 // deliverGrant seals and pushes the node-bound credential value.
 // DOC: docs/reference/credential-delivery.md
 func (h *handler) deliverGrant(ctx context.Context, grant internalgrant.Grant) error {
+	// A grant metadata frame must reach the node before its sealed push. Online
+	// reconciliation, AnswerSecret, rotation, and reconnect hooks can all call
+	// this method concurrently; serialize the complete metadata+value sequence
+	// so separate calls cannot interleave those two frames on the same channel.
+	h.deliveryMu.Lock()
+	defer h.deliveryMu.Unlock()
+
 	if h.presence == nil || h.signer == nil || h.presence.IsOnline(grant.NodeID) == false {
 		return nil
 	}
@@ -298,6 +307,11 @@ func (h *handler) deliverGrant(ctx context.Context, grant internalgrant.Grant) e
 }
 
 func (h *handler) deliverPurge(ctx context.Context, grant internalgrant.Grant) error {
+	// Keep revocation frames ordered with grant delivery. A purge racing a
+	// re-answer must not leave the node with an ambiguous local consent state.
+	h.deliveryMu.Lock()
+	defer h.deliveryMu.Unlock()
+
 	if h.presence == nil || h.signer == nil || !h.presence.IsOnline(grant.NodeID) {
 		return nil
 	}

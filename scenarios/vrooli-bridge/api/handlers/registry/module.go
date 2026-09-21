@@ -18,12 +18,17 @@ import (
 // online/offline overlay on the read path; nil disables the overlay (every node
 // reads offline) without changing the stored node data — the Phase-1 presence
 // step threads the real hub in.
-func Module(svc internalregistry.Service, presence Presence, credentials CredentialRevoker, disconnect Disconnector, staleAfter time.Duration, logger *log.Logger) module.Module {
+func Module(svc internalregistry.Service, presence Presence, credentials CredentialRevoker, disconnect Disconnector, staleAfter time.Duration, logger *log.Logger, revokers ...InteractiveNodeRevoker) module.Module {
+	var revoker InteractiveNodeRevoker
+	if len(revokers) > 0 {
+		revoker = revokers[0]
+	}
 	path, handler := registryconnect.NewNodeRegistryServiceHandler(NewConnectHandler(Deps{
 		Service:            svc,
 		Presence:           presence,
 		Credentials:        credentials,
 		Disconnect:         disconnect,
+		RevokeInteractive:  revoker,
 		Logger:             logger,
 		PresenceStaleAfter: staleAfter,
 	}))

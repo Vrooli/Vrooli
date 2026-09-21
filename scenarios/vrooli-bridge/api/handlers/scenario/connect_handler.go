@@ -48,6 +48,11 @@ type handler struct{ deps Deps }
 
 func NewHandler(deps Deps) *handler { return &handler{deps: deps} }
 
+const (
+	deviceControlScenario = "device-control"
+	desktopSessionService = "vrooli.device_control.v1.desktop.DesktopSessionService"
+)
+
 var upstreamHTTPStatusPattern = regexp.MustCompile(`(?i)\bHTTP\s+(\d{3})\b`)
 
 type scenarioProxyFailure struct {
@@ -199,7 +204,14 @@ func (h *handler) Call(w http.ResponseWriter, r *http.Request) {
 		writeScenarioProxyFailure(w, r, failure)
 		return
 	}
-	w.Header().Set("Content-Type", "application/proto")
+	if scenarioName == deviceControlScenario && serviceName == desktopSessionService {
+		// Web Console uses Connect-JSON for the browser-facing desktop pane.
+		// The node agent makes the matching JSON hop to the managed companion;
+		// ordinary scenario proxy procedures remain raw protobuf.
+		w.Header().Set("Content-Type", "application/json")
+	} else {
+		w.Header().Set("Content-Type", "application/proto")
+	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(response.Body)
 }

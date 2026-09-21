@@ -10,11 +10,13 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
 	"image/png"
+	"io"
 	"os"
 	"os/exec"
 	"runtime"
@@ -41,9 +43,10 @@ var (
 )
 
 type (
-	commandFn func(context.Context, string, ...string) ([]byte, error)
-	runFn     func(context.Context, string, ...string) error
-	captureFn func(context.Context) ([]byte, error)
+	commandFn        func(context.Context, string, ...string) ([]byte, error)
+	runFn            func(context.Context, string, ...string) error
+	captureFn        func(context.Context) ([]byte, error)
+	clipboardWriteFn func(context.Context, string) error
 )
 
 type boundedOutput struct{ bytes.Buffer }
@@ -63,7 +66,9 @@ type Backend struct {
 	platform                                     string
 	command                                      commandFn
 	run                                          runFn
+	lookPath                                     func(string) (string, error)
 	nativeCapture                                captureFn
+	clipboardWrite                               clipboardWriteFn
 	display                                      string
 	session                                      string
 	revision                                     string
@@ -155,7 +160,116 @@ func NewForSession(sessionID string) (*Backend, error) {
 }
 
 func newBackendForPlatform(platform string, command commandFn, run runFn) *Backend {
-	return &Backend{platform: platform, command: command, run: run, display: platform + "-current-user-display", heldKeys: make(map[string]uint16), heldButtons: make(map[desktopv1.PointerAction_Button]bool)}
+	display := platform + "-current-user-display"
+	if platform == "darwin" {
+		display = "main"
+	}
+	return &Backend{platform: platform, command: command, run: run, lookPath: exec.LookPath, clipboardWrite: writeClipboard, display: display, heldKeys: make(map[string]uint16), heldButtons: make(map[desktopv1.PointerAction_Button]bool)}
+}
+
+// NativeProbe is the small, non-secret readiness snapshot exposed to the
+// desktop-session adapter. It is deliberately derived from the same capture
+// and session checks used by the native helper, not from process presence.
+type NativeProbe struct {
+	ActiveUser          string
+	SessionType         string
+	DisplayID           string
+	Width, Height       uint32
+	GeometryRevision    string
+	PermissionCode      string
+	ClipboardAllowed    bool
+	VP8EncoderAvailable bool
+}
+
+func (b *Backend) hasVP8Encoder() bool {
+	if b == nil {
+		return false
+	}
+	lookup := b.lookPath
+	if lookup == nil {
+		lookup = exec.LookPath
+	}
+	_, err := lookup("ffmpeg")
+	return err == nil
+}
+
+func (b *Backend) supportsVP8Encoder(ctx context.Context) bool {
+	if !b.hasVP8Encoder() || b == nil || b.command == nil {
+		return false
+	}
+	output, err := b.commandWithTimeout(ctx, []string{"ffmpeg", "-hide_banner", "-encoders"})
+	return err == nil && bytes.Contains(output, []byte("libvpx"))
+}
+
+func (b *Backend) Probe(ctx context.Context) (NativeProbe, error) {
+	if err := b.CheckSession(ctx); err != nil {
+		return NativeProbe{}, err
+	}
+	activeUser := ""
+	if b.platform == "darwin" {
+		data, err := b.commandWithTimeout(ctx, []string{"stat", "-f", "%Su", "/dev/console"})
+		if err != nil {
+			return NativeProbe{}, err
+		}
+		activeUser = strings.TrimSpace(string(data))
+		if activeUser == "" || activeUser == "root" {
+			return NativeProbe{ActiveUser: activeUser}, nil
+		}
+		// The console device alone is not proof of an Aqua login. The per-user
+		// launchd GUI domain is the session-owned fact we can probe without
+		// treating a desktop process or attached display as readiness.
+		uid, err := b.commandWithTimeout(ctx, []string{"stat", "-f", "%u", "/dev/console"})
+		if err != nil {
+			return NativeProbe{ActiveUser: activeUser}, nil
+		}
+		if _, err := b.commandWithTimeout(ctx, []string{"launchctl", "print", "gui/" + strings.TrimSpace(string(uid))}); err != nil {
+			return NativeProbe{ActiveUser: activeUser, SessionType: ""}, nil
+		}
+	}
+	if !b.supportsVP8Encoder(ctx) {
+		return NativeProbe{ActiveUser: activeUser, SessionType: "Aqua", PermissionCode: "vp8_encoder_unavailable"}, nil
+	}
+	if _, err := b.Observe(ctx); err != nil {
+		if errors.Is(err, ErrPermissionDenied) {
+			return NativeProbe{ActiveUser: activeUser, SessionType: "Aqua", PermissionCode: "screen_recording_required"}, nil
+		}
+		return NativeProbe{}, err
+	}
+	b.mu.Lock()
+	probe := NativeProbe{ActiveUser: activeUser, SessionType: "Aqua", DisplayID: b.display, Width: uint32(b.width), Height: uint32(b.height), GeometryRevision: b.revision, ClipboardAllowed: true, VP8EncoderAvailable: true}
+	b.mu.Unlock()
+	if b.platform == "darwin" {
+		// Probe clipboard capability without retaining or emitting its content.
+		if _, err := b.ReadClipboard(ctx); err != nil {
+			probe.ClipboardAllowed = false
+			probe.PermissionCode = "clipboard_unavailable"
+		}
+	}
+	return probe, nil
+}
+
+func (b *Backend) ReadClipboard(ctx context.Context) (string, error) {
+	if b.platform != "darwin" {
+		return "", ErrUnavailable
+	}
+	data, err := b.commandWithTimeout(ctx, []string{"pbpaste"})
+	if err != nil {
+		return "", err
+	}
+	if len(data) > 64*1024 {
+		return "", ErrUnavailable
+	}
+	return string(data), nil
+}
+
+func (b *Backend) WriteClipboard(ctx context.Context, text string) error {
+	if b.platform != "darwin" || b.clipboardWrite == nil {
+		return ErrUnavailable
+	}
+	if len([]byte(text)) > 64*1024 {
+		return ErrUnavailable
+	}
+	return b.clipboardWrite(ctx, text)
 }
 
 // CheckSession is used by the desktop lifecycle monitor. It checks that the
@@ -830,10 +944,14 @@ func (b *Backend) capture(ctx context.Context) ([]byte, error) {
 			if err == nil && len(data) > 0 {
 				return data, nil
 			}
-			// Keep the existing command seam as a compatibility fallback for
-			// older packaged helpers. A native capture failure is still surfaced
-			// as permission evidence below when the fallback cannot produce data.
+			// A production Darwin backend is always constructed with the native
+			// ScreenCaptureKit seam. Once that seam is present, failure is
+			// permission/capture evidence; silently switching capture authorities
+			// would make readiness and selected-display guarantees unverifiable.
+			return nil, fmt.Errorf("%w: ScreenCaptureKit capture failed: %v", ErrPermissionDenied, err)
 		}
+		// This branch is retained only for deterministic in-package seams that
+		// construct a backend without a native capture function.
 		data, err := b.command(ctx, "screencapture", "-x", "-t", "png", "-")
 		if err != nil || len(data) == 0 {
 			// screencapture is present on supported macOS hosts; a failed
@@ -859,6 +977,56 @@ func (b *Backend) capture(ctx context.Context) ([]byte, error) {
 	return data, nil
 }
 
+// CaptureVP8 captures the currently authorized display and encodes one bounded
+// VP8 key/sample for the Device Control Pion track. The capture remains inside
+// the native user-session boundary; callers receive only the ephemeral codec
+// payload and never a PNG or pixel buffer.
+func (b *Backend) CaptureVP8(ctx context.Context) ([]byte, time.Duration, error) {
+	if b == nil {
+		return nil, 0, ErrUnavailable
+	}
+	if b.platform == "darwin" && b.display != "main" {
+		return nil, 0, ErrUnavailable
+	}
+	if b.session != "" {
+		if err := b.CheckSession(ctx); err != nil {
+			return nil, 0, err
+		}
+	}
+	pngData, err := b.capture(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	frame, err := encodePNGToVP8(ctx, pngData)
+	if err != nil {
+		return nil, 0, err
+	}
+	return frame, 33 * time.Millisecond, nil
+}
+
+func encodePNGToVP8(ctx context.Context, pngData []byte) ([]byte, error) {
+	if len(pngData) == 0 || len(pngData) > maxCaptureBytes {
+		return nil, ErrUnavailable
+	}
+	command := exec.CommandContext(ctx, "ffmpeg", "-hide_banner", "-loglevel", "error", "-framerate", "1", "-f", "image2pipe", "-vcodec", "png", "-i", "pipe:0", "-frames:v", "1", "-vf", "format=yuv420p", "-c:v", "libvpx", "-deadline", "realtime", "-cpu-used", "8", "-f", "ivf", "pipe:1")
+	command.Stdin = bytes.NewReader(pngData)
+	command.Stderr = io.Discard
+	var output boundedOutput
+	command.Stdout = &output
+	if err := command.Run(); err != nil {
+		return nil, ErrUnavailable
+	}
+	data := output.Bytes()
+	if len(data) < 44 || string(data[:4]) != "DKIF" {
+		return nil, ErrUnavailable
+	}
+	frameLength := int(binary.LittleEndian.Uint32(data[32:36]))
+	if frameLength <= 0 || frameLength > len(data)-44 {
+		return nil, ErrUnavailable
+	}
+	return append([]byte(nil), data[44:44+frameLength]...), nil
+}
+
 func (b *Backend) commandWithTimeout(ctx context.Context, args []string) ([]byte, error) {
 	if len(args) == 0 || b.command == nil {
 		return nil, ErrUnavailable
@@ -875,6 +1043,14 @@ func (b *Backend) runWithTimeout(ctx context.Context, args []string) error {
 	commandContext, cancel := context.WithTimeout(ctx, commandTimeout)
 	defer cancel()
 	return b.run(commandContext, args[0], args[1:]...)
+}
+
+func writeClipboard(ctx context.Context, text string) error {
+	commandContext, cancel := context.WithTimeout(ctx, commandTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(commandContext, "pbcopy")
+	cmd.Stdin = strings.NewReader(text)
+	return cmd.Run()
 }
 
 func (b *Backend) validateAction(action *desktopv1.Action) error {

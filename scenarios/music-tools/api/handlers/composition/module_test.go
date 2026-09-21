@@ -10,7 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/mux"
 	testdb "github.com/vrooli/api-core/databasetest"
+	core "music-tools/internal/composition"
 	jobdomain "music-tools/internal/jobs"
 	stylesdomain "music-tools/internal/styles"
 )
@@ -101,5 +103,30 @@ func TestRunBatchRetainsCompletedTakesWhenResourceFails(t *testing.T) {
 	}
 	if available, _, _, _ := state.Pool.Status("launch-trap"); available != 1 {
 		t.Fatalf("pool available = %d, want one retained take", available)
+	}
+}
+
+func TestReserveTakeUsesRequestedID(t *testing.T) {
+	state := NewState()
+	takes, err := core.PlanBatch(core.BatchRequest{JobID: "job", StyleID: "launch-trap", Caption: "instrumental trap", Takes: 2, Seed: 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	state.Pool.Add(takes...)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/takes/"+takes[1].ID+"/reserve", strings.NewReader(`{"holder":"operator"}`))
+	request = mux.SetURLVars(request, map[string]string{"id": takes[1].ID})
+	response := httptest.NewRecorder()
+	state.reserveTake(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("reserve status=%d body=%s", response.Code, response.Body.String())
+	}
+	reserved, ok := state.Pool.Get(takes[1].ID)
+	if !ok || reserved.PoolState != "reserved" || reserved.ReservedBy != "operator" {
+		t.Fatalf("requested take=%+v", reserved)
+	}
+	other, ok := state.Pool.Get(takes[0].ID)
+	if !ok || other.PoolState != "available" {
+		t.Fatalf("other take=%+v", other)
 	}
 }

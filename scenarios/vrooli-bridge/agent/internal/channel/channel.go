@@ -152,6 +152,10 @@ type Client struct {
 	runningRelays           map[string]*relayState
 	sessions                map[string]*nodeSession
 	desktopAdapter          DesktopAdapter
+	interactiveAdapter      InteractiveSignalAdapter
+	interactiveReporter     InteractiveSignalReporter
+	companionAdapter        CompanionLifecycleAdapter
+	companionReporter       CompanionLifecycleReporter
 	relayReporter           RelayResponseReporter
 	commandRunner           exec.CommandRunner
 	resolveScenarioPortFunc func(context.Context, string) (int, error)
@@ -254,6 +258,22 @@ func WithDesktopAdapter(adapter DesktopAdapter) Option {
 	return func(c *Client) { c.desktopAdapter = adapter }
 }
 
+func WithInteractiveSignalAdapter(adapter InteractiveSignalAdapter) Option {
+	return func(c *Client) { c.interactiveAdapter = adapter }
+}
+
+func WithInteractiveSignalReporter(reporter InteractiveSignalReporter) Option {
+	return func(c *Client) { c.interactiveReporter = reporter }
+}
+
+func WithCompanionLifecycleAdapter(adapter CompanionLifecycleAdapter) Option {
+	return func(c *Client) { c.companionAdapter = adapter }
+}
+
+func WithCompanionLifecycleReporter(reporter CompanionLifecycleReporter) Option {
+	return func(c *Client) { c.companionReporter = reporter }
+}
+
 // WithShutdown supplies the process lifecycle hook used after a successful
 // node cleanup. The cleanup receipt is reported first; only then does the
 // managed agent stop, allowing its just-removed service unit to disappear
@@ -280,6 +300,19 @@ func NewClient(cfg config.Config, opts ...Option) *Client {
 	}
 	base := strings.TrimRight(cfg.ControlPlaneURL, "/")
 	c.rpc = presence_v1connect.NewPresenceServiceClient(c.httpClient, base)
+	if c.interactiveReporter == nil {
+		c.interactiveReporter = presenceInteractiveReporter{rpc: c.rpc, cred: c.cred, nodeID: c.cfg.NodeID, now: c.now}
+	}
+	if c.interactiveAdapter == nil {
+		c.interactiveAdapter = localDeviceControlInteractiveAdapter{httpClient: c.httpClient, resolvePort: resolveDesktopCompanionPort}
+	}
+	if c.companionReporter == nil {
+		c.companionReporter = presenceCompanionReporter{rpc: c.rpc, cred: c.cred, nodeID: c.cfg.NodeID, now: c.now}
+	}
+	if c.companionAdapter == nil {
+		home, _ := os.UserHomeDir()
+		c.companionAdapter = localCompanionLifecycleAdapter{homeDir: home, runner: c.commandRunner}
+	}
 	c.grantRPC = credentialgrantconnect.NewCredentialGrantServiceClient(c.httpClient, base)
 	if c.scenarioRPC == nil {
 		c.scenarioRPC = c.rpc
@@ -594,6 +627,32 @@ func (c *Client) handleServerFrame(payload string) {
 	if session := frame.GetSession(); session != nil {
 		c.handleSessionFrame(session)
 	}
+	if signal := frame.GetInteractiveSignal(); signal != nil {
+		if c.cfg.PresenceOnly {
+			c.logger.Printf("channel: rejecting interactive signal channel_id=%q because agent is in presence-only posture", signal.GetChannelId())
+		} else {
+			go c.handleInteractiveSignal(signal)
+		}
+	}
+	if revoke := frame.GetInteractiveRevoke(); revoke != nil {
+		if !validInteractiveRevoke(revoke, c.cfg.NodeID) {
+			c.logger.Printf("channel: rejecting invalid interactive revoke channel_id=%q", revoke.GetChannelId())
+		} else if handler, ok := c.interactiveAdapter.(InteractiveRevokeAdapter); !ok {
+			c.logger.Printf("channel: interactive revoke channel_id=%q has no companion adapter", revoke.GetChannelId())
+		} else {
+			go func() {
+				if err := handler.HandleInteractiveRevoke(c.baseCtxOrBackground(), revoke); err != nil {
+					c.logger.Printf("channel: interactive revoke channel_id=%q failed: %v", revoke.GetChannelId(), err)
+				}
+			}()
+		}
+	}
+	if command := frame.GetCompanionCommand(); command != nil {
+		// Companion lifecycle is a closed, signed control-plane vocabulary. It is
+		// intentionally available in presence-only posture; ordinary jobs,
+		// relays, and scenario requests remain denied below.
+		go c.handleCompanionCommand(command)
+	}
 	if ack := frame.GetAck(); ack != nil {
 		if ack.GetCompatibility() == sharedv1.CompatibilityStatus_COMPATIBILITY_STATUS_NEEDS_UPDATE {
 			c.logger.Printf("channel: control plane flagged this agent NEEDS_UPDATE (%s) — holding presence only", ack.GetReason())
@@ -623,8 +682,12 @@ func (c *Client) handleServerFrame(payload string) {
 		go c.runScenarioRequest(request)
 	}
 	if delivery := frame.GetArtifactDelivery(); delivery != nil {
-		if c.cfg.PresenceOnly {
+		if c.cfg.PresenceOnly && !delivery.GetCompanionArtifact() {
 			c.logger.Printf("channel: rejecting artifact delivery item_id=%q because agent is in presence-only posture", delivery.GetItemId())
+			return
+		}
+		if delivery.GetCompanionArtifact() && !isApprovedCompanionArtifactPath(delivery.GetDestinationPath()) {
+			c.logger.Printf("channel: rejecting companion artifact item_id=%q because destination is not approved", delivery.GetItemId())
 			return
 		}
 		c.logger.Printf("channel: received artifact delivery item_id=%q destination=%q", delivery.GetItemId(), delivery.GetDestinationPath())
@@ -687,6 +750,11 @@ func (c *Client) handleServerFrame(payload string) {
 	if grant := frame.GetCredentialGrant(); grant != nil {
 		c.handleCredentialGrant(grant)
 	}
+}
+
+func isApprovedCompanionArtifactPath(path string) bool {
+	clean := filepath.ToSlash(filepath.Clean(strings.TrimSpace(path)))
+	return strings.HasSuffix(clean, "/.vrooli/bin/device-control-companion")
 }
 
 func (c *Client) handleCredentialGrant(grant *channelv1.CredentialGrant) {
@@ -815,6 +883,20 @@ func (c *Client) handleCredentialPurge(purge *channelv1.CredentialPurge) {
 			continue
 		}
 		receiptLogicalID, receiptField = parts[0], parts[1]
+		stalePurge := false
+		if purge.GetGeneration() > 0 {
+			for _, local := range c.grantStore.List() {
+				if local.LogicalID == parts[0] && local.Field == parts[1] && !local.Revoked && local.Generation > purge.GetGeneration() {
+					// A delayed purge from an older grant generation must not
+					// revoke a newer owner-authorized grant.
+					stalePurge = true
+					break
+				}
+			}
+		}
+		if stalePurge {
+			continue
+		}
 		if err := c.grantStore.Revoke(parts[0], parts[1]); err != nil {
 			c.logger.Printf("channel: credential purge refused for address metadata: %v", err)
 			accepted = false
@@ -1113,6 +1195,10 @@ const (
 	maxScenarioRequestTimeout     = 5 * time.Minute
 	defaultScenarioResponseBytes  = 8 << 20
 	maxScenarioResponseBytes      = 8 << 20
+	deviceControlScenario         = "device-control"
+	desktopSessionService         = "vrooli.device_control.v1.desktop.DesktopSessionService"
+	desktopJSONContentType        = "application/json"
+	protobufContentType           = "application/proto"
 )
 
 // runScenarioRequest resolves a scenario through the node's own three-rung
@@ -1132,7 +1218,7 @@ func (c *Client) runScenarioRequest(request *channelv1.ScenarioRequest) {
 	ctx, cancel := context.WithTimeout(base, timeout)
 	defer cancel()
 	response := &sharedv1.ScenarioResponse{CorrelationId: request.GetCorrelationId()}
-	port, err := c.resolveScenarioPort(ctx, request.GetScenario())
+	port, err := c.resolveScenarioRequestPort(ctx, request)
 	if err == nil {
 		maxBytes := request.GetMaxResponseBytes()
 		if maxBytes == 0 || maxBytes > maxScenarioResponseBytes {
@@ -1154,8 +1240,12 @@ func (c *Client) runScenarioRequest(request *channelv1.ScenarioRequest) {
 			if requestErr != nil {
 				err = requestErr
 			} else {
-				httpRequest.Header.Set("Content-Type", "application/proto")
-				httpRequest.Header.Set("Accept", "application/proto")
+				contentType := protobufContentType
+				if isDesktopSessionRequest(request) {
+					contentType = desktopJSONContentType
+				}
+				httpRequest.Header.Set("Content-Type", contentType)
+				httpRequest.Header.Set("Accept", contentType)
 				httpResponse, doErr := c.httpClient.Do(httpRequest)
 				if doErr != nil {
 					err = doErr
@@ -1183,6 +1273,25 @@ func (c *Client) runScenarioRequest(request *channelv1.ScenarioRequest) {
 		response.TimedOut = errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded)
 	}
 	c.reportScenarioResponse(response)
+}
+
+func isDesktopSessionRequest(request *channelv1.ScenarioRequest) bool {
+	return request != nil && request.GetScenario() == deviceControlScenario && request.GetService() == desktopSessionService
+}
+
+// resolveScenarioRequestPort keeps the browser-facing Device Control desktop
+// contract on the managed companion process. The request still carries the
+// authoritative device-control scenario identity, so Bridge admission and
+// scope catalog checks remain unchanged; only the node-local process selected
+// for the typed desktop service differs from ordinary scenario APIs.
+func (c *Client) resolveScenarioRequestPort(ctx context.Context, request *channelv1.ScenarioRequest) (int, error) {
+	if isDesktopSessionRequest(request) {
+		return resolveDesktopCompanionPort(ctx, "device-control-companion")
+	}
+	if request == nil {
+		return 0, errors.New("scenario request is required")
+	}
+	return c.resolveScenarioPort(ctx, request.GetScenario())
 }
 
 func (c *Client) resolveScenarioPort(ctx context.Context, scenario string) (int, error) {

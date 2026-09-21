@@ -153,6 +153,9 @@ exist:
   with `onboard watch`. See
   [`RUNBOOK.md`](RUNBOOK.md#onboarding-a-node-one-shot) and
   [`../concepts/FLOWS.md`](../concepts/FLOWS.md#one-shot-node-onboarding).
+  On Darwin, the bootstrap then rebuilds the Vrooli CLI and Device Control
+  companion on the target with CGO and the Apple SDK; the native companion is
+  verified as Mach-O with ScreenCaptureKit/CoreGraphics linkage before pairing.
 - **Manual bootstrap (fallback / air-gapped first touch).** Run
   `bootstrap/bootstrap.sh` directly on the node with
   `BRIDGE_PAIRING_CODE` in the environment. The script installs **only**
@@ -171,10 +174,12 @@ exist:
   list, and exit codes are documented in
   [`../../bootstrap/README.md`](../../bootstrap/README.md).
 
-The working-tree one-shot path never pulls a GitHub release or builds on the
-node: release binaries cannot represent local uncommitted work. Its transferred
-Vrooli sidecar is computed from the same tree sent over SSH, so setup runs before
-the node has Go and installs Go afterward. The pinned/manual fallback remains
+The working-tree one-shot path never pulls a GitHub release. Linux and Windows
+can reach ONLINE from the transferred bootstrap bundle without building on the
+node; Darwin is the deliberate exception because cross-builds cannot represent
+its Keychain and ScreenCaptureKit/CoreGraphics linkage. Darwin setup installs
+Go, then rebuilds and verifies the native Vrooli CLI and Device Control
+companion from the exact tree sent over SSH. The pinned/manual fallback remains
 available for fetchable revisions.
 
 Everything after onboarding is remote.

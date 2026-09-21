@@ -67,7 +67,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		{Name: "jobs", Description: "Inspect composition jobs", NeedsAPI: true, Subcommands: []cliapp.Command{
 			{Name: "get", Description: "Get a job", Run: func(args []string) error { return oneArgGet(core, args, "/v1/jobs/") }},
 			{Name: "list", Description: "List jobs", Run: func(args []string) error { return get(core, "/v1/jobs") }},
-			{Name: "wait", Description: "Wait for a job", Run: func(args []string) error { return oneArgGet(core, args, "/v1/jobs/", "/wait") }},
+			{Name: "wait", Description: "Wait for a job", Run: func(args []string) error { return waitForJob(core, args) }},
 			{Name: "cancel", Description: "Cancel a queued or running job", Run: func(args []string) error { return oneArgRequest(core, args, "POST", "/v1/jobs/", "/cancel") }},
 		}},
 		{Name: "takes", Description: "Inspect generated takes", NeedsAPI: true, Subcommands: []cliapp.Command{
@@ -177,6 +177,20 @@ func oneArgRequest(core *cliapp.ScenarioApp, args []string, method, prefix strin
 		path += part
 	}
 	return request(core, method, path, nil)
+}
+
+func waitForJob(core *cliapp.ScenarioApp, args []string) error {
+	if len(args) != 1 {
+		return errors.New("an id is required")
+	}
+	// A durable server-owned wait must not inherit the ordinary CLI request
+	// deadline. The no-timeout clone still preserves auth, provenance, and
+	// caller cancellation semantics at the transport boundary.
+	body, err := core.APIClient.WithoutTimeout().Get(core.APIPath("/jobs/"+args[0]+"/wait"), nil)
+	if err != nil {
+		return err
+	}
+	return printJSON(body)
 }
 
 func transition(core *cliapp.ScenarioApp, args []string, action string) error {

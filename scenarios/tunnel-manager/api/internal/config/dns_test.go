@@ -191,6 +191,83 @@ func TestEnsureManagedRecordRefusesConflict(t *testing.T) {
 	}
 }
 
+func TestEnsureManagedRecordSupportsTXTAndMXPayloads(t *testing.T) {
+	tests := []struct {
+		name     string
+		spec     DNSRecordSpec
+		wantType string
+	}{
+		{name: "txt", spec: DNSRecordSpec{ProviderProfile: "cloudflare-default", Hostname: "_dmarc.example.invalid", Type: "TXT", Content: "v=DMARC1; p=none", TTL: 300}, wantType: "TXT"},
+		{name: "mx", spec: DNSRecordSpec{ProviderProfile: "cloudflare-default", Hostname: "example.invalid", Type: "MX", Content: "mail.example.invalid", Priority: 10, TTL: 300}, wantType: "MX"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			doer := &mocks.FakeDoer{}
+			doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"zone1"}]}`))
+			doer.AddResponse(200, []byte(`{"success":true,"result":[]}`))
+			doer.AddResponse(200, []byte(`{"success":true,"result":{"id":"rec9"}}`))
+			res, err := newTestDNSClient(doer).EnsureManagedRecord(context.Background(), tc.spec)
+			if err != nil {
+				t.Fatalf("EnsureManagedRecord: %v", err)
+			}
+			if !res.Created {
+				t.Fatalf("result = %+v, want created", res)
+			}
+			body, _ := io.ReadAll(doer.Requests[2].Body)
+			var payload map[string]any
+			if err := json.Unmarshal(body, &payload); err != nil {
+				t.Fatal(err)
+			}
+			if payload["type"] != tc.wantType {
+				t.Fatalf("payload type = %v, want %s", payload["type"], tc.wantType)
+			}
+			if tc.spec.Type == "MX" {
+				data, ok := payload["data"].(map[string]any)
+				if !ok || data["content"] != tc.spec.Content || data["priority"] != float64(tc.spec.Priority) {
+					t.Fatalf("MX data = %#v", payload["data"])
+				}
+			} else if payload["content"] != tc.spec.Content {
+				t.Fatalf("TXT content = %v", payload["content"])
+			}
+		})
+	}
+}
+
+func TestUpdateManagedRecordUsesPUTInPlace(t *testing.T) {
+	doer := &mocks.FakeDoer{}
+	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"zone1"}]}`))
+	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"txt1","content":"old","type":"TXT"}]}`))
+	doer.AddResponse(200, []byte(`{"success":true,"result":{"id":"txt1"}}`))
+	c := newTestDNSClient(doer)
+	res, err := c.UpdateManagedRecord(context.Background(), DNSRecordSpec{ProviderProfile: "cloudflare-default", Hostname: "selector.example.invalid", Type: "TXT", Content: "new", TTL: 300})
+	if err != nil {
+		t.Fatalf("UpdateManagedRecord: %v", err)
+	}
+	if res.RecordID != "txt1" || res.Created {
+		t.Fatalf("result = %+v", res)
+	}
+	if doer.Requests[2].Method != http.MethodPut || !strings.HasSuffix(doer.Requests[2].URL.Path, "/zones/zone1/dns_records/txt1") {
+		t.Fatalf("update request = %s %s", doer.Requests[2].Method, doer.Requests[2].URL.Path)
+	}
+}
+
+func TestEnsureSPFRecordRefusesLookupBudgetOverflow(t *testing.T) {
+	doer := &mocks.FakeDoer{}
+	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"zone1"}]}`))
+	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"spf1","content":"v=spf1 include:one.example.invalid include:two.example.invalid include:three.example.invalid include:four.example.invalid include:five.example.invalid include:six.example.invalid include:seven.example.invalid include:eight.example.invalid include:nine.example.invalid include:ten.example.invalid -all","type":"TXT"}]}`))
+	for i := 0; i < 11; i++ {
+		doer.AddResponse(200, []byte(`{"success":true,"result":[]}`))
+	}
+	c := newTestDNSClient(doer)
+	_, merged, err := c.EnsureSPFRecord(context.Background(), "mailgun", "example.invalid", "include:eleven.example.invalid", 300, true)
+	if err == nil || !strings.Contains(err.Error(), "exceeds 10") {
+		t.Fatalf("expected lookup budget refusal, merged=%q err=%v", merged, err)
+	}
+	if doer.Calls.Load() != 14 {
+		t.Fatalf("dry-run refusal should not write, calls=%d", doer.Calls.Load())
+	}
+}
+
 func TestValidateDNSRecordSpec(t *testing.T) {
 	for _, spec := range []DNSRecordSpec{
 		{Hostname: "x.example.invalid", Type: "TXT", Content: "x"},

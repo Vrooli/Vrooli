@@ -179,6 +179,76 @@ The `onboard status` event history shows the `break-glass-provision` step as
 completed, skipped/declined, or failed, so a node that declined protection is
 visible as incomplete in both CLI output and fleet readiness.
 
+## Remote desktop companion checkpoint
+
+After the node is ONLINE, use the owner-gated CompanionService through Web
+Console to install or inspect the Device Control companion. The operation is
+target-gated to the registered, non-revoked, online node and records only the
+operation id, version, state, and recovery guidance:
+
+1. Install or upgrade the companion for the selected node and display.
+2. Inspect until the user LaunchAgent reports ready or degraded.
+3. Ask the local Mac owner to approve Screen Recording and Accessibility once
+   when the typed readiness state says `permission_required`.
+4. Re-run readiness from Web Console. `no_aqua_session`, `no_display`, locked,
+   and preboot/FileVault states remain actionable refusals; Bridge does not
+   infer readiness from an attached display or SSH reachability.
+5. Revoke before removing a node or when the companion is suspected to be
+   compromised; remove only after the revoke receipt is visible.
+
+When an install or upgrade includes an artifact source, Bridge first creates a
+durable ArtifactsService placement and holds the lifecycle command in
+`artifact_pending`. The node's authenticated placement receipt releases the
+typed install command; a rejected receipt fails the operation and never starts
+the LaunchAgent. The artifact destination must be the approved user-scoped
+companion path, not a root service location.
+
+For Bridge-managed onboarding, the Darwin bootstrap now builds the
+Device Control-owned companion locally on the target Mac from the exact shipped
+tree, with `CGO_ENABLED=1`, before the node pairs. This is the preferred path:
+it guarantees that ScreenCaptureKit/CoreGraphics are linked against the target's
+Apple SDK and avoids distributing a Linux-produced cgo-free placeholder.
+
+For an already-onboarded Mac, or for an explicit artifact upgrade, build the
+Device Control-owned Darwin artifact from a Darwin control-plane checkout before
+an install or upgrade:
+
+```bash
+cd scenarios/device-control
+make companion-build
+vrooli-bridge companion install <node-id> \
+  --version <version> \
+  --artifact-source "$PWD/api/device-control-companion" \
+  --artifact-name device-control-companion \
+  --artifact-dest "$HOME/.vrooli/bin/device-control-companion"
+```
+
+`companion-build` produces the macOS `device-control-companion` artifact from
+Device Control's native desktop provider and its Pion session implementation.
+The target defaults to `CGO_ENABLED=1`; build it on a Darwin toolchain with
+the ScreenCaptureKit/CoreGraphics SDK available. Setting `CGO_ENABLED=0`
+creates a non-native artifact and is not a valid production companion build.
+Bridge only transports and lifecycle-manages that artifact. The user LaunchAgent
+binds the companion's loopback endpoint to `DEVICE_CONTROL_COMPANION_PORT`
+(default `16465`), and the node-agent uses that dedicated endpoint for every
+typed `DesktopSessionService` procedure (readiness, open, input, clipboard,
+close, and signaling); the ordinary Device Control scenario API port is not
+the companion endpoint. The current VP8 implementation also requires `ffmpeg` with
+`libvpx`; a missing encoder is reported as a readiness failure rather than a
+false GUI-ready state. A headless Mac or
+an account without an active Aqua GUI session may accept placement but refuse
+the user LaunchAgent bootstrap. Inspect the typed receipt and resolve the
+reported session/permission prerequisite before retrying; do not treat an
+attached display as GUI readiness.
+
+Routine operators do not SSH to start the companion, copy credentials, or
+inspect clipboard/input data. The Web Console desktop pane uses same-origin
+Device Control Connect-JSON RPCs. Bridge and the node-agent preserve that
+typed JSON representation for `DesktopSessionService` procedures while
+ordinary scenario procedures retain raw protobuf transport. Web Console never
+stores node URLs, private keys, SDP credentials, clipboard text, or input
+traces.
+
 ### Canonical one-command connection
 
 Use this command for the normal operator flow:

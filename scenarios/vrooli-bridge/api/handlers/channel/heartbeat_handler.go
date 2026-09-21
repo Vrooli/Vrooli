@@ -20,6 +20,8 @@ import (
 
 	"connectrpc.com/connect"
 
+	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
+	companionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/companion"
 	presencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence"
 	sessionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/session"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
@@ -66,8 +68,17 @@ type HeartbeatDeps struct {
 	ArtifactReceipts interface {
 		RecordDeliveryReceipt(context.Context, internalartifacts.DeliveryReceipt) error
 	}
+	CompanionArtifactReceipts interface {
+		DeliverArtifactReceipt(context.Context, string, string, bool, string) bool
+	}
 	ScenarioResponses interface {
 		Deliver(string, []byte, string, bool, bool, string) error
+	}
+	InteractiveSignals interface {
+		Deliver(*channelv1.InteractiveSignalResponse) bool
+	}
+	CompanionResponses interface {
+		Deliver(*companionv1.CompanionResponse) bool
 	}
 }
 
@@ -111,11 +122,29 @@ func WithArtifactReceiptRecorder(recorder interface {
 	return func(d *HeartbeatDeps) { d.ArtifactReceipts = recorder }
 }
 
+func WithCompanionArtifactReceiptSink(sink interface {
+	DeliverArtifactReceipt(context.Context, string, string, bool, string) bool
+}) HeartbeatOption {
+	return func(d *HeartbeatDeps) { d.CompanionArtifactReceipts = sink }
+}
+
 func WithScenarioResponseSink(sink interface {
 	Deliver(string, []byte, string, bool, bool, string) error
 },
 ) HeartbeatOption {
 	return func(d *HeartbeatDeps) { d.ScenarioResponses = sink }
+}
+
+func WithInteractiveSignalSink(sink interface {
+	Deliver(*channelv1.InteractiveSignalResponse) bool
+}) HeartbeatOption {
+	return func(d *HeartbeatDeps) { d.InteractiveSignals = sink }
+}
+
+func WithCompanionResponseSink(sink interface {
+	Deliver(*companionv1.CompanionResponse) bool
+}) HeartbeatOption {
+	return func(d *HeartbeatDeps) { d.CompanionResponses = sink }
 }
 
 type heartbeatHandler struct {
@@ -365,6 +394,9 @@ func (h *heartbeatHandler) ReportArtifactReceipt(ctx context.Context, req *conne
 		}
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
+	if h.deps.CompanionArtifactReceipts != nil {
+		h.deps.CompanionArtifactReceipts.DeliverArtifactReceipt(ctx, receipt.GetDistributionId(), nodeID, receipt.GetAccepted(), receipt.GetReason())
+	}
 	return connect.NewResponse(&presencev1.ReportArtifactReceiptResponse{Accepted: true}), nil
 }
 
@@ -492,6 +524,63 @@ func (h *heartbeatHandler) recordSessionOutput(ctx context.Context, state sessio
 	}); err != nil && h.deps.Logger != nil {
 		h.deps.Logger.Printf("channel.ReportSessionFrame: audit output: %v", err)
 	}
+}
+
+// ReportInteractiveSignalResponse accepts only a node-authenticated response
+// for a currently pending owner signal. SDP/ICE bytes remain opaque here.
+func (h *heartbeatHandler) ReportInteractiveSignalResponse(ctx context.Context, req *connect.Request[presencev1.ReportInteractiveSignalResponseRequest]) (*connect.Response[presencev1.ReportInteractiveSignalResponseResponse], error) {
+	response := req.Msg.GetResponse()
+	if response == nil || response.GetChannelId() == "" || response.GetNodeId() == "" || response.GetRequestId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("interactive signal response requires channel_id, node_id, and request_id"))
+	}
+	nodeID := req.Header().Get(nodeauth.HeaderNode)
+	if nodeID == "" {
+		return nil, connect.NewError(connect.CodeUnauthenticated, nodeauth.ErrMissingProof)
+	}
+	if nodeID != response.GetNodeId() {
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("interactive signal response node mismatch"))
+	}
+	if h.deps.Verifier != nil {
+		proof, err := nodeauth.ParseHeaders(nodeID, req.Header().Get(nodeauth.HeaderTS), req.Header().Get(nodeauth.HeaderSig))
+		if err != nil {
+			return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		}
+		if err := h.deps.Verifier.VerifyProof(ctx, proof); err != nil {
+			return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		}
+	}
+	if h.deps.InteractiveSignals == nil || !h.deps.InteractiveSignals.Deliver(response) {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("interactive signal response is not pending"))
+	}
+	return connect.NewResponse(&presencev1.ReportInteractiveSignalResponseResponse{Accepted: true}), nil
+}
+
+// ReportCompanionResponse accepts only a node-authenticated lifecycle receipt.
+func (h *heartbeatHandler) ReportCompanionResponse(ctx context.Context, req *connect.Request[presencev1.ReportCompanionResponseRequest]) (*connect.Response[presencev1.ReportCompanionResponseResponse], error) {
+	response := req.Msg.GetResponse()
+	if response == nil || response.GetOperationId() == "" || response.GetNodeId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("companion response requires operation_id and node_id"))
+	}
+	nodeID := req.Header().Get(nodeauth.HeaderNode)
+	if nodeID == "" {
+		return nil, connect.NewError(connect.CodeUnauthenticated, nodeauth.ErrMissingProof)
+	}
+	if nodeID != response.GetNodeId() {
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("companion response node mismatch"))
+	}
+	if h.deps.Verifier != nil {
+		proof, err := nodeauth.ParseHeaders(nodeID, req.Header().Get(nodeauth.HeaderTS), req.Header().Get(nodeauth.HeaderSig))
+		if err != nil {
+			return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		}
+		if err := h.deps.Verifier.VerifyProof(ctx, proof); err != nil {
+			return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		}
+	}
+	if h.deps.CompanionResponses == nil || !h.deps.CompanionResponses.Deliver(response) {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("companion response is not pending"))
+	}
+	return connect.NewResponse(&presencev1.ReportCompanionResponseResponse{Accepted: true}), nil
 }
 
 func (h *heartbeatHandler) auditRejectedDeliveryAck(ctx context.Context, nodeID string, ack *sharedv1.DeliveryAck, reason error) {

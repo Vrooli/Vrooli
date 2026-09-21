@@ -11,7 +11,7 @@
     {
       "id": "BRG-P2-002",
       "title": "Device Control Desktop Integration Seam",
-      "status": "planned",
+      "status": "in_progress",
       "delivery_scope": "roadmap",
       "deferred_reason": "Bridge owns the interactive transport seam, while Device Control owns native desktop operation and Web Console owns the viewer. The production WebRTC consumer is outside the original Bridge foundation scope.",
       "revisit_trigger": "Device Control and Web Console begin the production WebRTC desktop session and require the Bridge-owned signaling/revocation seam.",
@@ -23,15 +23,15 @@
           "type": "manual",
           "ref": "docs/internal/SEAMS.md",
           "phase": "design",
-          "status": "planned",
-          "notes": "Exposed (not built) consumer seam: Device Control consumes Bridge node identity/reach and the typed interactive channel. Document the protocol and revocation contract in the cross-scenario architecture record and Bridge SEAMS.md."
+          "status": "in_progress",
+          "notes": "Typed Bridge interactive and companion seams are implemented and race-tested; live Device Control media qualification remains open."
         },
         {
           "type": "manual",
           "ref": "docs/concepts/INTEGRATIONS.md#remote-desktop",
           "phase": "business",
-          "status": "planned",
-          "notes": "Device Control can resolve which nodes are trusted and open a bounded interactive session without receiving general job-execution or shell privileges."
+          "status": "in_progress",
+          "notes": "Owner-gated signaling, companion lifecycle, node admission, and bounded typed transport are implemented; live desktop readiness and media evidence remain open."
         }
       ]
     }

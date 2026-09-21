@@ -961,6 +961,61 @@
       ]
     },
     {
+      "name": "companion",
+      "description": "Install, inspect, upgrade, revoke, and remove the Device Control desktop companion",
+      "commands": [
+        {
+          "name": "install",
+          "description": "Install the user-scoped Device Control companion",
+          "positionals": [{ "name": "node-id", "required": true, "description": "Target node id" }],
+          "flags": [
+            { "name": "version", "description": "Companion version" },
+            { "name": "display", "description": "Selected display id", "bind": { "field": "display_id" } },
+            { "name": "artifact-source", "description": "Artifact source path or URI", "bind": { "field": "artifact_source_ref" } },
+            { "name": "artifact-name", "description": "Artifact logical name", "bind": { "field": "artifact_name" } },
+            { "name": "artifact-dest", "description": "Approved user-scoped artifact destination", "bind": { "field": "artifact_destination_path" } }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CompanionService", "method": "Install" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal", "admin"] }
+        },
+        {
+          "name": "inspect",
+          "description": "Inspect companion installation and LaunchAgent readiness",
+          "positionals": [{ "name": "node-id", "required": true, "description": "Target node id" }],
+          "binding": { "kind": "connect-rpc", "service": "CompanionService", "method": "Inspect" },
+          "governance": { "effect": "read", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "upgrade",
+          "description": "Upgrade the user-scoped Device Control companion",
+          "positionals": [{ "name": "node-id", "required": true, "description": "Target node id" }],
+          "flags": [
+            { "name": "version", "description": "Companion version" },
+            { "name": "artifact-source", "description": "Artifact source path or URI", "bind": { "field": "artifact_source_ref" } },
+            { "name": "artifact-name", "description": "Artifact logical name", "bind": { "field": "artifact_name" } },
+            { "name": "artifact-dest", "description": "Approved user-scoped artifact destination", "bind": { "field": "artifact_destination_path" } }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CompanionService", "method": "Upgrade" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal", "admin"] }
+        },
+        {
+          "name": "revoke",
+          "description": "Revoke the companion LaunchAgent before removal",
+          "positionals": [{ "name": "node-id", "required": true, "description": "Target node id" }],
+          "flags": [{ "name": "reason", "description": "Revocation reason" }],
+          "binding": { "kind": "connect-rpc", "service": "CompanionService", "method": "Revoke" },
+          "governance": { "effect": "destructive", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal", "admin"] }
+        },
+        {
+          "name": "remove",
+          "description": "Remove the companion artifact and user LaunchAgent",
+          "positionals": [{ "name": "node-id", "required": true, "description": "Target node id" }],
+          "binding": { "kind": "connect-rpc", "service": "CompanionService", "method": "Remove" },
+          "governance": { "effect": "destructive", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal", "admin"] }
+        }
+      ]
+    },
+    {
       "name": "artifacts",
       "description": "Ship non-git artifacts (installers, fixtures) to nodes via device-sync-hub directed delivery",
       "commands": [

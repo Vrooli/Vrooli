@@ -233,6 +233,32 @@ func (c resolvingManagedDNSClient) EnsureManagedRecord(ctx context.Context, spec
 	return managed.EnsureManagedRecord(ctx, spec)
 }
 
+func (c resolvingManagedDNSClient) UpdateManagedRecord(ctx context.Context, spec DNSRecordSpec) (DNSResult, error) {
+	cfg, err := c.store.Resolve(ctx)
+	if err != nil {
+		return DNSResult{}, fmt.Errorf("resolve Cloudflare credentials: %w", err)
+	}
+	client := NewCFDNSClient(c.doer, cfg)
+	managed, ok := client.(ManagedDNSClient)
+	if !ok {
+		return DNSResult{}, ErrRemoteUnavailable{}
+	}
+	return managed.UpdateManagedRecord(ctx, spec)
+}
+
+func (c resolvingManagedDNSClient) MergeSPFRecord(ctx context.Context, providerProfile, hostname, mechanism string, ttl int, dryRun bool) (SPFResult, error) {
+	cfg, err := c.store.Resolve(ctx)
+	if err != nil {
+		return SPFResult{}, fmt.Errorf("resolve Cloudflare credentials: %w", err)
+	}
+	client := NewCFDNSClient(c.doer, cfg)
+	managed, ok := client.(ManagedDNSClient)
+	if !ok {
+		return SPFResult{}, ErrRemoteUnavailable{}
+	}
+	return managed.MergeSPFRecord(ctx, providerProfile, hostname, mechanism, ttl, dryRun)
+}
+
 func (c resolvingDNSClient) EnsureRecord(ctx context.Context, hostname string) (DNSResult, error) {
 	client, err := c.client(ctx)
 	if err != nil {

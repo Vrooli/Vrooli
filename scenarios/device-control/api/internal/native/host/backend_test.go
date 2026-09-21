@@ -7,6 +7,9 @@ import (
 	"errors"
 	"image"
 	"image/png"
+	"os"
+	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -22,6 +25,18 @@ func framePNG(t *testing.T) []byte {
 	var out bytes.Buffer
 	require.NoError(t, png.Encode(&out, image.NewRGBA(image.Rect(0, 0, 4, 5))))
 	return out.Bytes()
+}
+
+func TestEncodePNGToVP8ProducesBoundedFrame(t *testing.T) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("ffmpeg is required for VP8 encoder coverage")
+	}
+	var input bytes.Buffer
+	require.NoError(t, png.Encode(&input, image.NewRGBA(image.Rect(0, 0, 4, 4))))
+	frame, err := encodePNGToVP8(context.Background(), input.Bytes())
+	require.NoError(t, err)
+	require.NotEmpty(t, frame)
+	require.LessOrEqual(t, len(frame), maxCaptureBytes)
 }
 
 func actionPayload(t *testing.T, action *desktopv1.Action) []byte {
@@ -45,11 +60,22 @@ func TestDarwinBackendCapturesAndAppliesPointerInBoundUserSession(t *testing.T) 
 	require.NoError(t, err)
 	require.Equal(t, 4, snapshot.Image.Bounds().Dx())
 	require.Equal(t, 5, snapshot.Image.Bounds().Dy())
+	require.Equal(t, "main", snapshot.DisplayID)
 	payload := actionPayload(t, &desktopv1.Action{Action: &desktopv1.Action_Pointer{Pointer: &desktopv1.PointerAction{Kind: desktopv1.PointerAction_KIND_CLICK, DisplayId: snapshot.DisplayID, X: 1, Y: 2, Button: desktopv1.PointerAction_BUTTON_PRIMARY}}})
 	command := sessions.DesktopCommand{GeometryRevision: snapshot.GeometryRevision, Payload: payload}
 	require.NoError(t, b.Validate(context.Background(), command))
 	require.NoError(t, b.Apply(context.Background(), command))
 	require.Equal(t, "osascript", calls[0][0])
+}
+
+func TestDarwinVP8RejectsAnUnselectedDisplay(t *testing.T) {
+	b := newBackendForPlatform("darwin", func(context.Context, string, ...string) ([]byte, error) {
+		t.Fatal("capture must not run for an unselected display")
+		return nil, nil
+	}, func(context.Context, string, ...string) error { return nil })
+	b.display = "secondary"
+	_, _, err := b.CaptureVP8(context.Background())
+	require.ErrorIs(t, err, ErrUnavailable)
 }
 
 func TestDarwinBackendPrefersScreenCaptureKitWhenConfigured(t *testing.T) {
@@ -67,7 +93,7 @@ func TestDarwinBackendPrefersScreenCaptureKitWhenConfigured(t *testing.T) {
 	require.False(t, commandCalled, "configured ScreenCaptureKit capture should run before the compatibility command")
 }
 
-func TestDarwinBackendFallsBackWhenScreenCaptureKitUnavailable(t *testing.T) {
+func TestDarwinBackendDoesNotFallbackWhenScreenCaptureKitUnavailable(t *testing.T) {
 	pngData := framePNG(t)
 	commandCalled := false
 	b := newBackendForPlatform("darwin", func(_ context.Context, name string, args ...string) ([]byte, error) {
@@ -78,8 +104,8 @@ func TestDarwinBackendFallsBackWhenScreenCaptureKitUnavailable(t *testing.T) {
 	b.nativeCapture = func(context.Context) ([]byte, error) { return nil, errors.New("ScreenCaptureKit unavailable") }
 
 	_, err := b.Observe(context.Background())
-	require.NoError(t, err)
-	require.True(t, commandCalled, "older packaged helpers retain the compatibility capture path")
+	require.ErrorIs(t, err, ErrPermissionDenied)
+	require.False(t, commandCalled, "native capture failure must not switch capture authorities")
 }
 
 func TestWindowsBackendDecodesBoundedCaptureAndAppliesKey(t *testing.T) {
@@ -250,6 +276,83 @@ func TestDarwinEmptyCaptureSurfacesPermissionEvidence(t *testing.T) {
 	}, func(context.Context, string, ...string) error { return nil })
 	_, err := b.Observe(context.Background())
 	require.ErrorIs(t, err, ErrPermissionDenied)
+}
+
+func TestDarwinProbeMapsCapturePermissionToActionableReadinessEvidence(t *testing.T) {
+	b := newBackendForPlatform("darwin", func(_ context.Context, name string, args ...string) ([]byte, error) {
+		switch name {
+		case "stat":
+			if len(args) > 1 && args[1] == "%Su" {
+				return []byte("alice\n"), nil
+			}
+			return []byte(strconv.Itoa(os.Getuid()) + "\n"), nil
+		case "launchctl":
+			return []byte("gui session\n"), nil
+		case "ffmpeg":
+			return []byte(" V....D libvpx               libvpx VP8 (codec vp8)\n"), nil
+		case "screencapture":
+			return nil, errors.New("screen recording denied")
+		default:
+			return nil, errors.New("unexpected probe command")
+		}
+	}, func(context.Context, string, ...string) error { return nil })
+	b.nativeCapture = func(context.Context) ([]byte, error) { return nil, errors.New("ScreenCaptureKit denied") }
+	observed, err := b.Probe(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "alice", observed.ActiveUser)
+	require.Equal(t, "Aqua", observed.SessionType)
+	require.Equal(t, "screen_recording_required", observed.PermissionCode)
+}
+
+func TestDarwinProbeRefusesUnavailableClipboardWithoutRetainingContent(t *testing.T) {
+	pngData := framePNG(t)
+	var clipboardRead bool
+	b := newBackendForPlatform("darwin", func(_ context.Context, name string, args ...string) ([]byte, error) {
+		switch name {
+		case "stat":
+			if len(args) > 1 && args[1] == "%Su" {
+				return []byte("alice\n"), nil
+			}
+			return []byte(strconv.Itoa(os.Getuid()) + "\n"), nil
+		case "launchctl":
+			return []byte("gui session\n"), nil
+		case "ffmpeg":
+			return []byte(" V....D libvpx               libvpx VP8 (codec vp8)\n"), nil
+		case "pbpaste":
+			clipboardRead = true
+			return nil, errors.New("pasteboard unavailable")
+		default:
+			return nil, errors.New("unexpected probe command")
+		}
+	}, func(context.Context, string, ...string) error { return nil })
+	b.nativeCapture = func(context.Context) ([]byte, error) { return pngData, nil }
+	observed, err := b.Probe(context.Background())
+	require.NoError(t, err)
+	require.True(t, clipboardRead)
+	require.Equal(t, "clipboard_unavailable", observed.PermissionCode)
+	require.False(t, observed.ClipboardAllowed)
+}
+
+func TestDarwinProbeRefusesMissingVP8EncoderBeforeReportingReady(t *testing.T) {
+	b := newBackendForPlatform("darwin", func(_ context.Context, name string, args ...string) ([]byte, error) {
+		switch name {
+		case "stat":
+			if len(args) > 1 && args[1] == "%Su" {
+				return []byte("alice\n"), nil
+			}
+			return []byte(strconv.Itoa(os.Getuid()) + "\n"), nil
+		case "launchctl":
+			return []byte("gui session\n"), nil
+		default:
+			t.Fatalf("capture must not run when the encoder is unavailable: %s", name)
+			return nil, nil
+		}
+	}, func(context.Context, string, ...string) error { return nil })
+	b.lookPath = func(string) (string, error) { return "", errors.New("ffmpeg missing") }
+	observed, err := b.Probe(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "vp8_encoder_unavailable", observed.PermissionCode)
+	require.False(t, observed.VP8EncoderAvailable)
 }
 
 func TestAcceptanceNAT04MacOSRevokeDoesNotReuseStaleCapture(t *testing.T) {

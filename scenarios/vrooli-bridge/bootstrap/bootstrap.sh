@@ -1095,6 +1095,42 @@ step_finalize_setup() {
   step_ok "complete setup applied with the native Keychain-enabled CLI"
 }
 
+step_build_native_companion() {
+  step_start native-companion "build the host-native Device Control companion"
+  if [ "$OS" != "darwin" ]; then
+    step_skip "native companion build is only required on Darwin"
+    return
+  fi
+
+  local companion_dir="${CHECKOUT_DIR}/scenarios/device-control/api"
+  local install_dir="${HOME}/.vrooli/bin"
+  local destination="${install_dir}/device-control-companion"
+  local temporary
+  mkdir -p "$install_dir"
+  temporary="$(mktemp "${destination}.tmp.XXXXXX")" || fail 1 "could not create a temporary native companion path"
+  # The companion owns the macOS ScreenCaptureKit/CoreGraphics boundary. It must
+  # be compiled on the target Mac with cgo and the Apple SDK; a control-plane
+  # cross-build cannot produce a valid production companion.
+  if ! ( cd "$companion_dir" && GOMAXPROCS="${GOMAXPROCS:-1}" GOFLAGS="${GOFLAGS:-}" CGO_ENABLED=1 GOWORK=off go build -trimpath -ldflags='-s -w -X main.companionVersion=0.1.0' -o "$temporary" ./cmd/desktop-companion ) >&2; then
+    rm -f "$temporary"
+    fail 1 "native macOS Device Control companion build failed; the final companion must link ScreenCaptureKit/CoreGraphics"
+  fi
+  [ -x "$temporary" ] || fail 1 "native macOS Device Control companion build produced no executable"
+  local file_info linkage
+  file_info="$(file "$temporary" 2>/dev/null || true)"
+  case "$file_info" in
+    *Mach-O*) ;;
+    *) rm -f "$temporary"; fail 1 "native macOS Device Control companion is not a Mach-O executable" ;;
+  esac
+  linkage="$(otool -L "$temporary" 2>/dev/null || true)"
+  printf '%s\n' "$linkage" | grep -q 'ScreenCaptureKit' || { rm -f "$temporary"; fail 1 "native companion is missing the ScreenCaptureKit framework linkage"; }
+  printf '%s\n' "$linkage" | grep -q 'CoreGraphics' || { rm -f "$temporary"; fail 1 "native companion is missing the CoreGraphics framework linkage"; }
+  chmod 700 "$temporary"
+  mv -f "$temporary" "$destination"
+  COMPANION_BIN="$destination"
+  step_ok "native CGO-enabled Device Control companion installed at ${destination} (Mach-O; ScreenCaptureKit/CoreGraphics linked)"
+}
+
 # run_bounded_setup <out-file> <budget-seconds> <null|pipe> <dir> -- <command...>
 # Runs a long setup command from <dir> with its output captured in <out-file>,
 # stdin from /dev/null unless "pipe" (a passphrase piped on purpose), and a
@@ -1409,6 +1445,9 @@ step_record_install() {
   if [ -n "$RUNTIME_VROOLI_BIN" ]; then
     record_install_artifact runtime binary "$RUNTIME_VROOLI_BIN" "${RUNTIME_VROOLI_BIN%/*}" || fail 1 "could not record native Vrooli CLI"
   fi
+  if [ -n "${COMPANION_BIN:-}" ]; then
+    record_install_artifact runtime binary "$COMPANION_BIN" "${COMPANION_BIN%/*}" || fail 1 "could not record native Device Control companion"
+  fi
   # The live agent updates this exact owned directory while it is online. Keep
   # it removable, but do not make a cleanup plan stale merely because a
   # heartbeat or credential-sidecar changed between inventory and apply.
@@ -1523,6 +1562,7 @@ step_verify_online() {
 # --- run ---------------------------------------------------------------------
 
 REVISION_SHA=""
+COMPANION_BIN=""
 # Working-tree content digest folded into the setup sentinel key (empty in pinned
 # mode); step_clone sets it in working-tree source mode.
 SETUP_DIGEST_KEY=""
@@ -1554,6 +1594,7 @@ main() {
   step_toolchain_guard
   step_refresh_proto
   step_build_native_vrooli
+  step_build_native_companion
   step_finalize_setup
   step_build_agent
   step_install_stable_agent

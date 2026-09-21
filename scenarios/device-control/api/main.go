@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"runtime"
 	"time"
 
 	"device-control/internal/capabilities"
@@ -26,9 +29,12 @@ import (
 
 	capsH "device-control/handlers/capabilities"
 	controlH "device-control/handlers/control"
+	desktopH "device-control/handlers/desktop"
 	flowsH "device-control/handlers/flows"
 	healthH "device-control/handlers/health"
 	"device-control/internal/control"
+	"device-control/internal/desktopwebrtc"
+	nativemacos "device-control/internal/native/macos"
 	strategyregistry "device-control/strategy/registry"
 )
 
@@ -51,6 +57,13 @@ func scenarioStorageRoots() (storage.Paths, error) {
 }
 
 func main() {
+	configPath := flag.String("config", "", "user-scoped companion configuration path")
+	flag.Parse()
+	if *configPath != "" {
+		if err := validateCompanionConfig(*configPath); err != nil {
+			log.Fatalf("desktop companion configuration failed: %v", err)
+		}
+	}
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
 	if preflight.Run(preflight.Config{ScenarioName: "device-control"}) {
@@ -93,11 +106,21 @@ func main() {
 	}
 	defer stopDesktop()
 
+	desktopProvider := desktopwebrtc.Provider(desktopwebrtc.UnavailableProvider{})
+	if runtime.GOOS == "darwin" {
+		if backend, backendErr := nativemacos.NewHostBackend(""); backendErr == nil {
+			desktopProvider = nativemacos.Provider{Backend: backend}
+		} else {
+			log.Printf("desktop companion unavailable: %v", backendErr)
+		}
+	}
+
 	srv := server.New(
 		server.Deps{Clock: internalclock.System(), Logger: log.Default()},
 		healthH.Module(db, "device-control-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
 		controlH.Module(controlService),
+		desktopH.Module(desktopwebrtc.NewManager(desktopProvider)),
 		flowsH.Module(internalflows.NewResolver(gateway)),
 	)
 
@@ -130,4 +153,21 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+func validateCompanionConfig(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read %q: %w", path, err)
+	}
+	var config struct {
+		DisplayID string `json:"display_id"`
+	}
+	if err := json.Unmarshal(data, &config); err != nil {
+		return fmt.Errorf("decode %q: %w", path, err)
+	}
+	if len(config.DisplayID) > 256 {
+		return fmt.Errorf("display_id exceeds 256 bytes")
+	}
+	return nil
 }

@@ -33,6 +33,8 @@ func TestSealPushUsesIndependentNodeKeyAndBindsAddress(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "fixture-secret", string(plain))
 	require.Equal(t, sealing.CredentialContext("node-1", "vrooli/test", "api-key", 4), push.GetAad())
+	require.Equal(t, string(ClassUserPrompt), push.GetClass())
+	require.Equal(t, string(RetentionEphemeral), push.GetRetention())
 	require.NotContains(t, string(payload), "fixture-secret")
 }
 

@@ -287,6 +287,41 @@
           }
         },
         {
+          "name": "dns-update",
+          "description": "Review or explicitly apply one managed DNS record update",
+          "flags": [
+            {"name": "provider-profile", "required": true, "description": "Managed DNS provider profile"},
+            {"name": "hostname", "required": true, "description": "Fully-qualified DNS hostname"},
+            {"name": "type", "required": true, "description": "DNS record type, such as TXT, CNAME, MX, or A"},
+            {"name": "content", "required": true, "description": "Record content"},
+            {"name": "owner", "description": "Stable owner identity for the managed record"},
+            {"name": "ttl", "description": "DNS TTL in seconds"},
+            {"name": "priority", "description": "MX priority"},
+            {"name": "proxied", "bool": true, "description": "Request provider proxying where supported"},
+            {"name": "dry-run", "bool": true, "description": "Review the operation without writing DNS"},
+            {"name": "confirm", "bool": true, "description": "Explicitly authorize the live DNS write"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ConfigService", "method": "UpdateDNSRecord"},
+          "governance": {"effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:external", "admin"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "dns-spf",
+          "description": "Review or explicitly apply a bounded SPF merge",
+          "flags": [
+            {"name": "provider-profile", "required": true, "description": "Managed DNS provider profile"},
+            {"name": "hostname", "required": true, "description": "SPF hostname, normally the sending domain"},
+            {"name": "mechanism", "required": true, "description": "SPF mechanism to merge, such as include:sendgrid.net"},
+            {"name": "owner", "description": "Stable owner identity for the managed record"},
+            {"name": "ttl", "description": "DNS TTL in seconds"},
+            {"name": "dry-run", "bool": true, "description": "Review the merge without writing DNS"},
+            {"name": "confirm", "bool": true, "description": "Explicitly authorize the live DNS write"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ConfigService", "method": "EnsureSPFRecord"},
+          "governance": {"effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:external", "admin"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
           "name": "bootstrap",
           "description": "Adopt or create the named Cloudflare tunnel from one API token, then store all derived credentials",
           "flags": [

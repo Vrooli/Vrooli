@@ -24,6 +24,7 @@ import (
 	"vrooli-bridge/internal/cprev"
 	internalcredentialgrant "vrooli-bridge/internal/credentialgrant"
 	"vrooli-bridge/internal/hostbroker"
+	internalinteractive "vrooli-bridge/internal/interactive"
 	internalmachines "vrooli-bridge/internal/machines"
 	"vrooli-bridge/internal/modules"
 	"vrooli-bridge/internal/nodeauth"
@@ -45,6 +46,7 @@ import (
 
 	"github.com/vrooli/api-core/schedule"
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
+	interactivev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/interactive"
 	sessionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/session"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 
@@ -69,6 +71,7 @@ import (
 	auditH "vrooli-bridge/handlers/audit"
 	channelH "vrooli-bridge/handlers/channel"
 	cleanupH "vrooli-bridge/handlers/cleanup"
+	companionH "vrooli-bridge/handlers/companion"
 	credentialgrantH "vrooli-bridge/handlers/credentialgrant"
 	dispatchH "vrooli-bridge/handlers/dispatch"
 	fleetH "vrooli-bridge/handlers/fleet"
@@ -76,6 +79,7 @@ import (
 	gateH "vrooli-bridge/handlers/gate"
 	healthH "vrooli-bridge/handlers/health"
 	identityH "vrooli-bridge/handlers/identity"
+	interactiveH "vrooli-bridge/handlers/interactive"
 	machinesH "vrooli-bridge/handlers/machines"
 	onboardH "vrooli-bridge/handlers/onboard"
 	pairingH "vrooli-bridge/handlers/pairing"
@@ -86,6 +90,7 @@ import (
 	relayH "vrooli-bridge/handlers/relay"
 	runsH "vrooli-bridge/handlers/runs"
 	scenarioH "vrooli-bridge/handlers/scenario"
+	internalcompanion "vrooli-bridge/internal/companion"
 	internalfollow "vrooli-bridge/internal/follow"
 	"vrooli-bridge/publicproxy"
 )
@@ -961,9 +966,38 @@ func main() {
 		registrySvc, presenceHub,
 		queueH.NewChannelScenarioPusher(presenceHub, cpKeypair), scenarioBroker,
 	)
-
-	artifactsModule, artifactReceiptRecorder := artifactsH.Module(db, clk, registrySvc, runsSvc, nodeVerifier, logger,
+	interactiveAdmission := internalinteractive.NewAdmission()
+	interactiveAdmission.SetRoutes(func() []*interactivev1.RouteCandidate {
+		// TURN values are deployment-injected and short-lived. They are returned
+		// only in the open response and are never written to Bridge state/logs.
+		url := strings.TrimSpace(os.Getenv("BRIDGE_TURN_URL"))
+		if url == "" {
+			return []*interactivev1.RouteCandidate{{Kind: interactivev1.RouteKind_ROUTE_KIND_DIRECT, Priority: 1}}
+		}
+		return []*interactivev1.RouteCandidate{
+			{Kind: interactivev1.RouteKind_ROUTE_KIND_DIRECT, Priority: 1},
+			{Kind: interactivev1.RouteKind_ROUTE_KIND_TURN, Url: url, Username: os.Getenv("BRIDGE_TURN_USERNAME"), Credential: os.Getenv("BRIDGE_TURN_CREDENTIAL"), Priority: 2},
+		}
+	})
+	interactiveSignalBroker := internalinteractive.NewSignalBroker(queueH.NewInteractiveSignalPusher(presenceHub, cpKeypair))
+	interactiveRevokePusher := queueH.NewInteractiveRevokePusher(presenceHub, cpKeypair)
+	interactiveNodeRevoker := func(ctx context.Context, nodeID string) error {
+		var firstErr error
+		for _, grant := range interactiveAdmission.RevokeNodeGrants(nodeID) {
+			if err := interactiveRevokePusher.PushInteractiveRevoke(ctx, grant, "node_revoked"); err != nil && firstErr == nil {
+				firstErr = err
+			}
+		}
+		return firstErr
+	}
+	artifactsModule, artifactReceiptRecorder, artifactService := artifactsH.Module(db, clk, registrySvc, runsSvc, nodeVerifier, logger,
 		artifactsH.NewArtifactPlacementPusher(presenceHub, cpKeypair))
+	companionCommandPusher := queueH.NewCompanionCommandPusher(presenceHub, cpKeypair)
+	companionManager := internalcompanion.NewManager(func(nodeID string) bool {
+		node, err := registrySvc.Get(context.Background(), nodeID)
+		return err == nil && !node.Revoked() && presenceHub.IsOnline(nodeID)
+	}, companionCommandPusher)
+	companionManager.SetArtifactDistributor(companionArtifactDistributor{service: artifactService})
 
 	// Branch follow: nodes set to a branch are provisioned to its new commits.
 	followSvc := internalfollow.NewService(db, internalfollow.GitHeads{}, followH.NewProvisioner(provisionSvc), followH.NewNodeChecker(registrySvc), nil)
@@ -980,18 +1014,26 @@ func main() {
 		// authResolver) and relays the issued owner JWT. Unauthenticated (it precedes
 		// the caller holding a token); owns no credential logic and no tables.
 		identityH.Module(authResolver, logger, operatorSessionStore),
+		interactiveH.Module(interactiveAdmission, func(ctx context.Context, nodeID string) bool {
+			node, err := registrySvc.Get(ctx, nodeID)
+			return err == nil && !node.Revoked() && presenceHub.IsOnline(nodeID)
+		}, logger, interactiveSignalBroker, interactiveRevokePusher),
+		companionH.Module(companionManager),
 		// machines: operator-intent identity and lifecycle. It references Node
 		// lineage rather than copying Registry or live Presence state.
 		machinesH.Module(db, clk, sshSvc, registrySvc, pairingSvc, presenceHub, onboardSvc, logger),
 		// registry RevokeNode performs atomic revocation: durable revoke +
 		// credential destruction (pairingSvc) + live-channel drop (presenceHub).
-		registryH.Module(registrySvc, presenceHub, pairingSvc, presenceHub, watchdogConfig.PresenceStaleAfter, logger),
+		registryH.Module(registrySvc, presenceHub, pairingSvc, presenceHub, watchdogConfig.PresenceStaleAfter, logger, interactiveNodeRevoker),
 		attachedH.Module(db.Primary(), logger, presenceHub),
 		channelH.Module(presenceHub, nodeLastSeen, nodeVerifier, logger,
 			channelH.WithDeliveryAckRecorder(runsSvc), channelH.WithAuditSink(auditStore),
 			channelH.WithSessionManager(sessionManager, authClient, registrySvc), channelH.WithSessionPush(pushSession),
 			channelH.WithRelayResponseSink(relayBroker), channelH.WithCredentialReceiptRecorder(grantSvc),
 			channelH.WithArtifactReceiptRecorder(artifactReceiptRecorder),
+			channelH.WithCompanionArtifactReceiptSink(companionManager),
+			channelH.WithInteractiveSignalSink(interactiveSignalBroker),
+			channelH.WithCompanionResponseSink(companionManager),
 			channelH.WithScenarioResponseSink(scenarioResponseSink{broker: scenarioBroker})),
 		cleanupH.Module(cleanupSvc, nodeVerifier, logger),
 		credentialgrantH.Module(grantHandler),

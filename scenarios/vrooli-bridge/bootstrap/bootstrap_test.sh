@@ -117,6 +117,20 @@ if [ "${FAKE_SUDO_MODE:-denied}" != "passwordless" ]; then
   exit 1
 fi
 [ "${#args[@]}" -eq 0 ] && exit 0
+# The fixture runs as an unprivileged test user, while the real Darwin/Linux
+# helper would create its root-owned runtime directory through sudo. Model that
+# one privileged directory operation without touching the host's /run.
+if [ "${args[0]:-}" = "install" ]; then
+  exit 0
+fi
+case "${args[0]:-}" in
+  */vrooli-bridge-agent)
+    if [ "${args[1]:-}" = "service" ] && [ "${args[2]:-}" = "install" ]; then
+      printf '{"running":true,"unit_path":"/tmp/fake-provisioner.unit"}\n'
+      exit 0
+    fi
+    ;;
+esac
 exec "${args[@]}"
 SUDO
 
@@ -130,6 +144,24 @@ target="${!#}"
 [ -n "${FAKE_CHOWN_LOG:-}" ] && printf '%s\n' "$target" >>"$FAKE_CHOWN_LOG"
 chmod -R u+rwX "$target"
 CHOWN
+
+# Darwin artifact inspection fakes. The real bootstrap uses the host's
+# `file` and `otool` to reject a cgo-free placeholder before installation;
+# these outputs model the required Mach-O/framework evidence in the portable
+# shell fixture.
+cat >"${FAKEBIN}/file" <<'FILE'
+#!/usr/bin/env bash
+if [ "${FAKE_FILE_KIND:-}" = "ELF" ]; then
+  printf '%s: ELF 64-bit executable x86-64\n' "${1:-artifact}"
+else
+  printf '%s: Mach-O 64-bit executable x86_64\n' "${1:-artifact}"
+fi
+FILE
+  cat >"${FAKEBIN}/otool" <<'OTOOL'
+#!/usr/bin/env bash
+printf '/System/Library/Frameworks/ScreenCaptureKit.framework/Versions/A/ScreenCaptureKit\n/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics\n'
+OTOOL
+  chmod +x "${FAKEBIN}/file" "${FAKEBIN}/otool"
 
   # uname: keep the normal Linux fixture deterministic and allow the platform
   # default socket contract to be exercised as a Darwin run below.
@@ -248,10 +280,28 @@ fi
 exit 0
 APT
 
-  # Fake go + pnpm toolchains — presence is the only thing the guard checks, so a
-  # trivial exit-0 stub suffices. They live in $TOOLBIN (not $FAKEBIN) so tests can
-  # add or withhold them from PATH independently.
-  printf '#!/usr/bin/env bash\nexit 0\n' >"${TOOLBIN}/go"
+  # Fake go + pnpm toolchains. Go also creates the requested output for Darwin's
+  # native companion/CLI build seam, so the bootstrap can exercise atomic
+  # installation without requiring an Apple SDK in this shell test.
+  cat >"${TOOLBIN}/go" <<'GO'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "${1:-}" = "version" ]; then exit 0; fi
+if [ "${1:-}" = "build" ]; then
+  output=""
+  previous=""
+  for arg in "$@"; do
+    if [ "$previous" = "-o" ]; then output="$arg"; break; fi
+    previous="$arg"
+  done
+  [ -n "$output" ] || { echo "fake go build missing -o" >&2; exit 2; }
+  mkdir -p "$(dirname "$output")"
+  printf '#!/usr/bin/env bash\nexit 0\n' >"$output"
+  chmod 700 "$output"
+  exit 0
+fi
+exit 0
+GO
   printf '#!/usr/bin/env bash\nexit 0\n' >"${TOOLBIN}/pnpm"
 
   chmod +x "${FAKEBIN}/git" "${FAKEBIN}/make" "${FAKEBIN}/sudo" "${FAKEBIN}/chown" "${FAKEBIN}/uname" "${FAKEBIN}/loginctl" "${FAKEBIN}/journalctl" "${FAKEBIN}/apt-get" "${TOOLBIN}/go" "${TOOLBIN}/pnpm" "$FAKE_AGENT" "$FAKE_CLI" "$FAKE_VROOLI"
@@ -332,10 +382,16 @@ check "ownership repair targets only the managed state directory" "$(grep -Fxq "
 
 echo "== Darwin provisioning helper uses writable per-user state socket =="
 rm -rf "$STATE" "$CHECKOUT"
+mkdir -p "$CHECKOUT/scenarios/device-control/api" "$CHECKOUT/.vrooli"
+printf '{}\n' >"$CHECKOUT/.vrooli/repo-contract.json"
 OUTDARWIN="${WORKROOT}/darwin-provision.out"
+set +e
 FAKE_UNAME_S=Darwin FAKE_UNAME_M=x86_64 FAKE_SUDO_MODE=passwordless run_bootstrap "$OUTDARWIN" \
+  --source-dir "$CHECKOUT" --source-digest "darwin-helper-fingerprint" \
   --provision-service-user root
-check "Darwin helper run exits 0" "$?"
+rcdarwin_helper=$?
+set -e
+check "Darwin helper run exits 0" "$rcdarwin_helper"
 check "Darwin helper run reaches run-ok" "$(grep -q 'event=run-ok' "$OUTDARWIN" && echo 0 || echo 1)"
 check "Darwin helper defaults socket under state dir" "$(grep -q -- "--provision-socket ${STATE}/provision.sock" "$WORKROOT/agent.calls" && echo 0 || echo 1)"
 
@@ -501,6 +557,59 @@ check "prebuilt run never invokes make" "$([ -s "$FAKE_MAKE_LOG" ] && echo 1 || 
 check "prebuilt run never invokes go build" "$(grep -q 'go build\|build from source' "${OUTPRE}" "${OUTPRE}.err" && echo 1 || echo 0)"
 check "prebuilt toolchain guard skips source-build requirement" "$(marker_is "$OUTPRE" step-skip toolchain && echo 0 || echo 1)"
 check "prebuilt run reaches ONLINE" "$(grep -q 'event=run-ok' "$OUTPRE" && echo 0 || echo 1)"
+
+echo "== Darwin prebuilt onboarding builds and records a native companion =="
+DARWIN_STATE="$STATE"
+DARWIN_HOME="${WORKROOT}/darwin-native-home"
+DARWIN_SRC="${WORKROOT}/darwin-native-source"
+DARWIN_OUT="${WORKROOT}/darwin-native.out"
+rm -rf "$DARWIN_STATE" "$DARWIN_HOME" "$DARWIN_SRC"
+mkdir -p "$DARWIN_SRC/.vrooli" \
+  "$DARWIN_SRC/packages/proto/gen/go/cli/v1" \
+  "$DARWIN_SRC/packages/proto/gen/go/vrooli-bridge/v1/channel" \
+  "$DARWIN_SRC/scenarios/device-control/api/cmd/desktop-companion"
+printf '{}\n' >"$DARWIN_SRC/.vrooli/repo-contract.json"
+printf 'type DesktopSession struct{}\n' >"$DARWIN_SRC/packages/proto/gen/go/cli/v1/runtime.pb.go"
+printf 'const DeviceSyncUrl = ""\n' >"$DARWIN_SRC/packages/proto/gen/go/vrooli-bridge/v1/channel/channel.pb.go"
+for bin in "$FAKE_VROOLI" "$FAKE_CLI" "$FAKE_AGENT"; do
+  printf 'darwin-native-fingerprint\n' >"${bin}.fp"
+done
+set +e
+PATH="${FAKEBIN}:${TOOLBIN}:${PATH}" HOME="$DARWIN_HOME" \
+FAKE_UNAME_S=Darwin FAKE_UNAME_M=x86_64 FAKE_SUDO_MODE=denied \
+FAKE_MAKE_LOG="$FAKE_MAKE_LOG" FAKE_VROOLI_LOG="${WORKROOT}/darwin-vrooli.calls" \
+FAKE_AGENT_LOG="${WORKROOT}/darwin-agent.calls" BRIDGE_PAIRING_CODE="TESTCODE1234" \
+  bash "$SCRIPT" \
+    --control-plane-url "http://cp.test" --node-name "darwin-node" \
+    --checkout-dir "${WORKROOT}/darwin-unused-checkout" --source-dir "$DARWIN_SRC" \
+    --source-digest "darwin-native-fingerprint" --state-dir "$DARWIN_STATE" \
+    --vrooli-bin "$FAKE_VROOLI" --agent-bin "$FAKE_AGENT" --bridge-cli "$FAKE_CLI" \
+    --verify-timeout 10 >"$DARWIN_OUT" 2>"${DARWIN_OUT}.err"
+rcdarwin=$?
+set -e
+check "Darwin native companion fixture exits 0" "$([ "$rcdarwin" -eq 0 ] && echo 0 || echo 1)"
+check "Darwin native companion step succeeds" "$(marker_is "$DARWIN_OUT" step-ok native-companion && echo 0 || echo 1)"
+check "Darwin native companion is installed at the managed path" "$([ -x "$DARWIN_HOME/.vrooli/bin/device-control-companion" ] && echo 0 || echo 1)"
+check "Darwin native companion is recorded for cleanup" "$(jq -e --arg p "$DARWIN_HOME/.vrooli/bin/device-control-companion" '.entries[] | select(.path == $p)' "$DARWIN_HOME/.vrooli/state/install-record.json" >/dev/null && echo 0 || echo 1)"
+check "Darwin native companion run reaches ONLINE" "$(grep -q 'event=run-ok' "$DARWIN_OUT" && echo 0 || echo 1)"
+echo "== Darwin rejects a non-Mach-O companion before replacement =="
+DARWIN_BAD_OUT="${WORKROOT}/darwin-native-bad.out"
+set +e
+PATH="${FAKEBIN}:${TOOLBIN}:${PATH}" HOME="$DARWIN_HOME" \
+FAKE_UNAME_S=Darwin FAKE_UNAME_M=x86_64 FAKE_FILE_KIND=ELF \
+FAKE_VROOLI_LOG="${WORKROOT}/darwin-vrooli-bad.calls" FAKE_AGENT_LOG="${WORKROOT}/darwin-agent-bad.calls" \
+BRIDGE_PAIRING_CODE="TESTCODE1234" \
+  bash "$SCRIPT" \
+    --control-plane-url "http://cp.test" --node-name "darwin-node" \
+    --checkout-dir "${WORKROOT}/darwin-unused-checkout-bad" --source-dir "$DARWIN_SRC" \
+    --source-digest "darwin-native-fingerprint-bad" --state-dir "$DARWIN_STATE" \
+    --vrooli-bin "$FAKE_VROOLI" --agent-bin "$FAKE_AGENT" --bridge-cli "$FAKE_CLI" \
+    --verify-timeout 10 >"$DARWIN_BAD_OUT" 2>"${DARWIN_BAD_OUT}.err"
+rcdarwin_bad=$?
+set -e
+check "Darwin non-Mach-O companion exits 1" "$([ "$rcdarwin_bad" -eq 1 ] && echo 0 || echo 1)"
+check "Darwin non-Mach-O companion is refused before install" "$(grep -q 'not a Mach-O executable' "$DARWIN_BAD_OUT" && echo 0 || echo 1)"
+check "Darwin failed replacement preserves the prior native artifact" "$([ -x "$DARWIN_HOME/.vrooli/bin/device-control-companion" ] && echo 0 || echo 1)"
 
 echo "== setup result categories control Bridge failure classification =="
 run_prebuilt_setup_failure() { # category exit output

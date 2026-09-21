@@ -587,15 +587,11 @@ func (s *ModuleState) reserveTake(w http.ResponseWriter, r *http.Request) {
 		Holder string `json:"holder"`
 	}
 	_ = readJSON(r, &body)
-	take, ok := s.Pool.Get(mux.Vars(r)["id"])
-	if !ok || take.PoolState != "available" {
-		http.Error(w, "take is not available", http.StatusConflict)
-		return
-	}
-	// Reservation is exposed as a transition endpoint while the pool's draw
-	// operation remains the atomic style-level consumer path.
-	drawn, _, err := s.Pool.Draw(take.StyleID, body.Holder)
-	if err != nil || drawn.ID != take.ID {
+	// The caller has already selected an exact take id. Use the pool's
+	// id-specific atomic transition rather than style-level Draw, which can
+	// legitimately select a different peer when several share the style.
+	drawn, _, err := s.Pool.Reserve(mux.Vars(r)["id"], body.Holder)
+	if err != nil {
 		http.Error(w, "take is not available", http.StatusConflict)
 		return
 	}

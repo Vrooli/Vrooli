@@ -125,6 +125,14 @@ func (f *fakeService) EnsureDNSRecord(_ context.Context, spec internalconfig.DNS
 	return internalconfig.DNSResult{}, nil
 }
 
+func (f *fakeService) UpdateDNSRecord(_ context.Context, spec internalconfig.DNSRecordSpec, _ bool) (internalconfig.DNSResult, error) {
+	return internalconfig.DNSResult{RecordID: spec.Hostname}, nil
+}
+
+func (f *fakeService) EnsureSPFRecord(_ context.Context, _ string, _ string, _ string, _ int, _ bool) (internalconfig.SPFResult, error) {
+	return internalconfig.SPFResult{MergedValue: "v=spf1 -all", LookupCost: 1}, nil
+}
+
 func (f *fakeService) SwitchMode(_ context.Context, target internalconfig.Mode) (internalconfig.Mode, internalconfig.Mode, error) {
 	f.swCalls++
 	f.swTgt = target
@@ -230,6 +238,19 @@ func TestHandlerGetAuthenticationBinding(t *testing.T) {
 	require.Equal(t, "https://team.cloudflareaccess.com", resp.Msg.Binding.TeamDomain)
 	require.Equal(t, "aud", resp.Msg.Binding.Audience)
 	require.Equal(t, "https://team.cloudflareaccess.com", resp.Msg.Binding.RecoveryUrl)
+}
+
+func TestHandlerExposesReviewedDNSUpdateAndSPFOperations(t *testing.T) {
+	client := newClient(t, &fakeService{})
+	updated, err := client.UpdateDNSRecord(context.Background(), connect.NewRequest(&configv1.UpdateDNSRecordRequest{ProviderProfile: "cloudflare-production", Hostname: "_dmarc.example.test", Type: "TXT", Content: "v=DMARC1; p=none", DryRun: true}))
+	require.NoError(t, err)
+	require.True(t, updated.Msg.DryRun)
+	require.Equal(t, "_dmarc.example.test", updated.Msg.RecordId)
+
+	spf, err := client.EnsureSPFRecord(context.Background(), connect.NewRequest(&configv1.EnsureSPFRecordRequest{ProviderProfile: "cloudflare-production", Hostname: "example.test", Mechanism: "include:mailgun.org", DryRun: true}))
+	require.NoError(t, err)
+	require.True(t, spf.Msg.DryRun)
+	require.Equal(t, int32(1), spf.Msg.LookupCost)
 }
 
 func TestHandlerGetCredentialStatusRedactsTokenValue(t *testing.T) {

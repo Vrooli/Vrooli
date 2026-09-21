@@ -28,6 +28,8 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ConfigService.SetCloudflareCredentials":   cliapp.ProtoMutation(h.credentialsSetCall, h.credentialsSetReport),
 		"ConfigService.ClearCloudflareCredentials": cliapp.ProtoMutation(h.credentialsClearCall, h.credentialsClearReport),
 		"ConfigService.Sync":                       cliapp.ProtoMutation(h.syncCall, h.syncReport),
+		"ConfigService.UpdateDNSRecord":            cliapp.ProtoMutation(h.updateDNSCall, h.updateDNSReport),
+		"ConfigService.EnsureSPFRecord":            cliapp.ProtoMutation(h.ensureSPFCall, h.ensureSPFReport),
 		"ConfigService.SwitchMode":                 cliapp.ProtoMutation(h.modeCall, h.modeReport),
 		"ConfigService.SetPublicExposure":          cliapp.ProtoMutation(h.publicExposureCall, h.publicExposureReport),
 	}

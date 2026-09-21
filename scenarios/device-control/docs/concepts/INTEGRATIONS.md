@@ -146,6 +146,13 @@ companion is an explicit platform adapter, not a second product authority.
 The first target is macOS/minimouse; Linux and Windows providers must conform
 to the same readiness/session/input/clipboard contract before being enabled.
 
+Current provider status is intentionally conservative: macOS/minimouse is
+implemented and offline-qualified but remains live-blocked until an approved
+Aqua session and Screen Recording, Accessibility, and clipboard permissions
+are observed through Bridge. Linux and Windows remain deferred contract-only
+providers; the existing scenario-to-desktop virtual-display path is a separate
+consumer and does not become the fleet desktop authority.
+
 `device-control.do-task` returns its learning task and attempt identities. When it
 executes a recommendation from an earlier run, pass that run's `advice_attempt_id`.
 Only verified success or a failure with actual execution evidence grades the earlier

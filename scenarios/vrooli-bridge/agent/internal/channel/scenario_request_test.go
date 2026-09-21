@@ -79,3 +79,49 @@ func TestRunScenarioRequestUsesDeclaredHTTPMethod(t *testing.T) {
 		t.Fatal("scenario response was not reported")
 	}
 }
+
+func TestRunScenarioRequestRoutesDesktopServiceToManagedCompanion(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/vrooli.device_control.v1.desktop.DesktopSessionService/GetReadiness" {
+			t.Fatalf("request path = %q", r.URL.Path)
+		}
+		if r.Header.Get("Content-Type") != desktopJSONContentType || r.Header.Get("Accept") != desktopJSONContentType {
+			t.Fatalf("headers content-type=%q accept=%q", r.Header.Get("Content-Type"), r.Header.Get("Accept"))
+		}
+		_, _ = w.Write([]byte("companion-response"))
+	}))
+	defer server.Close()
+	companionPort := 0
+	_, _ = fmt.Sscanf(server.URL, "http://127.0.0.1:%d", &companionPort)
+	ordinaryResolverCalls := 0
+	collector := scenarioResponseCollector{response: make(chan *sharedv1.ScenarioResponse, 1)}
+	client := NewClient(config.Config{NodeID: "node-1"},
+		WithHTTPClient(server.Client()),
+		WithScenarioPortResolver(func(context.Context, string) (int, error) {
+			ordinaryResolverCalls++
+			return 1, fmt.Errorf("ordinary scenario resolver must not handle desktop companion")
+		}),
+		WithScenarioResponseReporter(collector),
+	)
+	client.baseCtx = context.Background()
+	t.Setenv(desktopCompanionPortEnv, fmt.Sprint(companionPort))
+	client.runScenarioRequest(&channelv1.ScenarioRequest{
+		CorrelationId:    "desktop-companion",
+		Scenario:         deviceControlScenario,
+		Service:          desktopSessionService,
+		Method:           "GetReadiness",
+		Request:          []byte("request"),
+		MaxResponseBytes: 64,
+	})
+	select {
+	case response := <-collector.response:
+		if response.GetError() != "" || string(response.GetResponse()) != "companion-response" {
+			t.Fatalf("response = %#v", response)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("scenario response was not reported")
+	}
+	if ordinaryResolverCalls != 0 {
+		t.Fatalf("ordinary scenario resolver calls = %d, want 0", ordinaryResolverCalls)
+	}
+}

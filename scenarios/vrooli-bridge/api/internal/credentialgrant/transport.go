@@ -29,7 +29,7 @@ func SealPush(signer channelsign.Signer, grant Grant, nodeID string, recipientPu
 		FrameId: uuid.NewString(),
 		Payload: &channelv1.ServerFrame_CredentialPush{CredentialPush: &channelv1.CredentialPush{
 			GrantId: grant.ID, NodeId: grant.NodeID, LogicalId: grant.LogicalID, Field: grant.Field,
-			Generation: grant.Generation, Retention: string(grant.Retention), SealedValue: sealed, Aad: aad,
+			Generation: grant.Generation, Retention: string(grant.Retention), Class: string(grant.Class), SealedValue: sealed, Aad: aad,
 		}},
 	}
 	payload, err := channelsign.Marshal(signer, frame)

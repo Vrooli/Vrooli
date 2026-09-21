@@ -1,14 +1,41 @@
 package domains
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
+
+func TestWaitForJobUsesServerOwnedWaitClient(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/jobs/job-1/wait" {
+			t.Fatalf("path=%q", r.URL.Path)
+		}
+		time.Sleep(80 * time.Millisecond)
+		fmt.Fprint(w, `{"state":"succeeded"}`)
+	}))
+	defer server.Close()
+
+	app, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
+		Name:               "music-tools-wait-test",
+		DefaultAPIBase:     server.URL,
+		APIPrefix:          "/api/v1",
+		DefaultHTTPTimeout: 10 * time.Millisecond,
+		AllowAnonymous:     true,
+	})
+	require.NoError(t, err)
+	start := time.Now()
+	require.NoError(t, waitForJob(app, []string{"job-1"}))
+	require.GreaterOrEqual(t, time.Since(start), 80*time.Millisecond)
+}
 
 // TestCommandGroups exercises the flat-commands aggregator. The
 // template ships zero flat commands, so the contract is "returns nil";

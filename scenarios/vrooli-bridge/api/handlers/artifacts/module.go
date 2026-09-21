@@ -28,7 +28,7 @@ type ArtifactReceiptRecorder interface {
 	RecordDeliveryReceipt(context.Context, internalartifacts.DeliveryReceipt) error
 }
 
-func Module(db internalartifacts.SQLExecutor, clk schedule.Clock, registrySvc registry.Service, runsSvc internalruns.Service, verifier *nodeauth.Verifier, logger *log.Logger, placementPusher ArtifactPlacementPusher) (module.Module, ArtifactReceiptRecorder) {
+func Module(db internalartifacts.SQLExecutor, clk schedule.Clock, registrySvc registry.Service, runsSvc internalruns.Service, verifier *nodeauth.Verifier, logger *log.Logger, placementPusher ArtifactPlacementPusher) (module.Module, ArtifactReceiptRecorder, internalartifacts.Service) {
 	svc := internalartifacts.NewService(
 		internalartifacts.NewSQLiteRepository(db, clk),
 		nodeReaderAdapter{svc: registrySvc},
@@ -48,7 +48,7 @@ func Module(db internalartifacts.SQLExecutor, clk schedule.Clock, registrySvc re
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler})
 		},
 		Endpoints: Endpoints,
-	}, svc
+	}, svc, svc
 }
 
 type runReaderAdapter struct{ svc internalruns.Service }

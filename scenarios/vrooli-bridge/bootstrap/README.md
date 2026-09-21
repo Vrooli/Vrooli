@@ -5,12 +5,14 @@ auto-starting** fleet agent in one idempotent run. It is the core node-local
 artifact every other onboarding surface (the phase-5 `onboard` orchestrator, the
 CLI `onboard` verbs, the UI form) drives.
 
-The one-shot working-tree path does **not** build on the node. The control plane
-detects the node's OS/architecture, cross-builds `vrooli`, `vrooli-bridge`, and
-`vrooli-bridge-agent` from the exact live tree it ships (including uncommitted
-and untracked non-ignored files), and transfers all three binaries plus their
-`.fp` sidecars. A raw node therefore reaches ONLINE with no preinstalled Go and
-without pulling a release artifact or GitHub clone. One run:
+The one-shot working-tree path cross-builds the bootstrap executables from the
+exact live tree it ships (including uncommitted and untracked non-ignored files)
+and transfers their `.fp` sidecars. Linux and Windows nodes can therefore reach
+ONLINE without a preinstalled Go toolchain or a release artifact/GitHub clone.
+Darwin receives the same bootstrap bundle, then deliberately uses the target's
+Go/Apple SDK to rebuild the host-native Vrooli CLI and Device Control companion;
+that native rebuild is required for Keychain and ScreenCaptureKit/CoreGraphics
+support. One run:
 
 1. **detect-os** — identify platform (`linux`/`darwin`/`windows`). POSIX nodes
    use `bootstrap.sh`; Windows nodes use the native `bootstrap.ps1` path.
@@ -24,26 +26,33 @@ without pulling a release artifact or GitHub clone. One run:
    `VROOLI_SOURCE_ROOT` set to the shipped tree. The matching sidecar keeps it
    fresh before setup installs Go. The sentinel remains keyed by revision,
    source digest, and setup profile.
-6. **toolchain** — skipped for the complete prebuilt path because no node-side
-   compile follows; retained for the manual source-build fallback, including
-   off-PATH recovery.
-7. **build-agent / build-cli** — report the received prebuilt binaries and skip
+6. **toolchain** — verifies Go and pnpm after bootstrap-only Darwin setup; the
+   Darwin path needs Go on the target because native desktop code must compile
+   against the Apple SDK. The complete Linux prebuilt path still skips this
+   requirement; the manual source-build fallback retains off-PATH recovery.
+7. **native-companion** — on Darwin, builds
+   `~/.vrooli/bin/device-control-companion` locally with `CGO_ENABLED=1` from
+   the exact shipped tree. This is the production ScreenCaptureKit/CoreGraphics
+   artifact; bootstrap verifies the result is Mach-O and links both native
+   frameworks before installation, and the control plane never substitutes a
+   cgo-free cross-build.
+8. **build-agent / build-cli** — report the received prebuilt binaries and skip
    compilation. The manual fallback can still build both from source.
-8. **node-key** — load-or-generate the node's Ed25519 keypair; print its public
+9. **node-key** — load-or-generate the node's Ed25519 keypair; print its public
    key.
-9. **pair-redeem** — redeem the single-use pairing code against the control
+10. **pair-redeem** — redeem the single-use pairing code against the control
    plane. This **pins the control-plane key** (`control_plane.pub`, `0600`)
    **before** the code is burned, so the agent can verify every server push
    (`SECURITY.md` boundary 2).
-10. **pin-verify** — assert the pinned key is present.
-11. **service-install** — install + start the platform-native background service
+11. **pin-verify** — assert the pinned key is present.
+12. **service-install** — install + start the platform-native background service
     (systemd `--user` unit on Linux; launchd on macOS; Windows Service Control
     Manager on Windows).
-12. **autostart** — enable headless auto-start (`loginctl enable-linger` on
+13. **autostart** — enable headless auto-start (`loginctl enable-linger` on
     Linux; launchd `KeepAlive` on macOS; SCM `start=auto` on Windows). SSH-only
     macOS sessions select a machine-wide LaunchDaemon and need no GUI login; a
     GUI-domain LaunchAgent retains macOS's auto-login prerequisite.
-13. **verify-online** — wait (bounded) for the agent to report a live dial-out
+14. **verify-online** — wait (bounded) for the agent to report a live dial-out
     channel.
 
 Every step checks current state before acting, so a re-run after a partial

@@ -22,8 +22,8 @@
       "validation": [
         {
           "type": "test",
-          "status": "planned",
-          "notes": "Preserve terminal compatibility while implementing the Device Control desktop channel. Retain producer receipt and applicable live support row. No passing evidence exists yet."
+          "status": "in_progress",
+          "notes": "Desktop transport is additive to the existing channel path; focused interactive/companion race tests pass. Terminal live regression and final producer receipt remain to be attached."
         }
       ]
     },
@@ -42,8 +42,8 @@
       "validation": [
         {
           "type": "test",
-          "status": "planned",
-          "notes": "Test typed WebRTC/signaling/input/clipboard lane admission and reject protocol confusion. No passing evidence exists yet."
+          "status": "in_progress",
+          "notes": "Typed protocol, lane, size, stale-epoch, role, and admission rejection tests pass in Bridge interactive packages."
         }
       ]
     },
@@ -62,8 +62,8 @@
       "validation": [
         {
           "type": "test",
-          "status": "planned",
-          "notes": "Implement acceptance case REM-03 in the vrooli-bridge producer suite. Required assertion: Existing channels lose authority. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+          "status": "in_progress",
+          "notes": "Revocation and stale authority are covered by focused admission/channel tests; live paired control-plane receipt remains open."
         }
       ]
     },
@@ -82,8 +82,8 @@
       "validation": [
         {
           "type": "test",
-          "status": "planned",
-          "notes": "Implement acceptance case REM-04 in the vrooli-bridge producer suite. Required assertion: The owner can safely resume the unperformed step. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+          "status": "in_progress",
+          "notes": "Generation-correlated signaling and reconnect seams are implemented; deterministic browser/companion reconnect evidence remains open."
         }
       ]
     },
@@ -102,8 +102,30 @@
       "validation": [
         {
           "type": "test",
+          "status": "in_progress",
+          "notes": "Receipt-correlated typed response handling is implemented; alternate-provider fallback evidence remains open."
+        }
+      ]
+    },
+    {
+      "id": "VROOLIBRIDGE-EVERYWHERE-REM-08",
+      "title": "Setup-owned native screen-sharing bootstrap",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "rem",
+      "criticality": "P0",
+      "description": "Given a Bridge-managed macOS node has no usable native Device Control companion session, when commissioning has enabled the built-in macOS Screen Sharing provider, vrooli-bridge shall ensure: an authenticated, lease-bound Vrooli bootstrap transport can relay only the supported screen/input protocol needed to establish native readiness; it shall not require direct node access, an operator-side remote-control application, software installed on the Mac, SSH, or an arbitrary socket tunnel, and it shall close when Device Control reaches desktop_ready.",
+      "tags": [
+        "portal-everywhere",
+        "REM-08",
+        "bootstrap",
+        "macos"
+      ],
+      "validation": [
+        {
+          "type": "test",
           "status": "planned",
-          "notes": "Implement acceptance case REM-05 in the vrooli-bridge producer suite. Required assertion: The original receipt is reconciled before fallback. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+          "notes": "Requires setup receipt proving the native provider was enabled, a typed relay/client contract test, and live minimouse evidence that the fallback can reach native companion readiness without direct node access."
         }
       ]
     },
@@ -122,8 +144,8 @@
       "validation": [
         {
           "type": "test",
-          "status": "planned",
-          "notes": "Implement acceptance case REM-06 in the vrooli-bridge producer suite. Required assertion: Queues remain bounded and stop remains responsive. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+          "status": "in_progress",
+          "notes": "Bounded signaling and transport queue seams are covered by focused tests; live slow-viewer qualification remains open."
         }
       ]
     },
@@ -142,8 +164,8 @@
       "validation": [
         {
           "type": "test",
-          "status": "planned",
-          "notes": "Implement acceptance case REM-07 in the vrooli-bridge producer suite. Required assertion: Authorized viewing works with recorded cost and latency. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+          "status": "in_progress",
+          "notes": "TURN route metadata is bounded, forwarded through the node-local Device Control signal adapter, and consumed by the browser signaling path in focused tests; an actual relay-session receipt and cost/latency measurement remain open."
         }
       ]
     },
@@ -162,8 +184,8 @@
       "validation": [
         {
           "type": "test",
-          "status": "planned",
-          "notes": "Implement acceptance case REM-08 in the vrooli-bridge producer suite. Required assertion: Device control stops without revoking unrelated host sessions. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+          "status": "in_progress",
+          "notes": "Device-scoped companion and interactive revocation paths are implemented and tested; live unrelated-session isolation evidence remains open."
         }
       ]
     }

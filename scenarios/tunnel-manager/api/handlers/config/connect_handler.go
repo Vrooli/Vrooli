@@ -152,6 +152,7 @@ func (h *connectHandler) EnsureDNSRecord(ctx context.Context, req *connect.Reque
 		Type:            req.Msg.Type,
 		Content:         req.Msg.Content,
 		TTL:             int(req.Msg.Ttl),
+		Priority:        int(req.Msg.Priority),
 		Proxied:         req.Msg.Proxied,
 		Owner:           req.Msg.Owner,
 	}, req.Msg.DryRun)
@@ -173,6 +174,32 @@ func (h *connectHandler) EnsureDNSRecord(ctx context.Context, req *connect.Reque
 		Owner:           req.Msg.Owner,
 		Message:         "deployment DNS record reconciled",
 	}), nil
+}
+
+func (h *connectHandler) UpdateDNSRecord(ctx context.Context, req *connect.Request[configv1.UpdateDNSRecordRequest]) (*connect.Response[configv1.UpdateDNSRecordResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationConfigSync, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
+	result, err := h.deps.Service.UpdateDNSRecord(ctx, internalconfig.DNSRecordSpec{ProviderProfile: req.Msg.ProviderProfile, Hostname: req.Msg.Hostname, Type: req.Msg.Type, Content: req.Msg.Content, TTL: int(req.Msg.Ttl), Priority: int(req.Msg.Priority), Proxied: req.Msg.Proxied, Owner: req.Msg.Owner}, req.Msg.DryRun)
+	if err != nil {
+		return nil, internalconfig.ToConnectError(err)
+	}
+	message := "DNS record updated in place"
+	if req.Msg.DryRun {
+		message = "dry-run: reviewed desired DNS record; no write performed"
+	}
+	return connect.NewResponse(&configv1.UpdateDNSRecordResponse{ProviderProfile: req.Msg.ProviderProfile, Hostname: req.Msg.Hostname, Type: req.Msg.Type, RecordId: result.RecordID, Created: result.Created, Changed: !req.Msg.DryRun, DryRun: req.Msg.DryRun, Owner: req.Msg.Owner, Message: message}), nil
+}
+
+func (h *connectHandler) EnsureSPFRecord(ctx context.Context, req *connect.Request[configv1.EnsureSPFRecordRequest]) (*connect.Response[configv1.EnsureSPFRecordResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationConfigSync, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
+	result, err := h.deps.Service.EnsureSPFRecord(ctx, req.Msg.ProviderProfile, req.Msg.Hostname, req.Msg.Mechanism, int(req.Msg.Ttl), req.Msg.DryRun)
+	if err != nil {
+		return nil, internalconfig.ToConnectError(err)
+	}
+	return connect.NewResponse(&configv1.EnsureSPFRecordResponse{ProviderProfile: req.Msg.ProviderProfile, Hostname: req.Msg.Hostname, MergedValue: result.MergedValue, RecordId: result.RecordID, Created: result.Created, Changed: !req.Msg.DryRun, DryRun: req.Msg.DryRun, Owner: req.Msg.Owner, LookupCost: int32(result.LookupCost), Message: "SPF record merged"}), nil
 }
 
 func (h *connectHandler) SwitchMode(ctx context.Context, req *connect.Request[configv1.SwitchModeRequest]) (*connect.Response[configv1.SwitchModeResponse], error) {
