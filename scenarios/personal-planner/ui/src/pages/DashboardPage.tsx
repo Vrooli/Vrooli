@@ -6,7 +6,7 @@ import { fetchRoutineOccurrences, fetchTodayAllocations } from "../api/calendar"
 import { fetchCurrentFocus, pauseFocus, startFocus } from "../api/focus";
 import { createWorkItem, fetchWorkItems } from "../api/work";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
-import { OBSERVATORY_SCENERY_EVENT, readSceneryPreferences, useObservatoryAutoAppearance } from "../theme/observatoryAppearance";
+import { OBSERVATORY_SCENERY_EVENT, readSceneryPreferences, useObservatoryAutoAppearance, useSampledSceneColors } from "../theme/observatoryAppearance";
 import { useChromeContribution } from "@vrooli/react-component-library/ChromeTheme/1";
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { TodayAppearanceControl, TodayCaptureForm, TodayCaptureLink, TodayTaskActions, TodayTimelineBlock, TodayTimelineViewToggle, type TodayTimelineItem } from "../components/TodayControls";
@@ -66,6 +66,7 @@ export function DashboardPage() {
   const hasAcceptedNext = Boolean(nextAllocation && nextWork?.id === nextAllocation.workItemId);
   const focusStarted = focusStartedOptimistically || focus.data?.state === "running";
   const autoAppearance = useObservatoryAutoAppearance();
+  const sceneColors = useSampledSceneColors();
   const taskTitle = nextAllocation?.title ?? nextWork?.title ?? "Capture your next useful action";
   const taskDescription = hasAcceptedNext ? `Accepted for ${formatClock(nextAllocation!.startMinutes)} · ${nextAllocation!.durationMinutes} minutes` : nextWork?.description || (workLoading ? "Loading your work…" : workError ? "Work data is unavailable right now." : "Nothing is scheduled yet.");
   const taskSource = nextAllocation?.sourceLabel || nextWork?.sourceLabel || "Personal Planner";
@@ -111,11 +112,16 @@ export function DashboardPage() {
     { key: "personal-planner-observatory", priority: 10 },
   );
   const sceneryClass = [sceneryPreferences.artFree && "art-free", sceneryPreferences.reducedScenery && "reduced-scenery", sceneryPreferences.subduedNight && "subdued-night"].filter(Boolean).join(" ");
+  const sceneStyle = {
+    ...(sceneColors.day ? { "--scene-sky-seam-day": sceneColors.day } : {}),
+    ...(sceneColors.night ? { "--scene-sky-seam-night": sceneColors.night } : {}),
+    ...(sceneColors.aspect ? { "--scene-band-aspect": String(sceneColors.aspect) } : {}),
+  } as CSSProperties;
   const setAppearance = (next: string) => setTheme(next as ThemeChoice);
   const openTimelineItem = (item: TimelineItem) => setSelectedTimelineItem(item);
 
   return (
-    <div className={`observatory appearance-${appearance} appearance-choice-${appearanceChoice} ${sceneryClass}`} data-testid={selectors.pages.today}>
+    <div className={`observatory appearance-${appearance} appearance-choice-${appearanceChoice} ${sceneryClass}`} data-testid={selectors.pages.today} style={sceneStyle}>
       <div className="observatory-sky" aria-hidden="true"><span className="observatory-sky-layer observatory-sky-day" /><span className="observatory-sky-layer observatory-sky-night" /><span className="observatory-sky-stars" /></div>
       <div className="observatory-content">
         <header className="observatory-header"><div><p className="eyebrow">Observatory · {today}</p><h1>Today</h1><p className="date-line">{today}</p></div><div className="appearance-wrap"><TodayAppearanceControl choice={appearanceChoice} onChange={setAppearance} /><TodayCaptureLink onClick={() => setCaptureOpen(true)} /><span className="sample-label">Live plan · Work items</span></div></header>

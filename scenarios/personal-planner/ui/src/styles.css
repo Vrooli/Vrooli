@@ -111,9 +111,14 @@ body:has(.observatory) {
 [data-rcl-app-shell-link][aria-current="page"] { background: color-mix(in srgb, var(--color-surface) 62%, transparent); color: var(--color-foreground); box-shadow: inset 3px 0 var(--color-accent); }
 .observatory.appearance-night ~ * [data-rcl-app-shell-link][aria-current="page"],
 body:has(.observatory.appearance-night) [data-rcl-app-shell-link][aria-current="page"] { background: color-mix(in srgb, var(--color-surface) 8%, transparent); color: var(--color-foreground); box-shadow: inset 4px 0 var(--color-warning); }
-.observatory-sky { position: fixed; z-index: 0; inset: 0; pointer-events: none; background: linear-gradient(180deg, var(--color-surface-muted) 0%, var(--color-surface) 46%, var(--color-background) 100%); transition: background 1.1s ease; }
+/* --scene-band-block: the scenery band height, derived from the live image's aspect
+   (falls back to a 3:1 panorama). The procedural sky reaches the sampled seam colour
+   exactly at the band's top edge, and the band feathers into it, so the join is seamless
+   regardless of which panorama is loaded. */
+.observatory { --scene-band-block: calc(100vw / var(--scene-band-aspect, 3)); }
+.observatory-sky { position: fixed; z-index: 0; inset: 0; pointer-events: none; background: linear-gradient(180deg, var(--color-surface-muted) 0%, var(--scene-sky-seam-day, var(--color-surface)) calc(100vh - var(--scene-band-block)), var(--scene-sky-seam-day, var(--color-surface)) 100%); transition: background 1.1s ease; }
 .observatory-sky::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, var(--scene-day-scrim-top) 0%, var(--scene-day-scrim-mid) 42%, var(--scene-day-scrim-low) 72%, transparent 84%); transition: background 1.1s ease, opacity 1.1s ease; }
-.observatory-sky-layer { position: absolute; inset: 0; background-position: left bottom; background-size: 100% auto; background-repeat: no-repeat; transition: opacity 1.1s ease; }
+.observatory-sky-layer { position: absolute; inset-inline: 0; inset-block-end: 0; inset-block-start: auto; block-size: var(--scene-band-block); background-position: left bottom; background-size: 100% 100%; background-repeat: no-repeat; -webkit-mask-image: linear-gradient(to top, #000 58%, transparent 100%); mask-image: linear-gradient(to top, #000 58%, transparent 100%); transition: opacity 1.1s ease; }
 .observatory-sky-day { background-image: url("/public/scenes/day-panorama.webp"); opacity: 1; }
 .observatory-sky-night { background-image: none; opacity: 0; }
 .observatory-sky-stars { position: absolute; inset: 0; z-index: 1; opacity: 0; background:
@@ -153,7 +158,10 @@ body:has(.observatory.appearance-night) [data-rcl-app-shell-link][aria-current="
 .observatory.appearance-day .commitment > div { color: var(--color-muted-foreground); }
 .observatory.appearance-night h1,
 .observatory.appearance-night .date-line { color: var(--color-foreground); }
-.observatory.appearance-night .observatory-sky { background: linear-gradient(180deg, var(--color-background) 0%, var(--color-surface) 48%, var(--color-background) 100%); }
+.observatory.appearance-night .observatory-sky { background: linear-gradient(180deg, var(--color-background) 0%, var(--scene-sky-seam-night, var(--color-background)) calc(100vh - var(--scene-band-block)), var(--scene-sky-seam-night, var(--color-background)) 100%); }
+/* No scenery → restore the plain palette sky (no derived seam band). */
+.observatory.art-free .observatory-sky { background: linear-gradient(180deg, var(--color-surface-muted) 0%, var(--color-surface) 46%, var(--color-background) 100%); }
+.observatory.art-free.appearance-night .observatory-sky { background: linear-gradient(180deg, var(--color-background) 0%, var(--color-surface) 48%, var(--color-background) 100%); }
 .observatory.appearance-night .observatory-sky-day { opacity: 0; background-image: none; }
 .observatory.appearance-night .observatory-sky-night { opacity: 1; background-image: url("/public/scenes/night-panorama.webp"); }
 .observatory.appearance-night .observatory-sky-stars { opacity: 1; }
