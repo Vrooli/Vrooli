@@ -9,9 +9,9 @@ metadata:
   tags: ["marketing", "video", "launch"]
   icon: "video"
   status: "active"
-  revision: 10
+  revision: 11
   createdAt: "2026-09-17T00:00:00Z"
-  updatedAt: "2026-09-18T20:05:00Z"
+  updatedAt: "2026-09-19T00:00:00Z"
   requires:
     scenarios: ["prompt-manager", "landing-page-business-suite", "brand-manager"]
     commands: ["prompt-manager skill read", "brand-manager", "vrooli scenario port"]
@@ -163,6 +163,7 @@ Order of footage sources:
 - Take a still from the last frame of each clip for holds and camera pushes.
 - Read every capture back (contact sheet or frames) before you use it. Read the browser console too: a presentation instance surfaces a missing follow-list dependency as a failed request, not as a visible error.
 - Verify motion by sampling frames from *different* moments of the same clip and comparing them. Two identical frames mean the clip is a still with extra steps.
+- **Keep every capture you take, including the ones you reject.** A clip you shot and did not use goes to `alternates/footage/` with one line on why (§7). Deleting it is the expensive mistake: a rejected clip costs a few hundred KB, and re-shooting it later costs a whole capture session with the presentation instance restarted and the demo world rebuilt. This applies to framings, takes, scene orders and poster frames alike — if you made a choice, the thing you chose against ships next to the thing you chose.
 
 #### 5d. Direct the eye
 
@@ -193,23 +194,44 @@ All other brag rules apply: hook in the first 2–3 s, reading-time floors, beat
 
 ---
 
-### 7. Output
+### 7. Delivery
 
-The output folder contains:
+**You are not delivering a video. You are delivering a set of decisions the operator can reverse cheaply.** A draft is for judgement, and judgement needs the alternatives in the room: the operator cannot ask "use that other one" about a take you deleted, and cannot ask "why not the other order" about a choice they cannot see you made. Shipping only the winner turns every piece of feedback into a re-run of the whole skill.
+
+The delivery folder contains:
 
 ```
+README.md              what this is, what to look at first, what to say if you want it changed
+DECISIONS.md           every choice that had a plausible alternative, with the switch cost (below)
 sources.md             resolved product values, every source read (with revision/date), the captured instance and follow list, the demo world (§5b) surface by surface, conflicts and winners, gaps
 demo-world.md          what was populated, the fictional organisation, and the exact commands to rebuild it
 brag-plan.md           brag plan, storyboard mapped to landing-page sections
 composition-brief.md   brag brief
 composition/           HyperFrames project (index.html, DESIGN.md, assets/)
-music-candidates/      every generated take plus PROVENANCE.md (§8); ship the rejects, not just the chosen track
+alternates/
+  music/               every generated take plus PROVENANCE.md (§8)
+  footage/             every clip captured and not used, plus why (§5c)
+  posters/             several poster frames, not the one you silently picked
+  copy/                the captions, kickers and titles you wrote and did not use
 brag.mp4               rendered draft
 brag.jpg               poster
 share-copy.txt         one caption, landing-page wording
 ```
 
 `sources.md` records, per source: path or command, read time, what was used, and "empty" or "not available" when that is the result.
+
+**`DECISIONS.md` is the one the operator reads first.** One row per decision, and the last column is what makes it useful:
+
+| Decision | Chose | Alternatives | Why | Cost to switch |
+|---|---|---|---|---|
+| Track | `take-02` | 9 in `alternates/music/` | only take on the briefed tempo with the strongest hi-hats | ~5 min — re-snap the grid to the new tempo, re-render |
+| Machines scene | **cut** | — | no seeding path for the node registry | expensive — needs a seeding mechanism first |
+
+The switch cost tells the operator which pushbacks are free and which are a day of work, so they know what is worth asking for. State it in time and in what has to be redone — "re-render only", "recapture one clip", "rebuild the demo world". A decision with no alternative still gets a row: record what was ruled out and why, especially a scene you cut.
+
+Record a row for every choice you actually made, at minimum: the track and take, each clip's framing, the scene order, any scene cut, the caption and kicker wording, the poster frame, and the tone. If you found yourself weighing something, it is a row.
+
+Empty `alternates/` subfolders are a finding, not a tidy result: either you generated no options, which means you did not explore, or you deleted them, which §5c forbids. Say which.
 
 ---
 
@@ -218,7 +240,7 @@ share-copy.txt         one caption, landing-page wording
 - Node.js 22+, the HyperFrames CLI, ffmpeg, and headless Chrome are external tools. Install HyperFrames in the session scratchpad (`npm i hyperframes@<version>` under Node 22). Do not add it to any scenario manifest or lockfile.
 - Set `HYPERFRAMES_NO_TELEMETRY=1` for every HyperFrames command.
 - Use brag's bundled SFX, and its music only as a fallback when generation is unavailable. Their licence status is a **blocker to resolve, not a label to apply**: brag's own `assets/music/README.md` says the exact terms must be verified before publication, and the skill's MIT licence covers its code, not the bundled audio. Check the track's source terms, record what you find in `sources.md`, and if they are unresolved say so to the operator as an open decision with the source named — do not write "not verified" and treat the matter as closed.
-- **Generate the music through the governed capability; do not reach for a shelf.** Use `music-tools styles list`, then `music-tools compose run --style <style-id> --takes 10 --duration 45`, followed by `music-tools jobs wait <job-id>` and `music-tools takes list --job <job-id>`. The retired `music-generation` skill is only a pointer; never build a virtualenv or download weights from a skill. A bundled or library track whose terms are unresolved is a blocker to publication; the governed ACE-Step resource records model and licence provenance. Select one take for the cut and deliver **all** candidates with `PROVENANCE.md`.
+- **Generate the music through the governed capability; do not reach for a shelf.** Use `music-tools styles list`, then `music-tools compose run --style <style-id> --takes 10 --duration 45`, followed by `music-tools jobs wait <job-id>` and `music-tools takes list --job <job-id>`. The retired `music-generation` skill is only a pointer; never build a virtualenv or download weights from a skill. A bundled or library track whose terms are unresolved is a blocker to publication; the governed ACE-Step resource records model and licence provenance. Select one take for the cut and deliver **all** candidates in `alternates/music/` with `PROVENANCE.md` (§7).
 - **When a generator disappoints, find out what it actually received before blaming it.** Music and image models are commonly fronted by a planner or prompt-rewriter that restates the brief before the generating model sees it, and a small planner restates everything toward the bland middle: a brief asking for "144 BPM, cold, detuned, menacing" came back as 65 BPM "shimmering, melancholic, ethereal". Read the log for the prompt that reached the model, and turn the rewrite off when the brief is authored rather than sketched. Pass structured values — tempo, key, duration — in their own fields; a rewriter discards free text first.
 - **Describe the sound, not the category.** "Modern tech product launch, polished, uplifting, confident" is the definition of stock music and will generate exactly that. Name the rhythm, the bass character, and the instruments: pattern and timbre, not mood and market. If the operator supplies reference tracks, mine them for tags rather than adjectives — a stock library's own genre/mood/movement labels are a better prompt vocabulary than anything invented from scratch.
 - Do not render with HyperFrames cloud, Lambda, or Cloud Run. Render locally.
@@ -235,6 +257,8 @@ You may:
 - Capture live read-only.
 
 You must:
+- **Deliver the alternatives, not just the winner (§7).** Every asset class you chose from ships its rejects in `alternates/`, and every choice that had one ships a `DECISIONS.md` row with its switch cost.
+- **Check the delivery folder against §7 before reporting.** A missing file is invisible to the operator, who has no reason to know what should have been there — list §7 and confirm each line, or say which one is absent and why.
 - Record every source and conflict in `sources.md`.
 - Record in `sources.md` which instance was captured, the follow list used, and which of the three live-data classes (§5a) appear in any frame.
 - **Dress the demo world before capturing (§5b), and record it in `demo-world.md`.**
@@ -282,6 +306,9 @@ You must not:
 | A panel stays empty after seeding | It reads a single-instance service the presentation instance does not own (typically the node fleet) | Check whether the surface's data has any per-instance store at all | Populate another way, cut the scene, or ship it empty **and report it as a defect** (§5b) — never as an acceptable outcome |
 | Generated music ignores the brief and sounds generic | A planner or prompt-rewriter restated the caption before the generating model saw it | Read the generation log for the prompt that actually reached the model | Turn the rewrite off and pass structured values (tempo, key) in their own fields, not in free text (§8) |
 | Generated music sounds like stock library music | The prompt named the category and the mood instead of the rhythm and the instruments | Re-read the prompt: count adjectives versus named sounds | Describe pattern and timbre; mine the operator's reference tracks for genre/mood tags (§8) |
+| The operator asks "can you use a different one" and it costs a whole re-run | The alternatives were never delivered, so the request has to regenerate them before it can answer | Look in `alternates/` — is the class they are asking about there at all? | Ship rejects from the start (§7). This is cheap in advance and expensive afterwards |
+| A rejected clip has to be re-shot to be reconsidered | It was deleted after the cut instead of moved to `alternates/footage/` | Compare the clips captured in the session against the clips in the folder | Keep every capture (§5c); a presentation-instance recapture costs a whole session |
+| An `alternates/` subfolder is empty | Either no options were generated, or they were generated and discarded | Check the session's own working directory for discarded files | Say which of the two it was in `DECISIONS.md` — an empty folder is a finding, not a clean result (§7) |
 | A generation run OOMs intermittently on a shared GPU | The capacity broker is advisory on this host, so residency is first-come, first-served | `vrooli capacity policy get` — check `enforce` and `preempt_enabled` | Shrink your own footprint (CPU offload) and wait for headroom; do not stop another tenant's service without asking |
 
 Promotion note: §2–§4 source resolution is deterministic. If this skill runs for several products, move it into a governed program that writes `sources.md`, and keep only story and scene judgement in this skill.

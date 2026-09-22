@@ -9,9 +9,9 @@ metadata:
   tags: [goal, harness, until, delegation, sub-agent, orchestration, prompt]
   icon: target
   status: active
-  revision: 4
+  revision: 5
   createdAt: "2026-09-11T00:00:00Z"
-  updatedAt: "2026-09-14T04:40:00Z"
+  updatedAt: "2026-09-21T00:00:00Z"
   requires:
     scenarios: [prompt-manager]
     commands: [prompt-manager skill read]
@@ -188,7 +188,44 @@ Blocked means a source you cannot access; name it and report what you could veri
 Stop after 20 turns.
 ```
 
-### 6. Acting under a goal
+### 6. Convergence goals: done is a disproof, not a checklist
+
+Some goals ask for genuine excellence, not a finished checklist: a maturity
+mandate (Shape B), a quality pass over existing work, or "bring this surface to
+production grade". For these a passing suite is the most dangerous moment,
+because it is where agents stop. Write the goal so that green is the trigger to
+start looking, not the finish line. Write the destination as a disproof
+condition, not as a list of features that exist.
+
+- **The stop condition is an empty adversary, not a green board.** State that the
+  agent is done only when a fresh, hostile review pass finds nothing material,
+  twice in a row. The agent runs a new pass each time it believes the work is
+  finished, records every finding, resolves it, and repeats until two consecutive
+  fresh passes are empty. A green suite is a precondition of the pass, never the
+  completion.
+- **The pass judges more than features.** Direct it at correctness, edge cases,
+  code maturity, cleanliness, maintainability, and, for a UI, visual polish
+  against the named mockups. "It works" is not "it is done".
+- **No downstream reviewer appears in the text.** Do not state that a human or a
+  later stage will check the result. A named safety net makes the agent stop
+  early. Write the agent as the sole and final reviewer; anything it leaves ships
+  broken.
+- **Relentless points at the spec and at simplicity, not at accretion.**
+  Improvement means closer to the design and cleaner, not more. Over-engineering
+  and ornamentation the goal did not ask for are material findings, not progress.
+
+The gaming definitions — weakening a test, deleting a ledger row, suppressing a
+finding — live in `improvement-do-and-dont`; cite it, do not restate it. This
+section adds only the completion shape: fresh-pass-until-twice-empty.
+
+Destination fragment for a Shape B or C goal (point at the mockups and the
+durable doc; do not describe them, to stay under the character cap):
+
+```text
+You are done only when two consecutive fresh, hostile review passes over <target> find nothing material. Treat a green suite as the signal to start a new pass, never as completion. Each pass judges correctness, edge cases, code cleanliness and maintainability, and visual polish against <mockups/spec>, not feature presence. You are the sole and final reviewer; fix everything you find and record findings and resolutions in <durable doc> each pass.
+```
+
+### 7. Acting under a goal
 
 A receiving agent that has no other skill for the work follows these rules.
 
@@ -198,8 +235,9 @@ A receiving agent that has no other skill for the work follows these rules.
 4. Checkpoint before the budget clause fires. Write changed, verified, remaining, unverified.
 5. Do not widen scope, loosen a test, or rerun unchanged validation to produce a greener result.
 6. When the harness offers `ProposeGoal` and the operator's words already state a verifiable outcome, propose the goal instead of asking; never propose a goal that widens scope.
+7. On a convergence goal (§6), when you believe the work is done, run a fresh hostile review pass before you report done. Repeat until two consecutive passes find nothing material.
 
-### 7. Output expectations
+### 8. Output expectations
 
 You may write goal text into a chat, a `--until` flag, an Agent Manager workflow
 run node, or a coordinator handoff. You may add a Shape A example to an effort
@@ -217,6 +255,7 @@ receiving skill's doctrine from inside a goal.
 | A plan for every sub-assignment | 100k–200k tokens of authoring per worker | Choose the shape with the Work shapes rule |
 | A goal that explains the design | Lossy, stale on arrival | Write the design into the docs; point the goal at it |
 | Completion by self-report | Harness "met" with no evidence | Proof in transcript; independent review for material outcomes |
+| Stopping when the suite turns green | The agent declares done at first green; hidden defects and rough edges ship | On a convergence goal, green triggers a fresh hostile pass; done is two empty passes in a row (§6) |
 
 ### Troubleshooting & Edge Cases
 
