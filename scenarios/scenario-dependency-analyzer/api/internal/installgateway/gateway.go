@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"unicode"
 
@@ -315,6 +316,9 @@ func isSharedPackageRoot(repoRoot, surfaceRoot string) bool {
 	return err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
+// pnpm distinguishes parent selectors from comparison ranges with this delimiter.
+var pnpmParentSelector = regexp.MustCompile(`[^ |@]>`)
+
 // SetNpmOverride records a pnpm override in package.json. It intentionally
 // owns only manifest mutation; ResolveNpmOverride regenerates the lockfile.
 func SetNpmOverride(manifestPath, packageName, version string) error {
@@ -338,6 +342,13 @@ func SetNpmOverride(manifestPath, packageName, version string) error {
 	if overrides == nil {
 		overrides = map[string]any{}
 		pnpm["overrides"] = overrides
+	}
+	// A package-wide replacement must retire the older version-specific policy.
+	// Keep parent-qualified choices, which apply to a separate dependency edge.
+	for selector := range overrides {
+		if strings.HasPrefix(selector, packageName+"@") && !pnpmParentSelector.MatchString(selector) {
+			delete(overrides, selector)
+		}
 	}
 	overrides[packageName] = version
 	encoded, err := json.MarshalIndent(manifest, "", "  ")

@@ -4,7 +4,7 @@
   "issues": [
     "BAS-RF-077"
   ],
-  "status": "qualified_publication_deferred_active_browser_work",
+  "status": "deployed",
   "native": {
     "red": {
       "results": [
@@ -104,7 +104,7 @@
     "playwright-driver/src/recording/validation/verification.ts": "4a6182cd21f42ad3509e6236611b3933b841cffa5dea22e3488a93e07dccf9a0"
   },
   "pending_operations": [],
-  "live_build": "sha256:9c7c5eef94430e9f37d9a5b9bb14fb7fb01710053704586fdcc447d480651df7",
+  "live_build": "sha256:f23a02c1f9ef3fd227648911548f51c50734f9a2c68f2a2de4941039086fedf8",
   "limitations": [
     "RF038 delayed stream-start ownership and larger frame streaming lifecycle remain open.",
     "Full product board still has17 unqualified outcomes.",
@@ -151,5 +151,7 @@
     "suites_skipped": 1,
     "duration_ms": 356381,
     "receipt": "/tmp/bas-readiness-driver-owner3-041.json"
-  }
+  },
+  "live_health_receipt": "/tmp/bas-live-health-043.json",
+  "profile_receipt": "/tmp/bas-profile-final-043.txt"
 }

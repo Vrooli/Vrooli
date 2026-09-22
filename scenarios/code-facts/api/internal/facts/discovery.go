@@ -47,8 +47,7 @@ func discoverSurfaces(target *factsv1.TargetContext) []*factsv1.Surface {
 		}
 	}
 
-	addManifestEvidence(root, surfaces)
-	return surfaces
+	return addManifestEvidence(root, surfaces)
 }
 
 func scenarioSurface(root, id string, kind factsv1.SurfaceKind) *factsv1.Surface {
@@ -80,10 +79,11 @@ func unsupportedIfNoParseUnit(root string) factsv1.SurfaceStatus {
 	return factsv1.SurfaceStatus_SURFACE_STATUS_UNSUPPORTED
 }
 
-func addManifestEvidence(root string, surfaces []*factsv1.Surface) {
+func addManifestEvidence(root string, surfaces []*factsv1.Surface) []*factsv1.Surface {
 	servicePath := filepath.Join(root, ".vrooli", "service.json")
 	var service struct {
-		CLI struct {
+		Components map[string]componentSurfaceDeclaration `json:"components"`
+		CLI        struct {
 			Enabled bool `json:"enabled"`
 			Adapter struct {
 				Kind      string `json:"kind"`
@@ -91,8 +91,21 @@ func addManifestEvidence(root string, surfaces []*factsv1.Surface) {
 			} `json:"adapter"`
 		} `json:"cli"`
 	}
-	if readJSON(servicePath, &service) == nil && service.CLI.Enabled {
-		if cli := findSurface(surfaces, "cli"); cli != nil {
+	if readJSON(servicePath, &service) == nil {
+		ids := make([]string, 0, len(service.Components))
+		for id := range service.Components {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
+		for _, id := range ids {
+			declared := service.Components[id].surface(root, id, servicePath)
+			if existing := findSurface(surfaces, id); existing != nil {
+				*existing = *declared
+			} else {
+				surfaces = append(surfaces, declared)
+			}
+		}
+		if cli := findSurface(surfaces, "cli"); cli != nil && service.CLI.Enabled {
 			cli.Evidence = append(cli.Evidence, evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, "service.json declares CLI adapter "+service.CLI.Adapter.Kind+".", servicePath))
 		}
 	}
@@ -108,6 +121,51 @@ func addManifestEvidence(root string, surfaces []*factsv1.Surface) {
 			cli.Evidence = append(cli.Evidence, evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, "cli/manifest.json declares CLI command metadata.", cliManifestPath))
 		}
 	}
+	return surfaces
+}
+
+type componentSurfaceDeclaration struct {
+	Role  string `json:"role"`
+	Build struct {
+		Dir string `json:"dir"`
+	} `json:"build"`
+	Run struct {
+		CWD string `json:"cwd"`
+	} `json:"run"`
+}
+
+func (c componentSurfaceDeclaration) surface(root, id, manifestPath string) *factsv1.Surface {
+	kind := factsv1.SurfaceKind(factsv1.SurfaceKind_value["SURFACE_KIND_"+strings.ToUpper(c.Role)])
+	surface := &factsv1.Surface{Id: id, Kind: kind, Status: factsv1.SurfaceStatus_SURFACE_STATUS_UNSUPPORTED}
+	dir := c.Build.Dir
+	if dir == "" {
+		dir = c.Run.CWD
+	}
+	if dir == "" {
+		dir = "."
+	}
+	if !filepath.IsLocal(dir) || kind == factsv1.SurfaceKind_SURFACE_KIND_UNSPECIFIED {
+		surface.Evidence = []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED, "Declared component has an unsupported role or a root outside the target.", manifestPath)}
+		return surface
+	}
+	path := filepath.Join(root, dir)
+	resolved, err := filepath.EvalSymlinks(path)
+	if err == nil {
+		resolvedRoot, rootErr := filepath.EvalSymlinks(root)
+		rel, relErr := filepath.Rel(resolvedRoot, resolved)
+		if rootErr != nil || relErr != nil || !filepath.IsLocal(rel) {
+			surface.Evidence = []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED, "Declared component resolves outside the target.", manifestPath)}
+			return surface
+		}
+	}
+	surface.Path = path
+	surface.Evidence = []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, "service.json declares component role "+c.Role+".", manifestPath)}
+	if info, err := os.Stat(path); err == nil && info.IsDir() {
+		surface.Status = unsupportedIfNoParseUnit(path)
+	} else if os.IsNotExist(err) {
+		surface.Status = factsv1.SurfaceStatus_SURFACE_STATUS_MISSING
+	}
+	return surface
 }
 
 func findSurface(surfaces []*factsv1.Surface, id string) *factsv1.Surface {

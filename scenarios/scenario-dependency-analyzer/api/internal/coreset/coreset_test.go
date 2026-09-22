@@ -3,11 +3,11 @@ package coreset
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	apicoreset "github.com/vrooli/api-core/coreset"
 	"github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func TestMain(m *testing.M) {
@@ -299,11 +299,10 @@ func TestValidateTrustedBaseClosureRejectsInconsistentGrant(t *testing.T) {
 }
 
 func TestRepositoryTrustedBaseClosure(t *testing.T) {
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	repoRoot, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
 	}
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(filename), "../../../../.."))
 	if err := ValidateTrustedBaseClosure(repoRoot); err != nil {
 		t.Fatalf("repository trusted-base closure is invalid: %v", err)
 	}

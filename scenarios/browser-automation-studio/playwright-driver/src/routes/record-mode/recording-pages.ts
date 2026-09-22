@@ -108,6 +108,20 @@ export async function emitHistoryCallback(
 // Multi-Tab Page Handlers
 // =============================================================================
 
+/** Register a recording page once, including pages discovered by the context event. */
+export function registerRecordingPage(
+  session: ReturnType<SessionManager['getSession']>,
+  page: Page
+): string {
+  const existing = session.pageToIdMap.get(page);
+  if (existing) return existing;
+  const id = randomUUID();
+  if (!session.pages.includes(page)) session.pages.push(page);
+  session.pageIdMap.set(id, page);
+  session.pageToIdMap.set(page, id);
+  return id;
+}
+
 /**
  * Create a new page (tab) in the recording session.
  *
@@ -134,21 +148,15 @@ export async function handleRecordNewPage(
     // Create a new page in the browser context
     const newPage = await session.context.newPage();
 
-    // Generate a UUID for the new page
-    const pageId = crypto.randomUUID();
+    const pageId = registerRecordingPage(session, newPage);
 
     // Navigate to the URL
     await newPage.goto(url, { waitUntil: 'domcontentloaded' }).catch(() => {
       // Ignore navigation errors for about:blank
     });
 
-    // Register the page in session tracking
-    session.pages.push(newPage);
-    session.pageIdMap.set(pageId, newPage);
-    session.pageToIdMap.set(newPage, pageId);
-
     // Switch to the new page
-    session.currentPageIndex = session.pages.length - 1;
+    session.currentPageIndex = session.pages.indexOf(newPage);
     session.frameStack.length = 0;
     session.page = newPage;
 

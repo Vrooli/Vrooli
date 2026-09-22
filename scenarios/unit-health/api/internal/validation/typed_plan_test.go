@@ -35,7 +35,7 @@ func TestBuildExecutionPlanUsesTypedCommandsAndNeverInstallsDependencies(t *test
 	inv := discovery.Inventory{Scenario: "demo", TargetKind: "scenario", RootPath: root, Surfaces: []discovery.Surface{{
 		ID: "ui", Kind: "ui", Language: "typescript", RootPath: ui, PackageManager: "pnpm", Status: "known",
 	}}}
-	_, workspaces, plan, _ := buildPlan("demo", inv, "2026-08-21T00:00:00Z")
+	_, workspaces, plan, _ := buildPlan("demo", inv, inv, "2026-08-21T00:00:00Z")
 	if len(workspaces) != 1 || len(plan.Commands) != 1 {
 		t.Fatalf("workspaces=%+v plan=%+v", workspaces, plan)
 	}
@@ -76,7 +76,7 @@ func TestBuildExecutionPlanProjectsDeclaredRunnerProfile(t *testing.T) {
 	inv := discovery.Inventory{Scenario: "demo", TargetKind: "scenario", RootPath: root, Surfaces: []discovery.Surface{{
 		ID: "api", Kind: "api", Language: "go", RootPath: apiRoot, Status: "known",
 	}}}
-	_, workspaces, plan, findings := buildPlan("demo", inv, "2026-08-21T00:00:00Z")
+	_, workspaces, plan, findings := buildPlan("demo", inv, inv, "2026-08-21T00:00:00Z")
 	if executor.HostHermeticCapabilities().NetworkDeny && len(findings) != 0 {
 		t.Fatalf("unexpected profile findings: %+v", findings)
 	}

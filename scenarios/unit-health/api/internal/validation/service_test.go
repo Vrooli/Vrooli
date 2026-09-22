@@ -3,6 +3,7 @@ package validation
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -183,22 +184,42 @@ func TestLogging(t *testing.T) { t.Log("no assertion") }
 }
 
 func TestValidateHonorsWorkspaceFilterBeforePlanningAndAnalysis(t *testing.T) {
-	spec := loadSpec(t)
-	root := t.TempDir()
-	apiRoot := filepath.Join(root, "api")
-	cliRoot := filepath.Join(root, "cli")
-	writeFile(t, filepath.Join(apiRoot, "go.mod"), "module example.test/api\n\ngo 1.25\n")
-	writeFile(t, filepath.Join(cliRoot, "go.mod"), "module example.test/cli\n\ngo 1.25\n")
-	inv := discovery.Inventory{Scenario: "demo", TargetKind: "scenario", RootPath: root, Surfaces: []discovery.Surface{
-		{ID: "api", Kind: "api", Language: "go", RootPath: apiRoot, Status: "known"},
-		{ID: "cli", Kind: "cli", Language: "go", RootPath: cliRoot, Status: "known"},
-	}}
-	resp, err := newService(fakeDiscoverer{inv: inv}, spec).Validate(context.Background(), Request{Scenario: "demo", Workspaces: []string{"api"}})
-	if err != nil {
-		t.Fatalf("Validate: %v", err)
-	}
-	if len(resp.Surfaces) != 1 || resp.Surfaces[0].ID != "api" || len(resp.Workspaces) != 1 || resp.Workspaces[0].ID != "api" || len(resp.Plan.Commands) != 1 || resp.Plan.Commands[0].WorkspaceID != "api" {
-		t.Fatalf("filtered response surfaces=%+v workspaces=%+v plan=%+v", resp.Surfaces, resp.Workspaces, resp.Plan)
+	for _, uiObserved := range []bool{true, false} {
+		t.Run(fmt.Sprintf("ui_observed_%t", uiObserved), func(t *testing.T) {
+			spec := loadSpec(t)
+			root := t.TempDir()
+			apiRoot := filepath.Join(root, "api")
+			cliRoot := filepath.Join(root, "cli")
+			writeFile(t, filepath.Join(apiRoot, "go.mod"), "module example.test/api\n\ngo 1.25\n")
+			writeFile(t, filepath.Join(cliRoot, "go.mod"), "module example.test/cli\n\ngo 1.25\n")
+			writeUnitPolicyProfile(t, root, reactViteUnitPolicyProfile())
+			inv := discovery.Inventory{Scenario: "demo", TargetKind: "scenario", RootPath: root, Surfaces: []discovery.Surface{
+				{ID: "api", Kind: "api", Language: "go", RootPath: apiRoot, Status: "known"},
+				{ID: "cli", Kind: "cli", Language: "go", RootPath: cliRoot, Status: "known"},
+			}}
+			if uiObserved {
+				inv.Surfaces = append(inv.Surfaces, discovery.Surface{ID: "ui", Kind: "ui", Language: "typescript", Framework: "vitest", RootPath: filepath.Join(root, "ui"), Status: "known"})
+			}
+			resp, err := newService(fakeDiscoverer{inv: inv}, spec).Validate(context.Background(), Request{Scenario: "demo", Workspaces: []string{"api"}})
+			if err != nil {
+				t.Fatalf("Validate: %v", err)
+			}
+			if len(resp.Surfaces) != 1 || resp.Surfaces[0].ID != "api" || len(resp.Workspaces) != 1 || resp.Workspaces[0].ID != "api" || len(resp.Plan.Commands) != 1 || resp.Plan.Commands[0].WorkspaceID != "api" {
+				t.Fatalf("filtered response surfaces=%+v workspaces=%+v plan=%+v", resp.Surfaces, resp.Workspaces, resp.Plan)
+			}
+			var missing []string
+			for _, finding := range resp.Findings {
+				if finding.Code == codeUnitRequiredRoleMissing {
+					missing = append(missing, finding.ID)
+				}
+			}
+			if uiObserved && len(missing) != 0 {
+				t.Fatalf("excluded observed roles reported missing: %v", missing)
+			}
+			if !uiObserved && (len(missing) != 1 || missing[0] != codeUnitRequiredRoleMissing+"-ui") {
+				t.Fatalf("actually missing UI role must remain a failure: %v", missing)
+			}
+		})
 	}
 }
 

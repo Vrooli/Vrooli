@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	cacheAnalyzerVersion = "code-facts.phase9"
+	cacheAnalyzerVersion = "code-facts.components-v1"
 	cacheSchemaVersion   = "code-facts-cache-v2"
 	cacheScopeGraph      = "graph"
 	cacheScopeReport     = "report"

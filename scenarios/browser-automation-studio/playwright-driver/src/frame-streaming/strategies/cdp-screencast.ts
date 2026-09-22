@@ -84,386 +84,247 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
     wsProvider: WebSocketProvider,
     statsReporter: FrameStatsReporter
   ): Promise<StreamingHandle> {
-    // Resolve CDP config with defaults for any unspecified values
+    if (config.scale === 'device') throw new Error('CDP screencast does not support device scale; use SDK polling');
     const cdpConfig = resolveCdpConfig(config.cdp);
-
-    // Get initial page - CDP screencast is bound to a specific page
+    const { sessionId } = config;
+    type Capture = { page: Page; cdp: CDPSession; generation: number; listener: (event: ScreencastFrameEvent) => void };
+    let capture: Capture | undefined;
+    let generation = 0;
+    let active = true;
     let currentPage = pageProvider();
-    let cdpSession = await currentPage.context().newCDPSession(currentPage);
-    let isActive = true;
+    let currentViewport = currentPage.viewportSize() ?? { width: 1280, height: 720 };
+    let currentQuality = config.quality;
+    let targetFps = config.targetFps;
+    let lastSentAt = -Infinity;
+    let frameDeadline: ReturnType<typeof setTimeout> | undefined;
     let frameCount = 0;
     let ackFailures = 0;
-    let currentQuality = config.quality;
-    let currentViewport = currentPage.viewportSize() ?? { width: 1280, height: 720 };
     let viewportUpdatePending = false;
-    let pageCheckInterval: ReturnType<typeof setInterval> | null = null;
+    let pendingFrame: { owner: Capture; data: string } | undefined;
+    let transition: Promise<void> = Promise.resolve();
+    let stopping: Promise<void> | undefined;
+    let pageCheckInterval: ReturnType<typeof setInterval> | undefined;
 
-    const { sessionId } = config;
-
-    // Minimum change threshold to trigger restart (prevents rapid restarts during resize)
-    const VIEWPORT_CHANGE_THRESHOLD = 20; // pixels
-
-    // Buffer for frames received before WebSocket is ready
-    // This prevents flickering/white screen on initial connection
-    let pendingFrame: { data: string; sessionId: number } | null = null;
-
-    /**
-     * End this stream without propagating a background cleanup race to the
-     * process. Session teardown can remove the session while the periodic page
-     * probe is queued; in that case there is no page left to stream.
-     */
-    const stopStreaming = async (): Promise<void> => {
-      if (!isActive) return;
-      isActive = false;
-
-      if (pageCheckInterval) {
-        clearInterval(pageCheckInterval);
-        pageCheckInterval = null;
-      }
-
+    const clearPending = (): void => {
+      pendingFrame = undefined;
+      if (frameDeadline) clearTimeout(frameDeadline);
+      frameDeadline = undefined;
+    };
+    const owns = (owner: Capture): boolean => active && capture === owner && generation === owner.generation;
+    const disposeCapture = async (): Promise<void> => {
+      const owner = capture;
+      if (!owner) return;
+      owner.cdp.off('Page.screencastFrame', owner.listener);
       try {
-        await cdpSession.send('Page.stopScreencast');
+        await owner.cdp.send('Page.stopScreencast');
       } catch (error) {
         logger.debug(scopedLog(LogContext.RECORDING, 'stopScreencast failed (page may be closed)'), {
-          sessionId,
-          error: error instanceof Error ? error.message : String(error),
+          sessionId, error: error instanceof Error ? error.message : String(error),
         });
       }
+      try { await owner.cdp.detach(); } catch { /* The target may already be closed. */ }
+      capture = undefined;
+    };
 
-      try {
-        await cdpSession.detach();
-      } catch {
-        // Session may already be detached.
+    const stopStreaming = (): Promise<void> => {
+      if (stopping) return stopping;
+      active = false;
+      generation++;
+      clearPending();
+      if (pageCheckInterval) clearInterval(pageCheckInterval);
+      // A late protocol acquisition still belongs to this transition. Its
+      // generation check disposes it before the stop acknowledgement settles.
+      stopping = transition.then(disposeCapture);
+      return stopping;
+    };
+
+    const sendFrame = (owner: Capture, data: string, buffered: boolean): boolean => {
+      if (!owns(owner) || pageProvider() !== owner.page) return false;
+      const ws = wsProvider.getWebSocket();
+      if (!ws || ws.readyState !== 1) return false;
+      const decodeStart = performance.now();
+      const buffer = Buffer.from(data, 'base64');
+      const decodeMs = performance.now() - decodeStart;
+      const sendStart = performance.now();
+      let frame: Buffer;
+      if (config.includePerfHeaders) {
+        const header = Buffer.from(JSON.stringify({
+          frame_id: `${sessionId}-${frameCount + 1}`, capture_ms: decodeMs,
+          compare_ms: 0, ws_send_ms: 0, frame_bytes: buffer.length,
+          sent_at: Date.now(), buffered,
+        }), 'utf8');
+        const length = Buffer.alloc(4);
+        length.writeUInt32BE(header.length, 0);
+        frame = Buffer.concat([length, header, buffer]);
+      } else {
+        const timestamp = Buffer.alloc(8);
+        timestamp.writeBigInt64BE(BigInt(Date.now()), 0);
+        frame = Buffer.concat([timestamp, buffer]);
       }
-
-      logger.info(scopedLog(LogContext.RECORDING, 'CDP screencast stopped'), {
-        sessionId,
-        totalFrames: frameCount,
-      });
-    };
-
-    // Helper to restart screencast on a new page or with new viewport
-    const restartScreencast = async (
-      newPage: Page,
-      newViewport?: { width: number; height: number }
-    ): Promise<void> => {
-      // Stop old screencast
-      try {
-        await cdpSession.send('Page.stopScreencast');
-        await cdpSession.detach();
-      } catch {
-        // Ignore errors - old session may already be invalid
+      ws.send(frame);
+      lastSentAt = performance.now();
+      const direct = (global as { directFrameServer?: DirectFrameServer }).directFrameServer;
+      if (direct?.hasSubscribers(sessionId)) direct.broadcast(buffer, sessionId);
+      const sendMs = performance.now() - sendStart;
+      frameCount++;
+      statsReporter.onFrameSent({ captureMs: decodeMs, compareMs: 0, wsSendMs: sendMs, frameBytes: buffer.length });
+      metrics.frameCaptureLatency.observe({ session_id: sessionId }, decodeMs);
+      metrics.frameE2ELatency.observe({ session_id: sessionId }, decodeMs + sendMs);
+      if (cdpConfig.frameLogInterval > 0 && frameCount % cdpConfig.frameLogInterval === 0) {
+        logger.debug(scopedLog(LogContext.RECORDING, 'screencast stats'), { sessionId, frameCount, frameBytes: buffer.length });
       }
-
-      // Start new screencast on new page
-      currentPage = newPage;
-      cdpSession = await newPage.context().newCDPSession(newPage);
-
-      // Re-attach frame handler
-      setupFrameHandler();
-
-      // Use provided viewport or get from page
-      const viewport = newViewport ?? newPage.viewportSize() ?? { width: 1280, height: 720 };
-      currentViewport = viewport;
-
-      await cdpSession.send('Page.startScreencast', {
-        format: 'jpeg',
-        quality: currentQuality,
-        maxWidth: viewport.width,
-        maxHeight: viewport.height,
-        everyNthFrame: 1,
-      });
-
-      logger.info(scopedLog(LogContext.RECORDING, 'screencast restarted'), {
-        sessionId,
-        frameCount,
-        viewport,
-        reason: newViewport ? 'viewport_update' : 'page_change',
-      });
+      return true;
     };
 
-    // Legacy wrapper for page changes (maintains existing API)
-    const restartScreencastOnPage = async (newPage: Page): Promise<void> => {
-      await restartScreencast(newPage);
-    };
-
-    // Check for page changes periodically
-    // Trade-off: Lower interval = faster tab detection, more CPU overhead
-    pageCheckInterval = setInterval(() => {
-      if (!isActive) return;
-      let newPage: Page;
-      try {
-        newPage = pageProvider();
-      } catch (error) {
-        logger.info(scopedLog(LogContext.RECORDING, 'stopping screencast after session closed'), {
-          sessionId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        void stopStreaming();
+    const flushPending = (buffered = true): void => {
+      if (!active || !pendingFrame || !wsProvider.isReady()) return;
+      const remaining = 1000 / targetFps - (performance.now() - lastSentAt);
+      if (remaining > 0) {
+        if (!frameDeadline) {
+          frameDeadline = setTimeout(deliverPending, Math.ceil(remaining));
+        }
         return;
       }
+      if (sendFrame(pendingFrame.owner, pendingFrame.data, buffered)) clearPending();
+    };
 
-      if (newPage !== currentPage && !newPage.isClosed()) {
-        void restartScreencastOnPage(newPage).catch((error) => {
-          logger.warn(scopedLog(LogContext.RECORDING, 'screencast page change failed'), {
-            sessionId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-          void stopStreaming();
+    const deliverPending = (): void => {
+      frameDeadline = undefined;
+      try { flushPending(); } catch (error) {
+        logger.warn(scopedLog(LogContext.RECORDING, 'buffered frame delivery failed'), {
+          sessionId, error: String(error),
         });
+      }
+    };
+
+    const handleFrame = async (owner: Capture, event: ScreencastFrameEvent): Promise<void> => {
+      if (!owns(owner)) return;
+      try {
+        if (pageProvider() !== owner.page) return;
+        pendingFrame = { owner, data: event.data };
+        if (!wsProvider.isReady()) statsReporter.onFrameSkipped('ws_not_ready');
+        else flushPending(false);
+      } catch (error) {
+        logger.warn(scopedLog(LogContext.RECORDING, 'screencast frame delivery failed'), {
+          sessionId, error: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        // Transport failure cannot withhold Chrome's ACK. The emitter owns it
+        // even if another capture becomes current while delivery settles.
+        try {
+          await ackWithTimeout(owner.cdp, event.sessionId, cdpConfig.ackTimeoutMs);
+          if (owns(owner)) ackFailures = 0;
+        } catch (error) {
+          if (owns(owner)) {
+            ackFailures++;
+            logger.warn(scopedLog(LogContext.RECORDING, 'screencast ACK failed'), {
+              sessionId, error: error instanceof Error ? error.message : String(error),
+              frameNumber: event.sessionId, ackFailures,
+            });
+            if (ackFailures >= cdpConfig.maxAckFailures) {
+              logger.error(scopedLog(LogContext.RECORDING, 'CDP screencast ACK failures exceeded threshold'), {
+                sessionId, ackFailures, threshold: cdpConfig.maxAckFailures,
+              });
+            }
+          }
+        }
+      }
+    };
+
+    const changeCapture = (page: Page, viewport?: { width: number; height: number }, quality = currentQuality): Promise<boolean> => {
+      const revision = ++generation;
+      currentPage = page;
+      clearPending();
+      lastSentAt = -Infinity;
+      const changed = transition.then(async () => {
+        if (!active || generation !== revision) return false;
+        await disposeCapture();
+        if (!active || generation !== revision) return false;
+        const cdp = await page.context().newCDPSession(page);
+        const owner: Capture = { page, cdp, generation: revision, listener: event => { void handleFrame(owner, event); } };
+        capture = owner;
+        let started = false;
+        try {
+          if (!owns(owner) || pageProvider() !== page) return false;
+          cdp.on('Page.screencastFrame', owner.listener);
+          const dimensions = viewport ?? page.viewportSize() ?? { width: 1280, height: 720 };
+          await cdp.send('Page.startScreencast', {
+            format: 'jpeg', quality,
+            maxWidth: dimensions.width, maxHeight: dimensions.height, everyNthFrame: 1,
+          });
+          if (!owns(owner) || pageProvider() !== page) return false;
+          currentViewport = dimensions;
+          started = true;
+          return true;
+        } finally {
+          if (!started) await disposeCapture();
+        }
+      });
+      transition = changed.then(() => {}, () => {});
+      return changed;
+    };
+
+    if (!(await changeCapture(currentPage))) throw new Error('Frame capture was stopped or replaced');
+    pageCheckInterval = setInterval(() => {
+      if (!active) return;
+      try {
+        const page = pageProvider();
+        if (page !== currentPage && !page.isClosed()) {
+          void changeCapture(page).catch((error: unknown) => {
+            logger.warn(scopedLog(LogContext.RECORDING, 'screencast page change failed'), { sessionId, error: String(error) });
+            void stopStreaming();
+          });
+        } else {
+          // A stable page may emit no second frame when transport reconnects.
+          flushPending();
+        }
+      } catch {
+        void stopStreaming();
       }
     }, cdpConfig.pageCheckIntervalMs);
 
-    // Helper to send a frame (used for both live and buffered frames)
-    const sendFrame = (
-      frameData: string,
-      _frameSessionId: number,
-      isBuffered: boolean
-    ): { buffer: Buffer; decodeMs: number } | null => {
-      const ws = wsProvider.getWebSocket();
-      if (!ws || ws.readyState !== 1) {
-        return null;
-      }
-
-      const decodeStart = performance.now();
-      const buffer = Buffer.from(frameData, 'base64');
-      const decodeMs = performance.now() - decodeStart;
-
-      const sendStart = performance.now();
-
-      // Build frame with optional perf header
-      let frameToSend: Buffer;
-      if (config.includePerfHeaders) {
-        const header = {
-          frame_id: `${sessionId}-${frameCount + 1}`,
-          capture_ms: decodeMs,
-          compare_ms: 0,
-          ws_send_ms: 0,
-          frame_bytes: buffer.length,
-          sent_at: Date.now(),
-          buffered: isBuffered,
-        };
-        const headerJson = Buffer.from(JSON.stringify(header), 'utf8');
-        const headerLen = Buffer.alloc(4);
-        headerLen.writeUInt32BE(headerJson.length, 0);
-        frameToSend = Buffer.concat([headerLen, headerJson, buffer]);
-      } else {
-        const timestampBuffer = Buffer.alloc(8);
-        timestampBuffer.writeBigInt64BE(BigInt(Date.now()), 0);
-        frameToSend = Buffer.concat([timestampBuffer, buffer]);
-      }
-
-      ws.send(frameToSend);
-
-      // Also broadcast to direct frame server
-      const directServer = (global as { directFrameServer?: DirectFrameServer }).directFrameServer;
-      if (directServer?.hasSubscribers(sessionId)) {
-        directServer.broadcast(buffer, sessionId);
-      }
-
-      const sendMs = performance.now() - sendStart;
-
-      frameCount++;
-
-      statsReporter.onFrameSent({
-        captureMs: decodeMs,
-        wsSendMs: sendMs,
-        frameBytes: buffer.length,
-      });
-
-      metrics.frameCaptureLatency.observe({ session_id: sessionId }, decodeMs);
-      metrics.frameE2ELatency.observe({ session_id: sessionId }, decodeMs + sendMs);
-
-      if (isBuffered) {
-        logger.debug(scopedLog(LogContext.RECORDING, 'sent buffered frame'), {
-          sessionId,
-          frameBytes: buffer.length,
-        });
-      }
-
-      return { buffer, decodeMs };
-    };
-
-    // Setup frame handler (extracted so we can re-attach after page switch)
-    const handleScreencastFrame = async (event: ScreencastFrameEvent): Promise<void> => {
-        if (!isActive) return;
-
-        const frameStart = performance.now();
-
-        try {
-          // Check WebSocket readiness
-          if (!wsProvider.isReady()) {
-            // Buffer this frame instead of dropping it
-            // Only keep the latest frame to avoid memory buildup
-            pendingFrame = { data: event.data, sessionId: event.sessionId };
-            statsReporter.onFrameSkipped('ws_not_ready');
-            // Still need to ACK the frame to prevent Chrome from stopping
-            await ackWithTimeout(cdpSession, event.sessionId, cdpConfig.ackTimeoutMs);
-            return;
-          }
-
-          // WebSocket is ready - first send any buffered frame
-          if (pendingFrame) {
-            sendFrame(pendingFrame.data, pendingFrame.sessionId, true);
-            pendingFrame = null;
-          }
-
-          // Now send the current frame
-          const result = sendFrame(event.data, event.sessionId, false);
-          if (!result) {
-            // WebSocket closed between ready check and send
-            await ackWithTimeout(cdpSession, event.sessionId, cdpConfig.ackTimeoutMs);
-            return;
-          }
-
-          const { buffer, decodeMs } = result;
-
-          // Log periodically (if enabled)
-          if (cdpConfig.frameLogInterval > 0 && frameCount % cdpConfig.frameLogInterval === 0) {
-            logger.debug(scopedLog(LogContext.RECORDING, 'screencast stats'), {
-              sessionId,
-              frameCount,
-              frameBytes: buffer.length,
-              decodeMs: decodeMs.toFixed(2),
-              totalMs: (performance.now() - frameStart).toFixed(2),
-            });
-          }
-
-          // CRITICAL: Acknowledge frame or Chrome stops sending!
-          await ackWithTimeout(cdpSession, event.sessionId, cdpConfig.ackTimeoutMs);
-          ackFailures = 0;
-        } catch (error) {
-          ackFailures++;
-          const message = error instanceof Error ? error.message : String(error);
-
-          logger.warn(scopedLog(LogContext.RECORDING, 'screencast frame error'), {
-            sessionId,
-            error: message,
-            frameNumber: event.sessionId,
-            ackFailures,
-          });
-
-          // DECISION: Log error when consecutive failures exceed threshold
-          // This indicates a potentially unhealthy CDP session
-          if (ackFailures >= cdpConfig.maxAckFailures) {
-            logger.error(scopedLog(LogContext.RECORDING, 'screencast ACK failures exceeded threshold'), {
-              sessionId,
-              ackFailures,
-              threshold: cdpConfig.maxAckFailures,
-              hint: 'CDP session may be unhealthy, consider restarting screencast',
-            });
-          }
-        }
-    };
-
-    const setupFrameHandler = (): void => {
-      cdpSession.on('Page.screencastFrame', (event: ScreencastFrameEvent) => {
-        void handleScreencastFrame(event);
-      });
-    };
-
-    // Initial frame handler setup
-    setupFrameHandler();
-
-    // Get viewport for screencast config
-    const viewport = currentPage.viewportSize() ?? { width: 1280, height: 720 };
-
-    // Start screencast
-    logger.info(scopedLog(LogContext.RECORDING, 'starting CDP screencast'), {
-      sessionId,
-      config: {
-        format: 'jpeg',
-        quality: currentQuality,
-        maxWidth: viewport.width,
-        maxHeight: viewport.height,
-        everyNthFrame: 1,
-      },
-    });
-
-    await cdpSession.send('Page.startScreencast', {
-      format: 'jpeg',
-      quality: currentQuality,
-      maxWidth: viewport.width,
-      maxHeight: viewport.height,
-      everyNthFrame: 1, // Every frame - Chrome handles change detection
-    });
-
     return {
       getFrameCount: () => frameCount,
-      isActive: () => isActive,
+      isActive: () => active,
       isViewportUpdatePending: () => viewportUpdatePending,
-
-      updateQuality: (quality: number): void => {
-        currentQuality = quality;
-        // Note: Quality changes require restarting screencast in CDP
-        // For now we just track it for the next restart
-        logger.debug(scopedLog(LogContext.RECORDING, 'screencast quality updated'), {
-          sessionId,
-          quality,
-          note: 'Takes effect on next screencast restart',
-        });
-      },
-
-      updateViewport: async (width: number, height: number): Promise<void> => {
-        if (!isActive) return;
-
-        // Check if viewport change is significant enough to warrant restart
-        const widthDiff = Math.abs(width - currentViewport.width);
-        const heightDiff = Math.abs(height - currentViewport.height);
-
-        if (widthDiff < VIEWPORT_CHANGE_THRESHOLD && heightDiff < VIEWPORT_CHANGE_THRESHOLD) {
-          logger.debug(scopedLog(LogContext.RECORDING, 'viewport change below threshold, skipping restart'), {
-            sessionId,
-            current: currentViewport,
-            requested: { width, height },
-            threshold: VIEWPORT_CHANGE_THRESHOLD,
-          });
-          return;
-        }
-
-        // Prevent concurrent viewport updates
-        if (viewportUpdatePending) {
-          logger.debug(scopedLog(LogContext.RECORDING, 'viewport update already pending, skipping'), {
-            sessionId,
-            requested: { width, height },
-          });
-          return;
-        }
-
-        viewportUpdatePending = true;
-        const updateStart = performance.now();
-
+      updateQuality: async (quality: number): Promise<void> => {
+        if (!active) throw new Error('Frame capture was stopped');
+        const applying = changeCapture(currentPage, undefined, quality);
+        const revision = generation;
         try {
-          logger.info(scopedLog(LogContext.RECORDING, 'updating viewport'), {
-            sessionId,
-            from: currentViewport,
-            to: { width, height },
-          });
-
-          // Update Playwright viewport first
-          await currentPage.setViewportSize({ width, height });
-
-          // Restart screencast with new dimensions
-          await restartScreencast(currentPage, { width, height });
-
-          const updateMs = performance.now() - updateStart;
-          logger.info(scopedLog(LogContext.RECORDING, 'viewport update complete'), {
-            sessionId,
-            viewport: { width, height },
-            updateMs: updateMs.toFixed(2),
-          });
+          if (!(await applying) || revision !== generation) {
+            throw new Error('Frame capture was stopped or replaced during quality update');
+          }
+          currentQuality = quality;
         } catch (error) {
-          logger.error(scopedLog(LogContext.RECORDING, 'viewport update failed'), {
-            sessionId,
-            error: error instanceof Error ? error.message : String(error),
-            requested: { width, height },
-          });
+          if (revision === generation) await stopStreaming();
           throw error;
+        }
+      },
+      updatePerfMode: (enabled: boolean): void => { config.includePerfHeaders = enabled; },
+      updateTargetFps: (fps: number): void => {
+        targetFps = Math.min(Math.max(fps, 1), 60);
+        if (frameDeadline) clearTimeout(frameDeadline);
+        frameDeadline = undefined;
+        if (pendingFrame) frameDeadline = setTimeout(deliverPending, 0);
+      },
+      updateViewport: async (width: number, height: number): Promise<void> => {
+        if (!active) throw new Error('Frame capture was stopped');
+        if (Math.abs(width - currentViewport.width) < 20 && Math.abs(height - currentViewport.height) < 20) return;
+        if (viewportUpdatePending) return;
+        viewportUpdatePending = true;
+        const page = currentPage;
+        const revision = generation;
+        try {
+          await page.setViewportSize({ width, height });
+          if (!active || revision !== generation || pageProvider() !== page ||
+              !(await changeCapture(page, { width, height }))) {
+            throw new Error('Frame capture was stopped or replaced during resize');
+          }
         } finally {
           viewportUpdatePending = false;
         }
       },
-
       stop: stopStreaming,
     };
   }
@@ -481,11 +342,17 @@ async function ackWithTimeout(
     sessionId: frameSessionId,
   });
 
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error(`ACK timeout after ${timeoutMs}ms`)), timeoutMs);
-  });
-
-  await Promise.race([ackPromise, timeoutPromise]);
+  let deadline: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      ackPromise,
+      new Promise<never>((_, reject) => {
+        deadline = setTimeout(() => reject(new Error(`ACK timeout after ${timeoutMs}ms`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (deadline) clearTimeout(deadline);
+  }
 }
 
 /**

@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 )
 
@@ -40,15 +39,14 @@ func writeRepoContractFixture(t *testing.T, root string) {
 }
 
 // liveRepoContract reads the repository's authoritative
-// .vrooli/repo-contract.json by walking up from this source file until the
+// .vrooli/repo-contract.json by walking up from the test working directory until the
 // contract is found, returning the raw bytes for verbatim copy into a fixture.
 func liveRepoContract(t *testing.T) []byte {
 	t.Helper()
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed; cannot locate live repo contract")
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("locate test working directory: %v", err)
 	}
-	dir := filepath.Dir(filename)
 	for {
 		candidate := filepath.Join(dir, ".vrooli", "repo-contract.json")
 		if data, err := os.ReadFile(candidate); err == nil {

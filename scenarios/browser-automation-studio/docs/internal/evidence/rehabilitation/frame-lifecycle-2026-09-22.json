@@ -1,0 +1,82 @@
+{
+  "record": "BAS-WORK-044",
+  "issues": [
+    "BAS-RF-045",
+    "BAS-RF-077"
+  ],
+  "status": "deployed",
+  "native_red": {
+    "failed": 2,
+    "seconds": 6.529,
+    "receipt": "/tmp/bas-frame-native-red3-044.txt"
+  },
+  "manager_red": {
+    "failed": 5,
+    "passed": 4,
+    "seconds": 0.43,
+    "receipt": "/tmp/bas-frame-lifecycle-red-044.txt"
+  },
+  "cdp_red": "/tmp/bas-capture-init-red-044.txt",
+  "ack_red": "/tmp/bas-capture-ack-red-044.txt",
+  "runtime_lines": {
+    "before": {
+      "playwright-driver/src/frame-streaming/manager.ts": 440,
+      "playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts": 496,
+      "playwright-driver/src/session/session-reset.ts": 59,
+      "playwright-driver/src/session/session-teardown.ts": 89
+    },
+    "after": {
+      "playwright-driver/src/frame-streaming/manager.ts": 390,
+      "playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts": 507,
+      "playwright-driver/src/session/session-reset.ts": 61,
+      "playwright-driver/src/session/session-teardown.ts": 91
+    },
+    "net": -35
+  },
+  "source_sha256": {
+    "playwright-driver/src/frame-streaming/manager.ts": "662774dcce71becef1b239bfbc736f404bb081d9fffd4b50647a1db9a8b39087",
+    "playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts": "a226c07f4ecee34675afc93abbf15ff4f6c2309fdb6278d23045a26607937f6d",
+    "playwright-driver/src/session/session-reset.ts": "8f0c0e6466fbd590305f6bf7b3ef54de80f34ff854cfa7790ec1a3c7cde2855d",
+    "playwright-driver/src/session/session-teardown.ts": "105b3fc8b847613c126135c5ea4ad70dae1080b4c94aa53fd215c4ae0cbc9ad3"
+  },
+  "pending_operations": [],
+  "limitations": [
+    "RF046 internal CDP resize/page switch races and RF047 effective settings remain open.",
+    "Stop joins finite SDK acquisition; worst-case unresponsive protocol bounds are not qualified here.",
+    "No full product or native-platform readiness claim."
+  ],
+  "focused": {
+    "status": "passed",
+    "tests": 111,
+    "suites": 6,
+    "seconds": 32.421,
+    "receipt": "/tmp/bas-frame-focused-044.txt",
+    "open_handle_warning_then_natural_exit": true
+  },
+  "types": "passed",
+  "build": "passed",
+  "tidiness": {
+    "run_id": "20260922-190312-45bb6d9a",
+    "status": "failed",
+    "quiet_wait_consumed": true,
+    "metrics": {
+      "totalFindings": 1118,
+      "longFiles": 104,
+      "complexity": 387,
+      "duplication": 608,
+      "coupling": 18,
+      "duplicationLineDebt": 32643
+    }
+  },
+  "driver_owner": {
+    "id": "uh-20260922-190308-c64e673046864877dc7a2f19b0dbc1d0",
+    "status": "passed",
+    "duration_ms": "339493",
+    "receipt": "/tmp/bas-frame-owner-044.json"
+  },
+  "live_build": "sha256:451603780f62b3880b2b91522c6425c46c590af78fcd7c96ebcb254f6e97f521",
+  "live_health": "/tmp/bas-live-health-044.json",
+  "driver_tests_passed": 1596,
+  "driver_suites_passed": 124,
+  "profile_receipt": "/tmp/bas-profile-final-044.txt"
+}

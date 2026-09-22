@@ -1,8 +1,15 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/vrooli/cli-core/cliutil"
+	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/vrooli/cli-core/cliapptest"
 
@@ -69,4 +76,34 @@ func TestMetadata(t *testing.T) {
 	if strings.TrimSpace(appVersion) == "" {
 		t.Fatal("appVersion must not be empty")
 	}
+}
+
+// Long validation keeps its server-owned deadline even when ordinary requests
+// use a short client timeout. Exercise the actual CLI/Connect transport.
+func TestExecutedValidationWaitsForTerminalResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if strings.Contains(r.URL.Path, "ValidateScenario") {
+			time.Sleep(80 * time.Millisecond)
+			w.Header().Set("Content-Type", "application/proto")
+			body, err := proto.Marshal(&validationv1.ValidateScenarioResponse{RunId: "delayed-validation", Scenario: "demo", Status: "passed"})
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			_, _ = w.Write(body)
+			return
+		}
+		_, _ = w.Write([]byte(`{"status":"healthy"}`))
+	}))
+	defer server.Close()
+	app, err := NewApp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	app.core.HTTPClient = cliutil.NewHTTPClient(cliutil.HTTPClientOptions{Timeout: 10 * time.Millisecond})
+	output := cliapptest.CaptureStdout(t, func() error {
+		return app.Run([]string{"--api-base", server.URL, "validate", "scenario", "demo", "--execution", "--json"})
+	})
+	testutil.RequireContains(t, output, "delayed-validation")
 }

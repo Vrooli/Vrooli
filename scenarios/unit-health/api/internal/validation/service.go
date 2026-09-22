@@ -490,9 +490,10 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 		resp.Artifacts = buildArtifacts(resp)
 		return resp, nil
 	}
+	observed := inv
 	inv = filterRequestedWorkspaces(inv, req.Workspaces)
 
-	surfaces, workspaces, plan, findings := buildPlan(scenario, inv, nowStr)
+	surfaces, workspaces, plan, findings := buildPlan(scenario, inv, observed, nowStr)
 	if req.FastTestOnly {
 		plan = buildExecutionPlanForMode(workspaces, true)
 	}

@@ -153,3 +153,14 @@ Analyzer-backed generic language evidence remains the authority for deep Describ
 - [Fact Families](../reference/fact-families.md)
 - [Evidence Status](../reference/evidence-status.md)
 - [Cache](../reference/cache.md)
+
+## Declared execution surfaces
+
+Surface discovery must include component roots declared in `.vrooli/service.json`,
+including sidecars whose directory names are application-specific. The manifest
+supplies identity and role; existing directory and parse-unit observations supply
+presence and toolchain facts. Conventional directories remain useful for scenarios
+without component declarations. Merge the same identity/root once, report missing
+roots explicitly, and refuse roots outside the target. Consumers such as Unit
+Health apply test policy to these facts rather than maintaining private lists of
+scenario-specific directory names.

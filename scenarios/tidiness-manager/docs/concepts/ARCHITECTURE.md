@@ -26,6 +26,22 @@ Scans enter through CLI commands or HTTP endpoints. The API normalizes scenario 
 
 Campaign flows use persisted campaign state plus optional visited-tracker integration. Smart scans add AI-sourced issue candidates when resources are available.
 
+## Maintainability Source Inventory
+
+Maintainability scans include source in custom components and supporting code,
+including Playwright sidecars. Component names are not runtime-data categories.
+The shared `api-core/pathfilter` policy excludes dependencies, build output and
+runtime data; target exclusions remain explicit. Tidiness Manager collects one
+file inventory through its existing scanner and derives language groups from that
+same inventory for length, complexity, duplication, coupling and detail views.
+It must not maintain a second list of conventional source directories.
+
+CodeFacts owns declared component surfaces and parse-unit evidence. That inventory
+confirms a sidecar's product ownership, while maintainability scanning also covers
+supporting source outside declared components. Reusing the existing local file
+inventory avoids adding a remote dependency to a filesystem metric computation.
+Missing or unsupported analyzer output remains distinct from a clean finding set.
+
 ## Shared Infrastructure
 
 - PostgreSQL stores issues, metrics, scan history, and campaign state.
@@ -61,3 +77,8 @@ Concept docs explain mental models, reference docs list stable interfaces, opera
 - `INTEGRATIONS.md`
 - `../internal/SEAMS.md`
 - `../internal/TESTING.md`
+
+Current qualification limit (BAS-RF-064): the JavaScript duplication adapter
+still ignores its supplied inventory and malformed output can become an empty
+result. TypeScript complexity is explicitly unsupported. Neither absence
+establishes clean source; retain analyzer coverage limits beside native totals.

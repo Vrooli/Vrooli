@@ -26,7 +26,7 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 	scenario := ctx.Positional("scenario")
 	client := h.client
 	if client == nil {
-		httpClient, baseURL := cliapp.NewConnectHTTPClient(h.core)
+		httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(h.core, 0)
 		client = validationconnect.NewValidationServiceClient(httpClient, baseURL)
 	}
 	reviewedObservationCount := uint32(0)

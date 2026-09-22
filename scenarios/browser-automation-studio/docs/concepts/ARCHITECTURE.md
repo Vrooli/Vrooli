@@ -789,3 +789,103 @@ protocol calls and retries. Closed-page cancellation is a failed readiness resul
 never permission to mark the pipeline ready. Keep this policy in the existing
 SessionManager wait and recording verification owners, without a second lifecycle
 manager. Successful live-page verification and its bounded timeout remain supported.
+
+### Frame lifecycle ownership (rehabilitation target, 2026-09-22)
+
+The existing frame coordinator owns one slot per session. A slot serializes
+resource acquisition/disposal and invalidates its generation at replacement or
+stop admission. Pending starts are joined by stop; obsolete page providers and
+transport adapters cannot publish into a new generation. Failed disposal retains
+its resource for explicit retry. Strategies clean up resources acquired before
+startup failure. Session-start previews retain their immutable execution/lease
+identity across readiness waits and subsequent page access. RF045 qualification
+records the coordinator boundary; RF046 still owns internal CDP resize/tab races.
+
+The CDP strategy's target design binds each listener, buffered frame and ACK to
+the exact capture that produced it. Initial start, tab change and resize use one
+serialized acquisition path. Stop invalidates the generation before joining late
+acquisition; resize checks its original generation after viewport mutation. The
+existing page probe delivers the current buffered frame after reconnect without
+requiring another paint. Transport delivery failure still acknowledges Chrome's
+frame. These are RF046 and RF047 buffer-delivery targets; effective FPS/quality
+controls require their separate qualification.
+
+
+### Polling capture lifetime (rehabilitation target, 2026-09-22)
+
+The fallback strategy uses the browser SDK screenshot owner with one bounded
+capture in flight. It must not keep a private global CDP session cache or a second
+capture deadline. Preserve configured quality, CSS/device scale and visible caret.
+Every interval wait owns exactly one timer and abort listener; either settlement
+releases both. Stop invalidates publication immediately and all concurrent stop
+callers join the same loop. A completed capture belongs to its original page and
+viewer; only a successful send advances deduplication state. Changing page or
+viewer requires a current frame even when its pixels match the previous frame.
+
+
+### Recording tab identity and callback lifetime (target, 2026-09-22)
+
+Recording page registration in recording-pages.ts returns the existing identity
+for an already tracked Page and otherwise updates the page list and both maps
+once. Explicit tab creation and context page discovery use this same operation.
+Initial SessionManager page identities remain authoritative.
+
+The page-events owner attaches the same navigation and close handlers to initial,
+already-open and new pages. Handlers bind the exact Page/ID, never mutable active
+page selection. Its cleanup removes context and page listeners and invalidates
+pending callbacks before they can send or attach more listeners. Every asynchronous
+listener rejection is observed. The owner returns immediate cleanup plus initial-page delivery readiness. The start
+route stores cleanup before awaiting readiness; its duplicate initial-page event
+and navigation implementations are removed. Previously admitted
+HTTP callbacks retain their existing deadline; local cleanup cannot undo remote
+commit. Recording request/lease fencing remains a separate RF038 boundary.
+
+Session reset and teardown invoke this callback cleanup after recording acknowledgement
+and before navigation or browser disposal. Failed cleanup keeps its handle for
+retry; successful teardown stages use the existing completed-stage ledger.
+
+
+### Effective stream controls (target, 2026-09-22)
+
+The existing frame manager owns admission and reported settings. An update receipt
+must follow application by the active capture owner; overlapping stop/replacement
+must invalidate obsolete updates. Quality changes require an acknowledged capture
+change when the protocol cannot update encoding in place. Both strategies must
+honor the advertised delivery FPS limit and timing-header mode. Measured FPS comes
+from the existing performance collector and must remain distinct from target FPS.
+Preserve the current scale restart policy and supported frame decoding formats.
+Prefer one settings/encoding/delivery policy over parallel metadata or schedulers;
+validate numeric controls before they can corrupt capture or scheduling state.
+
+
+### Frame scale capability (target, 2026-09-22)
+
+The frame coordinator selects the existing SDK polling strategy for device-scale
+requests and CDP for supported CSS-scale requests. Native Chromium in the current
+cohort emits CSS-sized screencast images at DPR2 even when protocol size caps are
+doubled. CDP therefore must explicitly reject device-scale startup rather than
+acknowledge fidelity it cannot guarantee. Device capture uses the SDK's existing
+scale contract, including at DPR1; do not add a guessed DPR probe or a second
+capture implementation. This choice can trade compositor frame rate for requested
+pixel fidelity. Measure that tradeoff without reducing quality or calling a target
+FPS an observed rate. Native OS and release performance qualification remain
+separate. Existing startup-failure fallback, settings, stop and tab ownership stay
+with their present owners.
+
+
+### Recording-start continuation ownership (target, 2026-09-22)
+
+RecordingPipelineManager owns readiness, document activation and the monotonic
+recording generation. The HTTP start route must not add a second DOM-load wait
+after that owner has acknowledged capture startup. Admit preview immediately
+through the existing frame coordinator so Stop can dispose the same owned stream.
+Snapshot the current execution/lease at route admission and validate it after
+body parsing and every subsequent asynchronous boundary. Bind the start operation
+and its frame page provider to the pipeline's next recording generation; a stop,
+restart with the same public recording ID, pipeline replacement, reset or lease
+handoff must invalidate the older operation. A superseded start cannot return a
+successful current-recording receipt or attach new preview/page callbacks. Use
+the existing generation and cleanup owners; add no parallel lifecycle registry.
+This local continuation boundary does not authenticate a transport request that
+omits its caller lease. RF038 still requires explicit envelopes on remaining
+mutating commands and their callers.

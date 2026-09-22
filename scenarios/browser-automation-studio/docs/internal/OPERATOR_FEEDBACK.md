@@ -89,3 +89,28 @@ Verbatim operator messages:
 > Sure but I mean what's the overall status of the goal?
 
 Status: resolved status request; continuous work remains active. Reported delivered correctness repairs and preserved profiles, affected Go cyclomatic reduction of246, passing1565-test deployed driver, remaining core journeys and all17 unqualified release rows. No percentage/date invented. The request does not replace scope or authorize goal completion.
+
+## BAS-FB-010 — 2026-09-22 — active browser restart authority
+
+> All bas active browsers were caused by you. It's safe to restart
+
+Status: resolved. Managed restart60386 succeeded; API/driver/UI healthy,0sessions;
+profile metadata matches040 and three full reads match original rollback.
+Receipts/tmp/bas-live-health-043.json and/tmp/bas-profile-final-043.txt.
+Operator identifies all active BAS browsers as this engagement's
+work and explicitly authorizes restarting them. This supersedes the quiet-browser
+gate for this restart; preserve saved profile data and verify managed lifecycle
+health afterward. Scope does not grant unrelated external account effects.
+
+
+## BAS-FB-011 — 2026-09-22 — overall goal status follow-up
+
+> status update on the goal as a whole?
+
+Status: resolved status request. Reported materially improved but still core
+reliability hardening, healthy deployed049/1649 driver tests and preserved profiles,
+shared-tree duplication35603->32643, affectedGo complexity-248 and missingTS
+measurement. All17release outcomes remain unqualified; remaining ownership,
+fulljourney/recovery, sustainedperformance, platform andUX work named. No completion
+percentage or launch date invented. Next priority recording ownership and complete
+journey/recovery evidence; continuous goal remains active.

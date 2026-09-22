@@ -348,3 +348,10 @@ projection is at fault.
 - [`cli-commands.md`](cli-commands.md) — CLI command reference
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for env/port/lifecycle issues
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — why these surfaces exist
+
+### TypeScript server surfaces
+
+A TypeScript sidecar, worker, API, job or runtime surface may use the Node/Jest
+adapter when its manifest supplies Jest and test scripts. Language alone does
+not make that server a React/Vite UI. UI surfaces retain the canonical Vitest
+policy; required roles, coverage floors and declared runner limits still apply.

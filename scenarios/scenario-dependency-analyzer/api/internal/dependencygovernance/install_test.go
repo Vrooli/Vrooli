@@ -2,6 +2,7 @@ package dependencygovernance
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -158,5 +159,54 @@ func TestInstallDependencyBlockedNeverInstalls(t *testing.T) {
 	}
 	if !resp.Msg.GetBlocked() || resp.Msg.GetInstalled() {
 		t.Fatalf("blocked resp = %#v", resp.Msg)
+	}
+}
+
+func TestInstallDependencyEnforcesScenarioScopeBeforeEffects(t *testing.T) {
+	for _, tc := range []struct {
+		name, scope string
+		blocked     bool
+	}{
+		{"global", ``, false},
+		{"allowed", `,"allowed_scenarios":["demo"]`, false},
+		{"other-scenario", `,"allowed_scenarios":["other"]`, true},
+		{"denied", `,"denied_scenarios":["demo"]`, true},
+		{"denial-precedes-grant", `,"allowed_scenarios":["demo"],"denied_scenarios":["demo"]`, true},
+	} {
+		for _, version := range []string{"4.3.2", "override:4.3.2"} {
+			t.Run(tc.name+"/"+version, func(t *testing.T) {
+				root := t.TempDir()
+				writeRegistry(t, root, fmt.Sprintf(`{"records":[{"ecosystem":"npm","package_name":"js-yaml","version_range":">=4.3.2","state":"approved","rationale":"fixture"%s}]}`, tc.scope))
+				dir := filepath.Join(root, "scenarios", "demo", "ui")
+				if err := os.MkdirAll(dir, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				const original = `{"name":"fixture","pnpm":{"overrides":{"js-yaml@^4.0.0":"4.3.1"}}}`
+				manifest := filepath.Join(dir, "package.json")
+				if err := os.WriteFile(manifest, []byte(original), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, "pnpm-lock.yaml"), nil, 0o600); err != nil {
+					t.Fatal(err)
+				}
+				installer := &recordingInstaller{}
+				h := &connectHandler{scenariosDir: func() string { return filepath.Join(root, "scenarios") }, installer: installer}
+				resp, err := h.InstallDependency(context.Background(), connect.NewRequest(&governancev1.InstallDependencyRequest{
+					Scenario: "demo", Surface: "ui", Ecosystem: "npm", PackageName: "js-yaml", Version: version, Apply: true,
+				}))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if resp.Msg.GetBlocked() != tc.blocked || installer.called == tc.blocked {
+					t.Fatalf("blocked=%v installer called=%v, want blocked=%v", resp.Msg.GetBlocked(), installer.called, tc.blocked)
+				}
+				if tc.blocked {
+					data, err := os.ReadFile(manifest)
+					if err != nil || string(data) != original || resp.Msg.GetInstalled() {
+						t.Fatalf("rejected request changed manifest or installed: %s, %v", data, err)
+					}
+				}
+			})
+		}
 	}
 }

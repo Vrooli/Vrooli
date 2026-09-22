@@ -121,9 +121,11 @@ export interface StreamingHandle {
   /** Check if streaming is currently active */
   isActive(): boolean;
   /** Update quality setting (if supported) */
-  updateQuality?(quality: number): void;
-  /** Update target FPS (polling only) */
+  updateQuality?(quality: number): void | Promise<void>;
+  /** Update the effective delivery FPS limit */
   updateTargetFps?(fps: number): void;
+  /** Change outgoing performance framing before acknowledging the update. */
+  updatePerfMode?(enabled: boolean): void;
   /**
    * Update viewport dimensions.
    * For CDP screencast, this requires restarting the screencast.

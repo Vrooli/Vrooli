@@ -359,10 +359,8 @@ func buildTidinessScanWithAudit(ctx context.Context, scenarioName, scenarioPath 
 		scanStage.End()
 		return nil, nil, err
 	}
-	languageMetrics, err := scanner.collectLanguageMetrics(ctx)
-	if err != nil {
-		languageMetrics = map[Language]*LanguageMetrics{}
-	}
+	languages := languagesFromFileMetrics(fileMetrics)
+	languageMetrics := scanner.collectLanguageMetrics(ctx, languages)
 	scanStage.End()
 
 	analysisStage := collector.Stage("analysis")
@@ -412,7 +410,7 @@ func buildTidinessScanWithAudit(ctx context.Context, scenarioName, scenarioPath 
 
 	codeAnalyzer := NewCodeMetricsAnalyzer(scenarioPath)
 	for lang, metrics := range languageMetrics {
-		langInfoFiles := filesForLanguageMetric(scenarioPath, lang, excludes...)
+		langInfoFiles := languages[lang].Files
 		if len(langInfoFiles) == 0 {
 			continue
 		}
@@ -565,18 +563,6 @@ func tidinessFindingLocation(finding TidinessFinding) string {
 		return fmt.Sprintf("%s:%d", location, finding.LineNumber)
 	}
 	return location
-}
-
-func filesForLanguageMetric(scenarioPath string, lang Language, excludes ...string) []string {
-	detector := NewLanguageDetector(scenarioPath)
-	languages, err := detector.DetectLanguages()
-	if err != nil {
-		return nil
-	}
-	if info, ok := languages[lang]; ok {
-		return NewLightScanner(scenarioPath, 0, excludes...).filterExcludedFiles(info.Files)
-	}
-	return nil
 }
 
 func techDebtFindings(scenario, relPath string, metrics *FileCodeMetrics) []TidinessFinding {

@@ -254,3 +254,26 @@ Every durable scenario document should be registered in
 - [`../internal/ERROR-HANDLING.md`](../internal/ERROR-HANDLING.md) — error semantics
 - [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) — known issues / tech debt
 - [`../internal/PROGRESS.md`](../internal/PROGRESS.md) — lifecycle log
+
+### Go execution evidence
+
+The Go adapter must instrument both PATH-resolved and absolute Go executables
+selected by the planner. Native JSON events provide current per-test evidence
+and visible progress to the existing no-output watchdog. Instrumentation must
+preserve the selected executable, coverage arguments, and package selection;
+unsupported commands remain explicitly unsupported.
+
+### Scoped validation and discovery policy
+
+Workspace selectors bound command planning, source analysis, evidence caching,
+and execution. Required-role presence and governance use the complete Code Facts
+inventory. An excluded workspace is still observed; an actually missing role
+remains a policy failure. Unknown selectors produce an explicit no-surface
+result and must never fall back to validating every workspace.
+
+### Validation CLI wait ownership
+
+ValidateScenario may synchronously execute bounded multi-minute commands. Its CLI
+transport must wait for the server response without the ordinary request timeout;
+the validation owner keeps command/runtime limits. Use the existing authenticated
+cli-core long-RPC client. A transport timeout is not a terminal test verdict.

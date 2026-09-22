@@ -298,7 +298,7 @@ export interface StreamSettingsResponse {
   quality: number;
   /** Target FPS */
   fps: number;
-  /** Current adaptive FPS (may be lower than target) */
+  /** Measured delivery FPS over the current observation window */
   current_fps: number;
   /** Scale setting (cannot be changed mid-session) */
   scale: 'css' | 'device';

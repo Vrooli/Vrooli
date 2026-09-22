@@ -51,7 +51,7 @@ func TestPlanHandlesTargetKindsEmptySurfacesAndFastMode(t *testing.T) {
 	if inv := normalizeTargetInventory(discovery.Inventory{TargetKind: "scenario"}); len(inv.Surfaces) != 0 {
 		t.Fatal("scenario inventory changed")
 	}
-	_, _, plan, findings := buildPlan("demo", discovery.Inventory{TargetKind: "scenario"}, "now")
+	_, _, plan, findings := buildPlan("demo", discovery.Inventory{TargetKind: "scenario"}, discovery.Inventory{TargetKind: "scenario"}, "now")
 	if plan.Notes == "" || len(findings) == 0 {
 		t.Fatalf("empty plan = %+v, %+v", plan, findings)
 	}

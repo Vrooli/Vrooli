@@ -90,7 +90,7 @@ func TestIsolationProfilesRejectDowngradeAndRouteLiveWork(t *testing.T) {
 			profile.PolicyClasses["go_service"] = class
 			writeUnitPolicyProfile(t, root, profile)
 			inv := discovery.Inventory{Scenario: "demo", TargetKind: "scenario", RootPath: root, Surfaces: []discovery.Surface{{ID: "api", Kind: "api", Language: "go", RootPath: apiRoot, Status: "known"}}}
-			_, _, plan, findings := buildPlan("demo", inv, fixedNowStr)
+			_, _, plan, findings := buildPlan("demo", inv, inv, fixedNowStr)
 			if (len(plan.Commands) > 0) != tc.runnable {
 				t.Fatalf("incorrect execution boundary: %+v %+v", plan, findings)
 			}
@@ -358,7 +358,7 @@ func TestResolveUnitPolicyProfileIgnoresMissingSurface(t *testing.T) {
 		t.Fatalf("missing surfaces must not require a unit policy role, got %+v", findings)
 	}
 
-	_, workspaces, _, findings := buildPlan("demo", inv, fixedNowStr)
+	_, workspaces, _, findings := buildPlan("demo", inv, inv, fixedNowStr)
 	if len(workspaces) != 3 {
 		t.Fatalf("missing surfaces must not become workspaces, got %+v", workspaces)
 	}

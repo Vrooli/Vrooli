@@ -771,6 +771,7 @@ func TestValidateScenarioAttachesMetrics(t *testing.T) {
 }
 
 func TestValidatePortabilityHostRejectsDeclaredUnsupportedResource(t *testing.T) {
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
 	root := t.TempDir()
 	scenarioDir := filepath.Join(root, "scenarios", "fixture")
 	writeFile(t, filepath.Join(scenarioDir, ".vrooli", "service.json"), `{"dependencies":{"resources":{"native-only":{"required":true}}}}`)
@@ -785,6 +786,7 @@ func TestValidatePortabilityHostRejectsDeclaredUnsupportedResource(t *testing.T)
 }
 
 func TestValidatePortabilityHostRejectsToolWithoutMacOSAcquisition(t *testing.T) {
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
 	root := t.TempDir()
 	scenarioDir := filepath.Join(root, "scenarios", "fixture")
 	writeFile(t, filepath.Join(scenarioDir, ".vrooli", "service.json"), `{"dependencies":{}}`)
@@ -799,6 +801,7 @@ func TestValidatePortabilityHostRejectsToolWithoutMacOSAcquisition(t *testing.T)
 }
 
 func TestValidateScenarioPortabilitySubsetUsesResolverAndAssessment(t *testing.T) {
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
 	root := t.TempDir()
 	scenarioDir := filepath.Join(root, "scenarios", "fixture")
 	writeFile(t, filepath.Join(scenarioDir, ".vrooli", "service.json"), `{"dependencies":{}}`)
@@ -826,6 +829,7 @@ func TestValidateScenarioPortabilitySubsetUsesResolverAndAssessment(t *testing.T
 }
 
 func TestValidateScenarioPortabilitySubsetRejectsContradiction(t *testing.T) {
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
 	root := t.TempDir()
 	scenarioDir := filepath.Join(root, "scenarios", "fixture")
 	writeFile(t, filepath.Join(scenarioDir, ".vrooli", "service.json"), `{"dependencies":{"resources":{"native-only":{"required":true}}}}`)
@@ -847,6 +851,9 @@ func TestValidateScenarioPortabilitySubsetRejectsContradiction(t *testing.T) {
 	}
 	if got := connect.CodeOf(err); got != connect.CodeFailedPrecondition {
 		t.Fatalf("error code = %v, want %v", got, connect.CodeFailedPrecondition)
+	}
+	if !strings.Contains(err.Error(), "contradict") {
+		t.Fatalf("error = %q, want resource declaration contradiction", err)
 	}
 }
 

@@ -1,0 +1,169 @@
+{
+  "record": "BAS-WORK-048",
+  "issues": [
+    "BAS-RF-047"
+  ],
+  "status": "qualified_and_deployed",
+  "controlled_probe": {
+    "before": "/tmp/bas-effective-stream-red-048.json",
+    "after": "/tmp/bas-effective-stream-final-green-048.json",
+    "failed_before": 4,
+    "control_passed_before": 1,
+    "passed_after": 5,
+    "fps_target": 1,
+    "frames_in_simulated_second_before": 60,
+    "frames_in_simulated_second_after": 1,
+    "capture_quality_before": [
+      65
+    ],
+    "capture_quality_after": [
+      65,
+      20
+    ],
+    "note": "Clock/protocol/socket controlled. After probe awaits async receipt and emits from current capture; real header decode and nonzero frame condition prevent vacuous success. The collector seam reports0; maintained manager cases separately verify0and7.5observations."
+  },
+  "maintained_red": [
+    {
+      "failed": 4,
+      "seconds": 0.487,
+      "receipt": "/tmp/bas-effective-stream-manager-red-048.txt"
+    },
+    {
+      "failed": 1,
+      "receipt": "/tmp/bas-effective-stream-latest-red-048.txt",
+      "termination": "own Jest process72573 canceled130 after assertion skipped legacy cleanup; fixture now uses finally"
+    },
+    {
+      "failed": 4,
+      "receipt": "/tmp/bas-effective-stream-input-red-048.txt"
+    },
+    {
+      "failed": 2,
+      "passed_controls": 4,
+      "seconds": 0.631,
+      "receipt": "/tmp/bas-effective-stream-adverse-red-048.txt"
+    }
+  ],
+  "adversarial_repair": {
+    "case": "superseded quality must not stop newer resize",
+    "first_failed": 1,
+    "controls_passed": 3,
+    "seconds": 0.477,
+    "receipt": "/tmp/bas-effective-cdp-controls-first-048.txt",
+    "resolution": "Stop only the quality operation own capture generation; subsequent entire CDP suite passed."
+  },
+  "native": {
+    "receipt": "/tmp/bas-effective-stream-native-048.txt",
+    "seconds": 2.373,
+    "tests_passed": 4,
+    "scope": "Two SDK/browser+real settings-route/local WebSocket cases (CDP/polling), plus two polling controls. Observed encoding request quality20; target5FPS slows three native frames across at least350ms; timing header payloads are valid JPEGs with exact byte counts. Not full Go API/UI or release performance."
+  },
+  "focused": {
+    "receipt": "/tmp/bas-effective-stream-focused-final2-048.txt",
+    "tests": 90,
+    "suites": 7,
+    "seconds": 14.092
+  },
+  "runtime_lines": [
+    {
+      "path": "playwright-driver/src/frame-streaming/manager.ts",
+      "before": 390,
+      "after": 381,
+      "net": -9
+    },
+    {
+      "path": "playwright-driver/src/frame-streaming/strategies/interface.ts",
+      "before": 177,
+      "after": 179,
+      "net": 2
+    },
+    {
+      "path": "playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts",
+      "before": 321,
+      "after": 362,
+      "net": 41
+    },
+    {
+      "path": "playwright-driver/src/frame-streaming/strategies/polling.ts",
+      "before": 372,
+      "after": 370,
+      "net": -2
+    },
+    {
+      "path": "playwright-driver/src/routes/record-mode/recording-diagnostics-routes.ts",
+      "before": 600,
+      "after": 609,
+      "net": 9
+    },
+    {
+      "path": "playwright-driver/src/routes/record-mode/types.ts",
+      "before": 400,
+      "after": 400,
+      "net": 0
+    }
+  ],
+  "source_sha256": {
+    "playwright-driver/src/frame-streaming/manager.ts": "cc55c676c2d1508f3b119d337ea074f4d0546c73f4c499b36419bbc71199afaf",
+    "playwright-driver/src/frame-streaming/strategies/interface.ts": "74d0795fc0b5495ef97c43b66be64dad4023e5ca2e4478ef244e9c5f1f079392",
+    "playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts": "9806db59a5fb7f0c3c31892152b064ff14585542f72acaa0be30ef20e689ccba",
+    "playwright-driver/src/frame-streaming/strategies/polling.ts": "610a35066108a8b849384e104705dddad0702a7eba0c4361d6ea027f5e5ec161",
+    "playwright-driver/src/routes/record-mode/recording-diagnostics-routes.ts": "d69fbf99e744cef0ba9fad300e9881b185eae2ef1420dd5168574e6da9bc0fe3",
+    "playwright-driver/src/routes/record-mode/types.ts": "5f41cd449b2a93f9ba0613dbfff924691e6573836f747836ab4faad433fa2391",
+    "playwright-driver/tests/unit/frame-streaming/manager.test.ts": "df04f3a994fb4431c4d535952ff3045d7addcd88ffd866d3538fd3af76513c01",
+    "playwright-driver/tests/unit/frame-streaming/cdp-screencast-strategy.test.ts": "a05d0d9ebd5a3fce0a4ec1702e581f2b84c35bd76e967aa4de5972622b81af19",
+    "playwright-driver/tests/unit/frame-streaming/polling-strategy.test.ts": "2b41f610ddba872ce701c8b13bfdb49d4f0f4570fa3377ab7610471680cadbb1",
+    "playwright-driver/tests/unit/routes/recording-diagnostics-routes.test.ts": "0df381d52343420af1dec4cfca51120aef1704065bf30a950c24c89d4140c7e1",
+    "playwright-driver/tests/integration/pipeline-e2e.test.ts": "b0ce4a1e4174709a1242cbb21c38adc4eb95c4a350089fb94cfbc8a59ccef622"
+  },
+  "pending_operations": [],
+  "limitations": [
+    "Full release FPS/latency/resource bands and native OS/soak qualification remain unproven.",
+    "FPS cap governs delivery; CDP may still encode faster and ACK each source frame.",
+    "CDP device-scale matrix and broad correlated input/paint performance are not qualified by these controls tests.",
+    "TypeScript cyclomatic measurement remains unavailable under RF064.",
+    "Necessary working control behavior adds runtime code this cycle; do not report it as a standalone code-size reduction."
+  ],
+  "runtime_net_lines": 41,
+  "types": "passed",
+  "build": "passed",
+  "full_driver": {
+    "run_id": "uh-20260922-202905-d61c4e66c54163bb5a4e772a7be898e8",
+    "status": "passed",
+    "tests": 1642,
+    "suites": 124,
+    "skipped_tests": 2,
+    "skipped_suites": 1,
+    "owner_seconds": 367.23,
+    "jest_seconds": 366.385,
+    "receipt": "/tmp/bas-effective-stream-owner-048.json"
+  },
+  "tidiness": {
+    "run_id": "20260922-202910-ed110344",
+    "status": "failed",
+    "quiet_wait_consumed": true,
+    "summary": {
+      "totalFindings": 1118,
+      "longFiles": 104,
+      "complexity": 387,
+      "duplication": 608,
+      "coupling": 18,
+      "duplicationLineDebt": 32643
+    }
+  },
+  "board": {
+    "program_id": "prog_9a3d0c21-a86b-4495-a30c-7c625c90eada",
+    "required": 17,
+    "unqualified": 17,
+    "product_qualified": false,
+    "receipt": "/tmp/bas-board-048.txt"
+  },
+  "deployment": {
+    "tool_session": 94101,
+    "status": "healthy",
+    "build_identity": "sha256:540a961f084ae145aef9ec7e93862ec4d36f3d15f5bba7a9b82a608ff21ecc0b",
+    "health_receipt": "/tmp/bas-live-health-048.json",
+    "profile_metadata_matches_047": true,
+    "complete_profile_reads_preserved": 3,
+    "profile_receipt": "/tmp/bas-profile-final-048.txt"
+  }
+}

@@ -64,12 +64,18 @@ func TestResolveWorkspaceGenericNodeJestIsNotGivenReactFindings(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"scripts":{"test":"jest"},"devDependencies":{"jest":"1"}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	resolution, diagnostics := ResolveWorkspace(WorkspaceInput{Language: "node", Surface: discovery.Surface{ID: "worker", RootPath: root, PackageManager: "npm"}})
-	if resolution.Framework != "jest" || resolution.CanonicalFramework != "jest" || resolution.Status != "ready" || resolution.TestCommand != "npm test" {
-		t.Fatalf("resolution=%+v", resolution)
-	}
-	if len(diagnostics) != 0 {
-		t.Fatalf("generic Node/Jest diagnostics=%+v", diagnostics)
+	for _, language := range []string{"node", "typescript"} {
+		for _, kind := range []string{"sidecar", "worker", "api", "job", "runtime"} {
+			t.Run(language+"/"+kind, func(t *testing.T) {
+				resolution, diagnostics := ResolveWorkspace(WorkspaceInput{Language: language, Surface: discovery.Surface{ID: "worker", Kind: kind, RootPath: root, PackageManager: "npm"}})
+				if resolution.Framework != "jest" || resolution.CanonicalFramework != "jest" || resolution.Status != "ready" || resolution.TestCommand != "npm test" {
+					t.Fatalf("resolution=%+v", resolution)
+				}
+				if len(diagnostics) != 0 {
+					t.Fatalf("generic Node/Jest diagnostics=%+v", diagnostics)
+				}
+			})
+		}
 	}
 }
 

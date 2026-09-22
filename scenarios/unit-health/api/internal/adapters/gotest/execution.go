@@ -16,7 +16,8 @@ import (
 )
 
 func (Analyzer) PrepareExecutionEvidence(executable string, args []string) ([]string, bool) {
-	if executable != "go" || len(args) == 0 || args[0] != "test" {
+	name := filepath.Base(executable)
+	if (name != "go" && name != "go.exe") || len(args) == 0 || args[0] != "test" {
 		return nil, false
 	}
 	for _, arg := range args[1:] {

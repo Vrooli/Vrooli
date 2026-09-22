@@ -149,6 +149,11 @@ func (r *Registry) governInstall(msg *governancev1.InstallDependencyRequest, _ i
 		return "deprecated", true, []string{firstNonEmpty(record.GetReplacement(), "This package is deprecated. Migrate to the recorded replacement.")}, secNotes
 	}
 
+	// Apply the same scenario policy used by registry validation before any writes.
+	if violation := scenarioExceptionViolation(msg.GetScenario(), record); violation.reason != "" {
+		return "scenario_not_allowed", true, []string{violation.reason}, secNotes
+	}
+
 	// Approved family. Enforce allowed_surfaces and the version range.
 	if allowed := record.GetAllowedSurfaces(); len(allowed) > 0 && !containsFold(allowed, surface) {
 		return "surface_not_allowed", true, []string{

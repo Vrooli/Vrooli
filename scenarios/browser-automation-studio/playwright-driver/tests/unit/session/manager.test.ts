@@ -49,6 +49,45 @@ describe('SessionManager', () => {
     jest.clearAllMocks();
   });
 
+  describe('page callback disposal', () => {
+    it.each(['reset', 'close'] as const)('disposes page callbacks before session %s browser effects', async (operation) => {
+      const { sessionId } = await manager.startSession({
+        execution_id: `callback-${operation}`, viewport: { width: 800, height: 600 },
+        reuse_mode: 'fresh', required_capabilities: {},
+      });
+      const session = manager.getSession(sessionId);
+      let active = true;
+      const cleanup = jest.fn(() => { active = false; });
+      session.pageLifecycleCleanup = cleanup;
+      const browserEffects: boolean[] = [];
+      mockPage.goto.mockImplementation(async () => { browserEffects.push(active); return null; });
+      mockPage.close.mockImplementation(async () => { browserEffects.push(active); });
+      if (operation === 'reset') await manager.resetSession(sessionId);
+      else await manager.closeSession(sessionId);
+      expect(cleanup).toHaveBeenCalledTimes(1);
+      expect(session.pageLifecycleCleanup).toBeUndefined();
+      expect(browserEffects.length).toBeGreaterThan(0);
+      expect(browserEffects.every((callbacksActive) => !callbacksActive)).toBe(true);
+    });
+
+    it('retains failed callback disposal for explicit close retry', async () => {
+      const { sessionId } = await manager.startSession({
+        execution_id: 'callback-retry', viewport: { width: 800, height: 600 },
+        reuse_mode: 'fresh', required_capabilities: {},
+      });
+      const session = manager.getSession(sessionId);
+      const cleanup = jest.fn().mockImplementationOnce(() => { throw new Error('callback disposal fault'); });
+      session.pageLifecycleCleanup = cleanup;
+      const closesBefore = mockContext.close.mock.calls.length;
+      await expect(manager.closeSession(sessionId)).rejects.toThrow('callback disposal fault');
+      expect(session.pageLifecycleCleanup).toBe(cleanup);
+      expect(mockContext.close).toHaveBeenCalledTimes(closesBefore);
+      await manager.closeSession(sessionId);
+      expect(cleanup).toHaveBeenCalledTimes(2);
+      expect(session.pageLifecycleCleanup).toBeUndefined();
+    });
+  });
+
   describe('startSession', () => {
     const sessionSpec: SessionSpec = {
       execution_id: 'exec-123',

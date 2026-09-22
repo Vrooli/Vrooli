@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 
 	"unit-health/internal/discovery"
@@ -187,6 +188,9 @@ func ResolveWorkspace(input WorkspaceInput) (WorkspaceResolution, []Diagnostic) 
 func resolveNodeWorkspace(input WorkspaceInput, resolution *WorkspaceResolution, diagnostics *[]Diagnostic) {
 	resolution.CanonicalFramework = "vitest"
 	genericNode := strings.EqualFold(input.Language, "javascript") || strings.EqualFold(input.Language, "node")
+	if strings.EqualFold(input.Language, "typescript") && slices.Contains([]string{"api", "sidecar", "worker", "job", "runtime"}, input.Surface.Kind) {
+		genericNode = true
+	}
 	manifest, err := loadNodeManifest(input.Surface.RootPath)
 	if err != nil {
 		resolution.Status = "degraded"

@@ -1320,3 +1320,181 @@ and build pass. Published25e2b598... reports the nonempty physical-source digest
 canonical terminal history remains intact. Full API qualification remains unknown
 after unrelated provider-conformance/live-CodeFacts timeout. See freshness-roots-
 2026-09-22.json; shared dependency-closure hashing is not qualified by this fix.
+
+### 2026-09-22 — RF038/RF045/RF077 qualified boundary updates
+
+043 binds delayed session-start previews to the original execution/lease and
+operational phase after readiness and at each page lookup. Six discriminating
+route cases fail before repair; ten route cases pass after. RF038 remains open
+for other mutation boundaries. 041 clears losing readiness deadlines and stops
+verification after page closure; full driver1579tests passed before deployment.
+
+044 RF045 coordinator resolution: one slot serializes pending acquisition and
+disposal; old cleanup cannot delete replacement tracking, late handles are
+disposed before stop succeeds, and failed disposal remains retryable. Native
+close/reset closes its frame socket. CDP initial-start failure disposes protocol
+and timer; completed frame ACK deadlines are released (RF077). Full driver1596
+tests/124suites and types/build pass; live451603780... and profiles are verified.
+See frame-lifecycle-2026-09-22.json. RF046 internal capture generations and RF047
+effective controls were explicitly excluded from that closure;045 is qualifying
+RF046 plus stable-buffer delivery. Whole-product qualification remains open.
+
+### BAS-RF-079 — polling capture retains wait listeners and unmanaged protocol sessions
+
+Confirmed 2026-09-22, W3 / J05,J22 / resource-budget,cancellation-recovery.
+The actual polling strategy retains one AbortSignal listener per completed sleep:
+20 skipped frames leave20 listeners and trigger MaxListenersExceededWarning.
+One successful capture followed by stop leaves its cached CDP session attached
+and its losing200ms timer pending. WeakMap reachability does not detach protocol
+resources. Evidence:/tmp/bas-polling-lifetime-red-046.log; controlled owner probe,
+not a native soak. Capture can also finish after stop or page change; maintained
+race cases will qualify publication fencing before closure.
+
+Owner:existing polling strategy. Proposed repair removes the module-global CDP
+cache and duplicate capture timeout policy in favor of the browser SDK screenshot
+owner; sleep must remove its listener on either settlement. Preserve JPEG quality,
+CSS/device scale, live caret and sequential capture. Stop joins in-flight capture,
+while page and transport identity fence delivery and deduplication. No new runtime
+service or dependency. Warm native comparison20alternating pairs (1280x720,DPR1,
+JPEG65) observed median33.39msCDP/33.23msSDK with identical11820byte frames; this
+small contended fixture does not establish full-product performance equivalence.
+
+
+2026-09-22 RF046/RF047 buffer-delivery boundary qualified and deployed through045:
+late resize/acquisition after stop cannot start capture; late-acquired sessions
+are detached; old-tab buffered/late frames cannot publish. Native decoded JPEGs
+stay blue after a buffered red-to-blue switch and reconnect without another paint.
+Failed socket delivery still acknowledges the exact producing CDP session.
+Full driver1602tests/124suites pass. Runtime strategy net-186lines. Receipt:
+internal/evidence/rehabilitation/cdp-generation-2026-09-22.json. This does not
+qualify effective quality/FPS/headers or worst-case unresponsive protocol cleanup.
+
+
+### BAS-RF-080 — recording page callbacks outlive cleanup and use mutable page identity
+
+Confirmed2026-09-22, W3/J03,J22/cancellation-recovery,resource-budget.
+Actual page-event owner leaves two page listeners after cleanup; subsequent
+navigation still sends a callback. Cleanup during pending popup opener or page
+title also permits late callbacks; pending popup completion attaches two listeners
+after cleanup. Initial-page navigation has a separate implementation closing over
+mutable session.page, so changing the active tab can relabel the originating event.
+Evidence:/tmp/bas-page-callback-red4-047.log:three lifetime cases fail.
+Owner:page-events.ts plus initial-navigation caller in recording-lifecycle.ts.
+Target:one page callback implementation for existing/new pages, exact page binding,
+all listeners removed on cleanup, active-generation check after awaited work,
+and observed asynchronous listener failures. In-flight HTTP requests already sent
+are bounded by existing deadlines; this repair cannot retract committed callbacks.
+RF038 request/lease admission remains separately open.
+
+### BAS-RF-081 — explicit tab creation and popup discovery assign conflicting identities
+
+Confirmed2026-09-22, W3/J03/preservation. The real new-page route and context page
+listener register one page twice:two array entries/two IDs, and the returned ID
+differs from the created-event ID. Controlled owner interaction returns201 while
+violating all three identity expectations:/tmp/bas-page-callback-red4-047.log.
+Owner:recording-pages.ts registration shared by its route and page-events.ts.
+Target:one idempotent registration operation returns the existing page identity,
+so callback and command paths cannot disagree. Preserve initial SessionManager
+identities. Native browser/route corroboration and maintained regressions are owed.
+
+
+2026-09-22 RF079 polling lifetime repair deployed through046. Maintained polling
+and native scale/capture regressions pass; full driver1612tests/124suites passes.
+20waits now retain1current listener and0afterstop;0private CDP sessions or capture
+deadlines remain. Stop callers join capture; stale page/viewer frames cannot
+publish, and failed sends/reconnects can deliver stable pixels. Runtime net-52lines.
+Receipt:internal/evidence/rehabilitation/polling-lifetime-2026-09-22.json.
+No native soak, Firefox/WebKit or full-product performance qualification claimed.
+RF047 effective stream controls remain open.
+
+
+2026-09-22 RF047 effective-control recheck048:four current owner/protocol cases
+still fail after045/046 buffer/lifetime repairs. Requested quality20reports success
+with capture still65; target1FPS emits60frames/second; perfMode=true leaves timestamp
+framing; currentFPS reports1with no delivered frames. Quality-on-resize control
+passes. /tmp/bas-effective-stream-red-048.json. This is controlled clock/transport
+proof, not native performance qualification. Repair belongs in existing manager,
+strategy and settings-route owners; no new policy or metrics service.
+
+
+2026-09-22 RF080/RF081 qualified and deployed through047:10maintained red cases
+now pass; full driver1623tests/124suites and native tab ID/listener count check pass.
+One tab is registered once with matching response/callback ID. Initial/existing/new
+page handlers use exact page identity and are removed on stop/reset/close; late
+opener/title callbacks cannot publish after cleanup. Failed cleanup remains owned
+for retry. Five runtime files net-88lines. Receipt:
+internal/evidence/rehabilitation/page-callback-lifetime-2026-09-22.json.
+Already-admitted HTTP callbacks retain their deadline and cannot be retracted;
+RF038 delayed request/lease fencing and full workflow/soak qualification remain open.
+
+
+2026-09-22 RF047 scale reproduction049:real Chromium DPR2 with requesteddevice
+scale emits320x240JPEG for a320x240CSS viewport, where640x480device pixels are
+required. DPR1 CSS/device and DPR2 CSS controls pass. Independent createImageBitmap
+dimensions:/tmp/bas-cdp-device-scale-red-049.log. The CDP start path always uses
+CSS viewport dimensions as the output maximum; config.scale is ignored there.
+Polling's native CSS/device matrix already passed046. Owner:existing CDP capture
+acquisition. Qualify actual pixel ratio, dimensions and resize/quality restarts
+before fixing; no whole native-platform portability claim.048controls remain
+separate from this scale boundary and are undergoing full owner validation.
+
+
+2026-09-22 RF047 effective controls qualified and deployed through048:4retained
+failures now pass,90focused tests and1642full driver tests/124suites pass; native
+CDP/polling settings-route fixtures apply quality20,5FPSlimit and realJPEG timing
+headers. The manager awaits applied changes, reports collector FPS, and rejects
+malformed controls. CDP pending delivery owns one deadline and newest frame;
+polling adaptation respects its target. Net+41runtime lines are required behavior,
+not a standalone debt-reduction claim; recent045–048 net-285lines.
+Receipt:internal/evidence/rehabilitation/effective-stream-controls-2026-09-22.json.
+Scale fidelity remains separateRF047 work. IncreasingCDPsize caps did not repair
+DPR2dimension loss;049 selects the existing SDK owner for device scale. Small
+rotating-order capture observations show a physical-resolution cost, with release
+latency/resource/nativeOS bands still unqualified.
+
+
+### BAS-RF-082 — delayed recording start resurrects a stopped preview
+
+2026-09-22 reproduction050: actual HTTP recording routes, native Chromium capture
+and local WebSocket, with controlled pipeline state and delayed DOM readiness.
+Stop returns200; releasing the older Start's DOM wait then returns200 and opens
+a new stream that sends a real browser frame. Normal-start control passes.
+/tmp/bas-record-start-red2-050.log. The pipeline state in this probe is a controlled
+fixture, not full recording qualification. First probe failed before a verdict
+because PLAYWRIGHT_DRIVER_PORT was missing; second run supplies fixture config.
+Owner: existing recording lifecycle route and pipeline generation. Remove redundant
+DOM readiness wait only if native capture remains correct; fence remaining async
+continuations and page providers by existing generation/lease. RF038 transport
+envelopes remain a separate, still-open admission boundary.
+
+
+2026-09-22 RF047 scale049 qualified/deployed: four native manager/WebSocket
+DPR1/2 CSS/device cases pass,76focused tests and1649full driver tests/124suites
+pass. CDP remainsCSS; SDK polling supplies device pixels, includingDPR1. Protocol
+size-cap multiplication was experimentally rejected. Small capture-cost cohort
+and unqualified performance/nativeOS limits are retained, not waived. Receipt:
+internal/evidence/rehabilitation/device-scale-2026-09-22.json.
+
+
+2026-09-22 RF038 recording wire reproduction051: actual HTTP routes with controlled
+pipeline effects after050 continuation repair. Five of eight cases fail: missing/
+stale envelopes start capture, and missing/stale/released envelopes stop capture.
+Released start and current-owner start/stop controls pass. Every bad200 has one
+recording mutation. /tmp/bas-recording-lease-wire-red-051.log. Go driver client
+StartRecording marshals no lease; StopRecording sends no body. Repair requires
+converting existing Go Session/live-capture/handler callers and rejecting absent
+or stale leases before driver state access/effects. No051production changes yet.
+
+
+### BAS-RF-083 — recording identity lost across Go wire receipts
+
+2026-09-22 actual GoClient/httptest reproduction051: driver replies with one
+recording_id, but StartRecordingResponse, StopRecordingResponse and status typed
+decoding all discard it. /tmp/bas-recording-go-wire-red-051.log. The same fixture
+creates an owned GoSession with exact execution/lease and proves both recording
+commands omit those values on the wire (RF038). Source review additionally finds
+StartLiveRecording generates an unrelated UUID and Stop/Status omit identity.
+Canonical proto already has recording_id for all three receipts. Own the repair
+in driver wire types, GoSession and existing handler/proto mapping; remove the
+unrelated UUID and lossy JSON-any roundtrip for these receipts. Timestamp mapping
+also needs an independent converter reproduction before any completed_at claim.

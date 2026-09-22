@@ -87,7 +87,7 @@ const defaultWorkspaceTimeoutSeconds = 600
 // buildPlan turns a discovery inventory into the surface list, the testable
 // workspace list, the dry-run execution plan, and the discovery/config-gap
 // findings. It performs no execution.
-func buildPlan(scenario string, inv discovery.Inventory, now string) ([]Surface, []Workspace, ExecutionPlan, []Finding) {
+func buildPlan(scenario string, inv, observed discovery.Inventory, now string) ([]Surface, []Workspace, ExecutionPlan, []Finding) {
 	inv = normalizeTargetInventory(inv)
 	surfaces := make([]Surface, 0, len(inv.Surfaces))
 	for _, s := range inv.Surfaces {
@@ -109,7 +109,8 @@ func buildPlan(scenario string, inv discovery.Inventory, now string) ([]Surface,
 
 	var findings []Finding
 	if inv.TargetKind == "scenario" || inv.TargetKind == "" {
-		findings = resolveUnitPolicyFindings(scenario, inv, now)
+		// Selection bounds work; complete discovery determines role presence.
+		findings = resolveUnitPolicyFindings(scenario, observed, now)
 	}
 	if len(inv.Surfaces) == 0 {
 		reason := inv.DegradedReason

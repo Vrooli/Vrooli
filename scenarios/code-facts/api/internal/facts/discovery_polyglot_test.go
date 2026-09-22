@@ -1,12 +1,74 @@
 package facts
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
+
+func TestDiscoverDeclaredComponentSurfaces(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, ".vrooli", "service.json"), `{"components": {
+		"api": {"role":"api", "build":{"dir":"backend"}},
+		"ui": {"role":"ui", "build":{"dir":"ui"}},
+		"playwright-driver": {"role":"sidecar", "build":{"dir":"playwright-driver"}},
+		"queue": {"role":"worker", "run":{"cwd":"queue"}},
+		"absent": {"role":"sidecar", "build":{"dir":"absent"}}
+	}}`)
+	for _, dir := range []string{"backend", "ui", "playwright-driver", "queue"} {
+		writeFile(t, filepath.Join(root, dir, "package.json"), `{"devDependencies":{"jest":"29"}}`)
+	}
+	surfaces := discoverSurfaces(&factsv1.TargetContext{RootPath: root, ScenarioAware: true})
+	seen := map[string]bool{}
+	for _, surface := range surfaces {
+		require.False(t, seen[surface.GetId()], "component must have one surface: %s", surface.GetId())
+		seen[surface.GetId()] = true
+	}
+	for _, tc := range []struct {
+		id, dir string
+		kind    factsv1.SurfaceKind
+		status  factsv1.SurfaceStatus
+	}{
+		{"api", "backend", factsv1.SurfaceKind_SURFACE_KIND_API, factsv1.SurfaceStatus_SURFACE_STATUS_KNOWN},
+		{"ui", "ui", factsv1.SurfaceKind_SURFACE_KIND_UI, factsv1.SurfaceStatus_SURFACE_STATUS_KNOWN},
+		{"playwright-driver", "playwright-driver", factsv1.SurfaceKind_SURFACE_KIND_SIDECAR, factsv1.SurfaceStatus_SURFACE_STATUS_KNOWN},
+		{"queue", "queue", factsv1.SurfaceKind_SURFACE_KIND_WORKER, factsv1.SurfaceStatus_SURFACE_STATUS_KNOWN},
+		{"absent", "absent", factsv1.SurfaceKind_SURFACE_KIND_SIDECAR, factsv1.SurfaceStatus_SURFACE_STATUS_MISSING},
+	} {
+		t.Run(tc.id, func(t *testing.T) {
+			surface := findSurface(surfaces, tc.id)
+			require.NotNil(t, surface, "declared components must not disappear from owner validation")
+			require.Equal(t, filepath.Join(root, tc.dir), surface.GetPath())
+			require.Equal(t, tc.kind, surface.GetKind())
+			require.Equal(t, tc.status, surface.GetStatus())
+		})
+	}
+}
+
+func TestDeclaredComponentRootsStayInsideTarget(t *testing.T) {
+	root, outside := t.TempDir(), t.TempDir()
+	writeFile(t, filepath.Join(outside, "package.json"), `{}`)
+	require.NoError(t, os.Symlink(outside, filepath.Join(root, "linked")))
+	for _, dir := range []string{"../outside", outside, "linked"} {
+		t.Run(dir, func(t *testing.T) {
+			manifest, err := json.Marshal(map[string]any{"components": map[string]any{
+				"driver": map[string]any{"role": "sidecar", "build": map[string]string{"dir": dir}},
+			}})
+			require.NoError(t, err)
+			writeFile(t, filepath.Join(root, ".vrooli", "service.json"), string(manifest))
+			surfaces := discoverSurfaces(&factsv1.TargetContext{RootPath: root, ScenarioAware: true})
+			surface := findSurface(surfaces, "driver")
+			require.NotNil(t, surface, "unsafe declaration must remain explicit evidence")
+			require.Equal(t, factsv1.SurfaceStatus_SURFACE_STATUS_UNSUPPORTED, surface.GetStatus())
+			require.Empty(t, surface.GetPath(), "downstream validation must not execute an outside root")
+		})
+	}
+}
 
 func TestDiscoverNestedParseUnitsEmitsPolyglotDependencyEvidence(t *testing.T) {
 	root := t.TempDir()

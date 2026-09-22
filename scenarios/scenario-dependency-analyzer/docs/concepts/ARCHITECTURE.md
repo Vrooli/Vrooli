@@ -86,3 +86,18 @@ SDA uses SQLite for local, history-bearing data. Schemas are domain-owned (`api/
 Existing Gin REST endpoints remain during the hybrid migration for UI/operator compatibility. New scenario-to-scenario consumers use the Connect surface.
 
 The CLI must expose machine-readable access to the same graph and drift data, with `graph actual --json` and `drift --json` as the intended operator surface.
+
+## Package-wide npm override replacement
+
+The governed install gateway's `override:` operation writes one package-wide
+resolver choice. It removes superseded simple version-qualified selectors for
+that exact package, including scoped package names, so those older policies cannot
+keep selecting a vulnerable version. Parent-qualified constraints and unrelated
+package overrides remain unchanged. Parent-selector recognition follows pnpm's
+delimiter grammar, preserving comparison ranges such as `>=4` as ordinary version
+qualifiers. Manifest fields unrelated to overrides are preserved.
+
+Install admission uses the same scenario-exception predicate as dependency
+validation. A scenario outside a nonempty allowed list, or explicitly denied,
+cannot mutate the manifest or invoke a package manager, including override
+requests. An empty allowed list retains the existing global grant semantics.

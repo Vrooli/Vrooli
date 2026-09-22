@@ -11,10 +11,10 @@
  */
 
 import type { IncomingMessage, ServerResponse } from 'http';
-import type { SessionManager } from '../../session';
+import { isOperational, type SessionManager } from '../../session';
 import type { Config } from '../../config';
 import { parseJsonBody, sendJson, sendError } from '../../middleware';
-import { logger, metrics, scopedLog, LogContext } from '../../utils';
+import { logger, metrics, scopedLog, LogContext, SessionNotFoundError } from '../../utils';
 import {
   getTimelineEntries,
   getTimelineEntryCount,
@@ -26,15 +26,13 @@ import type {
   StartRecordingResponse,
   StopRecordingResponse,
   RecordingStatusResponse,
-  DriverPageEvent,
 } from './types';
 import {
   startFrameStreaming,
   stopFrameStreaming,
 } from '../../frame-streaming';
 import { streamRecordingEntry } from './callback-streaming';
-import { setupPageLifecycleListeners, sendPageEvent, pageEventCircuitBreaker } from './page-events';
-import { captureThumbnail, emitHistoryCallback } from './recording-pages';
+import { setupPageLifecycleListeners, pageEventCircuitBreaker } from './page-events';
 
 // =============================================================================
 // Recording Lifecycle Handlers
@@ -63,9 +61,17 @@ export async function handleRecordStart(
   sessionManager: SessionManager,
   config: Config
 ): Promise<void> {
+  const superseded = new Error('Recording start was superseded by a stop or a newer recording');
   try {
     const session = sessionManager.getSession(sessionId);
+    const { ownerExecutionId, leaseId } = session;
+    const ownedSession = () => {
+      const current = sessionManager.getSessionForLease(sessionId, ownerExecutionId, leaseId);
+      if (current !== session || !isOperational(current.phase)) throw new SessionNotFoundError(sessionId);
+      return current;
+    };
     const body = await parseJsonBody(req, config);
+    ownedSession();
     const request = body as unknown as StartRecordingRequest;
 
     // Get pipeline manager (single source of truth for recording state)
@@ -118,6 +124,7 @@ export async function handleRecordStart(
       currentUrl: session.page?.url?.() || '(unknown)',
     });
 
+    const generation = pipelineManager.getGeneration() + 1;
     // Start recording with callback to buffer entries (using pipelineManager directly)
     const recordingId = await pipelineManager.startRecording({
       sessionId,
@@ -150,111 +157,35 @@ export async function handleRecordStart(
       },
     });
 
+    const recordingSession = () => {
+      const current = ownedSession();
+      if (current.pipelineManager !== pipelineManager || pipelineManager.getGeneration() !== generation ||
+          pipelineManager.getState().phase !== 'capturing') throw superseded;
+      return current;
+    };
+    recordingSession();
+
     // Update session phase
     sessionManager.setSessionPhase(sessionId, 'recording');
 
     // Update recording session metric
     metrics.recordingSessionsActive.inc();
 
-    // Start frame streaming if callback URL provided
-    // Wait for page content before streaming to avoid blank/loading frames
+    // The pipeline has already verified and activated capture. Admit preview
+    // now so Stop owns it; a second DOM wait can resurrect a stopped stream.
     if (request.frame_callback_url) {
-      // Wait for page to have content (non-blank URL and DOM loaded)
-      // This prevents flickering during initial navigation
-      const pageUrl = session.page.url();
-      const isBlankPage = !pageUrl || pageUrl === 'about:blank';
-
-      if (!isBlankPage) {
-        // Page has a URL - wait for DOM to be ready before streaming
-        try {
-          await session.page.waitForLoadState('domcontentloaded', { timeout: 5000 });
-        } catch {
-          // Timeout is acceptable - page may be slow or have long-running scripts
-          logger.debug(scopedLog(LogContext.RECORDING, 'page load wait timed out, starting stream anyway'), {
-            sessionId,
-            url: pageUrl,
-          });
-        }
-      }
-
-      startFrameStreaming(sessionId, sessionManager, {
+      startFrameStreaming(sessionId, { getSession: recordingSession }, {
         callbackUrl: request.frame_callback_url,
         quality: request.frame_quality,
         fps: request.frame_fps,
       });
     }
 
-    // Set up page lifecycle listeners if page callback URL provided
     if (request.page_callback_url) {
-      // Set up listeners for new pages
-      session.pageLifecycleCleanup = setupPageLifecycleListeners(
-        sessionId,
-        session,
-        request.page_callback_url,
-        config
-      );
-
-      // Send initial page's page_created event
-      const initialPageId = session.pageToIdMap.get(session.page);
-      if (initialPageId) {
-        const initialUrl = session.page.url();
-        const initialTitle = await session.page.title().catch(() => '');
-
-        const initialPageEvent: DriverPageEvent = {
-          sessionId,
-          driverPageId: initialPageId,
-          vrooliPageId: '',
-          eventType: 'initial',
-          url: initialUrl,
-          title: initialTitle,
-          timestamp: new Date().toISOString(),
-        };
-
-        await sendPageEvent(sessionId, request.page_callback_url, initialPageEvent);
-
-        logger.info(scopedLog(LogContext.RECORDING, 'initial page event sent'), {
-          sessionId,
-          pageId: initialPageId,
-          url: initialUrl,
-        });
-
-        // Set up navigation listener for the initial page
-        // (new pages get this in setupPageLifecycleListeners, but initial page needs it here)
-        const pageCallbackUrl = request.page_callback_url;
-        session.page.on('framenavigated', async (frame) => {
-          // Only track main frame navigations
-          if (frame !== session.page.mainFrame()) return;
-
-          const navUrl = session.page.url();
-          const navTitle = await session.page.title().catch(() => '');
-
-          logger.debug(scopedLog(LogContext.RECORDING, 'initial page navigated'), {
-            sessionId,
-            pageId: initialPageId,
-            url: navUrl,
-          });
-
-          const navEvent: DriverPageEvent = {
-            sessionId,
-            driverPageId: initialPageId,
-            vrooliPageId: '',
-            eventType: 'navigated',
-            url: navUrl,
-            title: navTitle,
-            timestamp: new Date().toISOString(),
-          };
-
-          await sendPageEvent(sessionId, pageCallbackUrl, navEvent);
-
-          // Emit history callback for session profile history tracking
-          const thumbnail = config.history.thumbnailEnabled
-            ? await captureThumbnail(session.page, config.history.thumbnailQuality)
-            : undefined;
-          emitHistoryCallback(config, sessionId, navUrl, navTitle, 'navigate', thumbnail).catch(() => {
-            // Error already logged in emitHistoryCallback
-          });
-        });
-      }
+      const pages = setupPageLifecycleListeners(sessionId, session, request.page_callback_url, config);
+      session.pageLifecycleCleanup = pages.cleanup;
+      await pages.ready;
+      recordingSession();
     }
 
     // Get verification info for response (helps diagnose "no events" issues)
@@ -300,6 +231,10 @@ export async function handleRecordStart(
 
     sendJson(res, 200, response);
   } catch (error) {
+    if (error === superseded) {
+      sendJson(res, 409, { error: 'RECORDING_START_SUPERSEDED', message: superseded.message });
+      return;
+    }
     sendError(res, error as Error, `/session/${sessionId}/record/start`);
   }
 }

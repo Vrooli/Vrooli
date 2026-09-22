@@ -227,6 +227,61 @@ func TestResolveNpmOverrideRejectsNonPnpmSurface(t *testing.T) {
 	}
 }
 
+func TestPackageOverrideRetiresSupersededVersionPolicies(t *testing.T) {
+	for _, pkg := range []string{"js-yaml", "@scope/parser"} {
+		t.Run(pkg, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "package.json")
+			preserved := map[string]string{
+				"unrelated@^1":     "1.9.0",
+				pkg + "-extra@^4":  "4.0.0",
+				"parent@^2>" + pkg: "3.15.2",
+				pkg + "@^4>child":  "2.0.0",
+			}
+			overrides := map[string]string{}
+			for key, value := range preserved {
+				overrides[key] = value
+			}
+			for _, suffix := range []string{"@^3.13.0", "@~4.0.0", "@>=4.0.0", "@4.3.1"} {
+				overrides[pkg+suffix] = "4.3.1"
+			}
+			manifest := map[string]any{"name": "fixture", "pnpm": map[string]any{"overrides": overrides}}
+			data, err := json.Marshal(manifest)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, data, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := SetNpmOverride(path, pkg, "4.3.2"); err != nil {
+				t.Fatal(err)
+			}
+			data, err = os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got struct {
+				Name string `json:"name"`
+				Pnpm struct {
+					Overrides map[string]string `json:"overrides"`
+				} `json:"pnpm"`
+			}
+			if err := json.Unmarshal(data, &got); err != nil {
+				t.Fatal(err)
+			}
+			if got.Name != "fixture" || len(got.Pnpm.Overrides) != len(preserved)+1 {
+				t.Fatalf("superseded policies remain or manifest data lost: %s", data)
+			}
+			preserved[pkg] = "4.3.2"
+			for key, want := range preserved {
+				if got.Pnpm.Overrides[key] != want {
+					t.Errorf("override %q = %q, want %q", key, got.Pnpm.Overrides[key], want)
+				}
+			}
+		})
+	}
+}
+
 func TestResolvePreservesExistingJSDevDependencyClassification(t *testing.T) {
 	repoRoot := t.TempDir()
 	mkSurface(t, repoRoot, "demo", "ui", map[string]string{

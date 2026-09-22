@@ -1,3 +1,5 @@
+import { handleRecordStart, handleRecordStop } from '../../src/routes/record-mode/recording-lifecycle';
+import { handleStreamSettings } from '../../src/routes/record-mode/recording-diagnostics-routes';
 /**
  * Pipeline E2E Tests
  *
@@ -11,8 +13,18 @@
  * run as part of `pnpm test` in CI environments.
  */
 
+import { setupPageLifecycleListeners } from '../../src/routes/record-mode/page-events';
+import { handleRecordNewPage } from '../../src/routes/record-mode/recording-pages';
+import { createMockHttpRequest, createMockHttpResponse } from '../helpers';
 import { chromium, Browser, BrowserContext, Page } from 'rebrowser-playwright';
 import * as http from 'http';
+import { once } from 'node:events';
+import { WebSocketServer } from 'ws';
+import { SessionManager } from '../../src/session/manager';
+import { createTestConfig } from '../helpers/test-config';
+import * as driverConfig from '../../src/config';
+import { PollingStrategy, CdpScreencastStrategy, type StreamingHandle } from '../../src/frame-streaming/strategies';
+import { startFrameStreaming, stopFrameStreaming, getFrameStreamSettings } from '../../src/frame-streaming';
 import {
   createRecordingContextInitializer,
   createRecordingPipelineManager,
@@ -20,6 +32,8 @@ import {
   RecordingPipelineManager,
   TimelineEntry,
   waitForScriptReady,
+  getTimelineEntries,
+  acknowledgeTimelineEntries,
 } from '../../src/recording';
 import { ActionType } from '../../src/proto/recording';
 
@@ -251,6 +265,70 @@ describe('Pipeline E2E Tests', () => {
         await pipelineManager.stopRecording();
       }
       await context.close();
+    });
+
+    it('starts native preview without a second DOM wait and keeps it stopped after delayed load completion [REQ:BAS-RH-J22]', async () => {
+      await page.goto(server.getUrl('/'));
+      await pipelineManager.verifyPipeline({ timeoutMs: 5000 });
+      const configuration = jest.spyOn(driverConfig, 'loadConfig').mockReturnValue(createTestConfig());
+      const frames = new WebSocketServer({ host: '127.0.0.1', port: 0 });
+      await once(frames, 'listening');
+      const address = frames.address();
+      if (typeof address === 'string') throw new Error('Expected WebSocket port');
+      let releaseDom!: () => void;
+      let enteredDom!: () => void;
+      const dom = new Promise<void>((resolve) => { releaseDom = resolve; });
+      const entered = new Promise<void>((resolve) => { enteredDom = resolve; });
+      const load = jest.spyOn(page, 'waitForLoadState').mockImplementation(async () => { enteredDom(); await dom; });
+      let received!: () => void;
+      const receivedFrame = new Promise<void>((resolve) => { received = resolve; });
+      frames.on('connection', (socket) => socket.once('message', () => received()));
+      const session = { id: 'pipeline-e2e-test', page, pipelineManager, phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease' };
+      const manager = {
+        getSession: () => session,
+        getSessionForLease: (_id: string, owner: string, lease: string) => {
+          if (owner !== session.ownerExecutionId || lease !== session.leaseId) throw new Error('Lease changed');
+          return session;
+        },
+        setSessionPhase: (_id: string, phase: string) => { session.phase = phase; return true; },
+      } as unknown as SessionManager;
+      const response = createMockHttpResponse();
+      let start: Promise<void> | undefined;
+      let deadline: ReturnType<typeof setTimeout> | undefined;
+      try {
+        start = handleRecordStart(createMockHttpRequest({ method: 'POST', body: {
+          frame_callback_url: `http://127.0.0.1:${address.port}/frames`,
+        } }), response, session.id, manager, createTestConfig());
+        const first = await Promise.race([start.then(() => 'started'), entered.then(() => 'extra-dom-wait')]);
+        if (first === 'started') {
+          await Promise.race([receivedFrame, new Promise<never>((_, reject) => {
+            deadline = setTimeout(() => reject(new Error('Native recording preview exceeded5000ms')), 5000);
+          })]);
+          clearTimeout(deadline);
+        }
+        const stopped = createMockHttpResponse();
+        await handleRecordStop(createMockHttpRequest(), stopped, session.id, manager);
+        releaseDom(); await start;
+        expect(stopped.statusCode).toBe(200);
+        expect(first).toBe('started');
+        expect(response.statusCode).toBe(200);
+        expect(load).not.toHaveBeenCalled();
+        expect(getFrameStreamSettings(session.id)).toBeNull();
+        expect(pipelineManager.isRecording()).toBe(false);
+      } finally {
+        releaseDom(); if (deadline) clearTimeout(deadline);
+        await start;
+        await stopFrameStreaming(session.id);
+        if (pipelineManager.isRecording()) await pipelineManager.stopRecording();
+        // This route used pull delivery. The fixture consumes its own entries
+        // before ACK so the next test does not inherit uncommitted observations.
+        const entries = getTimelineEntries(session.id);
+        capturedEntries.push(...entries);
+        acknowledgeTimelineEntries(session.id, entries.map((entry) => entry.id));
+        for (const socket of frames.clients) socket.terminate();
+        await new Promise<void>((resolve) => frames.close(() => resolve()));
+        load.mockRestore(); configuration.mockRestore();
+      }
     });
 
     it('retains a rejected browser event until the same identity is acknowledged', async () => {
@@ -676,5 +754,382 @@ describe('Pipeline E2E Tests', () => {
       expect(routeStatsAfterReset.eventsDroppedNoHandler).toBe(0);
       expect(routeStatsAfterReset.eventsWithErrors).toBe(0);
     });
+  });
+});
+
+// [REQ:BAS-RH-J22] The external transport is an independent disposal oracle.
+describe('session-owned frame transport', () => {
+  let configuration: jest.SpiedFunction<typeof driverConfig.loadConfig>;
+  beforeEach(() => { configuration = jest.spyOn(driverConfig, 'loadConfig').mockReturnValue(createTestConfig()); });
+  afterEach(() => { configuration.mockRestore(); });
+  it.each(['close', 'reset'] as const)('disposes its preview on session %s', async (operation) => {
+    const sockets = new WebSocketServer({ host: '127.0.0.1', port: 0 });
+    await once(sockets, 'listening');
+    const address = sockets.address();
+    if (typeof address === 'string') throw new Error('Expected local socket port');
+    const manager = new SessionManager(createTestConfig());
+    const fixture = new PipelineTestServer();
+    const port = await fixture.start();
+    let sessionId: string | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const session = await manager.startSession({
+        execution_id: `frame-${operation}`, workflow_id: 'frame-owner', base_url: `http://127.0.0.1:${port}/`,
+        viewport: { width: 640, height: 480 }, reuse_mode: 'fresh', required_capabilities: {},
+      });
+      sessionId = session.sessionId;
+      const connected = once(sockets, 'connection');
+      startFrameStreaming(sessionId, manager, { callbackUrl: `http://127.0.0.1:${address.port}/frames` });
+      const [socket] = await connected;
+      const painted = once(socket, 'message');
+      await manager.peekSession(sessionId).page.evaluate(() => { document.body.style.background = 'tomato'; });
+      await painted;
+      const closed = once(socket, 'close').then(() => true);
+      if (operation === 'close') await manager.closeSession(sessionId);
+      else await manager.resetSession(sessionId);
+      const observed = await Promise.race([
+        closed,
+        new Promise<boolean>((resolve) => { timer = setTimeout(() => resolve(false), 1000); }),
+      ]);
+      expect(observed).toBe(true);
+      expect(getFrameStreamSettings(sessionId)).toBeNull();
+    } finally {
+      if (timer) clearTimeout(timer);
+      if (sessionId) await stopFrameStreaming(sessionId);
+      await manager.shutdown();
+      await fixture.stop();
+      for (const socket of sockets.clients) socket.terminate();
+      await new Promise<void>((resolve) => sockets.close(() => resolve()));
+    }
+  });
+});
+
+// Native pixels are decoded in an independent page, not classified by the stream.
+describe('native capture page identity', () => {
+  it('reconnects with blue-tab pixels after buffering an old red tab', async () => {
+    const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+    let capture: StreamingHandle | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const bounded = async (event: Promise<void>): Promise<void> => {
+      try {
+        await Promise.race([event, new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error('Native frame observation exceeded 1000ms')), 1000);
+        })]);
+      } finally { if (timer) clearTimeout(timer); }
+    };
+    try {
+      const context = await browser.newContext({ viewport: { width: 640, height: 480 } });
+      const red = await context.newPage();
+      const blue = await context.newPage();
+      const decoder = await browser.newPage();
+      await red.goto('data:text/html,' + encodeURIComponent('<body style="margin:0;background:rgb(255,0,0);height:100vh"></body>'));
+      await blue.goto('data:text/html,' + encodeURIComponent('<body style="margin:0;background:rgb(0,0,255);height:100vh"></body>'));
+      let redSeen!: () => void;
+      let blueSeen!: () => void;
+      let frameSent!: () => void;
+      const redFrame = new Promise<void>((resolve) => { redSeen = resolve; });
+      const blueFrame = new Promise<void>((resolve) => { blueSeen = resolve; });
+      const delivered = new Promise<void>((resolve) => { frameSent = resolve; });
+      const acquire = context.newCDPSession.bind(context);
+      jest.spyOn(context, 'newCDPSession').mockImplementation(async (target) => {
+        const protocol = await acquire(target);
+        protocol.on('Page.screencastFrame', () => {
+          if (target === red) redSeen();
+          if (target === blue) blueSeen();
+        });
+        return protocol;
+      });
+      let current = red;
+      let ready = false;
+      const frames: Buffer[] = [];
+      capture = await new CdpScreencastStrategy().start(
+        () => current,
+        { sessionId: 'native-page-identity', quality: 65, targetFps: 30, scale: 'css', includePerfHeaders: false, cdp: { pageCheckIntervalMs: 25 } },
+        { isReady: () => ready, getWebSocket: () => ({ readyState: 1, send: (bytes: Buffer) => { frames.push(Buffer.from(bytes.subarray(8))); frameSent(); } }) },
+        { onFrameSent: () => {}, onFrameSkipped: () => {} },
+      );
+      await bounded(redFrame);
+      current = blue;
+      await bounded(blueFrame);
+      ready = true;
+      await bounded(delivered);
+      await capture.stop();
+      expect(frames.length).toBeGreaterThan(0);
+      for (const frame of frames) {
+        const rgb = await decoder.evaluate(async (encoded) => {
+          const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
+          const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
+          const canvas = document.createElement('canvas');
+          canvas.width = bitmap.width; canvas.height = bitmap.height;
+          const context = canvas.getContext('2d')!;
+          context.drawImage(bitmap, 0, 0);
+          const color = Array.from(context.getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data);
+          bitmap.close();
+          return color;
+        }, frame.toString('base64'));
+        expect(rgb[0]).toBeLessThan(40);
+        expect(rgb[1]).toBeLessThan(40);
+        expect(rgb[2]).toBeGreaterThan(210);
+      }
+    } finally {
+      if (timer) clearTimeout(timer);
+      await capture?.stop();
+      await browser.close();
+    }
+  });
+});
+
+
+describe('native polling fallback [REQ:BAS-RH-J22]', () => {
+  it.each(['css', 'device'] as const)('preserves blue pixels and %s dimensions without a public CDP session', async (scale) => {
+    const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+    let capture: StreamingHandle | undefined;
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const context = await browser.newContext({ viewport: { width: 320, height: 240 }, deviceScaleFactor: 2 });
+      const page = await context.newPage();
+      await page.goto('data:text/html,' + encodeURIComponent('<body style="margin:0;background:rgb(0,0,255);height:100vh"></body>'));
+      jest.spyOn(context, 'newCDPSession').mockRejectedValue(new Error('Public CDP unavailable'));
+      let sent!: (frame: Buffer) => void;
+      const delivered = new Promise<Buffer>((resolve) => { sent = resolve; });
+      const socket = { readyState: 1, send: (frame: Buffer) => sent(Buffer.from(frame)) };
+      capture = await new PollingStrategy().start(() => page,
+        { sessionId: `native-polling-${scale}`, quality: 65, targetFps: 10, scale, includePerfHeaders: false },
+        { isReady: () => true, getWebSocket: () => socket },
+        { onFrameSent: () => {}, onFrameSkipped: () => {} });
+      const frame = await Promise.race([delivered, new Promise<never>((_, reject) => {
+        deadline = setTimeout(() => reject(new Error('No native fallback frame within 2000ms')), 2000);
+      })]);
+      clearTimeout(deadline);
+      await capture.stop();
+      const observed = await page.evaluate(async (encoded) => {
+        const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
+        const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
+        const canvas = document.createElement('canvas');
+        canvas.width = bitmap.width; canvas.height = bitmap.height;
+        const context = canvas.getContext('2d')!;
+        context.drawImage(bitmap, 0, 0);
+        const rgb = Array.from(context.getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data);
+        bitmap.close();
+        return { width: canvas.width, height: canvas.height, rgb };
+      }, frame.toString('base64'));
+      expect(observed.width).toBe(scale === 'css' ? 320 : 640);
+      expect(observed.height).toBe(scale === 'css' ? 240 : 480);
+      expect(observed.rgb[0]).toBeLessThan(40);
+      expect(observed.rgb[1]).toBeLessThan(40);
+      expect(observed.rgb[2]).toBeGreaterThan(210);
+    } finally {
+      if (deadline) clearTimeout(deadline);
+      await capture?.stop();
+      await browser.close();
+    }
+  });
+});
+
+
+describe('native recording tab ownership [REQ:BAS-RH-J03]', () => {
+  it('uses one tab identity across route and callback and releases native page listeners', async () => {
+    const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+    let cleanup: (() => void) | undefined;
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    let deliver!: (event: { driverPageId: string }) => void;
+    const created = new Promise<{ driverPageId: string }>((resolve) => { deliver = resolve; });
+    const fetchMock = jest.spyOn(global, 'fetch').mockImplementation(async (_url, init) => {
+      const event = JSON.parse(init!.body as string);
+      if (event.eventType === 'created') deliver(event);
+      return { ok: true, status: 200, statusText: 'OK' } as Response;
+    });
+    try {
+      const context = await browser.newContext();
+      const counts = new Map<Page, { navigation: number; close: number }>();
+      context.on('page', (page) => counts.set(page, {
+        navigation: page.listenerCount('framenavigated'), close: page.listenerCount('close'),
+      }));
+      const initial = await context.newPage();
+      const session = {
+        id: 'native-tab-owner', context, page: initial, pages: [initial],
+        pageIdMap: new Map([['initial-id', initial]]),
+        pageToIdMap: new WeakMap([[initial, 'initial-id']]),
+        currentPageIndex: 0, frameStack: [],
+      } as unknown as ReturnType<SessionManager['getSession']>;
+      const config = createTestConfig({ history: { callbackUrl: '', thumbnailEnabled: false } });
+      const pages = setupPageLifecycleListeners('native-tab-owner', session, 'http://fixture.invalid/callback', config);
+      cleanup = pages.cleanup;
+      await pages.ready;
+      const response = createMockHttpResponse();
+      await handleRecordNewPage(createMockHttpRequest({ method: 'POST', body: {
+        url: 'data:text/html,<title>Independent second tab</title><body>Tab two</body>',
+      } }), response, 'native-tab-owner', { getSession: () => session } as unknown as SessionManager, config);
+      const event = await Promise.race([created, new Promise<never>((_, reject) => {
+        deadline = setTimeout(() => reject(new Error('Native created callback exceeded2000ms')), 2000);
+      })]);
+      clearTimeout(deadline);
+      expect(response.statusCode).toBe(201);
+      expect(response.getJSON().driver_page_id).toBe(event.driverPageId);
+      expect(session.pages).toHaveLength(2);
+      expect(session.pageIdMap.size).toBe(2);
+      expect(session.pageToIdMap.get(session.page)).toBe(event.driverPageId);
+      expect(session.currentPageIndex).toBe(1);
+      cleanup();
+      for (const [page, before] of counts) {
+        expect(page.listenerCount('framenavigated')).toBe(before.navigation);
+        expect(page.listenerCount('close')).toBe(before.close);
+      }
+    } finally {
+      if (deadline) clearTimeout(deadline);
+      cleanup?.();
+      await browser.close();
+      fetchMock.mockRestore();
+    }
+  });
+});
+
+
+describe('native stream controls [REQ:BAS-RH-J23]', () => {
+  it.each([
+    { dpr: 1, scale: 'css' }, { dpr: 1, scale: 'device' },
+    { dpr: 2, scale: 'css' }, { dpr: 2, scale: 'device' },
+  ] as const)('delivers requested pixel dimensions at DPR$dpr scale=$scale', async ({ dpr, scale }) => {
+    const configuration = jest.spyOn(driverConfig, 'loadConfig').mockReturnValue(createTestConfig({
+      frameStreaming: { useScreencast: true, fallbackToPolling: false },
+      performance: { enabled: false, includeTimingHeaders: false },
+    }));
+    const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+    const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });
+    const sessionId = `native-scale-${dpr}-${scale}`;
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await once(server, 'listening');
+      const address = server.address();
+      if (typeof address === 'string') throw new Error('Expected socket port');
+      const context = await browser.newContext({ viewport: { width: 320, height: 240 }, deviceScaleFactor: dpr });
+      const page = await context.newPage();
+      await page.goto('data:text/html,' + encodeURIComponent('<body style="margin:0;height:100vh;background:blue"></body>'));
+      const received = new Promise<Buffer>((resolve) => {
+        server.once('connection', (socket) => socket.once('message', (bytes: Buffer) => resolve(Buffer.from(bytes))));
+      });
+      startFrameStreaming(sessionId, { getSession: () => ({ page }) }, {
+        callbackUrl: `http://127.0.0.1:${address.port}/frames`, scale, quality: 65, fps: 30,
+      });
+      const packet = await Promise.race([received, new Promise<never>((_, reject) => {
+        deadline = setTimeout(() => reject(new Error('Native scale frame exceeded5000ms')), 5000);
+      })]);
+      clearTimeout(deadline);
+      await stopFrameStreaming(sessionId);
+      // Existing wire formats: SDK sends JPEG; CDP prefixes an 8-byte timestamp.
+      const jpeg = packet[0] === 0xff && packet[1] === 0xd8 ? packet : packet.subarray(8);
+      const decoder = await browser.newPage();
+      const pixels = await decoder.evaluate(async (encoded) => {
+        const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
+        const image = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
+        const canvas = document.createElement('canvas');
+        canvas.width = image.width; canvas.height = image.height;
+        const drawing = canvas.getContext('2d')!;
+        drawing.drawImage(image, 0, 0);
+        const result = { width: image.width, height: image.height, blue: drawing.getImageData(10, 10, 1, 1).data[2] };
+        image.close();
+        return result;
+      }, jpeg.toString('base64'));
+      const factor = scale === 'device' ? dpr : 1;
+      expect(pixels.width).toBe(320 * factor);
+      expect(pixels.height).toBe(240 * factor);
+      expect(pixels.blue).toBeGreaterThan(240);
+      expect(getFrameStreamSettings(sessionId)).toBeNull();
+    } finally {
+      if (deadline) clearTimeout(deadline);
+      await stopFrameStreaming(sessionId);
+      await browser.close();
+      for (const socket of server.clients) socket.terminate();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      configuration.mockRestore();
+    }
+  });
+
+  it.each([true, false])('applies quality, FPS and headers through the settings route (CDP=%s)', async (useScreencast) => {
+    const config = createTestConfig({
+      frameStreaming: { useScreencast },
+      performance: { enabled: false, includeTimingHeaders: false },
+    });
+    const configuration = jest.spyOn(driverConfig, 'loadConfig').mockReturnValue(config);
+    const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+    const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });
+    const sessionId = `native-controls-${useScreencast}`;
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await once(server, 'listening');
+      const address = server.address();
+      if (typeof address === 'string') throw new Error('Expected socket port');
+      const context = await browser.newContext({ viewport: { width: 640, height: 480 } });
+      const page = await context.newPage();
+      await page.goto('data:text/html,' + encodeURIComponent('<body style="margin:0;height:100vh;background:blue"><h1>Native quality control</h1></body>'));
+      const qualityCalls: number[] = [];
+      const acquire = context.newCDPSession.bind(context);
+      jest.spyOn(context, 'newCDPSession').mockImplementation(async (target) => {
+        const protocol = await acquire(target);
+        const send = protocol.send.bind(protocol);
+        protocol.send = ((method: string, params: Record<string, unknown>) => {
+          if (method === 'Page.startScreencast') qualityCalls.push(params.quality as number);
+          return send(method as never, params as never);
+        }) as typeof protocol.send;
+        return protocol;
+      });
+      const screenshot = page.screenshot.bind(page);
+      jest.spyOn(page, 'screenshot').mockImplementation(async (options) => {
+        qualityCalls.push(options!.quality!);
+        return screenshot(options);
+      });
+      const provider = { getSession: () => ({ page }) } as unknown as SessionManager;
+      const observations: { at: number; jpeg: Buffer; header: { frame_bytes: number } }[] = [];
+      let observed!: () => void;
+      const threeFrames = new Promise<void>((resolve) => { observed = resolve; });
+      const connected = once(server, 'connection');
+      startFrameStreaming(sessionId, provider, { callbackUrl: `http://127.0.0.1:${address.port}/frames`, quality: 65, fps: 30 });
+      const [socket] = await connected;
+      socket.on('message', (data: Buffer) => {
+        if (data.length < 5) return;
+        const length = data.readUInt32BE(0);
+        if (length > data.length - 4 || data[4] !== 123) return;
+        let header: { frame_bytes: number };
+        try { header = JSON.parse(data.subarray(4, 4 + length).toString()); }
+        catch { return; }
+        observations.push({ at: performance.now(), jpeg: Buffer.from(data.subarray(4 + length)), header });
+        if (observations.length === 3) observed();
+      });
+      // Connection precedes capture readiness. First native frame is the oracle
+      // that the strategy handle exists before submitting the settings request.
+      const first = once(socket, 'message');
+      await page.evaluate(() => {
+        let frame = 0;
+        const paint = () => {
+          document.body.style.background = `rgb(${(frame++ * 23) % 256},20,180)`;
+          requestAnimationFrame(paint);
+        };
+        requestAnimationFrame(paint);
+      });
+      await first;
+      const response = createMockHttpResponse();
+      await handleStreamSettings(createMockHttpRequest({ method: 'POST', body: { quality: 20, fps: 5, perfMode: true } }),
+        response, sessionId, provider, config);
+      expect(response.statusCode).toBe(200);
+      expect(response.getJSON()).toMatchObject({ quality: 20, fps: 5, perf_mode: true, updated: true, is_streaming: true });
+      await Promise.race([threeFrames, new Promise<never>((_, reject) => {
+        deadline = setTimeout(() => reject(new Error('Native updated frames exceeded5000ms')), 5000);
+      })]);
+      clearTimeout(deadline);
+      expect(qualityCalls).toContain(20);
+      expect(observations[2].at - observations[0].at).toBeGreaterThanOrEqual(350);
+      for (const observation of observations) {
+        expect(observation.jpeg[0]).toBe(0xff); expect(observation.jpeg[1]).toBe(0xd8);
+        expect(observation.header.frame_bytes).toBe(observation.jpeg.length);
+      }
+      expect(Number.isFinite(response.getJSON().current_fps)).toBe(true);
+    } finally {
+      if (deadline) clearTimeout(deadline);
+      await stopFrameStreaming(sessionId);
+      await browser.close();
+      for (const socket of server.clients) socket.terminate();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      configuration.mockRestore();
+    }
   });
 });

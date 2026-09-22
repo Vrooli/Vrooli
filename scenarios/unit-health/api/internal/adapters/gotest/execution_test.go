@@ -3,6 +3,7 @@ package gotest
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -31,11 +32,15 @@ func TestSkipped(t *testing.T) { t.Skip("fixture deliberately skipped") }
 	if err != nil {
 		t.Fatal(err)
 	}
-	args, ok := (Analyzer{}).PrepareExecutionEvidence("go", []string{"test", "./..."})
+	goExecutable, err := exec.LookPath("go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	args, ok := (Analyzer{}).PrepareExecutionEvidence(goExecutable, []string{"test", "-trimpath", "-covermode=atomic", "-coverprofile=coverage.out", "./..."})
 	if !ok {
 		t.Fatal("canonical Go command unsupported")
 	}
-	result := (executor.Bounded{}).Run(context.Background(), executor.Command{Executable: "go", Args: args, Dir: root, CaptureStdout: true, TimeoutSeconds: 60})
+	result := (executor.Bounded{}).Run(context.Background(), executor.Command{Executable: goExecutable, Args: args, Dir: root, CaptureStdout: true, TimeoutSeconds: 60})
 	if result.Status != executor.StatusPassed {
 		t.Fatalf("native fixture failed: %s %s", result.FailureReason, result.Stderr)
 	}

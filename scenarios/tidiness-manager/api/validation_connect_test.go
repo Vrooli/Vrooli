@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -202,5 +203,46 @@ func TestTidinessScanRESTEndpointRemoved(t *testing.T) {
 	router.ServeHTTP(rec, req)
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("/api/v1/scan/tidiness status = %d, want 404", rec.Code)
+	}
+}
+
+func TestScenarioValidationIncludesMaintainedSidecarSource(t *testing.T) {
+	root := t.TempDir()
+	var source strings.Builder
+	for i := 0; i < 22; i++ {
+		fmt.Fprintf(&source, "import { value%d } from './module-%d';\n", i, i)
+	}
+	for i := 0; i < 510; i++ {
+		source.WriteString("// maintained source context\n")
+	}
+	for _, dir := range []string{"playwright-driver/src", "automation-worker/src", "playwright-driver/node_modules/dependency", "playwright-driver/dist", "data"} {
+		createTestDir(t, root, dir, map[string]string{"source.ts": source.String()})
+	}
+	handler := newScenarioValidationHandler(&Server{})
+	response, err := handler.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "sidecar-fixture", Path: root}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var native validationv1.TidinessScanResponse
+	if err := response.Msg.GetNativeDetail().UnmarshalTo(&native); err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]map[string]bool{}
+	for _, finding := range native.GetFindings() {
+		path := finding.GetFilePath()
+		if strings.Contains(path, "node_modules/") || strings.Contains(path, "/dist/") || strings.HasPrefix(path, "data/") {
+			t.Errorf("generated/vendor/runtime output entered findings: %s", path)
+		}
+		if seen[path] == nil {
+			seen[path] = map[string]bool{}
+		}
+		seen[path][finding.GetRuleId()] = true
+	}
+	for _, path := range []string{"playwright-driver/src/source.ts", "automation-worker/src/source.ts"} {
+		for _, rule := range []string{"LONG_FILE", "HIGH_COUPLING"} {
+			if !seen[path][rule] {
+				t.Errorf("native result omitted %s for %s: %v", rule, path, seen[path])
+			}
+		}
 	}
 }

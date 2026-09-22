@@ -5,6 +5,7 @@ import type { Video } from 'rebrowser-playwright';
 import type { SessionState } from '../types';
 import { assertRecordingAcknowledged, removeRecordingBuffer } from '../recording';
 import { metrics } from '../utils';
+import { stopFrameStreaming } from '../frame-streaming';
 
 /** Retain progress on the session until every required teardown stage succeeds. */
 export async function teardownSessionResources(session: SessionState): Promise<string[]> {
@@ -30,6 +31,11 @@ export async function teardownSessionResources(session: SessionState): Promise<s
     if (session.pipelineManager?.isRecording()) await session.pipelineManager.stopRecording();
   });
   assertRecordingAcknowledged(session.id);
+  await once('page_callbacks_stop', async () => {
+    session.pageLifecycleCleanup?.();
+    session.pageLifecycleCleanup = undefined;
+  });
+  await once('frame_stream_stop', async () => stopFrameStreaming(session.id));
   await once('service_worker_disable', async () => session.serviceWorkerController?.disable());
   await once('accessibility_capture', async () => session.accessibilitySnapshotter?.capture(session.page));
   await once('performance_trace_stop', async () => session.perfTracer?.stop(session.page));

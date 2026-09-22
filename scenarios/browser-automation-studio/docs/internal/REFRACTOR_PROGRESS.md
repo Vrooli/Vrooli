@@ -11,150 +11,52 @@ current-state section, then append dated records without erasing prior evidence.
 Active unlimited continuous goal BAS-FB-008. File tracking only; no plans or
 external journal. Green checks trigger fresh investigation, never completion.
 
-- Live BAS through040 healthy2026-09-22T18:16:54.021829+00:00, build
-  9c7c5eef94430e9f37d9a5b9bb14fb7fb01710053704586fdcc447d480651df7;
-  API17116/driver24485/UI21794. Fresh18:12:42 gate2885historyrows/five exact
-  unchanged historicalRUNNING,0sessions/0recordings. Managed start76820 consumed;
-  profile33967 consumed. APIprofile metadata equals039; three complete profile
-  reads preserve original rollback identity. No pending lifecycle operation.
--033 RF002/RF022 recording delivery is deployed and qualified for named cases. Browser stable UUID and matching delivery acknowledgement; one bounded
-  pending queue, one driver entry/delivery/receipt owner; retained failed stop,
-  reset and close; explicit pull ACK only after Go journal commit. One tracked
-  page/frame activation owner uses WindowProxy control acknowledgements and joins
-  activation before stop. Default Rebrowser mode preserved.
--033 native14/14, activation23/23, owner29/29, affected Go races/types/API+UI+driver
-  builds pass. Scoped UnitHealthuh-20260922-145457-7e793a0764f101413651f7c3ea6d386d
-  passed393.839s:1549tests/125suites pass,2tests/1suite skipped. Tool27922 consumed.
-  Shared RF069 CLI timeout fixed using existing authenticated long-RPC helper;
-  actual delayed-response regression/all CLI race packages pass. Runtime0line/
-  function/cyclomatic change at shared owner; installed CLI autorebuilt.
--033 runtime22files12922->12286lines(-636). Go7files5567/270/847 ->5572/273/851
-  lines/functions/cyclomatic (+5/+3/+4); BAS cumulative-242 plus shared-12 gives
-  affectednet-254. Browser queues2->1, driver maps4->1, callback circuit/destructive
-  read and duplicate page-activation policies deleted. No unsupported TS complexity
-  claim. Matched10000-entry read+serialization median4000.795->3917.874us, within
-  noise; no speed claim. Initial allocating implementation regression corrected.
--034 RF068 structured AI response contract is deployed. One JSON schema governs
-  generation/validation; empty inputs need no provider call. Final scoped API
-  33.130s/focused race1.092s/build pass. Runtime+11lines/-1function/+2Go cyclo;
-  cumulative BAS-240/shared-12 => net-252. Mocked request median4562->9967ns
-  supplies previously missing validation, no inference speed claim.
-- Latest034 tidiness1115findings/103long/387complexity/607dup/17coupling,
-  duplication debt33540(-2063expandedoriginal). Ratchets/floors unchanged.
-  Full UI coverage remains28.59/30.34/65.15/28.59vs85. RF064 TS AST/JS duplication
-  observation gaps persist. Last board03417pending/productfalse.
--035 RF004/RF030/RF070/RF072 deployed healthy16:32:02UTC, build
-  4cbb4572edd4546c5aa0ba64bf53754fd51d659294ab109f8da33d89e677f1f9.
-  Canonical Rebrowser patch installed viaSDA; frame identity/document targeting,
-  context acknowledgement and new-download effects qualified in native tests.
-  Full scoped driver uh-20260922-162102-ce8fafecad1445ee49c7f58ab339b894 passes
-  351.446s:1549tests/124suites,2tests/1suite skipped. First failing run retained;
-  mandatory mock state and delayed binding-ack handling repaired. Audio passes.
-  Types/builds pass. Quiet16:28:16 gate2555historyrows/five historicalRUNNING,
-  0sessions/0recordings; start92545/profile13486 consumed. Original full profile
-  and API metadata preserved. No pending035operations.
--035 runtime21files5172->4724lines(-448); SDK1879->1890(+11); net-437.
-  Same runtime hashes at qualification/publication. Cold main-document context
-  median3924.92->2582.95us(-34.19%); warm347.40->348.58us(noise). Not a whole
-  journey benchmark. No Go changes; cumulative affectedGo cyclomatic remains-252.
-  Tidiness1116findings/103long/387complexity/607dup/18coupling/debt33540; one
-  extra coupling finding is the expanded native integration test. Floors intact.
-  Board17pending/productfalse. Full frame record/replay and broader stealth remain
-  unqualified; details in frame-targeting-2026-09-22.json.
--036 RF073 confirmed: arbitrary evaluation retry repeats a committed external
-  POST after navigation. Temporary native server fixture and maintained regression
-  both observe2effects for1instruction; returned error remainsretryabletrue.
-  Single-dispatch repair applied;82focused cases/5suites pass15.235s, types/build
-  pass. Full driver uh-20260922-163345-07f0358027780d17a733b9ef0ad01760
-  passed307.798s:1552tests/124suites;2tests/1suite skipped.73224 consumed.
-  Tidiness20260922-163350-8274aa55 failed6s with unchanged1116findings/debt33540;
-  one quiet wait consumed. Board81240 consumed:17pending/productfalse. Live035
-  unchanged; no pending lifecycle operation.
--037 RF071/RF074/RF075 source qualification complete. SDA shared build
-  6034b18af0b24f9b4ffc33a3a1fcb88c7c6b3f6945965338a77194764504fe2b is healthy.
-  Owner API12.241s and four package races pass. SDA restart43426 consumed.
-  Its approved install operations updated both BAS graphs to js-yaml4.3.2 and
-  removed superseded overrides; no unrelated lock resolution changed. Native
-  merge-budget probe now rejects correctly and ordinary YAML remains valid.
-  Security Health20.186s passes0errors/357warnings/406infos. Exact reviewed hash
-  exceptions preserve default rules and detect three counterexamples. API/UIbuild
-  passes; package governance44existingwarnings. BAS published in combined038.
--038 RF072 URL download falsely fails on Chromium's expected ERR_ABORTED although
-  correct attachment bytes arrive. Native red1.320s reproduced; narrow abort
-  handling implemented while event/save remain mandatory. Native URL success,
-  abort/no-attachment and unrelated-error controls pass. Focused33-case run had
-  one evaluation fixture failure withzeroeffects (32passed); failure context
-  was not printed. Added diagnostic assertion; five targeted native cases pass
-  1.985s. The40-context probe found32failures and isolated immediate binding cleanup
-  as a cause. One session registration/global with unique receipt tokens and
-  a bounded internal absent-binding handshake now passes40effects/40next-page
-  reads plus20matrixrows. Canonical SDK patch installed throughSDA; final
-  focused36/4 pass22.394s; types8184 consumed. No arbitrary script retries restored.
-  Types71356/driverbuild pass. Tidiness20260922-165657-106c4f59 terminalfailed,
-  admission33748 and one quiet wait consumed; board90943 consumed:17pending/productfalse.
-  Final full driver uh-20260922-171531-588ec4e8e9386bbcc9675231167fbaca passes:
-  1559tests/124suites,2tests/1suite skipped,366.709s Jest; waiter20434 consumed.
-  SecurityHealth5.060s passes0errors/357warnings/406infos; types/build pass.
-  Finaltidiness20260922-171537-45b14dd7 failed, one quiet wait consumed:
-  1117findings/104long/387complexity/607dup/18coupling/debt33540. Native test
-  expansion adds one long-file finding; no floor/threshold relaxed.
-  All six recorded source hashes unchanged before combined036–038 publication.
-  Gate/stop59912, start31992 and profile84003 consumed. No pending validation.
-  Full product still unqualified: durability/crash/overflow/fullrecordreplay,
-  native OS/soaks, RF038mutation leases and RF055historical orphans remain open.
--039 RF038 reset lease admission implemented across GoSession/client/driver route.
-  Native3red cases3.204s -> focused9/2pass4.248s with open-handle inspection;
-  Go driver/session/engine races pass. Runtime3files -77lines. Owner qualifications
-  driveruh-20260922-173337-68e0fa749361097f6a4aa0c9df53bc49 passes342.144s:
-  1565tests/124suites,2tests/1suite skipped;38932 consumed. APIuh-20260922-173337-7982c7926e5e83a27ee25627d788697f
-  passed36.661s;30665 consumed. Tidiness20260922-173343-048f3e9f failed, quiet
-  wait consumed:1118/104long/387complexity/608dup/18coupling/debt32643. Whole
-  dirty-scenario change; no sole039 attribution. Types/build4732 and API/UIbuild
-  70677 pass. Board50728 consumed:17pending/productfalse. Live038 unchanged; no lifecycle
-  published039 after fresh quiet gate; stop55720/start29526/profile86231 consumed. RF076 current-owner clean reset still fails onopaqueabout:blank and
-  retains old-origin storage; do not claim storage repair. Next consume receipts
-  once, retain pending IDs, then continue coherent reset ownership/storage work.
--040 RF076 clean reset repair deployed; details in reset-storage-2026-09-22.json. Context tracks imported/
-  visited origins; reset retains primary page/context, clears persistent storage
-  through public CDP and per-tab storage via intercepted empty origin visits.
-  Manager owns in-flight reset joining, reserves phase before flush, permits
-  explicit failed retry and joins before close. Route duplicate map removed.
-  Native initial multi-origin red3.166s -> green3.375s; focused114/5pass6.948s,
-  types pass. Expanded59-case run57pass/2fail40.85s: storage matrix timeout after
-  adding cross-site iframe/cache-only cases, and close-test startup-probe baseline
-  counted as reset disposal. Baseline assertion corrected and gate released in
-  finally. Diagnostic12939 failed30.946s; test setup suppressed console markers.
-  Visible diagnostic7594 failed30.782s and isolates setup tosetContent of a
-  cross-site iframe after service-worker registration, before reset admission.
-  Native fixture now serves real frame-host/frame-oracle URLs; markers removed.
-  Expanded2run87066 passed59/2in6.477s. File-origin adversarial test then fails
- 3.109s: WHATWG URL.origin reportsnull while Chromium exposesfile:// storage.
-  Tracker now retains that explicit origin. Final focused149tests/6suites pass
-  9.609s, including primary-page capture, file origins, partial retry and successful/
-  failed reset-close coordination. Types/build pass; no diagnostics remain.
-  Full scoped driveruh-20260922-180536-251d1c74ffe41f505e06d9d89f73826c
-  passes332.571s (Jest327.966s):1573tests/124suites,2tests/1suite skipped.89109 consumed.
-  Tidiness20260922-180542-e4db78b1 failed; admission26369 and one quiet wait consumed.
-  Metrics unchanged1118findings/104long/387complexity/608dup/18coupling/debt32643.
-  Boardprog_8ded6dad-b2fc-4e13-9b5b-2b84432c3a9b
-  remains17pending/productfalse;97945 consumed. Public native oracle confirms
-  stale404/missing400 preserve state; current200 clears storage and returnsready.
-  Runtime5files net+41lines; combined039–040 net-36, Go cumulative-246 unchanged.
-  Open-handle warning still unqualified. Live039 unchanged; no lifecycle operation.
--041 RF077 readiness lifetime repair in source, not deployed. Native losing timer1->0;
-  closed-page CDP attempts40->0 and settlement2019.62->0.387ms (single discriminator).
-  Normal live-page control preserved; closed readiness rejects explicitly. Focused
-  100tests/6suites pass19.47s with no handle warning, types pass. Final scoped driver
-  52477 consumed: owneruh-20260922-182410-0f03f688f5567b49d15aa763664bc239 failed
-  84.444s on another incomplete inline Page mock (page.off absent). Reset route
-  fixture now reuses createMockPage; final98/6pass13.931s. Second owner33499 failed deadline-test contamination; corrected manager fixture
-  and third owner2810 passed1579tests/124suites356.381s. No pending driver check.
-  Tidiness20260922-182416-a733ef44 failed; admission85469 and one
-  quiet wait consumed. Types/build53057 pass. No lifecycle operation. Receiptreadiness-lifetime-
-  2026-09-22.json. Runtime2files net-13lines; Go cumulative-246 unchanged.
-- OriginalHEAD7d1c7531d057c061c5ad5a67fbecb97ebe2eb194; isolated121probes33met/88failed;
-  expandedoriginal debt35603. Detailed prior receipts and measurements remain in
-  history and internal/evidence/rehabilitation/. RF061 duplicateRF023 is retired.
+- Live BAS through 049 is healthy: build
+  `4d7371aa74718651752a1756d800a60868f223f8ca1d2f15fe73be0260a1050c`.
+  API 17116 / driver 24485 / UI 21794. Managed restart 1852 and profile check
+  13569 consumed. Metadata matches 048; three full reads preserve the original
+  rollback. BAS-FB-010 authorizes restarting this engagement's active browsers.
+- Latest full driver owner `uh-20260922-204804-a3e358bda829000613649d4a051355ca`
+  passed: 1,649 tests / 124 suites, 2 tests / 1 suite skipped, 405.005 seconds.
+  Types/build passed. All 049 operations consumed. Effective quality/FPS/headers
+  and measured-FPS receipts are deployed. Native strategy/settings-route controls
+  pass; full release performance remains unqualified. Runtime net +41 lines in
+  048; recent capture/callback repairs 045–048 total -285 lines.
+- Device-scale repair 049 is deployed: native DPR 2 receives 640×480 physical
+  pixels; CSS remains 320×240. Existing SDK capture owns device fidelity. Two
+  runtime files add 3 lines. Small native cost probe shows physical-pixel overhead
+  and possible DPR 1 cost; release performance remains unqualified.
+- Source 050 addresses RF082 stopped-preview resurrection and local RF038 async
+  ownership. Native HTTP/SDK reproduction: Stop 200 then old Start 200 and a new
+  frame. Ten maintained regressions, including the real recording pipeline, fail
+  before repair and pass after (1.230 seconds). Removed duplicate DOM wait; reuse
+  existing pipeline generation and immutable lease for continuations/page providers.
+  Final focused: 139 tests / 6 suites pass in 16.932 seconds; types/build pass.
+  Driver 99381 consumed failed: 1,658 passed / 3 failed. Existing route
+  integration doubles lack lease lookup/generation/capture transitions; fixture
+  repair passed scoped checks/types. Final requalification will include 051
+  caller-lease/receipt work on the same route; no pending owner operation. Tidiness 20260922-210754-5fae9158 failed;
+  quiet wait consumed. Board 050 still has 17 unqualified outcomes. No 050 deployment.
+  Full caller lease transport on remaining mutations is still open RF038 work.
+- Shared Test Genie source/artifact-root repair 042 is deployed and healthy,
+  build `25e2b598c0417ea7ac23ab7c501c93f4340e70bf0c0aabef1c5d578cf1029e4f`.
+  Scoped tests/races/build passed. Full API qualification remains unknown after
+  provider-conformance/CodeFacts timeout; no waiver.
+- Latest tidiness `20260922-210754-5fae9158` failed; one quiet wait consumed:
+  1,118 findings / 104 long files / 387 complexity / 608 duplication / 18 coupling;
+  duplication debt 32,643 versus expanded original 35,603. Shared-tree deltas are
+  not solely attributable to one cycle. Affected Go cyclomatic cumulative -248;
+  RF064 TypeScript/JavaScript measurement gaps persist. Ratchets unchanged.
+- Board 050: 17 required / 17 unqualified / product_qualified=false. No product
+  readiness, native OS or monetization date claim. Full UI coverage remains
+  28.59/30.34/65.15/28.59 versus 85. Security/package warnings, durability/crash/
+  overflow/full record-replay, native platform/soak and UX evidence remain.
+  RF038 mutation leases, RF042 clean-profile reuse, RF043 secondary capture,
+  RF047 scale/performance and RF055 historical orphans remain open boundaries.
+- Original HEAD `7d1c7531d057c061c5ad5a67fbecb97ebe2eb194`; original 121 isolated
+  probes: 33 met / 88 failed. History and dated receipts remain below and in
+  `internal/evidence/rehabilitation/`. Pending operations are listed above;
+  historical pending IDs below are not current and must not be re-admitted.
 
 ## Record format
 
@@ -3037,3 +2939,691 @@ live current-owner readiness still starts. Bind the page provider to immutable
 execution/lease constants using existing getSessionForLease authority. Do not
 create a second lease policy. Frame-manager overlapping generation defects
 RF045 remain separate and will be addressed with their own disposal oracles.
+
+043 delayed-preview discriminator: all6cases fail11.845s before repair, including
+the ready control's post-release provider lookup. Existing getSessionForLease and
+isOperational now guard deferred admission and every later page lookup; readiness
+false starts nothing and rejection is observed. All10route cases pass; TypeScript
+check passes. No broad frame lifecycle claim. Next compose with RF045 before
+full driver qualification rather than duplicate an unchanged full suite.
+
+044 RF045 owner design before edit: one per-session frame slot owns a serialized
+lifecycle and current stream. Start/stop advance its generation immediately;
+obsolete continuations cannot acquire/publish current resources. Stop closes
+transport immediately and joins pending capture acquisition/disposal. Replacement
+waits for old cleanup; cleanup failure stays owned and fails stop for explicit
+retry. No separate parallel generation map or new cancellation framework.
+Retain CDP/polling fallback but eliminate its duplicated startup/options path.
+CDP strategy remains responsible for cleanup when its own initial start rejects.
+RF046 resize/page-switch races remain separately open; measure this bounded
+manager boundary with independently deferred acquisitions/stops and socket counts.
+
+BAS-FB-010 captured before action: operator confirms all active browsers are this
+engagement's and explicitly authorizes restart. Publish qualified041 plus focused
+043 through managed lifecycle now; RF045 runtime is still unchanged, and its
+5failing/4passing new regression tests are not claimed green. Saved profiles must
+remain intact. This restart no longer depends on the quiet-browser gate.
+
+044 maintained red: coordinator5failed/4passed0.430s for replacement registry,
+late capture acquisition, stopped support probe, double strategy failure socket
+cleanup and explicit disposal retry. CDP initial-start failure additionally leaves
+its acquired protocol session/timer; separate regression fails0.513s. Extend
+cohesive owner scope to existing session reset/teardown resource lists: neither
+currently stops the frame coordinator. Native socket closure across close/reset
+will be the independent integration oracle. No profile data changes.
+
+041+043 published after BAS-FB-010 explicit restart authority. Managed60386 and
+profile51362 consumed. Buildsha256:f23a02c1f9ef3fd227648911548f51c50734f9a2c68f2a2de4941039086fedf8
+API/driver/UI healthy,0sessions; metadata matches040 and three complete reads
+preserve original rollback identity. All3runtime hashes match qualification.
+043 route10/10passes15.485s and types pass; full041driver1579/124 passed.
+No pending publication operation. Further044 runtime edits start after this
+publication boundary. Original two wrong profile RPC spellings returned404;
+correct canonical session_profiles.SessionProfilesService/List succeeds.
+
+044 native fixture initial attempt fails before the disposal assertion: setContent
+on the injected blank page times out. Reused the existing real HTTP fixture;
+second attempt exposes required lifecycle port configuration. The integration
+fixture now uses the existing test config seam, not ambient server ports, and
+triggers a real paint after socket connection. Third native attempt reaches the
+oracle: close/reset both leave their socket open,2failed6.529s. No timeout
+increase; transport closure still has its explicit1000ms observation budget.
+
+044 coordinator now serializes one slot's acquisition/disposal; replacement
+invalidates page/transport adapters immediately and waits for old cleanup.
+Rejected cleanup is retained for explicit retry; identical strategy startup/
+option code now has one path. Reset/teardown include frame stop. Initial capture
+failure disposes its CDP session/timer. First green7pass/1fail4.486s: native
+close/reset and manager boundaries pass; fake-timer count also included logger
+microtasks. Draining microtasks distinguishes actual retained deadline timers.
+
+044 additional actual defect: successful frame ACK keeps its losing timeout
+alive. New ACK regression fails; ackWithTimeout now owns and clears its deadline
+on every exit. No delay/timeout reduced or arbitrary script retry introduced.
+Broader focused11954 pending; types61295 passed before final ACK edit.
+Runtime line delta {"before": {"playwright-driver/src/frame-streaming/manager.ts": 440, "playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts": 496, "playwright-driver/src/session/session-reset.ts": 59, "playwright-driver/src/session/session-teardown.ts": 89}, "after": {"playwright-driver/src/frame-streaming/manager.ts": 390, "playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts": 507, "playwright-driver/src/session/session-reset.ts": 61, "playwright-driver/src/session/session-teardown.ts": 91}, "net": -35} . No claim of measured TypeScript cyclomatic improvement; duplicate startup
+policy paths2->1, one slot retains every pending capture/disposal owner.
+
+044 broader focused11954 passed (counts in/tmp/bas-frame-focused-044.txt),
+including real transport close/reset, full native pipeline, profile reset matrix,
+manager/session-start and capture strategies. Admit full driver owner, types/build
+and scoped tidiness once against final source. Live043 remains healthy.
+
+044 final focused111tests/6suites pass32.421s; one-second open-handle warning
+followed natural exit remains observed, not relabeled fixed. Full driver12183
+admitted once. Types/build98211 pass and consumed. Tidiness20260922-190312-45bb6d9a
+failed; admission54364 and one quiet wait consumed. Native findings decode
+pending. Scope remains source044; no live publication yet.
+
+044 tidiness metrics unchanged1118findings/104long/387complexity/608dup/18coupling/
+32643duplicationLineDebt. Original ratchets unchanged, no domain-wide pass.
+Remaining full driver12183; current board read will follow terminal qualification.
+045 read-only discrimination during044 qualification: recall64hits/10corpora,
+some provider degradation. Existing RF046 mutable CDP session/frame buffer can
+survive stop and page switch. Temporary controlled protocol probe counts late
+starts/detaches and exact old/new frame bytes; no045 runtime/test edits yet.
+
+045 controlled protocol probe confirms3RF046cases on current044source: resize
+finishing after stop sends one late Page.startScreencast; a late CDP acquisition
+also starts and is never detached; page switch publishes old-buffer/new/old-late
+payloads instead of just new. The corrected independent wire oracle strips the
+existing8-byte timestamp prefix. Receipt/tmp/bas-cdp-generation-red2-045.log
+FIXTURE_RESULT; initial raw-prefix attempt retained separately. No045 source
+edits yet. Full044driver still pending; board35815 consumed17pending/productfalse.
+
+044 full driver uh-20260922-190308-c64e673046864877dc7a2f19b0dbc1d0 passes;12183 consumed. All4runtime hashes
+unchanged. Publish through managed restart under BAS-FB-010 ongoing authority,
+then verify health/profiles. No045 source edits before this boundary.
+
+044 managed restart44419 succeeded; API/driver/UI healthy and0sessions; runtime
+hashes unchanged and profile metadata equals043. Full profile check pending.
+Full driver1596tests/124suites pass339.493s (Jest338.798s);2tests/1suite skipped.
+
+045 RF046 owner design before source edit: each capture generation owns its
+page, CDP session, listener, latest buffered frame and acknowledgements. Serialize
+replacement acquisition/disposal; invalidate generation before awaits; stop joins
+late acquisition, and resize rechecks generation after changing viewport. Merge
+initial and replacement screencast setup, remove obsolete wrapper/duplicated
+start policy, and never publish old-page bytes into a new generation. Reuse the
+existing page probe to flush a buffered current frame after transport becomes
+ready even if a stable page emits no new frame (RF047 buffer delivery only;
+effective quality/FPS/perf settings remain open). Native frame encoding and
+capture quality remain unchanged. New maintained adverse/control tests follow.
+
+044 full profile45663 consumed: three complete reads equal original rollback.
+Live build451603780f62b3880b2b91522c6425c46c590af78fcd7c96ebcb254f6e97f521
+healthy,0sessions; no pending044 operation. RF045 coordinator boundary repaired;
+RF046 internal CDP generation work now starts independently.
+
+045 maintained generation group5failed0.551s: both viewport/protocol cancellation,
+old-tab pixels, stable reconnect without another paint, and transport-send failure
+withholding Chrome ACK. The last two are directly reproduced behavior, not
+inferred pass claims. Correct the existing CDP owner with one acquisition path,
+generation-bound protocol/listener/frame references, always-ACK delivery cleanup,
+and current-buffer delivery from its existing page probe. No new timer/worker.
+
+### Archived checkpoint before045 refresh (historical, not current state)
+
+
+Active unlimited continuous goal BAS-FB-008. File tracking only; no plans or
+external journal. Green checks trigger fresh investigation, never completion.
+
+- Live BAS through043 healthy2026-09-22T18:58:32.808601+00:00, build
+  f23a02c1f9ef3fd227648911548f51c50734f9a2c68f2a2de4941039086fedf8;
+  API17116/driver24485/UI21794. Fresh18:12:42 gate2885historyrows/five exact
+  unchanged historicalRUNNING,0sessions/0recordings. Managed start76820 consumed;
+  profile33967 consumed. APIprofile metadata equals039; three complete profile
+  reads preserve original rollback identity. No pending lifecycle operation.
+-033 RF002/RF022 recording delivery is deployed and qualified for named cases. Browser stable UUID and matching delivery acknowledgement; one bounded
+  pending queue, one driver entry/delivery/receipt owner; retained failed stop,
+  reset and close; explicit pull ACK only after Go journal commit. One tracked
+  page/frame activation owner uses WindowProxy control acknowledgements and joins
+  activation before stop. Default Rebrowser mode preserved.
+-033 native14/14, activation23/23, owner29/29, affected Go races/types/API+UI+driver
+  builds pass. Scoped UnitHealthuh-20260922-145457-7e793a0764f101413651f7c3ea6d386d
+  passed393.839s:1549tests/125suites pass,2tests/1suite skipped. Tool27922 consumed.
+  Shared RF069 CLI timeout fixed using existing authenticated long-RPC helper;
+  actual delayed-response regression/all CLI race packages pass. Runtime0line/
+  function/cyclomatic change at shared owner; installed CLI autorebuilt.
+-033 runtime22files12922->12286lines(-636). Go7files5567/270/847 ->5572/273/851
+  lines/functions/cyclomatic (+5/+3/+4); BAS cumulative-242 plus shared-12 gives
+  affectednet-254. Browser queues2->1, driver maps4->1, callback circuit/destructive
+  read and duplicate page-activation policies deleted. No unsupported TS complexity
+  claim. Matched10000-entry read+serialization median4000.795->3917.874us, within
+  noise; no speed claim. Initial allocating implementation regression corrected.
+-034 RF068 structured AI response contract is deployed. One JSON schema governs
+  generation/validation; empty inputs need no provider call. Final scoped API
+  33.130s/focused race1.092s/build pass. Runtime+11lines/-1function/+2Go cyclo;
+  cumulative BAS-240/shared-12 => net-252. Mocked request median4562->9967ns
+  supplies previously missing validation, no inference speed claim.
+- Latest034 tidiness1115findings/103long/387complexity/607dup/17coupling,
+  duplication debt33540(-2063expandedoriginal). Ratchets/floors unchanged.
+  Full UI coverage remains28.59/30.34/65.15/28.59vs85. RF064 TS AST/JS duplication
+  observation gaps persist. Last board03417pending/productfalse.
+-035 RF004/RF030/RF070/RF072 deployed healthy16:32:02UTC, build
+  4cbb4572edd4546c5aa0ba64bf53754fd51d659294ab109f8da33d89e677f1f9.
+  Canonical Rebrowser patch installed viaSDA; frame identity/document targeting,
+  context acknowledgement and new-download effects qualified in native tests.
+  Full scoped driver uh-20260922-162102-ce8fafecad1445ee49c7f58ab339b894 passes
+  351.446s:1549tests/124suites,2tests/1suite skipped. First failing run retained;
+  mandatory mock state and delayed binding-ack handling repaired. Audio passes.
+  Types/builds pass. Quiet16:28:16 gate2555historyrows/five historicalRUNNING,
+  0sessions/0recordings; start92545/profile13486 consumed. Original full profile
+  and API metadata preserved. No pending035operations.
+-035 runtime21files5172->4724lines(-448); SDK1879->1890(+11); net-437.
+  Same runtime hashes at qualification/publication. Cold main-document context
+  median3924.92->2582.95us(-34.19%); warm347.40->348.58us(noise). Not a whole
+  journey benchmark. No Go changes; cumulative affectedGo cyclomatic remains-252.
+  Tidiness1116findings/103long/387complexity/607dup/18coupling/debt33540; one
+  extra coupling finding is the expanded native integration test. Floors intact.
+  Board17pending/productfalse. Full frame record/replay and broader stealth remain
+  unqualified; details in frame-targeting-2026-09-22.json.
+-036 RF073 confirmed: arbitrary evaluation retry repeats a committed external
+  POST after navigation. Temporary native server fixture and maintained regression
+  both observe2effects for1instruction; returned error remainsretryabletrue.
+  Single-dispatch repair applied;82focused cases/5suites pass15.235s, types/build
+  pass. Full driver uh-20260922-163345-07f0358027780d17a733b9ef0ad01760
+  passed307.798s:1552tests/124suites;2tests/1suite skipped.73224 consumed.
+  Tidiness20260922-163350-8274aa55 failed6s with unchanged1116findings/debt33540;
+  one quiet wait consumed. Board81240 consumed:17pending/productfalse. Live035
+  unchanged; no pending lifecycle operation.
+-037 RF071/RF074/RF075 source qualification complete. SDA shared build
+  6034b18af0b24f9b4ffc33a3a1fcb88c7c6b3f6945965338a77194764504fe2b is healthy.
+  Owner API12.241s and four package races pass. SDA restart43426 consumed.
+  Its approved install operations updated both BAS graphs to js-yaml4.3.2 and
+  removed superseded overrides; no unrelated lock resolution changed. Native
+  merge-budget probe now rejects correctly and ordinary YAML remains valid.
+  Security Health20.186s passes0errors/357warnings/406infos. Exact reviewed hash
+  exceptions preserve default rules and detect three counterexamples. API/UIbuild
+  passes; package governance44existingwarnings. BAS published in combined038.
+-038 RF072 URL download falsely fails on Chromium's expected ERR_ABORTED although
+  correct attachment bytes arrive. Native red1.320s reproduced; narrow abort
+  handling implemented while event/save remain mandatory. Native URL success,
+  abort/no-attachment and unrelated-error controls pass. Focused33-case run had
+  one evaluation fixture failure withzeroeffects (32passed); failure context
+  was not printed. Added diagnostic assertion; five targeted native cases pass
+  1.985s. The40-context probe found32failures and isolated immediate binding cleanup
+  as a cause. One session registration/global with unique receipt tokens and
+  a bounded internal absent-binding handshake now passes40effects/40next-page
+  reads plus20matrixrows. Canonical SDK patch installed throughSDA; final
+  focused36/4 pass22.394s; types8184 consumed. No arbitrary script retries restored.
+  Types71356/driverbuild pass. Tidiness20260922-165657-106c4f59 terminalfailed,
+  admission33748 and one quiet wait consumed; board90943 consumed:17pending/productfalse.
+  Final full driver uh-20260922-171531-588ec4e8e9386bbcc9675231167fbaca passes:
+  1559tests/124suites,2tests/1suite skipped,366.709s Jest; waiter20434 consumed.
+  SecurityHealth5.060s passes0errors/357warnings/406infos; types/build pass.
+  Finaltidiness20260922-171537-45b14dd7 failed, one quiet wait consumed:
+  1117findings/104long/387complexity/607dup/18coupling/debt33540. Native test
+  expansion adds one long-file finding; no floor/threshold relaxed.
+  All six recorded source hashes unchanged before combined036–038 publication.
+  Gate/stop59912, start31992 and profile84003 consumed. No pending validation.
+  Full product still unqualified: durability/crash/overflow/fullrecordreplay,
+  native OS/soaks, RF038mutation leases and RF055historical orphans remain open.
+-039 RF038 reset lease admission implemented across GoSession/client/driver route.
+  Native3red cases3.204s -> focused9/2pass4.248s with open-handle inspection;
+  Go driver/session/engine races pass. Runtime3files -77lines. Owner qualifications
+  driveruh-20260922-173337-68e0fa749361097f6a4aa0c9df53bc49 passes342.144s:
+  1565tests/124suites,2tests/1suite skipped;38932 consumed. APIuh-20260922-173337-7982c7926e5e83a27ee25627d788697f
+  passed36.661s;30665 consumed. Tidiness20260922-173343-048f3e9f failed, quiet
+  wait consumed:1118/104long/387complexity/608dup/18coupling/debt32643. Whole
+  dirty-scenario change; no sole039 attribution. Types/build4732 and API/UIbuild
+  70677 pass. Board50728 consumed:17pending/productfalse. Live038 unchanged; no lifecycle
+  published039 after fresh quiet gate; stop55720/start29526/profile86231 consumed. RF076 current-owner clean reset still fails onopaqueabout:blank and
+  retains old-origin storage; do not claim storage repair. Next consume receipts
+  once, retain pending IDs, then continue coherent reset ownership/storage work.
+-040 RF076 clean reset repair deployed; details in reset-storage-2026-09-22.json. Context tracks imported/
+  visited origins; reset retains primary page/context, clears persistent storage
+  through public CDP and per-tab storage via intercepted empty origin visits.
+  Manager owns in-flight reset joining, reserves phase before flush, permits
+  explicit failed retry and joins before close. Route duplicate map removed.
+  Native initial multi-origin red3.166s -> green3.375s; focused114/5pass6.948s,
+  types pass. Expanded59-case run57pass/2fail40.85s: storage matrix timeout after
+  adding cross-site iframe/cache-only cases, and close-test startup-probe baseline
+  counted as reset disposal. Baseline assertion corrected and gate released in
+  finally. Diagnostic12939 failed30.946s; test setup suppressed console markers.
+  Visible diagnostic7594 failed30.782s and isolates setup tosetContent of a
+  cross-site iframe after service-worker registration, before reset admission.
+  Native fixture now serves real frame-host/frame-oracle URLs; markers removed.
+  Expanded2run87066 passed59/2in6.477s. File-origin adversarial test then fails
+ 3.109s: WHATWG URL.origin reportsnull while Chromium exposesfile:// storage.
+  Tracker now retains that explicit origin. Final focused149tests/6suites pass
+  9.609s, including primary-page capture, file origins, partial retry and successful/
+  failed reset-close coordination. Types/build pass; no diagnostics remain.
+  Full scoped driveruh-20260922-180536-251d1c74ffe41f505e06d9d89f73826c
+  passes332.571s (Jest327.966s):1573tests/124suites,2tests/1suite skipped.89109 consumed.
+  Tidiness20260922-180542-e4db78b1 failed; admission26369 and one quiet wait consumed.
+  Metrics unchanged1118findings/104long/387complexity/608dup/18coupling/debt32643.
+  Boardprog_8ded6dad-b2fc-4e13-9b5b-2b84432c3a9b
+  remains17pending/productfalse;97945 consumed. Public native oracle confirms
+  stale404/missing400 preserve state; current200 clears storage and returnsready.
+  Runtime5files net+41lines; combined039–040 net-36, Go cumulative-246 unchanged.
+  Open-handle warning still unqualified. Live039 unchanged; no lifecycle operation.
+-041 RF077 readiness lifetime repair in source, not deployed. Native losing timer1->0;
+  closed-page CDP attempts40->0 and settlement2019.62->0.387ms (single discriminator).
+  Normal live-page control preserved; closed readiness rejects explicitly. Focused
+  100tests/6suites pass19.47s with no handle warning, types pass. Final scoped driver
+  52477 consumed: owneruh-20260922-182410-0f03f688f5567b49d15aa763664bc239 failed
+  84.444s on another incomplete inline Page mock (page.off absent). Reset route
+  fixture now reuses createMockPage; final98/6pass13.931s. Second owner33499 failed deadline-test contamination; corrected manager fixture
+  and third owner2810 passed1579tests/124suites356.381s. No pending driver check.
+  Tidiness20260922-182416-a733ef44 failed; admission85469 and one
+  quiet wait consumed. Types/build53057 pass. No lifecycle operation. Receiptreadiness-lifetime-
+  2026-09-22.json. Runtime2files net-13lines; Go cumulative-246 unchanged.
+- OriginalHEAD7d1c7531d057c061c5ad5a67fbecb97ebe2eb194; isolated121probes33met/88failed;
+  expandedoriginal debt35603. Detailed prior receipts and measurements remain in
+  history and internal/evidence/rehabilitation/. RF061 duplicateRF023 is retired.
+
+
+045 first green11pass/1fail0.543s: old page-probe fixture encoded "exactly one
+lookup" instead of "session closes after startup". It now changes availability
+after start, preserving intended lifetime assertion. No production fallback for
+an expired lease. Corrected full focused41tests/3suites pass12.406s; types92865
+pass. Controlled protocol3/3green: late starts0/0, late detach1, exact new-page
+payload only. Native JPEG oracle passes316ms(test)/0.988s(suite): buffer red,
+switch to blue, reconnect without another paint, decode every delivered centre
+pixel in a separate page; all blue. Native test18695 consumed.
+Runtime507->321(-186), one initial/replacement acquisition path; obsolete restart
+wrapper and duplicated setup removed. No claimed TS cyclomatic measurement.
+Contract/preparation tests pass. Admit final driver/tidiness/build once next.
+
+045 final operations: UnitHealth driver18488 pending (/tmp/bas-cdp-owner-045.json).
+Tidiness20260922-192057-fac20ac7 failed;47768 and one quiet wait consumed.
+Types/build19496 pass, consumed. Native JPEG18695 passed, consumed. No045
+lifecycle admission; live044 remains healthy.
+046 read-only next investigation: stream settings still echo targetFps as
+currentFps, perfMode changes manager state without updating strategy framing,
+CDP quality waits for another restart, and polling sleep retains one abort
+listener per completed wait. Reuse existing PerfCollector actual_fps sensor if
+settings are repaired; first discriminate lifetime growth at the polling owner.
+No046 source edits, dependency changes or owner operations admitted.
+
+
+### BAS-WORK-045 — final owner qualification, deployment pending
+
+Full driveruh-20260922-192052-24cc5ca0d1cc1f46830b64e44f80ce2a passed:
+1602tests/124suites,2tests/1suite skipped,377.515s owner/376.686sJest.
+Tool18488 consumed. Types/build pass. Tidiness20260922-192057-fac20ac7 failed,
+one quiet wait consumed;1118findings/104long/387complexity/608dup/18coupling,
+32643duplication debt unchanged. Boardprog_c1921833-d627-4653-b468-554ec183608c
+reports17unqualified/productfalse. Sourcehash matched receipt before managed
+restart46214 under BAS-FB-010; restart pending. No production edits during build.
+
+### BAS-WORK-046 — polling lifetime investigation and owner design
+
+Feedback reread. Recall046 found prior stream/ownership work. RF079 confirmed:
+20settled waits retain20listeners; one completed capture/stop leaves1deadline
+and0protocol detaches. Protocol/timer probe:/tmp/bas-polling-lifetime-red-046.log.
+Both expectations fail; warning independently corroborates listener accumulation.
+Alternative considered:own private CDP acquisition/disposal in the strategy.
+Prefer deleting duplicate protocol/deadline owners if native SDK preserves behavior
+and cost. Native alternating20pair comparison median33.39msCDP/33.23msSDK;
+all40JPEGs11820bytes at1280x720,DPR1,quality65. Small contended fixture, not a release
+performance claim. Evidence:/tmp/bas-polling-capture-cost-046.log.
+Scope:existing BAS polling runtime/tests; architecture target documented first.
+Validate bounded listener lifetime, stop/page/transport races, fallback support
+without CDP and native JPEG dimensions/pixels atCSS/device scales. Capture polling
+FPS controls remain RF047; no metric or budget waiver. No046production edits yet.
+
+
+BAS-WORK-045 publication:managed restart46214 succeeded. API/driver/UI healthy,
+0sessions,buildd12561e656243724d39a311ef08248dbb9d1f356ed9cc6ed0eb167f505a85d51.
+Profile metadata equals044; three complete reads match original rollback
+(/tmp/bas-profile-final-045.txt,tool51293 consumed). All045operations consumed.
+
+BAS-WORK-046 maintained evidence:7failure/2control before repair in0.825s;
+focused subset also reports package coverage floor, not an altered policy.
+Two native fallback tests with unavailable public CDP fail5.138s before repair.
+The same behavioral cases plus controls pass11/11 in1.135s after repair, with
+coverage disabled only for focused iteration; full owner coverage remains owed.
+Native JPEG centre stays blue and DPR2 dimensions are320x240CSS/640x480device.
+Receipts:/tmp/bas-polling-maintained-red-046.txt,
+/tmp/bas-polling-native-red-046.txt,/tmp/bas-polling-focused-green-046.txt.
+
+
+046 final focused42tests/3suites pass13.047s; types/build58039 consumed pass.
+Private polling runtime424->372lines(-52):deleted global protocol cache, losing
+capture deadline and duplicate capture selection. Controlled probe now20waits->
+1active listener->0afterstop;0private sessions/0capture deadlines remain.
+First post-repair temporary probe57023 was canceled after discovering its getter
+invented a fresh socket each call; corrected fixture owns one socket as production
+does. /tmp/bas-polling-lifetime-green2-046.log passes both lifetime checks.
+Final qualification pending:UnitHealth23467,tidiness admission52782,board63640.
+Receipt:internal/evidence/rehabilitation/polling-lifetime-2026-09-22.json.
+No further046runtime edits during qualification.
+
+
+BAS-WORK-046 full owneruh-20260922-193836-6bc3f69d892b9948027fa4427f92b0f5
+passes1612tests/124suites,2tests/1suite skipped,374.920sowner/374.013sJest.
+Tidiness20260922-193841-affe382a failed; one quiet wait consumed, unchanged1118
+findings/32643duplication debt. Board04617required/17unqualified/productfalse.
+Qualified hashes matched before managed restart2856; publication pending.
+
+### BAS-WORK-047 — recording tab ownership investigation
+
+Feedback reread; recall04774hits/10corpora. RF080:three actual callback-owner
+lifetime cases fail after cleanup; two page listeners and callbacks survive stop,
+and pending popup/title completions publish late. RF081:actual explicit-tab route
+plus context listener returns201 but records2entries/2IDs for one page, and callback
+ID differs from response. Retained probe:/tmp/bas-page-callback-red4-047.log.
+First extension of the temporary probe imported Jest-only helpers (red2) and then
+an incomplete HTTP response fake (red3); both fixture errors are retained. Corrected
+public Node event/HTTP response fixture gives four discriminatory failures.
+Scope:page-events.ts,recording-pages.ts,recording-lifecycle.ts and owner tests.
+Consolidate registration and exact-page callbacks; delete duplicate initial-page
+navigation. Architecture/issue targets recorded before production changes.
+RF038 delayed recording request/frame lease fencing remains separate; no full
+record/replay or remote callback rollback qualification is implied.
+No047production changes during046managed build.
+
+
+047 boundary extension before implementation:Session reset and teardown never
+invoke pageLifecycleCleanup. Fixing the callback owner alone would leave its
+listeners active during reset navigations and page destruction. Include existing
+session-reset.ts/session-teardown.ts; release callbacks after recording ACK and
+before browser effects, retain failed cleanup for retry through existing teardown
+stages. Add maintained manager reset/close ordering regressions. No new lifecycle
+manager or shared-scenario extension. First types check rejected an eventType:string
+helper; use the existing DriverPageEvent union, not a widened protocol type.
+
+
+046 publication complete:managed restart2856 and full-profile80046 consumed.
+API/driver/UI healthy,0sessions,build687f82ccf2cb92f618739d898303cfc422fa0b2e2d3cc9d1790bd766fdd83538.
+Metadata equals045 and three complete identity reads match original rollback.
+Receipts:/tmp/bas-live-health-046.json,/tmp/bas-profile-final-046.txt.
+047 callback maintained6red/3controls0.483s->23route tests pass0.815s.
+Native one-tab identity and cleanup oracle passes367ms(test)/1.188s(suite).
+Controlled4cases pass; /tmp/bas-page-callback-green-047.log.
+Three callback runtime files currently net-75lines; session cleanup extension
+adds required lifecycle calls, final total to be measured after qualification.
+
+
+047 final boundary qualification:reset/close3cases fail before cleanup hooks.
+Initial-page title/stop race adds1real red0.821s and led to moving initial delivery
+into the same callback owner. The start route stores cleanup immediately and then
+awaits ready; no legacy callback implementation retained. Five runtime files total
+1140->1052lines(-88); navigation and initial event policy consolidated, registration
+2->1. Existing reset/teardown stage machinery owns cleanup failure/retry.
+First expanded focused run105pass/1failure14.624s:retry fixture counted a context
+closed during prior capability setup. Record its pre-close count and assert no
+additional close before cleanup retry; no production assertion suppression.
+Final107tests/5suites pass15.126s; types/build34533 pass. Four controlled cases
+still pass after final owner changes. Contract/preparation and inventory047 ran.
+Final driver55380,tidiness admission97888,board39816 pending; no more source edits
+while qualification runs. Receipt:page-callback-lifetime-2026-09-22.json.
+
+
+### BAS-WORK-048 — effective stream controls investigation (no implementation yet)
+
+Recall04855hits/10corpora. Reused the retained refactor_stream_probes.cjs settings
+subprobe against current sources in/tmp/browser-automation-studio/effective-stream-settings-048.cjs.
+Excluded obsolete lifecycle probes that wait for stop before releasing its owned
+acquisition; adapted CDPSession.off to the current public SDK seam. Four real
+RF047 expectations fail:quality update reports20 while applied start remains65;
+FPS1still emits60frames in one simulated second; perfMode=true still emits timestamp
+framing; currentFPS reports1with0delivered frames. Existing quality-on-resize
+control passes. Evidence:/tmp/bas-effective-stream-red-048.json; controlled clock/
+protocol/transport, not native performance. Next scope:manager/strategies/settings
+route and owner tests. Apply controls before acknowledging them; report measured
+FPS from the existing collector; preserve scale restart policy, frame compatibility,
+quality bounds and resource ownership. Evaluate one effective settings interface,
+serialized application, and shared delivery policy before implementing; avoid
+adding parallel metadata, schedulers or a second metrics owner.
+Also rejected a possible frame-slot retention leak by reading current stop:
+slot deletion is already generation-checked at manager.ts149. No defect filed.
+047driver55380 remains pending; no048production/test-source changes admitted.
+
+
+047 full owneruh-20260922-195727-36a0b68a336331dfc08f6ca9f11000fc passes:
+1623tests/124suites,2tests/1suite skipped,357.329sowner/356.268sJest. Tool55380
+consumed. Runtime/test hashes matched before managed restart17293 underFB010.
+All047qualifications consumed; managed deployment17293 pending. Source048 has no
+changes; settings investigation retains4fail/1control, not release qualification.
+
+
+048 maintained manager receipt tests:4real failures0.487s (measured FPS0/7.5,
+pending quality acknowledged early, rejected quality acknowledged successful).
+/tmp/bas-effective-stream-manager-red-048.txt. No048production edits yet.
+Implementation decision:reuse the frame slot's serialized queue for updates;
+await capture quality application before metadata commits; retain the existing
+small strategy control interface and add effective header control. Use existing
+collector measured FPS. CDP delivery must replace pending bytes with the newest
+frame and own at most one rate-limit deadline, cleared on stop/tab/resize; polling
+must cap its existing adaptive controller at the advertised target. A bounded
+pending-frame deadline is necessary to deliver the newest stable paint promptly
+at the configured limit without a busy polling loop. Validate malformed settings
+at the existing HTTP boundary. No new dependency, metrics service or frame format.
+
+
+047publication17293 and profile44697 consumed:API/driver/UI healthy,0sessions,
+buildc95c97174f73f200ecb8c0486ec86a114ccfb54fe27f5db8f0eeb4074002d7cf. Metadata
+matches046; three complete profile reads match original rollback. All047ops done.
+048first implementation:manager updates reuse serialized slot queue, await quality
+and refuse unsupported controls before effects. API route awaits the result.
+Measured FPS uses the existing collector; manager15tests pass after4real red cases.
+CDP quality reuses generation-safe capture change; failed update stops its capture.
+Header mode is effective in both strategies. Polling invalidates captures pending
+old quality and caps adaptive max/min to the target. CDP keeps newest pending frame
+and one deadline for the delivery limit; stop/page/resize clear it. Dedicated new
+regressions and native control proof remain. Existing reconnect test previously
+required sending both older and current frames; contractJ23requires latest valid
+frame, so new independent payload assertion expects onlyframe2. It fails before
+repair; run72573 canceled130 after its failed assertion skipped legacy cleanup.
+Moved cleanup to finally, without weakening the desired payload/count assertion.
+An exact-string patch refused an unexpected branch and wrote no runtime files;
+then the observed branch was updated. Expanded frame tests79337 pending.
+
+
+048 completed focused implementation:45stream tests pass0.764s; broader61pass0.788s;
+first final88pass14.586s. Local SDK source confirms JPEG quality must be integer.
+New fractional-quality/disconnected-viewer controls expose2real failures (4valid
+controls pass0.631s); reject fractional input and keep FPS application independent
+of deferred send failure. CDP's single deferred-send handler observes errors and
+uses at most one deadline. Polling removes duplicate target state/update logging;
+manager owns the applied settings log. Final90tests/7suites pass14.092s; types/build
+25676pass. Two native strategy+real settings-route/localWebSocket cases qualify
+encoding requests20,5FPSdelivery pacing and real JPEG timing headers; no release
+latency/soak claim. Runtime net+41 for working behavior; recent045–048 net-285.
+Contract/preparation/inventory048 pass. Final driver22040,tidiness admission40784,
+board11953 pending; no048source edits while qualification runs.
+
+
+### BAS-WORK-049 — device-scale investigation (no source changes)
+
+Feedback reread; recall04959hits/10corpora. Native SDK/browser and actualCDP
+strategy reproduce a device-scale mismatch:atDPR2 requesteddevice receives320x240,
+expected640x480. Three controls pass (DPR1CSS/device,DPR2CSS).
+/tmp/bas-cdp-device-scale-red-049.log independently decodes JPEG dimensions in a
+separate browser page. This is browser-emulatedDPR, not OS/device qualification.
+CDP source uses CSS viewport caps and does not read config.scale. Next:measure
+actual ratio/metrics in browser, promote maintained native dimension matrix, then
+apply scale through existing generation-safe capture acquisition.048driver22040
+pending; no049source/test edits while that owner run is active.
+
+
+048 full owneruh-20260922-202905-d61c4e66c54163bb5a4e772a7be898e8 passed:
+1642tests/124suites,2tests/1suite skipped,367.230sowner/366.385sJest. Source/test
+hashes matched before managed restart underFB010. All048qualification operations
+consumed; tidiness20260922-202910-ed110344 unchanged1118findings/debt32643,
+boardprog_9a3d0c21-a86b-4495-a30c-7c625c90eada has17unqualified/productfalse.
+
+049 rejected hypothesis:increasing CDP maxWidth/maxHeight from320x240to640x480
+at native emulatedDPR2 still returns320x240 JPEG. Both legacy and CSS layout metrics
+also remain320x240, ratio1, while Runtime.evaluate devicePixelRatio reports2.
+/tmp/bas-cdp-scale-metrics-049.log. A multiplier alone cannot provide physical
+pixels. Next inspect capability selection and SDK polling fallback, retainingCDP
+when its fidelity meets the request. No049source changes during048build.
+
+
+049 implementation decision before edits:manager selects SDK polling for device
+scale, includingDPR1; CDP startup rejects unsupporteddevice explicitly. KeepCDP
+forCSS and existing fallback policy. A DPR heuristic would add protocol acquisition,
+main-world override/zoom ambiguity and startup work without proving future fidelity.
+The existing screenshot owner already provides exactCSS/device semantics. Accept
+possible compositor-rate tradeoff and measure it; never claim device speed improves
+from this fidelity repair. Scope manager.ts/cdp-screencast.ts and existing owner
+tests, no new modules or dependencies. Design recorded in ARCHITECTURE.md.
+048managedrestart94101 pending; runtime/tests remain frozen until it completes.
+
+
+048managedrestart94101 consumed0; API/driver/UI healthy,0sessions,build
+540a961f084ae145aef9ec7e93862ec4d36f3d15f5bba7a9b82a608ff21ecc0b.
+Runtime/test hashes match, profile metadata equals047. Full-profile91228 pending.
+049cost experiment:18trials,20frames each,640x480,JPEG65,target30,three rotating
+orders perDPR. DPR1median CDP CSS29.34FPS/17.05msfirst, SDKCSS26.51/32.60,
+SDKdevice27.13/32.97; DPR2CDPCSS29.33/12.08,SDKCSS27.15/34.13,SDKdevice18.06/58.83.
+/tmp/bas-scale-cost-049.json. Animated browser-emulated cohort, shared host during
+lifecycle build; no release/performance-regression waiver or latency-band claim.
+This suggests a real physical-pixel cost and possibleDPR1 overhead. The current
+stream session provider carries onlyPage, and context builder does not retain
+authoritative physical scale onSessionState. Do not duplicate profile defaults
+or add a guessed page-world DPR probe for this repair. KeepCSS CDP unchanged;
+device fidelity usesSDK. Recheck performance with releasecohorts and consider
+a qualified capability fast path only if measured demand justifies its ownership.
+
+
+048 publication complete: managed94101 and profile91228 consumed0. All health
+checks pass,0sessions,metadataequals047;three complete profile reads match original
+rollback. Receipt effective-stream-controls-2026-09-22.json now records deployment.
+049 maintainedred:4failed/3controls passed3.494s; initial focused command also
+reported global functions coverage7.34%below15 because coverage was unintentionally
+enabled on seven selected tests. Assertions are independently real failures.
+Focused checks use coverage=false; fullowner retains all thresholds unchanged.
+Two runtime files implement capability selection/rejection, net+3lines.
+Focused79875 pending; no049deployment.
+
+
+049 focused79875 consumed0:76tests/4suites15.130s, including four native
+manager/WebSocket pixel-dimension+bluepixel cases. Types/build7788 pass; contract
+and inventory pass. Two runtime files net+3lines; recent045–049 net-282.
+Receipt device-scale-2026-09-22.json records sources, red evidence, cost cohort,
+rejected multiplier and unqualified limits. No source edits during finalowner.
+
+
+### BAS-WORK-050 — recording admission/lifetime investigation (no source edits)
+
+Feedback reread. Recall050:72hits/10corpora,5589 consumed. RF038 remaining
+recording transport does not carry leases; current start route also waits forDOM
+after pipeline startup, then admits preview against mutableSessionManager without
+checking whether stop/reset/lease handoff invalidated the recording. Test the
+bounded stopped-preview resurrection first with controlled DOM delay and actual
+route/WebSocket capture. No050source/test edits during049owner qualification.
+
+
+050 reproduction confirmed: controlled pipeline/DOM, realHTTP routes, native
+Chromium and localWebSocket. Stop200 precedes delayedStart200 and one nativeframe;
+normal controlpasses. /tmp/bas-record-start-red2-050.log; firstattemptmissingfixture
+PLAYWRIGHT_DRIVER_PORT failed beforeverdict, retained/tmp/bas-record-start-red-050.log.
+Existing RecordingData already carries monotonic generation, so a new lifecycle
+field/manager is unnecessary. Investigate deleting extra5sDOMwait after pipeline
+readiness and use existing generation/immutablelease to fence remaining awaits.
+No050source/test edits yet;049driver6465 pending.
+
+
+050 design before implementation: pipeline already verifies readiness and awaits
+initial navigation/document activation before returning Start. Delete route's extra
+DOM wait, then admit preview immediately under the existing frame coordinator.
+Reuse public pipeline.getGeneration() and its monotonic next generation; snapshot
+current execution/lease before body read, validate after each async boundary, and
+use the same bounded recording provider for frames. Reject superseded operation
+without stopping a newer one. No new generation field, timer or lifecycle registry.
+Scope existing recording-lifecycle route + owner tests/native fixture. RF038 full
+client lease transport remains explicitly open. Architecture target updated.
+
+
+049 finalowneruh-20260922-204804-a3e358bda829000613649d4a051355ca passes:
+1649tests/124suites,2tests/1suite skipped,405.005sowner/403.826sJest. Runtime/test
+hashes match. All049qualifications consumed. Managedrestart1852 admittedunderFB010;
+no050source/test edits until it finishes.
+
+
+049 managed1852 and profile13569 consumed: API/driver/UI healthy,0sessions,build
+4d7371aa74718651752a1756d800a60868f223f8ca1d2f15fe73be0260a1050c.
+Metadata equals048; three complete reads preserve original rollback. All049ops
+consumed. 050tests now admitted after049build;10real red cases1.353s include
+real recording pipeline/SDK/frame coordinator native test. First implementation
+reuses expected next generation and immutable server-admission lease; rejects
+stale continuations and frames, removes duplicate DOMwait. Focusedgreen pending.
+
+
+050 maintainedgreen56786 passes10regressions/2suites1.230s after10realred1.353s.
+Native case now uses real RecordingPipelineManager, SDK browser, frame manager and
+localWebSocket; capture starts without a secondDOMwait and staysstopped afterlate
+load completion. Existing page-events fixture now models real generation/lease
+and stopped pipeline state; its callback suppression assertion remains, and it
+also requires409 for supersededStart. Broaderfocused35703/types75930 pending.
+Runtime currently411->415(+4lines); deleted redundant wait but added necessary
+continuation fencing. No standalone size-reduction claim.
+
+
+050 broader focused35703:126pass/11fail12.861s. All11downstream native cases
+failed because new native route fixture used pull delivery and left its own
+initial navigation unacknowledged under the shared fixture session ID. Production
+retention correctly refused to overwrite that pending buffer. Fix fixture cleanup:
+join its pipeline stop, copy its own observations to capturedEntries, then ACK
+through the existing owner. No production acknowledgement rule/threshold changed.
+Types75930pass; broader focused rerun pending.
+
+
+050 finalfocused21110 consumed0:139tests/6suites16.932s;137-case priorrerun
+98784 also passed16.521s after fixtureACK cleanup. Two further controls preserve
+idempotent active retry and reject a newer same-public-ID generation without
+stopping it. Types/build36228pass; contract/inventory pass. Receipt
+record-start-lifetime-2026-09-22.json. Finaldriver99381,tidinessadmission51482,
+board32969 pending. Source/tests frozen;051wire-envelope investigation may use
+read-only/temporary fixtures. No051production edits yet.
+
+
+050tidiness51482/board32969 consumed. Onequietwait for20260922-210754-5fae9158
+consumedfailed; boardprog_36aea7d2-24e9-492e-b916-90a19b66737f has17unqualified/
+productfalse. Driver99381 remains pending; no edits while it qualifies.
+
+### BAS-WORK-051 — recording wire lease investigation (no implementation)
+
+Reuse050recall for same ownership intent. ActualHTTP route/pipeline-effect fixture
+reproduces5fail/3controls after050: missing/stale start and missing/stale/released
+stop mutate capture. Releasedstart/currentstart/currentstop controls pass. Evidence
+/tmp/bas-recording-lease-wire-red-051.log. GoClientStartRecording lacksowner/lease,
+StopRecording usespostNoBody. GoSession holds immutableexecutionID/leaseID but
+its recording methods discardthem; live-capture bypassesSession throughClient,
+and stophandler callsunownedDriverClient. Convertthatcallerchain, no lookup-based
+lease guessing or compatibility fallback. Also observed source-only receipt gaps:
+Go start/stop/status types omitRecordingID; handler generatesa newUUID forStart,
+omitsStop/Statusidentity, and JSON-any conversion discardsstopped_at becauseproto
+expectscompleted_at. Reproduce these separately before selecting their repair scope.
+No051source/test edits before050qualification/deployment.
+
+
+051 Go wire probe confirms5failures with actualClient, ownedGoSession andhttptest:
+owned start/stop omit execution_id/lease_id; start/stop/status discard recording_id.
+/tmp/bas-recording-go-wire-red-051.log. These are real wire observations, not just
+source inference. RF083 registered inPROBLEMS; canonical proto already defines
+recording IDs. Actual proto timestamp converter probe is inprogress. No051source
+edits while050driver99381 runs.
+
+
+050 fullowneruh-20260922-210748-62e4a22283c83f9c5ee1c35bec8ed824 failed:
+1658tests pass/3fail,123suitespass/1fail,2tests/1suiteskipped,334.400sowner/333.609sJest.
+99381consumed. Failingintegration/record-mode doubles lackgetSessionForLease and
+pipelinegeneration/state transition; repaired doubles to model existing contracts.
+Desired200/409 assertions unchanged. No production code changed after qualification.
+Scopedfixture/route/nativechecks andtypes pending; no050deployment.
+051actualproto converter confirms timestamp loss: stopped_at input becomesnull
+completed_at, whilerecordingID/actioncountcontrols survive. Temporarymodule-child
+probe removed afterexecution;/tmp/bas-recording-proto-wire-red-051.log retained.
+
+
+050fixture repair93165/types28868 consumed0. Existing integration/record-mode
+doubles now validate actual owner/lease and model pipeline generation/startcapture;
+original200/409 assertions pass. Runtime is unchanged from focused/native-qualified
+050. Adapted execution choice: batch final050qualification/deployment with051's
+recording wire repair instead of another intermediate6-minuteowner/4-minuterestart.
+Prior050fullownerfailure remains retained, not rewritten aspass. Live049healthy;
+noowneroperationspending. 051 changes require fresh scoped+full qualification and
+a finalcombined source/build receipt. This replaces the earlier self-imposed
+050deployment-before051 order; authority/scope/ratchets are unchanged.
+
+
+BAS-FB-011 captured and answered at goal level: improved reliability and measured
+debt, healthydeployed049, still core functional work and17unqualified release
+outcomes; no percent/dateclaim. Continuous work proceeds into recording ownership
+and complete journey/recovery evidence. No pending owner operations.

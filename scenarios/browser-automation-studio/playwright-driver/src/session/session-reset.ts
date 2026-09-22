@@ -2,11 +2,15 @@ import type { Route } from 'rebrowser-playwright';
 import type { SessionState } from '../types';
 import { cleanupSession } from '../infra';
 import { assertRecordingAcknowledged } from '../recording';
+import { stopFrameStreaming } from '../frame-streaming';
 
 /** Clear managed context state; SessionManager owns admission and phase changes. */
 export async function resetSessionState(session: SessionState): Promise<void> {
   if (session.pipelineManager?.isRecording()) await session.pipelineManager.stopRecording();
   assertRecordingAcknowledged(session.id);
+  session.pageLifecycleCleanup?.();
+  session.pageLifecycleCleanup = undefined;
+  await stopFrameStreaming(session.id);
   const page = session.pages[0] ?? session.page;
   for (const other of session.context.pages()) {
     if (other !== page) await other.close();
