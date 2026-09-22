@@ -16,8 +16,8 @@ require (
 	github.com/sony/gobreaker/v2 v2.3.0
 	github.com/stretchr/testify v1.12.1
 	github.com/testcontainers/testcontainers-go v0.28.0
-	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/ai-go v0.0.0
+	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/measures-go v0.0.0
 	github.com/vrooli/platform-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0

@@ -17,6 +17,7 @@
 - [ ] OT-P0-002 | Trustworthy validation evidence | Persist replay evidence with integrity metadata and validate scenario behavior through Test Genie.
 - [ ] OT-P0-003 | Maintainable product architecture | Keep UI, API, storage, driver, and proto boundaries documented, testable, and governed.
 - [ ] OT-P0-004 | Measurable agent reuse and improvement | When an agent performs a browser task, BAS shall expose governed workflow discovery, validated promotion and version-preserving repair, with attributable attempt outcomes and comparable agent-effort measurements.
+- [ ] OT-P0-005 | Browser-first rehabilitation | When people browse or agents validate through BAS, the system shall preserve every declared browser/profile/recording/evidence/platform journey and meet the rehabilitation qualification contract in docs/internal/REFRACTOR_CONTRACT.json.
 
 ### 🟠 P1 – Should have post-launch
 

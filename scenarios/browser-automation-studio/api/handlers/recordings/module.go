@@ -15,6 +15,7 @@ package recordings
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/connectx"
@@ -29,6 +30,8 @@ import (
 // used by the RecordingsService handler. Tests inject a fake; production passes
 // *sessionprofile.Service.
 type SessionProfileRepo interface {
+	UpdateStorageState(id sessionprofilepersistence.ProfileID, modify func(json.RawMessage) (json.RawMessage, error)) (*sessionprofilepersistence.SessionProfile, error)
+	UpdateProfile(id sessionprofilepersistence.ProfileID, modify func(*sessionprofilepersistence.SessionProfile) error) (*sessionprofilepersistence.SessionProfile, error)
 	GetProfile(id sessionprofilepersistence.ProfileID) (*sessionprofilepersistence.SessionProfile, error)
 	SaveStorageState(id sessionprofilepersistence.ProfileID, storageState []byte) (*sessionprofilepersistence.SessionProfile, error)
 	MaskStorageState(raw []byte) (*sessionprofile.MaskedStorageState, error)

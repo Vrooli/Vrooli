@@ -28,7 +28,7 @@ import { Profiler, useCallback, useEffect, useMemo, useRef, useState, type React
 import clsx from 'clsx';
 import { BrowserChrome, type ExecutionStatus, type NavigationStackData } from '../capture/BrowserChrome';
 import type { FrameStats } from '../capture/PlaywrightView';
-import type { FrameStatsAggregated } from '../hooks/usePerfStats';
+import type { FrameStatsAggregated } from '../frame-streaming/types';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useReplaySettingsSync } from '@/domains/replay-style';
 import { useReplayPresentationModel } from '@/domains/exports/replay/useReplayPresentationModel';

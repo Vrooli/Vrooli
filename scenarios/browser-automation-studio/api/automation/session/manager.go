@@ -128,22 +128,35 @@ func (m *Manager) Create(ctx context.Context, spec Spec) (*Session, error) {
 		return nil, fmt.Errorf("create session: %w", err)
 	}
 
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if existing := m.sessions[resp.SessionID]; existing != nil && existing.executionID == spec.ExecutionID.String() && existing.leaseID == resp.LeaseID {
+		existing.mu.Lock()
+		defer existing.mu.Unlock()
+		if existing.terminal != nil {
+			return nil, fmt.Errorf("create session: returned lease is terminating")
+		}
+		if resp.LastInstructionSequence > existing.lastInstructionSequence {
+			existing.lastInstructionSequence = resp.LastInstructionSequence
+		}
+		return existing, nil
+	}
+
 	session := &Session{
-		id:             resp.SessionID,
-		executionID:    spec.ExecutionID.String(),
-		leaseID:        resp.LeaseID,
-		mode:           spec.Mode,
-		client:         m.client,
-		actualViewport: resp.ActualViewport,
-		recording:      spec.Recording,
+		id:                      resp.SessionID,
+		lastInstructionSequence: resp.LastInstructionSequence,
+		executionID:             spec.ExecutionID.String(),
+		leaseID:                 resp.LeaseID,
+		mode:                    spec.Mode,
+		client:                  m.client,
+		actualViewport:          resp.ActualViewport,
+		recording:               spec.Recording,
 	}
 	session.onTerminal = func() {
 		m.forget(session.id, session)
 	}
 
-	m.mu.Lock()
 	m.sessions[session.id] = session
-	m.mu.Unlock()
 
 	m.log.WithFields(logrus.Fields{
 		"session_id":   session.id,

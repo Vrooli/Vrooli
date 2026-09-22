@@ -43,6 +43,7 @@ describe("Observatory Today", () => {
     expect((await screen.findByTestId("page-today"))).toHaveClass("scene-today");
     expect(await screen.findByRole("region", { name: "Next step" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Next step" })).toHaveTextContent("Write the brief");
+    expect(screen.queryByRole("button", { name: "Capture task" })).not.toBeInTheDocument();
   });
 
   it("renders the first real work item from the work domain", async () => {
@@ -67,12 +68,14 @@ describe("Observatory Today", () => {
     expect(screen.getByText("UP NEXT · ACCEPTED")).toBeInTheDocument();
     expect(screen.getByText("Accepted for 10:00 · 45 minutes")).toBeInTheDocument();
     expect(await screen.findByText("1 overdue · 45 min")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Day" }));
-    await userEvent.click(screen.getByRole("button", { name: "Night" }));
-    await userEvent.click(screen.getByRole("button", { name: "Auto" }));
+    await userEvent.click(screen.getByRole("button", { name: /Appearance: Auto/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Appearance: Day/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Appearance: Night/ }));
     await userEvent.click(screen.getByRole("button", { name: "Open draft" }));
     expect(screen.getByRole("dialog", { name: "Work item details" })).toBeInTheDocument();
-    await userEvent.click(screen.getByTestId("overlays.dialog.close"));
+    const dismiss = screen.queryByTestId("overlays.responsive-dialog.close") ?? screen.queryByTestId("overlays.responsive-dialog.grabber");
+    if (!dismiss) throw new Error("Responsive dialog dismiss affordance was not rendered");
+    await userEvent.click(dismiss);
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Work item details" })).not.toBeInTheDocument());
   });
 

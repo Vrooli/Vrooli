@@ -1,0 +1,935 @@
+{
+  "cycle": "035",
+  "issues": [
+    "BAS-RF-004",
+    "BAS-RF-030",
+    "BAS-RF-070",
+    "BAS-RF-072"
+  ],
+  "status": "deployed_named_cases_qualified",
+  "updated_at": "2026-09-22T16:21:03.916694+00:00",
+  "live_build": "sha256:ce4d775d1ee2c2ba22bd0c8c7ceed449bb2e84cfd1cc7315f869859a12460acc",
+  "native_driver": {
+    "log": "/tmp/bas-frame-native-target-red-035.txt",
+    "result": "onefailure/15filtered,1.973s; successful enter/click affects main1 child0"
+  },
+  "SDK": {
+    "before": "/tmp/bas-frame-routing-probe-035.json",
+    "debug": "/tmp/bas-frame-routing-debug-035.txt",
+    "candidate": "/tmp/bas-frame-routing-sdk2-probe-035.json",
+    "candidate_source": "/tmp/bas-rebrowser-core-035/lib/server/chromium/crConnection.js",
+    "limitations": [
+      "Cross-realm binding globals remain; full stealth and Chromium security unqualified",
+      "SDK test corpus is bounded, no full upstream test suite"
+    ],
+    "rejected": [
+      "addInitScript void/property did not repair realm discovery",
+      "initial isolated prototype added binding before resolving realm; timed out",
+      "Global Runtime-fix disablement and alwaysIsolated semantic changes are not selected"
+    ],
+    "installed_patch": "playwright-driver/patches/rebrowser-playwright-core@1.52.0.patch",
+    "patch_sha256": "90014f7ff3545204a36ba1d8bdf95069f4b258aa61b3312496bee0e74ca46486",
+    "matrix": "/tmp/bas-frame-routing-matrix-root-035.json",
+    "first_scripted_document": "5 fresh-browser successes; included in maintained SDK matrix test",
+    "governed_install": "/tmp/bas-deps-patched-install-ack-035.json",
+    "runtime_lines_before": 1879,
+    "runtime_lines_after": 1890,
+    "cost": {
+      "fixture": "same main-document sentinel; context creation and navigation excluded",
+      "units": "microseconds",
+      "results": [
+        {
+          "trial": 0,
+          "variant": "before",
+          "samples": 30,
+          "cold_median_us": 4170.936999999981,
+          "warm_median_us": 384.3209999999999,
+          "cold_us": [
+            5014.807000000019,
+            3896.936000000096,
+            4648.547000000008,
+            4347.386000000029,
+            3428.8549999999987,
+            3559.3959999999925,
+            4167.696999999976,
+            5109.117999999967,
+            4503.117000000088,
+            4148.425999999972,
+            3434.1249999999945,
+            3878.9659999999913,
+            4170.936999999981,
+            3968.305999999984,
+            3541.6060000000016,
+            4310.067000000004,
+            4567.066999999952,
+            4134.7769999999855,
+            4168.54699999999,
+            3876.1959999999362,
+            4806.18800000002,
+            4159.257000000025,
+            4041.676000000052,
+            4581.07700000005,
+            4330.655999999863,
+            3614.135000000033,
+            5104.616999999962,
+            4387.637000000041,
+            5515.20800000003,
+            6434.34000000002
+          ],
+          "warm_us": [
+            477.47100000003684,
+            373.7299999999095,
+            530.2810000000591,
+            431.72099999992497,
+            293.73099999997976,
+            376.07100000002447,
+            400.08000000000266,
+            464.3899999999803,
+            445.91099999991,
+            390.3210000000854,
+            302.60999999995875,
+            467.850999999996,
+            384.3209999999999,
+            355.40100000002894,
+            383.01000000001295,
+            506.28099999994447,
+            347.2600000000057,
+            355.09000000001834,
+            328.1200000001263,
+            328.6510000000362,
+            405.659999999898,
+            471.9310000000405,
+            262.38100000000486,
+            343.87100000003556,
+            325.75100000008206,
+            310.8209999998053,
+            405.7510000000093,
+            403.54099999990467,
+            368.2209999999486,
+            417.63099999980113
+          ]
+        },
+        {
+          "trial": 0,
+          "variant": "after",
+          "samples": 30,
+          "cold_median_us": 2610.0040000001172,
+          "warm_median_us": 372.9110000001583,
+          "cold_us": [
+            2558.3540000000085,
+            2891.394999999875,
+            2332.382999999936,
+            2325.433000000203,
+            3001.884000000018,
+            2630.3640000000996,
+            2746.733999999833,
+            2745.783999999958,
+            2332.8140000000985,
+            3549.215000000004,
+            2610.0040000001172,
+            3185.934999999972,
+            2361.0439999999926,
+            2559.5539999999346,
+            2587.7329999998437,
+            3229.494999999588,
+            2493.8539999998284,
+            2120.8630000000994,
+            2246.0039999996297,
+            2711.9739999998274,
+            2376.38300000026,
+            2275.0339999997777,
+            2624.3039999999382,
+            2846.9850000001315,
+            2885.1439999998547,
+            2446.2929999999687,
+            2661.674000000403,
+            2544.9130000001787,
+            2329.353000000083,
+            2618.8239999996767
+          ],
+          "warm_us": [
+            344.9200000000019,
+            398.65000000008877,
+            366.7410000000473,
+            329.5509999998103,
+            362.4010000000908,
+            329.6510000000126,
+            327.701000000161,
+            372.9110000001583,
+            306.3999999999396,
+            410.4609999999411,
+            436.72099999980674,
+            411.6109999999935,
+            341.8500000000222,
+            324.98099999997976,
+            444.8210000000472,
+            282.4000000000524,
+            292.17000000016924,
+            274.6600000000399,
+            284.52000000015687,
+            574.1510000002563,
+            307.5309999999263,
+            380.8710000002975,
+            386.16099999990183,
+            508.3110000000488,
+            386.31100000020524,
+            409.7610000003442,
+            563.9809999997851,
+            878.4319999999752,
+            349.1109999999935,
+            421.19099999990794
+          ]
+        },
+        {
+          "trial": 1,
+          "variant": "after",
+          "samples": 30,
+          "cold_median_us": 2357.3240000000624,
+          "warm_median_us": 318.0509999997412,
+          "cold_us": [
+            2302.642999999989,
+            2285.6729999998606,
+            2304.95400000018,
+            2187.953000000107,
+            2538.304000000153,
+            2183.9340000001357,
+            2251.104000000396,
+            2395.354000000225,
+            2239.853999999923,
+            2357.3240000000624,
+            2695.0739999997495,
+            2294.0530000000763,
+            2800.7840000000215,
+            2639.9639999999636,
+            2198.4440000001086,
+            2619.0340000002834,
+            2075.1130000003286,
+            2229.83400000021,
+            2169.9429999998756,
+            2695.6740000000536,
+            2240.77299999999,
+            2385.063999999602,
+            2424.0130000002864,
+            3173.925000000054,
+            2736.7340000000695,
+            2715.4239999999845,
+            2055.022999999892,
+            2085.97299999974,
+            2579.744000000119,
+            2385.1730000001226
+          ],
+          "warm_us": [
+            333.6309999999685,
+            369.1800000001422,
+            262.96000000002095,
+            245.12000000004264,
+            283.48000000005413,
+            269.7299999999814,
+            301.16999999972904,
+            327.3799999997209,
+            333.1900000002861,
+            367.5399999997353,
+            461.72100000012506,
+            308.78100000018094,
+            318.0509999997412,
+            388.7609999997039,
+            290.7500000001164,
+            340.96999999974287,
+            237.70100000001548,
+            292.4199999997654,
+            491.8410000000222,
+            341.2299999999959,
+            279.22099999977945,
+            361.1300000002302,
+            295.24099999980535,
+            272.09099999981845,
+            454.4310000001133,
+            447.7710000001025,
+            285.4010000000926,
+            282.1710000002895,
+            343.2710000001862,
+            271.02100000001883
+          ]
+        },
+        {
+          "trial": 1,
+          "variant": "before",
+          "samples": 30,
+          "cold_median_us": 3924.9159999999392,
+          "warm_median_us": 347.40000000010696,
+          "cold_us": [
+            4103.915999999572,
+            3655.8860000000095,
+            3924.9159999999392,
+            3921.256000000085,
+            3550.0850000003084,
+            4416.157000000112,
+            4233.386000000337,
+            4500.226999999995,
+            3807.416000000103,
+            4044.796000000133,
+            3936.2160000000586,
+            4519.056999999975,
+            3984.9559999997837,
+            5209.048000000166,
+            3864.1359999996894,
+            4117.2459999997955,
+            3596.0660000000644,
+            3946.096000000125,
+            6434.810000000198,
+            3750.7949999994707,
+            3470.0050000001283,
+            3691.0360000001674,
+            3624.6060000003126,
+            4378.695999999763,
+            3588.1149999995614,
+            3556.8050000001676,
+            3813.7260000003153,
+            4177.756000000045,
+            3396.5849999995044,
+            3564.726000000519
+          ],
+          "warm_us": [
+            281.73000000015236,
+            467.02000000004773,
+            284.610000000157,
+            325.5599999997685,
+            282.13099999993574,
+            320.15000000001237,
+            351.58099999989645,
+            388.12099999995553,
+            335.56999999973414,
+            320.3009999997448,
+            676.2410000001182,
+            326.1200000001736,
+            267.47100000011415,
+            664.8509999999987,
+            347.40000000010696,
+            442.4010000002454,
+            357.16099999990547,
+            358.25100000010934,
+            617.9199999996854,
+            315.70100000044476,
+            285.32999999970343,
+            444.37099999959173,
+            371.4799999997922,
+            310.4410000005373,
+            284.1610000004948,
+            337.23099999951955,
+            351.0200000000623,
+            344.80100000018865,
+            375.6309999998848,
+            466.56999999959226
+          ]
+        },
+        {
+          "trial": 2,
+          "variant": "before",
+          "samples": 30,
+          "cold_median_us": 3422.595000000001,
+          "warm_median_us": 282.0099999999002,
+          "cold_us": [
+            4074.1369999996095,
+            3996.8159999998534,
+            3386.5359999999782,
+            3293.0649999998423,
+            3268.7550000000556,
+            3815.37599999956,
+            3103.0739999996513,
+            3124.315000000024,
+            3737.216000000444,
+            3170.845000000554,
+            3126.4249999994718,
+            3523.37499999976,
+            3646.725999999944,
+            3422.595000000001,
+            4040.4060000000754,
+            3316.7050000001836,
+            3616.4550000003146,
+            4153.046000000359,
+            3177.554999999302,
+            3664.5150000003923,
+            3147.414999999455,
+            3737.1759999996357,
+            3731.155999999828,
+            3376.0050000000774,
+            3627.1450000003824,
+            3237.355000000207,
+            3399.225000000115,
+            3410.515999999916,
+            3828.9660000000367,
+            3341.59499999987
+          ],
+          "warm_us": [
+            447.95000000067375,
+            270.37100000052305,
+            286.7400000004636,
+            257.75100000009843,
+            302.9210000004241,
+            274.8300000002928,
+            247.4210000000312,
+            974.8820000004343,
+            282.0099999999002,
+            251.13099999998667,
+            235.40000000048167,
+            285.24100000049657,
+            318.53099999989354,
+            336.4509999992151,
+            271.4510000005248,
+            401.52999999918393,
+            433.6109999994733,
+            246.60099999982776,
+            307.34100000063336,
+            347.6309999996374,
+            263.18000000082975,
+            248.51000000035128,
+            276.4499999993859,
+            261.90000000042346,
+            257.60100000024977,
+            274.6309999993173,
+            308.55999999948835,
+            298.5799999996743,
+            344.970000000103,
+            258.01099999989674
+          ]
+        },
+        {
+          "trial": 2,
+          "variant": "after",
+          "samples": 30,
+          "cold_median_us": 2582.9539999995177,
+          "warm_median_us": 348.5799999998562,
+          "cold_us": [
+            2585.6039999998757,
+            2326.383999999962,
+            2127.383000000009,
+            2252.3229999997056,
+            2280.3430000003573,
+            2392.743999999766,
+            2311.9240000005448,
+            2673.0539999998655,
+            2345.2939999997398,
+            2274.583999999777,
+            2690.2939999999944,
+            2185.6629999992947,
+            3079.1550000003554,
+            2589.563999999882,
+            3037.655000000086,
+            2722.2350000001825,
+            2342.623000000458,
+            3014.4940000000133,
+            2231.713000000127,
+            2654.474000000846,
+            2818.463999999949,
+            2582.9539999995177,
+            2175.2839999999196,
+            2142.7029999995284,
+            2978.8449999996374,
+            2760.8039999995526,
+            2658.574000000044,
+            2429.8530000005485,
+            3109.563999999409,
+            2201.194000000214
+          ],
+          "warm_us": [
+            368.69100000058097,
+            312.71100000049046,
+            284.2609999997876,
+            327.3509999999078,
+            476.7809999993915,
+            297.2700000000259,
+            344.0099999997983,
+            503.2410000003438,
+            294.3100000002232,
+            274.199999999837,
+            359.3909999999596,
+            282.47100000044156,
+            612.1510000002672,
+            431.8309999998746,
+            351.8899999999121,
+            292.70999999971536,
+            525.5209999995714,
+            478.29100000035396,
+            300.359999999273,
+            299.8999999999796,
+            398.01100000022416,
+            436.3309999998819,
+            331.1700000003839,
+            309.36100000053557,
+            348.5799999998562,
+            451.7810000006648,
+            316.15099999999074,
+            414.0109999998458,
+            442.351000000599,
+            305.1500000001397
+          ]
+        }
+      ]
+    }
+  },
+  "dependency_gateway": {
+    "dry_run": "/tmp/bas-deps-dry-035.json",
+    "result": "existing rebrowser-playwright1.52.0 unrecorded; no install performed",
+    "upstream": "https://github.com/rebrowser/rebrowser-patches/releases"
+  },
+  "pending_operations": [],
+  "next": "RF073 independent evaluation-repeat defect confirmed; continue continuous goal.",
+  "native_expanded": {
+    "scope159": "/tmp/bas-frame-native-expanded4-035.txt",
+    "scope29": "/tmp/bas-frame-download-repair-035.txt",
+    "page_boundary": "/tmp/bas-frame-page-boundary2-035.txt",
+    "download_red": "/tmp/bas-frame-other-dom-035.txt"
+  },
+  "security": {
+    "receipt": "/tmp/bas-dependency-security-035.json",
+    "issue": "BAS-RF-071",
+    "result": "failed 8errors/773findings; no rebrowser advisory found"
+  },
+  "measurements": {
+    "runtime_files": [
+      {
+        "path": "src/handlers/assertion.ts",
+        "before_lines": 397,
+        "after_lines": 396,
+        "sha256": "055e88263d57a4f6e8267d320ae71d65d10249688784265950373cea2ab8b644"
+      },
+      {
+        "path": "src/handlers/base.ts",
+        "before_lines": 250,
+        "after_lines": 267,
+        "sha256": "f562f35d4a8b4955811024449da3dbfb90f4b221301061ee3fdbb4d5b4f6cbd8"
+      },
+      {
+        "path": "src/handlers/behavior-utils.ts",
+        "before_lines": 321,
+        "after_lines": 321,
+        "sha256": "fc52ff1039dc2599d6040026204e8150dee78d3e21b8f6ed183c7030d3d9fc11"
+      },
+      {
+        "path": "src/handlers/cookie-storage.ts",
+        "before_lines": 318,
+        "after_lines": 319,
+        "sha256": "d446c40f5edaf007f359be5098f92e95a5775f68b53e9442d0c0c38ab05d1caa"
+      },
+      {
+        "path": "src/handlers/download.ts",
+        "before_lines": 237,
+        "after_lines": 63,
+        "sha256": "8b9a4857bb10e11bd4d1311df1be9c148519e1c78329d15ec0ef7412fee7d5b1"
+      },
+      {
+        "path": "src/handlers/extraction.ts",
+        "before_lines": 187,
+        "after_lines": 189,
+        "sha256": "3f436a6a5964d73b2007dcc4f17dcb1a2d60e9d7adcb3124cb2b89c7f111f8ef"
+      },
+      {
+        "path": "src/handlers/frame.ts",
+        "before_lines": 298,
+        "after_lines": 127,
+        "sha256": "93aebc172942883f624cd809601a455696a00a133509a3bcccb6e7901cb1e439"
+      },
+      {
+        "path": "src/handlers/gesture.ts",
+        "before_lines": 820,
+        "after_lines": 829,
+        "sha256": "02ade3a8c10a6e8ddce6a12545c1eda12a19b32a4b9ce4ea5070fcba0628202f"
+      },
+      {
+        "path": "src/handlers/interaction.ts",
+        "before_lines": 303,
+        "after_lines": 307,
+        "sha256": "679e57404294b37d5c345916f972d3e85e61e63cae5e4b14a55afae3956d8024"
+      },
+      {
+        "path": "src/handlers/keyboard.ts",
+        "before_lines": 185,
+        "after_lines": 202,
+        "sha256": "be2537b8e1eb4dea066ff44e21601888e5d968c3d4c2c857f80b2aa7ace5d81d"
+      },
+      {
+        "path": "src/handlers/scroll.ts",
+        "before_lines": 97,
+        "after_lines": 97,
+        "sha256": "aba1eb7b0e10dac78fe450478188962d3c63a8448b2a9bef74a83400c593b9d9"
+      },
+      {
+        "path": "src/handlers/select.ts",
+        "before_lines": 171,
+        "after_lines": 171,
+        "sha256": "9399be9b77a9ab78e0e860bddc2a0d0b6995032bf89c974ad2e968a141e49fae"
+      },
+      {
+        "path": "src/handlers/upload.ts",
+        "before_lines": 175,
+        "after_lines": 175,
+        "sha256": "f8fde45d51986d373db41c4ed11c32e2a6524abb00d5f7374f81b32fea7bbae9"
+      },
+      {
+        "path": "src/handlers/wait.ts",
+        "before_lines": 111,
+        "after_lines": 112,
+        "sha256": "1c617b3930a0699e0de065cb2f573b44d9ac67c5f6d9457a684f44960e1baa43"
+      },
+      {
+        "path": "src/infra/index.ts",
+        "before_lines": 44,
+        "after_lines": 43,
+        "sha256": "9207c01886b73457bab543ef8baccafa176ffeb486279d7f5bb0299f212714f9"
+      },
+      {
+        "path": "src/infra/operation-tracker.ts",
+        "before_lines": 305,
+        "after_lines": 154,
+        "sha256": "6f9568f636c6f2fca5581df9dcaafcc7f21d4def33b311f87e3a55b3be7c58b4"
+      },
+      {
+        "path": "src/routes/record-mode/recording-pages.ts",
+        "before_lines": 271,
+        "after_lines": 273,
+        "sha256": "97d3c18bc10f7ab4a0ae3c6153e603e8ec77c0e6d8a956c7b72eaefde7c8f8e6"
+      },
+      {
+        "path": "src/routes/session-close.ts",
+        "before_lines": 85,
+        "after_lines": 79,
+        "sha256": "164712314b3c42f7f3d49fb9acb8ab8af467e0923d36e3fb3c2bc91894669aab"
+      },
+      {
+        "path": "src/routes/session-reset.ts",
+        "before_lines": 134,
+        "after_lines": 130,
+        "sha256": "d43e04943e17893428b565e1446248c6fb36765591cdda822f76458bac3e3d1d"
+      },
+      {
+        "path": "src/routes/session-run.ts",
+        "before_lines": 152,
+        "after_lines": 159,
+        "sha256": "2cd7db6cc871cd5df8ab2553feae89266d142d037a3fdafa5dccd114277cce6f"
+      },
+      {
+        "path": "src/telemetry/element-context.ts",
+        "before_lines": 311,
+        "after_lines": 311,
+        "sha256": "bebaef0d97c981fae80ca44a89ad71d91083b5a84c377cbd77a7c7f6ccce1dee"
+      }
+    ],
+    "SDK_runtime": [
+      {
+        "path": "lib/server/chromium/crConnection.js",
+        "before_lines": 324,
+        "after_lines": 324
+      },
+      {
+        "path": "lib/server/frames.js",
+        "before_lines": 1555,
+        "after_lines": 1557
+      }
+    ],
+    "runtime_totals": {
+      "files": 21,
+      "before": 5172,
+      "after": 4724
+    },
+    "SDK_totals": {
+      "before": 1879,
+      "after": 1881
+    },
+    "final_runtime": {
+      "runtime_files": [
+        {
+          "path": "src/handlers/assertion.ts",
+          "before_lines": 397,
+          "after_lines": 396,
+          "sha256": "055e88263d57a4f6e8267d320ae71d65d10249688784265950373cea2ab8b644"
+        },
+        {
+          "path": "src/handlers/base.ts",
+          "before_lines": 250,
+          "after_lines": 267,
+          "sha256": "f562f35d4a8b4955811024449da3dbfb90f4b221301061ee3fdbb4d5b4f6cbd8"
+        },
+        {
+          "path": "src/handlers/behavior-utils.ts",
+          "before_lines": 321,
+          "after_lines": 321,
+          "sha256": "fc52ff1039dc2599d6040026204e8150dee78d3e21b8f6ed183c7030d3d9fc11"
+        },
+        {
+          "path": "src/handlers/cookie-storage.ts",
+          "before_lines": 318,
+          "after_lines": 319,
+          "sha256": "d446c40f5edaf007f359be5098f92e95a5775f68b53e9442d0c0c38ab05d1caa"
+        },
+        {
+          "path": "src/handlers/download.ts",
+          "before_lines": 237,
+          "after_lines": 63,
+          "sha256": "8b9a4857bb10e11bd4d1311df1be9c148519e1c78329d15ec0ef7412fee7d5b1"
+        },
+        {
+          "path": "src/handlers/extraction.ts",
+          "before_lines": 187,
+          "after_lines": 189,
+          "sha256": "3f436a6a5964d73b2007dcc4f17dcb1a2d60e9d7adcb3124cb2b89c7f111f8ef"
+        },
+        {
+          "path": "src/handlers/frame.ts",
+          "before_lines": 298,
+          "after_lines": 127,
+          "sha256": "93aebc172942883f624cd809601a455696a00a133509a3bcccb6e7901cb1e439"
+        },
+        {
+          "path": "src/handlers/gesture.ts",
+          "before_lines": 820,
+          "after_lines": 829,
+          "sha256": "02ade3a8c10a6e8ddce6a12545c1eda12a19b32a4b9ce4ea5070fcba0628202f"
+        },
+        {
+          "path": "src/handlers/interaction.ts",
+          "before_lines": 303,
+          "after_lines": 307,
+          "sha256": "679e57404294b37d5c345916f972d3e85e61e63cae5e4b14a55afae3956d8024"
+        },
+        {
+          "path": "src/handlers/keyboard.ts",
+          "before_lines": 185,
+          "after_lines": 202,
+          "sha256": "be2537b8e1eb4dea066ff44e21601888e5d968c3d4c2c857f80b2aa7ace5d81d"
+        },
+        {
+          "path": "src/handlers/scroll.ts",
+          "before_lines": 97,
+          "after_lines": 97,
+          "sha256": "aba1eb7b0e10dac78fe450478188962d3c63a8448b2a9bef74a83400c593b9d9"
+        },
+        {
+          "path": "src/handlers/select.ts",
+          "before_lines": 171,
+          "after_lines": 171,
+          "sha256": "9399be9b77a9ab78e0e860bddc2a0d0b6995032bf89c974ad2e968a141e49fae"
+        },
+        {
+          "path": "src/handlers/upload.ts",
+          "before_lines": 175,
+          "after_lines": 175,
+          "sha256": "f8fde45d51986d373db41c4ed11c32e2a6524abb00d5f7374f81b32fea7bbae9"
+        },
+        {
+          "path": "src/handlers/wait.ts",
+          "before_lines": 111,
+          "after_lines": 112,
+          "sha256": "1c617b3930a0699e0de065cb2f573b44d9ac67c5f6d9457a684f44960e1baa43"
+        },
+        {
+          "path": "src/infra/index.ts",
+          "before_lines": 44,
+          "after_lines": 43,
+          "sha256": "9207c01886b73457bab543ef8baccafa176ffeb486279d7f5bb0299f212714f9"
+        },
+        {
+          "path": "src/infra/operation-tracker.ts",
+          "before_lines": 305,
+          "after_lines": 154,
+          "sha256": "6f9568f636c6f2fca5581df9dcaafcc7f21d4def33b311f87e3a55b3be7c58b4"
+        },
+        {
+          "path": "src/routes/record-mode/recording-pages.ts",
+          "before_lines": 271,
+          "after_lines": 273,
+          "sha256": "97d3c18bc10f7ab4a0ae3c6153e603e8ec77c0e6d8a956c7b72eaefde7c8f8e6"
+        },
+        {
+          "path": "src/routes/session-close.ts",
+          "before_lines": 85,
+          "after_lines": 79,
+          "sha256": "164712314b3c42f7f3d49fb9acb8ab8af467e0923d36e3fb3c2bc91894669aab"
+        },
+        {
+          "path": "src/routes/session-reset.ts",
+          "before_lines": 134,
+          "after_lines": 130,
+          "sha256": "d43e04943e17893428b565e1446248c6fb36765591cdda822f76458bac3e3d1d"
+        },
+        {
+          "path": "src/routes/session-run.ts",
+          "before_lines": 152,
+          "after_lines": 159,
+          "sha256": "2cd7db6cc871cd5df8ab2553feae89266d142d037a3fdafa5dccd114277cce6f"
+        },
+        {
+          "path": "src/telemetry/element-context.ts",
+          "before_lines": 311,
+          "after_lines": 311,
+          "sha256": "bebaef0d97c981fae80ca44a89ad71d91083b5a84c377cbd77a7c7f6ccce1dee"
+        }
+      ],
+      "SDK_runtime": [
+        {
+          "path": "lib/server/chromium/crConnection.js",
+          "before_lines": 324,
+          "after_lines": 333
+        },
+        {
+          "path": "lib/server/frames.js",
+          "before_lines": 1555,
+          "after_lines": 1557
+        }
+      ],
+      "runtime_totals": {
+        "files": 21,
+        "before": 5172,
+        "after": 4724
+      },
+      "SDK_totals": {
+        "before": 1879,
+        "after": 1890
+      }
+    },
+    "final_net_line_delta": -437,
+    "scoped_runtime_hash_drift": []
+  },
+  "tidiness": {
+    "run": "20260922-160940-cd080fc7",
+    "status": "failed",
+    "seconds": 5,
+    "quiet_wait_consumed": true,
+    "totalFindings": 1116,
+    "longFiles": 103,
+    "complexity": 387,
+    "duplication": 607,
+    "coupling": 18,
+    "duplicationLineDebt": 33540
+  },
+  "board": {
+    "receipt": "/tmp/bas-frame-board-035.json",
+    "required": 17,
+    "pending": 17,
+    "product_qualified": false
+  },
+  "owner_first": {
+    "run": "uh-20260922-160935-a45ef0d56f9e9bedcbddffeba01e6f85",
+    "status": "failed",
+    "seconds": 325.444,
+    "passed": 1544,
+    "failed": 4,
+    "skipped": 2,
+    "cause": "three incomplete recording-page mocks; one SDK context acknowledgement failure in audio fixture"
+  },
+  "receipt_order": {
+    "red": "/tmp/bas-frame-binding-order-red-035.txt",
+    "green": "/tmp/bas-frame-ack-audio-035.txt",
+    "scope": "31cases/3suites passed19.940s",
+    "limits": "Does not establish cause of first full audio failure"
+  },
+  "full_driver_final": {
+    "run_id": "uh-20260922-162102-ce8fafecad1445ee49c7f58ab339b894",
+    "status": "passed",
+    "commands": [
+      {
+        "status": "passed",
+        "duration_ms": "351446"
+      }
+    ],
+    "tests_passed": 1549,
+    "tests_skipped": 2,
+    "suites_passed": 124,
+    "suites_skipped": 1,
+    "receipt": "/tmp/bas-frame-driver-owner-final-035.json",
+    "consumed_tool_session": 27696
+  },
+  "publication": {
+    "health": {
+      "status": "healthy",
+      "service": "browser-automation-studio-api",
+      "timestamp": "2026-09-22T16:32:02Z",
+      "readiness": true,
+      "version": "1.0.0",
+      "build_identity": "sha256:4cbb4572edd4546c5aa0ba64bf53754fd51d659294ab109f8da33d89e677f1f9",
+      "uptime_seconds": 83.912823652,
+      "dependencies": {
+        "automation_engine": {
+          "connected": true
+        },
+        "database": {
+          "connected": true,
+          "latency_ms": 0.027
+        },
+        "playwright_driver": {
+          "connected": true,
+          "latency_ms": 1.033
+        },
+        "storage": {
+          "connected": true,
+          "latency_ms": 0.13
+        }
+      },
+      "metrics": {
+        "goroutines": 32,
+        "heap_mb": 6.976966857910156,
+        "uptime_seconds": 83.912823652
+      }
+    },
+    "gate": {
+      "checked_at": "2026-09-22T16:28:16.224483+00:00",
+      "rows": 2555,
+      "states": {
+        "EXECUTION_STATUS_COMPLETED": 2207,
+        "EXECUTION_STATUS_FAILED": 343,
+        "EXECUTION_STATUS_RUNNING": 5
+      },
+      "historical_orphans": [
+        {
+          "executionId": "879c542b-d9cd-481b-82d2-6b6c7c11ebf1",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-16T13:18:42.087757908Z",
+          "createdAt": "2026-09-16T13:18:42Z",
+          "updatedAt": "2026-09-16T13:19:10.005000924Z"
+        },
+        {
+          "executionId": "d19bd80e-2624-4874-ab9f-eab0cda42286",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-09T19:30:12.784163869Z",
+          "createdAt": "2026-09-09T19:30:12Z",
+          "updatedAt": "2026-09-09T19:30:18.302018879Z"
+        },
+        {
+          "executionId": "b74ec692-da21-42f7-a86c-f33d436ecfbb",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-09T06:30:44.282585140Z",
+          "createdAt": "2026-09-09T06:30:44Z",
+          "updatedAt": "2026-09-09T06:30:45.060249200Z"
+        },
+        {
+          "executionId": "e0d33e05-297d-4867-aee0-783d59882fa8",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-07T20:36:44.551353663Z",
+          "createdAt": "2026-09-07T20:36:44Z",
+          "updatedAt": "2026-09-07T20:36:45.625164771Z"
+        },
+        {
+          "executionId": "206d68cf-a72c-4838-872b-f913a6a8def6",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-07T20:36:44.551265983Z",
+          "createdAt": "2026-09-07T20:36:44Z",
+          "updatedAt": "2026-09-07T20:36:45.663485899Z"
+        }
+      ],
+      "driver_sessions": 0,
+      "driver_recordings": 0,
+      "seconds": 0.4892824369017035,
+      "build_before": "sha256:ce4d775d1ee2c2ba22bd0c8c7ceed449bb2e84cfd1cc7315f869859a12460acc",
+      "limitation": "Observation before stop, not atomic global admission lock",
+      "decision": "admit stop; preserve orphan history"
+    },
+    "driver_health_receipt": "/tmp/bas-live-driver-035.json",
+    "profile_metadata_unchanged": true,
+    "full_profile_reads_equal_original": 3,
+    "start_session_consumed": 92545
+  }
+}

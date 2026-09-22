@@ -1,4 +1,4 @@
-import type { BrowserContext, Page } from 'rebrowser-playwright';
+import type { BrowserContext, Page, ElementHandle } from 'rebrowser-playwright';
 import {
   resolveTimeout,
   resolveTimeoutFromContext,
@@ -131,70 +131,54 @@ describe('behavior-utils', () => {
     expect(mockSleep).toHaveBeenCalledWith(12);
   });
 
-  it('executeHumanScroll performs instant scroll when no behavior', async () => {
-    const page = {
-      evaluate: jest.fn().mockResolvedValue(undefined),
-    } as unknown as Page;
-
-    await executeHumanScroll(page, 10, 20, null);
-
-    expect(page.evaluate).toHaveBeenCalledTimes(1);
+  it('scrolls exactly to the requested position without human behavior', async () => {
+    const evaluate = jest.fn().mockResolvedValueOnce({ x: 0, y: 0 }).mockResolvedValue(undefined);
+    const target = { evaluate } as unknown as ElementHandle<Element>;
+    await executeHumanScroll(target, 10, 20, null);
+    expect(evaluate).toHaveBeenLastCalledWith(expect.any(Function), {
+      x: 10,
+      y: 20,
+      smooth: false,
+    });
+    expect(mockSleep).not.toHaveBeenCalled();
   });
 
-  it('executeHumanScroll short-circuits when already close to target', async () => {
-    const page = {
-      evaluate: jest
-        .fn()
-        .mockResolvedValueOnce({ x: 0, y: 0 })
-        .mockResolvedValueOnce(undefined),
-    } as unknown as Page;
-
-    const behavior = {
-      getScrollSpeed: () => 5,
-      shouldMicroPause: () => false,
-    } as unknown as import('../../../src/browser-profile').HumanBehavior;
-
-    await executeHumanScroll(page, 5, 0, behavior);
-
-    expect(page.evaluate).toHaveBeenCalledTimes(2);
-  });
-
-  it('executeHumanScroll performs stepped scroll with delays', async () => {
-    const page = {
-      evaluate: jest
-        .fn()
-        .mockResolvedValueOnce({ x: 0, y: 0 })
-        .mockResolvedValue(undefined),
-    } as unknown as Page;
-
+  it('steps toward both target axes and finishes at the exact destination', async () => {
+    const evaluate = jest.fn().mockResolvedValueOnce({ x: 0, y: 0 }).mockResolvedValue(undefined);
+    const target = { evaluate } as unknown as ElementHandle<Element>;
     const behavior = {
       getScrollSpeed: () => 10,
       shouldMicroPause: () => true,
       getMicroPauseDuration: () => 3,
     } as unknown as import('../../../src/browser-profile').HumanBehavior;
-
-    await executeHumanScroll(page, 20, 0, behavior, { minStepDelayMs: 1, maxStepDelayMs: 1 });
-
-    expect(page.evaluate).toHaveBeenCalled();
-    expect(mockSleep).toHaveBeenCalled();
+    await executeHumanScroll(target, 20, 0, behavior, { minStepDelayMs: 1, maxStepDelayMs: 1 });
+    expect(evaluate.mock.calls.slice(1).map((call) => call[1])).toEqual([
+      { x: 10, y: 0, smooth: false },
+      { x: 20, y: 0, smooth: false },
+    ]);
+    expect(mockSleep).toHaveBeenNthCalledWith(1, 1);
+    expect(mockSleep).toHaveBeenNthCalledWith(2, 3);
   });
 
-  it('executeSmoothScroll applies micro-pause and waits for estimated duration', async () => {
-    const page = {
-      evaluate: jest
-        .fn()
-        .mockResolvedValueOnce(undefined)
-        .mockResolvedValueOnce({ x: 0, y: 0 }),
-    } as unknown as Page;
-
+  it('smooth scroll waits for actual completion and disposes the completion handle', async () => {
+    const dispose = jest.fn().mockResolvedValue(undefined);
+    const waitForFunction = jest.fn().mockResolvedValue({ dispose });
+    const target = {
+      evaluate: jest.fn().mockResolvedValue(undefined),
+      ownerFrame: jest.fn().mockResolvedValue({ waitForFunction }),
+    } as unknown as ElementHandle<Element>;
     const behavior = {
       shouldMicroPause: () => true,
       getMicroPauseDuration: () => 2,
     } as unknown as import('../../../src/browser-profile').HumanBehavior;
-
-    await executeSmoothScroll(page, 10, 0, behavior);
-
-    expect(mockSleep).toHaveBeenCalledTimes(2);
+    await executeSmoothScroll(target, 10, 20, behavior, 1234);
+    expect(waitForFunction).toHaveBeenCalledWith(
+      expect.any(Function),
+      { element: target, x: 10, y: 20 },
+      { timeout: 1234, polling: 'raf' }
+    );
+    expect(dispose).toHaveBeenCalledTimes(1);
+    expect(mockSleep).toHaveBeenCalledTimes(1);
   });
 
   it('moveMouseNaturally falls back to direct move without behavior', async () => {

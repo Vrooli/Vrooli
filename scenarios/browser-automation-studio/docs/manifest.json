@@ -689,6 +689,326 @@
           "requiredBy": [],
           "completion": "optional",
           "internal": true
+        },
+        {
+          "path": "internal/REFRACTOR_ASSESSMENT.md",
+          "title": "Browser-first refactor assessment",
+          "description": "Dated architecture, reliability and performance investigation; proposed preservation and acceptance criteria",
+          "internal": true,
+          "docType": "bas-refactor-assessment",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/REFRACTOR_BASELINE_2026-09-21.json",
+          "title": "Refactor baseline: 2026-09-21",
+          "description": "Measured inventory, live observations and historical validation provenance",
+          "internal": true,
+          "docType": "bas-refactor-baseline",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/refactor_inventory.py",
+          "title": "Refactor source inventory",
+          "description": "Read-only reproducible source-size inventory supporting the assessment",
+          "internal": true,
+          "docType": "bas-refactor-inventory",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/REFRACTOR_PROBES_2026-09-22.json",
+          "title": "Refactor follow-up evidence: 2026-09-22",
+          "description": "Dated synthetic module probes, live heap/swap observations, runtime identity and source hashes",
+          "internal": true,
+          "docType": "bas-refactor-followup-evidence",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/refactor_probes.cjs",
+          "title": "Refactor driver and recorder probes",
+          "description": "Isolated Node/VM diagnostic reproductions using actual source modules and synthetic I/O",
+          "internal": true,
+          "docType": "bas-refactor-driver-probes",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/refactor_probes.go",
+          "title": "Refactor API probes",
+          "description": "Isolated Go diagnostic reproductions for recording, metrics and execution-sink lifecycle",
+          "internal": true,
+          "docType": "bas-refactor-api-probes",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/REFRACTOR_PROFILE_REPLAY_2026-09-22.json",
+          "title": "Profile and replay investigation evidence: 2026-09-22",
+          "description": "Synthetic profile durability/recovery, semantic replay, input-hook results and deployed lifecycle binary evidence",
+          "internal": true,
+          "docType": "bas-refactor-profile-replay-evidence",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/refactor_profile_probes.go",
+          "title": "Profile and replay owner probes",
+          "description": "Isolated encrypted-repository, service, HTTP receipt and generated-workflow semantic diagnostics",
+          "internal": true,
+          "docType": "bas-refactor-profile-replay-probes",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/refactor_input_probes.cjs",
+          "title": "Browser input hook probes",
+          "description": "Actual input-hook and coordinate logic with synthetic events, React hooks and WebSocket sink",
+          "internal": true,
+          "docType": "bas-refactor-input-probes",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/REFRACTOR_SESSION_FRAME_2026-09-22.json",
+          "title": "Session, frame and retention evidence: 2026-09-22",
+          "description": "Actual-owner synthetic admission, lifecycle, frame fallback and retention observations with source hashes",
+          "internal": true,
+          "docType": "bas-refactor-session-frame-evidence",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/refactor_session_frame_probes.cjs",
+          "title": "Session and frame lifecycle probes",
+          "description": "Actual session manager, reset/teardown and frame hook over synthetic browser and asynchronous dependency seams",
+          "internal": true,
+          "docType": "bas-refactor-session-frame-probes",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/refactor_retention_probes.go",
+          "title": "Evidence retention selection probes",
+          "description": "Actual retention service with in-memory oldest-first bounded index and filesystem",
+          "internal": true,
+          "docType": "bas-refactor-retention-probes",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/REFRACTOR_EXECUTION_2026-09-22.json",
+          "title": "Execution retry and cancellation evidence: 2026-09-22",
+          "description": "Go-to-driver packet composition, operation admission, replay identity, failure evidence and cancellation observations",
+          "internal": true,
+          "docType": "bas-refactor-execution-evidence",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/refactor_execution_probes.go",
+          "title": "Go execution and cancellation probes",
+          "description": "Actual public executor and driver/session wire requests with synthetic HTTP and persistence seams",
+          "internal": true,
+          "docType": "bas-refactor-execution-go-probes",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/refactor_execution_probes.cjs",
+          "title": "Driver instruction ownership and replay probes",
+          "description": "Actual route, pipeline, caches, phase methods and telemetry collectors; composes Go request packets",
+          "internal": true,
+          "docType": "bas-refactor-execution-driver-probes",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/REFRACTOR_REUSE_2026-09-22.json",
+          "title": "Reuse profile and evidence ownership: 2026-09-22",
+          "description": "Released-session compatibility, capture ownership and external target admission observations",
+          "internal": true,
+          "docType": "bas-refactor-reuse-evidence",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/refactor_reuse_probes.cjs",
+          "title": "Released-session compatibility and evidence probes",
+          "description": "Actual route/manager/reuse/reset/teardown and target validators with synthetic contexts and capture handles",
+          "internal": true,
+          "docType": "bas-refactor-reuse-probes",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/REFRACTOR_STREAM_2026-09-22.json",
+          "title": "Streaming lifecycle and live fixture evidence: 2026-09-22",
+          "description": "Producer ownership/settings probes, fresh browser counter receipt, Boolean CLI failure and outcome projection",
+          "internal": true,
+          "docType": "bas-refactor-stream-evidence",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/refactor_stream_probes.cjs",
+          "title": "Frame producer ownership and settings probes",
+          "description": "Actual frame manager and CDP strategy with controlled capture/socket/scheduler dependencies",
+          "internal": true,
+          "docType": "bas-refactor-stream-probes",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/TESTING.md",
+          "title": "Rehabilitation qualification",
+          "description": "Outcome inventory, independent oracles, cleanup and release evidence",
+          "docType": "doc-internal-TESTING-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/REFRACTOR_GOAL.md",
+          "title": "Continuous rehabilitation goal",
+          "description": "Ready-to-paste autonomous file-based goal; no Plan Manager",
+          "docType": "doc-internal-REFRACTOR_GOAL-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/REFRACTOR_PROGRESS.md",
+          "title": "Rehabilitation progress",
+          "description": "Current checkpoint, measured deltas, experiments and fresh review history",
+          "docType": "doc-internal-REFRACTOR_PROGRESS-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/OPERATOR_FEEDBACK.md",
+          "title": "Operator feedback",
+          "description": "Verbatim instructions, discrete statuses and resolution evidence",
+          "docType": "doc-internal-OPERATOR_FEEDBACK-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/REFRACTOR_CONTRACT.json",
+          "title": "Rehabilitation outcome contract",
+          "description": "Machine-readable preservation targets, quality requirements and continuous work policy",
+          "docType": "doc-internal-REFRACTOR_CONTRACT-json",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "internal": true
+        },
+        {
+          "path": "internal/REFRACTOR_PREPARATION_2026-09-22.json",
+          "title": "Rehabilitation preparation evidence",
+          "description": "Dated baseline results, work-shape amendments and current file-based handoff",
+          "docType": "doc-internal-REFRACTOR_PREPARATION_2026-09-22-json",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "internal": true
+        },
+        {
+          "path": "internal/evidence/rehabilitation/2026-09-22-initial-regressions.json",
+          "title": "Initial rehabilitation regressions",
+          "description": "Original isolated reproduction results preserved byte-for-byte",
+          "docType": "doc-internal-evidence-rehabilitation-2026-09-22-initial-regressions-json",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "internal": true
+        },
+        {
+          "path": "internal/DECISIONS.md",
+          "title": "Decisions",
+          "description": "Durable BAS design and work-model choices",
+          "docType": "doc-internal-DECISIONS-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "internal": true
         }
       ]
     },

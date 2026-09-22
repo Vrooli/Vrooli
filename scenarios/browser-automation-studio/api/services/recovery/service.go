@@ -26,7 +26,7 @@ type Service struct {
 
 // RecoveryRepository captures the subset of database operations required for recovery.
 type RecoveryRepository interface {
-	ListExecutions(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error)
+	ListExecutions(ctx context.Context, query database.ExecutionQuery) ([]*database.ExecutionIndex, int, error)
 	UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error
 }
 
@@ -159,7 +159,7 @@ func (s *Service) RecoverStaleExecutions(ctx context.Context) (*RecoveryResult, 
 func (s *Service) findStaleExecutions(ctx context.Context, staleThreshold time.Time) ([]*database.ExecutionIndex, error) {
 	// List all executions and filter for stale ones
 	// In a production system, this should be a database query with filters
-	allExecutions, err := s.repo.ListExecutions(ctx, nil, nil, 1000, 0)
+	allExecutions, _, err := s.repo.ListExecutions(ctx, database.ExecutionQuery{Limit: 1000})
 	if err != nil {
 		return nil, err
 	}

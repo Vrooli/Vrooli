@@ -69,7 +69,7 @@ Current route-contract coverage uses this helper boundary for deterministic HTTP
 | File | Boundary | Can Change | Cannot Change |
 |------|----------|------------|---------------|
 | `index.ts` | Central exports | Re-exports | Public API surface |
-| `idempotency-cache.ts` | Request deduplication | Cache implementation | `IdempotencyCache` interface |
+| `routes/session-run.ts` | Lease operation receipts | Browser effect and HTTP response | Session lease, operation number and payload binding |
 | `session-cleanup-registry.ts` | Session cleanup coordination | Registration logic | `SessionCleanupFn` signature |
 | `operation-tracker.ts` | Handler operation deduplication | Tracker implementation | `OperationTracker` interface |
 | `circuit-breaker.ts` | Failure isolation | Breaker logic | `CircuitBreaker` interface |

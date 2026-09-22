@@ -1,0 +1,366 @@
+{
+  "schema_version": 1,
+  "assembled_at": "2026-09-22T01:32:04.773411+00:00",
+  "assessment": "REFRACTOR_ASSESSMENT.md#reuse-profile-and-evidence-investigation--2026-09-22-utc",
+  "scope": "Sixth investigation pass: released-session reuse compatibility, evidence ownership and external target admission. Actual TypeScript owners with synthetic I/O; no browser, network, live profile, artifact file or product changes.",
+  "source_head": "629defb5414eac2a4904996ee6d235eea9d263ed",
+  "source_digest_sha256": "2df361d5baaaf501715527e57993b6024ca63e798713f5d9e655a9682f584f43",
+  "product_source_digest_unchanged": true,
+  "driver_probes": {
+    "schema_version": 1,
+    "observed_at": "2026-09-22T01:32:04.718Z",
+    "scope": "Actual start route, manager, decision/reset/teardown and app-target validation; synthetic HTTP, contexts, profile markers, capture handles, filesystem and context-builder seam. No live browser/profile/artifact access.",
+    "source_sha256": {
+      "playwright-driver/src/session/session-decisions.ts": "140fc48c6b200e9bd273676698fd80438e30ea5e08e0f10a0fd78a112799efb0",
+      "playwright-driver/src/session/state-machine.ts": "dd74e25c4541fa656068fbd4327fccb274a02151876ae7acdb384db4f8b3c91f",
+      "playwright-driver/src/session/session-inspection.ts": "7fa2df6546b0c3e006deb68e39f8a68c8b4db0c0a266270a11097413a6e576e8",
+      "playwright-driver/src/infra/in-flight-guard.ts": "fd90cd40d5ef12c1ab40b0436aebbde66a6e7eea2128b3e94ebc4c5f72ff2ecb",
+      "playwright-driver/src/infra/session-cleanup-registry.ts": "0f60b16a906a68600a42c3811ae266476e1cbccdbb84ea2c08f01dd781f9a426",
+      "playwright-driver/src/session/session-reset.ts": "4664d0bafbcd1e0f31a9db9cec24db6e6b5553f22390ac2b0735cbe6ae31383a",
+      "playwright-driver/src/session/session-teardown.ts": "b20ce91b61824d91ecce23b73f65797747cba995b605562bb8465d82cb0b0161",
+      "playwright-driver/src/session/electron-target.ts": "30609cbd6068c8454b328050335b6f723044d4a47f95dc4a33d5aa262e688513",
+      "playwright-driver/src/session/artifact-paths.ts": "73791e9b0a9889fa6ef46bd3d569454becb59220410b0777a5adafe0b86481f6",
+      "playwright-driver/src/session/manager.ts": "117350b730a64a73b90e29bf111735ee4f101aab8f6b222f5160ce09154c2acd",
+      "playwright-driver/src/routes/session-start.ts": "a15c927414ebc6688d986580af049b8b3ee006826947d02d28ab74a0c0673abf"
+    },
+    "results": [
+      {
+        "id": "reuse-profile-isolation",
+        "expected": "A different requested identity is applied in an isolated context or rejected",
+        "actual": {
+          "status": 200,
+          "same_context": true,
+          "requested_identity": "b",
+          "context_identity": "a",
+          "spec_identity_after": "b",
+          "context_builds": 0
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "reuse-context-settings",
+        "expected": "Accepted viewport, locale and proxy agree with effective context settings",
+        "actual": {
+          "status": 200,
+          "requested_viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "actual_viewport": {
+            "width": 1280,
+            "height": 720,
+            "source": "requested",
+            "reason": "Reused existing session by label match"
+          },
+          "requested_profile": {
+            "fingerprint": {
+              "locale": "fr-FR"
+            },
+            "proxy": {
+              "enabled": true,
+              "server": "http://proxy-b.invalid:8080"
+            }
+          },
+          "effective_profile": {
+            "fingerprint": {
+              "locale": "en-US"
+            },
+            "proxy": {
+              "enabled": true,
+              "server": "http://proxy-a.invalid:8080"
+            }
+          }
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "clean-profile-isolation",
+        "expected": "A different requested identity is applied in an isolated context or rejected",
+        "actual": {
+          "status": 200,
+          "same_context": true,
+          "requested_identity": "b",
+          "context_identity": null,
+          "spec_identity_after": "b",
+          "context_builds": 0
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "clean-context-settings",
+        "expected": "Accepted viewport, locale and proxy agree with effective context settings",
+        "actual": {
+          "status": 200,
+          "requested_viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "actual_viewport": {
+            "width": 1280,
+            "height": 720,
+            "source": "requested",
+            "reason": "Reused existing session by label match"
+          },
+          "requested_profile": {
+            "fingerprint": {
+              "locale": "fr-FR"
+            },
+            "proxy": {
+              "enabled": true,
+              "server": "http://proxy-b.invalid:8080"
+            }
+          },
+          "effective_profile": {
+            "fingerprint": {
+              "locale": "en-US"
+            },
+            "proxy": {
+              "enabled": true,
+              "server": "http://proxy-a.invalid:8080"
+            }
+          }
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "fresh-context-control",
+        "expected": "Fresh request allocates a distinct context and passes the requested identity to its builder",
+        "actual": {
+          "status": 200,
+          "distinct_context": true,
+          "identity": "b"
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "unreleased-lease-control",
+        "expected": "An unreleased or differently labelled session is not transferred",
+        "actual": {
+          "status": 200,
+          "original_owner": "a",
+          "same_session": false
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "different-label-control",
+        "expected": "An unreleased or differently labelled session is not transferred",
+        "actual": {
+          "status": 200,
+          "original_owner": "a",
+          "same_session": false
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "compatible-reuse-control",
+        "expected": "Compatible released reuse transfers the lease and preserves the intended context",
+        "actual": {
+          "status": 200,
+          "reused": true,
+          "new_lease": true,
+          "identity": "a"
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "reuse-artifact-destination",
+        "expected": "New execution evidence uses its requested destination and an explicit capture boundary",
+        "actual": {
+          "status": 200,
+          "requested": {
+            "harPath": "/synthetic/b/har/execution-b.har",
+            "videoDir": "/synthetic/b/videos",
+            "tracePath": "/synthetic/b/traces/execution-b.zip"
+          },
+          "effective": {
+            "tracePath": "/synthetic/a/traces/execution-a.zip",
+            "harPath": "/synthetic/a/har/execution-a.har",
+            "videoDir": "/synthetic/a/videos"
+          },
+          "current_owner": "b"
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "reuse-artifact-close-receipt",
+        "expected": "The new owner close receipt and video name do not mix execution identities",
+        "actual": {
+          "receipt": {
+            "videoPaths": [
+              "/synthetic/a/videos/execution-b-page-1.webm"
+            ],
+            "tracePath": "/synthetic/a/traces/execution-a.zip",
+            "harPath": "/synthetic/a/har/execution-a.har"
+          },
+          "trace_stop_paths": [
+            "/synthetic/a/traces/execution-a.zip"
+          ],
+          "simulated_video_moves": [
+            {
+              "from": "/synthetic/a/videos/random.webm",
+              "to": "/synthetic/a/videos/execution-b-page-1.webm"
+            }
+          ]
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "reuse-enables-required-evidence",
+        "expected": "A newly required capture capability starts collecting or admission fails",
+        "actual": {
+          "status": 200,
+          "requested": {
+            "video": true,
+            "har": true,
+            "tracing": true
+          },
+          "effective_tracing": false,
+          "effective_video": false,
+          "effective_har": false
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "artifact-root-validation-control",
+        "expected": "The route rejects required recording without an artifact root",
+        "actual": {
+          "status": "error",
+          "error": "artifact_paths.root is required when recording video/trace/HAR artifacts"
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "electron-fresh-validation-control",
+        "expected": "Fresh external target admission requires its validation context",
+        "actual": {
+          "status": "error",
+          "error": "Electron validation context is required"
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "electron-reuse-validation",
+        "expected": "Released reuse also enforces target identity and validation context",
+        "actual": {
+          "status": 200,
+          "requested_target": "electron",
+          "actual_external_target": false,
+          "spec_target_after": "electron",
+          "retained_managed_context": true
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "android-webview-fresh-validation-control",
+        "expected": "Fresh external target admission requires its validation context",
+        "actual": {
+          "status": "error",
+          "error": "Electron validation context is required"
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "android-webview-reuse-validation",
+        "expected": "Released reuse also enforces target identity and validation context",
+        "actual": {
+          "status": 200,
+          "requested_target": "android-webview",
+          "actual_external_target": false,
+          "spec_target_after": "android-webview",
+          "retained_managed_context": true
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "external-to-managed-reuse",
+        "expected": "A managed-browser request cannot silently inherit an external app renderer",
+        "actual": {
+          "status": 200,
+          "external_target_after": true,
+          "spec_target_after": null
+        },
+        "expected_behavior_met": false
+      }
+    ]
+  },
+  "summary": {
+    "observations": 17,
+    "desired_behavior_mismatches": 10,
+    "successful_controls": 7,
+    "new_issue_ids": [
+      "BAS-RF-042",
+      "BAS-RF-043",
+      "BAS-RF-044"
+    ],
+    "interpretation": "Selected diagnostic cases, not a live failure rate or independent bug count. Exit 0 means probes completed."
+  },
+  "source_files_sha256": {
+    "api/automation/driver/client.go": "9cadae6081ea1f40c9f28a1bd980136763a61d7728f2069322b68daabb4beb14",
+    "api/automation/executor/simple_executor.go": "03ed4beba4c42c83cf64e47f3d7972ddbfdb8b9af00ca72d4bb1c59b55c2ce02",
+    "api/automation/session/manager.go": "86ed0d18712487b704d5492691900e08a64e028569cb9e3c2f15b692384bf99c",
+    "api/automation/session/session.go": "aa22d75bf2d855a3279a7c91d1c7603327dae0b6a8241d1c5190644074e78a52",
+    "docs/internal/refactor_reuse_probes.cjs": "4577a8be80e715236f9cc99704eeb8972d00e101272a0469f3573d6e8ec354c9",
+    "playwright-driver/src/infra/in-flight-guard.ts": "fd90cd40d5ef12c1ab40b0436aebbde66a6e7eea2128b3e94ebc4c5f72ff2ecb",
+    "playwright-driver/src/infra/session-cleanup-registry.ts": "0f60b16a906a68600a42c3811ae266476e1cbccdbb84ea2c08f01dd781f9a426",
+    "playwright-driver/src/routes/session-release.ts": "4a6c81d10a42671da6442efce354a67468b02345045db7cc492be11127c9540b",
+    "playwright-driver/src/routes/session-start.ts": "a15c927414ebc6688d986580af049b8b3ee006826947d02d28ab74a0c0673abf",
+    "playwright-driver/src/session/artifact-paths.ts": "73791e9b0a9889fa6ef46bd3d569454becb59220410b0777a5adafe0b86481f6",
+    "playwright-driver/src/session/context-builder.ts": "39072a2ce342b05aca6bd1a430e3873c59586609b2dd083d8d1f4875feecdc79",
+    "playwright-driver/src/session/electron-target.ts": "30609cbd6068c8454b328050335b6f723044d4a47f95dc4a33d5aa262e688513",
+    "playwright-driver/src/session/manager.ts": "117350b730a64a73b90e29bf111735ee4f101aab8f6b222f5160ce09154c2acd",
+    "playwright-driver/src/session/session-decisions.ts": "140fc48c6b200e9bd273676698fd80438e30ea5e08e0f10a0fd78a112799efb0",
+    "playwright-driver/src/session/session-inspection.ts": "7fa2df6546b0c3e006deb68e39f8a68c8b4db0c0a266270a11097413a6e576e8",
+    "playwright-driver/src/session/session-reset.ts": "4664d0bafbcd1e0f31a9db9cec24db6e6b5553f22390ac2b0735cbe6ae31383a",
+    "playwright-driver/src/session/session-teardown.ts": "b20ce91b61824d91ecce23b73f65797747cba995b605562bb8465d82cb0b0161",
+    "playwright-driver/src/session/state-machine.ts": "dd74e25c4541fa656068fbd4327fccb274a02151876ae7acdb384db4f8b3c91f"
+  },
+  "commands": [
+    {
+      "cwd": "repository root",
+      "command": "node scenarios/browser-automation-studio/docs/internal/refactor_reuse_probes.cjs",
+      "exit_code": 0
+    }
+  ],
+  "reachability": {
+    "entry": "POST /session/start with reuse_mode reuse or clean, matching labels, and a ready session explicitly released by its current owner/token",
+    "guards_preserved": [
+      "Fresh mode creates a new context",
+      "Unreleased sessions are not transferred",
+      "Different labels do not reuse a session",
+      "Compatible released reuse rotates the lease",
+      "Fresh app target rejects missing validation context",
+      "Required video without an artifact root is rejected by the route"
+    ],
+    "limits": "Inspected ordinary executor finalizes by CloseWithArtifacts/Close. Scoped search found no production Go .Release() call site. Driver release route exists; release-aware callers can reach this path. No claim about frequency or actual cross-user data disclosure."
+  },
+  "prior_art": {
+    "recall": "search-hub query \"browser automation studio pooled session profile isolation artifact ownership reused session\" --type library,record,skill,doc --limit 1",
+    "related_history": "agent-manager://runs/fde7ca88-7d8c-46dd-bec3-49884b58c641/events/ccdc3ce1-c368-4d58-8e95-aa2416adc3c7",
+    "disposition": "July history discussed wiring minimal artifact profiles. Capture policies and fresh target validation already exist; this pass identifies their bypass at released reuse, not a total absence of evidence policy.",
+    "degraded_providers": [
+      "source-ledger.agent-memory timeout",
+      "source-ledger.scopes timeout",
+      "swarm-manager.records circuit unavailable"
+    ]
+  },
+  "limits": [
+    "Seeded contexts contain synthetic identity markers; no real cookies, proxy connections or locale rendering were used. Fresh builder is a dependency seam, while manager/route/reuse/reset decisions are actual modules.",
+    "Clean reset storage evaluation is stubbed successful; actual about:blank storage behavior and the all-origin isolation matrix remain unqualified. Even under this favorable seam the new storage state is not applied.",
+    "Trace/video/HAR handles and paths are synthetic. Filesystem mkdir/rename are recorded no-ops. Results prove destination/receipt selection and unchanged capture handles, not artifact contents or physical durability.",
+    "External target state is seeded. Fresh rejection occurs before any renderer fetch/CDP connection; no desktop process or Android device was contacted.",
+    "required_capabilities false is not treated as a prohibition on collection. Disable/retention policy semantics need an explicit contract; no extra defect is counted for that ambiguity.",
+    "Browser live failure incidence, real profile contamination, capture span contents, performance cost of compatibility checks and supported platform qualification remain unmeasured."
+  ],
+  "validation": {
+    "validated_at": "2026-09-22T01:33:19.857822+00:00",
+    "node_syntax": "passed",
+    "git_diff_check_docs": "passed",
+    "canonical_issue_ids_unique_ordered": 44,
+    "preservation_journeys": 21,
+    "source_and_probe_hash_checks_across_saved_snapshots": 95,
+    "relative_document_links_checked": 49,
+    "manifest_registration": "each investigation artifact registered once",
+    "scenario_suite": "Not run: diagnostic/documentation scope; synthetic probes are not browser or platform certification."
+  }
+}

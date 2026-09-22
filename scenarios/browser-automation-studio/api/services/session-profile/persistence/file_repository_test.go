@@ -1,17 +1,111 @@
 package persistence
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 )
+
+// [REQ:BAS-RH-J14] Caller-controlled IDs never address sibling files.
+func TestFileRepositoryRejectsPathsBeforeIO(t *testing.T) {
+	operations := map[string]func(*FileRepository, ProfileID) error{
+		"get":    func(repo *FileRepository, id ProfileID) error { _, err := repo.Get(id); return err },
+		"create": func(repo *FileRepository, id ProfileID) error { return repo.Create(&SessionProfile{ID: id}) },
+		"update": func(repo *FileRepository, id ProfileID) error {
+			_, err := repo.Update(id, func(*SessionProfile) error { t.Error("invalid ID reached mutation"); return nil })
+			return err
+		},
+		"delete": (*FileRepository).Delete,
+	}
+	for name, operation := range operations {
+		for _, id := range []ProfileID{"", ".", "..", "../outside", "nested/../../outside", `..\outside`, `/outside`, `C:\outside`, "inside:stream", "bad\x00id"} {
+			t.Run(name+"/"+string(id), func(t *testing.T) {
+				parent := t.TempDir()
+				outside := filepath.Join(parent, "outside.json")
+				require.NoError(t, os.WriteFile(outside, []byte(`{"unrelated":"preserve"}`), 0o600))
+				root := filepath.Join(parent, "profiles")
+				repo := NewFileRepositoryWithConfig(root, nil, FileRepositoryConfig{Authority: testutil.ProfileCredentialAuthority})
+				err := operation(repo, id)
+				require.ErrorContains(t, err, "profile id", "invalid identifier must fail at the identity boundary")
+				contents, err := os.ReadFile(outside)
+				require.NoError(t, err)
+				require.Equal(t, `{"unrelated":"preserve"}`, string(contents))
+				entries, err := os.ReadDir(root)
+				require.NoError(t, err)
+				require.Empty(t, entries, "invalid identity must not create a lock, key witness or profile")
+			})
+		}
+	}
+}
+
+// [REQ:BAS-RH-J06] A rejected commit cannot damage the acknowledged snapshot.
+func TestFileRepositoryCommitPreservesAcknowledgedSnapshot(t *testing.T) {
+	for _, fault := range []string{"write", "rename"} {
+		t.Run(fault, func(t *testing.T) {
+			files := NewMockFileSystem()
+			repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{Authority: testutil.ProfileCredentialAuthority, FileSystem: files})
+			old := &SessionProfile{ID: "identity", Name: "old", StorageState: []byte(`{"cookies":[{"value":"old-secret"}]}`)}
+			if err := repo.Create(old); err != nil {
+				t.Fatal(err)
+			}
+			candidate := *old
+			candidate.Name = "new"
+			candidate.StorageState = []byte(`{"cookies":[{"value":"new-secret"}]}`)
+			if fault == "write" {
+				files.WriteFileErr = errors.New("disk full")
+			} else {
+				files.RenameErr = errors.New("commit rejected")
+			}
+			if _, err := repo.Update(candidate.ID, func(profile *SessionProfile) error { *profile = candidate; return nil }); err == nil {
+				t.Fatal("failed commit acknowledged")
+			}
+			files.WriteFileErr, files.RenameErr = nil, nil
+			fresh := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{Authority: testutil.ProfileCredentialAuthority, FileSystem: files})
+			recovered, err := fresh.Get(old.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if recovered.Name != old.Name || !bytes.Equal(recovered.StorageState, old.StorageState) {
+				t.Fatal("failed commit changed the acknowledged snapshot")
+			}
+		})
+	}
+}
+
+// [REQ:BAS-RH-J14] One profile has one protected, atomically replaceable document.
+func TestFileRepositoryCommitUsesOneDocument(t *testing.T) {
+	root := t.TempDir()
+	config := FileRepositoryConfig{Authority: testutil.ProfileCredentialAuthority}
+	repo := NewFileRepositoryWithConfig(root, nil, config)
+	profile := &SessionProfile{ID: "identity", Name: "Private name", StorageState: []byte(`{"cookies":[{"value":"synthetic-secret"}]}`)}
+	require.NoError(t, repo.Create(profile))
+	entries, err := os.ReadDir(root)
+	require.NoError(t, err)
+	require.Len(t, entries, 3, "one profile document plus credential-loss witness and stable write lock")
+	data, err := os.ReadFile(filepath.Join(root, string(profile.ID)+".json"))
+	require.NoError(t, err)
+	require.NotContains(t, string(data), "synthetic-secret")
+	require.NotContains(t, string(data), "Private name")
+	fresh := NewFileRepositoryWithConfig(root, nil, config)
+	got, err := fresh.Get(profile.ID)
+	require.NoError(t, err)
+	require.Equal(t, profile, got, "one complete snapshot must recover")
+}
 
 func TestFileRepository_Get(t *testing.T) {
 	mockFS := NewMockFileSystem()
 	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
+		Authority:  testutil.ProfileCredentialAuthority,
 		FileSystem: mockFS,
 	})
 
@@ -23,8 +117,9 @@ func TestFileRepository_Get(t *testing.T) {
 		UpdatedAt:  time.Now().UTC(),
 		LastUsedAt: time.Now().UTC(),
 	}
-	data, _ := json.MarshalIndent(profile, "", "  ")
-	mockFS.SetFile("/data/test-profile-1.json", data)
+	if err := repo.Create(profile); err != nil {
+		t.Fatal(err)
+	}
 
 	// Test successful get
 	t.Run("successful get", func(t *testing.T) {
@@ -71,7 +166,7 @@ func TestFileRepository_Get(t *testing.T) {
 
 func TestFileRepositoryKeepsSensitiveStateOutOfProfileJSON(t *testing.T) {
 	mockFS := NewMockFileSystem()
-	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{FileSystem: mockFS})
+	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{Authority: testutil.ProfileCredentialAuthority, FileSystem: mockFS})
 	profile := &SessionProfile{
 		ID:             "protected",
 		Name:           "Protected",
@@ -91,8 +186,9 @@ func TestFileRepositoryKeepsSensitiveStateOutOfProfileJSON(t *testing.T) {
 			t.Fatalf("metadata leaks %q", secret)
 		}
 	}
-	if payload, ok := mockFS.GetFile("/data/protected.protected"); !ok || len(payload) == 0 {
-		t.Fatal("encrypted payload missing")
+	var document profileDocument
+	if err := json.Unmarshal(metadata, &document); err != nil || len(document.Sealed) == 0 {
+		t.Fatal("encrypted profile payload missing")
 	}
 	loaded, err := repo.Get("protected")
 	if err != nil {
@@ -106,6 +202,7 @@ func TestFileRepositoryKeepsSensitiveStateOutOfProfileJSON(t *testing.T) {
 func TestFileRepository_List(t *testing.T) {
 	mockFS := NewMockFileSystem()
 	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
+		Authority:  testutil.ProfileCredentialAuthority,
 		FileSystem: mockFS,
 	})
 
@@ -118,8 +215,9 @@ func TestFileRepository_List(t *testing.T) {
 	}
 
 	for _, p := range profiles {
-		data, _ := json.MarshalIndent(&p, "", "  ")
-		mockFS.SetFile("/data/"+string(p.ID)+".json", data)
+		if err := repo.Create(&p); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	// List should return profiles sorted by last_used_at desc
@@ -141,6 +239,7 @@ func TestFileRepository_List(t *testing.T) {
 func TestFileRepository_Create(t *testing.T) {
 	mockFS := NewMockFileSystem()
 	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
+		Authority:  testutil.ProfileCredentialAuthority,
 		FileSystem: mockFS,
 	})
 
@@ -191,69 +290,10 @@ func TestFileRepository_Create(t *testing.T) {
 	})
 }
 
-func TestFileRepository_Save_AtomicWrite(t *testing.T) {
-	mockFS := NewMockFileSystem()
-	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
-		FileSystem: mockFS,
-	})
-
-	now := time.Now().UTC()
-	profile := &SessionProfile{
-		ID:         "atomic-test",
-		Name:       "Atomic Test",
-		CreatedAt:  now,
-		UpdatedAt:  now,
-		LastUsedAt: now,
-	}
-
-	// Verify atomic write pattern
-	err := repo.Save(profile)
-	if err != nil {
-		t.Fatalf("Save failed: %v", err)
-	}
-
-	// Final file should exist
-	if !mockFS.FileExists("/data/atomic-test.json") {
-		t.Error("expected final file to exist")
-	}
-
-	// Temp file should NOT exist (was renamed)
-	if mockFS.FileExists("/data/atomic-test.json.tmp") {
-		t.Error("temp file should be removed after rename")
-	}
-}
-
-func TestFileRepository_Save_RenameFailure(t *testing.T) {
-	mockFS := NewMockFileSystem()
-	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
-		FileSystem: mockFS,
-	})
-
-	now := time.Now().UTC()
-	profile := &SessionProfile{
-		ID:         "rename-fail",
-		Name:       "Rename Fail Test",
-		CreatedAt:  now,
-		UpdatedAt:  now,
-		LastUsedAt: now,
-	}
-
-	// Inject rename error
-	mockFS.RenameErr = errors.New("rename failed")
-
-	err := repo.Save(profile)
-	if err == nil {
-		t.Error("expected error when rename fails")
-	}
-
-	// Temp file should be cleaned up on failure
-	// (Note: in mock, the file is created but rename fails)
-	mockFS.RenameErr = nil
-}
-
 func TestFileRepository_Delete(t *testing.T) {
 	mockFS := NewMockFileSystem()
 	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
+		Authority:  testutil.ProfileCredentialAuthority,
 		FileSystem: mockFS,
 	})
 
@@ -298,6 +338,7 @@ func TestFileRepository_Delete(t *testing.T) {
 func TestFileRepository_ReadError(t *testing.T) {
 	mockFS := NewMockFileSystem()
 	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
+		Authority:  testutil.ProfileCredentialAuthority,
 		FileSystem: mockFS,
 	})
 
@@ -318,6 +359,7 @@ func TestFileRepository_ReadError(t *testing.T) {
 func TestFileRepository_WriteError(t *testing.T) {
 	mockFS := NewMockFileSystem()
 	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
+		Authority:  testutil.ProfileCredentialAuthority,
 		FileSystem: mockFS,
 	})
 
@@ -330,7 +372,7 @@ func TestFileRepository_WriteError(t *testing.T) {
 	// Inject write error
 	mockFS.WriteFileErr = errors.New("disk full")
 
-	err := repo.Save(profile)
+	err := repo.Create(profile)
 	if err == nil {
 		t.Error("expected error when write fails")
 	}
@@ -341,6 +383,7 @@ func TestFileRepository_WriteError(t *testing.T) {
 func TestFileRepository_ListReadDirError(t *testing.T) {
 	mockFS := NewMockFileSystem()
 	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
+		Authority:  testutil.ProfileCredentialAuthority,
 		FileSystem: mockFS,
 	})
 
@@ -358,6 +401,7 @@ func TestFileRepository_ListReadDirError(t *testing.T) {
 func TestFileRepository_ConcurrentWrites(t *testing.T) {
 	mockFS := NewMockFileSystem()
 	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
+		Authority:  testutil.ProfileCredentialAuthority,
 		FileSystem: mockFS,
 	})
 
@@ -371,6 +415,8 @@ func TestFileRepository_ConcurrentWrites(t *testing.T) {
 		LastUsedAt: now,
 	}
 
+	require.NoError(t, repo.Create(profile))
+
 	// Multiple goroutines writing to the same profile
 	done := make(chan error, 10)
 	for i := 0; i < 10; i++ {
@@ -378,7 +424,8 @@ func TestFileRepository_ConcurrentWrites(t *testing.T) {
 			p := *profile
 			p.Name = "Update " + string(rune('A'+n))
 			p.UpdatedAt = time.Now().UTC()
-			done <- repo.Save(&p)
+			_, err := repo.Update(p.ID, func(current *SessionProfile) error { *current = p; return nil })
+			done <- err
 		}(i)
 	}
 
@@ -394,21 +441,17 @@ func TestFileRepository_ConcurrentWrites(t *testing.T) {
 		t.Errorf("got %d errors during concurrent writes", len(errors))
 	}
 
-	// Verify file exists and is valid JSON
-	data, ok := mockFS.GetFile("/data/concurrent.json")
-	if !ok {
-		t.Fatal("expected file to exist after concurrent writes")
-	}
-
-	var finalProfile SessionProfile
-	if err := json.Unmarshal(data, &finalProfile); err != nil {
-		t.Errorf("final file is not valid JSON: %v", err)
+	// The final committed document must decrypt as a coherent profile.
+	finalProfile, err := repo.Get(profile.ID)
+	if err != nil || finalProfile == nil || !strings.HasPrefix(finalProfile.Name, "Update ") {
+		t.Fatalf("final profile did not recover: %v", err)
 	}
 }
 
-func TestFileRepository_SaveSetsDefaultTimestamps(t *testing.T) {
+func TestFileRepository_CreateSetsDefaultTimestamps(t *testing.T) {
 	mockFS := NewMockFileSystem()
 	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
+		Authority:  testutil.ProfileCredentialAuthority,
 		FileSystem: mockFS,
 	})
 
@@ -419,16 +462,15 @@ func TestFileRepository_SaveSetsDefaultTimestamps(t *testing.T) {
 		UpdatedAt: time.Now().UTC(),
 	}
 
-	err := repo.Save(profile)
+	err := repo.Create(profile)
 	if err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
 
 	// Read it back
-	data, _ := mockFS.GetFile("/data/timestamps.json")
-	var saved SessionProfile
-	if err := json.Unmarshal(data, &saved); err != nil {
-		t.Fatalf("Unmarshal failed: %v", err)
+	saved, err := repo.Get(profile.ID)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
 	}
 
 	// CreatedAt and LastUsedAt should be set from UpdatedAt
@@ -499,5 +541,109 @@ func TestMockFileSystem_Stat(t *testing.T) {
 	_, err = mockFS.Stat("/data/nonexistent")
 	if !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("expected ErrNotExist, got %v", err)
+	}
+}
+
+// [REQ:BAS-RH-J14] Concurrent complete saves never expose mixed or partial documents.
+func TestFileRepositoryConcurrentAtomicSnapshots(t *testing.T) {
+	root := t.TempDir()
+	repo := NewFileRepositoryWithConfig(root, nil, FileRepositoryConfig{Authority: testutil.ProfileCredentialAuthority})
+	require.NoError(t, repo.Create(&SessionProfile{ID: "identity", Name: "initial", StorageState: []byte(`{"snapshot":"initial"}`)}))
+	const writers = 24
+	done := make(chan error, writers)
+	for i := 0; i < writers; i++ {
+		go func(n int) {
+			name := fmt.Sprintf("snapshot-%d", n)
+			state, _ := json.Marshal(map[string]string{"snapshot": name})
+			profile := &SessionProfile{ID: "identity", Name: name, StorageState: state}
+			if _, err := repo.Update(profile.ID, func(current *SessionProfile) error { *current = *profile; return nil }); err != nil {
+				done <- err
+				return
+			}
+			got, err := NewFileRepositoryWithConfig(root, nil, FileRepositoryConfig{Authority: testutil.ProfileCredentialAuthority}).Get(profile.ID)
+			if err != nil {
+				done <- err
+				return
+			}
+			var decoded map[string]string
+			if err := json.Unmarshal(got.StorageState, &decoded); err != nil {
+				done <- err
+				return
+			}
+			if got.Name != decoded["snapshot"] {
+				done <- errors.New("mixed profile generations")
+				return
+			}
+			done <- nil
+		}(i)
+	}
+	for i := 0; i < writers; i++ {
+		if err := <-done; err != nil {
+			t.Error(err)
+		}
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil || len(entries) != 3 {
+		t.Fatalf("temporary documents remain after concurrent writes: %d, %v", len(entries), err)
+	}
+}
+
+func TestFileRepositoryRejectsForeignOrOldDocument(t *testing.T) {
+	files := NewMockFileSystem()
+	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{Authority: testutil.ProfileCredentialAuthority, FileSystem: files})
+	if err := repo.Create(&SessionProfile{ID: "one", Name: "One"}); err != nil {
+		t.Fatal(err)
+	}
+	encoded, _ := files.GetFile("/data/one.json")
+	files.SetFile("/data/two.json", encoded)
+	if _, err := repo.Get("two"); err == nil {
+		t.Fatal("profile was accepted under another identity")
+	}
+	files.SetFile("/data/old.json", []byte(`{"id":"old","name":"Original","storage_state":{"cookies":[]}}`))
+	if _, err := repo.Get("old"); err == nil {
+		t.Fatal("old profile was silently accepted or converted")
+	}
+	unchanged, _ := files.GetFile("/data/old.json")
+	if !bytes.Equal(unchanged, []byte(`{"id":"old","name":"Original","storage_state":{"cookies":[]}}`)) {
+		t.Fatal("reading old format mutated it")
+	}
+}
+
+// [REQ:BAS-RH-J06] A failed transaction never acknowledges or leaks a partial edit.
+func TestFileRepositoryUpdateFailurePreservesSnapshot(t *testing.T) {
+	for _, fault := range []string{"callback", "commit", "lock", "identity"} {
+		t.Run(fault, func(t *testing.T) {
+			files := NewMockFileSystem()
+			repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{FileSystem: files, Authority: testutil.ProfileCredentialAuthority})
+			require.NoError(t, repo.Create(&SessionProfile{ID: "original", Name: "Acknowledged", StorageState: []byte(`{"cookies":[{"value":"original"}]}`)}))
+			before, ok := files.GetFile("/data/original.json")
+			require.True(t, ok)
+			if fault == "commit" {
+				files.WriteFileErr = errors.New("synthetic disk failure")
+			}
+			if fault == "lock" {
+				files.LockErr = errors.New("synthetic writer deadline")
+			}
+			called := false
+			result, err := repo.Update("original", func(p *SessionProfile) error {
+				called = true
+				p.Name = "Rejected"
+				p.StorageState = []byte(`{"cookies":[]}`)
+				if fault == "callback" {
+					return errors.New("synthetic rejected edit")
+				}
+				if fault == "identity" {
+					p.ID = "replacement"
+				}
+				return nil
+			})
+			require.Error(t, err)
+			require.Nil(t, result)
+			require.Equal(t, fault != "lock", called, "refused ownership must not run a mutation")
+			after, ok := files.GetFile("/data/original.json")
+			require.True(t, ok)
+			require.Equal(t, before, after)
+			require.False(t, files.FileExists("/data/replacement.json"))
+		})
 	}
 }

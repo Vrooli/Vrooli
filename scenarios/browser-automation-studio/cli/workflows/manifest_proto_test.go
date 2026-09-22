@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"browser-automation-studio/cli/internal/testutil"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliapptest"
 	apiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 )
 
@@ -16,7 +16,7 @@ import (
 // Per-domain parity test added in Phase 7 of the BAS proto+Connect migration
 // (plans:bas-migration-to-proto-connect-rpc).
 func TestWorkflowsManifestCoversWorkflowsService(t *testing.T) {
-	manifest := testutil.ReadManifest(t)
+	manifest := cliapptest.ReadManifest(t)
 	cliapp.RequireProtoServiceCoverage(t, manifest, apiv1.File_browser_automation_studio_v1_api_service_proto, "WorkflowsService")
 }
 

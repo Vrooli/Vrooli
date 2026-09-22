@@ -5,7 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace as NS
 import unittest
 
-ROOT=Path(__file__).parents[1]
+ROOT=Path(__file__).resolve().parents[1]
 # The real kernel sandbox and schema checker. Act sections are validated against these, not a
 # stub: a fragment the kernel would reject, or output the caller's verifier rejects, fails here.
 KERNEL_HOST=ROOT.parents[2]/'program-runtime'/'kernel'/'host'

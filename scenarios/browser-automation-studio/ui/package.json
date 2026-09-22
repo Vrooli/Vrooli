@@ -77,17 +77,19 @@
     "overrides": {
       "brace-expansion@^1.1.0": "1.1.18",
       "brace-expansion@^5.0.0": "5.0.9",
-      "js-yaml@^4.0.0": "4.3.1"
+      "js-yaml": "4.3.2"
     }
   },
   "private": true,
   "scripts": {
-    "build": "pnpm selector:manifest && npx vite build && node ./scripts/gzip-dist.mjs",
-    "build:profile": "pnpm selector:manifest && npx vite build --mode profile && node ./scripts/gzip-dist.mjs",
+    "build": "pnpm selector:manifest \u0026\u0026 npx vite build \u0026\u0026 node ./scripts/gzip-dist.mjs",
+    "build:profile": "pnpm selector:manifest \u0026\u0026 npx vite build --mode profile \u0026\u0026 node ./scripts/gzip-dist.mjs",
     "dev": "vrooli lifecycle protect -- npx vite",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "preview": "npx vite preview",
+    "selector:check": "node scripts/generate-selector-manifest.mjs --check",
+    "selector:manifest": "node scripts/generate-selector-manifest.mjs",
     "test": "node scripts/run-vitest.mjs",
     "test:components": "vitest run --project components",
     "test:coverage": "node scripts/run-vitest.mjs --suite full --coverage",
@@ -97,9 +99,7 @@
     "test:ui": "vitest --ui",
     "test:watch": "vitest",
     "test:workflow-builder": "vitest run --project workflow-builder",
-    "type-check": "tsc --noEmit",
-    "selector:manifest": "node scripts/generate-selector-manifest.mjs",
-    "selector:check": "node scripts/generate-selector-manifest.mjs --check"
+    "type-check": "tsc --noEmit"
   },
   "type": "module",
   "version": "1.0.0"

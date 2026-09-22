@@ -52,8 +52,9 @@ type ExecutionWriter interface {
 	// leak configuration. Pass nil to clear the override for that execution.
 	SetArtifactConfigForExecution(executionID uuid.UUID, cfg *config.ArtifactCollectionSettings)
 
-	// ForgetExecution drops per-execution artifact settings once an execution
-	// has finished, keeping the per-execution config map bounded.
+	// ForgetExecution releases outcome, timeline and configuration accumulators
+	// after all execution writes finish. Persisted artifacts remain available.
+	// Callers must join their writers before invoking this terminal operation.
 	ForgetExecution(executionID uuid.UUID)
 }
 

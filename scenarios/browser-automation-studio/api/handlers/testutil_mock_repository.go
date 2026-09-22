@@ -414,43 +414,36 @@ func (r *MockRepository) DeleteExecution(_ context.Context, id uuid.UUID) error 
 	return nil
 }
 
-func (r *MockRepository) ListExecutions(_ context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error) {
+func (r *MockRepository) ListExecutions(_ context.Context, query database.ExecutionQuery) ([]*database.ExecutionIndex, int, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-
 	executions := make([]*database.ExecutionIndex, 0)
 	for _, e := range r.executions {
-		// Note: projectID filtering would require workflow lookup, skip for mock
-		if workflowID == nil || e.WorkflowID == *workflowID {
-			copy := *e
-			executions = append(executions, &copy)
+		if query.WorkflowID != nil && e.WorkflowID != *query.WorkflowID {
+			continue
 		}
+		if query.Status != "" && e.Status != query.Status {
+			continue
+		}
+		if query.ProjectID != nil {
+			workflow := r.workflows[e.WorkflowID]
+			if workflow == nil || workflow.ProjectID == nil || *workflow.ProjectID != *query.ProjectID {
+				continue
+			}
+		}
+		copy := *e
+		executions = append(executions, &copy)
 	}
-
 	sort.Slice(executions, func(i, j int) bool {
+		if query.OldestFirst {
+			i, j = j, i
+		}
+		if executions[i].StartedAt.Equal(executions[j].StartedAt) {
+			return executions[i].ID.String() > executions[j].ID.String()
+		}
 		return executions[i].StartedAt.After(executions[j].StartedAt)
 	})
-
-	return applyPagination(executions, limit, offset), nil
-}
-
-func (r *MockRepository) ListExecutionsByStatus(_ context.Context, status string, limit, offset int) ([]*database.ExecutionIndex, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	executions := make([]*database.ExecutionIndex, 0)
-	for _, e := range r.executions {
-		if e.Status == status {
-			copy := *e
-			executions = append(executions, &copy)
-		}
-	}
-
-	sort.Slice(executions, func(i, j int) bool {
-		return executions[i].StartedAt.After(executions[j].StartedAt)
-	})
-
-	return applyPagination(executions, limit, offset), nil
+	return applyPagination(executions, query.Limit, query.Offset), len(executions), nil
 }
 
 // ============================================================================

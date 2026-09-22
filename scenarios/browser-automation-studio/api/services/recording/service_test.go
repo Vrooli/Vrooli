@@ -2,18 +2,25 @@ package recording
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"errors"
-	"fmt"
+	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/scheduletest"
+	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/domain"
+	recordingschema "github.com/vrooli/browser-automation-studio/internal/recording"
 	"github.com/vrooli/browser-automation-studio/internal/testutil/fixtures"
 	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
+	_ "modernc.org/sqlite"
 )
 
 func TestNewService(t *testing.T) {
@@ -21,7 +28,7 @@ func TestNewService(t *testing.T) {
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
-	svc := NewService(repo, nil, log, ServiceConfig{})
+	svc := NewService(repo, ServiceConfig{})
 
 	if svc == nil {
 		t.Fatal("expected non-nil service")
@@ -34,7 +41,7 @@ func TestNewService_WithClock(t *testing.T) {
 	log.SetLevel(logrus.DebugLevel)
 	mockClock := scheduletest.New(time.Time{})
 
-	svc := NewService(repo, nil, log, ServiceConfig{
+	svc := NewService(repo, ServiceConfig{
 		Clock: mockClock,
 	})
 
@@ -62,7 +69,7 @@ func TestService_CreateSession(t *testing.T) {
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
-	svc := NewService(repo, nil, log, ServiceConfig{})
+	svc := NewService(repo, ServiceConfig{})
 	ctx := context.Background()
 
 	session, err := svc.CreateSession(ctx, SessionConfig{
@@ -91,7 +98,7 @@ func TestService_RecordAction(t *testing.T) {
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
-	svc := NewService(repo, nil, log, ServiceConfig{})
+	svc := NewService(repo, ServiceConfig{})
 	ctx := context.Background()
 
 	// Create a session first
@@ -156,7 +163,7 @@ func TestService_RecordPageEvent(t *testing.T) {
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
-	svc := NewService(repo, nil, log, ServiceConfig{})
+	svc := NewService(repo, ServiceConfig{})
 	ctx := context.Background()
 
 	// Create a session first
@@ -219,7 +226,7 @@ func TestService_CloseSession(t *testing.T) {
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
-	svc := NewService(repo, nil, log, ServiceConfig{})
+	svc := NewService(repo, ServiceConfig{})
 	ctx := context.Background()
 
 	// Create a session
@@ -267,549 +274,13 @@ func TestActionSource_Values(t *testing.T) {
 	}
 }
 
-func TestService_DuplicateNavigateDetection(t *testing.T) {
-	repo := persistence.NewMockRepository()
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-
-	svc := NewService(repo, nil, log, ServiceConfig{})
-	ctx := context.Background()
-
-	// Create a session
-	session, err := svc.CreateSession(ctx, SessionConfig{
-		ViewportWidth:  1920,
-		ViewportHeight: 1080,
-	})
-	if err != nil {
-		t.Fatalf("CreateSession failed: %v", err)
-	}
-
-	pageID := uuid.New()
-	now := time.Now()
-
-	// Record a navigate action
-	action1 := &driver.RecordedAction{
-		ID:         uuid.New().String(),
-		SessionID:  session.ID,
-		ActionType: "navigate",
-		URL:        "https://example.com",
-		Timestamp:  now.Format(time.RFC3339Nano),
-		Confidence: 1.0,
-	}
-
-	err = svc.RecordAction(ctx, session.ID, action1, pageID, ActionSourceAuto)
-	if err != nil {
-		t.Fatalf("RecordAction failed: %v", err)
-	}
-
-	// Record a duplicate navigate action (same URL, within threshold)
-	action2 := &driver.RecordedAction{
-		ID:         uuid.New().String(),
-		SessionID:  session.ID,
-		ActionType: "navigate",
-		URL:        "https://example.com",
-		Timestamp:  now.Add(100 * time.Millisecond).Format(time.RFC3339Nano),
-		Confidence: 1.0,
-	}
-
-	err = svc.RecordAction(ctx, session.ID, action2, pageID, ActionSourceAuto)
-	if err != nil {
-		t.Fatalf("RecordAction failed: %v", err)
-	}
-
-	// Verify only one action was recorded (duplicate was skipped)
-	timeline, err := svc.GetTimeline(ctx, persistence.TimelineQuery{
-		SessionID: session.ID,
-	})
-	if err != nil {
-		t.Fatalf("GetTimeline failed: %v", err)
-	}
-
-	if timeline.TotalCount != 1 {
-		t.Errorf("expected 1 timeline entry (duplicate skipped), got %d", timeline.TotalCount)
-	}
-}
-
-func TestService_GetTimelineCount(t *testing.T) {
-	repo := persistence.NewMockRepository()
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-
-	svc := NewService(repo, nil, log, ServiceConfig{})
-	ctx := context.Background()
-
-	// Create a session
-	session, err := svc.CreateSession(ctx, SessionConfig{
-		ViewportWidth:  1920,
-		ViewportHeight: 1080,
-	})
-	if err != nil {
-		t.Fatalf("CreateSession failed: %v", err)
-	}
-
-	// Check initial count
-	if count := svc.GetTimelineCount(session.ID); count != 0 {
-		t.Errorf("expected initial count 0, got %d", count)
-	}
-
-	// Add some actions
-	pageID := uuid.New()
-	for i := 0; i < 5; i++ {
-		action := &driver.RecordedAction{
-			ID:         uuid.New().String(),
-			SessionID:  session.ID,
-			ActionType: "click",
-			Timestamp:  time.Now().Format(time.RFC3339Nano),
-			Confidence: 0.95,
-		}
-		_ = svc.RecordAction(ctx, session.ID, action, pageID, ActionSourceManual)
-	}
-
-	// Check count after adding actions
-	if count := svc.GetTimelineCount(session.ID); count != 5 {
-		t.Errorf("expected count 5, got %d", count)
-	}
-}
-
 // =============================================================================
 // Unified API Tests
 // =============================================================================
 
-func TestService_RecordActionUnified_Success(t *testing.T) {
-	repo := persistence.NewMockRepository()
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-
-	svc := NewService(repo, nil, log, ServiceConfig{})
-	ctx := context.Background()
-
-	// Create a session
-	session, err := svc.CreateSession(ctx, SessionConfig{
-		ViewportWidth:  1920,
-		ViewportHeight: 1080,
-	})
-	if err != nil {
-		t.Fatalf("CreateSession failed: %v", err)
-	}
-
-	pageID := uuid.New()
-	action := &driver.RecordedAction{
-		ID:         uuid.New().String(),
-		SessionID:  session.ID,
-		ActionType: "click",
-		Timestamp:  time.Now().Format(time.RFC3339Nano),
-		Confidence: 0.95,
-		Selector: &driver.SelectorSet{
-			Primary: "#submit-button",
-		},
-	}
-
-	result, err := svc.RecordActionUnified(ctx, RecordActionRequest{
-		SessionID:     session.ID,
-		Action:        action,
-		PageID:        pageID,
-		Source:        ActionSourceManual,
-		CorrelationID: "test-correlation-123",
-	})
-	if err != nil {
-		t.Fatalf("RecordActionUnified failed: %v", err)
-	}
-
-	if result == nil {
-		t.Fatal("expected non-nil result")
-	}
-
-	if result.CorrelationID != "test-correlation-123" {
-		t.Errorf("expected correlation ID 'test-correlation-123', got '%s'", result.CorrelationID)
-	}
-
-	if result.ActionID == uuid.Nil {
-		t.Error("expected non-nil action ID")
-	}
-
-	if result.SequenceNum != 1 {
-		t.Errorf("expected sequence number 1, got %d", result.SequenceNum)
-	}
-
-	if !result.Persisted {
-		t.Error("expected action to be persisted")
-	}
-
-	if result.HasErrors() {
-		t.Errorf("expected no errors, got %v", result.Errors)
-	}
-
-	// Verify action was recorded in timeline
-	timeline, err := svc.GetTimeline(ctx, persistence.TimelineQuery{
-		SessionID: session.ID,
-	})
-	if err != nil {
-		t.Fatalf("GetTimeline failed: %v", err)
-	}
-
-	if timeline.TotalCount != 1 {
-		t.Errorf("expected 1 timeline entry, got %d", timeline.TotalCount)
-	}
-}
-
-func TestService_RecordActionUnified_NilAction(t *testing.T) {
-	repo := persistence.NewMockRepository()
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-
-	svc := NewService(repo, nil, log, ServiceConfig{})
-	ctx := context.Background()
-
-	// Create a session
-	session, err := svc.CreateSession(ctx, SessionConfig{
-		ViewportWidth:  1920,
-		ViewportHeight: 1080,
-	})
-	if err != nil {
-		t.Fatalf("CreateSession failed: %v", err)
-	}
-
-	pageID := uuid.New()
-
-	result, err := svc.RecordActionUnified(ctx, RecordActionRequest{
-		SessionID: session.ID,
-		Action:    nil, // nil action
-		PageID:    pageID,
-		Source:    ActionSourceManual,
-	})
-	if err != nil {
-		t.Fatalf("RecordActionUnified should not return error for nil action: %v", err)
-	}
-
-	if result == nil {
-		t.Fatal("expected non-nil result")
-	}
-
-	if !result.HasErrors() {
-		t.Error("expected errors for nil action")
-	}
-
-	// Check for validation error
-	foundValidationError := false
-	for _, e := range result.Errors {
-		if e.Stage == "validation" && e.Message == "action is nil" {
-			foundValidationError = true
-			break
-		}
-	}
-	if !foundValidationError {
-		t.Errorf("expected validation error for nil action, got %v", result.Errors)
-	}
-}
-
-func TestService_RecordActionUnified_PersistenceError(t *testing.T) {
-	repo := persistence.NewMockRepository()
-	repo.SaveTimelineEntryErr = errors.New("database connection failed")
-
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-
-	svc := NewService(repo, nil, log, ServiceConfig{})
-	ctx := context.Background()
-
-	// Create a session
-	session, err := svc.CreateSession(ctx, SessionConfig{
-		ViewportWidth:  1920,
-		ViewportHeight: 1080,
-	})
-	if err != nil {
-		t.Fatalf("CreateSession failed: %v", err)
-	}
-
-	pageID := uuid.New()
-	action := &driver.RecordedAction{
-		ID:         uuid.New().String(),
-		SessionID:  session.ID,
-		ActionType: "click",
-		Timestamp:  time.Now().Format(time.RFC3339Nano),
-		Confidence: 0.95,
-	}
-
-	result, err := svc.RecordActionUnified(ctx, RecordActionRequest{
-		SessionID: session.ID,
-		Action:    action,
-		PageID:    pageID,
-		Source:    ActionSourceManual,
-	})
-	if err != nil {
-		t.Fatalf("RecordActionUnified should not return error on persistence failure: %v", err)
-	}
-
-	if result == nil {
-		t.Fatal("expected non-nil result")
-	}
-
-	// Action should still be in cache (partial success)
-	if result.SequenceNum != 1 {
-		t.Errorf("expected sequence number 1, got %d", result.SequenceNum)
-	}
-
-	// Persisted should be false
-	if result.Persisted {
-		t.Error("expected Persisted to be false on persistence error")
-	}
-
-	// Should have persistence error
-	if !result.HasErrors() {
-		t.Error("expected errors for persistence failure")
-	}
-
-	foundPersistenceError := false
-	for _, e := range result.Errors {
-		if e.Stage == "persistence" {
-			foundPersistenceError = true
-			break
-		}
-	}
-	if !foundPersistenceError {
-		t.Errorf("expected persistence error, got %v", result.Errors)
-	}
-
-	// Verify action was still cached despite persistence error
-	count := svc.GetTimelineCount(session.ID)
-	if count != 1 {
-		t.Errorf("expected 1 entry in cache despite persistence error, got %d", count)
-	}
-}
-
-func TestService_RecordPageEventUnified_Success(t *testing.T) {
-	repo := persistence.NewMockRepository()
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-
-	svc := NewService(repo, nil, log, ServiceConfig{})
-	ctx := context.Background()
-
-	// Create a session
-	session, err := svc.CreateSession(ctx, SessionConfig{
-		ViewportWidth:  1920,
-		ViewportHeight: 1080,
-	})
-	if err != nil {
-		t.Fatalf("CreateSession failed: %v", err)
-	}
-
-	pageID := uuid.New()
-	event := &domain.PageEvent{
-		ID:        uuid.New(),
-		Type:      domain.PageEventCreated,
-		PageID:    pageID,
-		URL:       "https://example.com",
-		Title:     "Example",
-		Timestamp: time.Now(),
-	}
-
-	result, err := svc.RecordPageEventUnified(ctx, RecordPageEventRequest{
-		SessionID:     session.ID,
-		Event:         event,
-		CorrelationID: "test-page-event-123",
-	})
-	if err != nil {
-		t.Fatalf("RecordPageEventUnified failed: %v", err)
-	}
-
-	if result == nil {
-		t.Fatal("expected non-nil result")
-	}
-
-	if result.CorrelationID != "test-page-event-123" {
-		t.Errorf("expected correlation ID 'test-page-event-123', got '%s'", result.CorrelationID)
-	}
-
-	if result.ActionID != event.ID {
-		t.Errorf("expected action ID %s, got %s", event.ID, result.ActionID)
-	}
-
-	if result.SequenceNum != 1 {
-		t.Errorf("expected sequence number 1, got %d", result.SequenceNum)
-	}
-
-	if !result.Persisted {
-		t.Error("expected event to be persisted")
-	}
-
-	if result.HasErrors() {
-		t.Errorf("expected no errors, got %v", result.Errors)
-	}
-
-	// Verify event was recorded in timeline
-	timeline, err := svc.GetTimeline(ctx, persistence.TimelineQuery{
-		SessionID: session.ID,
-	})
-	if err != nil {
-		t.Fatalf("GetTimeline failed: %v", err)
-	}
-
-	if timeline.TotalCount != 1 {
-		t.Errorf("expected 1 timeline entry, got %d", timeline.TotalCount)
-	}
-
-	if len(timeline.Entries) > 0 && timeline.Entries[0].Type != persistence.TimelineEntryTypePageEvent {
-		t.Errorf("expected page_event entry type, got %s", timeline.Entries[0].Type)
-	}
-}
-
-func TestService_RecordPageEventUnified_NilEvent(t *testing.T) {
-	repo := persistence.NewMockRepository()
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-
-	svc := NewService(repo, nil, log, ServiceConfig{})
-	ctx := context.Background()
-
-	// Create a session
-	session, err := svc.CreateSession(ctx, SessionConfig{
-		ViewportWidth:  1920,
-		ViewportHeight: 1080,
-	})
-	if err != nil {
-		t.Fatalf("CreateSession failed: %v", err)
-	}
-
-	result, err := svc.RecordPageEventUnified(ctx, RecordPageEventRequest{
-		SessionID: session.ID,
-		Event:     nil, // nil event
-	})
-	if err != nil {
-		t.Fatalf("RecordPageEventUnified should not return error for nil event: %v", err)
-	}
-
-	if result == nil {
-		t.Fatal("expected non-nil result")
-	}
-
-	if !result.HasErrors() {
-		t.Error("expected errors for nil event")
-	}
-
-	// Check for validation error
-	foundValidationError := false
-	for _, e := range result.Errors {
-		if e.Stage == "validation" && e.Message == "event is nil" {
-			foundValidationError = true
-			break
-		}
-	}
-	if !foundValidationError {
-		t.Errorf("expected validation error for nil event, got %v", result.Errors)
-	}
-}
-
 // =============================================================================
 // Cache Eviction Tests
 // =============================================================================
-
-func TestService_CacheEviction_TruncatesAt1000(t *testing.T) {
-	repo := persistence.NewMockRepository()
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-
-	svc := NewService(repo, nil, log, ServiceConfig{})
-	ctx := context.Background()
-
-	// Create a session
-	session, err := svc.CreateSession(ctx, SessionConfig{
-		ViewportWidth:  1920,
-		ViewportHeight: 1080,
-	})
-	if err != nil {
-		t.Fatalf("CreateSession failed: %v", err)
-	}
-
-	pageID := uuid.New()
-
-	// Add 1001 actions to trigger cache eviction
-	for i := 0; i < 1001; i++ {
-		action := &driver.RecordedAction{
-			ID:         uuid.New().String(),
-			SessionID:  session.ID,
-			ActionType: "click",
-			Timestamp:  time.Now().Format(time.RFC3339Nano),
-			Confidence: 0.95,
-		}
-		_ = svc.RecordAction(ctx, session.ID, action, pageID, ActionSourceManual)
-	}
-
-	// Cache should have been truncated from 1001 to ~501 entries
-	count := svc.GetTimelineCount(session.ID)
-	if count > 600 {
-		t.Errorf("expected cache to be truncated, got %d entries (should be around 501)", count)
-	}
-	if count < 500 {
-		t.Errorf("expected at least 500 entries after truncation, got %d", count)
-	}
-}
-
-func TestService_CacheEviction_PreservesNewestEntries(t *testing.T) {
-	repo := persistence.NewMockRepository()
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-
-	svc := NewService(repo, nil, log, ServiceConfig{})
-	ctx := context.Background()
-
-	// Create a session
-	session, err := svc.CreateSession(ctx, SessionConfig{
-		ViewportWidth:  1920,
-		ViewportHeight: 1080,
-	})
-	if err != nil {
-		t.Fatalf("CreateSession failed: %v", err)
-	}
-
-	pageID := uuid.New()
-
-	// Add 1001 actions - each with a unique URL to identify it
-	for i := 0; i < 1001; i++ {
-		action := &driver.RecordedAction{
-			ID:         uuid.New().String(),
-			SessionID:  session.ID,
-			ActionType: "click",
-			URL:        fmt.Sprintf("https://example.com/action-%d", i),
-			Timestamp:  time.Now().Format(time.RFC3339Nano),
-			Confidence: 0.95,
-		}
-		_ = svc.RecordAction(ctx, session.ID, action, pageID, ActionSourceManual)
-	}
-
-	// Get timeline and verify newest entries are preserved
-	timeline, err := svc.GetTimeline(ctx, persistence.TimelineQuery{
-		SessionID: session.ID,
-		Limit:     1000,
-	})
-	if err != nil {
-		t.Fatalf("GetTimeline failed: %v", err)
-	}
-
-	// The last action (action-1000) should still be in the cache
-	foundLatest := false
-	for _, entry := range timeline.Entries {
-		if entry.Action != nil && entry.Action.URL == "https://example.com/action-1000" {
-			foundLatest = true
-			break
-		}
-	}
-	if !foundLatest {
-		t.Error("expected newest entry (action-1000) to be preserved after cache eviction")
-	}
-
-	// The first action (action-0) should NOT be in the cache (evicted)
-	foundOldest := false
-	for _, entry := range timeline.Entries {
-		if entry.Action != nil && entry.Action.URL == "https://example.com/action-0" {
-			foundOldest = true
-			break
-		}
-	}
-	if foundOldest {
-		t.Error("expected oldest entry (action-0) to be evicted from cache")
-	}
-}
 
 // =============================================================================
 // GetTimelineForPage Tests
@@ -820,7 +291,7 @@ func TestService_GetTimelineForPage_Success(t *testing.T) {
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
-	svc := NewService(repo, nil, log, ServiceConfig{})
+	svc := NewService(repo, ServiceConfig{})
 	ctx := context.Background()
 
 	// Create a session
@@ -885,7 +356,7 @@ func TestService_GetTimelineForPage_EmptyResult(t *testing.T) {
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
-	svc := NewService(repo, nil, log, ServiceConfig{})
+	svc := NewService(repo, ServiceConfig{})
 	ctx := context.Background()
 
 	// Create a session
@@ -914,7 +385,7 @@ func TestService_GetTimelineForPage_RespectsLimit(t *testing.T) {
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
-	svc := NewService(repo, nil, log, ServiceConfig{})
+	svc := NewService(repo, ServiceConfig{})
 	ctx := context.Background()
 
 	// Create a session
@@ -952,213 +423,15 @@ func TestService_GetTimelineForPage_RespectsLimit(t *testing.T) {
 }
 
 // =============================================================================
-// ClearSession Tests
-// =============================================================================
-
-func TestService_ClearSession_RemovesFromCache(t *testing.T) {
-	repo := persistence.NewMockRepository()
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-
-	svc := NewService(repo, nil, log, ServiceConfig{})
-	ctx := context.Background()
-
-	// Create a session
-	session, err := svc.CreateSession(ctx, SessionConfig{
-		ViewportWidth:  1920,
-		ViewportHeight: 1080,
-	})
-	if err != nil {
-		t.Fatalf("CreateSession failed: %v", err)
-	}
-
-	// Record some actions
-	pageID := uuid.New()
-	for i := 0; i < 5; i++ {
-		action := &driver.RecordedAction{
-			ID:         uuid.New().String(),
-			SessionID:  session.ID,
-			ActionType: "click",
-			Timestamp:  time.Now().Format(time.RFC3339Nano),
-			Confidence: 0.95,
-		}
-		_ = svc.RecordAction(ctx, session.ID, action, pageID, ActionSourceManual)
-	}
-
-	// Verify entries are in cache
-	if count := svc.GetTimelineCount(session.ID); count != 5 {
-		t.Fatalf("expected 5 entries before clear, got %d", count)
-	}
-
-	// Clear the session
-	svc.ClearSession(session.ID)
-
-	// Verify cache is empty
-	if count := svc.GetTimelineCount(session.ID); count != 0 {
-		t.Errorf("expected 0 entries after clear, got %d", count)
-	}
-}
-
-func TestService_ClearSession_NonExistentSession(t *testing.T) {
-	repo := persistence.NewMockRepository()
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-
-	svc := NewService(repo, nil, log, ServiceConfig{})
-
-	// Should not panic when clearing non-existent session
-	svc.ClearSession("non-existent-session-id")
-
-	// Verify count is 0 for non-existent session
-	count := svc.GetTimelineCount("non-existent-session-id")
-	if count != 0 {
-		t.Errorf("expected 0 for non-existent session, got %d", count)
-	}
-}
-
-// =============================================================================
-// WarmCache Tests
-// =============================================================================
-
-func TestService_WarmCache_LoadsFromRepository(t *testing.T) {
-	repo := persistence.NewMockRepository()
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-
-	svc := NewService(repo, nil, log, ServiceConfig{})
-	ctx := context.Background()
-
-	sessionID := "test-session-for-warming"
-
-	// Create session directly in repository (simulating existing data)
-	session := fixtures.RecordingSession(fixtures.WithRecordingSessionID(sessionID))
-	_ = repo.CreateSession(ctx, session)
-
-	// Add entries directly to repository
-	pageID := uuid.New()
-	for i := 0; i < 5; i++ {
-		entry := fixtures.TimelineEntry(
-			fixtures.WithTimelineEntrySessionID(sessionID),
-			fixtures.WithTimelineEntryPageID(pageID),
-			fixtures.WithTimelineEntrySequence(i+1),
-			fixtures.WithTimelineEntryAction(fixtures.RecordingAction(
-				fixtures.WithRecordingActionSessionID(sessionID),
-				fixtures.WithRecordingActionPageID(pageID),
-			)),
-		)
-		_ = repo.SaveTimelineEntry(ctx, entry)
-	}
-
-	// Cache should be empty initially
-	if count := svc.GetTimelineCount(sessionID); count != 0 {
-		t.Fatalf("expected empty cache initially, got %d", count)
-	}
-
-	// Warm the cache
-	err := svc.WarmCache(ctx, sessionID)
-	if err != nil {
-		t.Fatalf("WarmCache failed: %v", err)
-	}
-
-	// Cache should now have entries
-	count := svc.GetTimelineCount(sessionID)
-	if count != 5 {
-		t.Errorf("expected 5 entries after warming, got %d", count)
-	}
-}
-
-func TestService_WarmCache_NilRepository(t *testing.T) {
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-
-	// Create service with nil repository
-	svc := NewService(nil, nil, log, ServiceConfig{})
-	ctx := context.Background()
-
-	// Should not error when repository is nil
-	err := svc.WarmCache(ctx, "any-session-id")
-	if err != nil {
-		t.Errorf("WarmCache should not error with nil repository: %v", err)
-	}
-}
-
-func TestService_WarmCache_SetsCorrectSequence(t *testing.T) {
-	repo := persistence.NewMockRepository()
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-
-	svc := NewService(repo, nil, log, ServiceConfig{})
-	ctx := context.Background()
-
-	sessionID := "test-session-sequence"
-
-	// Create session
-	session := fixtures.RecordingSession(fixtures.WithRecordingSessionID(sessionID))
-	_ = repo.CreateSession(ctx, session)
-
-	// Add entries with specific sequence numbers
-	pageID := uuid.New()
-	maxSeq := 42
-	for i := 0; i < 5; i++ {
-		entry := fixtures.TimelineEntry(
-			fixtures.WithTimelineEntrySessionID(sessionID),
-			fixtures.WithTimelineEntryPageID(pageID),
-			fixtures.WithTimelineEntrySequence(maxSeq-4+i), // 38, 39, 40, 41, 42
-			fixtures.WithTimelineEntryAction(fixtures.RecordingAction(
-				fixtures.WithRecordingActionSessionID(sessionID),
-				fixtures.WithRecordingActionPageID(pageID),
-			)),
-		)
-		_ = repo.SaveTimelineEntry(ctx, entry)
-	}
-
-	// Warm the cache
-	err := svc.WarmCache(ctx, sessionID)
-	if err != nil {
-		t.Fatalf("WarmCache failed: %v", err)
-	}
-
-	// Record a new action - it should get sequence 43 (maxSeq + 1)
-	action := &driver.RecordedAction{
-		ID:         uuid.New().String(),
-		SessionID:  sessionID,
-		ActionType: "click",
-		Timestamp:  time.Now().Format(time.RFC3339Nano),
-		Confidence: 0.95,
-	}
-	_ = svc.RecordAction(ctx, sessionID, action, pageID, ActionSourceManual)
-
-	// Get timeline and check sequence
-	timeline, err := svc.GetTimeline(ctx, persistence.TimelineQuery{
-		SessionID: sessionID,
-	})
-	if err != nil {
-		t.Fatalf("GetTimeline failed: %v", err)
-	}
-
-	// Find the newest entry (should have sequence 43)
-	maxFoundSeq := 0
-	for _, entry := range timeline.Entries {
-		if entry.Sequence > maxFoundSeq {
-			maxFoundSeq = entry.Sequence
-		}
-	}
-
-	if maxFoundSeq != maxSeq+1 {
-		t.Errorf("expected max sequence %d after warming and adding, got %d", maxSeq+1, maxFoundSeq)
-	}
-}
-
-// =============================================================================
 // filterEntries Tests
 // =============================================================================
 
-func TestService_FilterEntries_ByPageID(t *testing.T) {
+func TestService_Query_ByPageID(t *testing.T) {
 	repo := persistence.NewMockRepository()
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
-	svc := NewService(repo, nil, log, ServiceConfig{})
+	svc := NewService(repo, ServiceConfig{})
 	ctx := context.Background()
 
 	// Create a session
@@ -1205,13 +478,13 @@ func TestService_FilterEntries_ByPageID(t *testing.T) {
 	}
 }
 
-func TestService_FilterEntries_BySince(t *testing.T) {
+func TestService_Query_BySince(t *testing.T) {
 	repo := persistence.NewMockRepository()
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
 	mockClock := scheduletest.New(time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC))
-	svc := NewService(repo, nil, log, ServiceConfig{Clock: mockClock})
+	svc := NewService(repo, ServiceConfig{Clock: mockClock})
 	ctx := context.Background()
 
 	// Create a session
@@ -1258,12 +531,12 @@ func TestService_FilterEntries_BySince(t *testing.T) {
 	}
 }
 
-func TestService_FilterEntries_ByEntryType(t *testing.T) {
+func TestService_Query_ByEntryType(t *testing.T) {
 	repo := persistence.NewMockRepository()
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
-	svc := NewService(repo, nil, log, ServiceConfig{})
+	svc := NewService(repo, ServiceConfig{})
 	ctx := context.Background()
 
 	// Create a session
@@ -1314,56 +587,6 @@ func TestService_FilterEntries_ByEntryType(t *testing.T) {
 	}
 }
 
-func TestService_FilterEntries_SortsChronologically(t *testing.T) {
-	repo := persistence.NewMockRepository()
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-
-	svc := NewService(repo, nil, log, ServiceConfig{})
-	ctx := context.Background()
-
-	// Create a session
-	session, err := svc.CreateSession(ctx, SessionConfig{
-		ViewportWidth:  1920,
-		ViewportHeight: 1080,
-	})
-	if err != nil {
-		t.Fatalf("CreateSession failed: %v", err)
-	}
-
-	page1 := uuid.New()
-	page2 := uuid.New()
-
-	// Record actions with interleaved timestamps on different pages
-	baseTime := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
-
-	action1 := &driver.RecordedAction{ID: uuid.New().String(), ActionType: "click", Timestamp: baseTime.Format(time.RFC3339Nano)}
-	action2 := &driver.RecordedAction{ID: uuid.New().String(), ActionType: "click", Timestamp: baseTime.Add(2 * time.Second).Format(time.RFC3339Nano)}
-	action3 := &driver.RecordedAction{ID: uuid.New().String(), ActionType: "click", Timestamp: baseTime.Add(1 * time.Second).Format(time.RFC3339Nano)}
-
-	_ = svc.RecordAction(ctx, session.ID, action1, page1, ActionSourceManual)
-	_ = svc.RecordAction(ctx, session.ID, action2, page2, ActionSourceManual)
-	_ = svc.RecordAction(ctx, session.ID, action3, page1, ActionSourceManual)
-
-	// Filter by page1 (should sort chronologically)
-	timeline, err := svc.GetTimeline(ctx, persistence.TimelineQuery{
-		SessionID: session.ID,
-		PageID:    &page1,
-	})
-	if err != nil {
-		t.Fatalf("GetTimeline failed: %v", err)
-	}
-
-	if len(timeline.Entries) != 2 {
-		t.Fatalf("expected 2 entries for page1, got %d", len(timeline.Entries))
-	}
-
-	// Verify chronological order
-	if !timeline.Entries[0].Timestamp.Before(timeline.Entries[1].Timestamp) {
-		t.Error("expected entries to be sorted chronologically")
-	}
-}
-
 // =============================================================================
 // SetOnAction Tests
 // =============================================================================
@@ -1373,7 +596,7 @@ func TestService_SetOnAction_InvokesCallback(t *testing.T) {
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
-	svc := NewService(repo, nil, log, ServiceConfig{})
+	svc := NewService(repo, ServiceConfig{})
 	ctx := context.Background()
 
 	// Track callback invocations
@@ -1428,15 +651,227 @@ func TestService_GetSession_NilRepository(t *testing.T) {
 	log.SetLevel(logrus.DebugLevel)
 
 	// Create service with nil repository
-	svc := NewService(nil, nil, log, ServiceConfig{})
+	svc := NewService(nil, ServiceConfig{})
 	ctx := context.Background()
 
-	// Should return nil, nil when repository is nil
+	// Missing storage must remain explicit.
 	session, err := svc.GetSession(ctx, "any-id")
-	if err != nil {
-		t.Errorf("expected no error with nil repository, got: %v", err)
+	if !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Errorf("expected unavailable repository, got: %v", err)
 	}
 	if session != nil {
 		t.Error("expected nil session with nil repository")
+	}
+}
+
+// [REQ:BAS-RH-J06] Use production schema and a real disk-backed journal.
+func openJournalFixture(t *testing.T, path string) (*Service, *sql.DB) {
+	t.Helper()
+	dsn, err := storage.SQLiteDSNAt(path, storage.SQLiteTuning{TimeFormat: "sqlite"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	routed, err := coredb.Open(context.Background(), coredb.Config{Driver: coredb.DriverSQLite, DSN: dsn, MaxOpenConns: 1, MaxIdleConns: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	db := routed.Primary()
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := db.Exec(recordingschema.Schema()); err != nil {
+		t.Fatal(err)
+	}
+	return NewService(persistence.NewSQLiteRepository(db), ServiceConfig{}), db
+}
+
+func journalAction(id string) *driver.RecordedAction {
+	return &driver.RecordedAction{ID: id, ActionType: "input", Timestamp: "2026-09-22T00:00:00Z", Payload: map[string]interface{}{"text": "original"}}
+}
+
+func TestJournalFailedCommitIsNotAcknowledgedOrPublished(t *testing.T) {
+	svc, db := openJournalFixture(t, filepath.Join(t.TempDir(), "journal.db"))
+	ctx := context.Background()
+	sess, err := svc.CreateSession(ctx, SessionConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("CREATE TRIGGER reject_journal BEFORE INSERT ON timeline_entries BEGIN SELECT RAISE(ABORT, 'synthetic disk failure'); END"); err != nil {
+		t.Fatal(err)
+	}
+	broadcasts := 0
+	svc.SetOnAction(func(string, *persistence.UnifiedTimelineEntry) { broadcasts++ })
+	if err := svc.RecordAction(ctx, sess.ID, journalAction(uuid.NewString()), uuid.Nil, ActionSourceAuto); err == nil {
+		t.Error("failed action commit was acknowledged")
+	}
+	if err := svc.RecordPageEvent(ctx, sess.ID, &domain.PageEvent{ID: uuid.New(), Timestamp: time.Now()}); err == nil {
+		t.Error("failed page-event commit was acknowledged")
+	}
+	if broadcasts != 0 {
+		t.Errorf("published %d uncommitted entries", broadcasts)
+	}
+	timeline, err := svc.GetTimeline(ctx, persistence.TimelineQuery{SessionID: sess.ID})
+	if err != nil || timeline.TotalCount != 0 || len(timeline.Entries) != 0 {
+		t.Errorf("failed entries leaked into history: %+v %v", timeline, err)
+	}
+}
+
+func TestJournalHistorySurvivesPaginationReopenAndConcurrentWriters(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "journal.db")
+	svc, db := openJournalFixture(t, path)
+	ctx := context.Background()
+	sess, err := svc.CreateSession(ctx, SessionConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 1001; i++ {
+		if err := svc.RecordAction(ctx, sess.ID, journalAction(uuid.NewString()), uuid.Nil, ActionSourceAuto); err != nil {
+			t.Fatal(err)
+		}
+	}
+	assertPage := func(s *Service, offset int) {
+		t.Helper()
+		result, err := s.GetTimeline(ctx, persistence.TimelineQuery{SessionID: sess.ID, Limit: 100, Offset: offset})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result.TotalCount != 1001 || len(result.Entries) != 100 || result.Entries[0].Sequence != offset+1 || !result.HasMore {
+			t.Fatalf("page offset%d: total%d entries%d start%d more%v", offset, result.TotalCount, len(result.Entries), result.Entries[0].Sequence, result.HasMore)
+		}
+	}
+	assertPage(svc, 0)
+	assertPage(svc, 100)
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	first, _ := openJournalFixture(t, path)
+	second, _ := openJournalFixture(t, path)
+	assertPage(first, 0)
+	assertPage(first, 100)
+	var wg sync.WaitGroup
+	for _, s := range []*Service{first, second} {
+		wg.Add(1)
+		go func(s *Service) {
+			defer wg.Done()
+			for i := 0; i < 20; i++ {
+				if err := s.RecordAction(ctx, sess.ID, journalAction(uuid.NewString()), uuid.Nil, ActionSourceAuto); err != nil {
+					t.Error(err)
+					return
+				}
+			}
+		}(s)
+	}
+	wg.Wait()
+	result, err := first.GetTimeline(ctx, persistence.TimelineQuery{SessionID: sess.ID, Offset: 1000, Limit: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.TotalCount != 1041 || len(result.Entries) != 41 || result.HasMore {
+		t.Fatalf("complete history: total%d entries%d more%v", result.TotalCount, len(result.Entries), result.HasMore)
+	}
+	for i, e := range result.Entries {
+		if e.Sequence != 1001+i {
+			t.Fatalf("journal sequence %d: want%d got%d", i, 1001+i, e.Sequence)
+		}
+	}
+}
+
+func TestJournalRetryIdentityPreservesDistinctNavigations(t *testing.T) {
+	svc, _ := openJournalFixture(t, filepath.Join(t.TempDir(), "journal.db"))
+	ctx := context.Background()
+	sess, err := svc.CreateSession(ctx, SessionConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	action := journalAction(uuid.NewString())
+	action.ActionType = "navigate"
+	action.URL = "https://example.test/same"
+	for i := 0; i < 2; i++ {
+		if err := svc.RecordAction(ctx, sess.ID, action, uuid.Nil, ActionSourceAuto); err != nil {
+			t.Fatal(err)
+		}
+	}
+	distinct := *action
+	distinct.ID = uuid.NewString()
+	if err := svc.RecordAction(ctx, sess.ID, &distinct, uuid.Nil, ActionSourceAuto); err != nil {
+		t.Fatal(err)
+	}
+	result, err := svc.GetTimeline(ctx, persistence.TimelineQuery{SessionID: sess.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.TotalCount != 2 || len(result.Entries) != 2 || result.Entries[0].ID == result.Entries[1].ID {
+		t.Fatalf("retry must deduplicate by identity and retain distinct observations: %+v", result)
+	}
+	action.Payload = map[string]interface{}{"text": "conflicting payload"}
+	if err := svc.RecordAction(ctx, sess.ID, action, uuid.Nil, ActionSourceAuto); err == nil {
+		t.Fatal("conflicting identity reuse was acknowledged")
+	}
+}
+
+func TestJournalCorruptCommittedDataFailsRead(t *testing.T) {
+	svc, db := openJournalFixture(t, filepath.Join(t.TempDir(), "journal.db"))
+	ctx := context.Background()
+	sess, err := svc.CreateSession(ctx, SessionConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	action := journalAction(uuid.NewString())
+	if err := svc.RecordAction(ctx, sess.ID, action, uuid.Nil, ActionSourceAuto); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("UPDATE timeline_entries SET action_json='not JSON'"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.GetTimeline(ctx, persistence.TimelineQuery{SessionID: sess.ID}); err == nil {
+		t.Error("corrupt history was silently accepted")
+	}
+	if err := svc.RecordAction(ctx, sess.ID, action, uuid.Nil, ActionSourceAuto); err == nil {
+		t.Error("retry hid corrupt committed payload")
+	}
+}
+
+func TestJournalRetryPreservesLargeJSONNumbersAndNotifiesOnce(t *testing.T) {
+	svc, _ := openJournalFixture(t, filepath.Join(t.TempDir(), "journal.db"))
+	ctx := context.Background()
+	sess, err := svc.CreateSession(ctx, SessionConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	action := journalAction("opaque-event-1")
+	action.Payload = map[string]interface{}{"exact": json.Number("9007199254740993")}
+	notifications := 0
+	svc.SetOnAction(func(string, *persistence.UnifiedTimelineEntry) { notifications++ })
+	for i := 0; i < 2; i++ {
+		if err := svc.RecordAction(ctx, sess.ID, action, uuid.Nil, ActionSourceAuto); err != nil {
+			t.Fatal(err)
+		}
+	}
+	result, err := svc.GetTimeline(ctx, persistence.TimelineQuery{SessionID: sess.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if notifications != 1 || result.TotalCount != 1 || result.Entries[0].Action.Payload["exact"] != json.Number("9007199254740993") {
+		t.Fatalf("retry or precision lost: notifications%d history%+v", notifications, result)
+	}
+}
+
+func TestJournalRejectsTrailingCorruptJSON(t *testing.T) {
+	svc, db := openJournalFixture(t, filepath.Join(t.TempDir(), "journal.db"))
+	ctx := context.Background()
+	sess, err := svc.CreateSession(ctx, SessionConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	action := journalAction(uuid.NewString())
+	if err := svc.RecordAction(ctx, sess.ID, action, uuid.Nil, ActionSourceAuto); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("UPDATE timeline_entries SET action_json=action_json || ' trailing corruption'"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.GetTimeline(ctx, persistence.TimelineQuery{SessionID: sess.ID}); err == nil {
+		t.Error("valid prefix hid trailing journal corruption")
+	}
+	if err := svc.RecordAction(ctx, sess.ID, action, uuid.Nil, ActionSourceAuto); err == nil {
+		t.Error("retry acknowledged corrupt committed JSON")
 	}
 }

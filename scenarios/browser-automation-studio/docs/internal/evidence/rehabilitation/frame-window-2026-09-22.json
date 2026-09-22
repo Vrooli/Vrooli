@@ -1,0 +1,311 @@
+{
+  "cycle": "BAS-WORK-016",
+  "date": "2026-09-22",
+  "issues": [
+    "BAS-RF-009",
+    "BAS-RF-015"
+  ],
+  "changes": [
+    "Go and driver bounded rings use window-local counts, skipped counts, sizes and monotonic observation intervals",
+    "Lifetime sequence/count retained only for frame identity and log/broadcast cadence",
+    "Reset clears the measurement epoch; detached recent samples preserve chronological order",
+    "Socket availability waiting excluded from API processing; legacy e2e wire fields labelled processing with unmeasured transit/paint explicit",
+    "UI server-stat declaration has one authority, four type callers converted; no compatibility re-export"
+  ],
+  "evidence": {
+    "red_go": "/tmp/bas-frame-red-016.txt",
+    "red_websocket": "/tmp/bas-frame-handler-red-016.txt;100.241ms idle falsely counted",
+    "red_driver": "/tmp/bas-driver-frame-red-016.txt;2-frame window reported6frames/4skips/333bytes per sec instead of2/0/1000",
+    "green_go": "/tmp/bas-frame-green-final-016.txt;race performance1.025s/handlers1.293s",
+    "green_driver": "/tmp/bas-driver-frame-green-final-016.txt;14tests/2suites including real Chromium3.094s",
+    "typechecks": "driver and UI passed; /tmp/bas-driver-typecheck-final-016.txt and /tmp/bas-ui-typecheck-final-016.txt",
+    "recording_api_probes": "9/9; /tmp/bas-recording-probes-016.json",
+    "build": "Final BAS make build passed; /tmp/bas-build-final-016.txt; misdirected root build excluded",
+    "owner_run": "20260922-074813-d12be3cc;terminal failed;one wait completed",
+    "board": "prog_72b48fe9-3355-4d87-962f-96231dbb91d5;17pending/productfalse",
+    "contract": "passed preparation only"
+  },
+  "local_metrics": {
+    "paths": [
+      "api/performance/collector.go",
+      "api/performance/types.go",
+      "api/handlers/record_mode.go"
+    ],
+    "before": {
+      "lines": 1578,
+      "functions": 32,
+      "cyclomatic": 180
+    },
+    "after": {
+      "lines": 1526,
+      "functions": 32,
+      "cyclomatic": 178
+    },
+    "driver_collector_lines": {
+      "before": 378,
+      "after": 323
+    },
+    "note": "Go same file union; UI duplicate type declaration additionally removed (four callers converted); driver runtime lines measured separately, not cyclomatic"
+  },
+  "cumulative_go": {
+    "basis": "Original HEAD vs current affected BAS Go union; includes existing test-helper Go files. Other shared-tree edits are not independently attributed. Shared owner009 separately adds17 cyclomatic.",
+    "paths": [
+      "api/automation/compiler/action_definition_builder.go",
+      "api/automation/events/sink.go",
+      "api/automation/events/ws_sink.go",
+      "api/handlers/execution_export.go",
+      "api/handlers/handler.go",
+      "api/handlers/record_mode.go",
+      "api/handlers/record_mode_actions.go",
+      "api/handlers/record_mode_pages.go",
+      "api/handlers/record_mode_persistence.go",
+      "api/handlers/recordings/module.go",
+      "api/handlers/recordings/service.go",
+      "api/handlers/testutil_mock_services.go",
+      "api/internal/typeconv/builders.go",
+      "api/internal/wire/wire.go",
+      "api/main.go",
+      "api/performance/collector.go",
+      "api/performance/types.go",
+      "api/services/export/source/video_source.go",
+      "api/services/live-capture/action_registry.go",
+      "api/services/live-capture/service.go",
+      "api/services/live-capture/workflow_generator.go",
+      "api/services/recording/persistence/mock_repository.go",
+      "api/services/recording/persistence/repository.go",
+      "api/services/recording/persistence/sqlite.go",
+      "api/services/recording/persistence/types.go",
+      "api/services/recording/recorder.go",
+      "api/services/recording/service.go",
+      "api/services/session-profile/persistence/credentials.go",
+      "api/services/session-profile/persistence/file_repository.go",
+      "api/services/session-profile/persistence/filesystem.go",
+      "api/services/session-profile/persistence/filesystem_mock.go",
+      "api/services/session-profile/persistence/mock_repository.go",
+      "api/services/session-profile/persistence/protected_state.go",
+      "api/services/session-profile/persistence/repository.go",
+      "api/services/session-profile/service.go",
+      "api/services/uxmetrics/collector/collector.go",
+      "api/services/workflow/executions.go",
+      "api/services/workflow/executions_list.go"
+    ],
+    "original": {
+      "files": 37,
+      "lines": 15845,
+      "functions": 541,
+      "cyclomatic": 2406
+    },
+    "current": {
+      "files": 37,
+      "lines": 14258,
+      "functions": 523,
+      "cyclomatic": 2266
+    },
+    "shared_owner_009_cyclomatic_delta": 17
+  },
+  "microbenchmark": {
+    "workload": "BenchmarkCollectorRecord, fixed capacity300, same input,3trials each; isolated source copies",
+    "before": "goos: linux\ngoarch: amd64\npkg: framebenchmark\ncpu: AMD Ryzen 9 7950X 16-Core Processor            \nBenchmarkCollectorRecord-8   \t37668876\t        36.08 ns/op\t     270 B/op\t       0 allocs/op\nBenchmarkCollectorRecord-8   \t42339285\t        33.74 ns/op\t     270 B/op\t       0 allocs/op\nBenchmarkCollectorRecord-8   \t36214078\t        38.55 ns/op\t     270 B/op\t       0 allocs/op\nPASS\nok  \tframebenchmark\t5.205s\n",
+    "after": "goos: linux\ngoarch: amd64\npkg: framebenchmark\ncpu: AMD Ryzen 9 7950X 16-Core Processor            \nBenchmarkCollectorRecord-8   \t27836755\t        42.92 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkCollectorRecord-8   \t27253844\t        41.73 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkCollectorRecord-8   \t27565330\t        43.03 ns/op\t       0 B/op\t       0 allocs/op\nPASS\nok  \tframebenchmark\t3.656s\n",
+    "interpretation": "Amortized allocated bytes per frame270\u21920 (allocs/op rounds subunit frequency to0). Time median36.08\u219242.92ns/op; new monotonic observation adds cost. Not a speed improvement or live FPS claim; shared host/owner validation limit timing attribution. Earlier concurrent benchmark logs retained separately."
+  },
+  "source_inventory_digest": "af9b29c196e299223560639e012d609f56591a13714a30124e33eeecc2e3145a",
+  "deployed": false,
+  "limitations": [
+    "API only observes perf-header frames; skips not transmitted by driver are not measured",
+    "Legacy e2e wire field names retained for compatibility, do not measure actual input-to-paint/transit/client rendering",
+    "Time-window rates may be fractional; empty samples return counts0 and UI hides absent diagnostics",
+    "Physical/browser journey/native cohorts not qualified",
+    "Shared dirty tree source digest is an observation, not isolated candidate execution proof"
+  ],
+  "final_owner_validation": {
+    "run_id": "20260922-074813-d12be3cc",
+    "status": "terminal failed",
+    "unit_seconds": 438,
+    "api": "passed19.051s",
+    "cli": "passed0.859s",
+    "driver": "126suites1478tests passed;2skips;naturalexit345.608s;command346.324s",
+    "ui": "coverage28.57/30.34/64.96/28.57 below85%;typecheckpassed11.405s",
+    "tidiness": {
+      "totalFindings": 1080,
+      "longFiles": 80,
+      "complexity": 380,
+      "duplication": 607,
+      "coupling": 12,
+      "duplicationLineDebt": 33697
+    },
+    "failure": "unchanged complexity380 vs baseline363"
+  },
+  "deployment_deferred": {
+    "observed_at": "2026-09-22T07:57:39.065318+00:00",
+    "new_nonterminal": [
+      {
+        "executionId": "5fa57bc5-ef29-4b90-832c-8ac817b59c95",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-22T07:57:38.611093913Z",
+        "createdAt": "2026-09-22T07:57:38Z",
+        "updatedAt": "2026-09-22T07:57:38.611313433Z"
+      },
+      {
+        "executionId": "9f027064-d65c-4fed-82c9-a8bb3afe2366",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-22T07:57:38.545170520Z",
+        "createdAt": "2026-09-22T07:57:38Z",
+        "updatedAt": "2026-09-22T07:57:38.545554961Z"
+      },
+      {
+        "executionId": "afcbcd45-f551-4dbf-a887-e920761abc4c",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-22T07:57:38.314205216Z",
+        "createdAt": "2026-09-22T07:57:38Z",
+        "updatedAt": "2026-09-22T07:57:38.314452207Z"
+      },
+      {
+        "executionId": "6bd0350c-fbd0-48dc-bb19-c0a751f72d02",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-22T07:57:34.382542747Z",
+        "createdAt": "2026-09-22T07:57:34Z",
+        "updatedAt": "2026-09-22T07:57:35.265856242Z"
+      },
+      {
+        "executionId": "d4a0ce59-021b-4add-a2ac-9ea8773d7efe",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-22T07:57:31.389050724Z",
+        "createdAt": "2026-09-22T07:57:31Z",
+        "updatedAt": "2026-09-22T07:57:31.976721665Z"
+      },
+      {
+        "executionId": "e87bd368-66d6-4c1b-bc03-ec1ec11a1569",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-22T07:57:29.571545144Z",
+        "createdAt": "2026-09-22T07:57:29Z",
+        "updatedAt": "2026-09-22T07:57:30.400007118Z"
+      },
+      {
+        "executionId": "c24ead16-fcd8-43fa-8731-c8a01602ae66",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-22T07:57:24.964950495Z",
+        "createdAt": "2026-09-22T07:57:24Z",
+        "updatedAt": "2026-09-22T07:57:25.449756058Z"
+      },
+      {
+        "executionId": "7fadce98-ed84-41c9-8904-8b5bb530e592",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-22T07:57:11.932138622Z",
+        "createdAt": "2026-09-22T07:57:11Z",
+        "updatedAt": "2026-09-22T07:57:12.809429071Z"
+      },
+      {
+        "executionId": "a373c8e7-dff2-40dd-b598-2860a484b235",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-22T07:57:09.913296213Z",
+        "createdAt": "2026-09-22T07:57:09Z",
+        "updatedAt": "2026-09-22T07:57:10.684902260Z"
+      },
+      {
+        "executionId": "b9aa739f-3a4b-4466-a228-46f21e12219c",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-22T07:56:30.544366620Z",
+        "createdAt": "2026-09-22T07:56:30Z",
+        "updatedAt": "2026-09-22T07:57:16.164549662Z"
+      }
+    ],
+    "driver_sessions": 10,
+    "driver_recordings": 0,
+    "decision": "no stop; live work present",
+    "rows": 3046
+  },
+  "owner_artifact_catalog_016": {
+    "schema_version": 1,
+    "digest": "ac:sha256:c8bc98b5a2902ddf60d9e8f394d5161d9d52e2baba25562da02d8fd20a24373a",
+    "artifacts": [
+      {
+        "id": "artifact_083a26458bad39d4f051308ff02f1f1d",
+        "kind": "command.log",
+        "media_type": "text/plain; charset=utf-8",
+        "label": "unit.log",
+        "producing_phase": "unit",
+        "size_bytes": "29019",
+        "created_at": "2026-09-22T07:55:31.990609034Z",
+        "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-074813-d12be3cc/artifacts/artifact_083a26458bad39d4f051308ff02f1f1d",
+        "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+      },
+      {
+        "id": "artifact_db3c0e5631c2e34ec06050d52cfe3b80",
+        "kind": "command.log",
+        "media_type": "text/plain; charset=utf-8",
+        "label": "tidiness.log",
+        "producing_phase": "tidiness",
+        "size_bytes": "438913",
+        "created_at": "2026-09-22T07:55:41.561659995Z",
+        "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-074813-d12be3cc/artifacts/artifact_db3c0e5631c2e34ec06050d52cfe3b80",
+        "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+      },
+      {
+        "id": "artifact_d684b93ec14412ce83ef52e1c62ed4bc",
+        "kind": "findings.report",
+        "media_type": "application/json",
+        "label": "findings.json",
+        "size_bytes": "7679904",
+        "created_at": "2026-09-22T07:55:41.838661469Z",
+        "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-074813-d12be3cc/artifacts/artifact_d684b93ec14412ce83ef52e1c62ed4bc",
+        "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+      },
+      {
+        "id": "artifact_42878e0e0d3565df14987a0d7355aacb",
+        "kind": "generic.file",
+        "media_type": "application/json",
+        "label": "evidence-manifest.json",
+        "size_bytes": "92763",
+        "created_at": "2026-09-22T07:55:41.853661549Z",
+        "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-074813-d12be3cc/artifacts/artifact_42878e0e0d3565df14987a0d7355aacb",
+        "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+      },
+      {
+        "id": "artifact_075d3cd2eaaddf9dba86e9fdd59c444f",
+        "kind": "phase.result",
+        "media_type": "application/json",
+        "label": "tidiness.json",
+        "producing_phase": "tidiness",
+        "size_bytes": "2987",
+        "created_at": "2026-09-22T07:55:41.559659984Z",
+        "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-074813-d12be3cc/artifacts/artifact_075d3cd2eaaddf9dba86e9fdd59c444f",
+        "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+      },
+      {
+        "id": "artifact_fbdff2b206e827c895f6fb8ca623a608",
+        "kind": "phase.result",
+        "media_type": "application/json",
+        "label": "unit.json",
+        "producing_phase": "unit",
+        "size_bytes": "3038",
+        "created_at": "2026-09-22T07:55:31.989609029Z",
+        "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-074813-d12be3cc/artifacts/artifact_fbdff2b206e827c895f6fb8ca623a608",
+        "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+      }
+    ]
+  },
+  "duplication_delta": {
+    "previous": 33521,
+    "current": 33697,
+    "original": 35603,
+    "cycle": 176,
+    "cumulative": -1906
+  }
+}

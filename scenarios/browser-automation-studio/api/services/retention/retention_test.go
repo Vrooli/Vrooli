@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 	"time"
 
@@ -79,25 +80,32 @@ func (s *fakeStore) GetExecution(_ context.Context, id uuid.UUID) (*database.Exe
 	return nil, database.ErrNotFound
 }
 
-func (s *fakeStore) ListExecutions(_ context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, _, _ int) ([]*database.ExecutionIndex, error) {
+func (s *fakeStore) ListExecutions(_ context.Context, query database.ExecutionQuery) ([]*database.ExecutionIndex, int, error) {
 	var out []*database.ExecutionIndex
 	for _, e := range s.execs {
-		if workflowID != nil && e.WorkflowID != *workflowID {
+		if query.WorkflowID != nil && e.WorkflowID != *query.WorkflowID {
+			continue
+		}
+		if query.Status != "" && e.Status != query.Status {
 			continue
 		}
 		out = append(out, e)
 	}
-	return out, nil
-}
-
-func (s *fakeStore) ListExecutionsByStatus(_ context.Context, status string, _, _ int) ([]*database.ExecutionIndex, error) {
-	var out []*database.ExecutionIndex
-	for _, e := range s.execs {
-		if e.Status == status {
-			out = append(out, e)
+	sort.Slice(out, func(i, j int) bool {
+		if query.OldestFirst {
+			i, j = j, i
 		}
+		return out[i].StartedAt.After(out[j].StartedAt)
+	})
+	total := len(out)
+	if query.Offset >= total {
+		return nil, total, nil
 	}
-	return out, nil
+	out = out[query.Offset:]
+	if query.Limit > 0 && query.Limit < len(out) {
+		out = out[:query.Limit]
+	}
+	return out, total, nil
 }
 
 func (s *fakeStore) DeleteExecution(_ context.Context, id uuid.UUID) error {

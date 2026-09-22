@@ -75,7 +75,8 @@ describe("PlanPage", () => {
     const user = userEvent.setup();
     vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
     vi.mocked(fetchTodayAllocations).mockResolvedValue({ plannedMinutes: 0, availableMinutes: 480, breathingRoomMinutes: 60, allocations: [] } as never);
-    vi.mocked(fetchWorkItems).mockResolvedValue([{ id: "work-1", title: "Draft", remainingMinutes: 45 }] as never);
+    vi.mocked(fetchWorkItems).mockResolvedValue([{ id: "work-1", title: "Draft", remainingMinutes: 45 }, { id: "work-2", title: "Review", remainingMinutes: 60 }] as never);
+    vi.mocked(updateWorkEstimate).mockResolvedValue({} as never);
 
     renderWithProviders(<PlanPage />);
 
@@ -85,7 +86,22 @@ describe("PlanPage", () => {
     await user.click(screen.getByRole("button", { name: "Update estimate" }));
     const dialog = screen.getByRole("dialog", { name: "Update the estimate" });
     expect(within(dialog).getByText("Keep the estimate honest")).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Save estimate" })).toBeInTheDocument();
+    const workSelect = within(dialog).getAllByRole("combobox", { hidden: true }).find((element) => element.getAttribute("aria-label") === "Estimate work item");
+    if (!workSelect) throw new Error("Estimate work item select was not rendered");
+    await user.selectOptions(workSelect, "work-2");
+    const remainingMinutes = within(dialog).getByLabelText("Remaining minutes");
+    expect(remainingMinutes).toHaveValue(60);
+    await user.clear(remainingMinutes);
+    await user.type(remainingMinutes, "30");
+    await user.click(within(dialog).getByRole("button", { name: "Save estimate" }));
+    await waitFor(() => expect(updateWorkEstimate).toHaveBeenCalledWith(expect.objectContaining({ id: "work-2", remainingMinutes: 30 })));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Update the estimate" })).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "More planning views" }));
+    await user.click(screen.getByRole("button", { name: "Update estimate" }));
+    const dismiss = screen.queryByTestId("overlays.responsive-dialog.grabber") ?? screen.queryByTestId("overlays.responsive-dialog.close");
+    if (!dismiss) throw new Error("Responsive dialog dismiss affordance was not rendered");
+    await user.click(dismiss);
+    expect(screen.queryByRole("dialog", { name: "Update the estimate" })).not.toBeInTheDocument();
   });
 
   it("keeps placement visible in the desktop command chart", async () => {

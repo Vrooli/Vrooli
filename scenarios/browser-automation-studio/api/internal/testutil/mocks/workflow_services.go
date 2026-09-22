@@ -179,7 +179,7 @@ type WorkflowExecutionService struct {
 	GetExecutionFunc         func(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error)
 	GetExecutionTimelineFunc func(ctx context.Context, executionID uuid.UUID) (*workflow.ExecutionTimeline, error)
 	StopExecutionFunc        func(ctx context.Context, executionID uuid.UUID) error
-	ListExecutionsFunc       func(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error)
+	ListExecutionsFunc       func(ctx context.Context, query database.ExecutionQuery) ([]*database.ExecutionIndex, int, error)
 }
 
 func (m *WorkflowExecutionService) ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.ExecutionIndex, error) {
@@ -219,11 +219,11 @@ func (m *WorkflowExecutionService) ResumeExecution(ctx context.Context, executio
 	return nil, errors.New("not implemented")
 }
 
-func (m *WorkflowExecutionService) ListExecutions(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error) {
+func (m *WorkflowExecutionService) ListExecutions(ctx context.Context, query database.ExecutionQuery) ([]*database.ExecutionIndex, int, error) {
 	if m.ListExecutionsFunc != nil {
-		return m.ListExecutionsFunc(ctx, workflowID, projectID, limit, offset)
+		return m.ListExecutionsFunc(ctx, query)
 	}
-	return []*database.ExecutionIndex{}, nil
+	return []*database.ExecutionIndex{}, 0, nil
 }
 
 func (m *WorkflowExecutionService) GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {

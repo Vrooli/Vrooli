@@ -56,8 +56,8 @@
   "packageManager": "pnpm@9.12.1",
   "private": true,
   "scripts": {
-    "build": "pnpm selector:manifest && pnpm strings:gen && vite build",
-    "build:profile": "pnpm selector:manifest && pnpm strings:gen && vite build --mode profile",
+    "build": "pnpm selector:manifest \u0026\u0026 pnpm strings:gen \u0026\u0026 vite build",
+    "build:profile": "pnpm selector:manifest \u0026\u0026 pnpm strings:gen \u0026\u0026 vite build --mode profile",
     "dev": "vrooli lifecycle protect -- vite",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -69,7 +69,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:template-library": "node --test scripts/template-library-link.test.mjs scripts/design-tokens-composed.test.mjs",
-    "type-check": "pnpm strings:check && tsc --noEmit"
+    "type-check": "pnpm strings:check \u0026\u0026 tsc --noEmit"
   },
   "type": "module",
   "version": "1.0.0"

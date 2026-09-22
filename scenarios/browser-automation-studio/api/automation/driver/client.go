@@ -60,7 +60,8 @@ type ClientInterface interface {
 	// Recording operations
 	StopRecording(ctx context.Context, sessionID string) (*StopRecordingResponse, error)
 	GetRecordingStatus(ctx context.Context, sessionID string) (*RecordingStatusResponse, error)
-	GetRecordedActions(ctx context.Context, sessionID string, clear bool) (*GetActionsResponse, error)
+	GetRecordedActions(ctx context.Context, sessionID string) (*GetActionsResponse, error)
+	AcknowledgeRecordedActions(ctx context.Context, sessionID string, ids []string) error
 
 	// Navigation operations
 	Navigate(ctx context.Context, sessionID string, req *NavigateRequest) (*NavigateResponse, error)
@@ -391,6 +392,9 @@ func (c *Client) CloseSessionWithLease(ctx context.Context, sessionID, execution
 	if err := c.post(ctx, fmt.Sprintf("/session/%s/close", url.PathEscape(sessionID)), &CloseSessionRequest{ExecutionID: executionID, LeaseID: leaseID}, &resp); err != nil {
 		return nil, err
 	}
+	if !resp.Success {
+		return &resp, errors.New("driver did not acknowledge session close")
+	}
 	return &resp, nil
 }
 
@@ -431,7 +435,13 @@ func (c *Client) SetAdministrativeSecret(secret string) {
 // while retaining the browser resource for an explicitly later reuse.
 func (c *Client) ReleaseSessionLease(ctx context.Context, sessionID, executionID, leaseID string) error {
 	var resp ReleaseSessionResponse
-	return c.post(ctx, fmt.Sprintf("/session/%s/release", url.PathEscape(sessionID)), &ReleaseSessionRequest{ExecutionID: executionID, LeaseID: leaseID}, &resp)
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/release", url.PathEscape(sessionID)), &ReleaseSessionRequest{ExecutionID: executionID, LeaseID: leaseID}, &resp); err != nil {
+		return err
+	}
+	if !resp.Success {
+		return errors.New("driver did not acknowledge session lease release")
+	}
+	return nil
 }
 
 // DownloadArtifact streams an artifact file from the driver.
@@ -488,8 +498,19 @@ func (c *Client) DownloadArtifact(ctx context.Context, path string) (*ArtifactDo
 }
 
 // ResetSession resets a session to clean state (for execution reuse).
-func (c *Client) ResetSession(ctx context.Context, sessionID string) error {
-	return c.postNoBody(ctx, fmt.Sprintf("/session/%s/reset", url.PathEscape(sessionID)), nil)
+func (c *Client) ResetSession(ctx context.Context, sessionID, executionID, leaseID string) error {
+	var response struct {
+		Success bool `json:"success"`
+	}
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/reset", url.PathEscape(sessionID)), map[string]string{
+		"execution_id": executionID, "lease_id": leaseID,
+	}, &response); err != nil {
+		return err
+	}
+	if !response.Success {
+		return errors.New("driver did not acknowledge session reset")
+	}
+	return nil
 }
 
 // StartRecording starts recording user actions in a session.
@@ -520,58 +541,16 @@ func (c *Client) GetRecordingStatus(ctx context.Context, sessionID string) (*Rec
 }
 
 // GetRecordedActions retrieves all recorded actions for a session.
-func (c *Client) GetRecordedActions(ctx context.Context, sessionID string, clear bool) (*GetActionsResponse, error) {
+func (c *Client) GetRecordedActions(ctx context.Context, sessionID string) (*GetActionsResponse, error) {
 	path := fmt.Sprintf("/session/%s/record/actions", url.PathEscape(sessionID))
-	if clear {
-		path += "?clear=true"
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, &Error{
-			Op:      "GET " + path,
-			URL:     c.baseURL,
-			Message: "driver unavailable",
-			Cause:   err,
-			Hint:    "verify playwright-driver is running and PLAYWRIGHT_DRIVER_URL is correct",
-		}
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		bodyStr := strings.TrimSpace(string(body))
-		hint := "check playwright-driver logs for details"
-		if strings.Contains(bodyStr, "Maximum concurrent sessions") {
-			hint = "too many concurrent sessions - wait for other executions to complete or increase session limit"
-		} else if strings.Contains(bodyStr, "browser") && strings.Contains(bodyStr, "launch") {
-			hint = "browser failed to launch - check chromium installation and system resources"
-		}
-		return nil, &Error{
-			Op:      "GET " + path,
-			URL:     c.baseURL,
-			Status:  resp.StatusCode,
-			Message: bodyStr,
-			Hint:    hint,
-		}
-	}
-
-	if len(body) == 0 {
-		return &GetActionsResponse{SessionID: sessionID, Actions: []RecordedAction{}}, nil
-	}
-
 	var raw struct {
 		SessionID   string            `json:"session_id"`
 		IsRecording bool              `json:"is_recording"`
 		Actions     []RecordedAction  `json:"actions"`
 		Entries     []json.RawMessage `json:"entries"`
 	}
-	if err := json.Unmarshal(body, &raw); err != nil {
-		return nil, fmt.Errorf("parse response: %w", err)
+	if err := c.get(ctx, path, &raw); err != nil {
+		return nil, err
 	}
 
 	actions := raw.Actions
@@ -586,7 +565,7 @@ func (c *Client) GetRecordedActions(ctx context.Context, sessionID string, clear
 		}
 		var entry bastimeline.TimelineEntry
 		if err := protojson.Unmarshal(entryRaw, &entry); err != nil {
-			continue
+			return nil, fmt.Errorf("parse recorded entry: %w", err)
 		}
 		entries = append(entries, &entry)
 	}
@@ -604,6 +583,25 @@ func (c *Client) GetRecordedActions(ctx context.Context, sessionID string, clear
 		Actions:     actions,
 		Entries:     raw.Entries,
 	}, nil
+}
+
+// AcknowledgeRecordedActions removes only the entries already committed by the caller.
+func (c *Client) AcknowledgeRecordedActions(ctx context.Context, sessionID string, ids []string) error {
+	var receipt struct {
+		EntryIDs []string `json:"entry_ids"`
+	}
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/actions/ack", url.PathEscape(sessionID)), map[string]interface{}{"entry_ids": ids}, &receipt); err != nil {
+		return err
+	}
+	if len(receipt.EntryIDs) != len(ids) {
+		return errors.New("driver did not acknowledge the committed recording entries")
+	}
+	for i, id := range ids {
+		if receipt.EntryIDs[i] != id {
+			return errors.New("driver acknowledged different recording entries")
+		}
+	}
+	return nil
 }
 
 // Navigate navigates the session to a URL (recording mode).
@@ -791,20 +789,21 @@ func (c *Client) UnregisterServiceWorker(ctx context.Context, sessionID, scopeUR
 	return &resp, nil
 }
 
-// RunInstructions runs simple instructions in a session (e.g., initial navigation).
-// This is a convenience method for recording mode that doesn't need full step outcomes.
-func (c *Client) RunInstructions(ctx context.Context, sessionID string, instructions []map[string]interface{}) error {
-	req := RunInstructionsRequest{Instructions: instructions}
-	return c.post(ctx, fmt.Sprintf("/session/%s/run", url.PathEscape(sessionID)), req, nil)
-}
-
 // RunInstruction executes a compiled instruction and returns the step outcome.
 // This is the primary execution method used by the workflow executor.
-func (c *Client) RunInstruction(ctx context.Context, sessionID string, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+func (c *Client) RunInstruction(ctx context.Context, sessionID, executionID, leaseID string, operationSequence uint64, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+	if strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
+		return contracts.StepOutcome{}, errors.New("execution_id and lease_id are required to run an instruction")
+	}
 	requestBody, err := buildInstructionPayload(instruction)
 	if err != nil {
 		return contracts.StepOutcome{}, err
 	}
+	requestBody["execution_id"] = executionID
+	requestBody["lease_id"] = leaseID
+	requestBody["operation_sequence"] = operationSequence
+	requestBody["invocation_id"] = instruction.InvocationID
+	requestBody["attempt"] = instruction.Attempt
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(requestBody); err != nil {
 		return contracts.StepOutcome{}, fmt.Errorf("encode run request: %w", err)
@@ -816,19 +815,40 @@ func (c *Client) RunInstruction(ctx context.Context, sessionID string, instructi
 		return contracts.StepOutcome{}, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("X-Idempotency-Key", fmt.Sprintf("%s:%d", leaseID, operationSequence))
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		return contracts.StepOutcome{}, fmt.Errorf("run instruction: %w", err)
+		return uncertainInstructionOutcome(instruction, fmt.Errorf("run instruction: %w", err))
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return contracts.StepOutcome{}, fmt.Errorf("run instruction failed: %s", strings.TrimSpace(string(body)))
+		return uncertainInstructionOutcome(instruction, fmt.Errorf("run instruction failed (%d): %s", resp.StatusCode, strings.TrimSpace(string(body))))
 	}
 
-	return decodeStepOutcome(resp.Body)
+	outcome, err := decodeStepOutcome(resp.Body)
+	if err != nil {
+		return uncertainInstructionOutcome(instruction, err)
+	}
+	return outcome, nil
+}
+
+// A lost/invalid response cannot prove whether the browser already acted. The
+// executor must not turn transport uncertainty into a fresh declared attempt.
+func uncertainInstructionOutcome(instruction contracts.CompiledInstruction, err error) (contracts.StepOutcome, error) {
+	kind := contracts.FailureKindInfra
+	if errors.Is(err, context.DeadlineExceeded) {
+		kind = contracts.FailureKindTimeout
+	}
+	if errors.Is(err, context.Canceled) {
+		kind = contracts.FailureKindCancelled
+	}
+	return contracts.StepOutcome{
+		StepIndex: instruction.Index, NodeID: instruction.NodeID, Attempt: instruction.Attempt,
+		Failure: &contracts.StepFailure{Kind: kind, Code: "INSTRUCTION_OUTCOME_UNCERTAIN", Message: err.Error(), Retryable: false},
+	}, err
 }
 
 func buildInstructionPayload(instruction contracts.CompiledInstruction) (map[string]any, error) {

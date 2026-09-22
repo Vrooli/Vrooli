@@ -97,66 +97,35 @@ export function generateRecordingInitScript(bindingName: string = DEFAULT_RECORD
 /** Message type for recording events from MAIN to ISOLATED context */
 export const RECORDING_EVENT_MESSAGE_TYPE = '__VROOLI_RECORDING_EVENT__';
 
-/** Storage key for activation state - shared between contexts */
-export const RECORDING_ACTIVATION_KEY = '__vrooli_recording_activation__';
-
-/**
- * Generate the activation script to start recording on a page.
- *
- * Uses sessionStorage for cross-context activation since postMessage
- * doesn't work reliably between MAIN and ISOLATED contexts with rebrowser-playwright.
- * Both contexts share sessionStorage, so we can use it for signaling.
- *
- * Called via page.evaluate() when recording starts.
- *
- * @param sessionId - The recording session ID
- * @param bindingName - Kept for API consistency with other functions but NOT USED in the
- *   generated script. The activation script doesn't need the binding name because it only
- *   sets activation state via sessionStorage - the init script handles binding communication.
- * @returns JavaScript string for page.evaluate()
- */
-export function generateActivationScript(sessionId: string, _bindingName: string = DEFAULT_RECORDING_BINDING_NAME): string {
-  return `
-(function() {
-  // Use sessionStorage for cross-context activation
-  // Both MAIN and ISOLATED contexts share sessionStorage
-  try {
-    sessionStorage.setItem('${RECORDING_ACTIVATION_KEY}', JSON.stringify({
-      active: true,
-      sessionId: '${sessionId}',
-      timestamp: Date.now()
-    }));
-    console.log('[Recording Activation] Set in sessionStorage for session:', '${sessionId}');
-  } catch (e) {
-    console.error('[Recording Activation] Failed to set state:', e.message);
-  }
-
-  // Also try postMessage as backup
-  window.postMessage({
-    type: '${RECORDING_CONTROL_MESSAGE_TYPE}',
-    action: 'start',
-    sessionId: '${sessionId}'
-  }, '*');
-})();
-`;
+/** Await the MAIN-world recorder through a transferable reply port. */
+function generateControlScript(action: 'start' | 'stop', sessionId?: string): string {
+  const message = JSON.stringify({ type: RECORDING_CONTROL_MESSAGE_TYPE, action, sessionId });
+  // WindowProxy.postMessage addresses child documents across origins without
+  // relying on Rebrowser's child-frame evaluation context lookup.
+  return `Promise.all((function collect(target) {
+    const windows = [target];
+    for (let i = 0; i < target.frames.length; i++) windows.push(...collect(target.frames[i]));
+    return windows;
+  })(window).map(target => new Promise((resolve, reject) => {
+    const channel = new MessageChannel();
+    const timeout = setTimeout(() => {
+      channel.port1.close();
+      reject(new Error('Recording control acknowledgement timed out'));
+    }, 10000);
+    channel.port1.onmessage = (event) => {
+      clearTimeout(timeout);
+      channel.port1.close();
+      if (event.data?.ok === true) resolve(undefined);
+      else reject(new Error(event.data?.error || 'Recording control was not acknowledged'));
+    };
+    target.postMessage(${message}, '*', [channel.port2]);
+  })))`;
 }
 
-/**
- * Generate the deactivation script to stop recording on a page.
- *
- * This sends a postMessage to the recording init script to deactivate it.
- * Called via page.evaluate() when recording stops.
- *
- * @returns JavaScript string for page.evaluate()
- */
+export function generateActivationScript(recordingId: string): string {
+  return generateControlScript('start', recordingId);
+}
+
 export function generateDeactivationScript(): string {
-  return `
-(function() {
-  console.log('[Recording] Sending deactivation message');
-  window.postMessage({
-    type: '${RECORDING_CONTROL_MESSAGE_TYPE}',
-    action: 'stop'
-  }, '*');
-})();
-`;
+  return generateControlScript('stop');
 }

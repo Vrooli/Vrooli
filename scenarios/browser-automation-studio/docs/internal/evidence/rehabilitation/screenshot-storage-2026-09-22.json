@@ -1,0 +1,152 @@
+{
+  "cycle": "BAS-WORK-023",
+  "date": "2026-09-22",
+  "issues": [
+    "BAS-RF-013",
+    "BAS-RF-060"
+  ],
+  "journeys": [
+    "J08"
+  ],
+  "changes": [
+    "Encoded screenshot bytes never sliced; oversized image omitted with reason",
+    "Outcome shaping copies caller-owned screenshot, notes and DOM metadata",
+    "Screenshot persistence validates complete PNG/JPEG decode and object/URL/size receipt",
+    "Required explicit capture failures persist failed outcome and return error; optional and no-artifact policies preserved",
+    "Capture and mandatory outcome-write failures are joined; no completed receipt after failure"
+  ],
+  "evidence": {
+    "red": "/tmp/bas-screenshot-receipt-red-023.txt;/tmp/bas-screenshot-truncated-red-023.txt",
+    "focused": "24imagefault/optionalcases,2publicExecute storagefaults,1combinedrequiredwritefault; /tmp/bas-screenshot-receipt-final-green-023.txt",
+    "races": "Finalwriter2.682/executor2.934/workflow1.061/storagecached;priorstorage1.017s",
+    "all_api": "/tmp/bas-api-all-023.txt go test ./... pass before finaldiagnosticmessage refinement; finalchangedpackagesrerun",
+    "build": "/tmp/bas-build-final-023.txt pass",
+    "board": "prog_df6c3a1e-8e7b-4513-ac85-2a9b2bcf4072;17pending/productfalse",
+    "owner": "final20260922-101405-34d1a561 tidinessfailed4s;first20260922-101107-a8d7b3de;quietwaitsonceeach"
+  },
+  "local_metrics": {
+    "path": "api/automation/execution-writer/file_writer.go",
+    "before": {
+      "lines": 1504,
+      "functions": 35,
+      "cyclomatic": 304
+    },
+    "current": {
+      "lines": 1539,
+      "functions": 36,
+      "cyclomatic": 314
+    }
+  },
+  "cumulative_go": {
+    "paths": [
+      "api/automation/compiler/action_definition_builder.go",
+      "api/automation/driver/client.go",
+      "api/automation/events/sink.go",
+      "api/automation/events/ws_sink.go",
+      "api/automation/execution-writer/external_artifacts.go",
+      "api/automation/execution-writer/file_writer.go",
+      "api/automation/executor/flow_executor.go",
+      "api/automation/executor/flow_utils.go",
+      "api/automation/executor/simple_executor.go",
+      "api/automation/session/session.go",
+      "api/handlers/execution_export.go",
+      "api/handlers/handler.go",
+      "api/handlers/record_mode.go",
+      "api/handlers/record_mode_actions.go",
+      "api/handlers/record_mode_pages.go",
+      "api/handlers/record_mode_persistence.go",
+      "api/handlers/recordings/module.go",
+      "api/handlers/recordings/service.go",
+      "api/handlers/testutil_mock_services.go",
+      "api/internal/typeconv/builders.go",
+      "api/internal/wire/wire.go",
+      "api/main.go",
+      "api/performance/collector.go",
+      "api/performance/types.go",
+      "api/services/export/source/video_source.go",
+      "api/services/live-capture/action_registry.go",
+      "api/services/live-capture/service.go",
+      "api/services/live-capture/workflow_generator.go",
+      "api/services/recording/persistence/mock_repository.go",
+      "api/services/recording/persistence/repository.go",
+      "api/services/recording/persistence/sqlite.go",
+      "api/services/recording/persistence/types.go",
+      "api/services/recording/recorder.go",
+      "api/services/recording/service.go",
+      "api/services/session-profile/persistence/credentials.go",
+      "api/services/session-profile/persistence/file_repository.go",
+      "api/services/session-profile/persistence/filesystem.go",
+      "api/services/session-profile/persistence/filesystem_mock.go",
+      "api/services/session-profile/persistence/mock_repository.go",
+      "api/services/session-profile/persistence/protected_state.go",
+      "api/services/session-profile/persistence/repository.go",
+      "api/services/session-profile/service.go",
+      "api/services/uxmetrics/collector/collector.go",
+      "api/services/workflow/executions.go",
+      "api/services/workflow/executions_list.go"
+    ],
+    "original": {
+      "lines": 22188,
+      "functions": 772,
+      "cyclomatic": 3667
+    },
+    "current": {
+      "lines": 20458,
+      "functions": 754,
+      "cyclomatic": 3506
+    }
+  },
+  "shared_owner_009_cyclomatic_delta": 17,
+  "tidiness": {
+    "totalFindings": 1078,
+    "longFiles": 80,
+    "complexity": 380,
+    "duplication": 604,
+    "coupling": 13,
+    "duplicationLineDebt": 33649
+  },
+  "performance": {
+    "fixture": "1280x720 fixed-pattern PNG, real file writer/manifests, memory image store;3x10iterations same workload",
+    "before_ns_per_op": [
+      31761009,
+      32071094,
+      32570052
+    ],
+    "after_ns_per_op": [
+      38078970,
+      37572233,
+      38765802
+    ],
+    "before_bytes_per_op": [
+      113606,
+      113062,
+      113664
+    ],
+    "after_bytes_per_op": [
+      3861981,
+      3862842,
+      3864156
+    ],
+    "interpretation": "~18.7% median latency regression and +3.75MB/op for complete codec validation; header-only alternative failed truncated-image oracle; no speed gain or browserjourney claim"
+  },
+  "source_inventory_digest": "7eee5b898d349b92ca33e62821b8138b6af17071ca3c918a3f18314783e8a3b4",
+  "deployed": true,
+  "limitations": [
+    "Measured decode cost remains performance debt; seek improvement retaining exact corruption cases",
+    "Image decoder/filesystem are not forcibly context-interruptible; no hostile-dimension resource qualification",
+    "Backend receipt checked, no new independent read-after-write proof for every remote store acknowledgment",
+    "Passive failure reason remains in core outcome notes; RF049 structured projection still open",
+    "No transaction across artifact bytes and all manifests/index; partial artifacts retained",
+    "ContinueOnError does not bypass a required persistence error",
+    "UIcoverage/complexity remainfailed;native/endtoend qualification unknown;dirtytree applicabilitylimits"
+  ],
+  "deployment": {
+    "build": "sha256:cac7d388ab175e7832912adf5bb2395834de952f92e7a64e6264979d5407f243",
+    "healthy_at": "2026-09-22T10:19:19Z",
+    "gate_rows": 3110,
+    "unchanged_historical_orphans": 5,
+    "driver_sessions": 0,
+    "profile": "oneoriginal;allfields/identitypreserved",
+    "limitation": "observationalgate;sharedtree"
+  }
+}

@@ -80,9 +80,9 @@ type RecordModeService interface {
 	RestoreTabs(ctx context.Context, sessionID string, tabs []sessionprofilepersistence.TabState) (*livecapture.TabRestorationResult, error)
 
 	// Timeline support (has business logic for timeline management)
-	AddTimelineAction(sessionID string, action *autodriver.RecordedAction, pageID uuid.UUID)
-	AddTimelinePageEvent(sessionID string, event *domain.PageEvent)
-	GetTimeline(sessionID string, pageID *uuid.UUID, limit int) (*domain.TimelineResponse, error)
+	AddTimelineAction(ctx context.Context, sessionID string, action *autodriver.RecordedAction, pageID uuid.UUID) error
+	AddTimelinePageEvent(ctx context.Context, sessionID string, event *domain.PageEvent) error
+	GetTimeline(ctx context.Context, sessionID string, pageID *uuid.UUID, limit, offset int) (*domain.TimelineResponse, error)
 
 	// Service worker management (requires session lookup)
 	GetServiceWorkers(ctx context.Context, sessionID string) (*autodriver.GetServiceWorkersResponse, error)

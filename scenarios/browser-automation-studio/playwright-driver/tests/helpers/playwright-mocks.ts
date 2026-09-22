@@ -48,6 +48,8 @@ export function createMockPage(overrides?: Partial<Page>): jest.Mocked<Page> {
     evaluate: jest.fn().mockResolvedValue({ result: 'test' }),
     setInputFiles: jest.fn().mockResolvedValue(undefined),
     on: jest.fn(),
+    once: jest.fn(),
+    off: jest.fn(),
     removeListener: jest.fn(),
     close: jest.fn().mockResolvedValue(undefined),
     isClosed: jest.fn().mockReturnValue(false),

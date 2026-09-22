@@ -1,3 +1,4 @@
+import { generateActivationScript } from '../../src/recording/capture/init-script-generator';
 /**
  * Integration Tests for Recording Script Injection
  *
@@ -206,6 +207,7 @@ describe('Recording Script Injection (Integration)', () => {
 
       // Wait for script to be ready
       await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('injection-fixture'));
 
       // Click the button
       await page.click('#test-btn');
@@ -231,6 +233,7 @@ describe('Recording Script Injection (Integration)', () => {
       await page.goto(server.getUrl('/test-input'));
 
       await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('injection-fixture'));
 
       // Type in the input
       await page.fill('#test-input', 'test input');
@@ -258,6 +261,7 @@ describe('Recording Script Injection (Integration)', () => {
       await page.goto(server.getUrl('/test-history'));
 
       await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('injection-fixture'));
 
       // Click button that triggers pushState
       await page.click('#nav-btn');
@@ -325,10 +329,12 @@ describe('Recording Script Injection (Integration)', () => {
 
       await page.goto(server.getUrl('/test-multi-1'));
       await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('injection-fixture'));
 
       // Navigate to another page (triggers re-injection)
       await page.goto(server.getUrl('/test-multi-2'));
       await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('injection-fixture'));
 
       // Click button
       await page.click('#btn2');

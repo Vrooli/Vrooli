@@ -264,7 +264,7 @@ Example format:
 ]`, url, intent, domData)
 
 	// Query Ollama via the client interface
-	ollamaPayload, err := a.ollamaClient.Query(ctx, a.role, prompt)
+	ollamaPayload, err := a.ollamaClient.Query(ctx, a.role, prompt, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to call ollama API: %w", err)
 	}

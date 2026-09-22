@@ -50,12 +50,14 @@ func (h *Handler) setActiveSessionProfile(sessionID, profileID string) {
 		h.sessionProfileService.SetActiveSession(sessionID, profileID)
 	}
 }
+
 func (h *Handler) clearActiveSessionProfile(sessionID string) string {
 	if h.sessionProfileService != nil {
 		return h.sessionProfileService.ClearActiveSession(sessionID)
 	}
 	return ""
 }
+
 func (h *Handler) getActiveSessionProfile(sessionID string) string {
 	if h.sessionProfileService != nil {
 		return h.sessionProfileService.GetActiveSession(sessionID)
@@ -75,25 +77,16 @@ func (h *Handler) persistSessionProfile(ctx context.Context, sessionID string) e
 	if err != nil {
 		return err
 	}
-	if len(state) > 0 {
-		if _, err := h.sessionProfileService.SaveStorageState(sessionprofilepersistence.ProfileID(profileID), state); err != nil {
-			h.log.WithError(err).WithField("profile_id", profileID).Warn("Failed to persist session profile storage state")
-		}
-	}
 	pages, activePageID, err := h.recordModeService.GetOpenPages(sessionID)
 	if err != nil {
-		h.log.WithError(err).WithField("profile_id", profileID).Warn("Failed to capture open tabs during persist")
-		return nil
-	}
-	if len(pages) == 0 {
-		return nil
+		return err
 	}
 	tabs := make([]sessionprofilepersistence.TabState, 0, len(pages))
 	for index, page := range pages {
 		tabs = append(tabs, sessionprofilepersistence.TabState{URL: page.URL, Title: page.Title, IsActive: page.ID == activePageID, Order: index})
 	}
-	if _, err := h.sessionProfileService.SaveOpenTabs(sessionprofilepersistence.ProfileID(profileID), tabs); err != nil {
-		h.log.WithError(err).WithField("profile_id", profileID).Warn("Failed to persist session profile open tabs")
-	}
-	return nil
+	return h.sessionProfileService.PersistSessionState(sessionprofilepersistence.ProfileID(profileID), &sessionprofilepersistence.SessionEndState{
+		StorageState: state,
+		OpenTabs:     tabs,
+	})
 }

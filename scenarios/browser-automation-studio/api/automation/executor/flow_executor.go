@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -37,13 +38,6 @@ func (e *SimpleExecutor) executeGraph(ctx context.Context, req Request, execCtx 
 		if maxVisited > 0 && visited > maxVisited {
 			return session, fmt.Errorf("graph execution exceeded step budget (%d)", maxVisited)
 		}
-		if ctx.Err() != nil {
-			instr := planStepToInstruction(*current)
-			if _, err := e.recordTerminatedStep(ctx, req, instr, ctx.Err()); err != nil {
-				return session, err
-			}
-			return session, ctx.Err()
-		}
 
 		outcome, updatedSession, err := e.executePlanStep(ctx, req, execCtx, eng, spec, session, *current, execState, reuseMode)
 		if err != nil {
@@ -75,6 +69,11 @@ func (e *SimpleExecutor) executeGraph(ctx context.Context, req Request, execCtx 
 }
 
 func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, execState *state.ExecutionState, reuseMode engine.SessionReuseMode) (contracts.StepOutcome, engine.EngineSession, error) {
+	if ctx.Err() != nil {
+		outcome, err := e.recordTerminatedStep(ctx, req, planStepToInstruction(step), ctx.Err())
+		return outcome, session, err
+	}
+
 	stepType := PlanStepType(step)
 	logrus.WithFields(logrus.Fields{
 		"execution_id": req.Plan.ExecutionID,
@@ -184,32 +183,9 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 		logrus.WithFields(fields).Warn("Step failed")
 	}
 
-	recordResult, recordErr := req.Recorder.RecordStepOutcome(ctx, req.Plan, normalized)
-	if recordErr != nil {
-		return normalized, session, fmt.Errorf("record step outcome: %w", recordErr)
+	if recordErr := e.recordOutcome(ctx, req, normalized); recordErr != nil {
+		return normalized, session, errors.Join(runErr, recordErr)
 	}
-
-	// Calculate progress for graph execution
-	totalSteps := len(req.Plan.Graph.Steps)
-	if totalSteps == 0 {
-		totalSteps = len(req.Plan.Instructions)
-	}
-	progressPercent := calculateProgress(instruction.Index, totalSteps)
-
-	payload := map[string]any{
-		"outcome":   normalized,
-		"artifacts": recordResult.ArtifactIDs,
-		"progress":  progressPercent,
-	}
-	if recordResult.TimelineArtifactID != nil {
-		payload["timeline_artifact_id"] = *recordResult.TimelineArtifactID
-	}
-
-	eventKind := contracts.EventKindStepCompleted
-	if !normalized.Success {
-		eventKind = contracts.EventKindStepFailed
-	}
-	e.emitEvent(ctx, req, eventKind, &instruction.Index, &attempt, payload)
 
 	// Store extracted data to execState if storeResult is specified
 	if normalized.Success && normalized.ExtractedData != nil {
@@ -287,10 +263,8 @@ func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, execCtx e
 		MaxIterations: maxIterations,
 	}
 
-	result, err := handler.Execute(e, lctx)
-	if err != nil {
-		return contracts.StepOutcome{}, result.session, err
-	}
+	startedAt := time.Now().UTC()
+	result, runErr := handler.Execute(e, lctx)
 
 	session = result.session
 
@@ -303,11 +277,7 @@ func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, execCtx e
 		NodeID:         step.NodeID,
 		StepType:       PlanStepType(step),
 		Success:        true,
-		StartedAt:      time.Now().UTC(),
-		CompletedAt: func() *time.Time {
-			t := time.Now().UTC()
-			return &t
-		}(),
+		StartedAt:      startedAt,
 		Notes: map[string]string{
 			"iterations": fmt.Sprintf("%d", result.iterations),
 		},
@@ -317,29 +287,8 @@ func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, execCtx e
 		loopOutcome.Failure = result.lastOutcome.Failure
 	}
 
-	recordResult, recordErr := req.Recorder.RecordStepOutcome(ctx, req.Plan, loopOutcome)
-	if recordErr != nil {
-		return loopOutcome, session, fmt.Errorf("record loop outcome: %w", recordErr)
-	}
-
-	// Calculate progress for loop completion
-	totalSteps := len(req.Plan.Graph.Steps)
-	if totalSteps == 0 {
-		totalSteps = len(req.Plan.Instructions)
-	}
-	progressPercent := calculateProgress(step.Index, totalSteps)
-
-	payload := map[string]any{
-		"outcome":   loopOutcome,
-		"artifacts": recordResult.ArtifactIDs,
-		"progress":  progressPercent,
-	}
-	if recordResult.TimelineArtifactID != nil {
-		payload["timeline_artifact_id"] = *recordResult.TimelineArtifactID
-	}
-	e.emitEvent(ctx, req, contracts.EventKindStepCompleted, &step.Index, intPtr(1), payload)
-
-	return loopOutcome, session, nil
+	loopOutcome = e.normalizeOutcome(req.Plan, planStepToInstruction(step), 1, startedAt, loopOutcome, runErr)
+	return loopOutcome, session, errors.Join(runErr, e.recordOutcome(ctx, req, loopOutcome))
 }
 
 // NOTE: Loop handlers (runRepeatLoop, runForEachLoop, runWhileLoop) have been
@@ -381,34 +330,7 @@ func (e *SimpleExecutor) executeSubflow(ctx context.Context, req Request, execCt
 
 	normalized := e.normalizeOutcome(req.Plan, planStepToInstruction(step), attempt, startedAt, outcome, runErr)
 
-	recordResult, recordErr := req.Recorder.RecordStepOutcome(ctx, req.Plan, normalized)
-	if recordErr != nil {
-		return normalized, updatedSession, fmt.Errorf("record subflow outcome: %w", recordErr)
-	}
-
-	// Calculate progress for subflow completion
-	totalSteps := len(req.Plan.Graph.Steps)
-	if totalSteps == 0 {
-		totalSteps = len(req.Plan.Instructions)
-	}
-	progressPercent := calculateProgress(stepIndex, totalSteps)
-
-	payload := map[string]any{
-		"outcome":   normalized,
-		"artifacts": recordResult.ArtifactIDs,
-		"progress":  progressPercent,
-	}
-	if recordResult.TimelineArtifactID != nil {
-		payload["timeline_artifact_id"] = *recordResult.TimelineArtifactID
-	}
-
-	eventKind := contracts.EventKindStepCompleted
-	if !normalized.Success {
-		eventKind = contracts.EventKindStepFailed
-	}
-	e.emitEvent(ctx, req, eventKind, &stepIndex, &attempt, payload)
-
-	return normalized, updatedSession, runErr
+	return normalized, updatedSession, errors.Join(runErr, e.recordOutcome(ctx, req, normalized))
 }
 
 func (e *SimpleExecutor) runSubflow(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, execState *state.ExecutionState, reuseMode engine.SessionReuseMode) (engine.EngineSession, error) {
@@ -669,25 +591,7 @@ func (e *SimpleExecutor) applySetVariable(ctx context.Context, req Request, step
 	end := outcome.StartedAt
 	outcome.CompletedAt = &end
 
-	recordResult, recordErr := req.Recorder.RecordStepOutcome(ctx, req.Plan, outcome)
-	if recordErr != nil {
-		return outcome, recordErr
-	}
-
-	// Calculate progress for set_variable step
-	totalSteps := len(req.Plan.Graph.Steps)
-	if totalSteps == 0 {
-		totalSteps = len(req.Plan.Instructions)
-	}
-	progressPercent := calculateProgress(stepIndex, totalSteps)
-
-	payload := map[string]any{
-		"outcome":   outcome,
-		"artifacts": recordResult.ArtifactIDs,
-		"progress":  progressPercent,
-	}
-	e.emitEvent(ctx, req, contracts.EventKindStepCompleted, &stepIndex, intPtr(1), payload)
-	return outcome, nil
+	return outcome, e.recordOutcome(ctx, req, outcome)
 }
 
 type subflowSpec struct {

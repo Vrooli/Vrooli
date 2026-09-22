@@ -2,39 +2,45 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
-	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
-	"github.com/vrooli/browser-automation-studio/domain"
+	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/services/recording"
 	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
-	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
 // TestRecordingHub is a test hub that captures broadcasts for verification.
 type TestRecordingHub struct {
-	mu              sync.RWMutex
-	clients         map[string]chan *bastimeline.TimelineEntry
-	broadcastCounts map[string]int
-	lastEntry       map[string]*bastimeline.TimelineEntry
-	logger          *logrus.Logger
+	mu                  sync.RWMutex
+	clients             map[string]chan *bastimeline.TimelineEntry
+	broadcastCounts     map[string]int
+	pageBroadcastCounts map[string]int
+	lastEntry           map[string]*bastimeline.TimelineEntry
+	logger              *logrus.Logger
 }
 
 func NewTestRecordingHub(logger *logrus.Logger) *TestRecordingHub {
 	return &TestRecordingHub{
-		clients:         make(map[string]chan *bastimeline.TimelineEntry),
-		broadcastCounts: make(map[string]int),
-		lastEntry:       make(map[string]*bastimeline.TimelineEntry),
-		logger:          logger,
+		clients:             make(map[string]chan *bastimeline.TimelineEntry),
+		broadcastCounts:     make(map[string]int),
+		pageBroadcastCounts: make(map[string]int),
+		lastEntry:           make(map[string]*bastimeline.TimelineEntry),
+		logger:              logger,
 	}
 }
 
@@ -112,8 +118,12 @@ func (h *TestRecordingHub) HasRecordingSubscribers(sessionID string) bool {
 	_, ok := h.clients[sessionID]
 	return ok
 }
-func (h *TestRecordingHub) BroadcastPerfStats(sessionID string, stats any)     {}
-func (h *TestRecordingHub) BroadcastPageEvent(sessionID string, event any)     {}
+func (h *TestRecordingHub) BroadcastPerfStats(sessionID string, stats any) {}
+func (h *TestRecordingHub) BroadcastPageEvent(sessionID string, event any) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.pageBroadcastCounts[sessionID]++
+}
 func (h *TestRecordingHub) BroadcastPageSwitch(sessionID, activePageID string) {}
 func (h *TestRecordingHub) HasExecutionFrameSubscribers(executionID string) bool {
 	return false
@@ -134,281 +144,16 @@ func (h *TestRecordingHub) CloseExecution(_ uuid.UUID) {}
 var _ wsHub.HubInterface = (*TestRecordingHub)(nil)
 
 // TestRecordingPipeline_EndToEnd tests the complete recording pipeline.
-func TestRecordingPipeline_EndToEnd(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.DebugLevel)
-
-	// Create mock repository (in-memory)
-	repo := persistence.NewMockRepository()
-
-	// Create test hub
-	hub := NewTestRecordingHub(logger)
-
-	// Create recording service
-	recordingSvc := recording.NewService(repo, hub, logger, recording.ServiceConfig{})
-
-	// Create a session
-	sessionID := "test-session-" + uuid.NewString()[:8]
-
-	// Subscribe a test client
-	clientCh := hub.Subscribe(sessionID)
-	defer hub.Unsubscribe(sessionID)
-
-	// Record an action using the unified method
-	ctx := context.Background()
-	action := &driver.RecordedAction{
-		ID:         uuid.NewString(),
-		SessionID:  sessionID,
-		ActionType: "click",
-		Timestamp:  time.Now().Format(time.RFC3339Nano),
-		Confidence: 0.95,
-		URL:        "https://example.com",
-	}
-
-	result, err := recordingSvc.RecordActionUnified(ctx, recording.RecordActionRequest{
-		SessionID:     sessionID,
-		Action:        action,
-		PageID:        uuid.New(),
-		Source:        recording.ActionSourceManual,
-		CorrelationID: "test-corr-123",
-	})
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-
-	// Verify result
-	assert.Equal(t, "test-corr-123", result.CorrelationID)
-	assert.True(t, result.Persisted, "Action should be persisted")
-	assert.True(t, result.BroadcastSent, "Broadcast should be sent")
-	assert.Equal(t, 1, result.SubscriberCount, "Should have 1 subscriber")
-	assert.Equal(t, 1, result.SentCount, "Should have sent to 1 client")
-	assert.Equal(t, 0, result.DroppedCount, "No messages should be dropped")
-	assert.False(t, result.HasErrors(), "Should have no errors")
-
-	// Verify action appeared in WebSocket
-	select {
-	case entry := <-clientCh:
-		assert.NotNil(t, entry, "Should receive entry")
-		assert.Equal(t, action.ID, entry.Id)
-		assert.NotNil(t, entry.Action)
-		assert.Equal(t, basactions.ActionType_ACTION_TYPE_CLICK, entry.Action.Type)
-	case <-time.After(time.Second):
-		t.Fatal("Action did not appear in WebSocket within timeout")
-	}
-
-	// Verify persisted in timeline
-	timeline, err := recordingSvc.GetTimeline(ctx, persistence.TimelineQuery{
-		SessionID: sessionID,
-		Limit:     100,
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 1, timeline.TotalCount, "Should have 1 entry in timeline")
-}
 
 // TestRecordingPipeline_NoSubscribers tests recording when no UI is connected.
-func TestRecordingPipeline_NoSubscribers(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.DebugLevel)
-
-	repo := persistence.NewMockRepository()
-	hub := NewTestRecordingHub(logger)
-	recordingSvc := recording.NewService(repo, hub, logger, recording.ServiceConfig{})
-
-	sessionID := "test-session-" + uuid.NewString()[:8]
-	// Note: NOT subscribing any client
-
-	ctx := context.Background()
-	action := &driver.RecordedAction{
-		ID:         uuid.NewString(),
-		SessionID:  sessionID,
-		ActionType: "type",
-		Timestamp:  time.Now().Format(time.RFC3339Nano),
-		Confidence: 0.9,
-	}
-
-	result, err := recordingSvc.RecordActionUnified(ctx, recording.RecordActionRequest{
-		SessionID: sessionID,
-		Action:    action,
-		PageID:    uuid.New(),
-		Source:    recording.ActionSourceAuto,
-	})
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-
-	// Action should still be persisted
-	assert.True(t, result.Persisted, "Action should be persisted even without subscribers")
-
-	// No subscribers, so no broadcast sent
-	assert.Equal(t, 0, result.SubscriberCount, "Should have 0 subscribers")
-	assert.False(t, result.BroadcastSent, "Broadcast should not be sent")
-
-	// But errors should be empty (no subscribers is not an error)
-	assert.False(t, result.HasErrors(), "No subscribers should not cause errors")
-
-	// Verify still in timeline
-	timeline, err := recordingSvc.GetTimeline(ctx, persistence.TimelineQuery{
-		SessionID: sessionID,
-		Limit:     100,
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 1, timeline.TotalCount, "Action should still be in timeline")
-}
 
 // TestRecordingPipeline_CorrelationIDGeneration tests automatic correlation ID generation.
-func TestRecordingPipeline_CorrelationIDGeneration(t *testing.T) {
-	logger := logrus.New()
-	repo := persistence.NewMockRepository()
-	hub := NewTestRecordingHub(logger)
-	recordingSvc := recording.NewService(repo, hub, logger, recording.ServiceConfig{})
-
-	sessionID := "test-session-" + uuid.NewString()[:8]
-
-	ctx := context.Background()
-	action := &driver.RecordedAction{
-		ID:         uuid.NewString(),
-		SessionID:  sessionID,
-		ActionType: "click",
-		Timestamp:  time.Now().Format(time.RFC3339Nano),
-	}
-
-	// Don't provide correlation ID - should be auto-generated
-	result, err := recordingSvc.RecordActionUnified(ctx, recording.RecordActionRequest{
-		SessionID: sessionID,
-		Action:    action,
-		PageID:    uuid.New(),
-		Source:    recording.ActionSourceManual,
-		// CorrelationID intentionally omitted
-	})
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-
-	// Should have auto-generated correlation ID
-	assert.NotEmpty(t, result.CorrelationID)
-	assert.Contains(t, result.CorrelationID, "rec-")
-	assert.Contains(t, result.CorrelationID, sessionID[:8])
-}
 
 // TestRecordingPipeline_PageEvent tests page event recording.
-func TestRecordingPipeline_PageEvent(t *testing.T) {
-	logger := logrus.New()
-	repo := persistence.NewMockRepository()
-	hub := NewTestRecordingHub(logger)
-	recordingSvc := recording.NewService(repo, hub, logger, recording.ServiceConfig{})
-
-	sessionID := "test-session-" + uuid.NewString()[:8]
-	pageID := uuid.New()
-
-	ctx := context.Background()
-	event := &domain.PageEvent{
-		ID:        uuid.New(),
-		Type:      domain.PageEventCreated,
-		PageID:    pageID,
-		URL:       "https://example.com/new",
-		Title:     "New Page",
-		Timestamp: time.Now(),
-	}
-
-	result, err := recordingSvc.RecordPageEventUnified(ctx, recording.RecordPageEventRequest{
-		SessionID:     sessionID,
-		Event:         event,
-		CorrelationID: "page-event-123",
-	})
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-
-	assert.Equal(t, "page-event-123", result.CorrelationID)
-	assert.True(t, result.Persisted)
-	assert.Equal(t, event.ID, result.ActionID)
-}
 
 // TestRecordingPipeline_NilAction tests handling of nil action.
-func TestRecordingPipeline_NilAction(t *testing.T) {
-	logger := logrus.New()
-	repo := persistence.NewMockRepository()
-	hub := NewTestRecordingHub(logger)
-	recordingSvc := recording.NewService(repo, hub, logger, recording.ServiceConfig{})
-
-	sessionID := "test-session-" + uuid.NewString()[:8]
-
-	ctx := context.Background()
-
-	result, err := recordingSvc.RecordActionUnified(ctx, recording.RecordActionRequest{
-		SessionID: sessionID,
-		Action:    nil, // nil action
-		PageID:    uuid.New(),
-		Source:    recording.ActionSourceManual,
-	})
-
-	require.NoError(t, err) // Should not return error, but record it in result
-	require.NotNil(t, result)
-
-	// Should have validation error
-	assert.True(t, result.HasErrors())
-	assert.Len(t, result.Errors, 1)
-	assert.Equal(t, "validation", result.Errors[0].Stage)
-}
 
 // TestRecordingPipeline_DuplicateNavigate tests deduplication of navigate actions.
-func TestRecordingPipeline_DuplicateNavigate(t *testing.T) {
-	logger := logrus.New()
-	repo := persistence.NewMockRepository()
-	hub := NewTestRecordingHub(logger)
-	recordingSvc := recording.NewService(repo, hub, logger, recording.ServiceConfig{})
-
-	sessionID := "test-session-" + uuid.NewString()[:8]
-	pageID := uuid.New()
-
-	ctx := context.Background()
-	now := time.Now()
-
-	// First navigate action
-	action1 := &driver.RecordedAction{
-		ID:         uuid.NewString(),
-		SessionID:  sessionID,
-		ActionType: "navigate",
-		Timestamp:  now.Format(time.RFC3339Nano),
-		URL:        "https://example.com/page1",
-	}
-
-	result1, err := recordingSvc.RecordActionUnified(ctx, recording.RecordActionRequest{
-		SessionID: sessionID,
-		Action:    action1,
-		PageID:    pageID,
-		Source:    recording.ActionSourceAuto,
-	})
-	require.NoError(t, err)
-	assert.True(t, result1.Persisted)
-
-	// Duplicate navigate action (same URL within threshold)
-	action2 := &driver.RecordedAction{
-		ID:         uuid.NewString(),
-		SessionID:  sessionID,
-		ActionType: "navigate",
-		Timestamp:  now.Add(100 * time.Millisecond).Format(time.RFC3339Nano), // Within 500ms threshold
-		URL:        "https://example.com/page1",                              // Same URL
-	}
-
-	result2, err := recordingSvc.RecordActionUnified(ctx, recording.RecordActionRequest{
-		SessionID: sessionID,
-		Action:    action2,
-		PageID:    pageID,
-		Source:    recording.ActionSourceAuto,
-	})
-	require.NoError(t, err)
-	// Duplicate should be silently skipped (no persistence)
-	assert.False(t, result2.Persisted)
-
-	// Verify only one entry in timeline
-	timeline, err := recordingSvc.GetTimeline(ctx, persistence.TimelineQuery{
-		SessionID: sessionID,
-		Limit:     100,
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 1, timeline.TotalCount, "Duplicate should be deduplicated")
-}
 
 // TestBroadcastResult_Metrics tests that BroadcastResult contains correct metrics.
 func TestBroadcastResult_Metrics(t *testing.T) {
@@ -437,4 +182,182 @@ func TestBroadcastResult_Metrics(t *testing.T) {
 	result3 := hub.BroadcastTimelineEntry(sessionID, nil)
 	assert.Equal(t, 0, result3.SubscriberCount)
 	assert.Equal(t, 0, result3.SentCount)
+}
+
+type journalIngressService struct {
+	*MockRecordModeService
+	session *autosession.Session
+	journal *recording.Service
+}
+
+func (s *journalIngressService) GetSession(string) (*autosession.Session, bool) {
+	return s.session, s.session != nil
+}
+
+func (s *journalIngressService) AddTimelineAction(ctx context.Context, id string, action *driver.RecordedAction, page uuid.UUID) error {
+	return s.journal.RecordAction(ctx, id, action, page, recording.ActionSourceManual)
+}
+
+// [REQ:BAS-RH-J06] Exercise the real HTTP ingress, not an alternate recorder API.
+func TestReceiveRecordingActionRequiresCommit(t *testing.T) {
+	for _, tc := range []struct {
+		name               string
+		saveErr            error
+		missing            bool
+		status, broadcasts int
+	}{
+		{name: "committed", status: 200, broadcasts: 1},
+		{name: "storage failure", saveErr: errors.New("synthetic disk failure"), status: 503},
+		{name: "unknown session", missing: true, status: 404},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			log := logrus.New()
+			repo := persistence.NewMockRepository()
+			repo.AppendTimelineEntryErr = tc.saveErr
+			svc := recording.NewService(repo, recording.ServiceConfig{})
+			if err := svc.RegisterSession(context.Background(), "session", recording.SessionConfig{}); err != nil {
+				t.Fatal(err)
+			}
+			sess := &autosession.Session{}
+			sess.InitializePageTracking("https://example.test")
+			if tc.missing {
+				sess = nil
+			}
+			hub := NewTestRecordingHub(log)
+			h := &Handler{recordModeService: &journalIngressService{MockRecordModeService: NewMockRecordModeService(), session: sess, journal: svc}, wsHub: hub, log: log}
+			req := httptest.NewRequest(http.MethodPost, "/recordings/live/session/action", strings.NewReader(`{"id":"event-123","actionType":"input","timestamp":"2026-09-22T00:00:00Z","payload":{"text":"preserve"}}`))
+			route := chi.NewRouteContext()
+			route.URLParams.Add("sessionId", "session")
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, route))
+			response := httptest.NewRecorder()
+			h.ReceiveRecordingAction(response, req)
+			if response.Code != tc.status {
+				t.Errorf("status%d want%d: %s", response.Code, tc.status, response.Body.String())
+			}
+			if response.Code == http.StatusOK {
+				var receipt map[string]string
+				require.NoError(t, json.Unmarshal(response.Body.Bytes(), &receipt))
+				require.Equal(t, "event-123", receipt["entry_id"])
+			}
+			if n := hub.GetBroadcastCount("session"); n != tc.broadcasts {
+				t.Errorf("broadcasts%d want%d", n, tc.broadcasts)
+			}
+		})
+	}
+}
+
+func TestHistoryNavigationRequiresRecordedOutcome(t *testing.T) {
+	operations := []struct {
+		name              string
+		handle            func(*Handler, http.ResponseWriter, *http.Request)
+		pageNotifications int
+	}{
+		{"reload", (*Handler).ReloadRecordingSession, 0},
+		{"goBack", (*Handler).GoBackRecordingSession, 1},
+		{"goForward", (*Handler).GoForwardRecordingSession, 1},
+	}
+	cases := []struct {
+		name               string
+		saveErr            error
+		missing            bool
+		status, broadcasts int
+	}{
+		{name: "committed", status: 200, broadcasts: 1},
+		{name: "storage failure", saveErr: errors.New("synthetic disk failure"), status: 503},
+		{name: "missing session", missing: true, status: 503},
+	}
+	for _, operation := range operations {
+		for _, tc := range cases {
+			t.Run(operation.name+"/"+tc.name, func(t *testing.T) {
+				log := logrus.New()
+				repo := persistence.NewMockRepository()
+				repo.AppendTimelineEntryErr = tc.saveErr
+				journal := recording.NewService(repo, recording.ServiceConfig{})
+				require.NoError(t, journal.RegisterSession(context.Background(), "session", recording.SessionConfig{}))
+				sess := &autosession.Session{}
+				sess.InitializePageTracking("https://before.test")
+				if tc.missing {
+					sess = nil
+				}
+				service := &journalIngressService{MockRecordModeService: NewMockRecordModeService(), session: sess, journal: journal}
+				client := service.MockClient()
+				client.ReloadResponse = &driver.ReloadResponse{URL: "https://after.test", Title: "after", CanGoBack: true}
+				client.GoBackResponse = &driver.GoBackResponse{URL: "https://after.test", Title: "after", CanGoBack: true}
+				client.GoForwardResponse = &driver.GoForwardResponse{URL: "https://after.test", Title: "after", CanGoBack: true}
+				hub := NewTestRecordingHub(log)
+				h := &Handler{recordModeService: service, wsHub: hub, log: log}
+				req := httptest.NewRequest(http.MethodPost, "/session/"+operation.name, strings.NewReader(`{}`))
+				route := chi.NewRouteContext()
+				route.URLParams.Add("sessionId", "session")
+				req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, route))
+				response := httptest.NewRecorder()
+				operation.handle(h, response, req)
+				require.Equal(t, tc.status, response.Code, response.Body.String())
+				assert.Equal(t, tc.broadcasts, hub.GetBroadcastCount("session"))
+				assert.Equal(t, tc.broadcasts*operation.pageNotifications, hub.pageBroadcastCounts["session"])
+				if tc.status == 200 {
+					var result map[string]interface{}
+					require.NoError(t, json.Unmarshal(response.Body.Bytes(), &result))
+					assert.Equal(t, map[string]interface{}{"session_id": "session", "url": "https://after.test", "title": "after", "can_go_back": true, "can_go_forward": false}, result)
+					entries, err := journal.GetTimeline(req.Context(), persistence.TimelineQuery{SessionID: "session"})
+					require.NoError(t, err)
+					require.Equal(t, 1, entries.TotalCount)
+					require.Len(t, entries.Entries, 1)
+					assert.Equal(t, operation.name, entries.Entries[0].Action.ActionType)
+					assert.Equal(t, "https://after.test", sess.Pages().GetActivePage().URL)
+				}
+			})
+		}
+	}
+}
+
+// [REQ:BAS-RH-J06] A pull clear is a commit followed by explicit acknowledgement.
+func TestPullRecordingActionsCommitBeforeAcknowledgement(t *testing.T) {
+	for _, failure := range []string{"none", "commit", "ack"} {
+		t.Run(failure, func(t *testing.T) {
+			ctx := context.Background()
+			repo := persistence.NewMockRepository()
+			journal := recording.NewService(repo, recording.ServiceConfig{})
+			require.NoError(t, journal.RegisterSession(ctx, "session", recording.SessionConfig{}))
+			sess := &autosession.Session{}
+			sess.InitializePageTracking("https://fixture.test")
+			mock := NewMockRecordModeService()
+			id := uuid.NewString()
+			mock.MockClient().RecordedActionsResponse = &driver.GetActionsResponse{SessionID: "session", Actions: []driver.RecordedAction{{ID: id, ActionType: "click", Timestamp: "2026-09-22T00:00:00Z"}}}
+			if failure == "commit" {
+				repo.AppendTimelineEntryErr = errors.New("disk full")
+			}
+			if failure == "ack" {
+				mock.MockClient().AcknowledgeRecordedActionsError = errors.New("lost acknowledgement")
+			}
+			h := &Handler{recordModeService: &journalIngressService{MockRecordModeService: mock, session: sess, journal: journal}, log: logrus.New()}
+			invoke := func() *httptest.ResponseRecorder {
+				req := httptest.NewRequest(http.MethodGet, "/recordings/live/session/actions?clear=true", nil)
+				route := chi.NewRouteContext()
+				route.URLParams.Add("sessionId", "session")
+				req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, route))
+				response := httptest.NewRecorder()
+				h.GetRecordedActions(response, req)
+				return response
+			}
+			response := invoke()
+			if failure == "none" {
+				require.Equal(t, 200, response.Code, response.Body.String())
+			} else {
+				require.Equal(t, 503, response.Code, response.Body.String())
+			}
+			if failure == "commit" {
+				require.Empty(t, mock.MockClient().AcknowledgedEntryIDs)
+			} else {
+				require.Equal(t, []string{id}, mock.MockClient().AcknowledgedEntryIDs)
+			}
+			repo.AppendTimelineEntryErr = nil
+			mock.MockClient().AcknowledgeRecordedActionsError = nil
+			require.Equal(t, 200, invoke().Code)
+			require.Equal(t, []string{id}, mock.MockClient().AcknowledgedEntryIDs)
+			timeline, err := journal.GetTimeline(ctx, persistence.TimelineQuery{SessionID: "session"})
+			require.NoError(t, err)
+			require.Len(t, timeline.Entries, 1, "retry must not append a second observation")
+		})
+	}
 }

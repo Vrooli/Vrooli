@@ -1,0 +1,248 @@
+{
+  "cycle": "034",
+  "issue": "BAS-RF-068",
+  "status": "deployed_named_boundaries_qualified_full_product_unqualified",
+  "updated_at": "2026-09-22T15:15:18.911988+00:00",
+  "source_sha256": {
+    "api/handlers/ai/ollama_suggestions.go": "c3f4a8b75c4d9d88c7d9fe0df12fb81f4782d094639987c115dbda0fc5792ebb",
+    "api/handlers/ai/ollama_client.go": "0519bc3824223bfc0db326825c06cefcbff830c769c05422948876f5ab376fe2",
+    "api/handlers/ai/ai_analysis.go": "a294f786adda151a5e467aa155ba4d9dd2740d0e6898a8c221ecc9f0e6d17021"
+  },
+  "changes": [
+    "Same JSON schema requests and validates governed Ollama suggestions; accepts established array and object shapes.",
+    "Removed empty-success parsing fallback; provider and invalid-response errors propagate to existing DOM-only analysis fallback. No absent suggestions charged.",
+    "Empty extracted element set returns empty locally without a provider call.",
+    "Live integration no longer skips provider response errors after healthy preflight. Existing required-field assertions preserved."
+  ],
+  "checks": {
+    "red": "/tmp/bas-ai-response-red-034.txt:10 invalid-response cases plus structured gateway expectation fail,0.011s",
+    "deterministic_race": "/tmp/bas-ai-response-green-final-034.txt:pass1.092s",
+    "initial_live": "/tmp/bas-ai-response-live-034.txt:failed11.421s,provider schema converter required anchored patterns",
+    "corrected_live": "/tmp/bas-ai-response-live2-034.txt:two live cases and13 contract cases pass5.074s",
+    "initial_owner": {
+      "run": "uh-20260922-150329-35524363f0d47303a760c85b534c0497",
+      "API": "failed33.413s empty-element case; full assertion omitted by bounded owner output",
+      "CLI": "passed1.975s"
+    },
+    "empty_case": "isolated existing live test passed1.653s; fresh no-provider-call regression failed before early-return repair; exact original intermittent assertion not recovered",
+    "board": {
+      "program_id": "prog_c101f936-b10b-489b-a30e-2a9ab7fad722",
+      "pending": 17,
+      "product_qualified": false
+    },
+    "final_API_owner": {
+      "run": "uh-20260922-150913-3760ae5d039caeeb866c3fd0a3db7907",
+      "status": "passed",
+      "seconds": 33.13
+    },
+    "API_build": "passed /tmp/bas-api-build-034.txt"
+  },
+  "metrics": {
+    "go_cycle": {
+      "paths": [
+        "api/handlers/ai/ollama_suggestions.go",
+        "api/handlers/ai/ollama_client.go",
+        "api/handlers/ai/ai_analysis.go"
+      ],
+      "before": {
+        "files": 3,
+        "lines": 658,
+        "functions": 23,
+        "cyclomatic": 79
+      },
+      "after": {
+        "files": 3,
+        "lines": 669,
+        "functions": 22,
+        "cyclomatic": 81
+      }
+    },
+    "cumulative": {
+      "paths": [
+        "api/automation/compiler/action_definition_builder.go",
+        "api/automation/contracts/plan.go",
+        "api/automation/driver/claudecode/driver.go",
+        "api/automation/driver/client.go",
+        "api/automation/driver/interface.go",
+        "api/automation/driver/playwright/driver.go",
+        "api/automation/driver/types.go",
+        "api/automation/events/sink.go",
+        "api/automation/events/ws_sink.go",
+        "api/automation/execution-writer/artifact_config.go",
+        "api/automation/execution-writer/external_artifacts.go",
+        "api/automation/execution-writer/file_writer.go",
+        "api/automation/execution-writer/interface.go",
+        "api/automation/execution-writer/result_manifest.go",
+        "api/automation/executor/flow_executor.go",
+        "api/automation/executor/flow_utils.go",
+        "api/automation/executor/simple_executor.go",
+        "api/automation/session/manager.go",
+        "api/automation/session/session.go",
+        "api/database/models.go",
+        "api/database/repository.go",
+        "api/handlers/ai/ai_analysis.go",
+        "api/handlers/ai/ollama_client.go",
+        "api/handlers/ai/ollama_suggestions.go",
+        "api/handlers/execution_export.go",
+        "api/handlers/executions/service.go",
+        "api/handlers/handler.go",
+        "api/handlers/record_mode.go",
+        "api/handlers/record_mode_actions.go",
+        "api/handlers/record_mode_pages.go",
+        "api/handlers/record_mode_persistence.go",
+        "api/handlers/recordings/module.go",
+        "api/handlers/recordings/service.go",
+        "api/handlers/testutil_mock_repository.go",
+        "api/handlers/testutil_mock_services.go",
+        "api/internal/testutil/mocks/workflow_services.go",
+        "api/internal/typeconv/builders.go",
+        "api/internal/typeconv/primitives.go",
+        "api/internal/typeconv/timeline.go",
+        "api/internal/wire/wire.go",
+        "api/main.go",
+        "api/owner_cleanup.go",
+        "api/performance/collector.go",
+        "api/performance/types.go",
+        "api/services/archive-ingestion/persistence.go",
+        "api/services/export/source/video_source.go",
+        "api/services/live-capture/action_registry.go",
+        "api/services/live-capture/service.go",
+        "api/services/live-capture/workflow_generator.go",
+        "api/services/recording/persistence/mock_repository.go",
+        "api/services/recording/persistence/repository.go",
+        "api/services/recording/persistence/sqlite.go",
+        "api/services/recording/persistence/types.go",
+        "api/services/recording/recorder.go",
+        "api/services/recording/service.go",
+        "api/services/recovery/service.go",
+        "api/services/retention/retention.go",
+        "api/services/session-profile/persistence/credentials.go",
+        "api/services/session-profile/persistence/file_repository.go",
+        "api/services/session-profile/persistence/filesystem.go",
+        "api/services/session-profile/persistence/filesystem_mock.go",
+        "api/services/session-profile/persistence/mock_repository.go",
+        "api/services/session-profile/persistence/protected_state.go",
+        "api/services/session-profile/persistence/repository.go",
+        "api/services/session-profile/service.go",
+        "api/services/uxmetrics/collector/collector.go",
+        "api/services/workflow/executions.go",
+        "api/services/workflow/executions_list.go",
+        "api/services/workflow/interfaces.go",
+        "api/sidecar/wire.go"
+      ],
+      "before": {
+        "files": 69,
+        "lines": 31177,
+        "functions": 1129,
+        "cyclomatic": 5079
+      },
+      "after": {
+        "files": 66,
+        "lines": 28516,
+        "functions": 1079,
+        "cyclomatic": 4839
+      },
+      "shared_cyclomatic_delta": -12
+    },
+    "affected_cumulative_cyclomatic_delta": -252,
+    "tidiness": {
+      "run": "20260922-150336-b9a3dffb",
+      "summary": {
+        "totalFindings": 1115,
+        "longFiles": 103,
+        "complexity": 387,
+        "duplication": 607,
+        "coupling": 17,
+        "duplicationLineDebt": 33540
+      },
+      "applicability": "Before final3line empty-input guard; separate final Go counts above."
+    }
+  },
+  "performance": {
+    "scope": "Real suggestion method with same mocked valid1suggestion response; prompt+decoding+validation, no model or gateway process. Go overlay uses retained before files without replacing shared source.",
+    "before_log": "/tmp/bas-ai-cost-before-034.txt",
+    "after_log": "/tmp/bas-ai-cost-after-final-034.txt",
+    "limitation": "Schema validation adds local cost; no whole-inference latency claim. Initial after run overlapped isolated live request; retained separately.",
+    "before_ns_per_op": [
+      4809,
+      4522,
+      4562
+    ],
+    "after_ns_per_op": [
+      10223,
+      9847,
+      9967
+    ],
+    "median_delta_ns": 5405,
+    "before_bytes_per_op": 3849,
+    "after_bytes_per_op_median": 7704,
+    "before_allocs_per_op": 24,
+    "after_allocs_per_op": 105,
+    "interpretation": "About5.405us added local schema-validation cost (+118.48% vs previous unchecked parsing). This is a correctness cost, not a speed improvement; whole model-request latency unmeasured."
+  },
+  "next": "Fresh adversarial frame-targeting investigation RF004/RF030; recording durability residuals remain open.",
+  "pending_operations": [],
+  "publication": {
+    "healthy_at": "2026-09-22T15:14:42Z",
+    "build": "sha256:ce4d775d1ee2c2ba22bd0c8c7ceed449bb2e84cfd1cc7315f869859a12460acc",
+    "gate": {
+      "checked_at": "2026-09-22T15:10:11.885709+00:00",
+      "rows": 2668,
+      "states": {
+        "EXECUTION_STATUS_COMPLETED": 2288,
+        "EXECUTION_STATUS_FAILED": 375,
+        "EXECUTION_STATUS_RUNNING": 5
+      },
+      "historical_orphans": [
+        {
+          "executionId": "879c542b-d9cd-481b-82d2-6b6c7c11ebf1",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-16T13:18:42.087757908Z",
+          "createdAt": "2026-09-16T13:18:42Z",
+          "updatedAt": "2026-09-16T13:19:10.005000924Z"
+        },
+        {
+          "executionId": "d19bd80e-2624-4874-ab9f-eab0cda42286",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-09T19:30:12.784163869Z",
+          "createdAt": "2026-09-09T19:30:12Z",
+          "updatedAt": "2026-09-09T19:30:18.302018879Z"
+        },
+        {
+          "executionId": "b74ec692-da21-42f7-a86c-f33d436ecfbb",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-09T06:30:44.282585140Z",
+          "createdAt": "2026-09-09T06:30:44Z",
+          "updatedAt": "2026-09-09T06:30:45.060249200Z"
+        },
+        {
+          "executionId": "e0d33e05-297d-4867-aee0-783d59882fa8",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-07T20:36:44.551353663Z",
+          "createdAt": "2026-09-07T20:36:44Z",
+          "updatedAt": "2026-09-07T20:36:45.625164771Z"
+        },
+        {
+          "executionId": "206d68cf-a72c-4838-872b-f913a6a8def6",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-07T20:36:44.551265983Z",
+          "createdAt": "2026-09-07T20:36:44Z",
+          "updatedAt": "2026-09-07T20:36:45.663485899Z"
+        }
+      ],
+      "driver_sessions": 0,
+      "driver_recordings": 0,
+      "seconds": 0.7625015659723431,
+      "build_before": "sha256:27b9cd6d7734e44874e92bb6e3213ffb3dc83873696d10f9433f34e642a7c13b",
+      "limitation": "Observation before stop, not atomic global admission lock",
+      "decision": "admit stop; preserve orphan history"
+    },
+    "saved_profiles": "API metadata equals032; three complete repository reads preserve every original rollback field",
+    "history_limitation": "Rows2668 at stop vs2875 previous observation; prior automatic retention logged934recording directories and deletes associated terminal rows. Exact removed-ID reconciliation unavailable."
+  }
+}

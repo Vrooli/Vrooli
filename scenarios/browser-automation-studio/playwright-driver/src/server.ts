@@ -460,6 +460,11 @@ function setupRoutes(
     if (!sessionId) return;
     await routes.handleSessionAudioRestart(req, res, sessionId, sessionManager);
   });
+  router.post('/session/:id/audio/stop', async (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) return;
+    await routes.handleSessionAudioStop(req, res, sessionId, sessionManager);
+  });
   router.post('/session/:id/close', async (req, res, params) => {
     const sessionId = requireRouteParam(res, params, 'id');
     if (!sessionId) {
@@ -505,6 +510,11 @@ function setupRoutes(
     }
     routes.handleRecordActions(req, res, sessionId, sessionManager);
     return Promise.resolve();
+  });
+  router.post('/session/:id/record/actions/ack', async (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) return;
+    await routes.handleRecordActionsAck(req, res, sessionId, sessionManager, config);
   });
   router.get('/session/:id/record/debug', async (req, res, params) => {
     const sessionId = requireRouteParam(res, params, 'id');

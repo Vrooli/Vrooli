@@ -6,9 +6,93 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/automation/events"
+	"github.com/vrooli/browser-automation-studio/automation/executor"
+	"github.com/vrooli/browser-automation-studio/database"
+	uxcollector "github.com/vrooli/browser-automation-studio/services/uxmetrics/collector"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 )
+
+type lifecycleRepository struct {
+	database.Repository
+	execution *database.ExecutionIndex
+}
+
+func (r *lifecycleRepository) GetExecution(context.Context, uuid.UUID) (*database.ExecutionIndex, error) {
+	return r.execution, nil
+}
+
+func (r *lifecycleRepository) UpdateExecutionStatus(_ context.Context, _ uuid.UUID, status string, _ *string, _ *time.Time, _ time.Time) error {
+	r.execution.Status = status
+	return nil
+}
+
+type lifecycleSink struct {
+	*events.MemorySink
+	closed []uuid.UUID
+}
+
+func (s *lifecycleSink) CloseExecution(id uuid.UUID) {
+	s.closed = append(s.closed, id)
+	s.MemorySink.CloseExecution(id)
+}
+
+type lifecycleExecutor struct{ err error }
+
+func (e lifecycleExecutor) Execute(context.Context, executor.Request) error { return e.err }
+
+// [REQ:BAS-RH-J07] The workflow owner retires decorated sinks on all exits.
+func TestWorkflowClosesDecoratedSinkOnEveryExit(t *testing.T) {
+	for _, mode := range []string{"fresh", "resumed"} {
+		for _, outcome := range []string{"completed", "failed", "cancelled", "compile-failed"} {
+			t.Run(mode+"/"+outcome, func(t *testing.T) {
+				id, workflowID := uuid.New(), uuid.New()
+				repo := &lifecycleRepository{execution: &database.ExecutionIndex{ID: id, WorkflowID: workflowID}}
+				sink := &lifecycleSink{MemorySink: events.NewMemorySink(contracts.DefaultEventBufferLimits)}
+				runner := lifecycleExecutor{}
+				if outcome == "failed" {
+					runner.err = errors.New("synthetic action failure")
+				} else if outcome == "cancelled" {
+					runner.err = context.Canceled
+				}
+				service := &WorkflowService{
+					repo: repo, executor: runner, executionDataRoot: t.TempDir(),
+					eventSinkFactory: func() events.Sink { return uxcollector.NewCollector(sink, nil) },
+				}
+				workflow := &basapi.WorkflowSummary{Id: workflowID.String(), FlowDefinition: &basworkflows.WorkflowDefinitionV2{
+					Nodes: []*basworkflows.WorkflowNodeV2{{Id: "navigate", Action: &basactions.ActionDefinition{
+						Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+						Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid"}},
+					}}},
+				}}
+				if outcome == "compile-failed" {
+					workflow.FlowDefinition = nil
+				}
+				if mode == "resumed" {
+					service.executeResumedWorkflowAsync(context.Background(), workflow, id, &CheckpointState{}, nil, nil, "")
+				} else {
+					service.executeWorkflowAsyncWithOptions(context.Background(), workflow, id, nil, nil, nil, nil, nil, nil, nil, "", "", "", false, nil, "", nil)
+				}
+				if len(sink.closed) != 1 || sink.closed[0] != id {
+					t.Fatalf("sink closed for %v; wanted exactly %s", sink.closed, id)
+				}
+				want := outcome
+				if outcome == "compile-failed" {
+					want = "failed"
+				}
+				if repo.execution.Status != want {
+					t.Fatalf("execution status = %s, want %s", repo.execution.Status, want)
+				}
+			})
+		}
+	}
+}
 
 func TestRequiredVideoArtifactContract(t *testing.T) {
 	if err := requiredVideoArtifactError(true, nil, nil); err == nil {

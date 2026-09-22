@@ -7,7 +7,6 @@
  * DECISION CATEGORIES:
  * 1. Session Lookup - Finding existing sessions for reuse
  * 2. Session Reuse - Deciding whether/how to reuse a session
- * 3. Phase Recovery - Handling stuck session phases
  *
  * CHANGE AXIS: Session Lifecycle
  * When modifying session lifecycle behavior:
@@ -16,35 +15,7 @@
  * 3. Keep manager.ts as the orchestrator
  */
 
-import type { SessionSpec, SessionState, SessionPhase } from '../types';
-
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Result of looking up a session for potential reuse.
- */
-export interface SessionLookupResult {
-  /** The session that was found, if any */
-  session: SessionState | null;
-  /** Reason the session was selected */
-  reason: 'execution_id_match' | 'label_match' | 'none';
-}
-
-/**
- * Decision about how to handle an existing session.
- */
-export interface ReuseDecision {
-  /** Whether to reuse the existing session */
-  shouldReuse: boolean;
-  /** Whether to reset the session before reuse */
-  shouldReset: boolean;
-  /** Whether to recover the session phase */
-  shouldRecoverPhase: boolean;
-  /** Reason for the decision */
-  reason: string;
-}
+import type { SessionSpec, SessionState } from '../types';
 
 // =============================================================================
 // Session Lookup Decisions
@@ -114,13 +85,13 @@ export function findByExecutionId(
  * current owner: the owner's in-flight instruction gets its navigation
  * aborted (net::ERR_ABORTED) and subsequent instructions race into
  * SESSION_BUSY. Idempotent retries of the SAME execution are handled by the
- * execution_id match, which has its own stuck-phase recovery.
+ * execution_id match, which observes the current lease without phase recovery.
  *
  * @param session - Session to check
  * @returns true if the session may be pooled across executions
  */
 export function isSafeForLabelReuse(session: SessionState): boolean {
-  return session.phase === 'ready' && session.leaseReleasedAt !== undefined;
+  return session.phase === 'ready' && !session.instructionInFlight && session.leaseReleasedAt !== undefined;
 }
 
 /**
@@ -169,77 +140,6 @@ export function shouldAttemptReuse(reuseMode: SessionSpec['reuse_mode']): boolea
   return reuseMode !== 'fresh';
 }
 
-/**
- * Determine if a session should be reset on reuse.
- *
- * DECISION: Clean mode behavior
- * When reuse_mode is 'clean', we reuse the browser context but
- * clear cookies, storage, and navigation state.
- *
- * @param reuseMode - The requested reuse mode
- * @returns true if the session should be reset before reuse
- */
-export function shouldResetOnReuse(reuseMode: SessionSpec['reuse_mode']): boolean {
-  return reuseMode === 'clean';
-}
-
-/**
- * Determine if a session phase should be recovered.
- *
- * DECISION: Stuck phase recovery
- * If a session is found in 'executing' phase during a retry (same execution_id),
- * the previous execution likely crashed or timed out.
- * We recover by resetting the phase to 'ready'.
- *
- * Recovery is safe because:
- * 1. Same execution_id indicates a retry of the same operation
- * 2. The previous execution won't complete (crashed/timed out)
- * 3. Leaving in 'executing' would permanently block the session
- *
- * @param currentPhase - Current session phase
- * @param isRetry - Whether this is a retry (same execution_id)
- * @returns true if phase should be recovered to 'ready'
- */
-export function shouldRecoverPhase(currentPhase: SessionPhase, isRetry: boolean): boolean {
-  return currentPhase === 'executing' && isRetry;
-}
-
-/**
- * Make a complete reuse decision for an existing session.
- *
- * @param session - The existing session
- * @param spec - The new session spec
- * @param matchReason - How the session was matched
- * @returns Decision about how to handle the session
- */
-export function makeReuseDecision(
-  session: SessionState,
-  spec: SessionSpec,
-  matchReason: 'execution_id_match' | 'label_match'
-): ReuseDecision {
-  const isRetry = matchReason === 'execution_id_match';
-  const shouldReset = shouldResetOnReuse(spec.reuse_mode);
-  const needsPhaseRecovery = shouldRecoverPhase(session.phase, isRetry);
-
-  let reason: string;
-  if (isRetry) {
-    reason = needsPhaseRecovery
-      ? 'Retry of previous execution - recovering from stuck executing phase'
-      : 'Retry of previous execution - returning existing session';
-  } else {
-    reason = shouldReset
-      ? 'Label match with clean mode - resetting session state'
-      : 'Label match - reusing session with current state';
-  }
-
-  return {
-    shouldReuse: true,
-    shouldReset,
-    shouldRecoverPhase: needsPhaseRecovery,
-    reason,
-  };
-}
-
 // =============================================================================
 // Session State Decisions
 // =============================================================================
@@ -266,7 +166,7 @@ export function isSessionActive(
   // a session while its owner is executing; the in-flight Playwright action is
   // the activity signal even when no HTTP request reaches the driver during
   // that wait.
-  if (session.phase !== 'ready') {
+  if (session.instructionInFlight || session.phase !== 'ready') {
     return true;
   }
   const idleTimeMs = now - session.lastUsedAt.getTime();

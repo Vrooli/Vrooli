@@ -1,0 +1,378 @@
+{
+  "schema_version": 1,
+  "records": [
+    "BAS-WORK-003"
+  ],
+  "observed_at": "2026-09-22T03:46:33.574063+00:00",
+  "head": "7d1c7531d057c061c5ad5a67fbecb97ebe2eb194",
+  "scope": "synthetic queue, real workflow orchestration with fake execution, and collector package tests; not live browser or bounded stopped-hub certification",
+  "contract_sha256": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+  "source_sha256": {
+    "api/automation/events/sink.go": "dd2736e78c3323320f63861bf08a84ebb83b23d1b0769f9a5f71dbade6c8c7c9",
+    "api/automation/events/ws_sink.go": "52f3de87d8b0504ffe86a3f5b0e4b61562b6e69e54a72facd18cd847b110ba7a",
+    "api/automation/events/ws_sink_test.go": "d0a870bb011fac5741432c9b173d1086c580e81c4d3d551ef0f5d1e808507440",
+    "api/services/uxmetrics/collector/collector.go": "fa70f8388dca4299a648172c5ecd7c5f5fb09ce258520426b5e74be88bf399e2",
+    "api/services/uxmetrics/collector/collector_test.go": "b51679e3b519dcb6409447744e4519cf42bdb445912dc5808de629d24d51edf9",
+    "api/services/workflow/executions.go": "6807b5e3a08ca651b680ac10689c19deefb19b4034a9af9224f9d0636eda9217",
+    "api/services/workflow/execution_results_test.go": "33e5821537760e641638432be4259a091a146707602050f55dbb6a43b7ccb678",
+    "docs/internal/refactor_probes.go": "e980c9ac083fb5730d27bdb5613799284d283ae4fd0308e047b80bc6d4eb8e69",
+    "docs/internal/refactor_execution_probes.go": "0da9170e691a245004f09797614b687c18edc481c5fa73fbb25c42bb90d883b8"
+  },
+  "checks": {
+    "bas-events-red.txt": "--- FAIL: TestWSHubSinkCloseDrainsAcceptedEvents (0.00s)\n    --- FAIL: TestWSHubSinkCloseDrainsAcceptedEvents/execution.completed (0.00s)\n        ws_sink_test.go:596: hub was closed before its accepted events drained\n        ws_sink_test.go:600: late publish was acknowledged after close\n        ws_sink_test.go:608: close delivered 0/2 accepted events\n    --- FAIL: TestWSHubSinkCloseDrainsAcceptedEvents/execution.failed (0.00s)\n        ws_sink_test.go:596: hub was closed before its accepted events drained\n        ws_sink_test.go:600: late publish was acknowledged after close\n        ws_sink_test.go:608: close delivered 0/2 accepted events\n    --- FAIL: TestWSHubSinkCloseDrainsAcceptedEvents/execution.cancelled (0.00s)\n        ws_sink_test.go:596: hub was closed before its accepted events drained\n        ws_sink_test.go:600: late publish was acknowledged after close\n        ws_sink_test.go:608: close delivered 0/2 accepted events\nFAIL\nFAIL\tgithub.com/vrooli/browser-automation-studio/automation/events\t0.008s\n--- FAIL: TestCollectorClosePropagatesAndReleasesBuffers (0.00s)\n    collector_test.go:32: event sink decorator hides execution cleanup\nFAIL\nFAIL\tgithub.com/vrooli/browser-automation-studio/services/uxmetrics/collector\t0.006s\nFAIL\n",
+    "bas-events-rejected-red.txt": "--- FAIL: TestCollectorRejectedEventHasNoSideEffects (0.00s)\n    collector_test.go:67: rejected event persisted UX evidence\nFAIL\nFAIL\tgithub.com/vrooli/browser-automation-studio/services/uxmetrics/collector\t0.007s\nFAIL\n",
+    "bas-events-green-003.txt": "ok  \tgithub.com/vrooli/browser-automation-studio/automation/events\t1.089s\nok  \tgithub.com/vrooli/browser-automation-studio/services/uxmetrics/collector\t1.043s\nok  \tgithub.com/vrooli/browser-automation-studio/services/workflow\t1.082s\n",
+    "bas-workflow-lifecycle-003.txt": "ok  \tgithub.com/vrooli/browser-automation-studio/services/workflow\t1.041s\n"
+  },
+  "retained_probes": {
+    "before": {
+      "observed_at": "2026-09-22T03:34:32.380763+00:00",
+      "scope": "isolated actual-module regressions; not product or native-platform certification",
+      "cases": [
+        {
+          "case": "recording-api",
+          "status": "failed",
+          "producer_sha256": "611565bcc80f554834302b55ba672ecb12e7a6b3ae86bfe2915f8c14845b0de3",
+          "observations": [
+            {
+              "id": "merge-input-snapshots",
+              "expected": "The latest full-value snapshot is ab",
+              "actual": "aab",
+              "expected_behavior_met": false
+            },
+            {
+              "id": "merge-page-identity",
+              "expected": "Identical selectors in separate pages retain two actions",
+              "actual": 1,
+              "expected_behavior_met": false
+            },
+            {
+              "id": "merge-frame-identity",
+              "expected": "Identical selectors in separate frames retain two actions",
+              "actual": 1,
+              "expected_behavior_met": false
+            },
+            {
+              "id": "recording-persistence-ack",
+              "expected": "A failed durable write does not report success",
+              "actual": {
+                "broadcasts": 1,
+                "returned_error": false,
+                "save_attempts": 1
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "timeline-cache-pagination",
+              "expected": "A 1001-event durable session reports 1001 and offset changes the page",
+              "actual": {
+                "database_reads": 0,
+                "durable_saves": 1001,
+                "first_page_start_sequence": 902,
+                "offset_page_start_sequence": 902,
+                "reported_total": 501
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "frame-window-accounting",
+              "expected": "Two retained non-skipped 1000-byte frames average 1000 bytes",
+              "actual": {
+                "average_frame_bytes": 0,
+                "lifetime_frames": 5,
+                "lifetime_skips": 3,
+                "retained_frames": 2
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "wrapped-sink-cleanup",
+              "expected": "Completing 24 wrapped sinks closes their execution queues",
+              "actual": {
+                "hub_close_calls": 0,
+                "remaining_queue_goroutines": 24
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "probe-resource-cleanup",
+              "expected": "Explicitly closing the underlying sinks releases all probe queues",
+              "actual": 0,
+              "expected_behavior_met": true
+            },
+            {
+              "id": "sink-close-drains-terminal-event",
+              "expected": "Closing a queue delivers its already-accepted terminal event",
+              "actual": {
+                "delivered_events": 1,
+                "published_events": 2
+              },
+              "expected_behavior_met": false
+            }
+          ],
+          "scope": "isolated production-module composition and pure-function probes; no live workflows",
+          "producer_exit": 0
+        }
+      ],
+      "summary": {
+        "passed": 0,
+        "failed": 1,
+        "unavailable": 0
+      }
+    },
+    "after": {
+      "observed_at": "2026-09-22T03:38:44.717513+00:00",
+      "scope": "isolated actual-module regressions; not product or native-platform certification",
+      "cases": [
+        {
+          "case": "recording-api",
+          "status": "failed",
+          "producer_sha256": "e980c9ac083fb5730d27bdb5613799284d283ae4fd0308e047b80bc6d4eb8e69",
+          "observations": [
+            {
+              "id": "merge-input-snapshots",
+              "expected": "The latest full-value snapshot is ab",
+              "actual": "aab",
+              "expected_behavior_met": false
+            },
+            {
+              "id": "merge-page-identity",
+              "expected": "Identical selectors in separate pages retain two actions",
+              "actual": 1,
+              "expected_behavior_met": false
+            },
+            {
+              "id": "merge-frame-identity",
+              "expected": "Identical selectors in separate frames retain two actions",
+              "actual": 1,
+              "expected_behavior_met": false
+            },
+            {
+              "id": "recording-persistence-ack",
+              "expected": "A failed durable write does not report success",
+              "actual": {
+                "broadcasts": 1,
+                "returned_error": false,
+                "save_attempts": 1
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "timeline-cache-pagination",
+              "expected": "A 1001-event durable session reports 1001 and offset changes the page",
+              "actual": {
+                "database_reads": 0,
+                "durable_saves": 1001,
+                "first_page_start_sequence": 902,
+                "offset_page_start_sequence": 902,
+                "reported_total": 501
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "frame-window-accounting",
+              "expected": "Two retained non-skipped 1000-byte frames average 1000 bytes",
+              "actual": {
+                "average_frame_bytes": 0,
+                "lifetime_frames": 5,
+                "lifetime_skips": 3,
+                "retained_frames": 2
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "wrapped-sink-cleanup",
+              "expected": "Completing 24 wrapped sinks closes their execution queues",
+              "actual": {
+                "hub_close_calls": 24,
+                "remaining_queue_goroutines": 0
+              },
+              "expected_behavior_met": true
+            },
+            {
+              "id": "probe-resource-cleanup",
+              "expected": "Explicitly closing the underlying sinks releases all probe queues",
+              "actual": 0,
+              "expected_behavior_met": true
+            },
+            {
+              "id": "sink-close-drains-terminal-event",
+              "expected": "Closing a queue delivers its already-accepted terminal event",
+              "actual": {
+                "delivered_events": 2,
+                "published_events": 2
+              },
+              "expected_behavior_met": true
+            }
+          ],
+          "scope": "isolated production-module composition and pure-function probes; no live workflows",
+          "producer_exit": 0
+        }
+      ],
+      "summary": {
+        "passed": 0,
+        "failed": 1,
+        "unavailable": 0
+      }
+    }
+  },
+  "complexity": {
+    "before": "56 workflow (*WorkflowService).executeWorkflowAsyncWithOptions scenarios/browser-automation-studio/api/services/workflow/executions.go:492:1\n29 workflow (*WorkflowService).ExecuteWorkflowAPIWithOptions scenarios/browser-automation-studio/api/services/workflow/executions.go:133:1\n17 collector (*Collector).buildCursorPath scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:154:1\n17 events (*executionQueue).enqueue scenarios/browser-automation-studio/api/automation/events/ws_sink.go:136:1\n14 events buildTimelineEntryFromEnvelope scenarios/browser-automation-studio/api/automation/events/ws_sink.go:344:1\n13 workflow executionParametersToMaps scenarios/browser-automation-studio/api/services/workflow/executions.go:347:1\n12 events (*executionQueue).dropOldest scenarios/browser-automation-studio/api/automation/events/ws_sink.go:220:1\n11 events mapExecutionStatus scenarios/browser-automation-studio/api/automation/events/ws_sink.go:423:1\n9 events extractInt scenarios/browser-automation-studio/api/automation/events/ws_sink.go:465:1\n9 events (*executionQueue).run scenarios/browser-automation-studio/api/automation/events/ws_sink.go:172:1\n8 collector mapStepTypeToAction scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:249:1\n8 events convertEventToProto scenarios/browser-automation-studio/api/automation/events/ws_sink.go:279:1\n6 workflow executionProjectRoot scenarios/browser-automation-studio/api/services/workflow/executions.go:312:1\n6 workflow (*WorkflowService).ExecuteWorkflow scenarios/browser-automation-studio/api/services/workflow/executions.go:36:1\n6 collector (*Collector).Publish scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:40:1\n6 events extractString scenarios/browser-automation-studio/api/automation/events/ws_sink.go:487:1\n6 events (*WSHubSink).CloseExecution scenarios/browser-automation-studio/api/automation/events/ws_sink.go:90:1\n5 workflow (*WorkflowService).cancelExecutionByID scenarios/browser-automation-studio/api/services/workflow/executions.go:772:1\n5 workflow (*WorkflowService).resolveWorkflowForExecution scenarios/browser-automation-studio/api/services/workflow/executions.go:288:1\n5 events eventToProtoMap scenarios/browser-automation-studio/api/automation/events/ws_sink.go:263:1\n5 events (*WSHubSink).Publish scenarios/browser-automation-studio/api/automation/events/ws_sink.go:49:1\n4 workflow executionOutcome scenarios/browser-automation-studio/api/services/workflow/executions.go:795:1\n4 workflow navigateWaitEventToString scenarios/browser-automation-studio/api/services/workflow/executions.go:423:1\n4 workflow requiredVideoArtifactError scenarios/browser-automation-studio/api/services/workflow/executions.go:114:1\n4 collector (*Collector).FlushExecution scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:109:1\n4 collector (*Collector).OnStepOutcome scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:66:1\n4 events mapStepStatus scenarios/browser-automation-studio/api/automation/events/ws_sink.go:452:1\n3 workflow withTestModeBrowserHeader scenarios/browser-automation-studio/api/services/workflow/executions.go:464:1\n3 workflow validateProjectRoot scenarios/browser-automation-studio/api/services/workflow/executions.go:333:1\n3 collector (*Collector).onStepCompleted scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:121:1\n3 events (*WSHubSink).ensureQueue scenarios/browser-automation-studio/api/automation/events/ws_sink.go:70:1\n2 workflow (*WorkflowService).StopExecution scenarios/browser-automation-studio/api/services/workflow/executions.go:784:1\n2 workflow (*WorkflowService).storeExecutionCancel scenarios/browser-automation-studio/api/services/workflow/executions.go:765:1\n2 workflow (*WorkflowService).startExecutionRunnerWithOptions scenarios/browser-automation-studio/api/services/workflow/executions.go:447:1\n2 events ptrOrZero scenarios/browser-automation-studio/api/automation/events/ws_sink.go:502:1\n2 events (*executionQueue).emit scenarios/browser-automation-studio/api/automation/events/ws_sink.go:201:1\n2 events NewWSHubSink scenarios/browser-automation-studio/api/automation/events/ws_sink.go:34:1\n1 workflow detachedExecutionContext scenarios/browser-automation-studio/api/services/workflow/executions.go:477:1\n1 workflow (*WorkflowService).startExecutionRunnerWithNamespaces scenarios/browser-automation-studio/api/services/workflow/executions.go:443:1\n1 workflow (*WorkflowService).startExecutionRunner scenarios/browser-automation-studio/api/services/workflow/executions.go:436:1\n1 workflow jsonValueToAny scenarios/browser-automation-studio/api/services/workflow/executions.go:418:1\n1 workflow (*WorkflowService).ExecuteWorkflowAPI scenarios/browser-automation-studio/api/services/workflow/executions.go:128:1\n1 collector cursorBufferKey scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:245:1\n1 collector (*Collector).onStepFailed scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:149:1\n1 collector (*Collector).OnCursorUpdate scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:98:1\n1 collector (*Collector).Limits scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:61:1\n1 collector NewCollector scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:31:1\n1 events convertElementFocus scenarios/browser-automation-studio/api/automation/events/ws_sink.go:512:1\n1 events (*WSHubSink).isClosed scenarios/browser-automation-studio/api/automation/events/ws_sink.go:256:1\n1 events (*executionQueue).close scenarios/browser-automation-studio/api/automation/events/ws_sink.go:248:1\n1 events attemptKey scenarios/browser-automation-studio/api/automation/events/ws_sink.go:244:1\n1 events newExecutionQueue scenarios/browser-automation-studio/api/automation/events/ws_sink.go:124:1\n1 events (*WSHubSink).Limits scenarios/browser-automation-studio/api/automation/events/ws_sink.go:66:1\n",
+    "after": "56 workflow (*WorkflowService).executeWorkflowAsyncWithOptions scenarios/browser-automation-studio/api/services/workflow/executions.go:491:1\n29 workflow (*WorkflowService).ExecuteWorkflowAPIWithOptions scenarios/browser-automation-studio/api/services/workflow/executions.go:132:1\n17 collector (*Collector).buildCursorPath scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:162:1\n17 events (*executionQueue).enqueue scenarios/browser-automation-studio/api/automation/events/ws_sink.go:136:1\n14 events buildTimelineEntryFromEnvelope scenarios/browser-automation-studio/api/automation/events/ws_sink.go:338:1\n13 workflow executionParametersToMaps scenarios/browser-automation-studio/api/services/workflow/executions.go:346:1\n12 events (*executionQueue).dropOldest scenarios/browser-automation-studio/api/automation/events/ws_sink.go:222:1\n11 events mapExecutionStatus scenarios/browser-automation-studio/api/automation/events/ws_sink.go:417:1\n9 events extractInt scenarios/browser-automation-studio/api/automation/events/ws_sink.go:459:1\n9 events (*executionQueue).run scenarios/browser-automation-studio/api/automation/events/ws_sink.go:173:1\n8 collector mapStepTypeToAction scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:257:1\n8 events convertEventToProto scenarios/browser-automation-studio/api/automation/events/ws_sink.go:273:1\n7 collector (*Collector).Publish scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:40:1\n7 events (*WSHubSink).CloseExecution scenarios/browser-automation-studio/api/automation/events/ws_sink.go:87:1\n6 workflow executionProjectRoot scenarios/browser-automation-studio/api/services/workflow/executions.go:311:1\n6 workflow (*WorkflowService).ExecuteWorkflow scenarios/browser-automation-studio/api/services/workflow/executions.go:35:1\n6 events extractString scenarios/browser-automation-studio/api/automation/events/ws_sink.go:481:1\n5 workflow (*WorkflowService).cancelExecutionByID scenarios/browser-automation-studio/api/services/workflow/executions.go:769:1\n5 workflow (*WorkflowService).resolveWorkflowForExecution scenarios/browser-automation-studio/api/services/workflow/executions.go:287:1\n5 events eventToProtoMap scenarios/browser-automation-studio/api/automation/events/ws_sink.go:257:1\n5 events (*WSHubSink).Publish scenarios/browser-automation-studio/api/automation/events/ws_sink.go:52:1\n4 workflow executionOutcome scenarios/browser-automation-studio/api/services/workflow/executions.go:792:1\n4 workflow navigateWaitEventToString scenarios/browser-automation-studio/api/services/workflow/executions.go:422:1\n4 workflow requiredVideoArtifactError scenarios/browser-automation-studio/api/services/workflow/executions.go:113:1\n4 collector (*Collector).FlushExecution scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:117:1\n4 collector (*Collector).OnStepOutcome scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:74:1\n4 events mapStepStatus scenarios/browser-automation-studio/api/automation/events/ws_sink.go:446:1\n3 workflow withTestModeBrowserHeader scenarios/browser-automation-studio/api/services/workflow/executions.go:463:1\n3 workflow validateProjectRoot scenarios/browser-automation-studio/api/services/workflow/executions.go:332:1\n3 collector (*Collector).onStepCompleted scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:129:1\n3 events (*WSHubSink).ensureQueue scenarios/browser-automation-studio/api/automation/events/ws_sink.go:68:1\n2 workflow (*WorkflowService).StopExecution scenarios/browser-automation-studio/api/services/workflow/executions.go:781:1\n2 workflow (*WorkflowService).storeExecutionCancel scenarios/browser-automation-studio/api/services/workflow/executions.go:762:1\n2 workflow (*WorkflowService).startExecutionRunnerWithOptions scenarios/browser-automation-studio/api/services/workflow/executions.go:446:1\n2 events ptrOrZero scenarios/browser-automation-studio/api/automation/events/ws_sink.go:496:1\n2 events (*executionQueue).emit scenarios/browser-automation-studio/api/automation/events/ws_sink.go:203:1\n2 events NewWSHubSink scenarios/browser-automation-studio/api/automation/events/ws_sink.go:37:1\n1 workflow detachedExecutionContext scenarios/browser-automation-studio/api/services/workflow/executions.go:476:1\n1 workflow (*WorkflowService).startExecutionRunnerWithNamespaces scenarios/browser-automation-studio/api/services/workflow/executions.go:442:1\n1 workflow (*WorkflowService).startExecutionRunner scenarios/browser-automation-studio/api/services/workflow/executions.go:435:1\n1 workflow jsonValueToAny scenarios/browser-automation-studio/api/services/workflow/executions.go:417:1\n1 workflow (*WorkflowService).ExecuteWorkflowAPI scenarios/browser-automation-studio/api/services/workflow/executions.go:127:1\n1 collector cursorBufferKey scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:253:1\n1 collector (*Collector).onStepFailed scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:157:1\n1 collector (*Collector).OnCursorUpdate scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:106:1\n1 collector (*Collector).CloseExecution scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:68:1\n1 collector (*Collector).Limits scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:63:1\n1 collector NewCollector scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:31:1\n1 events convertElementFocus scenarios/browser-automation-studio/api/automation/events/ws_sink.go:506:1\n1 events (*executionQueue).close scenarios/browser-automation-studio/api/automation/events/ws_sink.go:250:1\n1 events attemptKey scenarios/browser-automation-studio/api/automation/events/ws_sink.go:246:1\n1 events newExecutionQueue scenarios/browser-automation-studio/api/automation/events/ws_sink.go:124:1\n1 events (*WSHubSink).Limits scenarios/browser-automation-studio/api/automation/events/ws_sink.go:64:1\n",
+    "functions": 53,
+    "sum_before": 317,
+    "sum_after": 319
+  },
+  "inventory": {
+    "before": {
+      "digest": "24b26fab64d2fb0b32a16128335fa108474c1b2c4e5be20921a59f753cbaecb9",
+      "surfaces": {
+        ".vrooli": {
+          "tracked_source_files": 9,
+          "tracked_source_lines": 2398,
+          "runtime_files": 0,
+          "runtime_lines": 0,
+          "runtime_over_500_lines": 0,
+          "runtime_over_1000_lines": 0
+        },
+        "api": {
+          "tracked_source_files": 634,
+          "tracked_source_lines": 157670,
+          "runtime_files": 422,
+          "runtime_lines": 94101,
+          "runtime_over_500_lines": 44,
+          "runtime_over_1000_lines": 10
+        },
+        "bas": {
+          "tracked_source_files": 2,
+          "tracked_source_lines": 546,
+          "runtime_files": 0,
+          "runtime_lines": 0,
+          "runtime_over_500_lines": 0,
+          "runtime_over_1000_lines": 0
+        },
+        "cli": {
+          "tracked_source_files": 74,
+          "tracked_source_lines": 5382,
+          "runtime_files": 43,
+          "runtime_lines": 3179,
+          "runtime_over_500_lines": 0,
+          "runtime_over_1000_lines": 0
+        },
+        "docs": {
+          "tracked_source_files": 8,
+          "tracked_source_lines": 1201,
+          "runtime_files": 0,
+          "runtime_lines": 0,
+          "runtime_over_500_lines": 0,
+          "runtime_over_1000_lines": 0
+        },
+        "playwright-driver": {
+          "tracked_source_files": 354,
+          "tracked_source_lines": 90527,
+          "runtime_files": 210,
+          "runtime_lines": 55567,
+          "runtime_over_500_lines": 25,
+          "runtime_over_1000_lines": 4
+        },
+        "ui": {
+          "tracked_source_files": 795,
+          "tracked_source_lines": 150787,
+          "runtime_files": 685,
+          "runtime_lines": 131518,
+          "runtime_over_500_lines": 56,
+          "runtime_over_1000_lines": 11
+        }
+      }
+    },
+    "after": {
+      "digest": "fdf8f0aaa65c8949ff3a6cb342ba25235a6160ecd5d86f2259055b57b543f49b",
+      "surfaces": {
+        ".vrooli": {
+          "tracked_source_files": 9,
+          "tracked_source_lines": 2398,
+          "runtime_files": 0,
+          "runtime_lines": 0,
+          "runtime_over_500_lines": 0,
+          "runtime_over_1000_lines": 0
+        },
+        "api": {
+          "tracked_source_files": 634,
+          "tracked_source_lines": 157870,
+          "runtime_files": 422,
+          "runtime_lines": 94104,
+          "runtime_over_500_lines": 44,
+          "runtime_over_1000_lines": 10
+        },
+        "bas": {
+          "tracked_source_files": 2,
+          "tracked_source_lines": 546,
+          "runtime_files": 0,
+          "runtime_lines": 0,
+          "runtime_over_500_lines": 0,
+          "runtime_over_1000_lines": 0
+        },
+        "cli": {
+          "tracked_source_files": 74,
+          "tracked_source_lines": 5382,
+          "runtime_files": 43,
+          "runtime_lines": 3179,
+          "runtime_over_500_lines": 0,
+          "runtime_over_1000_lines": 0
+        },
+        "docs": {
+          "tracked_source_files": 8,
+          "tracked_source_lines": 1215,
+          "runtime_files": 0,
+          "runtime_lines": 0,
+          "runtime_over_500_lines": 0,
+          "runtime_over_1000_lines": 0
+        },
+        "playwright-driver": {
+          "tracked_source_files": 354,
+          "tracked_source_lines": 90527,
+          "runtime_files": 210,
+          "runtime_lines": 55567,
+          "runtime_over_500_lines": 25,
+          "runtime_over_1000_lines": 4
+        },
+        "ui": {
+          "tracked_source_files": 795,
+          "tracked_source_lines": 150787,
+          "runtime_files": 685,
+          "runtime_lines": 131518,
+          "runtime_over_500_lines": 56,
+          "runtime_over_1000_lines": 11
+        }
+      }
+    }
+  },
+  "owner_run": {
+    "test_genie": "20260922-032049-4b5c680b",
+    "verdict": "failed",
+    "unit": "actual workflow-program assertions and WebM MIME assertion fail; UI coverage below unchanged 85% floor; companion reimplementation finding",
+    "workflow_provider": "ec1304ed-fef0-4f37-91ff-85eeb3bceae2",
+    "workflow_state": "VALIDATION_RUN_STATE_CANCELED",
+    "workflow_deadline_seconds": 900,
+    "tidiness": {
+      "findings": 1104,
+      "duplication": 35585,
+      "original_duplication": 35603,
+      "budget": 35302
+    },
+    "findings_artifact": "artifact_b401e30fb1b458c052a049e71f8a48f2",
+    "source_applicability": "shared source changed while suite was running; not an isolated final candidate receipt"
+  },
+  "board": {
+    "id": "prog_aa4db9a9-2e20-4102-be8a-b3dbf516a469",
+    "required": 17,
+    "pending": 17,
+    "product_qualified": false
+  },
+  "limitations": [
+    "Contextless hub broadcast may remain blocked indefinitely; no bounded shutdown claim",
+    "No attribution of the full historical heap",
+    "Six unrelated recording-api probe failures remain",
+    "Workflow owner cancellation lacks executed assertion evidence; recheck after diagnosing provider execution"
+  ]
+}

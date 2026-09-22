@@ -28,7 +28,7 @@ func TestPlaywrightEngine_Run_DecodesScreenshotAndDOM(t *testing.T) {
 	handler := http.NewServeMux()
 	handler.HandleFunc("/session/start", func(w http.ResponseWriter, r *http.Request) {
 		_ = r.Body.Close()
-		_ = json.NewEncoder(w).Encode(map[string]string{"session_id": "sess-123"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"session_id": "sess-123", "lease_id": "lease-123"})
 	})
 	handler.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		_ = r.Body.Close()
@@ -57,6 +57,7 @@ func TestPlaywrightEngine_Run_DecodesScreenshotAndDOM(t *testing.T) {
 	})
 	handler.HandleFunc("/session/sess-123/reset", func(w http.ResponseWriter, r *http.Request) {
 		_ = r.Body.Close()
+		_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
 	})
 	handler.HandleFunc("/session/sess-123/close", func(w http.ResponseWriter, r *http.Request) {
 		_ = r.Body.Close()
@@ -493,7 +494,7 @@ func TestPlaywrightSession_Run_ErrorCases(t *testing.T) {
 				if requestCount == 1 {
 					return &http.Response{
 						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(strings.NewReader(`{"session_id":"sess-123"}`)),
+						Body:       io.NopCloser(strings.NewReader(`{"session_id":"sess-123","lease_id":"lease-123"}`)),
 					}, nil
 				}
 				// Second request (Run) fails
@@ -527,7 +528,7 @@ func TestPlaywrightSession_Run_ErrorCases(t *testing.T) {
 				if requestCount == 1 {
 					return &http.Response{
 						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(strings.NewReader(`{"session_id":"sess-123"}`)),
+						Body:       io.NopCloser(strings.NewReader(`{"session_id":"sess-123","lease_id":"lease-123"}`)),
 					}, nil
 				}
 				return &http.Response{
@@ -563,7 +564,7 @@ func TestPlaywrightSession_Run_ErrorCases(t *testing.T) {
 				if requestCount == 1 {
 					return &http.Response{
 						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(strings.NewReader(`{"session_id":"sess-123"}`)),
+						Body:       io.NopCloser(strings.NewReader(`{"session_id":"sess-123","lease_id":"lease-123"}`)),
 					}, nil
 				}
 				return &http.Response{
@@ -599,7 +600,7 @@ func TestPlaywrightSession_Run_ErrorCases(t *testing.T) {
 				if requestCount == 1 {
 					return &http.Response{
 						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(strings.NewReader(`{"session_id":"sess-123"}`)),
+						Body:       io.NopCloser(strings.NewReader(`{"session_id":"sess-123","lease_id":"lease-123"}`)),
 					}, nil
 				}
 				// Return invalid base64 for screenshot
@@ -641,7 +642,7 @@ func TestPlaywrightSession_Reset_ErrorCases(t *testing.T) {
 				if requestCount == 1 {
 					return &http.Response{
 						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(strings.NewReader(`{"session_id":"sess-123"}`)),
+						Body:       io.NopCloser(strings.NewReader(`{"session_id":"sess-123","lease_id":"lease-123"}`)),
 					}, nil
 				}
 				return &http.Response{
@@ -673,7 +674,7 @@ func TestPlaywrightSession_Reset_ErrorCases(t *testing.T) {
 				if requestCount == 1 {
 					return &http.Response{
 						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(strings.NewReader(`{"session_id":"sess-123"}`)),
+						Body:       io.NopCloser(strings.NewReader(`{"session_id":"sess-123","lease_id":"lease-123"}`)),
 					}, nil
 				}
 				return nil, errors.New("broken pipe")
@@ -704,7 +705,7 @@ func TestPlaywrightSession_Close_ErrorCases(t *testing.T) {
 				if requestCount == 1 {
 					return &http.Response{
 						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(strings.NewReader(`{"session_id":"sess-123"}`)),
+						Body:       io.NopCloser(strings.NewReader(`{"session_id":"sess-123","lease_id":"lease-123"}`)),
 					}, nil
 				}
 				return &http.Response{
@@ -733,7 +734,7 @@ func TestPlaywrightEngine_Run_VideoAndTracePaths(t *testing.T) {
 	handler := http.NewServeMux()
 	handler.HandleFunc("/session/start", func(w http.ResponseWriter, r *http.Request) {
 		_ = r.Body.Close()
-		_ = json.NewEncoder(w).Encode(map[string]string{"session_id": "sess-123"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"session_id": "sess-123", "lease_id": "lease-123"})
 	})
 	handler.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		_ = r.Body.Close()
@@ -801,7 +802,7 @@ func TestPlaywrightEngine_Run_ContextCancellation(t *testing.T) {
 				if strings.Contains(req.URL.Path, "/start") {
 					return &http.Response{
 						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(strings.NewReader(`{"session_id":"sess-123"}`)),
+						Body:       io.NopCloser(strings.NewReader(`{"session_id":"sess-123","lease_id":"lease-123"}`)),
 					}, nil
 				}
 				// Check if context is cancelled
@@ -843,7 +844,7 @@ func TestPlaywrightEngine_Run_SetsSchemaVersions(t *testing.T) {
 	handler := http.NewServeMux()
 	handler.HandleFunc("/session/start", func(w http.ResponseWriter, r *http.Request) {
 		_ = r.Body.Close()
-		_ = json.NewEncoder(w).Encode(map[string]string{"session_id": "sess-123"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"session_id": "sess-123", "lease_id": "lease-123"})
 	})
 	handler.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		_ = r.Body.Close()

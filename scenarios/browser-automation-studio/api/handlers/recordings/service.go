@@ -3,6 +3,7 @@ package recordings
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -19,33 +20,6 @@ type service struct {
 // =============================================================================
 // Storage state — playwright storage_state shape used for load/save.
 // =============================================================================
-
-// playwrightStorageState matches the on-disk Playwright storage_state format.
-type playwrightStorageState struct {
-	Cookies []playwrightCookie `json:"cookies"`
-	Origins []playwrightOrigin `json:"origins"`
-}
-
-type playwrightCookie struct {
-	Name     string  `json:"name"`
-	Value    string  `json:"value"`
-	Domain   string  `json:"domain"`
-	Path     string  `json:"path"`
-	Expires  float64 `json:"expires"`
-	HttpOnly bool    `json:"httpOnly"`
-	Secure   bool    `json:"secure"`
-	SameSite string  `json:"sameSite"`
-}
-
-type playwrightOrigin struct {
-	Origin       string                  `json:"origin"`
-	LocalStorage []playwrightLocalStItem `json:"localStorage"`
-}
-
-type playwrightLocalStItem struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
-}
 
 // =============================================================================
 // GetStorageState
@@ -123,8 +97,8 @@ func (s *service) ClearAllCookies(
 	_ context.Context,
 	req *connect.Request[recordingsv1.ClearAllCookiesRequest],
 ) (*connect.Response[recordingsv1.StorageMutationResponse], error) {
-	return s.mutateStorage(req.Msg.GetProfileId(), func(state *playwrightStorageState) {
-		state.Cookies = nil
+	return s.mutateStorage(req.Msg.GetProfileId(), "cookies", func(json.RawMessage) (json.RawMessage, error) {
+		return json.RawMessage(`[]`), nil
 	})
 }
 
@@ -136,15 +110,7 @@ func (s *service) DeleteCookiesByDomain(
 	if domain == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errDomainRequired)
 	}
-	return s.mutateStorage(req.Msg.GetProfileId(), func(state *playwrightStorageState) {
-		filtered := make([]playwrightCookie, 0, len(state.Cookies))
-		for _, c := range state.Cookies {
-			if c.Domain != domain {
-				filtered = append(filtered, c)
-			}
-		}
-		state.Cookies = filtered
-	})
+	return s.deleteCookies(req.Msg.GetProfileId(), domain, "")
 }
 
 func (s *service) DeleteCookie(
@@ -159,24 +125,14 @@ func (s *service) DeleteCookie(
 	if name == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errNameRequired)
 	}
-	return s.mutateStorage(req.Msg.GetProfileId(), func(state *playwrightStorageState) {
-		filtered := make([]playwrightCookie, 0, len(state.Cookies))
-		for _, c := range state.Cookies {
-			if !(c.Domain == domain && c.Name == name) {
-				filtered = append(filtered, c)
-			}
-		}
-		state.Cookies = filtered
-	})
+	return s.deleteCookies(req.Msg.GetProfileId(), domain, name)
 }
 
 func (s *service) ClearAllLocalStorage(
 	_ context.Context,
 	req *connect.Request[recordingsv1.ClearAllLocalStorageRequest],
 ) (*connect.Response[recordingsv1.StorageMutationResponse], error) {
-	return s.mutateStorage(req.Msg.GetProfileId(), func(state *playwrightStorageState) {
-		state.Origins = nil
-	})
+	return s.deleteLocalStorage(req.Msg.GetProfileId(), "", "")
 }
 
 func (s *service) DeleteLocalStorageByOrigin(
@@ -187,15 +143,7 @@ func (s *service) DeleteLocalStorageByOrigin(
 	if origin == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errOriginRequired)
 	}
-	return s.mutateStorage(req.Msg.GetProfileId(), func(state *playwrightStorageState) {
-		filtered := make([]playwrightOrigin, 0, len(state.Origins))
-		for _, o := range state.Origins {
-			if o.Origin != origin {
-				filtered = append(filtered, o)
-			}
-		}
-		state.Origins = filtered
-	})
+	return s.deleteLocalStorage(req.Msg.GetProfileId(), origin, "")
 }
 
 func (s *service) DeleteLocalStorageItem(
@@ -210,51 +158,134 @@ func (s *service) DeleteLocalStorageItem(
 	if name == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errNameRequired)
 	}
-	return s.mutateStorage(req.Msg.GetProfileId(), func(state *playwrightStorageState) {
-		for i := range state.Origins {
-			if state.Origins[i].Origin != origin {
-				continue
-			}
-			filtered := make([]playwrightLocalStItem, 0, len(state.Origins[i].LocalStorage))
-			for _, item := range state.Origins[i].LocalStorage {
-				if item.Name != name {
-					filtered = append(filtered, item)
-				}
-			}
-			state.Origins[i].LocalStorage = filtered
-			if len(filtered) == 0 {
-				state.Origins = append(state.Origins[:i], state.Origins[i+1:]...)
-			}
-			return
-		}
-	})
+	return s.deleteLocalStorage(req.Msg.GetProfileId(), origin, name)
 }
 
-// mutateStorage loads, modifies, and persists storage state for a profile.
-func (s *service) mutateStorage(rawProfileID string, modify func(*playwrightStorageState)) (*connect.Response[recordingsv1.StorageMutationResponse], error) {
+// mutateStorage replaces only the selected top-level field. Other fields never
+// pass through a partial schema or floating-point JSON representation.
+func (s *service) mutateStorage(rawProfileID, field string, modify func(json.RawMessage) (json.RawMessage, error)) (*connect.Response[recordingsv1.StorageMutationResponse], error) {
 	profileID, err := requireProfileID(rawProfileID)
 	if err != nil {
 		return nil, err
 	}
-	profile, err := s.deps.Repo.GetProfile(profileID)
-	if err != nil {
-		return nil, mapStoreError(err)
-	}
-	var state playwrightStorageState
-	if len(profile.StorageState) > 0 {
-		if err := json.Unmarshal(profile.StorageState, &state); err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
+	_, err = s.deps.Repo.UpdateStorageState(profileID, func(current json.RawMessage) (json.RawMessage, error) {
+		state := make(map[string]json.RawMessage)
+		if len(current) > 0 {
+			if err := json.Unmarshal(current, &state); err != nil {
+				return nil, err
+			}
 		}
-	}
-	modify(&state)
-	newState, err := json.Marshal(state)
+		if state == nil {
+			state = make(map[string]json.RawMessage)
+		}
+		changed, err := modify(state[field])
+		if err != nil {
+			return nil, err
+		}
+		state[field] = changed
+		return json.Marshal(state)
+	})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	if _, err := s.deps.Repo.SaveStorageState(profileID, newState); err != nil {
 		return nil, mapStoreError(err)
 	}
 	return connect.NewResponse(&recordingsv1.StorageMutationResponse{Status: "deleted"}), nil
+}
+
+func (s *service) deleteCookies(profileID, domain, name string) (*connect.Response[recordingsv1.StorageMutationResponse], error) {
+	return s.mutateStorage(profileID, "cookies", func(raw json.RawMessage) (json.RawMessage, error) {
+		cookies, err := filterStorageItems(raw, func(cookie struct {
+			Name   string `json:"name"`
+			Domain string `json:"domain"`
+		},
+		) bool {
+			return cookie.Domain == domain && (name == "" || cookie.Name == name)
+		})
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(cookies)
+	})
+}
+
+func (s *service) deleteLocalStorage(profileID, origin, name string) (*connect.Response[recordingsv1.StorageMutationResponse], error) {
+	return s.mutateStorage(profileID, "origins", func(raw json.RawMessage) (json.RawMessage, error) {
+		var origins []json.RawMessage
+		if len(raw) > 0 {
+			if err := json.Unmarshal(raw, &origins); err != nil {
+				return nil, err
+			}
+		}
+		kept := make([]json.RawMessage, 0, len(origins))
+		for _, rawOrigin := range origins {
+			changed, err := editOriginLocalStorage(rawOrigin, origin, name)
+			if err != nil {
+				return nil, err
+			}
+			if changed != nil {
+				kept = append(kept, changed)
+			}
+		}
+		return json.Marshal(kept)
+	})
+}
+
+// editOriginLocalStorage retains all non-localStorage fields. An origin carrying
+// opaque state must survive removal of its final localStorage item.
+func editOriginLocalStorage(raw json.RawMessage, selectedOrigin, selectedName string) (json.RawMessage, error) {
+	var origin map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &origin); err != nil {
+		return nil, err
+	}
+	var address string
+	if err := json.Unmarshal(origin["origin"], &address); err != nil {
+		return nil, err
+	}
+	if selectedOrigin != "" && selectedOrigin != address {
+		return raw, nil
+	}
+	if _, exists := origin["localStorage"]; !exists {
+		return raw, nil
+	}
+	items, err := filterStorageItems(origin["localStorage"], func(item struct {
+		Name string `json:"name"`
+	},
+	) bool {
+		return selectedName == "" || item.Name == selectedName
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(items) == 0 && len(origin) <= 2 {
+		return nil, nil
+	}
+	origin["localStorage"], err = json.Marshal(items)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(origin)
+}
+
+func filterStorageItems[T any](raw json.RawMessage, remove func(T) bool) ([]json.RawMessage, error) {
+	var items []json.RawMessage
+	if len(raw) > 0 {
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return nil, err
+		}
+	}
+	kept := make([]json.RawMessage, 0, len(items))
+	for _, item := range items {
+		var identity *T
+		if err := json.Unmarshal(item, &identity); err != nil {
+			return nil, err
+		}
+		if identity == nil {
+			return nil, errStorageObjectRequired
+		}
+		if !remove(*identity) {
+			kept = append(kept, item)
+		}
+	}
+	return kept, nil
 }
 
 // =============================================================================
@@ -529,26 +560,24 @@ func (s *service) DeleteSessionTab(
 		return nil, err
 	}
 	order := int(req.Msg.GetOrder())
-	profile, gErr := s.deps.Repo.GetProfile(profileID)
-	if gErr != nil {
-		return nil, mapStoreError(gErr)
-	}
-	var found bool
-	newTabs := make([]sessionprofilepersistence.TabState, 0, len(profile.OpenTabs))
-	for _, tab := range profile.OpenTabs {
-		if tab.Order == order {
-			found = true
-			continue
+	_, err = s.deps.Repo.UpdateProfile(profileID, func(profile *sessionprofilepersistence.SessionProfile) error {
+		found := false
+		tabs := make([]sessionprofilepersistence.TabState, 0, len(profile.OpenTabs))
+		for _, tab := range profile.OpenTabs {
+			if tab.Order == order {
+				found = true
+				continue
+			}
+			tab.Order = len(tabs)
+			tabs = append(tabs, tab)
 		}
-		newTabs = append(newTabs, tab)
-	}
-	if !found {
-		return nil, connect.NewError(connect.CodeNotFound, errTabNotFound)
-	}
-	for i := range newTabs {
-		newTabs[i].Order = i
-	}
-	if _, err := s.deps.Repo.SaveOpenTabs(profileID, newTabs); err != nil {
+		if !found {
+			return errTabNotFound
+		}
+		profile.OpenTabs = tabs
+		return nil
+	})
+	if err != nil {
 		return nil, mapStoreError(err)
 	}
 	return connect.NewResponse(&recordingsv1.DeleteSessionTabResponse{
@@ -578,6 +607,12 @@ func requireProfileID(raw string) (sessionprofilepersistence.ProfileID, error) {
 func mapStoreError(err error) error {
 	if err == nil {
 		return nil
+	}
+	if errors.Is(err, sessionprofilepersistence.ErrInvalidProfileID) {
+		return connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if errors.Is(err, errTabNotFound) {
+		return connect.NewError(connect.CodeNotFound, errTabNotFound)
 	}
 	if strings.Contains(err.Error(), "not found") {
 		return connect.NewError(connect.CodeNotFound, errProfileNotFound)

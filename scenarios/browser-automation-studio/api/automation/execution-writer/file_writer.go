@@ -24,6 +24,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
+	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/storage"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
@@ -217,7 +218,7 @@ func (r *FileWriter) writeResultFile(ctx context.Context, executionID uuid.UUID,
 		result.mu.Unlock()
 	}
 
-	payload, err := r.buildResultPayload(executionID, result, timeline)
+	payload, err := buildResultManifestPayload(executionID, result, timeline)
 	if err != nil {
 		return err
 	}
@@ -288,13 +289,9 @@ If an artifact type is missing, it was not requested or the engine failed to pro
 	return nil
 }
 
-func (r *FileWriter) buildResultPayload(executionID uuid.UUID, result *ExecutionResultData, timeline *executionTimelineData) (map[string]any, error) {
-	return buildResultManifestPayload(executionID, result, timeline)
-}
-
 // RecordStepOutcome stores the execution step and key artifacts to files.
 // Respects the artifact collection settings configured via SetArtifactConfig().
-func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.ExecutionPlan, outcome contracts.StepOutcome) (RecordResult, error) {
+func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.ExecutionPlan, outcome contracts.StepOutcome) (recordResult RecordResult, err error) {
 	if r == nil {
 		return RecordResult{}, nil
 	}
@@ -304,18 +301,32 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 
 	// Apply configurable limits during sanitization
 	outcome = r.sanitizeOutcomeWithConfig(outcome, cfg)
+	screenshotInfo, screenshotErr := r.prepareOutcomeScreenshot(ctx, plan, &outcome, cfg.CollectScreenshots)
+	defer func() {
+		err = errors.Join(err, screenshotErr)
+		if err != nil {
+			recordResult = RecordResult{}
+		}
+	}()
+
 	// Drop extracted data up front when collection is disabled so every
 	// downstream sink (artifact, timeline aggregates preview) stays gated by
 	// the single profile switch.
 	if !cfg.CollectExtractedData {
 		outcome.ExtractedData = nil
 	}
+	// Validate the whole core payload before changing the execution accumulators.
+	// Retain its structured projection so the large outcome is encoded only once.
+	outcomeValue, err := typeconv.EncodeJsonValue(outcome)
+	if err != nil {
+		return RecordResult{}, fmt.Errorf("project step outcome: %w", err)
+	}
 	result := r.getOrCreateResult(plan)
 	timeline := r.getOrCreateTimeline(plan)
 
 	stepID := uuid.New()
 	artifactIDs := make([]uuid.UUID, 0, 8)
-	protoArtifacts := make([]*bastimeline.TimelineArtifact, 0, 8)
+	artifacts := make([]*ArtifactData, 0, 8)
 
 	// Build step result (always recorded - core execution data)
 	step := StepResultData{
@@ -360,13 +371,13 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		StepID:       stepID.String(),
 		StepIndex:    &outcome.StepIndex,
 		ArtifactType: "step_outcome",
-		Payload:      map[string]any{"outcome": outcome},
+		Payload:      map[string]any{"outcome": outcomeValue},
 	}
 	result.mu.Lock()
 	result.Artifacts = append(result.Artifacts, outcomeArtifact)
 	result.mu.Unlock()
 	artifactIDs = append(artifactIDs, outcomeArtifactID)
-	protoArtifacts = append(protoArtifacts, artifactDataToProto(&outcomeArtifact))
+	artifacts = append(artifacts, &outcomeArtifact)
 
 	artifactBaseName := buildScreenshotBaseName(plan, outcome)
 	var consoleArtifact *telemetryArtifactRef
@@ -399,7 +410,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 			result.Artifacts = append(result.Artifacts, artifact)
 			result.mu.Unlock()
 			artifactIDs = append(artifactIDs, id)
-			protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
+			artifacts = append(artifacts, &artifact)
 		}
 
 		// Also persist to storage for TelemetryArtifact reference
@@ -446,7 +457,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 			result.Artifacts = append(result.Artifacts, artifact)
 			result.mu.Unlock()
 			artifactIDs = append(artifactIDs, id)
-			protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
+			artifacts = append(artifacts, &artifact)
 		}
 
 		// Also persist to storage for TelemetryArtifact reference
@@ -478,7 +489,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		result.Artifacts = append(result.Artifacts, artifact)
 		result.mu.Unlock()
 		artifactIDs = append(artifactIDs, id)
-		protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
+		artifacts = append(artifacts, &artifact)
 	}
 
 	// Extracted data - controlled by CollectExtractedData
@@ -496,7 +507,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		result.Artifacts = append(result.Artifacts, artifact)
 		result.mu.Unlock()
 		artifactIDs = append(artifactIDs, id)
-		protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
+		artifacts = append(artifacts, &artifact)
 	}
 
 	var timelineScreenshotURL string
@@ -505,52 +516,39 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 	var timelineScreenshotPath string
 	var timelineScreenshotSizeBytes int64
 
-	// Persist screenshot if available - controlled by CollectScreenshots
-	if cfg.CollectScreenshots && outcome.Screenshot != nil && len(outcome.Screenshot.Data) > 0 {
-		screenshotInfo, err := r.persistScreenshot(ctx, plan, plan.ExecutionID, outcome)
-		if err != nil && r.log != nil {
-			r.log.WithError(err).Warn("Failed to persist screenshot artifact")
+	if screenshotInfo != nil {
+		id := uuid.New()
+		digest := sha256.Sum256(outcome.Screenshot.Data)
+		artifact := ArtifactData{
+			ArtifactID:   id.String(),
+			StepID:       stepID.String(),
+			StepIndex:    &outcome.StepIndex,
+			ArtifactType: "screenshot",
+			ContentType:  outcome.Screenshot.MediaType,
+			SHA256:       hex.EncodeToString(digest[:]),
+			StorageURL:   screenshotInfo.URL,
+			ThumbnailURL: screenshotInfo.ThumbnailURL,
+			SizeBytes:    &screenshotInfo.SizeBytes,
+			Payload: map[string]any{
+				"width":      outcome.Screenshot.Width,
+				"height":     outcome.Screenshot.Height,
+				"from_cache": outcome.Screenshot.FromCache,
+				"hash":       outcome.Screenshot.Hash,
+			},
 		}
-		if screenshotInfo != nil {
-			id := uuid.New()
-			digest := sha256.Sum256(outcome.Screenshot.Data)
-			artifact := ArtifactData{
-				ArtifactID:   id.String(),
-				StepID:       stepID.String(),
-				StepIndex:    &outcome.StepIndex,
-				ArtifactType: "screenshot",
-				ContentType:  outcome.Screenshot.MediaType,
-				SHA256:       hex.EncodeToString(digest[:]),
-				StorageURL:   screenshotInfo.URL,
-				ThumbnailURL: screenshotInfo.ThumbnailURL,
-				SizeBytes:    &screenshotInfo.SizeBytes,
-				Payload: map[string]any{
-					"width":      screenshotInfo.Width,
-					"height":     screenshotInfo.Height,
-					"from_cache": outcome.Screenshot.FromCache,
-					"hash":       outcome.Screenshot.Hash,
-				},
-			}
-			// File and object-store locations are storage implementation details.
-			// Replay consumers resolve the artifact ID through the authorized
-			// storage seam instead of receiving either location in result data.
-			result.mu.Lock()
-			result.Artifacts = append(result.Artifacts, artifact)
-			result.mu.Unlock()
-			artifactIDs = append(artifactIDs, id)
-			protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
-			timelineScreenshotID = &id
-			timelineScreenshotURL = screenshotInfo.URL
-			timelineScreenshotThumbURL = screenshotInfo.ThumbnailURL
-			timelineScreenshotPath = screenshotInfo.Path
-			timelineScreenshotSizeBytes = screenshotInfo.SizeBytes
-		} else if r.log != nil {
-			r.log.WithFields(logrus.Fields{
-				"execution_id": plan.ExecutionID,
-				"step_index":   outcome.StepIndex,
-				"node_id":      outcome.NodeID,
-			}).Warn("Screenshot capture skipped: storage unavailable")
-		}
+		// File and object-store locations are storage implementation details.
+		// Replay consumers resolve the artifact ID through the authorized
+		// storage seam instead of receiving either location in result data.
+		result.mu.Lock()
+		result.Artifacts = append(result.Artifacts, artifact)
+		result.mu.Unlock()
+		artifactIDs = append(artifactIDs, id)
+		artifacts = append(artifacts, &artifact)
+		timelineScreenshotID = &id
+		timelineScreenshotURL = screenshotInfo.URL
+		timelineScreenshotThumbURL = screenshotInfo.ThumbnailURL
+		timelineScreenshotPath = screenshotInfo.Path
+		timelineScreenshotSizeBytes = screenshotInfo.SizeBytes
 	}
 
 	var domSnapshotArtifact *telemetryArtifactRef
@@ -594,16 +592,12 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 	result.TimelineFrame = append(result.TimelineFrame, timelineFrame)
 	result.mu.Unlock()
 
-	if err := r.appendProtoTimelineEntry(ctx, plan, outcome, protoArtifacts, timelineScreenshotID, timelineScreenshotURL, timelineScreenshotThumbURL, timelineScreenshotPath, timelineScreenshotSizeBytes, domSnapshotArtifact, consoleArtifact, networkArtifact, timeline); err != nil {
-		if r.log != nil {
-			r.log.WithError(err).Warn("Failed to write proto timeline file")
-		}
+	if err := r.appendProtoTimelineEntry(ctx, plan, outcome, artifacts, timelineScreenshotID, timelineScreenshotURL, timelineScreenshotThumbURL, timelineScreenshotPath, timelineScreenshotSizeBytes, domSnapshotArtifact, consoleArtifact, networkArtifact, timeline); err != nil {
+		return RecordResult{}, fmt.Errorf("write proto timeline: %w", err)
 	}
 	// Write result to file
 	if err := r.writeResultFile(ctx, plan.ExecutionID, result, timeline); err != nil {
-		if r.log != nil {
-			r.log.WithError(err).Warn("Failed to write execution result file")
-		}
+		return RecordResult{}, fmt.Errorf("write execution result: %w", err)
 	}
 
 	// Update database index with result path
@@ -613,9 +607,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 			return RecordResult{}, pathErr
 		}
 		if err := r.updateExecutionIndex(ctx, plan.ExecutionID, resultPath); err != nil {
-			if r.log != nil {
-				r.log.WithError(err).Warn("Failed to update execution index")
-			}
+			return RecordResult{}, fmt.Errorf("update execution index: %w", err)
 		}
 	}
 
@@ -631,7 +623,7 @@ func (r *FileWriter) appendProtoTimelineEntry(
 	ctx context.Context,
 	plan contracts.ExecutionPlan,
 	outcome contracts.StepOutcome,
-	artifacts []*bastimeline.TimelineArtifact,
+	artifacts []*ArtifactData,
 	screenshotArtifactID *uuid.UUID,
 	screenshotURL string,
 	screenshotThumbURL string,
@@ -646,9 +638,9 @@ func (r *FileWriter) appendProtoTimelineEntry(
 		return nil
 	}
 
-	entry := stepOutcomeToTimelineEntry(outcome, plan.ExecutionID)
-	if entry == nil {
-		return nil
+	entry, err := stepOutcomeToTimelineEntry(outcome, plan.ExecutionID)
+	if err != nil {
+		return err
 	}
 
 	if screenshotArtifactID != nil && strings.TrimSpace(screenshotURL) != "" {
@@ -770,7 +762,10 @@ func (r *FileWriter) appendProtoTimelineEntry(
 	// frames carry it. (ExtractedData is already nil here when the profile
 	// disables collection — see RecordStepOutcome.)
 	if len(outcome.ExtractedData) > 0 {
-		entry.Aggregates.ExtractedDataPreview = anyToJsonValue(outcome.ExtractedData)
+		entry.Aggregates.ExtractedDataPreview, err = typeconv.EncodeJsonValue(outcome.ExtractedData)
+		if err != nil {
+			return fmt.Errorf("project extracted data: %w", err)
+		}
 	}
 	if consoleArtifact != nil {
 		entry.Aggregates.ConsoleLogCount = int32(len(outcome.ConsoleLogs))
@@ -783,7 +778,11 @@ func (r *FileWriter) appendProtoTimelineEntry(
 		if a == nil {
 			continue
 		}
-		entry.Aggregates.Artifacts = append(entry.Aggregates.Artifacts, a)
+		artifact, err := artifactDataToProto(a)
+		if err != nil {
+			return err
+		}
+		entry.Aggregates.Artifacts = append(entry.Aggregates.Artifacts, artifact)
 	}
 
 	timeline.mu.Lock()
@@ -796,10 +795,7 @@ func (r *FileWriter) appendProtoTimelineEntry(
 	return r.writeProtoTimelineFile(ctx, plan.ExecutionID, timeline)
 }
 
-func artifactDataToProto(a *ArtifactData) *bastimeline.TimelineArtifact {
-	if a == nil {
-		return nil
-	}
+func artifactDataToProto(a *ArtifactData) (*bastimeline.TimelineArtifact, error) {
 
 	contentType := strings.TrimSpace(a.ContentType)
 	if contentType == "" {
@@ -834,10 +830,14 @@ func artifactDataToProto(a *ArtifactData) *bastimeline.TimelineArtifact {
 	}
 	if a.Payload != nil {
 		for k, v := range a.Payload {
-			pb.Payload[k] = anyToJsonValue(v)
+			value, err := typeconv.EncodeJsonValue(v)
+			if err != nil {
+				return nil, fmt.Errorf("project artifact %s field %q: %w", a.ArtifactType, k, err)
+			}
+			pb.Payload[k] = value
 		}
 	}
-	return pb
+	return pb, nil
 }
 
 func artifactTypeToProto(kind string) basbase.ArtifactType {
@@ -859,7 +859,8 @@ func artifactTypeToProto(kind string) basbase.ArtifactType {
 	}
 }
 
-func stepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.UUID) *bastimeline.TimelineEntry {
+func stepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.UUID) (*bastimeline.TimelineEntry, error) {
+	var err error
 	entryID := timelineEntryID(executionID, outcome.StepIndex, outcome.Attempt)
 	stepIndex := int32(outcome.StepIndex)
 	success := outcome.Success
@@ -888,10 +889,16 @@ func stepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.
 			assertionResult.Message = &outcome.Assertion.Message
 		}
 		if outcome.Assertion.Expected != nil {
-			assertionResult.Expected = anyToJsonValue(outcome.Assertion.Expected)
+			assertionResult.Expected, err = typeconv.EncodeJsonValue(outcome.Assertion.Expected)
+			if err != nil {
+				return nil, fmt.Errorf("project assertion expected: %w", err)
+			}
 		}
 		if outcome.Assertion.Actual != nil {
-			assertionResult.Actual = anyToJsonValue(outcome.Assertion.Actual)
+			assertionResult.Actual, err = typeconv.EncodeJsonValue(outcome.Assertion.Actual)
+			if err != nil {
+				return nil, fmt.Errorf("project assertion actual: %w", err)
+			}
 		}
 		ctx.Assertion = assertionResult
 	}
@@ -922,57 +929,7 @@ func stepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.
 	}
 	entry.Telemetry.Url = outcome.FinalURL
 
-	return entry
-}
-
-func anyToJsonValue(v any) *commonv1.JsonValue {
-	if v == nil {
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_NullValue{}}
-	}
-	switch val := v.(type) {
-	case *commonv1.JsonValue:
-		if val == nil {
-			return &commonv1.JsonValue{Kind: &commonv1.JsonValue_NullValue{}}
-		}
-		return val
-	case bool:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BoolValue{BoolValue: val}}
-	case int:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
-	case int32:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
-	case int64:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: val}}
-	case float32:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: float64(val)}}
-	case float64:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: val}}
-	case string:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: val}}
-	case []byte:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BytesValue{BytesValue: val}}
-	case map[string]any:
-		obj := make(map[string]*commonv1.JsonValue, len(val))
-		for k, nested := range val {
-			obj[k] = anyToJsonValue(nested)
-		}
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ObjectValue{ObjectValue: &commonv1.JsonObject{Fields: obj}}}
-	case map[string]string:
-		obj := make(map[string]*commonv1.JsonValue, len(val))
-		for k, nested := range val {
-			obj[k] = anyToJsonValue(nested)
-		}
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ObjectValue{ObjectValue: &commonv1.JsonObject{Fields: obj}}}
-	case []any:
-		items := make([]*commonv1.JsonValue, 0, len(val))
-		for _, nested := range val {
-			items = append(items, anyToJsonValue(nested))
-		}
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ListValue{ListValue: &commonv1.JsonList{Values: items}}}
-	default:
-		// Fall back to string representation.
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: fmt.Sprintf("%v", val)}}
-	}
+	return entry, nil
 }
 
 func timelineEntryID(executionID uuid.UUID, stepIndex int, attempt int) string {
@@ -1113,19 +1070,61 @@ func (r *FileWriter) updateExecutionIndex(ctx context.Context, executionID uuid.
 	return nil
 }
 
+// prepareOutcomeScreenshot keeps capture receipt policy before outcome projection.
+// Required failures remain readable in the core outcome even if no image survived.
+func (r *FileWriter) prepareOutcomeScreenshot(ctx context.Context, plan contracts.ExecutionPlan, outcome *contracts.StepOutcome, collect bool) (*storage.ScreenshotInfo, error) {
+	if !collect {
+		return nil, nil
+	}
+	required := outcome.Success && strings.EqualFold(outcome.StepType, "screenshot")
+	if outcome.Screenshot == nil && !required {
+		return nil, nil
+	}
+	info, err := r.persistScreenshot(ctx, plan, plan.ExecutionID, *outcome)
+	if err == nil {
+		return info, nil
+	}
+	if reason := outcome.Notes["screenshot_omitted"]; reason != "" {
+		err = fmt.Errorf("screenshot omitted: %s", reason)
+	}
+	outcome.Notes["screenshot_persistence_error"] = err.Error()
+	outcome.Screenshot = nil
+	if !required {
+		if r.log != nil {
+			r.log.WithError(err).Warn("Optional screenshot unavailable")
+		}
+		return nil, nil
+	}
+	outcome.Success = false
+	outcome.Failure = &contracts.StepFailure{Kind: contracts.FailureKindInfra, Source: contracts.FailureSourceRecorder, Code: "SCREENSHOT_PERSISTENCE_FAILED", Message: err.Error()}
+	return nil, err
+}
+
 func (r *FileWriter) persistScreenshot(ctx context.Context, plan contracts.ExecutionPlan, executionID uuid.UUID, outcome contracts.StepOutcome) (*storage.ScreenshotInfo, error) {
-	if r.storage == nil {
-		return nil, nil
-	}
 	if outcome.Screenshot == nil || len(outcome.Screenshot.Data) == 0 {
-		return nil, nil
+		return nil, errors.New("screenshot bytes unavailable")
 	}
-	contentType := outcome.Screenshot.MediaType
-	if contentType == "" {
-		contentType = "image/png"
+	decoded, format, err := image.Decode(bytes.NewReader(outcome.Screenshot.Data))
+	if err != nil {
+		return nil, fmt.Errorf("decode screenshot: %w", err)
 	}
-	stepName := buildScreenshotBaseName(plan, outcome)
-	return r.storage.StoreScreenshot(ctx, executionID, stepName, outcome.Screenshot.Data, contentType)
+	if (format != "png" && format != "jpeg") || decoded.Bounds().Empty() {
+		return nil, errors.New("screenshot is not a supported encoded image")
+	}
+	if r.storage == nil {
+		return nil, errors.New("screenshot storage unavailable")
+	}
+	info, err := r.storage.StoreScreenshot(ctx, executionID, buildScreenshotBaseName(plan, outcome), outcome.Screenshot.Data, "image/"+format)
+	if err != nil {
+		return nil, fmt.Errorf("store screenshot: %w", err)
+	}
+	if info == nil || strings.TrimSpace(info.ObjectName) == "" || strings.TrimSpace(info.URL) == "" {
+		return nil, errors.New("screenshot storage returned an incomplete receipt")
+	}
+	if info.SizeBytes != int64(len(outcome.Screenshot.Data)) {
+		return nil, errors.New("screenshot storage size differs from captured bytes")
+	}
+	return info, nil
 }
 
 type telemetryArtifactRef struct {
@@ -1331,29 +1330,27 @@ func (r *FileWriter) sanitizeOutcomeWithConfig(out contracts.StepOutcome, cfg co
 
 // sanitizeOutcomeWithLimits applies specified size limits to outcome fields.
 func sanitizeOutcomeWithLimits(out contracts.StepOutcome, maxScreenshot, maxDOM, maxConsole, maxNetwork int) contracts.StepOutcome {
-	if out.Notes == nil {
-		out.Notes = map[string]string{}
+	notes := make(map[string]string, len(out.Notes))
+	for key, value := range out.Notes {
+		notes[key] = value
 	}
+	out.Notes = notes
 
-	// Screenshot shaping: clamp size and ensure defaults.
+	// Encoded images are indivisible. Omit oversized bytes without corrupting
+	// the image or mutating the caller's capture; policy decides the verdict.
 	if out.Screenshot != nil {
-		if len(out.Screenshot.Data) > maxScreenshot {
-			out.Screenshot.Data = out.Screenshot.Data[:maxScreenshot]
-			out.Notes["screenshot_truncated"] = fmt.Sprintf("%d_bytes", maxScreenshot)
+		screenshot := *out.Screenshot
+		out.Screenshot = &screenshot
+		if len(screenshot.Data) > maxScreenshot {
+			out.Notes["screenshot_omitted"] = fmt.Sprintf("%d bytes exceeds %d byte limit", len(screenshot.Data), maxScreenshot)
+			screenshot.Data = nil
+		} else if dimensions, format, err := image.DecodeConfig(bytes.NewReader(screenshot.Data)); err == nil && (format == "png" || format == "jpeg") {
+			screenshot.Width, screenshot.Height, screenshot.MediaType = dimensions.Width, dimensions.Height, "image/"+format
 		}
-		// Browser drivers may report CSS viewport dimensions despite returning a
-		// device-scale PNG/JPEG. Persist dimensions from the encoded image itself.
-		if dimensions, format, err := image.DecodeConfig(bytes.NewReader(out.Screenshot.Data)); err == nil && (format == "png" || format == "jpeg") {
-			out.Screenshot.Width, out.Screenshot.Height = dimensions.Width, dimensions.Height
-			out.Screenshot.MediaType = "image/" + format
-		}
-		if out.Screenshot.MediaType == "" {
-			out.Screenshot.MediaType = "image/png"
-		}
-		if out.Screenshot.Width == 0 || out.Screenshot.Height == 0 {
-			out.Screenshot.Width = contracts.DefaultScreenshotWidth
-			out.Screenshot.Height = contracts.DefaultScreenshotHeight
-		}
+	}
+	if out.DOMSnapshot != nil {
+		snapshot := *out.DOMSnapshot
+		out.DOMSnapshot = &snapshot
 	}
 
 	// DOM truncation

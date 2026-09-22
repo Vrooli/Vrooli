@@ -9,18 +9,26 @@ external-friction — same order as the skill table. A row whose sensor has no
 governed binding is reported unavailable with the reason; it is never computed by hand here.
 """
 
+import json
+
 inputs = program.inputs()
+profile = inputs.get("profile", "operations")
 window = int(inputs.get("window", 100))
 evidence_sample = int(inputs.get("evidence_sample", 5))
 
 envelope = {
     "program": "browser-automation-studio.setpoint-read", "version": "1",
     "status": "failed", "phase": "validate",
-    "inputs": {"window": window, "evidence_sample": evidence_sample},
+    "inputs": {"window": window, "evidence_sample": evidence_sample, "profile": profile},
     "signals": {"rows": [], "readable": 0, "unavailable": 0},
     "errors": [], "evidence": [],
 }
+program.attach(envelope)
 handles = {}
+
+# IDs are checked against the canonical qualification contract by refactor_contract.py.
+REHABILITATION_ROWS = ['preservation', 'interactive-feedback', 'motion', 'readiness', 'capture', 'passive-fidelity', 'profile-durability', 'known-flow-reliability', 'cancellation-recovery', 'resource-budget', 'soak-stability', 'evidence-completeness', 'desktop-portability', 'agent-usefulness', 'structural-debt', 'workspace-usability', 'adversarial-review']
+
 
 
 fail = program.fail
@@ -52,6 +60,20 @@ def one(handle, key, default=None):
 
 
 def step_validate():
+    if profile not in ("operations", "rehabilitation"):
+        return fail("failed", "invalid_input", "unknown qualification profile", "validate")
+    if profile == "rehabilitation":
+        # These are required product outcomes, not mixed operational diagnostics.
+        # Replace pending rows only with qualified owner-backed sensor reads.
+        for name in REHABILITATION_ROWS:
+            row(name, None, "bas-rehabilitation-v1#" + name, None,
+                unavailable=True, reason="pending_telemetry")
+        envelope["signals"]["required"] = len(REHABILITATION_ROWS)
+        envelope["signals"]["unmet"] = len(REHABILITATION_ROWS)
+        envelope["signals"]["product_qualified"] = False
+        envelope["evidence"] = ["scenarios/browser-automation-studio/docs/internal/REFRACTOR_CONTRACT.json"]
+        envelope["status"] = "ok"
+        return "report"
     if not (10 <= window <= 100):
         return fail("failed", "invalid_input", f"window={window} outside 10..100 (executions list caps at 100)", "validate")
     if not (0 <= evidence_sample <= 10):
@@ -185,7 +207,7 @@ def step_classify():  # CLASSIFY · every reading is count or filter in the kern
 
 def step_report():
     envelope["phase"] = "report"
-    print(envelope)
+    print(json.dumps(envelope, separators=(",", ":"), allow_nan=False))
     return None
 
 

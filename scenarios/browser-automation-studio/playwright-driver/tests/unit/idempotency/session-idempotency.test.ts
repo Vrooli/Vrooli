@@ -88,18 +88,17 @@ describe('Session Idempotency', () => {
       expect(mockBrowser.newContext.mock.calls.length).toBe(2);
     });
 
-    it('should reset session state when reuse_mode is clean', async () => {
-      // Create initial session
-      await manager.startSession(baseSpec);
-
-      // Request with clean mode - should reset state
-      const result2 = await manager.startSession({
-        ...baseSpec,
-        reuse_mode: 'clean',
+    it('clean mode resets a released session for a different owner', async () => {
+      const labels = { pool: 'clean-idempotency' };
+      const first = await manager.startSession({ ...baseSpec, labels });
+      expect(manager.releaseExecutionLease(first.sessionId, baseSpec.execution_id, first.leaseId)).toBe(true);
+      const second = await manager.startSession({
+        ...baseSpec, execution_id: 'next-clean-owner', labels, reuse_mode: 'clean',
       });
-
-      expect(result2.reused).toBe(true);
-      expect(mockContext.clearCookies.mock.calls.length).toBeGreaterThan(0);
+      expect(second.sessionId).toBe(first.sessionId);
+      expect(second.leaseId).not.toBe(first.leaseId);
+      expect(second.reused).toBe(true);
+      expect(mockContext.clearCookies).toHaveBeenCalledTimes(1);
     });
 
     it('should preserve session when reuse_mode is reuse', async () => {
@@ -112,7 +111,7 @@ describe('Session Idempotency', () => {
 
       expect(result2.sessionId).toBe(result1.sessionId);
       expect(result2.reused).toBe(true);
-      // Should NOT have cleared cookies (unlike clean mode)
+      // A repeated start must preserve the current owner state.
       expect(mockContext.clearCookies.mock.calls.length).toBe(0);
     });
 
@@ -181,107 +180,21 @@ describe('Session Idempotency', () => {
       expect(session.phase).toBe('ready');
     });
 
-    it('should clear executed instructions on reset', async () => {
-      const { sessionId } = await manager.startSession(baseSpec);
-      const session = manager.getSession(sessionId);
-
-      // Simulate instruction tracking
-      session.executedInstructions?.set('test:0', {
-        key: 'test:0',
-        executedAt: new Date(),
-        success: true,
-      });
-
-      expect(session.executedInstructions?.size).toBe(1);
-
-      await manager.resetSession(sessionId);
-
-      // Executed instructions should be cleared
-      expect(session.executedInstructions?.size).toBe(0);
-    });
   });
 
-  describe('instruction tracking', () => {
-    it('should initialize executed instructions map on session creation', async () => {
-      const { sessionId } = await manager.startSession(baseSpec);
-      const session = manager.getSession(sessionId);
-
-      expect(session.executedInstructions).toBeDefined();
-      expect(session.executedInstructions).toBeInstanceOf(Map);
-      expect(session.executedInstructions?.size).toBe(0);
-    });
-
-    it('should cache instruction outcomes for replay', async () => {
-      const { sessionId } = await manager.startSession(baseSpec);
-      const session = manager.getSession(sessionId);
-
-      // Simulate instruction execution with cached outcome
-      const cachedOutcome = { success: true, duration_ms: 100 };
-      session.executedInstructions?.set('node-1:0', {
-        key: 'node-1:0',
-        executedAt: new Date(),
-        success: true,
-        cachedOutcome,
-      });
-
-      // Verify cached outcome is stored
-      const record = session.executedInstructions?.get('node-1:0');
-      expect(record).toBeDefined();
-      expect(record?.cachedOutcome).toEqual(cachedOutcome);
-    });
-
-    it('should clear cached outcomes on session reset', async () => {
-      const { sessionId } = await manager.startSession(baseSpec);
-      const session = manager.getSession(sessionId);
-
-      // Add cached instruction
-      session.executedInstructions?.set('node-1:0', {
-        key: 'node-1:0',
-        executedAt: new Date(),
-        success: true,
-        cachedOutcome: { success: true },
-      });
-
-      expect(session.executedInstructions?.size).toBe(1);
-
-      await manager.resetSession(sessionId);
-
-      expect(session.executedInstructions?.size).toBe(0);
-    });
-  });
-
-  describe('phase recovery', () => {
-    it('should recover session stuck in executing phase on reuse', async () => {
-      const { sessionId } = await manager.startSession(baseSpec);
-      const session = manager.getSession(sessionId);
-
-      // Simulate session stuck in executing phase (e.g., crash during instruction)
-      session.phase = 'executing';
-
-      // Request session with same execution_id (retry scenario)
-      const result = await manager.startSession(baseSpec);
-
-      // Should return same session with phase reset to ready
-      expect(result.sessionId).toBe(sessionId);
-      expect(result.reused).toBe(true);
-      expect(session.phase).toBe('ready');
-    });
-
-    it('should not modify session phase if not stuck in executing', async () => {
-      const { sessionId } = await manager.startSession(baseSpec);
-      const session = manager.getSession(sessionId);
-
-      // Session in recording phase (valid non-ready phase)
-      session.phase = 'recording';
-
-      // Request session with same execution_id
-      const result = await manager.startSession(baseSpec);
-
-      // Should return same session, phase should NOT be changed
-      // (only 'executing' is considered a stuck state)
-      expect(result.sessionId).toBe(sessionId);
-      // Note: The current implementation always sets phase to ready on reuse
-      // This is expected behavior for reuse scenarios
-    });
+  describe('phase preservation', () => {
+    it.each(['ready', 'executing', 'recording', 'resetting', 'closing'] as const)(
+      'same-execution retry preserves %s until the owning operation changes it', async (phase) => {
+        const first = await manager.startSession(baseSpec);
+        const session = manager.getSession(first.sessionId);
+        session.phase = phase;
+        const result = await manager.startSession(baseSpec);
+        expect(result.sessionId).toBe(first.sessionId);
+        expect(result.leaseId).toBe(first.leaseId);
+        expect(result.reused).toBe(true);
+        expect(session.phase).toBe(phase);
+        expect(manager.canAcceptInstructions(first.sessionId)).toBe(phase === 'ready' || phase === 'recording');
+      }
+    );
   });
 });

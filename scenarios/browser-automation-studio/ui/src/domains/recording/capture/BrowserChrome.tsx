@@ -18,7 +18,7 @@ import { Palette, SlidersHorizontal, PanelLeft, Monitor, AlertTriangle, Loader2,
 import { BrowserUrlBar } from './BrowserUrlBar';
 import { FrameStatsDisplay } from './FrameStatsDisplay';
 import type { FrameStats } from '../hooks/useFrameStats';
-import type { FrameStatsAggregated } from '../hooks/usePerfStats';
+import type { FrameStatsAggregated } from '../frame-streaming/types';
 import clsx from 'clsx';
 import { onProfilerRender } from '@/lib/profiler';
 import { useRecordingFrameStats, useRecordingPageTitle } from '../stores/sessionStore';

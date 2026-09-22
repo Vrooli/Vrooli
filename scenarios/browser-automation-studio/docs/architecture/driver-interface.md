@@ -1,10 +1,18 @@
 # Driver Interface Architecture
 
-_Last reviewed: 2026-01-30_
+_Execution ownership reviewed: 2026-09-22_
 
 ## Overview
 
 The browser-automation-studio implements a **pluggable driver architecture** that separates browser drivers (HTTP-based communication layer) from navigators (AI-powered vision navigation). The system uses a layered design with clear separation of concerns.
+
+Workflow execution is owned by `automation/session.GoSession`, which allocates
+lease operation identity and calls `driver.Client.RunInstruction` with one typed
+instruction. Recording and vision navigation use the maintained client interfaces
+below. The unused `automation/driver/playwright` adapter, `claudecode` driver
+stub, and parallel `driver.Driver`/`Session` types are retired; they were absent
+from application wiring and sent an obsolete untyped plural instruction payload.
+Navigator selection remains a separate, active concern.
 
 ## Architecture Layers
 

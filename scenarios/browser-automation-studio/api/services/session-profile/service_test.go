@@ -2,13 +2,18 @@ package sessionprofile
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/scheduletest"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 func newTestService(t *testing.T) (*Service, *persistence.MockRepository, *scheduletest.FakeClock) {
@@ -79,6 +84,94 @@ func TestService_GetOrCreateProfile(t *testing.T) {
 
 	if profile1.ID != profile2.ID {
 		t.Error("expected same profile to be returned")
+	}
+}
+
+// [REQ:BAS-RH-J14] Failed recovery cannot silently replace an acknowledged identity.
+func TestService_ProfileRecoveryPreservesIdentity(t *testing.T) {
+	for _, fault := range []string{"missing-state", "corrupt-state", "wrong-key", "invalid-key", "corrupt-metadata"} {
+		t.Run(fault, func(t *testing.T) {
+			authority, err := testutil.ProfileCredentialAuthority()
+			if err != nil {
+				t.Fatal(err)
+			}
+			key, err := authority.Resolve("vrooli/browser-automation-studio", "session-profile-keyring")
+			if err != nil {
+				t.Fatal(err)
+			}
+			config := persistence.FileRepositoryConfig{Authority: func() (*credentialauthority.Authority, error) { return authority, nil }}
+			root := t.TempDir()
+			svc := NewService(persistence.NewFileRepositoryWithConfig(root, nil, config), nil)
+			profile, err := svc.CreateProfile("Original identity")
+			if err != nil {
+				t.Fatal(err)
+			}
+			state := []byte(`{"cookies":[{"name":"identity","value":"synthetic-secret"}],"origins":[]}`)
+			if _, err := svc.SaveStorageState(profile.ID, state); err != nil {
+				t.Fatal(err)
+			}
+			readFiles := func() map[string]string {
+				t.Helper()
+				entries, err := os.ReadDir(root)
+				if err != nil {
+					t.Fatal(err)
+				}
+				files := make(map[string]string, len(entries))
+				for _, entry := range entries {
+					data, err := os.ReadFile(filepath.Join(root, entry.Name()))
+					if err != nil {
+						t.Fatal(err)
+					}
+					files[entry.Name()] = string(data)
+				}
+				return files
+			}
+			original := readFiles()
+			protected := filepath.Join(root, string(profile.ID)+".json")
+			switch fault {
+			case "missing-state":
+				err = os.WriteFile(protected, []byte(`{"version":1}`), 0o600)
+			case "corrupt-state":
+				err = os.WriteFile(protected, []byte("truncated"), 0o600)
+			case "wrong-key":
+				err = authority.Put("vrooli/browser-automation-studio", "session-profile-keyring", `{"active":1,"keys":{"1":"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="}}`)
+			case "invalid-key":
+				err = authority.Put("vrooli/browser-automation-studio", "session-profile-keyring", "invalid")
+			case "corrupt-metadata":
+				err = os.WriteFile(filepath.Join(root, string(profile.ID)+".json"), []byte("{"), 0o600)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			before := readFiles()
+			// A new service must not hide the failure through in-memory state.
+			restarted := NewService(persistence.NewFileRepositoryWithConfig(root, nil, config), nil)
+			if _, err := restarted.GetProfile(profile.ID); err == nil {
+				t.Error("unreadable profile was treated as recovered")
+			}
+			if _, err := restarted.ListProfiles(); err == nil {
+				t.Error("listing concealed the recovery failure")
+			}
+			if replacement, err := restarted.GetOrCreateProfile(""); err == nil || replacement != nil {
+				t.Error("default resolution replaced or accepted an unreadable identity")
+			}
+			if !reflect.DeepEqual(before, readFiles()) {
+				t.Fatal("failed recovery changed saved files")
+			}
+			// Repair only the injected fault; the original identity must return.
+			if err := authority.Put("vrooli/browser-automation-studio", "session-profile-keyring", key); err != nil {
+				t.Fatal(err)
+			}
+			for name, data := range original {
+				if err := os.WriteFile(filepath.Join(root, name), []byte(data), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			recovered, err := restarted.GetOrCreateProfile("")
+			if err != nil || recovered == nil || recovered.ID != profile.ID || string(recovered.StorageState) != string(state) {
+				t.Fatalf("original identity did not recover: %v", err)
+			}
+		})
 	}
 }
 
@@ -309,7 +402,7 @@ func TestService_AddHistoryEntry_Pruning(t *testing.T) {
 		MaxEntries:    5,
 		RetentionDays: 30,
 	}
-	if err := svc.repo.Save(created); err != nil {
+	if _, err := svc.UpdateHistorySettings(created.ID, created.HistorySettings); err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
 
@@ -480,7 +573,7 @@ func TestService_PruneHistoryByTTL(t *testing.T) {
 		MaxEntries:    100,
 		RetentionDays: 7, // 7 day TTL
 	}
-	if err := svc.repo.Save(created); err != nil {
+	if _, err := svc.UpdateHistorySettings(created.ID, created.HistorySettings); err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
 

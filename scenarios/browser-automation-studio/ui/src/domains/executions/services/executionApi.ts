@@ -13,6 +13,7 @@ import { create, toJson } from '@bufbuild/protobuf';
 import { executionsClient } from '@/api/executions';
 import {
   ListExecutionsRequestSchema,
+  ListExecutionsResponseSchema,
   type ListExecutionsResponse,
   type ExecutionExportability as ProtoExecutionExportability,
 } from '@vrooli/proto-types/browser-automation-studio/v1/api/service_pb';
@@ -63,12 +64,36 @@ interface ListOptions {
 export const listExecutionsViaApi = async (
   opts: ListOptions = {}
 ): Promise<ListExecutionsResponse> => {
-  const req = create(ListExecutionsRequestSchema, {});
-  if (opts.workflowId) req.workflowId = opts.workflowId;
-  if (opts.projectId) req.projectId = opts.projectId;
-  if (typeof opts.limit === 'number') req.limit = opts.limit;
-  if (opts.includeExportability) req.includeExportability = true;
-  return executionsClient.listExecutions(req);
+  let remaining = opts.limit ?? Infinity;
+  if (remaining <= 0 || (remaining !== Infinity && !Number.isSafeInteger(remaining))) {
+    throw new Error('Execution history limit must be a positive integer');
+  }
+  const result = create(ListExecutionsResponseSchema);
+  const seen = new Set<string>();
+  do {
+    const page = await executionsClient.listExecutions(create(ListExecutionsRequestSchema, {
+      workflowId: opts.workflowId, projectId: opts.projectId,
+      includeExportability: opts.includeExportability,
+      limit: Math.min(remaining, 100), offset: result.executions.length,
+    }));
+    if (page.hasMore && (page.executions.length === 0 || page.total <= result.executions.length + page.executions.length)) {
+      throw new Error('Execution history pagination did not advance');
+    }
+    // Bound a complete-history read by the first observed total, even if new
+    // executions arrive. Offset requests are separate snapshots; repeated IDs
+    // signal that a refresh is needed rather than a complete history result.
+    if (seen.size === 0) remaining = Math.min(remaining, page.total);
+    for (const execution of page.executions) {
+      if (seen.has(execution.executionId)) throw new Error('Execution history changed during pagination; refresh to retry');
+      seen.add(execution.executionId);
+    }
+    result.executions.push(...page.executions);
+    Object.assign(result.exportability, page.exportability);
+    result.total = page.total;
+    result.hasMore = page.hasMore;
+    remaining -= page.executions.length;
+  } while (result.hasMore && remaining > 0);
+  return result;
 };
 
 /** Legacy compatibility wrapper for callers that expect `ExecutionItem[]`. */

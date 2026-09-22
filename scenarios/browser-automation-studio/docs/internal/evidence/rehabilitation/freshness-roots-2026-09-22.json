@@ -1,0 +1,68 @@
+{
+  "record": "BAS-WORK-042",
+  "issues": [
+    "BAS-RF-078"
+  ],
+  "status": "deployed_scoped_checks_pass_full_api_unqualified",
+  "probe_program_id": "prog_ab6aacd2-51c9-4184-a944-3518b4f28c23",
+  "native_before": "/tmp/bas-board-sensor-probe-042.json",
+  "red": {
+    "cases_failed": 2,
+    "seconds": 0.36,
+    "receipt": "/tmp/bas-freshness-maintained-red-042.txt"
+  },
+  "focused": {
+    "status": "passed",
+    "seconds": 0.368,
+    "receipt": "/tmp/bas-freshness-focused-042.txt"
+  },
+  "metrics": {
+    "before": {
+      "lines": 1664,
+      "functions": 59,
+      "cyclomatic": 334
+    },
+    "after": {
+      "lines": 1656,
+      "functions": 59,
+      "cyclomatic": 332
+    }
+  },
+  "source_sha256": {
+    "scenarios/test-genie/api/internal/app/runs/service.go": "7a0365f2247be7ef8d86b69e43154aeeab0d54f16c06a23e1cdeb76afc02a6ee",
+    "scenarios/test-genie/api/internal/app/runs/freshness.go": "c978adfd4108edb4e7fe796d5777c69b20fc9c66c556cf7afbceb3fc229dfafd",
+    "scenarios/test-genie/api/internal/app/runs/lifecycle.go": "97d3e870f62593e22b53f6194b747626117af083cef2f4f6855ad2480b6272dd"
+  },
+  "limitations": [
+    "BAS board has not been changed yet.",
+    "Source identity v1 remains target-local; shared dependency closure is not certified by this RPC.",
+    "No current-source or product readiness pass is inferred from the broken live sensor."
+  ],
+  "pending_operations": [],
+  "cumulative_affected_go_cyclomatic_delta": -248,
+  "race": {
+    "status": "passed",
+    "packages_seconds": [
+      5.063,
+      1.25
+    ],
+    "receipt": "/tmp/bas-freshness-race-042.txt"
+  },
+  "build": {
+    "status": "passed",
+    "receipt": "/tmp/bas-freshness-build-042.txt"
+  },
+  "full_api": {
+    "status": "timeout",
+    "owner_id": "uh-20260922-183359-ac3f3e95bbbcfabddb42534feea5c109",
+    "duration_ms": 104007,
+    "receipt": "/tmp/bas-freshness-owner-042.json",
+    "diagnostic": "/tmp/bas-provider-contract-diagnostic-042.txt"
+  },
+  "build_identity": "sha256:25e2b598c0417ea7ac23ab7c501c93f4340e70bf0c0aabef1c5d578cf1029e4f",
+  "public_probe": {
+    "program_id": "prog_9a4fffc3-3433-4d89-bd10-d604d934048d",
+    "receipt": "/tmp/bas-board-sensor-public-042.json",
+    "source_digest": "td:b2200de9a721ebc2d2e02bbe36a95bd341564a08363535f9851fb90ad11c8d8b"
+  }
+}

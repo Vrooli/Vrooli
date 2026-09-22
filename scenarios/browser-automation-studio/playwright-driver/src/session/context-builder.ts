@@ -1,5 +1,5 @@
 import { mkdir } from 'fs/promises';
-import type { Browser, BrowserContext } from 'rebrowser-playwright';
+import type { Browser, BrowserContext, Frame } from 'rebrowser-playwright';
 import type { SessionSpec, BehaviorSettings } from '../types';
 import type { Config } from '../config';
 import { logger } from '../utils';
@@ -71,6 +71,7 @@ export async function buildContext(
   audioStrategy: AudioStrategy = 'host_device'
 ): Promise<{
   context: BrowserContext;
+  storageOrigins: Set<string>;
   harPath?: string;
   tracePath?: string;
   videoDir?: string;
@@ -272,6 +273,18 @@ export async function buildContext(
 
   // Create context
   const context = await browser.newContext(contextOptions);
+  const storageOrigins = new Set(spec.storage_state?.origins.map(({ origin }) => origin));
+  const rememberOrigin = (frame: Frame): void => {
+    if (!frame.url()) return;
+    const url = new URL(frame.url());
+    // Chromium file documents share a storage origin even though WHATWG URL reports null.
+    const origin = url.protocol === 'file:' ? 'file://' : url.origin;
+    if (origin !== 'null') storageOrigins.add(origin);
+  };
+  context.on('page', (page) => {
+    page.frames().forEach(rememberOrigin);
+    page.on('framenavigated', rememberOrigin);
+  });
   configureInteractionState(context, spec.browser_profile?.interaction_state);
 
   if (audioStrategy === 'synthetic_sink') {
@@ -492,6 +505,7 @@ export async function buildContext(
 
   return {
     context,
+    storageOrigins,
     harPath,
     tracePath,
     videoDir,

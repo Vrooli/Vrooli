@@ -6,6 +6,7 @@ package sessionprofile
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -137,44 +138,41 @@ func (s *Service) DeleteProfile(id persistence.ProfileID) error {
 
 // RenameProfile updates the profile display name.
 func (s *Service) RenameProfile(id persistence.ProfileID, name string) (*persistence.SessionProfile, error) {
-	profile, err := s.GetProfile(id)
-	if err != nil {
-		return nil, err
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = s.generateProfileName()
 	}
+	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
+		profile.Name = name
+		return nil
+	})
+}
 
-	profile.Name = strings.TrimSpace(name)
-	if profile.Name == "" {
-		profile.Name = s.generateProfileName()
-	}
-	profile.UpdatedAt = s.clock.Now().UTC()
-
-	if err := s.repo.Save(profile); err != nil {
-		return nil, err
-	}
-	return profile, nil
+// UpdateProfile applies a field mutation to the latest profile under repository
+// write ownership. The timestamp is part of the same acknowledged snapshot.
+func (s *Service) UpdateProfile(id persistence.ProfileID, modify func(*persistence.SessionProfile) error) (*persistence.SessionProfile, error) {
+	return s.repo.Update(id, func(profile *persistence.SessionProfile) error {
+		if err := modify(profile); err != nil {
+			return err
+		}
+		profile.UpdatedAt = s.clock.Now().UTC()
+		return nil
+	})
 }
 
 // UpdateBrowserProfile updates the browser profile settings.
 func (s *Service) UpdateBrowserProfile(id persistence.ProfileID, browserProfile *persistence.BrowserProfile) (*persistence.SessionProfile, error) {
-	profile, err := s.GetProfile(id)
-	if err != nil {
-		return nil, err
-	}
-
-	// Validate browser profile if provided
-	if browserProfile != nil {
-		if err := ValidateBrowserProfile(browserProfile); err != nil {
-			return nil, fmt.Errorf("invalid browser profile: %w", err)
+	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
+		// Validate browser profile if provided
+		if browserProfile != nil {
+			if err := ValidateBrowserProfile(browserProfile); err != nil {
+				return fmt.Errorf("invalid browser profile: %w", err)
+			}
 		}
-	}
 
-	profile.BrowserProfile = browserProfile
-	profile.UpdatedAt = s.clock.Now().UTC()
-
-	if err := s.repo.Save(profile); err != nil {
-		return nil, err
-	}
-	return profile, nil
+		profile.BrowserProfile = browserProfile
+		return nil
+	})
 }
 
 // StartSession associates a browser session with a profile.
@@ -183,23 +181,12 @@ func (s *Service) StartSession(sessionID string, profileID persistence.ProfileID
 	if sessionID == "" || profileID == "" {
 		return nil
 	}
-
 	s.sessions.Set(sessionID, string(profileID))
-
-	// Touch the profile to update last_used_at
-	profile, err := s.repo.Get(profileID)
-	if err != nil {
-		return err
+	_, err := s.Touch(profileID)
+	if errors.Is(err, persistence.ErrProfileNotFound) {
+		return nil
 	}
-	if profile == nil {
-		return nil // Profile doesn't exist, nothing to update
-	}
-
-	now := s.clock.Now().UTC()
-	profile.LastUsedAt = now
-	profile.UpdatedAt = now
-
-	return s.repo.Save(profile)
+	return err
 }
 
 // EndSession persists session state to the profile and clears the association.
@@ -207,38 +194,15 @@ func (s *Service) StartSession(sessionID string, profileID persistence.ProfileID
 func (s *Service) EndSession(ctx context.Context, sessionID string, state *persistence.SessionEndState) error {
 	profileID := s.sessions.Get(sessionID)
 	if profileID == "" {
-		return nil // No profile associated
+		return nil
 	}
-
-	profile, err := s.repo.Get(persistence.ProfileID(profileID))
-	if err != nil {
+	_, err := s.UpdateProfile(persistence.ProfileID(profileID), func(profile *persistence.SessionProfile) error {
+		applySessionState(profile, state)
+		return nil
+	})
+	if err != nil && !errors.Is(err, persistence.ErrProfileNotFound) {
 		return err
 	}
-	if profile == nil {
-		s.sessions.Clear(sessionID)
-		return nil // Profile doesn't exist
-	}
-
-	// Update profile with session end state
-	if state != nil {
-		if len(state.StorageState) > 0 {
-			profile.StorageState = state.StorageState
-		}
-		// Limit tabs to prevent resource exhaustion
-		if len(state.OpenTabs) > persistence.MaxRestoredTabs {
-			state.OpenTabs = state.OpenTabs[:persistence.MaxRestoredTabs]
-		}
-		profile.OpenTabs = state.OpenTabs
-	}
-
-	now := s.clock.Now().UTC()
-	profile.UpdatedAt = now
-
-	// Single atomic save
-	if err := s.repo.Save(profile); err != nil {
-		return err
-	}
-
 	s.sessions.Clear(sessionID)
 	return nil
 }
@@ -246,196 +210,150 @@ func (s *Service) EndSession(ctx context.Context, sessionID string, state *persi
 // PersistSessionState saves storage state and tabs without ending the session.
 // Used for mid-session saves (e.g., beforeunload, manual persist).
 func (s *Service) PersistSessionState(profileID persistence.ProfileID, state *persistence.SessionEndState) error {
-	profile, err := s.GetProfile(profileID)
-	if err != nil {
-		return err
+	_, err := s.UpdateProfile(profileID, func(profile *persistence.SessionProfile) error {
+		applySessionState(profile, state)
+		profile.LastUsedAt = s.clock.Now().UTC()
+		return nil
+	})
+	return err
+}
+
+func applySessionState(profile *persistence.SessionProfile, state *persistence.SessionEndState) {
+	if state == nil {
+		return
 	}
-
-	if state != nil {
-		if len(state.StorageState) > 0 {
-			profile.StorageState = state.StorageState
-		}
-		if len(state.OpenTabs) > persistence.MaxRestoredTabs {
-			state.OpenTabs = state.OpenTabs[:persistence.MaxRestoredTabs]
-		}
-		profile.OpenTabs = state.OpenTabs
+	if len(state.StorageState) > 0 {
+		profile.StorageState = state.StorageState
 	}
-
-	now := s.clock.Now().UTC()
-	profile.UpdatedAt = now
-	profile.LastUsedAt = now
-
-	return s.repo.Save(profile)
+	tabs := state.OpenTabs
+	if len(tabs) > persistence.MaxRestoredTabs {
+		tabs = tabs[:persistence.MaxRestoredTabs]
+	}
+	profile.OpenTabs = tabs
 }
 
 // SaveStorageState persists the storage state and bumps last_used_at.
 func (s *Service) SaveStorageState(id persistence.ProfileID, storageState []byte) (*persistence.SessionProfile, error) {
-	profile, err := s.GetProfile(id)
-	if err != nil {
-		return nil, err
-	}
+	return s.UpdateStorageState(id, func(current json.RawMessage) (json.RawMessage, error) {
+		if len(storageState) == 0 {
+			return current, nil
+		}
+		return storageState, nil
+	})
+}
 
-	if len(storageState) > 0 {
-		profile.StorageState = storageState
-	}
-	now := s.clock.Now().UTC()
-	profile.LastUsedAt = now
-	profile.UpdatedAt = now
-
-	if err := s.repo.Save(profile); err != nil {
-		return nil, err
-	}
-	return profile, nil
+// UpdateStorageState applies a storage edit to the latest identity and preserves
+// the same last-used policy as complete browser snapshots.
+func (s *Service) UpdateStorageState(id persistence.ProfileID, modify func(json.RawMessage) (json.RawMessage, error)) (*persistence.SessionProfile, error) {
+	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
+		state, err := modify(profile.StorageState)
+		if err != nil {
+			return err
+		}
+		profile.StorageState = state
+		profile.LastUsedAt = s.clock.Now().UTC()
+		return nil
+	})
 }
 
 // SaveOpenTabs persists the tab state for session restoration.
 func (s *Service) SaveOpenTabs(id persistence.ProfileID, tabs []persistence.TabState) (*persistence.SessionProfile, error) {
-	profile, err := s.GetProfile(id)
-	if err != nil {
-		return nil, err
-	}
+	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
+		// Limit tabs to prevent resource exhaustion
+		if len(tabs) > persistence.MaxRestoredTabs {
+			tabs = tabs[:persistence.MaxRestoredTabs]
+		}
 
-	// Limit tabs to prevent resource exhaustion
-	if len(tabs) > persistence.MaxRestoredTabs {
-		tabs = tabs[:persistence.MaxRestoredTabs]
-	}
-
-	profile.OpenTabs = tabs
-	profile.UpdatedAt = s.clock.Now().UTC()
-
-	if err := s.repo.Save(profile); err != nil {
-		return nil, err
-	}
-	return profile, nil
+		profile.OpenTabs = tabs
+		return nil
+	})
 }
 
 // Touch updates the last_used_at timestamp.
 func (s *Service) Touch(id persistence.ProfileID) (*persistence.SessionProfile, error) {
-	profile, err := s.GetProfile(id)
-	if err != nil {
-		return nil, err
-	}
-
-	now := s.clock.Now().UTC()
-	profile.LastUsedAt = now
-	profile.UpdatedAt = now
-
-	if err := s.repo.Save(profile); err != nil {
-		return nil, err
-	}
-	return profile, nil
+	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
+		now := s.clock.Now().UTC()
+		profile.LastUsedAt = now
+		return nil
+	})
 }
 
 // AddHistoryEntry appends a history entry to the profile.
 // Entries are stored newest-first. Pruning is applied automatically.
 func (s *Service) AddHistoryEntry(id persistence.ProfileID, entry persistence.HistoryEntry) (*persistence.SessionProfile, error) {
-	profile, err := s.GetProfile(id)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get settings (use defaults if not set)
-	settings := profile.HistorySettings
-	if settings == nil {
-		settings = persistence.DefaultHistorySettings()
-	}
-
-	// Prepend new entry (newest first)
-	profile.History = append([]persistence.HistoryEntry{entry}, profile.History...)
-
-	// Prune to maxEntries
-	if settings.MaxEntries > 0 && len(profile.History) > settings.MaxEntries {
-		profile.History = profile.History[:settings.MaxEntries]
-	}
-
-	// Prune by TTL
-	profile.History = s.pruneHistoryByTTL(profile.History, settings)
-
-	profile.UpdatedAt = s.clock.Now().UTC()
-
-	if err := s.repo.Save(profile); err != nil {
-		return nil, err
-	}
-	return profile, nil
-}
-
-// ClearHistory removes all history entries from a profile.
-func (s *Service) ClearHistory(id persistence.ProfileID) (*persistence.SessionProfile, error) {
-	profile, err := s.GetProfile(id)
-	if err != nil {
-		return nil, err
-	}
-
-	profile.History = nil
-	profile.UpdatedAt = s.clock.Now().UTC()
-
-	if err := s.repo.Save(profile); err != nil {
-		return nil, err
-	}
-	return profile, nil
-}
-
-// DeleteHistoryEntry removes a single entry by ID.
-func (s *Service) DeleteHistoryEntry(id persistence.ProfileID, entryID string) (*persistence.SessionProfile, error) {
-	profile, err := s.GetProfile(id)
-	if err != nil {
-		return nil, err
-	}
-
-	// Find and remove the entry
-	found := false
-	newHistory := make([]persistence.HistoryEntry, 0, len(profile.History))
-	for _, entry := range profile.History {
-		if entry.ID == entryID {
-			found = true
-			continue
+	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
+		// Get settings (use defaults if not set)
+		settings := profile.HistorySettings
+		if settings == nil {
+			settings = persistence.DefaultHistorySettings()
 		}
-		newHistory = append(newHistory, entry)
-	}
 
-	if !found {
-		return nil, fmt.Errorf("history entry not found: %s", entryID)
-	}
+		// Prepend new entry (newest first)
+		profile.History = append([]persistence.HistoryEntry{entry}, profile.History...)
 
-	profile.History = newHistory
-	profile.UpdatedAt = s.clock.Now().UTC()
-
-	if err := s.repo.Save(profile); err != nil {
-		return nil, err
-	}
-	return profile, nil
-}
-
-// UpdateHistorySettings updates the history configuration.
-func (s *Service) UpdateHistorySettings(id persistence.ProfileID, settings *persistence.HistorySettings) (*persistence.SessionProfile, error) {
-	profile, err := s.GetProfile(id)
-	if err != nil {
-		return nil, err
-	}
-
-	// Validate settings
-	if err := ValidateHistorySettings(settings); err != nil {
-		return nil, err
-	}
-
-	profile.HistorySettings = settings
-
-	// Apply pruning if we have history and settings
-	if len(profile.History) > 0 && settings != nil {
 		// Prune to maxEntries
 		if settings.MaxEntries > 0 && len(profile.History) > settings.MaxEntries {
 			profile.History = profile.History[:settings.MaxEntries]
 		}
+
 		// Prune by TTL
 		profile.History = s.pruneHistoryByTTL(profile.History, settings)
-	}
+		return nil
+	})
+}
 
-	profile.UpdatedAt = s.clock.Now().UTC()
+// ClearHistory removes all history entries from a profile.
+func (s *Service) ClearHistory(id persistence.ProfileID) (*persistence.SessionProfile, error) {
+	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
+		profile.History = nil
+		return nil
+	})
+}
 
-	if err := s.repo.Save(profile); err != nil {
-		return nil, err
-	}
-	return profile, nil
+// DeleteHistoryEntry removes a single entry by ID.
+func (s *Service) DeleteHistoryEntry(id persistence.ProfileID, entryID string) (*persistence.SessionProfile, error) {
+	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
+		// Find and remove the entry
+		found := false
+		newHistory := make([]persistence.HistoryEntry, 0, len(profile.History))
+		for _, entry := range profile.History {
+			if entry.ID == entryID {
+				found = true
+				continue
+			}
+			newHistory = append(newHistory, entry)
+		}
+
+		if !found {
+			return fmt.Errorf("history entry not found: %s", entryID)
+		}
+
+		profile.History = newHistory
+		return nil
+	})
+}
+
+// UpdateHistorySettings updates the history configuration.
+func (s *Service) UpdateHistorySettings(id persistence.ProfileID, settings *persistence.HistorySettings) (*persistence.SessionProfile, error) {
+	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
+		// Validate settings
+		if err := ValidateHistorySettings(settings); err != nil {
+			return err
+		}
+
+		profile.HistorySettings = settings
+
+		// Apply pruning if we have history and settings
+		if len(profile.History) > 0 && settings != nil {
+			// Prune to maxEntries
+			if settings.MaxEntries > 0 && len(profile.History) > settings.MaxEntries {
+				profile.History = profile.History[:settings.MaxEntries]
+			}
+			// Prune by TTL
+			profile.History = s.pruneHistoryByTTL(profile.History, settings)
+		}
+		return nil
+	})
 }
 
 // GetHistoryWithPruning returns the history with TTL pruning applied (but doesn't save).

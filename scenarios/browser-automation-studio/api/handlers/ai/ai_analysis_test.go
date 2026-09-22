@@ -2,7 +2,9 @@ package ai
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -177,4 +179,69 @@ func TestOllamaSuggestionGeneratorAcceptsArrayResponse(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, suggestions, 1)
 	assert.Equal(t, "Search", suggestions[0].Action)
+}
+
+// [REQ:BAS-AI-GENERATION-VALIDATION] Incomplete provider output must not become
+// successful suggestions or an indistinguishable empty result.
+func TestOllamaSuggestionResponseContract(t *testing.T) {
+	for _, tc := range []struct {
+		name, payload string
+		valid         bool
+		count         int
+	}{
+		{"object", `{"suggestions":[{"action":"Search","confidence":0.9,"category":"data-entry"}]}`, true, 1},
+		{"array", `[{"action":"Search","confidence":0,"category":"actions"}]`, true, 1},
+		{"empty", `{"suggestions":[]}`, true, 0},
+		{"malformed", `not JSON`, false, 0},
+		{"missing list", `{}`, false, 0},
+		{"null list", `{"suggestions":null}`, false, 0},
+		{"missing category", `[{"action":"Search","confidence":0.9}]`, false, 0},
+		{"unknown category", `[{"action":"Search","confidence":0.9,"category":"guess"}]`, false, 0},
+		{"missing action", `[{"confidence":0.9,"category":"actions"}]`, false, 0},
+		{"blank action", `[{"action":"  ","confidence":0.9,"category":"actions"}]`, false, 0},
+		{"missing confidence", `[{"action":"Search","category":"actions"}]`, false, 0},
+		{"negative confidence", `[{"action":"Search","confidence":-0.1,"category":"actions"}]`, false, 0},
+		{"excess confidence", `[{"action":"Search","confidence":1.1,"category":"actions"}]`, false, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			generator := newOllamaSuggestionGenerator(logrus.New(), WithOllamaClient(NewMockOllamaClient(tc.payload)))
+			got, err := generator.generateAISuggestions(context.Background(), []ElementInfo{{Text: "Search", TagName: "BUTTON"}}, PageContext{URL: "https://example.test"})
+			if !tc.valid {
+				require.Error(t, err)
+				require.Nil(t, got)
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, got, tc.count)
+		})
+	}
+}
+
+func TestOllamaSuggestionsRequestStructuredGatewayOutput(t *testing.T) {
+	client := NewDefaultOllamaClient(logrus.New(), WithOllamaRunner(func(_ context.Context, args []string, prompt string) ([]byte, error) {
+		require.Equal(t, []string{"gateway", "generate"}, args[:2])
+		require.Contains(t, args, "--prompt-stdin")
+		require.Contains(t, prompt, "Search")
+		pos := slices.Index(args, "--format")
+		require.GreaterOrEqual(t, pos, 0, "structured generation must constrain the provider response")
+		var schema map[string]any
+		require.NoError(t, json.Unmarshal([]byte(args[pos+1]), &schema))
+		require.Equal(t, "object", schema["type"])
+		return []byte(`{"response":"{\"suggestions\":[{\"action\":\"Search\",\"confidence\":0.9,\"category\":\"actions\"}]}"}`), nil
+	}))
+	generator := newOllamaSuggestionGenerator(logrus.New(), WithOllamaClient(client))
+	got, err := generator.generateAISuggestions(context.Background(), []ElementInfo{{Text: "Search", TagName: "BUTTON"}}, PageContext{URL: "https://example.test"})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+}
+
+func TestOllamaSuggestionsWithNoElementsDoNotCallProvider(t *testing.T) {
+	client := NewMockOllamaClient("")
+	client.Err = errors.New("provider must not be called without elements")
+	generator := newOllamaSuggestionGenerator(logrus.New(), WithOllamaClient(client))
+	got, err := generator.generateAISuggestions(context.Background(), nil, PageContext{URL: "https://example.test"})
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Empty(t, got)
+	require.Empty(t, client.QueriesCalled)
 }

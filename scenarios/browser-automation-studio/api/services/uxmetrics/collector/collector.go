@@ -38,6 +38,9 @@ func NewCollector(delegate autoevents.Sink, repo uxmetrics.Repository) *Collecto
 // Publish implements automation/events.Sink.
 // This is the key integration point - every event flows through here.
 func (c *Collector) Publish(ctx context.Context, event autocontracts.EventEnvelope) error {
+	if err := c.delegate.Publish(ctx, event); err != nil {
+		return err
+	}
 	// Extract UX-relevant data from events
 	switch event.Kind {
 	case autocontracts.EventKindStepCompleted:
@@ -53,13 +56,18 @@ func (c *Collector) Publish(ctx context.Context, event autocontracts.EventEnvelo
 		_ = c.FlushExecution(ctx, event.ExecutionID)
 	}
 
-	// Always delegate to underlying sink
-	return c.delegate.Publish(ctx, event)
+	return nil
 }
 
 // Limits delegates to the underlying sink.
 func (c *Collector) Limits() autocontracts.EventBufferLimits {
 	return c.delegate.Limits()
+}
+
+// CloseExecution retires this execution's buffers and preserves the delegate's lifecycle.
+func (c *Collector) CloseExecution(executionID uuid.UUID) {
+	_ = c.FlushExecution(context.Background(), executionID)
+	c.delegate.CloseExecution(executionID)
 }
 
 // OnStepOutcome implements uxmetrics.Collector for direct calls.

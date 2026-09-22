@@ -14,7 +14,7 @@
  * @see context-initializer.ts - Handles injection and route setup
  */
 
-import type { Page, BrowserContext } from 'rebrowser-playwright';
+import type { Page, Frame, BrowserContext } from 'rebrowser-playwright';
 import type winston from 'winston';
 import {
   createRecordingStateMachine,
@@ -26,6 +26,7 @@ import {
   type RecordingData,
 } from './state-machine';
 import type { RecordingContextInitializer } from '../io/context-initializer';
+import { initRecordingBuffer, bufferTimelineEntry, getBufferedTimelineEntry, deliverTimelineEntry, flushRecordingDeliveries, assertRecordingAcknowledged } from '../io/buffer';
 import { waitForScriptReady } from '../validation/verification';
 import {
   rawBrowserEventToTimelineEntry,
@@ -37,7 +38,8 @@ import {
   generateActivationScript,
   generateDeactivationScript,
 } from '../capture/init-script-generator';
-import { logger as defaultLogger, LogContext, scopedLog } from '../../utils';
+import { safeInvoke } from '../../instrumentation';
+import { logger as defaultLogger, LogContext, scopedLog, metrics } from '../../utils';
 import {
   LOOP_DETECTION_WINDOW_MS,
   LOOP_DETECTION_MAX_NAVIGATIONS,
@@ -65,6 +67,8 @@ export interface StartRecordingOptions {
   recordingId?: string;
   onEntry: RecordEntryCallback;
   onError?: RecordErrorCallback;
+  /** False for pull mode: the consumer must explicitly acknowledge stored entries. */
+  acknowledgeOnDelivery?: boolean;
   /**
    * Whether to auto-verify the pipeline if not already ready.
    * Default: true (RECOMMENDED - prevents "starts but doesn't work" failures)
@@ -147,6 +151,9 @@ export class RecordingPipelineManager {
 
   // Callbacks (set during startRecording)
   private entryCallback: RecordEntryCallback | null = null;
+  private acknowledgeOnDelivery = true;
+  private startPromise: Promise<string> | null = null;
+  private stopPromise: Promise<StopRecordingResult> | null = null;
   private errorCallback: RecordErrorCallback | null = null;
 
   /**
@@ -179,18 +186,10 @@ export class RecordingPipelineManager {
    */
   private sequenceNum = 0;
 
-  // Navigation handler reference (for cleanup)
-  private navigationHandler: (() => void) | null = null;
-
-  // New page handler reference (for cleanup)
-  private newPageHandler: ((page: Page) => Promise<void>) | null = null;
-
-  // Loop detection interval reference (for cleanup)
+  private newPageHandler: ((page: Page) => void) | null = null;
   private loopDetectionInterval: ReturnType<typeof setInterval> | null = null;
-
-  // Track pages with registered load handlers for cleanup
-  // Maps page to the handler function so we can remove it
-  private pageLoadHandlers: Map<Page, () => void> = new Map();
+  private pageHandlers = new Map<Page, { navigated: (frame: Frame) => void; closed: () => void }>();
+  private pendingActivations = new Set<Promise<void>>();
 
   // Replay service (lazy-loaded)
   private replayService: ReplayPreviewService | null = null;
@@ -239,7 +238,7 @@ export class RecordingPipelineManager {
 
   /** Check if currently recording */
   isRecording(): boolean {
-    return this.stateMachine.isRecording();
+    return this.startPromise !== null || (this.entryCallback !== null && !!this.stateMachine.getState().recording);
   }
 
   /** Check if ready to start recording */
@@ -482,7 +481,13 @@ export class RecordingPipelineManager {
    * @returns The recording ID
    * @throws If pipeline cannot reach 'ready' phase after verification
    */
-  async startRecording(options: StartRecordingOptions): Promise<string> {
+  startRecording(options: StartRecordingOptions): Promise<string> {
+    if (this.startPromise || this.stopPromise || this.isRecording()) return Promise.reject(new Error('Recording transition is already owned; stop it before starting another'));
+    this.startPromise = this.performStartRecording(options).finally(() => { this.startPromise = null; });
+    return this.startPromise;
+  }
+
+  private async performStartRecording(options: StartRecordingOptions): Promise<string> {
     const phase = this.stateMachine.getPhase();
     const { autoVerify = true, verifyTimeoutMs = 5000, verifyRetries = 2 } = options;
 
@@ -534,6 +539,8 @@ export class RecordingPipelineManager {
       });
     }
 
+    initRecordingBuffer(this.sessionId);
+    this.acknowledgeOnDelivery = options.acknowledgeOnDelivery ?? true;
     const recordingId = options.recordingId || crypto.randomUUID();
 
     this.logger.info(scopedLog(LogContext.RECORDING, 'starting recording'), {
@@ -555,21 +562,11 @@ export class RecordingPipelineManager {
 
     const generation = this.stateMachine.getGeneration();
 
-    // CRITICAL: Dispatch RECORDING_STARTED BEFORE setting event handler
-    // This ensures events are accepted immediately when handler is set.
-    // Previously, events arriving between setEventHandler and RECORDING_STARTED
-    // were dropped because handleRawEvent checks phase === 'capturing'.
-    this.stateMachine.dispatch({
-      type: 'RECORDING_STARTED',
-      startedAt: new Date().toISOString(),
-    });
 
     try {
       // Set event handler on context initializer so route events reach us
-      // NOTE: Phase is now 'capturing' so events will be accepted immediately
-      this.contextInitializer.setEventHandler((rawEvent: RawBrowserEvent) => {
-        this.handleRawEvent(rawEvent);
-      });
+      // Starting owns observations until activation and its initial delivery finish.
+      this.contextInitializer.setEventHandler((rawEvent: RawBrowserEvent) => this.handleRawEvent(rawEvent));
 
       // Setup page-level event route
       await this.contextInitializer.setupPageEventRoute(this.page, { force: true });
@@ -577,25 +574,22 @@ export class RecordingPipelineManager {
       // Capture initial navigation
       await this.captureInitialNavigation();
 
-      // Activate recording on current page
-      await this.activateRecordingOnPage(this.page, recordingId);
-
-      // SINGLE SOURCE OF TRUTH: This is the ONLY 'load' handler during recording.
-      // Navigation handling (route re-registration, script re-activation) happens here.
-      // Do NOT add additional 'load' listeners in event-route.ts or context-initializer.ts
-      // to avoid race conditions and duplicate handler issues.
-      this.navigationHandler = this.createNavigationHandler(generation, recordingId);
-      this.page.on('load', this.navigationHandler);
-
-      // Setup handler for new pages (tabs)
-      this.newPageHandler = this.createNewPageHandler(generation, recordingId);
+      // Own every current and future document, including dynamic child frames.
+      this.newPageHandler = (page) => {
+        this.watchPage(page, generation, recordingId);
+        for (const frame of page.frames()) this.queueFrameActivation(frame, generation, recordingId);
+      };
       this.context.on('page', this.newPageHandler);
+      for (const page of this.context.pages()) this.watchPage(page, generation, recordingId);
+      await Promise.all(this.context.pages().map(async (page) => {
+        await this.contextInitializer.setupPageEventRoute(page, { force: true });
+        await this.activateRecordingOnPage(page, recordingId);
+      }));
 
       // Start loop detection
       this.startLoopDetection(generation);
 
-      // NOTE: RECORDING_STARTED was already dispatched above (before setEventHandler)
-      // to ensure events are accepted immediately when handler is set.
+      this.stateMachine.dispatch({ type: 'RECORDING_STARTED', startedAt: new Date().toISOString() });
 
       this.logger.info(scopedLog(LogContext.RECORDING, 'recording started'), {
         sessionId: this.sessionId,
@@ -621,74 +615,33 @@ export class RecordingPipelineManager {
    * @returns Recording result with action count
    * @throws If not currently recording
    */
-  async stopRecording(): Promise<StopRecordingResult> {
-    const phase = this.stateMachine.getPhase();
-    const state = this.stateMachine.getState();
-
-    if (phase !== 'capturing' || !state.recording) {
-      throw new Error(`Cannot stop recording from phase '${phase}'`);
-    }
-
-    const recordingId = state.recording.recordingId;
-    const actionCount = state.recording.actionCount;
-
-    this.logger.info(scopedLog(LogContext.RECORDING, 'stopping recording'), {
-      sessionId: this.sessionId,
-      recordingId,
-      actionCount,
-    });
-
-    // Transition to 'stopping'
-    this.stateMachine.dispatch({ type: 'STOP_RECORDING' });
-
-    try {
-      // Remove navigation handler
-      if (this.navigationHandler) {
-        this.page.off('load', this.navigationHandler);
-        this.navigationHandler = null;
-      }
-
-      // Remove new page handler
-      if (this.newPageHandler) {
-        this.context.off('page', this.newPageHandler);
-        this.newPageHandler = null;
-      }
-
-      // Remove all tracked page load handlers to prevent stale handlers from firing
-      this.cleanupPageLoadHandlers();
-
-      // Stop loop detection
+  stopRecording(): Promise<StopRecordingResult> {
+    if (this.stopPromise) return this.stopPromise;
+    this.stopPromise = (async () => {
+      // Join an admitted start before deactivation so it cannot reactivate a
+      // frame after the terminal flush. A failed start still owns its entries.
+      await this.startPromise?.catch(() => undefined);
+      const state = this.stateMachine.getState();
+      if (!state.recording || !this.entryCallback) throw new Error(`Cannot stop recording from phase '${state.phase}'`);
+      const recordingId = state.recording.recordingId;
+      this.stateMachine.dispatch({ type: 'STOP_RECORDING' });
+      if (this.newPageHandler) { this.context.off('page', this.newPageHandler); this.newPageHandler = null; }
+      this.cleanupPageHandlers();
+      await Promise.all(this.pendingActivations);
       this.stopLoopDetection();
-
-      // Deactivate recording on all pages
+      // Keep the consumer installed while current frames flush input and wait
+      // for their final accepted observations. Failed stops retain this owner.
       await this.deactivateRecordingOnAllPages();
-
-      // Clear event handler on context initializer
+      await flushRecordingDeliveries(this.sessionId);
+      if (this.acknowledgeOnDelivery) assertRecordingAcknowledged(this.sessionId);
+      const actionCount = this.stateMachine.getState().recording?.actionCount ?? 0;
       this.contextInitializer.clearEventHandler();
-
-      // Clear callbacks
       this.entryCallback = null;
       this.errorCallback = null;
-
-      // Transition to 'ready'
       this.stateMachine.dispatch({ type: 'RECORDING_STOPPED', actionCount });
-
-      this.logger.info(scopedLog(LogContext.RECORDING, 'recording stopped'), {
-        sessionId: this.sessionId,
-        recordingId,
-        actionCount,
-      });
-
       return { recordingId, actionCount };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.stateMachine.dispatch({
-        type: 'ERROR',
-        code: 'UNKNOWN',
-        message: `Stop recording failed: ${message}`,
-      });
-      throw error;
-    }
+    })().finally(() => { this.stopPromise = null; });
+    return this.stopPromise;
   }
 
   // ===========================================================================
@@ -703,62 +656,30 @@ export class RecordingPipelineManager {
    *
    * @param raw - Raw browser event
    */
-  handleRawEvent(raw: RawBrowserEvent): void {
-    const state = this.stateMachine.getState();
-
-    // Check if capturing
-    if (state.phase !== 'capturing' || !state.recording || !this.entryCallback) {
-      this.logger.debug(scopedLog(LogContext.EVENT_FLOW, 'event dropped (not capturing)'), {
-        sessionId: this.sessionId,
-        phase: state.phase,
-        actionType: raw.actionType,
-      });
-      return;
-    }
-
-    // Note: Generation is available in state.recording.generation for stale event detection
-    // Currently we check state.phase === 'capturing' which is sufficient
-
+  async handleRawEvent(raw: RawBrowserEvent): Promise<void> {
     try {
-      // Update navigation tracking for navigate events
-      if (raw.actionType === 'navigate' && raw.payload?.targetUrl) {
-        this.stateMachine.dispatch({
-          type: 'NAVIGATION',
-          url: raw.payload.targetUrl as string,
-        });
+      const state = this.stateMachine.getState();
+      if ((state.phase !== 'starting' && state.phase !== 'capturing' && state.phase !== 'stopping') || !state.recording || !this.entryCallback) {
+        throw new Error('Recording is not accepting observations');
       }
-
-      // Convert to TimelineEntry
+      if (!raw.id || raw.recordingId !== state.recording.recordingId) throw new Error('Recording observation identity or owner is invalid');
+      const previous = getBufferedTimelineEntry(this.sessionId, raw.id);
       const entry = rawBrowserEventToTimelineEntry(raw, {
-        sessionId: this.sessionId,
-        sequenceNum: this.sequenceNum++,
+        sessionId: this.sessionId, sequenceNum: previous?.sequenceNum ?? this.sequenceNum++,
       });
-
-      // Update action count
-      this.stateMachine.dispatch({ type: 'ACTION_CAPTURED', actionType: raw.actionType });
-
-      this.logger.debug(scopedLog(LogContext.EVENT_FLOW, 'event captured'), {
-        sessionId: this.sessionId,
-        recordingId: state.recording.recordingId,
-        actionType: raw.actionType,
-        sequenceNum: entry.sequenceNum,
-      });
-
-      // Invoke callback
-      const result = this.entryCallback(entry);
-      if (result instanceof Promise) {
-        result.catch((err: unknown) => {
-          const message = err instanceof Error ? err.message : String(err);
-          this.handleError(new Error(`Entry callback failed: ${message}`));
-        });
+      const inserted = bufferTimelineEntry(this.sessionId, entry);
+      if (inserted) {
+        if (raw.actionType === 'navigate' && raw.payload?.targetUrl) {
+          this.stateMachine.dispatch({ type: 'NAVIGATION', url: raw.payload.targetUrl as string });
+        }
+        this.stateMachine.dispatch({ type: 'ACTION_CAPTURED', actionType: raw.actionType });
+        metrics.recordingActionsTotal.inc();
       }
+      const callback = this.entryCallback;
+      await deliverTimelineEntry(this.sessionId, entry, async () => { await callback(entry); }, this.acknowledgeOnDelivery);
     } catch (error) {
-      this.logger.error(scopedLog(LogContext.EVENT_FLOW, 'event processing failed'), {
-        sessionId: this.sessionId,
-        actionType: raw.actionType,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      this.handleError(error instanceof Error ? error : new Error(String(error)));
+      await safeInvoke(this.handleError.bind(this), error instanceof Error ? error : new Error(String(error)));
+      throw error;
     }
   }
 
@@ -836,6 +757,8 @@ export class RecordingPipelineManager {
    * Reset the pipeline to uninitialized state.
    */
   reset(): void {
+    if (this.isRecording()) throw new Error('Stop recording before resetting its pipeline');
+    assertRecordingAcknowledged(this.sessionId);
     this.cleanup();
     this.stateMachine.dispatch({ type: 'RESET' });
 
@@ -852,253 +775,54 @@ export class RecordingPipelineManager {
    * Activate recording on a page.
    */
   private async activateRecordingOnPage(page: Page, recordingId: string): Promise<void> {
-    try {
-      // Wait for page to be ready
-      try {
-        await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
-      } catch {
-        // Ignore timeout
-      }
-
-      // Send activation message
-      await page.evaluate(
-        generateActivationScript(recordingId, this.contextInitializer.getBindingName())
-      );
-
-      this.logger.debug(scopedLog(LogContext.RECORDING, 'recording activated on page'), {
-        sessionId: this.sessionId,
-        recordingId,
-        url: page.url()?.slice(0, 50),
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (!this.isPageGoneError(message)) {
-        this.logger.warn(scopedLog(LogContext.RECORDING, 'activation failed'), {
-          sessionId: this.sessionId,
-          error: message,
-        });
-      }
-      // Don't throw - script starts active by default
-    }
+    await Promise.all(page.frames().map((frame) => frame.waitForLoadState('domcontentloaded', { timeout: 5000 })));
+    await page.evaluate(generateActivationScript(recordingId));
   }
 
-  /**
-   * Deactivate recording on all pages.
-   */
   private async deactivateRecordingOnAllPages(): Promise<void> {
-    const pages = this.context.pages();
-
-    await Promise.all(
-      pages.map(async (page) => {
-        try {
-          await page.evaluate(generateDeactivationScript());
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          if (!this.isPageGoneError(message)) {
-            this.logger.warn(scopedLog(LogContext.RECORDING, 'deactivation failed'), {
-              sessionId: this.sessionId,
-              error: message,
-            });
-          }
-        }
-      })
-    );
+    await Promise.all(this.context.pages().map((page) => page.evaluate(generateDeactivationScript())));
   }
 
   // ===========================================================================
   // Private: Navigation Handling
   // ===========================================================================
 
-  /**
-   * Create navigation handler for 'load' events.
-   *
-   * IMPORTANT: This handler properly sequences async operations to prevent race conditions.
-   * The route must be set up BEFORE activation, and navigation event is dispatched AFTER
-   * both are complete to ensure no events are lost during the transition window.
-   */
-  private createNavigationHandler(generation: number, recordingId: string): () => void {
-    return (): void => {
+  private watchPage(page: Page, generation: number, recordingId: string): void {
+    if (this.pageHandlers.has(page)) return;
+    const navigated = (frame: Frame): void => { this.queueFrameActivation(frame, generation, recordingId); };
+    const closed = (): void => { this.unwatchPage(page); };
+    this.pageHandlers.set(page, { navigated, closed });
+    page.on('framenavigated', navigated);
+    page.on('close', closed);
+  }
+
+  private queueFrameActivation(frame: Frame, generation: number, recordingId: string): void {
+    const isCurrent = (): boolean => {
       const state = this.stateMachine.getState();
-
-      if (state.phase !== 'capturing' || state.recording?.generation !== generation) {
-        return;
-      }
-
-      // Capture URL before async operations
-      const newUrl = this.page.url();
-
-      // Sequence async operations: route setup -> activation -> navigation dispatch
-      // This prevents events from being lost during the transition window
-      this.handleNavigationAsync(generation, recordingId, newUrl, state.recording?.lastUrl ?? undefined).catch(
-        (err) => {
-          this.logger.warn(scopedLog(LogContext.RECORDING, 'navigation handling failed'), {
-            sessionId: this.sessionId,
-            error: err instanceof Error ? err.message : String(err),
-          });
-        }
-      );
+      return (state.phase === 'starting' || state.phase === 'capturing') && state.recording?.generation === generation;
     };
-  }
-
-  /**
-   * Async helper for navigation handling - properly sequences setup operations.
-   */
-  private async handleNavigationAsync(
-    generation: number,
-    recordingId: string,
-    newUrl: string,
-    lastUrl: string | undefined
-  ): Promise<void> {
-    // Re-check state after potential await
-    const currentState = this.stateMachine.getState();
-    if (
-      currentState.phase !== 'capturing' ||
-      currentState.recording?.generation !== generation
-    ) {
-      return;
-    }
-
-    // Step 1: Re-setup event route FIRST (must complete before activation)
-    try {
-      await this.contextInitializer.setupPageEventRoute(this.page, { force: true });
-    } catch (err) {
-      this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to re-setup event route'), {
-        sessionId: this.sessionId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      // Continue - activation may still work
-    }
-
-    // Re-check state again
-    const stateAfterRoute = this.stateMachine.getState();
-    if (
-      stateAfterRoute.phase !== 'capturing' ||
-      stateAfterRoute.recording?.generation !== generation
-    ) {
-      return;
-    }
-
-    // Step 2: Re-activate recording AFTER route is set up
-    try {
-      await this.activateRecordingOnPage(this.page, recordingId);
-    } catch (err) {
-      this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to re-activate recording'), {
-        sessionId: this.sessionId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-
-    // Step 3: Dispatch navigation event AFTER setup is complete
-    // This ensures any events triggered by the navigation are properly captured
-    if (newUrl && newUrl !== lastUrl) {
-      this.stateMachine.dispatch({ type: 'NAVIGATION', url: newUrl });
-    }
-  }
-
-  /**
-   * Create handler for new pages (tabs).
-   *
-   * IMPORTANT: This handler tracks all registered load handlers for proper cleanup.
-   * Each new page gets a load handler that is stored in pageLoadHandlers map and
-   * removed during stopRecording() to prevent stale handlers from firing.
-   */
-  private createNewPageHandler(
-    generation: number,
-    recordingId: string
-  ): (page: Page) => Promise<void> {
-    return async (newPage: Page): Promise<void> => {
-      const state = this.stateMachine.getState();
-
-      if (state.phase !== 'capturing' || state.recording?.generation !== generation) {
-        return;
+    if (!isCurrent()) return;
+    const operation = (async () => {
+      await frame.waitForLoadState('domcontentloaded', { timeout: 5000 });
+      if (!isCurrent() || frame.isDetached()) return;
+      await this.contextInitializer.setupPageEventRoute(frame.page(), { force: true });
+      if (!isCurrent() || frame.isDetached()) return;
+      await frame.page().evaluate(generateActivationScript(recordingId));
+      if (isCurrent() && frame === this.page.mainFrame()) {
+        this.stateMachine.dispatch({ type: 'NAVIGATION', url: frame.url() });
       }
-
-      this.logger.debug(scopedLog(LogContext.RECORDING, 'new page detected'), {
-        sessionId: this.sessionId,
-        url: newPage.url()?.slice(0, 50),
-      });
-
-      try {
-        await this.contextInitializer.setupPageEventRoute(newPage, { force: true });
-      } catch (err) {
-        this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to setup route on new page'), {
-          sessionId: this.sessionId,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-
-      // Create a tracked load handler for this page
-      const loadHandler = (): void => {
-        // Async work is handled inside, but the handler itself is sync
-        this.handleNewPageLoadAsync(newPage, generation, recordingId).catch((err) => {
-          this.logger.warn(scopedLog(LogContext.RECORDING, 'new page load handling failed'), {
-            sessionId: this.sessionId,
-            error: err instanceof Error ? err.message : String(err),
-          });
-        });
-      };
-
-      // Track the handler for cleanup during stopRecording
-      this.pageLoadHandlers.set(newPage, loadHandler);
-
-      // Register the handler
-      newPage.once('load', loadHandler);
-
-      // Clean up handler reference when page closes
-      newPage.once('close', () => {
-        this.pageLoadHandlers.delete(newPage);
-      });
-    };
+    })().catch(async (error: unknown) => {
+      if (!frame.isDetached()) await safeInvoke(this.handleError.bind(this), error instanceof Error ? error : new Error(String(error)));
+    }).finally(() => { this.pendingActivations.delete(operation); });
+    this.pendingActivations.add(operation);
   }
 
-  /**
-   * Async helper for new page load handling - properly sequences setup operations.
-   */
-  private async handleNewPageLoadAsync(
-    newPage: Page,
-    generation: number,
-    recordingId: string
-  ): Promise<void> {
-    const currentState = this.stateMachine.getState();
-    if (
-      currentState.phase !== 'capturing' ||
-      currentState.recording?.generation !== generation
-    ) {
-      return;
-    }
-
-    // Step 1: Re-setup event route (must complete before activation)
-    try {
-      await this.contextInitializer.setupPageEventRoute(newPage, { force: true });
-    } catch (err) {
-      this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to re-setup route on new page'), {
-        sessionId: this.sessionId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      // Continue - activation may still work
-    }
-
-    // Re-check state
-    const stateAfterRoute = this.stateMachine.getState();
-    if (
-      stateAfterRoute.phase !== 'capturing' ||
-      stateAfterRoute.recording?.generation !== generation
-    ) {
-      return;
-    }
-
-    // Step 2: Activate recording on page
-    try {
-      await this.activateRecordingOnPage(newPage, recordingId);
-    } catch (err) {
-      this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to activate on new page'), {
-        sessionId: this.sessionId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-
-    // Remove from tracking since the once handler has now fired
-    this.pageLoadHandlers.delete(newPage);
+  private unwatchPage(page: Page): void {
+    const handlers = this.pageHandlers.get(page);
+    if (!handlers) return;
+    page.off('framenavigated', handlers.navigated);
+    page.off('close', handlers.closed);
+    this.pageHandlers.delete(page);
   }
 
   // ===========================================================================
@@ -1211,33 +935,14 @@ export class RecordingPipelineManager {
    * Capture initial navigation at recording start.
    */
   private async captureInitialNavigation(): Promise<void> {
-    try {
-      const url = this.page.url();
-
-      if (!url || url === 'about:blank') {
-        return;
-      }
-
-      const entry = createNavigateTimelineEntry(url, {
-        sessionId: this.sessionId,
-        sequenceNum: this.sequenceNum++,
-      });
-
-      this.stateMachine.dispatch({ type: 'ACTION_CAPTURED', actionType: 'navigate' });
-      this.stateMachine.dispatch({ type: 'NAVIGATION', url });
-
-      if (this.entryCallback) {
-        const result = this.entryCallback(entry);
-        if (result instanceof Promise) {
-          await result;
-        }
-      }
-    } catch (error) {
-      this.logger.error(scopedLog(LogContext.RECORDING, 'failed to capture initial navigation'), {
-        sessionId: this.sessionId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
+    const url = this.page.url();
+    if (!url || url === 'about:blank' || !this.entryCallback) return;
+    const entry = createNavigateTimelineEntry(url, { sessionId: this.sessionId, sequenceNum: this.sequenceNum++ });
+    bufferTimelineEntry(this.sessionId, entry);
+    this.stateMachine.dispatch({ type: 'ACTION_CAPTURED', actionType: 'navigate' });
+    this.stateMachine.dispatch({ type: 'NAVIGATION', url });
+    const callback = this.entryCallback;
+    await deliverTimelineEntry(this.sessionId, entry, async () => { await callback(entry); }, this.acknowledgeOnDelivery);
   }
 
   /**
@@ -1254,59 +959,21 @@ export class RecordingPipelineManager {
     }
   }
 
-  /**
-   * Check if error indicates page is gone/closed.
-   */
-  private isPageGoneError(message: string): boolean {
-    return (
-      message.includes('closed') ||
-      message.includes('navigating') ||
-      message.includes('detached') ||
-      message.includes('destroyed') ||
-      message.includes('Target closed')
-    );
-  }
-
-  /**
-   * Clean up all tracked page load handlers.
-   *
-   * This removes load handlers registered on new pages during recording
-   * to prevent them from firing after recording has stopped.
-   */
-  private cleanupPageLoadHandlers(): void {
-    for (const [page, handler] of this.pageLoadHandlers) {
-      try {
-        page.off('load', handler);
-      } catch (err) {
-        // Page may already be closed - this is fine
-        const message = err instanceof Error ? err.message : String(err);
-        if (!this.isPageGoneError(message)) {
-          this.logger.debug(scopedLog(LogContext.RECORDING, 'failed to remove page load handler'), {
-            sessionId: this.sessionId,
-            error: message,
-          });
-        }
-      }
-    }
-    this.pageLoadHandlers.clear();
+  private cleanupPageHandlers(): void {
+    for (const page of this.pageHandlers.keys()) this.unwatchPage(page);
   }
 
   /**
    * Cleanup resources.
    */
   private cleanup(): void {
-    if (this.navigationHandler) {
-      this.page.off('load', this.navigationHandler);
-      this.navigationHandler = null;
-    }
-
     if (this.newPageHandler) {
       this.context.off('page', this.newPageHandler);
       this.newPageHandler = null;
     }
 
-    // Clean up tracked page load handlers
-    this.cleanupPageLoadHandlers();
+    // Remove all page and frame listeners
+    this.cleanupPageHandlers();
 
     this.stopLoopDetection();
     this.contextInitializer.clearEventHandler();

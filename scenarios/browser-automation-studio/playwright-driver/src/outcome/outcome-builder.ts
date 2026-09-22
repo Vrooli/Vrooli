@@ -248,7 +248,7 @@ export function buildStepOutcome(params: BuildOutcomeParams): StepOutcome {
     schemaVersion: SCHEMA_VERSION,
     payloadVersion: PAYLOAD_VERSION,
     stepIndex: validatedIndex,
-    attempt: 1, // TODO: Track actual attempt number when retry logic is implemented
+    attempt: instruction.attempt ?? 1,
     nodeId: instruction.nodeId,
 		stepType: getActionType(instruction),
     success: result.success,
@@ -256,7 +256,10 @@ export function buildStepOutcome(params: BuildOutcomeParams): StepOutcome {
     completedAt: timestampFromDate(completedAt),
     durationMs,
     finalUrl,
-    notes: {},
+    notes: {
+      ...(instruction.invocationId ? { invocation_id: instruction.invocationId } : {}),
+      ...(instruction.operationSequence ? { operation_sequence: String(instruction.operationSequence) } : {}),
+    },
   });
 
   // Add screenshot telemetry

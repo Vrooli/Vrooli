@@ -1,12 +1,12 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import type { SessionManager } from '../session';
+import { isOperational } from '../session';
 import type { Config } from '../config';
 import type { StartSessionRequest, StartSessionResponse, SessionSpec } from '../types';
 import { parseJsonBody, sendJson, sendError } from '../middleware';
-import { InvalidInstructionError } from '../utils';
+import { InvalidInstructionError, ResourceLimitError, PlaywrightDriverError, SessionNotFoundError, logger } from '../utils';
 import { startFrameStreaming } from '../frame-streaming';
 import type { FaultController } from '../fault-control';
-import { ResourceLimitError, PlaywrightDriverError } from '../utils';
 
 /**
  * Start session endpoint
@@ -113,6 +113,7 @@ export async function handleSessionStart(
       fake_media: request.fake_media,
       audio_playback_pause_ms: request.audio_playback_pause_ms,
       audio_playback_start_delay_ms: request.audio_playback_start_delay_ms,
+      audio_playback_defer_start: request.audio_playback_defer_start,
       audio_device_evidence: request.audio_device_evidence,
       app_target: request.app_target,
       validation_context: request.validation_context,
@@ -134,23 +135,34 @@ export async function handleSessionStart(
       throw new PlaywrightDriverError('controlled failure after session registration; session was reconciled', 'DRILL_SESSION_REGISTRATION_FAILURE');
     }
 
-    // Start frame streaming if requested (for record mode live preview)
-    // Wait for pipeline to be ready first to ensure recording infrastructure is initialized
     const frameStreaming = request.frame_streaming;
     if (frameStreaming?.callback_url) {
-      // Wait for pipeline readiness (async, but don't block response)
-      // Frame streaming will start after pipeline is verified
-      void sessionManager.waitForPipelineReady(sessionId, 5000).then(() => {
-        startFrameStreaming(sessionId, sessionManager, {
+      // Readiness may finish after release, reuse or close. Every page lookup
+      // belongs to this immutable lease, including lookups by the live stream.
+      const executionId = spec.execution_id;
+      const provider = {
+        getSession: (id: string) => {
+          const session = sessionManager.getSessionForLease(id, executionId, leaseId);
+          if (!isOperational(session.phase)) throw new SessionNotFoundError(id);
+          return session;
+        },
+      };
+      void sessionManager.waitForPipelineReady(sessionId, 5000).then((ready) => {
+        if (!ready) return;
+        provider.getSession(sessionId);
+        startFrameStreaming(sessionId, provider, {
           callbackUrl: frameStreaming.callback_url,
           quality: frameStreaming.quality,
           fps: frameStreaming.fps,
         });
+      }).catch((error: unknown) => {
+        logger.debug('Deferred frame preview did not start', { sessionId, error: String(error) });
       });
     }
 
     const response: StartSessionResponse = {
       session_id: sessionId,
+      last_instruction_sequence: sessionManager.peekSession(sessionId).lastInstructionSequence,
       lease_id: leaseId,
       phase: 'ready',
       created_at: createdAt.toISOString(),

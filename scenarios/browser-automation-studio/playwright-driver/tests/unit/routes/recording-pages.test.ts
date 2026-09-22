@@ -1,4 +1,4 @@
-import type { Page } from 'rebrowser-playwright';
+import type { Page, Frame } from 'rebrowser-playwright';
 import {
   createMockHttpRequest,
   createMockHttpResponse,
@@ -12,6 +12,7 @@ jest.mock('../../../src/routes/record-mode/recording-frames', () => ({
 }));
 
 jest.mock('../../../src/utils', () => ({
+  ...jest.requireActual('../../../src/utils'),
   logger: {
     info: jest.fn(),
     warn: jest.fn(),
@@ -105,6 +106,7 @@ describe('recording pages', () => {
         pageIdMap: new Map<string, Page>(),
         pageToIdMap: new Map<Page, string>(),
         currentPageIndex: 0,
+        frameStack: [{} as Frame],
         page: undefined as Page | undefined,
       };
 
@@ -127,6 +129,7 @@ describe('recording pages', () => {
       expect(payload.title).toBe('New Page');
       expect(session.pages).toHaveLength(1);
       expect(session.page).toBe(newPage);
+      expect(session.frameStack).toEqual([]);
     });
 
     it('continues when navigation fails', async () => {
@@ -142,6 +145,7 @@ describe('recording pages', () => {
         pageIdMap: new Map<string, Page>(),
         pageToIdMap: new Map<Page, string>(),
         currentPageIndex: 0,
+        frameStack: [{} as Frame],
         page: undefined as Page | undefined,
       };
 
@@ -160,6 +164,7 @@ describe('recording pages', () => {
 
       expect(res.statusCode).toBe(201);
       expect(session.page).toBe(newPage);
+      expect(session.frameStack).toEqual([]);
     });
   });
 
@@ -251,6 +256,7 @@ describe('recording pages', () => {
         pages: [pageA, pageB],
         page: pageA,
         currentPageIndex: 0,
+        frameStack: [{} as Frame],
       };
 
       const sessionManager = {
@@ -270,6 +276,7 @@ describe('recording pages', () => {
       const payload = res.getJSON();
       expect(payload.active_page_id).toBe('page-b');
       expect(session.page).toBe(pageB);
+      expect(session.frameStack).toEqual([]);
       expect(session.currentPageIndex).toBe(1);
     });
   });

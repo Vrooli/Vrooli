@@ -4,8 +4,6 @@ import type { Config } from '../config';
 import { parseJsonBody, sendJson, sendError } from '../middleware';
 import { logger, scopedLog, LogContext } from '../utils';
 import { InvalidInstructionError } from '../utils';
-import { clearSessionIdempotencyCache } from './session-run';
-import { clearSessionDownloadCache } from '../handlers/download';
 
 /**
  * Close session endpoint
@@ -15,7 +13,6 @@ import { clearSessionDownloadCache } from '../handlers/download';
  * Cleanup behavior:
  * - Closes browser context and page
  * - Clears idempotency cache entries for this session
- * - Clears download cache entries for this session
  */
 export async function handleSessionClose(
   req: IncomingMessage,
@@ -33,10 +30,6 @@ export async function handleSessionClose(
     logger.info(scopedLog(LogContext.SESSION, 'closing session'), { sessionId });
 
     const result = await sessionManager.closeSessionForLease(sessionId, executionID, leaseID);
-
-    // Clean up caches associated with this session
-    clearSessionIdempotencyCache(sessionId);
-    clearSessionDownloadCache(sessionId);
 
     logger.info(scopedLog(LogContext.SESSION, 'session closed'), { sessionId });
 
@@ -79,8 +72,6 @@ export async function handleSessionForceClose(
   }
   try {
     const result = await sessionManager.forceCloseSession(sessionId);
-    clearSessionIdempotencyCache(sessionId);
-    clearSessionDownloadCache(sessionId);
     sendJson(res, 200, { success: true, video_paths: result.videoPaths, trace_path: result.tracePath, har_path: result.harPath });
   } catch (error) {
     sendError(res, error as Error, `/session/${sessionId}/force-close`);

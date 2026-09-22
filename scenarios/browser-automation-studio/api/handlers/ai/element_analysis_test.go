@@ -177,9 +177,6 @@ func TestGenerateAISuggestions_Integration(t *testing.T) {
 		}
 
 		suggestions, err := handler.generateAISuggestions(ctx, elements, pageContext)
-		if err != nil {
-			t.Skipf("Ollama integration failed: %v", err)
-		}
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, suggestions)
@@ -203,13 +200,10 @@ func TestGenerateAISuggestions_Integration(t *testing.T) {
 		}
 
 		suggestions, err := handler.generateAISuggestions(ctx, elements, pageContext)
-		if err != nil {
-			t.Skipf("Ollama integration failed: %v", err)
-		}
 
-		// Should either return empty suggestions or fallback suggestions
 		require.NoError(t, err)
 		assert.NotNil(t, suggestions)
+		assert.Empty(t, suggestions)
 	})
 }
 

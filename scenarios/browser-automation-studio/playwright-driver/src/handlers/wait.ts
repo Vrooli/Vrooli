@@ -1,4 +1,4 @@
-import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
+import { BaseHandler, getDocument, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import { getWaitParams } from '../types';
 import { DEFAULT_WAIT_TIMEOUT_MS } from '../constants';
@@ -19,13 +19,14 @@ export class WaitHandler extends BaseHandler {
     instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
-    const { page, logger } = context;
+    const { logger } = context;
 
     // Extract typed params from action up front so the error path can preserve
     // the known selector even if validation below fails.
     const typedParams = instruction.action ? getWaitParams(instruction.action) : undefined;
 
     try {
+      const page = getDocument(context);
       const params = this.requireTypedParams(typedParams, 'wait', instruction.nodeId);
 
       if (params.selector) {

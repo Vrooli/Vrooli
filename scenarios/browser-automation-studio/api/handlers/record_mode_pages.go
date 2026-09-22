@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -193,7 +194,10 @@ func (h *Handler) CloseRecordingPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Store in timeline
-	h.recordModeService.AddTimelinePageEvent(sessionID, pageEvent)
+	if err := h.recordModeService.AddTimelinePageEvent(r.Context(), sessionID, pageEvent); err != nil {
+		h.respondError(w, ErrServiceUnavailable.WithMessage("Browser change occurred but recording was not committed").WithDetails(map[string]string{"error": err.Error()}))
+		return
+	}
 
 	// Broadcast page close via WebSocket
 	h.wsHub.BroadcastPageEvent(sessionID, pageEvent)
@@ -347,7 +351,10 @@ func (h *Handler) ReceivePageEvent(w http.ResponseWriter, r *http.Request) {
 
 	if pageEvent != nil {
 		// Store in timeline
-		h.recordModeService.AddTimelinePageEvent(sessionID, pageEvent)
+		if err := h.recordModeService.AddTimelinePageEvent(r.Context(), sessionID, pageEvent); err != nil {
+			h.respondError(w, ErrServiceUnavailable.WithMessage("Browser change occurred but recording was not committed").WithDetails(map[string]string{"error": err.Error()}))
+			return
+		}
 
 		// Broadcast via WebSocket
 		h.wsHub.BroadcastPageEvent(sessionID, pageEvent)
@@ -393,8 +400,17 @@ func (h *Handler) GetRecordingTimeline(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	offset := 0
+	if raw := r.URL.Query().Get("offset"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 0 {
+			h.respondError(w, ErrInvalidRequest.WithMessage("offset must be a non-negative integer"))
+			return
+		}
+		offset = parsed
+	}
 	// Get timeline from service
-	timeline, err := h.recordModeService.GetTimeline(sessionID, pageID, limit)
+	timeline, err := h.recordModeService.GetTimeline(r.Context(), sessionID, pageID, limit, offset)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to get timeline")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{

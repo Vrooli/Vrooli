@@ -1,6 +1,7 @@
 package typeconv
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -287,72 +288,108 @@ func toInt64Any(v any) (int64, bool) {
 	return 0, false
 }
 
-// AnyToJsonValue converts any Go value to a commonv1.JsonValue proto message.
-// Handles primitives (bool, int, float, string, bytes), maps, slices, json.Number,
-// and structpb.Value recursively. Falls back to JSON round-trip for unsupported types.
+// AnyToJsonValue accepts serialized proto envelopes at the existing input boundary.
+// Persistence uses EncodeJsonValue, where ordinary object keys never imply a type.
+// Invalid input returns nil; callers needing a diagnostic use EncodeJsonValue.
 func AnyToJsonValue(v any) *commonv1.JsonValue {
-	if v == nil {
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_NullValue{NullValue: structpb.NullValue_NULL_VALUE}}
+	if object, ok := v.(map[string]any); ok {
+		if value := tryUnwrapJsonValueMap(object); value != nil {
+			return value
+		}
 	}
+	value, _ := EncodeJsonValue(v)
+	return value
+}
+
+// EncodeJsonValue preserves raw JSON data and reports unrepresentable values.
+// The JSON preflight rejects cycles and unsupported nested values before conversion;
+// its bytes also serve the fallback for structs, pointers and typed collections.
+func EncodeJsonValue(v any) (*commonv1.JsonValue, error) {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return nil, fmt.Errorf("encode JSON value: %w", err)
+	}
+	return encodeJsonValue(v, raw)
+}
+
+func encodeJsonValue(v any, raw []byte) (*commonv1.JsonValue, error) {
 	switch val := v.(type) {
+	case nil:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_NullValue{}}, nil
+	case *commonv1.JsonValue:
+		if val == nil {
+			return encodeJsonValue(nil, nil)
+		}
+		return val, nil
 	case *structpb.Value:
-		// Unwrap structpb.Value and recursively convert
-		return AnyToJsonValue(val.AsInterface())
+		return encodeJsonValue(val.AsInterface(), nil)
 	case bool:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BoolValue{BoolValue: val}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BoolValue{BoolValue: val}}, nil
 	case int:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
-	case int8:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
-	case int16:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
-	case int32:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}, nil
 	case int64:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: val}}
-	case uint:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
-	case uint32:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
-	case uint64:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: val}}, nil
 	case float32:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: float64(val)}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: float64(val)}}, nil
 	case float64:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: val}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: val}}, nil
 	case string:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: val}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: val}}, nil
 	case json.Number:
-		// Prefer int if it parses cleanly, otherwise use float
 		if i, err := val.Int64(); err == nil {
-			return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: i}}
+			return encodeJsonValue(i, nil)
 		}
-		if f, err := val.Float64(); err == nil {
-			return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: f}}
+		if !bytes.ContainsAny([]byte(val), ".eE") {
+			return nil, fmt.Errorf("integer %q exceeds signed 64-bit JSON value range", val)
 		}
-		return nil
-	case []byte:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BytesValue{BytesValue: val}}
-	case map[string]any:
-		// Check if this map looks like a serialized JsonValue (from protojson UseProtoNames: true)
-		// This happens when workflow JSON is round-tripped through the API compiler
-		if unwrapped := tryUnwrapJsonValueMap(val); unwrapped != nil {
-			return unwrapped
-		}
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ObjectValue{ObjectValue: ToJsonObject(val)}}
-	case []any:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ListValue{ListValue: ToJsonList(val)}}
-	default:
-		// Fallback: JSON round-trip unknown types into a generic shape
-		raw, err := json.Marshal(val)
+		f, err := val.Float64()
 		if err != nil {
-			return nil
+			return nil, fmt.Errorf("JSON number %q: %w", val, err)
 		}
-		var tmp any
-		if err := json.Unmarshal(raw, &tmp); err != nil {
-			return nil
+		return encodeJsonValue(f, nil)
+	case []byte:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BytesValue{BytesValue: val}}, nil
+	case map[string]any:
+		if val == nil {
+			return encodeJsonValue(nil, nil)
 		}
-		return AnyToJsonValue(tmp)
+		fields := make(map[string]*commonv1.JsonValue, len(val))
+		for key, item := range val {
+			value, err := encodeJsonValue(item, nil)
+			if err != nil {
+				return nil, fmt.Errorf("field %q: %w", key, err)
+			}
+			fields[key] = value
+		}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ObjectValue{ObjectValue: &commonv1.JsonObject{Fields: fields}}}, nil
+	case []any:
+		if val == nil {
+			return encodeJsonValue(nil, nil)
+		}
+		values := make([]*commonv1.JsonValue, len(val))
+		for i, item := range val {
+			value, err := encodeJsonValue(item, nil)
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+			values[i] = value
+		}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ListValue{ListValue: &commonv1.JsonList{Values: values}}}, nil
+	default:
+		var err error
+		if raw == nil {
+			raw, err = json.Marshal(v)
+			if err != nil {
+				return nil, fmt.Errorf("encode JSON value: %w", err)
+			}
+		}
+		var normalized any
+		decoder := json.NewDecoder(bytes.NewReader(raw))
+		decoder.UseNumber()
+		if err := decoder.Decode(&normalized); err != nil {
+			return nil, fmt.Errorf("decode JSON value: %w", err)
+		}
+		return encodeJsonValue(normalized, nil)
 	}
 }
 

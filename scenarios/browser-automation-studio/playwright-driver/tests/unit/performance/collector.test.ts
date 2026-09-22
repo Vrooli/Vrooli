@@ -36,11 +36,45 @@ describe('PerfCollector', () => {
 
     expect(collector.getFrameCount()).toBe(3);
     expect(collector.getSequenceNum()).toBe(3);
+    expect(collector.getAggregatedStats()).toMatchObject({ frame_count: 2, skipped_count: 1, avg_frame_bytes: 200, e2e_p50_ms: 30 });
+    const detached = collector.getRecentFrames(1);
+    detached[0]!.frame_id = 'changed outside collector';
+    expect(collector.getRecentFrames(1)[0]?.frame_id).toBe('session-1-3');
 
     const recent = collector.getRecentFrames(10);
     expect(recent).toHaveLength(2);
     expect(recent[0]?.frame_id).toBe('session-1-2');
     expect(recent[1]?.skipped).toBe(true);
+  });
+
+  it('uses only retained samples and their observation interval', () => {
+    const collector = new PerfCollector('window', { bufferSize: 2, logSummaryInterval: 0, targetFps: 30 });
+    for (let i=0; i<4; i++) { jest.advanceTimersByTime(1000); collector.recordSkipped(5, 1); }
+    for (let i=0; i<2; i++) {
+      jest.advanceTimersByTime(1000);
+      collector.recordFrame({ captureMs: 10, compareMs: 2, wsSendMs: 3, frameBytes: 1000, skipped: false });
+    }
+    expect(collector.getAggregatedStats()).toMatchObject({
+      frame_count: 2, skipped_count: 0, avg_frame_bytes: 1000,
+      window_duration_ms: 2000, actual_fps: 1, bandwidth_bytes_per_sec: 1000,
+      window_start_time: '2025-01-01T00:00:04.000Z',
+    });
+    expect(collector.getFrameCount()).toBe(6);
+    jest.setSystemTime(new Date('2030-01-01'));
+    expect(collector.getAggregatedStats().window_duration_ms).toBe(2000);
+    jest.advanceTimersByTime(2000);
+    expect(collector.getAggregatedStats()).toMatchObject({ actual_fps: 0.5, bandwidth_bytes_per_sec: 500 });
+    collector.reset();
+    jest.advanceTimersByTime(1000);
+    collector.recordFrame({ captureMs: 10, compareMs: 2, wsSendMs: 3, frameBytes: 500, skipped: false });
+    expect(collector.getAggregatedStats()).toMatchObject({ frame_count: 1, window_duration_ms: 1000, actual_fps: 1, bandwidth_bytes_per_sec: 500 });
+  });
+
+  it('keeps immediate and skipped-only samples finite', () => {
+    const collector = new PerfCollector('immediate', { bufferSize: 2, logSummaryInterval: 1, targetFps: 30 });
+    expect(collector.shouldLogSummary()).toBe(false);
+    collector.recordSkipped(5, 1);
+    expect(collector.getAggregatedStats()).toMatchObject({ actual_fps: 0, bandwidth_bytes_per_sec: 0, e2e_p50_ms: 0 });
   });
 
   it('builds a valid frame header with length prefix', () => {
@@ -128,7 +162,7 @@ describe('PerfCollector', () => {
     expect(stats.bottleneck_description).toContain('>100ms');
   });
 
-  it('identifies network bottleneck when e2e latency is high', () => {
+  it('reports slow processing without claiming measured network latency', () => {
     const collector = new PerfCollector('session-network', {
       bufferSize: 5,
       logSummaryInterval: 0,
@@ -142,8 +176,8 @@ describe('PerfCollector', () => {
     jest.setSystemTime(new Date('2025-01-01T00:00:01Z'));
     const stats = collector.getAggregatedStats();
 
-    expect(stats.primary_bottleneck).toBe('network');
-    expect(stats.bottleneck_description).toContain('network');
+    expect(stats.primary_bottleneck).toBe('processing');
+    expect(stats.bottleneck_description).toContain('Processing');
   });
 
   it('returns no bottleneck when timings are within bounds', () => {

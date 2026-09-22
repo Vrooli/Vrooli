@@ -25,8 +25,8 @@ async function captureFakeMicrophone(): Promise<Sample> {
   await context.addInitScript(generateSilentSinkPatch());
   const page = await context.newPage();
   try {
-    await page.goto(origin);
     await context.grantPermissions(['microphone'], { origin });
+    await page.goto(origin);
     return await page.evaluate(async (): Promise<Sample> => {
       const audio = new AudioContext();
       await audio.resume();

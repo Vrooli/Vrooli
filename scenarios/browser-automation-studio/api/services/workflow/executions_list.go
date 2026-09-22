@@ -18,11 +18,11 @@ import (
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 )
 
-func (s *WorkflowService) ListExecutions(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error) {
+func (s *WorkflowService) ListExecutions(ctx context.Context, query database.ExecutionQuery) ([]*database.ExecutionIndex, int, error) {
 	if s == nil {
-		return nil, fmt.Errorf("workflow service not configured")
+		return nil, 0, fmt.Errorf("workflow service not configured")
 	}
-	return s.repo.ListExecutions(ctx, workflowID, projectID, limit, offset)
+	return s.repo.ListExecutions(ctx, query)
 }
 
 // ResumeExecution resumes a failed or stopped execution from its last checkpoint.
@@ -152,6 +152,10 @@ func (s *WorkflowService) executeResumedWorkflowAsync(
 	execIndex.Status = database.ExecutionStatusRunning
 	execIndex.UpdatedAt = time.Now().UTC()
 	_ = s.repo.UpdateExecutionStatus(persistenceCtx, execIndex.ID, execIndex.Status, nil, nil, execIndex.UpdatedAt)
+	eventSink := s.newEventSink()
+	if eventSink != nil {
+		defer eventSink.CloseExecution(executionID)
+	}
 
 	// Build execution plan
 	plan, _, err := autoexecutor.BuildContractsPlan(ctx, executionID, workflow)
@@ -175,7 +179,7 @@ func (s *WorkflowService) executeResumedWorkflowAsync(
 		EngineName:        engineName,
 		EngineFactory:     s.engineFactory,
 		Recorder:          s.artifactRecorder,
-		EventSink:         s.newEventSink(),
+		EventSink:         eventSink,
 		HeartbeatInterval: 2 * time.Second,
 		WorkflowResolver:  s,
 		PlanCompiler:      s.planCompiler,
@@ -201,17 +205,7 @@ func (s *WorkflowService) executeResumedWorkflowAsync(
 	runErr := executor.Execute(ctx, req)
 
 	// Update final status
-	status := database.ExecutionStatusCompleted
-	errMsg := ""
-	if runErr != nil {
-		if errors.Is(runErr, context.Canceled) || strings.Contains(strings.ToLower(runErr.Error()), "cancel") {
-			status = database.ExecutionStatusFailed
-			errMsg = "execution cancelled"
-		} else {
-			status = database.ExecutionStatusFailed
-			errMsg = runErr.Error()
-		}
-	}
+	status, errMsg := executionOutcome(ctx, runErr)
 
 	now := time.Now().UTC()
 	execIndex.Status = status

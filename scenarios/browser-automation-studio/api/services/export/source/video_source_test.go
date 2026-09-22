@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"mime"
 	"os"
 	"testing"
 
@@ -165,12 +166,20 @@ func TestResolveVideoSource_StorageURL(t *testing.T) {
 }
 
 func TestDetectVideoContentType(t *testing.T) {
+	// OS MIME databases can register WebM as audio. Known video outputs must
+	// retain their declared media kind regardless of the host's registration.
+	previous := mime.TypeByExtension(".webm")
+	t.Cleanup(func() { _ = mime.AddExtensionType(".webm", previous) })
+	if err := mime.AddExtensionType(".webm", "audio/webm"); err != nil {
+		t.Fatal(err)
+	}
 	tests := []struct {
 		path     string
 		expected string
 	}{
 		{"video.mp4", "video/mp4"},
 		{"video.webm", "video/webm"},
+		{"VIDEO.WEBM", "video/webm"},
 		{"video", "video/webm"},
 		{"", "video/webm"},
 	}

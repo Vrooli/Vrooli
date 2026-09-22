@@ -3,137 +3,135 @@ package executionwriter
 import (
 	"context"
 	"encoding/base64"
+	"errors"
+	"fmt"
 	"os"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/services/evidence"
+	"github.com/vrooli/browser-automation-studio/storage"
+	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 )
 
 const maxEmbeddedExternalArtifactBytes = 5 * 1024 * 1024
 
-// RecordExecutionArtifacts owns execution-scoped files such as videos, traces,
-// and HAR captures. Step-level outcome persistence remains separate.
+// RecordExecutionArtifacts persists available evidence and returns every failed
+// import. A requested path or digest alone cannot acknowledge retained bytes.
 func (r *FileWriter) RecordExecutionArtifacts(ctx context.Context, plan contracts.ExecutionPlan, artifacts []ExternalArtifact) error {
 	if r == nil || len(artifacts) == 0 {
 		return nil
 	}
 	result, timeline := r.getOrCreateResult(plan), r.getOrCreateTimeline(plan)
+	var failures error
 	for _, item := range artifacts {
-		path := strings.TrimSpace(item.Path)
-		if path == "" {
-			continue
-		}
-		info, err := os.Stat(path)
+		artifact, err := r.prepareExternalArtifact(ctx, plan.ExecutionID, item)
 		if err != nil {
-			if r.log != nil {
-				r.log.WithError(err).WithField("path", path).Debug("external artifact not readable")
-			}
+			failures = errors.Join(failures, fmt.Errorf("import %s artifact: %w", item.ArtifactType, err))
 			continue
-		}
-		kind := strings.TrimSpace(item.ArtifactType)
-		if kind == "" {
-			kind = "custom"
-		}
-		// A result file is consumed by API/UI/CLI clients. It must never expose a
-		// local capture path, particularly for protected HAR material.
-		payload := map[string]any{"size_bytes": info.Size()}
-		for key, value := range item.Payload {
-			if strings.EqualFold(key, "path") || strings.EqualFold(key, "source_path") || strings.EqualFold(key, "storage_path") {
-				continue
-			}
-			payload[key] = value
-		}
-		kindEnum := evidence.KindFor(kind)
-		var descriptor evidence.Descriptor
-		if kindEnum.String() == "ARTIFACT_KIND_HAR" {
-			// Raw HAR stays at its protected capture location. Only a sanitized
-			// derivative can enter the replay/result boundary, and its digest is
-			// derived from exactly those published bytes (never the raw capture).
-			raw, readErr := os.ReadFile(path)
-			if readErr != nil {
-				if r.log != nil {
-					r.log.WithError(readErr).WithField("path", path).Warn("Failed to read HAR artifact")
-				}
-				continue
-			}
-			sanitized, sanitizeErr := evidence.SanitizeHAR(raw, evidence.DefaultPolicy())
-			if sanitizeErr != nil {
-				if r.log != nil {
-					r.log.WithError(sanitizeErr).WithField("path", path).Warn("Failed to sanitize HAR artifact")
-				}
-				continue
-			}
-			descriptor = evidence.Describe(kind, item.ContentType, sanitized, evidence.DefaultPolicy())
-			payload["size_bytes"] = len(sanitized)
-			if len(sanitized) <= maxEmbeddedExternalArtifactBytes {
-				payload["sanitized_base64"], payload["inline"] = base64.StdEncoding.EncodeToString(sanitized), true
-			}
-			if r.storage != nil {
-				objectName := plan.ExecutionID.String() + "/artifacts/har/" + uuid.NewString() + ".sanitized.har"
-				if stored, storeErr := r.storage.StoreArtifact(ctx, objectName, sanitized, "application/json"); storeErr != nil {
-					if r.log != nil {
-						r.log.WithError(storeErr).Warn("Failed to store sanitized HAR artifact")
-					}
-				} else if stored != nil {
-					payload["sanitized_available"] = true
-				}
-			}
-		} else {
-			var describeErr error
-			descriptor, describeErr = evidence.DescribeFile(kind, item.ContentType, path, evidence.DefaultPolicy())
-			if describeErr != nil {
-				if r.log != nil {
-					r.log.WithError(describeErr).WithField("path", path).Warn("Failed to describe external artifact")
-				}
-				continue
-			}
-		}
-		if kindEnum.String() != "ARTIFACT_KIND_HAR" && !isNonInlineArtifactType(kind) && info.Size() > 0 && info.Size() <= maxEmbeddedExternalArtifactBytes {
-			if data, err := os.ReadFile(path); err == nil {
-				payload["base64"], payload["inline"] = base64.StdEncoding.EncodeToString(data), true
-			}
-		}
-		label := strings.TrimSpace(item.Label)
-		if label == "" {
-			label = kind
-		}
-		contentType, storageURL := strings.TrimSpace(item.ContentType), ""
-		var sizeBytes *int64
-		if r.storage != nil && isVideoArtifactType(kind) {
-			stored, err := r.storage.StoreArtifactFromFile(ctx, plan.ExecutionID, label, path, item.ContentType)
-			if err != nil {
-				if r.log != nil {
-					r.log.WithError(err).WithField("path", path).Warn("Failed to store video artifact")
-				}
-			} else if stored != nil {
-				storageURL, payload["storage_object"] = stored.URL, stored.ObjectName
-				if strings.TrimSpace(stored.ContentType) != "" {
-					contentType = stored.ContentType
-				}
-				size := stored.SizeBytes
-				sizeBytes = &size
-			}
-		}
-		if sizeBytes == nil {
-			size := descriptor.SizeBytes
-			sizeBytes = &size
 		}
 		result.mu.Lock()
-		result.Artifacts = append(result.Artifacts, ArtifactData{ArtifactID: uuid.New().String(), ArtifactType: kind, Label: label, Payload: payload, StorageURL: storageURL, ContentType: contentType, SizeBytes: sizeBytes, SHA256: descriptor.SHA256, Classification: descriptor.Classification.String(), RetentionClass: descriptor.Retention.String(), AccessPolicy: descriptor.Access.String(), Redacted: descriptor.Redacted})
+		result.Artifacts = append(result.Artifacts, artifact)
 		result.mu.Unlock()
 	}
-	return r.writeResultFile(ctx, plan.ExecutionID, result, timeline)
+	return errors.Join(failures, r.writeResultFile(ctx, plan.ExecutionID, result, timeline))
 }
 
-func isVideoArtifactType(kind string) bool {
-	switch strings.ToLower(strings.TrimSpace(kind)) {
-	case "video", "video_meta":
-		return true
+// prepareExternalArtifact applies disclosure policy before publishing any bytes.
+// Non-inline captures must have a successful storage receipt, including traces.
+func (r *FileWriter) prepareExternalArtifact(ctx context.Context, executionID uuid.UUID, item ExternalArtifact) (ArtifactData, error) {
+	path := strings.TrimSpace(item.Path)
+	info, err := os.Stat(path)
+	if err != nil {
+		return ArtifactData{}, err
 	}
-	return false
+	if !info.Mode().IsRegular() {
+		return ArtifactData{}, fmt.Errorf("artifact is not a regular file: %s", path)
+	}
+	kind := strings.TrimSpace(item.ArtifactType)
+	if kind == "" {
+		kind = "custom"
+	}
+	label := strings.TrimSpace(item.Label)
+	if label == "" {
+		label = kind
+	}
+	payload := make(map[string]any)
+	for key, value := range item.Payload {
+		switch strings.ToLower(key) {
+		case "path", "source_path", "storage_path":
+		default:
+			payload[key] = value
+		}
+	}
+	isHAR := evidence.KindFor(kind) == basevidence.ArtifactKind_ARTIFACT_KIND_HAR
+	inline := !isNonInlineArtifactType(kind) && info.Size() <= maxEmbeddedExternalArtifactBytes
+	inlineKey, contentType := "base64", strings.TrimSpace(item.ContentType)
+	var data []byte
+	var descriptor evidence.Descriptor
+	if isHAR || inline {
+		data, err = os.ReadFile(path)
+		if err != nil {
+			return ArtifactData{}, err
+		}
+		if isHAR {
+			data, err = evidence.SanitizeHAR(data, evidence.DefaultPolicy())
+			if err != nil {
+				return ArtifactData{}, err
+			}
+			inline = len(data) <= maxEmbeddedExternalArtifactBytes
+			inlineKey, contentType = "sanitized_base64", "application/json"
+		}
+		descriptor = evidence.Describe(kind, contentType, data, evidence.DefaultPolicy())
+	} else {
+		descriptor, err = evidence.DescribeFile(kind, contentType, path, evidence.DefaultPolicy())
+		if err != nil {
+			return ArtifactData{}, err
+		}
+	}
+	payload["size_bytes"] = descriptor.SizeBytes
+	if inline {
+		payload[inlineKey], payload["inline"] = base64.StdEncoding.EncodeToString(data), true
+	}
+	storageURL := ""
+	if !inline || (isHAR && r.storage != nil) {
+		if r.storage == nil {
+			return ArtifactData{}, errors.New("artifact storage unavailable for non-inline evidence")
+		}
+		var stored *storage.ArtifactInfo
+		if isHAR {
+			objectName := executionID.String() + "/artifacts/har/" + uuid.NewString() + ".sanitized.har"
+			stored, err = r.storage.StoreArtifact(ctx, objectName, data, contentType)
+		} else {
+			stored, err = r.storage.StoreArtifactFromFile(ctx, executionID, label, path, contentType)
+		}
+		if err != nil {
+			return ArtifactData{}, err
+		}
+		if stored == nil || strings.TrimSpace(stored.ObjectName) == "" || strings.TrimSpace(stored.URL) == "" {
+			return ArtifactData{}, errors.New("artifact storage returned an incomplete receipt")
+		}
+		if stored.SizeBytes != descriptor.SizeBytes {
+			return ArtifactData{}, errors.New("artifact storage size differs from described bytes")
+		}
+		storageURL, payload["storage_object"] = stored.URL, stored.ObjectName
+		if stored.ContentType != "" {
+			contentType = stored.ContentType
+		}
+		if isHAR {
+			payload["sanitized_available"] = true
+		}
+	}
+	return ArtifactData{
+		ArtifactID: uuid.NewString(), ArtifactType: kind, Label: label,
+		Payload: payload, StorageURL: storageURL, ContentType: contentType,
+		SizeBytes: &descriptor.SizeBytes, SHA256: descriptor.SHA256,
+		Classification: descriptor.Classification.String(), RetentionClass: descriptor.Retention.String(),
+		AccessPolicy: descriptor.Access.String(), Redacted: descriptor.Redacted,
+	}, nil
 }
+
 func isNonInlineArtifactType(kind string) bool {
 	switch strings.ToLower(strings.TrimSpace(kind)) {
 	case "video", "video_meta", "trace", "trace_meta", "har", "har_meta":

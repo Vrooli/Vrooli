@@ -1,0 +1,180 @@
+{
+  "cycle": "BAS-WORK-024",
+  "date": "2026-09-22",
+  "issues": [
+    "BAS-RF-023"
+  ],
+  "journeys": [
+    "J07"
+  ],
+  "changes": [
+    "ForgetExecution releases results, timelines and configuration after final write",
+    "Archive imports defer the same cleanup on success, failure and cancellation",
+    "Completed files and another active execution remain intact"
+  ],
+  "evidence": {
+    "red": "/tmp/bas-writer-lifecycle-red-024.txt",
+    "races": "/tmp/bas-writer-lifecycle-green-024.txt writer3.090s/archive1.043s/workflowcached pass",
+    "build": "/tmp/bas-build-024.txt pass",
+    "contract": "pass",
+    "board": "prog_00f8a308-f58c-4e7a-a533-a3e15b9809de;17pending/productfalse",
+    "owner": "20260922-103012-c25ab689 tidinessfailed4s; quietwaitonce completed"
+  },
+  "local_metrics": {
+    "paths": [
+      "api/automation/execution-writer/artifact_config.go",
+      "api/automation/execution-writer/interface.go",
+      "api/services/archive-ingestion/persistence.go"
+    ],
+    "before": {
+      "lines": 287,
+      "functions": 8,
+      "cyclomatic": 43
+    },
+    "current": {
+      "lines": 292,
+      "functions": 8,
+      "cyclomatic": 43
+    }
+  },
+  "cumulative_go": {
+    "paths": [
+      "api/automation/compiler/action_definition_builder.go",
+      "api/automation/driver/client.go",
+      "api/automation/events/sink.go",
+      "api/automation/events/ws_sink.go",
+      "api/automation/execution-writer/artifact_config.go",
+      "api/automation/execution-writer/external_artifacts.go",
+      "api/automation/execution-writer/file_writer.go",
+      "api/automation/execution-writer/interface.go",
+      "api/automation/executor/flow_executor.go",
+      "api/automation/executor/flow_utils.go",
+      "api/automation/executor/simple_executor.go",
+      "api/automation/session/session.go",
+      "api/handlers/execution_export.go",
+      "api/handlers/handler.go",
+      "api/handlers/record_mode.go",
+      "api/handlers/record_mode_actions.go",
+      "api/handlers/record_mode_pages.go",
+      "api/handlers/record_mode_persistence.go",
+      "api/handlers/recordings/module.go",
+      "api/handlers/recordings/service.go",
+      "api/handlers/testutil_mock_services.go",
+      "api/internal/typeconv/builders.go",
+      "api/internal/wire/wire.go",
+      "api/main.go",
+      "api/performance/collector.go",
+      "api/performance/types.go",
+      "api/services/archive-ingestion/persistence.go",
+      "api/services/export/source/video_source.go",
+      "api/services/live-capture/action_registry.go",
+      "api/services/live-capture/service.go",
+      "api/services/live-capture/workflow_generator.go",
+      "api/services/recording/persistence/mock_repository.go",
+      "api/services/recording/persistence/repository.go",
+      "api/services/recording/persistence/sqlite.go",
+      "api/services/recording/persistence/types.go",
+      "api/services/recording/recorder.go",
+      "api/services/recording/service.go",
+      "api/services/session-profile/persistence/credentials.go",
+      "api/services/session-profile/persistence/file_repository.go",
+      "api/services/session-profile/persistence/filesystem.go",
+      "api/services/session-profile/persistence/filesystem_mock.go",
+      "api/services/session-profile/persistence/mock_repository.go",
+      "api/services/session-profile/persistence/protected_state.go",
+      "api/services/session-profile/persistence/repository.go",
+      "api/services/session-profile/service.go",
+      "api/services/uxmetrics/collector/collector.go",
+      "api/services/workflow/executions.go",
+      "api/services/workflow/executions_list.go"
+    ],
+    "original": {
+      "lines": 22475,
+      "functions": 780,
+      "cyclomatic": 3710
+    },
+    "current": {
+      "lines": 20750,
+      "functions": 762,
+      "cyclomatic": 3549
+    },
+    "current_files": 47
+  },
+  "shared_owner_009_cyclomatic_delta": 17,
+  "tidiness": {
+    "totalFindings": 1078,
+    "longFiles": 80,
+    "complexity": 380,
+    "duplication": 604,
+    "coupling": 13,
+    "duplicationLineDebt": 33649
+  },
+  "retained_heap": {
+    "method": "actual FileWriter and disk FileStorage; unique DOM per execution; GC before/after with writer kept alive; observational benchmark, not timing gate",
+    "16_executions": {
+      "before_bytes_per_execution": [
+        674606,
+        674650,
+        674616
+      ],
+      "after_bytes_per_execution": [
+        1402,
+        1144,
+        1240
+      ]
+    },
+    "64_executions": {
+      "before_bytes_per_execution": [
+        689404,
+        689498,
+        689379
+      ],
+      "after_bytes_per_execution": [
+        270.4,
+        285.2,
+        279
+      ]
+    },
+    "logs": [
+      "/tmp/bas-writer-heap-before-024.txt",
+      "/tmp/bas-writer-heap-after-024.txt",
+      "/tmp/bas-writer-heap64-before-024.txt",
+      "/tmp/bas-writer-heap64-after-024.txt"
+    ],
+    "interpretation": "Finished-execution payload retention removed in both cohorts; no live soak or overall latency claim. Timing outlier retained."
+  },
+  "source_inventory_digest": "006573edeb0ae7a3e4f593a04a2b1819641352705b99c6bbad81e864d6058ef4",
+  "deployed": true,
+  "limitations": [
+    "Caller must finish all legitimate writes before Forget; no late-write fencing",
+    "Active execution memory budget and process restart remain unqualified",
+    "Original live heap attribution is not established by fixture measurements",
+    "Full unit proof020 reused; only scoped packages current",
+    "UIcoverage/tidiness failed; native/product board unqualified; shared dirty tree"
+  ],
+  "deployment": {
+    "build": "sha256:10a20446d1a26b20842b967c0ed11451ee8e01815e11ca066dcfafc87dd38f2f",
+    "healthy_at": "2026-09-22T10:50:33Z",
+    "gate_rows": 3125,
+    "unchanged_historical_orphans": 5,
+    "driver_sessions": 0,
+    "profile": "oneoriginal;alloriginalfields/identitypreserved",
+    "limitation": "observationalgate;sharedtree"
+  },
+  "memory_followup_025": {
+    "cohort16_bytes_per_execution": [
+      44152,
+      128870,
+      44408
+    ],
+    "cohort64_bytes_per_execution": [
+      11182,
+      32261,
+      32138
+    ],
+    "interpretation": "Total ordinary-GC delta about0.7\u20132.1MB at both16and64, supports bounded serializer retention. In-use profile at measurement attributes most residue to bytes.growSlice and encoding/json.unquote. Diagnostic additionalGC with writer kept alive removes those sites and leaves60.38B/execution delta. No forcedGC added to production; original024numbers are not deployed025measurements.",
+    "live_profile": "/tmp/bas-writer-live-heap-025.pprof; /tmp/bas-writer-live-heap-top-025.txt",
+    "settled_diagnostic": "/tmp/bas-writer-settled-heap-025.txt; /tmp/bas-writer-settled-heap-top-025.txt",
+    "limits": "No live production soak or attribution of the original~10GiB observed heap"
+  }
+}

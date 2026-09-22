@@ -224,7 +224,7 @@ func TestExecutionCRUD(t *testing.T) {
 		t.Fatalf("UpdateExecution: %v", err)
 	}
 
-	list, err := repo.ListExecutions(ctx, &workflowID, nil, 10, 0)
+	list, _, err := repo.ListExecutions(ctx, ExecutionQuery{WorkflowID: &workflowID, Limit: 10})
 	if err != nil {
 		t.Fatalf("ListExecutions: %v", err)
 	}
@@ -232,9 +232,9 @@ func TestExecutionCRUD(t *testing.T) {
 		t.Fatalf("expected 1 execution, got %d", len(list))
 	}
 
-	listByStatus, err := repo.ListExecutionsByStatus(ctx, ExecutionStatusCompleted, 10, 0)
+	listByStatus, _, err := repo.ListExecutions(ctx, ExecutionQuery{Status: ExecutionStatusCompleted, Limit: 10})
 	if err != nil {
-		t.Fatalf("ListExecutionsByStatus: %v", err)
+		t.Fatalf("ListExecutions with status: %v", err)
 	}
 	if len(listByStatus) != 1 {
 		t.Fatalf("expected 1 execution by status, got %d", len(listByStatus))

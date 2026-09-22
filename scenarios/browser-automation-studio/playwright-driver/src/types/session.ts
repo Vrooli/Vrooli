@@ -67,24 +67,11 @@ export interface SessionSpec {
   audio_playback_pause_ms?: number;
   /** Optional delay before host-device qualification playback begins. */
   audio_playback_start_delay_ms?: number;
+  /** Create host playback control without emitting audio until restart is called. */
+  audio_playback_defer_start?: boolean;
   /** Opt this session into the user-owned PipeWire capture qualification device. */
   audio_device_evidence?: boolean;
-  storage_state?: {
-    cookies: Array<{
-      name: string;
-      value: string;
-      domain: string;
-      path: string;
-      expires: number;
-      httpOnly: boolean;
-      secure: boolean;
-      sameSite: 'Strict' | 'Lax' | 'None';
-    }>;
-    origins: Array<{
-      origin: string;
-      localStorage: Array<{ name: string; value: string }>;
-    }>;
-  };
+  storage_state?: Awaited<ReturnType<BrowserContext['storageState']>>;
   /**
    * Service worker control configuration.
    * Controls how service workers are managed during the session.
@@ -239,6 +226,11 @@ export type SessionPhase =
 
 export interface SessionState {
   id: string;
+  /** An admitted instruction remains reserved until its promise settles, even
+   * if reset/close changes the lifecycle phase in the meantime. */
+  instructionInFlight?: boolean;
+  /** Successful teardown stages survive a failed close for explicit retry. */
+  closeProgress?: { completed: Set<string>; videoPaths: Map<number, string> };
   /** Immutable execution that acquired the current lease. Never rewrite this
    * while the lease is active; a later execution receives a new lease. */
   ownerExecutionId: string;
@@ -259,6 +251,8 @@ export interface SessionState {
   /** Returns a playback failure observed after session creation, if any. */
   audioPlaybackFailure?: () => string | undefined;
   context: BrowserContext;
+  /** Imported and visited origins whose browser state an explicit reset must clear. */
+  storageOrigins: Set<string>;
   page: Page;
   spec: SessionSpec;
   createdAt: Date;
@@ -327,12 +321,9 @@ export interface SessionState {
    */
   pageLifecycleCleanup?: () => void;
 
-  /**
-   * Instruction idempotency tracking.
-   * Maps instruction key (node_id:index) to last execution result.
-   * Enables replay-safe instruction execution.
-   */
-  executedInstructions?: Map<string, ExecutedInstructionRecord>;
+  /** Bounded receipts and monotonic highwater owned by this lease. */
+  instructionReceipts?: Map<number, InstructionReceipt>;
+  lastInstructionSequence: number;
 
   /**
    * Service worker controller for this session.
@@ -372,19 +363,10 @@ export interface SessionCloseResult {
   harPath?: string;
 }
 
-/**
- * Record of an executed instruction for idempotency tracking.
- * Stores enough information to return the same result on replay.
- */
-export interface ExecutedInstructionRecord {
-  /** Composite key: node_id:index */
-  key: string;
-  /** When the instruction was executed */
-  executedAt: Date;
-  /** Whether execution succeeded */
-  success: boolean;
-  /** Cached outcome for replay (optional, may be large) */
-  cachedOutcome?: unknown;
+/** A serialized response is immutable and safe to return without re-decoration. */
+export interface InstructionReceipt {
+  fingerprint: string;
+  response: string;
 }
 
 export interface MockRoute {
@@ -458,6 +440,7 @@ export interface StartSessionRequest {
   fake_media?: SessionSpec['fake_media'];
   audio_playback_pause_ms?: SessionSpec['audio_playback_pause_ms'];
   audio_playback_start_delay_ms?: SessionSpec['audio_playback_start_delay_ms'];
+  audio_playback_defer_start?: SessionSpec['audio_playback_defer_start'];
   audio_device_evidence?: SessionSpec['audio_device_evidence'];
   app_target?: SessionSpec['app_target'];
   validation_context?: SessionSpec['validation_context'];
@@ -487,6 +470,7 @@ export interface ActualViewportResponse {
 }
 
 export interface StartSessionResponse {
+  last_instruction_sequence: number;
   session_id: string;
   /** Opaque token required to release or close this execution's lease. */
   lease_id: string;

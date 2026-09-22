@@ -1,0 +1,148 @@
+{
+  "cycle": "BAS-WORK-030",
+  "date": "2026-09-22",
+  "issues": [
+    "BAS-RF-066"
+  ],
+  "deployed": false,
+  "status": "validated candidate; live browser work prevents safe restart",
+  "removed": [
+    "Unimported Playwright adapter and ClaudeCode driver stub",
+    "Parallel Driver/Session interface, option/recording/page types and constants",
+    "Untyped plural RunInstructions transport and two unused request wrappers",
+    "Seven mechanical tests for retired adapters; all active behavioral tests retained"
+  ],
+  "scope": "Active client, GoSession, recording and navigator contracts retained; no product data or dependency changes",
+  "recall": "/tmp/bas-legacy-driver-recall-030.txt:72hits; no suitable repair workflow",
+  "reference_audit": [
+    "/tmp/bas-legacy-driver-repo-imports-030.txt",
+    "/tmp/bas-legacy-driver-alias-audit-030.json",
+    "/tmp/bas-legacy-driver-symbols-030.txt"
+  ],
+  "local_go": {
+    "paths": [
+      "api/automation/driver/interface.go",
+      "api/automation/driver/playwright/driver.go",
+      "api/automation/driver/claudecode/driver.go",
+      "api/automation/driver/client.go",
+      "api/automation/driver/types.go"
+    ],
+    "before": {
+      "files": 5,
+      "lines": 2736,
+      "functions": 92,
+      "cyclomatic": 301
+    },
+    "current": {
+      "files": 2,
+      "lines": 1803,
+      "functions": 63,
+      "cyclomatic": 215
+    }
+  },
+  "cumulative_go": {
+    "paths": [
+      "api/automation/compiler/action_definition_builder.go",
+      "api/automation/contracts/plan.go",
+      "api/automation/driver/claudecode/driver.go",
+      "api/automation/driver/client.go",
+      "api/automation/driver/interface.go",
+      "api/automation/driver/playwright/driver.go",
+      "api/automation/driver/types.go",
+      "api/automation/events/sink.go",
+      "api/automation/events/ws_sink.go",
+      "api/automation/execution-writer/artifact_config.go",
+      "api/automation/execution-writer/external_artifacts.go",
+      "api/automation/execution-writer/file_writer.go",
+      "api/automation/execution-writer/interface.go",
+      "api/automation/execution-writer/result_manifest.go",
+      "api/automation/executor/flow_executor.go",
+      "api/automation/executor/flow_utils.go",
+      "api/automation/executor/simple_executor.go",
+      "api/automation/session/manager.go",
+      "api/automation/session/session.go",
+      "api/handlers/execution_export.go",
+      "api/handlers/handler.go",
+      "api/handlers/record_mode.go",
+      "api/handlers/record_mode_actions.go",
+      "api/handlers/record_mode_pages.go",
+      "api/handlers/record_mode_persistence.go",
+      "api/handlers/recordings/module.go",
+      "api/handlers/recordings/service.go",
+      "api/handlers/testutil_mock_services.go",
+      "api/internal/typeconv/builders.go",
+      "api/internal/typeconv/primitives.go",
+      "api/internal/typeconv/timeline.go",
+      "api/internal/wire/wire.go",
+      "api/main.go",
+      "api/performance/collector.go",
+      "api/performance/types.go",
+      "api/services/archive-ingestion/persistence.go",
+      "api/services/export/source/video_source.go",
+      "api/services/live-capture/action_registry.go",
+      "api/services/live-capture/service.go",
+      "api/services/live-capture/workflow_generator.go",
+      "api/services/recording/persistence/mock_repository.go",
+      "api/services/recording/persistence/repository.go",
+      "api/services/recording/persistence/sqlite.go",
+      "api/services/recording/persistence/types.go",
+      "api/services/recording/recorder.go",
+      "api/services/recording/service.go",
+      "api/services/session-profile/persistence/credentials.go",
+      "api/services/session-profile/persistence/file_repository.go",
+      "api/services/session-profile/persistence/filesystem.go",
+      "api/services/session-profile/persistence/filesystem_mock.go",
+      "api/services/session-profile/persistence/mock_repository.go",
+      "api/services/session-profile/persistence/protected_state.go",
+      "api/services/session-profile/persistence/repository.go",
+      "api/services/session-profile/service.go",
+      "api/services/uxmetrics/collector/collector.go",
+      "api/services/workflow/executions.go",
+      "api/services/workflow/executions_list.go"
+    ],
+    "original": {
+      "files": 56,
+      "lines": 25362,
+      "functions": 859,
+      "cyclomatic": 4082
+    },
+    "current": {
+      "files": 53,
+      "lines": 22732,
+      "functions": 811,
+      "cyclomatic": 3836
+    },
+    "shared_delta": -12,
+    "bas_delta": -246,
+    "net_affected_delta": -258
+  },
+  "validation": {
+    "races": "driver1.024/session1.067/engine1.060/executor3.695s pass",
+    "unit_owner": "Canonical scoped API36.090s/CLI2.254s pass with coverage; overall receipt flags2falsemissingroles for intentionally excluded driver/UI (RF067)",
+    "unit_scope": "No floor/policy changes; driver source unchanged and full1532test result from029 retained; not a fresh whole-product verdict",
+    "tidiness_run": "20260922-125645-c641df05 failed",
+    "native_tidiness": {
+      "totalFindings": 1117,
+      "longFiles": 103,
+      "complexity": 386,
+      "duplication": 610,
+      "coupling": 17,
+      "duplicationLineDebt": 33616
+    },
+    "build": "/tmp/bas-build-030.txt passed",
+    "board": "prog_e0e8c591-c42a-4fac-b7c8-abffd8f94e30:17pending/productfalse"
+  },
+  "native_delta": {
+    "duplication_line_debt_vs029": -50,
+    "duplication_line_debt_vs_expanded_original": -1987
+  },
+  "lifecycle": "Gate rejected repeated pagination identity while history changed, before stop. Follow-up driver health10sessions/0recordings. No stop performed.029+030 await quiet observation.",
+  "pending_operations": [],
+  "limitations": [
+    "RF064 leaves TypeScript complexity/duplication coverage incomplete",
+    "RF067 creates false missing-role findings in scoped UnitHealth reports",
+    "Unrelated dirty workspace changes preserved; baseline/current metrics cover the recorded path union",
+    "Native UI coverage and debt gates remain failed"
+  ],
+  "before_copies": "/tmp/bas-before-030"
+}

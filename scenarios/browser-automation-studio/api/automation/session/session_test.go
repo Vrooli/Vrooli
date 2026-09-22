@@ -3,15 +3,27 @@ package session
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
+
+// completedTerminal models an acknowledged operation for closed-session guards.
+func completedTerminal() *terminalOperation {
+	done := make(chan struct{})
+	close(done)
+	return &terminalOperation{done: done}
+}
 
 func TestCloseWithArtifacts(t *testing.T) {
 	handler := http.NewServeMux()
@@ -129,9 +141,9 @@ func TestSession_Navigate_RejectsClosedSession(t *testing.T) {
 	t.Parallel()
 
 	sess := &Session{
-		id:     "test-session",
-		mode:   ModeRecording,
-		closed: true,
+		id:       "test-session",
+		mode:     ModeRecording,
+		terminal: completedTerminal(),
 	}
 
 	_, err := sess.Navigate(context.Background(), "https://example.com")
@@ -421,9 +433,9 @@ func TestSession_StartRecording_RejectsClosedSession(t *testing.T) {
 	t.Parallel()
 
 	sess := &Session{
-		id:     "closed-session",
-		mode:   ModeRecording,
-		closed: true,
+		id:       "closed-session",
+		mode:     ModeRecording,
+		terminal: completedTerminal(),
 	}
 
 	err := sess.StartRecording(context.Background(), RecordingConfig{})
@@ -472,9 +484,9 @@ func TestSession_StopRecording_RejectsClosedSession(t *testing.T) {
 	t.Parallel()
 
 	sess := &Session{
-		id:     "closed-session",
-		mode:   ModeRecording,
-		closed: true,
+		id:       "closed-session",
+		mode:     ModeRecording,
+		terminal: completedTerminal(),
 	}
 
 	err := sess.StopRecording(context.Background())
@@ -533,9 +545,9 @@ func TestSession_GetRecordingStatus_RejectsClosedSession(t *testing.T) {
 	t.Parallel()
 
 	sess := &Session{
-		id:     "closed-session",
-		mode:   ModeRecording,
-		closed: true,
+		id:       "closed-session",
+		mode:     ModeRecording,
+		terminal: completedTerminal(),
 	}
 
 	_, err := sess.GetRecordingStatus(context.Background())
@@ -573,7 +585,7 @@ func TestSession_GetRecordedActions_Success(t *testing.T) {
 		client: client,
 	}
 
-	actions, err := sess.GetRecordedActions(context.Background(), false)
+	actions, err := sess.GetRecordedActions(context.Background())
 	if err != nil {
 		t.Fatalf("GetRecordedActions failed: %v", err)
 	}
@@ -645,9 +657,9 @@ func TestSession_CaptureScreenshot_RejectsClosedSession(t *testing.T) {
 	t.Parallel()
 
 	sess := &Session{
-		id:     "closed-session",
-		mode:   ModeRecording,
-		closed: true,
+		id:       "closed-session",
+		mode:     ModeRecording,
+		terminal: completedTerminal(),
 	}
 
 	_, err := sess.CaptureScreenshot(context.Background())
@@ -715,9 +727,9 @@ func TestSession_GetStorageState_RejectsClosedSession(t *testing.T) {
 	t.Parallel()
 
 	sess := &Session{
-		id:     "closed-session",
-		mode:   ModeRecording,
-		closed: true,
+		id:       "closed-session",
+		mode:     ModeRecording,
+		terminal: completedTerminal(),
 	}
 
 	_, err := sess.GetStorageState(context.Background())
@@ -757,10 +769,10 @@ func TestSession_DownloadArtifact_Success(t *testing.T) {
 	}
 
 	sess := &Session{
-		id:     "artifact-session",
-		mode:   ModeExecution,
-		client: client,
-		closed: true, // Intentionally closed - download should still work
+		id:       "artifact-session",
+		mode:     ModeExecution,
+		client:   client,
+		terminal: completedTerminal(), // Intentionally closed - download should still work
 	}
 
 	artifact, err := sess.DownloadArtifact(context.Background(), "/path/to/video.webm")
@@ -871,9 +883,9 @@ func TestSession_UpdateViewport_RejectsClosedSession(t *testing.T) {
 	t.Parallel()
 
 	sess := &Session{
-		id:     "closed-session",
-		mode:   ModeRecording,
-		closed: true,
+		id:       "closed-session",
+		mode:     ModeRecording,
+		terminal: completedTerminal(),
 	}
 
 	err := sess.UpdateViewport(context.Background(), 1920, 1080)
@@ -932,6 +944,13 @@ func TestSession_Reset_Success(t *testing.T) {
 
 	handler := http.NewServeMux()
 	handler.HandleFunc("/session/reset-session/reset", func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]string
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("reset owner envelope: %v", err)
+		}
+		if body["execution_id"] != "reset-owner" || body["lease_id"] != "reset-lease" {
+			t.Errorf("reset omitted admitted ownership: %#v", body)
+		}
 		_ = r.Body.Close()
 		_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
 	})
@@ -945,9 +964,11 @@ func TestSession_Reset_Success(t *testing.T) {
 	}
 
 	sess := &Session{
-		id:     "reset-session",
-		mode:   ModeRecording,
-		client: client,
+		id:          "reset-session",
+		executionID: "reset-owner",
+		leaseID:     "reset-lease",
+		mode:        ModeRecording,
+		client:      client,
 	}
 
 	err = sess.Reset(context.Background())
@@ -956,13 +977,33 @@ func TestSession_Reset_Success(t *testing.T) {
 	}
 }
 
+func TestSession_ResetRequiresAcknowledgment(t *testing.T) {
+	t.Parallel()
+	for _, response := range []string{`{}`, `{"success":false}`} {
+		t.Run(response, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = w.Write([]byte(response))
+			}))
+			defer srv.Close()
+			client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
+			if err != nil {
+				t.Fatal(err)
+			}
+			sess := &Session{id: "reset-session", executionID: "owner", leaseID: "lease", mode: ModeRecording, client: client}
+			if err := sess.Reset(context.Background()); err == nil {
+				t.Fatal("reset without acknowledgment reported success")
+			}
+		})
+	}
+}
+
 func TestSession_Reset_RejectsClosedSession(t *testing.T) {
 	t.Parallel()
 
 	sess := &Session{
-		id:     "closed-session",
-		mode:   ModeRecording,
-		closed: true,
+		id:       "closed-session",
+		mode:     ModeRecording,
+		terminal: completedTerminal(),
 	}
 
 	err := sess.Reset(context.Background())
@@ -1086,5 +1127,266 @@ func TestSession_Recording_Accessor(t *testing.T) {
 
 	if sess2.Recording() != nil {
 		t.Error("expected Recording() to return nil when not configured")
+	}
+}
+
+// A caller joining finalization must observe completion or its own cancellation,
+// never the in-progress closed marker as an acknowledged terminal operation.
+func TestTerminalOperationWaiterCancellation(t *testing.T) {
+	for _, primaryClose := range []bool{true, false} {
+		for _, joinClose := range []bool{true, false} {
+			name := "release"
+			if primaryClose {
+				name = "close"
+			}
+			if joinClose {
+				name += "-close"
+			} else {
+				name += "-release"
+			}
+			t.Run(name, func(t *testing.T) {
+				entered, release := make(chan struct{}), make(chan struct{})
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					close(entered)
+					<-release
+					_ = json.NewEncoder(w).Encode(map[string]any{"success": true, "video_paths": []string{"/owned/video.webm"}})
+				}))
+				defer server.Close()
+				client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+				if err != nil {
+					t.Fatal(err)
+				}
+				sess := &Session{id: "fixture", executionID: "owner", leaseID: "lease", client: client}
+				call := func(ctx context.Context, closeSession bool) error {
+					if closeSession {
+						_, e := sess.CloseWithArtifacts(ctx)
+						return e
+					}
+					return sess.Release(ctx)
+				}
+				primary := make(chan error, 1)
+				go func() { primary <- call(context.Background(), primaryClose) }()
+				<-entered
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				if err := call(ctx, joinClose); !errors.Is(err, context.Canceled) {
+					t.Errorf("joining pending terminal operation returned %v; want caller cancellation", err)
+				}
+				close(release)
+				if err := <-primary; err != nil {
+					t.Fatalf("waiter cancellation interrupted owner: %v", err)
+				}
+			})
+		}
+	}
+}
+
+// The observed context supplies a deterministic waiter-entry barrier without
+// inspecting Session's locks or adding sleeps to the HTTP completion oracle.
+type terminalWaitContext struct {
+	context.Context
+	waiting chan struct{}
+	once    sync.Once
+}
+
+func (c *terminalWaitContext) Done() <-chan struct{} {
+	c.once.Do(func() { close(c.waiting) })
+	return c.Context.Done()
+}
+
+func TestTerminalOperationSharesAcknowledgedResult(t *testing.T) {
+	acknowledged := &driver.CloseSessionResponse{Success: true, VideoPaths: []string{"/owned/video.webm"}}
+	cases := map[string]struct {
+		close, fail bool
+		want        *driver.CloseSessionResponse
+	}{
+		"close-success": {true, false, acknowledged}, "release-success": {false, false, nil},
+		"close-failure": {true, true, nil}, "release-failure": {false, true, nil},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			entered, release := make(chan struct{}), make(chan struct{})
+			var unblock sync.Once
+			var requests, notifications atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				first := requests.Add(1) == 1
+				if first {
+					close(entered)
+					<-release
+				}
+				if first && tc.fail {
+					http.Error(w, "synthetic finalization failure", http.StatusServiceUnavailable)
+					return
+				}
+				_ = json.NewEncoder(w).Encode(acknowledged)
+			}))
+			defer server.Close()
+			defer unblock.Do(func() { close(release) })
+			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+			require.NoError(t, err)
+			sess := &Session{id: "fixture", executionID: "owner", leaseID: "lease", client: client, onTerminal: func() { notifications.Add(1) }}
+			type result struct {
+				artifacts *driver.CloseSessionResponse
+				err       error
+			}
+			primary := make(chan result, 1)
+			go func() {
+				if tc.close {
+					a, e := sess.CloseWithArtifacts(context.Background())
+					primary <- result{a, e}
+				} else {
+					primary <- result{nil, sess.Release(context.Background())}
+				}
+			}()
+			<-entered
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			waiting := &terminalWaitContext{Context: ctx, waiting: make(chan struct{})}
+			joined := make(chan result, 1)
+			go func() { a, e := sess.CloseWithArtifacts(waiting); joined <- result{a, e} }()
+			select {
+			case <-waiting.waiting:
+			case early := <-joined:
+				t.Fatalf("close returned before HTTP acknowledgment: %#v", early)
+			}
+			require.Zero(t, notifications.Load(), "terminal callback before acknowledgment")
+			unblock.Do(func() { close(release) })
+			first, second := <-primary, <-joined
+			require.EqualValues(t, 1, requests.Load(), "duplicate concurrent cleanup request")
+			require.Equal(t, tc.want, first.artifacts)
+			require.Equal(t, tc.want, second.artifacts)
+			if tc.fail {
+				require.Error(t, first.err)
+				require.ErrorIs(t, second.err, first.err, "waiters must share the same failed attempt")
+				require.False(t, sess.isClosed(), "failed cleanup must retain ownership")
+				require.Zero(t, notifications.Load())
+				a, e := sess.CloseWithArtifacts(context.Background())
+				require.NoError(t, e)
+				require.Equal(t, acknowledged, a, "explicit retry must retain artifacts")
+				require.EqualValues(t, 2, requests.Load())
+			} else {
+				require.NoError(t, first.err)
+				require.NoError(t, second.err)
+				_, e := sess.CloseWithArtifacts(context.Background())
+				require.NoError(t, e)
+				require.EqualValues(t, 1, requests.Load(), "terminal retry repeated cleanup")
+			}
+			require.True(t, sess.isClosed())
+			require.EqualValues(t, 1, notifications.Load(), "terminal ownership notification must occur once")
+		})
+	}
+}
+
+func TestTerminalOperationRejectsMissingAcknowledgment(t *testing.T) {
+	for _, operation := range []string{"close", "release"} {
+		for _, body := range []string{`{}`, `{"success":false}`, `{"success":false,"trace_path":"/partial/trace.zip"}`} {
+			t.Run(operation+"/"+body, func(t *testing.T) {
+				var requests, notifications atomic.Int32
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if requests.Add(1) == 1 {
+						_, _ = w.Write([]byte(body))
+						return
+					}
+					_, _ = w.Write([]byte(`{"success":true}`))
+				}))
+				defer server.Close()
+				client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+				require.NoError(t, err)
+				sess := &Session{id: "fixture", client: client, onTerminal: func() { notifications.Add(1) }}
+				var observedArtifacts *driver.CloseSessionResponse
+				call := func() error {
+					if operation == "close" {
+						var e error
+						observedArtifacts, e = sess.CloseWithArtifacts(context.Background())
+						return e
+					}
+					return sess.Release(context.Background())
+				}
+				require.Error(t, call(), "HTTP success alone does not acknowledge the terminal operation")
+				if operation == "close" {
+					var expected driver.CloseSessionResponse
+					require.NoError(t, json.Unmarshal([]byte(body), &expected))
+					require.Equal(t, &expected, observedArtifacts, "partial artifact metadata must accompany the explicit failure")
+				}
+				require.False(t, sess.isClosed(), "missing acknowledgment must retain ownership")
+				require.Zero(t, notifications.Load())
+				require.NoError(t, call(), "explicit retry with acknowledgment should complete")
+				require.EqualValues(t, 1, notifications.Load())
+				require.EqualValues(t, 2, requests.Load())
+			})
+		}
+	}
+}
+
+func TestRunTransportsAdmittedExecutionLease(t *testing.T) {
+	var bodies []map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		bodies = append(bodies, body)
+		_, _ = w.Write([]byte(`{"success":true}`))
+	}))
+	defer server.Close()
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	current := &Session{id: "leased-session", executionID: "execution-current", leaseID: "lease-current", mode: ModeExecution, client: client}
+	instruction := contracts.CompiledInstruction{NodeID: "click", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_CLICK, Params: &basactions.ActionDefinition_Click{Click: &basactions.ClickParams{Selector: "#button"}}}}
+	for i := 0; i < 2; i++ {
+		_, err := current.Run(context.Background(), instruction)
+		require.NoError(t, err)
+	}
+	require.Len(t, bodies, 2)
+	for _, body := range bodies {
+		require.Equal(t, "execution-current", body["execution_id"])
+		require.Equal(t, "lease-current", body["lease_id"])
+		require.NotNil(t, body["instruction"])
+	}
+}
+
+func TestRunAllocatesDistinctTransportOperations(t *testing.T) {
+	var bodies []map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		bodies = append(bodies, body)
+		_, _ = w.Write([]byte(`{"success":true}`))
+	}))
+	defer server.Close()
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	current := &Session{id: "session", executionID: "execution", leaseID: "lease", mode: ModeExecution, client: client}
+	instruction := contracts.CompiledInstruction{NodeID: "loop-node", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_CLICK}}
+	for i := 0; i < 2; i++ {
+		_, err := current.Run(context.Background(), instruction)
+		require.NoError(t, err)
+	}
+	require.Len(t, bodies, 2)
+	require.Equal(t, float64(1), bodies[0]["operation_sequence"])
+	require.Equal(t, float64(2), bodies[1]["operation_sequence"])
+	require.NotEmpty(t, bodies[0]["invocation_id"])
+	require.NotEqual(t, bodies[0]["invocation_id"], bodies[1]["invocation_id"])
+	require.Equal(t, float64(1), bodies[0]["attempt"])
+}
+
+func TestRunAmbiguousResponseCannotAuthorizeNewAttempt(t *testing.T) {
+	for _, status := range []int{http.StatusOK, http.StatusInternalServerError} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			effects := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				effects++
+				w.WriteHeader(status)
+				_, _ = w.Write([]byte(`{"success":`)) // Effect occurred, response cannot establish its outcome.
+			}))
+			defer server.Close()
+			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+			require.NoError(t, err)
+			current := &Session{id: "session", executionID: "execution", leaseID: "lease", mode: ModeExecution, client: client}
+			outcome, err := current.Run(context.Background(), contracts.CompiledInstruction{NodeID: "effect", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_CLICK}})
+			require.Error(t, err)
+			require.NotNil(t, outcome.Failure, "executor needs explicit repeat policy after an ambiguous response")
+			require.False(t, outcome.Failure.Retryable)
+			require.Equal(t, "INSTRUCTION_OUTCOME_UNCERTAIN", outcome.Failure.Code)
+			require.Equal(t, 1, effects)
+		})
 	}
 }

@@ -1,13 +1,5 @@
-/**
- * Frame Handler Idempotency Tests
- *
- * Tests for idempotent frame operations to ensure replay safety.
- * These tests verify that frame operations handle stale references,
- * concurrent requests, and repeated operations correctly.
- */
-
 import { FrameHandler } from '../../../src/handlers/frame';
-import type { HandlerContext } from '../../../src/handlers/base';
+import { getDocument, type HandlerContext } from '../../../src/handlers/base';
 import {
   createMockPage,
   createMockFrame,
@@ -17,337 +9,117 @@ import {
 } from '../../helpers';
 import { logger, metrics } from '../../../src/utils';
 
-describe('FrameHandler Idempotency', () => {
-  let handler: FrameHandler;
-  let mockPage: ReturnType<typeof createMockPage>;
-  let config: ReturnType<typeof createTestConfig>;
-
+describe('session-owned frame selection', () => {
+  const handler = new FrameHandler();
+  let context: HandlerContext;
+  let main: ReturnType<typeof createMockFrame>;
+  let left: ReturnType<typeof createMockFrame>;
+  let right: ReturnType<typeof createMockFrame>;
+  let nested: ReturnType<typeof createMockFrame>;
   beforeEach(() => {
-    handler = new FrameHandler();
-    mockPage = createMockPage();
-    config = createTestConfig();
+    const page = createMockPage();
+    main = createMockFrame({
+      page: jest.fn().mockReturnValue(page),
+      isDetached: jest.fn().mockReturnValue(false),
+    });
+    page.mainFrame.mockReturnValue(main);
+    const child = (parent: typeof main, url: string) =>
+      createMockFrame({
+        page: jest.fn().mockReturnValue(page),
+        parentFrame: jest.fn().mockReturnValue(parent),
+        isDetached: jest.fn().mockReturnValue(false),
+        url: jest.fn().mockReturnValue(url),
+      });
+    left = child(main, 'https://fixture/child');
+    right = child(main, 'https://fixture/child');
+    nested = child(left, 'https://fixture/nested');
+    main.childFrames.mockReturnValue([left, right]);
+    left.childFrames.mockReturnValue([nested]);
+    context = {
+      page,
+      browserContext: createMockContext(),
+      config: createTestConfig(),
+      logger,
+      metrics,
+      sessionId: 'frame-fixture',
+      frameStack: [],
+    };
   });
+  const run = (params: Record<string, unknown>) =>
+    handler.execute(createTypedInstruction('frame-switch', params), context);
 
-  describe('frame-switch enter idempotency', () => {
-    it('should return success with idempotent flag when already in target frame', async () => {
-      // Create a mock frame
-      const targetFrame = createMockFrame();
-      targetFrame.url.mockReturnValue('https://example.com/iframe');
-      (targetFrame.name as jest.Mock).mockReturnValue('test-iframe');
-
-      // Setup page.frames() to return our target frame
-      mockPage.frames.mockReturnValue([targetFrame]);
-
-      // Setup the frame stack with the target frame already entered
-      const frameStack = [targetFrame];
-
-      const instruction = createTypedInstruction('frame-switch', {
-        action: 'enter',
-        frameUrl: 'https://example.com/iframe',
-      });
-
-      const context: HandlerContext = {
-        page: mockPage,
-        browserContext: createMockContext(),
-        config,
-        logger,
-        metrics,
-        sessionId: 'test-session-enter-idempotent',
-        frameStack,
-      };
-
-      const result = await handler.execute(instruction, context);
-
-      expect(result.success).toBe(true);
-      const data = result.extracted_data as Record<string, unknown>;
-      expect(data?.idempotent).toBe(true);
-      expect(data?.frameUrl).toBe('https://example.com/iframe');
-    });
-
-    it('should enter frame normally when not already in it', async () => {
-      const mainFrame = createMockFrame();
-      mainFrame.url.mockReturnValue('https://example.com');
-      (mainFrame.name as jest.Mock).mockReturnValue('');
-
-      const targetFrame = createMockFrame();
-      targetFrame.url.mockReturnValue('https://example.com/iframe');
-      (targetFrame.name as jest.Mock).mockReturnValue('test-iframe');
-
-      mockPage.frames.mockReturnValue([mainFrame, targetFrame]);
-      mockPage.mainFrame.mockReturnValue(mainFrame);
-
-      // Empty frame stack - not currently in any iframe
-      const frameStack: Array<ReturnType<typeof createMockFrame>> = [];
-
-      const instruction = createTypedInstruction('frame-switch', {
-        action: 'enter',
-        frameUrl: 'https://example.com/iframe',
-      });
-
-      const context: HandlerContext = {
-        page: mockPage,
-        browserContext: createMockContext(),
-        config,
-        logger,
-        metrics,
-        sessionId: 'test-session-enter-normal',
-        frameStack,
-      };
-
-      const result = await handler.execute(instruction, context);
-
-      expect(result.success).toBe(true);
-      const data = result.extracted_data as Record<string, unknown>;
-      // Should NOT have idempotent flag since we actually entered
-      expect(data?.idempotent).toBeUndefined();
-      expect(data?.stackDepth).toBe(1);
-    });
-
-    it('should return error when frame not found', async () => {
-      mockPage.frames.mockReturnValue([]);
-
-      const instruction = createTypedInstruction('frame-switch', {
-        action: 'enter',
-        frameUrl: 'https://nonexistent.com/iframe',
-      });
-
-      const context: HandlerContext = {
-        page: mockPage,
-        browserContext: createMockContext(),
-        config,
-        logger,
-        metrics,
-        sessionId: 'test-session-enter-notfound',
-        frameStack: [],
-      };
-
-      const result = await handler.execute(instruction, context);
-
-      expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('FRAME_NOT_FOUND');
-    });
+  it('refuses ambiguous same-URL siblings without changing selection', async () => {
+    expect((await run({ action: 'enter', frameUrl: '/child' })).error?.message).toMatch(
+      /ambiguous/
+    );
+    expect(context.frameStack).toEqual([]);
   });
-
-  describe('frame-switch exit idempotency', () => {
-    it('should return error when already at main frame', async () => {
-      const instruction = createTypedInstruction('frame-switch', {
-        action: 'exit',
-      });
-
-      const context: HandlerContext = {
-        page: mockPage,
-        browserContext: createMockContext(),
-        config,
-        logger,
-        metrics,
-        sessionId: 'test-session-exit-main',
-        frameStack: [], // Empty = at main frame
-      };
-
-      const result = await handler.execute(instruction, context);
-
-      expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('NOT_IN_FRAME');
-      expect(result.error?.retryable).toBe(false);
-    });
-
-    it('should successfully exit frame when in an iframe', async () => {
-      const frame = createMockFrame();
-      frame.url.mockReturnValue('https://example.com/iframe');
-
-      const instruction = createTypedInstruction('frame-switch', {
-        action: 'exit',
-      });
-
-      const context: HandlerContext = {
-        page: mockPage,
-        browserContext: createMockContext(),
-        config,
-        logger,
-        metrics,
-        sessionId: 'test-session-exit',
-        frameStack: [frame],
-      };
-
-      const result = await handler.execute(instruction, context);
-
-      expect(result.success).toBe(true);
-      const data = result.extracted_data as Record<string, unknown>;
-      expect(data?.stackDepth).toBe(0);
-    });
-
-    it('should handle multiple consecutive exit calls gracefully', async () => {
-      const frame = createMockFrame();
-      frame.url.mockReturnValue('https://example.com/iframe');
-
-      const instruction = createTypedInstruction('frame-switch', {
-        action: 'exit',
-      });
-
-      const frameStack = [frame];
-      const context: HandlerContext = {
-        page: mockPage,
-        browserContext: createMockContext(),
-        config,
-        logger,
-        metrics,
-        sessionId: 'test-session-exit-multiple',
-        frameStack,
-      };
-
-      // First exit should succeed
-      const result1 = await handler.execute(instruction, context);
-      expect(result1.success).toBe(true);
-
-      // Second exit should fail (already at main frame)
-      const result2 = await handler.execute(instruction, context);
-      expect(result2.success).toBe(false);
-      expect(result2.error?.code).toBe('NOT_IN_FRAME');
-    });
+  it('enters the actual selected child, retaining its identity', async () => {
+    main.childFrames.mockReturnValue([left]);
+    expect((await run({ action: 'enter', frameUrl: '/child' })).success).toBe(true);
+    expect(getDocument(context)).toBe(left);
+    expect(context.frameStack).toEqual([left]);
   });
-
-  describe('stale frame reference handling', () => {
-    it('should detect and remove stale frame references', async () => {
-      // Create a mock frame that will throw when url() is called (stale)
-      const staleFrame = createMockFrame();
-      staleFrame.url.mockImplementation(() => {
-        throw new Error('Frame detached');
-      });
-      staleFrame.name.mockReturnValue('stale-frame');
-
-      const validFrame = createMockFrame();
-      validFrame.url.mockReturnValue('https://example.com/iframe');
-
-      // Setup page with a valid frame to enter
-      const targetFrame = createMockFrame();
-      targetFrame.url.mockReturnValue('https://example.com/new-iframe');
-      (targetFrame.name as jest.Mock).mockReturnValue('new-iframe');
-      mockPage.frames.mockReturnValue([targetFrame]);
-      mockPage.mainFrame.mockReturnValue(createMockFrame());
-
-      const instruction = createTypedInstruction('frame-switch', {
-        action: 'enter',
-        frameUrl: 'https://example.com/new-iframe',
-      });
-
-      // Start with a stale frame in the stack
-      const frameStack = [staleFrame, validFrame];
-      const context: HandlerContext = {
-        page: mockPage,
-        browserContext: createMockContext(),
-        config,
-        logger,
-        metrics,
-        sessionId: 'test-session-stale',
-        frameStack,
-      };
-
-      const result = await handler.execute(instruction, context);
-
-      // Operation should succeed
-      expect(result.success).toBe(true);
-
-      // Stale frame should have been removed from stack
-      // Stack should now contain: validFrame + mainFrame (from entering new iframe)
-      expect(frameStack.length).toBe(2);
-    });
+  it('reselects the same unambiguous frame without adding depth', async () => {
+    context.frameStack = [left];
+    const result = await run({ action: 'enter', frameUrl: '/child' });
+    expect(result.success).toBe(true);
+    expect(result.extracted_data).toMatchObject({ idempotent: true, stackDepth: 1 });
+    expect(context.frameStack).toEqual([left]);
   });
-
-  describe('frame-switch parent idempotency', () => {
-    it('should return error when already at main frame (same as exit)', async () => {
-      const instruction = createTypedInstruction('frame-switch', {
-        action: 'parent',
-      });
-
-      const context: HandlerContext = {
-        page: mockPage,
-        browserContext: createMockContext(),
-        config,
-        logger,
-        metrics,
-        sessionId: 'test-session-parent-main',
-        frameStack: [],
-      };
-
-      const result = await handler.execute(instruction, context);
-
-      expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('NOT_IN_FRAME');
-    });
-
-    it('should successfully go to parent frame', async () => {
-      const parentFrame = createMockFrame();
-      parentFrame.url.mockReturnValue('https://example.com/parent');
-
-      const childFrame = createMockFrame();
-      childFrame.url.mockReturnValue('https://example.com/child');
-
-      const instruction = createTypedInstruction('frame-switch', {
-        action: 'parent',
-      });
-
-      const context: HandlerContext = {
-        page: mockPage,
-        browserContext: createMockContext(),
-        config,
-        logger,
-        metrics,
-        sessionId: 'test-session-parent',
-        frameStack: [parentFrame, childFrame],
-      };
-
-      const result = await handler.execute(instruction, context);
-
-      expect(result.success).toBe(true);
-      const data = result.extracted_data as Record<string, unknown>;
-      expect(data?.stackDepth).toBe(1);
-    });
+  it('enters nested frames relative to the selected document', async () => {
+    context.frameStack = [left];
+    expect((await run({ action: 'enter', frameUrl: '/nested' })).success).toBe(true);
+    expect(getDocument(context)).toBe(nested);
   });
-
-  describe('invalid action handling', () => {
-    it('should return error for unknown action', async () => {
-      const instruction = createTypedInstruction('frame-switch', {
-        action: 'invalid-action',
-      });
-
-      const context: HandlerContext = {
-        page: mockPage,
-        browserContext: createMockContext(),
-        config,
-        logger,
-        metrics,
-        sessionId: 'test-session-invalid',
-        frameStack: [],
-      };
-
-      const result = await handler.execute(instruction, context);
-
-      expect(result.success).toBe(false);
-      // Handler throws MISSING_PARAM for unspecified action, INVALID_ACTION for unknown action string
-      expect(['INVALID_ACTION', 'INVALID_INSTRUCTION', 'MISSING_PARAM']).toContain(result.error?.code);
-      expect(result.error?.retryable).toBe(false);
-    });
-
-    it('should return error when enter is called without target', async () => {
-      const instruction = createTypedInstruction('frame-switch', {
-        action: 'enter',
-        // No selector, frameId, or frameUrl
-      });
-
-      const context: HandlerContext = {
-        page: mockPage,
-        browserContext: createMockContext(),
-        config,
-        logger,
-        metrics,
-        sessionId: 'test-session-no-target',
-        frameStack: [],
-      };
-
-      const result = await handler.execute(instruction, context);
-
-      expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('MISSING_PARAM');
-    });
+  it('PARENT selects one ancestor and EXIT returns to the main document', async () => {
+    context.frameStack = [left, nested];
+    expect((await run({ action: 'parent' })).success).toBe(true);
+    expect(getDocument(context)).toBe(left);
+    context.frameStack.push(nested);
+    expect((await run({ action: 'exit' })).success).toBe(true);
+    expect(getDocument(context)).toBe(context.page);
+    expect(context.frameStack).toEqual([]);
+  });
+  it.each(['exit', 'parent'])('refuses %s at the main document', async (action) => {
+    expect((await run({ action })).error).toMatchObject({ code: 'NOT_IN_FRAME', retryable: false });
+  });
+  it('refuses detached selection until an explicit EXIT recovers it', async () => {
+    context.frameStack = [left];
+    left.isDetached.mockReturnValue(true);
+    expect(() => getDocument(context)).toThrow(/detached/);
+    expect((await run({ action: 'enter', frameUrl: '/nested' })).success).toBe(false);
+    expect(context.frameStack).toEqual([left]);
+    expect((await run({ action: 'exit' })).success).toBe(true);
+    expect(context.frameStack).toEqual([]);
+  });
+  it('keeps the path intact when PARENT would select a detached ancestor', async () => {
+    context.frameStack = [left, nested];
+    left.isDetached.mockReturnValue(true);
+    expect((await run({ action: 'parent' })).success).toBe(false);
+    expect(context.frameStack).toEqual([left, nested]);
+  });
+  it('rejects frames from another page or broken ancestry', () => {
+    context.frameStack = [nested];
+    expect(() => getDocument(context)).toThrow();
+    context.frameStack = [left];
+    left.page.mockReturnValue(createMockPage());
+    expect(() => getDocument(context)).toThrow();
+  });
+  it('reports a missing frame without changing state', async () => {
+    expect((await run({ action: 'enter', frameUrl: '/missing' })).error?.code).toBe(
+      'FRAME_NOT_FOUND'
+    );
+    expect(context.frameStack).toEqual([]);
+  });
+  it('requires a target and rejects unknown operations', async () => {
+    expect((await run({ action: 'enter' })).error?.code).toBe('MISSING_PARAM');
+    expect((await run({ action: 'invalid-action' })).success).toBe(false);
+  });
+  it('requires a session owner for frame navigation', async () => {
+    delete context.frameStack;
+    expect((await run({ action: 'enter', frameUrl: '/child' })).error?.message).toMatch(
+      /session-owned/
+    );
   });
 });

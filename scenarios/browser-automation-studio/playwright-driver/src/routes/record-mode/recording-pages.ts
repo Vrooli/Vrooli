@@ -149,6 +149,7 @@ export async function handleRecordNewPage(
 
     // Switch to the new page
     session.currentPageIndex = session.pages.length - 1;
+    session.frameStack.length = 0;
     session.page = newPage;
 
     // Clear frame cache for this session
@@ -239,6 +240,7 @@ export async function handleRecordActivePage(
     }
 
     // Update session.page to point to the active page
+    if (session.page !== targetPage) session.frameStack.length = 0;
     session.page = targetPage;
 
     // Clear frame cache for this session to ensure fresh frames after switch

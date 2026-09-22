@@ -44,7 +44,10 @@ func (r *FileWriter) SetArtifactConfigForExecution(executionID uuid.UUID, cfg *c
 
 func (r *FileWriter) ForgetExecution(executionID uuid.UUID) {
 	if r != nil {
-		r.perExecConfig.Delete(executionID.String())
+		key := executionID.String()
+		r.results.Delete(key)
+		r.timelines.Delete(key)
+		r.perExecConfig.Delete(key)
 	}
 }
 

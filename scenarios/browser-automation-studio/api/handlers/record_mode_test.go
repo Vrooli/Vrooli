@@ -7,14 +7,19 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/domain"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"github.com/vrooli/browser-automation-studio/performance"
 	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
+	"github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
 
 // createTestHandlerWithRecordMode creates a handler with mock services for record mode testing.
@@ -31,7 +36,7 @@ func createTestHandlerWithRecordMode(t *testing.T) (*Handler, *MockRecordModeSer
 
 	mockService := NewMockRecordModeService()
 	mockHub := NewMockHub()
-	sessionProfileSvc := sessionprofile.NewServiceWithPath(tempDir, log)
+	sessionProfileSvc := sessionprofile.NewService(persistence.NewFileRepositoryWithConfig(tempDir, log, persistence.FileRepositoryConfig{Authority: testutil.ProfileCredentialAuthority}), log)
 
 	handler := &Handler{
 		recordModeService:     mockService,
@@ -841,5 +846,144 @@ func TestPersistRecordingSession_NoActiveProfile(t *testing.T) {
 	// Should succeed even without an active profile (no-op)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+type profileCommitRecorder struct {
+	*persistence.MockRepository
+	commits int
+}
+
+func (r *profileCommitRecorder) Update(id persistence.ProfileID, modify func(*persistence.SessionProfile) error) (*persistence.SessionProfile, error) {
+	r.commits++
+	return r.MockRepository.Update(id, modify)
+}
+
+type profileSnapshotDriver struct {
+	*MockRecordModeService
+	pages    []*domain.Page
+	active   uuid.UUID
+	pagesErr error
+	onClose  func()
+}
+
+func (d *profileSnapshotDriver) GetOpenPages(string) ([]*domain.Page, uuid.UUID, error) {
+	return d.pages, d.active, d.pagesErr
+}
+
+func (d *profileSnapshotDriver) CloseSession(ctx context.Context, id string) error {
+	if d.onClose != nil {
+		d.onClose()
+	}
+	return d.MockRecordModeService.CloseSession(ctx, id)
+}
+
+// [REQ:BAS-RH-J06] A failed snapshot must not acknowledge persistence or destroy
+// the live state needed to retry. A successful snapshot commits storage and tabs together.
+func TestRecordingProfileCommit(t *testing.T) {
+	for _, operation := range []string{"persist", "close"} {
+		for _, failure := range []string{"none", "storage", "tabs", "save", "empty-tabs", "close"} {
+			if operation == "persist" && failure == "close" {
+				continue
+			}
+			t.Run(operation+"/"+failure, func(t *testing.T) {
+				repo := &profileCommitRecorder{MockRepository: persistence.NewMockRepository()}
+				profile := &persistence.SessionProfile{
+					ID: "profile", Name: "Saved identity",
+					StorageState: json.RawMessage(`{"cookies":[{"name":"identity","value":"old"}],"origins":[]}`),
+					OpenTabs:     []persistence.TabState{{URL: "https://fixture.invalid/old"}},
+				}
+				if err := repo.Create(profile); err != nil {
+					t.Fatal(err)
+				}
+				log := logrus.New()
+				log.SetLevel(logrus.PanicLevel)
+				svc := sessionprofile.NewService(repo, log)
+				svc.SetActiveSession("session", string(profile.ID))
+				pageID := uuid.New()
+				drv := &profileSnapshotDriver{
+					MockRecordModeService: NewMockRecordModeService(),
+					pages:                 []*domain.Page{{ID: pageID, URL: "https://fixture.invalid/new", Title: "New tab"}},
+					active:                pageID,
+				}
+				drv.StorageState = json.RawMessage(`{"cookies":[{"name":"identity","value":"new"}],"origins":[]}`)
+				wantTabs := []persistence.TabState{{URL: drv.pages[0].URL, Title: "New tab", IsActive: true, Order: 0}}
+				if failure == "empty-tabs" {
+					drv.pages = nil
+					wantTabs = []persistence.TabState{}
+				}
+				assertCommitted := func() {
+					t.Helper()
+					got, err := repo.Get(profile.ID)
+					if err != nil || got == nil {
+						t.Fatalf("read committed profile: %v", err)
+					}
+					if string(got.StorageState) != string(drv.StorageState) || !reflect.DeepEqual(got.OpenTabs, wantTabs) {
+						t.Fatalf("snapshot not committed together: storage=%s, tabs=%+v", got.StorageState, got.OpenTabs)
+					}
+				}
+				drv.onClose = assertCommitted
+				switch failure {
+				case "storage":
+					drv.GetStorageStateError = errors.New("storage capture failed")
+				case "tabs":
+					drv.pagesErr = errors.New("tab capture failed")
+				case "save":
+					repo.SaveErr = errors.New("profile commit failed")
+				case "close":
+					drv.CloseSessionError = errors.New("browser close failed")
+				}
+				h := &Handler{recordModeService: drv, sessionProfileService: svc, log: log}
+				invoke := func() *httptest.ResponseRecorder {
+					req := httptest.NewRequest(http.MethodPost, "/session/session/"+operation, nil)
+					rctx := chi.NewRouteContext()
+					rctx.URLParams.Add("sessionId", "session")
+					req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+					rr := httptest.NewRecorder()
+					if operation == "close" {
+						h.CloseRecordingSession(rr, req)
+					} else {
+						h.PersistRecordingSession(rr, req)
+					}
+					return rr
+				}
+				rr := invoke()
+				if failure != "none" && failure != "empty-tabs" {
+					if rr.Code < 400 {
+						t.Fatalf("failed %s acknowledged: %d %s", failure, rr.Code, rr.Body.String())
+					}
+					if svc.GetActiveSession("session") != string(profile.ID) {
+						t.Fatal("failed operation lost recovery association")
+					}
+					if failure != "close" {
+						if drv.CloseSessionCalled {
+							t.Fatal("failed snapshot destroyed the live browser")
+						}
+						got, err := repo.Get(profile.ID)
+						if err != nil || !reflect.DeepEqual(got, profile) {
+							t.Fatalf("failed capture/commit changed prior profile: %+v, %v", got, err)
+						}
+					}
+					// Retry through the same public endpoint after the fault clears.
+					drv.GetStorageStateError, drv.pagesErr, drv.CloseSessionError, repo.SaveErr = nil, nil, nil, nil
+					repo.commits = 0
+					rr = invoke()
+				}
+				if rr.Code != http.StatusOK {
+					t.Fatalf("successful retry: %d %s", rr.Code, rr.Body.String())
+				}
+				assertCommitted()
+				if repo.commits != 1 {
+					t.Fatalf("one snapshot requires one aggregate commit, got %d", repo.commits)
+				}
+				if operation == "close" {
+					if !drv.CloseSessionCalled || svc.GetActiveSession("session") != "" {
+						t.Fatal("successful close did not release browser and association")
+					}
+				} else if drv.CloseSessionCalled || svc.GetActiveSession("session") == "" {
+					t.Fatal("persist ended the live session")
+				}
+			})
+		}
 	}
 }

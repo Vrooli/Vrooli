@@ -1,0 +1,540 @@
+{
+  "schema_version": 1,
+  "assembled_at": "2026-09-22T00:41:20.412809+00:00",
+  "assessment": "REFRACTOR_ASSESSMENT.md#profile-and-replay-investigation--2026-09-22-utc",
+  "scope": "Third investigation pass; actual modules with synthetic state; no service/browser launch, real profile access, production key readout, or product edit",
+  "source_head": "129da6b96062fad08f53b34228ae16801befdf79",
+  "source_digest_sha256": "2df361d5baaaf501715527e57993b6024ca63e798713f5d9e655a9682f584f43",
+  "product_source_digest_unchanged": true,
+  "profile_replay_probes": {
+    "observed_at": "2026-09-22T00:40:37.432150285Z",
+    "results": [
+      {
+        "id": "profile-encryption-roundtrip-control",
+        "expected": "Fresh repository restores synthetic state without putting it in plaintext files",
+        "actual": {
+          "metadata_contains_state": false,
+          "protected_contains_state": false,
+          "read_error": "",
+          "state_restored": true
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "profile-metadata-commit-failure",
+        "expected": "Failed save preserves one coherent previous profile",
+        "actual": {
+          "metadata_name": "old-name",
+          "read_error": "",
+          "save_error": "rename profile: synthetic metadata commit failure",
+          "state_is_new": true
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "profile-interrupted-state-write",
+        "expected": "Interrupted state save leaves previous acknowledged profile readable",
+        "actual": {
+          "prior_state_preserved": false,
+          "save_error": "write protected session state: synthetic interrupted protected-state write",
+          "subsequent_read_error": "open protected session state: protected session payload is truncated"
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "profile-missing-protected-state",
+        "expected": "A profile whose acknowledged protected state is missing reports incomplete recovery",
+        "actual": {
+          "profile_returned": true,
+          "read_error": "",
+          "restored_storage_bytes": 0
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "profile-unreadable-list",
+        "expected": "Listing exposes recovery failure rather than an apparently empty profile store",
+        "actual": {
+          "default_created_replacement": true,
+          "default_resolution_error": "",
+          "direct_read_error": "open protected session state: cipher: message authentication failed",
+          "list_error": "",
+          "listed_count": 0
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "profile-concurrent-field-updates",
+        "expected": "Successful tab and storage updates both survive a legal read-modify-save interleaving",
+        "actual": {
+          "new_tab_retained": true,
+          "storage_error": "",
+          "storage_reverted_to_old": true,
+          "tabs_error": ""
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "profile-persist-http-receipt",
+        "expected": "Persist endpoint reports failed durable save",
+        "actual": {
+          "http_status": 200,
+          "response": "{\"session_id\":\"synthetic-session\",\"status\":\"persisted\"}"
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "profile-close-save-failure",
+        "expected": "Failed final persistence remains visible and recoverable when closing",
+        "actual": {
+          "driver_closed": true,
+          "http_status": 200,
+          "profile_association_after_close": "",
+          "response": "{\"session_id\":\"synthetic-session\",\"status\":\"closed\"}"
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "profile-missing-key-fail-closed-control",
+        "expected": "Profile creation requires an encryption key",
+        "actual": "BAS_SESSION_STORE_KEY is required for protected session storage",
+        "expected_behavior_met": true
+      },
+      {
+        "id": "replay-simple-click-control",
+        "expected": "Basic click remains a valid typed click",
+        "actual": {
+          "generated_action": {
+            "click": {
+              "button": "MOUSE_BUTTON_LEFT",
+              "selector": "#fixture"
+            },
+            "metadata": {
+              "label": "Click element"
+            },
+            "type": "ACTION_TYPE_CLICK"
+          },
+          "typed_ingress_error": ""
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "replay-click-modifiers",
+        "expected": "Recorded Control-click preserves its modifier",
+        "actual": {
+          "generated_action": {
+            "click": {
+              "button": "MOUSE_BUTTON_LEFT",
+              "selector": "#fixture"
+            },
+            "metadata": {
+              "label": "Click element"
+            },
+            "type": "ACTION_TYPE_CLICK"
+          },
+          "typed_ingress_error": ""
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "replay-double-click",
+        "expected": "Recorded double-click preserves click count two",
+        "actual": {
+          "generated_action": {
+            "click": {
+              "button": "MOUSE_BUTTON_LEFT",
+              "selector": "#fixture"
+            },
+            "metadata": {
+              "label": "Click element"
+            },
+            "type": "ACTION_TYPE_CLICK"
+          },
+          "typed_ingress_error": ""
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "replay-keyboard-modifiers",
+        "expected": "Recorded Control-A preserves its modifier",
+        "actual": {
+          "generated_action": {
+            "keyboard": {
+              "key": "a"
+            },
+            "metadata": {
+              "label": "Press a"
+            },
+            "type": "ACTION_TYPE_KEYBOARD"
+          },
+          "typed_ingress_error": ""
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "replay-horizontal-scroll",
+        "expected": "Recorded scroll preserves both axes",
+        "actual": {
+          "generated_action": {
+            "metadata": {
+              "label": "Scroll"
+            },
+            "scroll": {
+              "selector": "#fixture",
+              "y": 400
+            },
+            "type": "ACTION_TYPE_SCROLL"
+          },
+          "typed_ingress_error": ""
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "replay-blur",
+        "expected": "Blur becomes blur or explicit unsupported failure, never click",
+        "actual": {
+          "generated_action": {
+            "click": {
+              "selector": "#fixture"
+            },
+            "metadata": {
+              "label": "blur"
+            },
+            "type": "ACTION_TYPE_CLICK"
+          },
+          "typed_ingress_error": ""
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "replay-browser-drag-event",
+        "expected": "Browser-script drag-drop becomes drag/drop or explicit unsupported failure",
+        "actual": {
+          "generated_action": {
+            "click": {
+              "selector": "#fixture"
+            },
+            "metadata": {
+              "label": "drag-drop"
+            },
+            "type": "ACTION_TYPE_CLICK"
+          },
+          "typed_ingress_error": ""
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "replay-registry-drag-event",
+        "expected": "Registered dragDrop conversion produces valid typed workflow",
+        "actual": {
+          "generated_action": {
+            "dragDrop": {
+              "selector": "#fixture"
+            },
+            "metadata": {
+              "label": "Drag and drop"
+            },
+            "type": "ACTION_TYPE_UNSPECIFIED"
+          },
+          "typed_ingress_error": "decode workflow definition at ingress: proto: (line 1:45): unknown field \"selector\""
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "replay-target-context",
+        "expected": "Target context is retained or its loss is rejected instead of accepting an untargeted flow",
+        "actual": {
+          "flow": {
+            "edges": [
+              {
+                "id": "edge_1",
+                "source": "node_1",
+                "target": "wait_2"
+              },
+              {
+                "id": "edge_2",
+                "source": "wait_2",
+                "target": "node_3"
+              }
+            ],
+            "nodes": [
+              {
+                "action": {
+                  "click": {
+                    "selector": "#one"
+                  },
+                  "metadata": {
+                    "label": "Click element"
+                  },
+                  "type": "ACTION_TYPE_CLICK"
+                },
+                "id": "node_1",
+                "position": {
+                  "x": 250,
+                  "y": 100
+                }
+              },
+              {
+                "action": {
+                  "metadata": {
+                    "label": "Wait for element"
+                  },
+                  "type": "ACTION_TYPE_WAIT",
+                  "wait": {
+                    "selector": "#two",
+                    "state": "WAIT_STATE_VISIBLE",
+                    "timeout_ms": 10000
+                  }
+                },
+                "id": "wait_2",
+                "position": {
+                  "x": 250,
+                  "y": 220
+                }
+              },
+              {
+                "action": {
+                  "click": {
+                    "selector": "#two"
+                  },
+                  "metadata": {
+                    "label": "Click element"
+                  },
+                  "type": "ACTION_TYPE_CLICK"
+                },
+                "id": "node_3",
+                "position": {
+                  "x": 250,
+                  "y": 340
+                }
+              }
+            ]
+          },
+          "typed_ingress_error": ""
+        },
+        "expected_behavior_met": false
+      }
+    ],
+    "schema_version": 1,
+    "scope": "isolated actual profile repository/service/HTTP handlers and workflow generator/typed ingress; synthetic I/O only"
+  },
+  "input_probes": {
+    "schema_version": 1,
+    "observed_at": "2026-09-22T00:32:45.581Z",
+    "scope": "actual hook/coordinate logic; synthetic React hooks and WebSocket sink; OS/browser effects not tested",
+    "results": [
+      {
+        "id": "control-a",
+        "expected": "Printable shortcut retains key and modifier",
+        "actual": {
+          "type": "recording_input",
+          "session_id": "synthetic-session",
+          "input": {
+            "type": "keyboard",
+            "text": "a"
+          },
+          "page_id": "synthetic-page"
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "command-c",
+        "expected": "Printable shortcut retains key and modifier",
+        "actual": {
+          "type": "recording_input",
+          "session_id": "synthetic-session",
+          "input": {
+            "type": "keyboard",
+            "text": "c"
+          },
+          "page_id": "synthetic-page"
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "alt-f",
+        "expected": "Printable shortcut retains key and modifier",
+        "actual": {
+          "type": "recording_input",
+          "session_id": "synthetic-session",
+          "input": {
+            "type": "keyboard",
+            "text": "f"
+          },
+          "page_id": "synthetic-page"
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "plain-text-control",
+        "expected": "Ordinary printable text remains x",
+        "actual": {
+          "type": "recording_input",
+          "session_id": "synthetic-session",
+          "input": {
+            "type": "keyboard",
+            "text": "x"
+          },
+          "page_id": "synthetic-page"
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "special-shortcut-control",
+        "expected": "Shift-Tab retains its modifier",
+        "actual": {
+          "type": "recording_input",
+          "session_id": "synthetic-session",
+          "input": {
+            "type": "keyboard",
+            "key": "Tab",
+            "modifiers": [
+              "Shift"
+            ]
+          },
+          "page_id": "synthetic-page"
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "shift-pointer-down",
+        "expected": "Modified pointer input retains modifier state",
+        "actual": {
+          "type": "recording_input",
+          "session_id": "synthetic-session",
+          "input": {
+            "type": "pointer",
+            "action": "down",
+            "x": 100,
+            "y": 200,
+            "button": "left"
+          },
+          "page_id": "synthetic-page"
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "composition-keydown",
+        "expected": "Composition bookkeeping is not forwarded as a standalone browser key command",
+        "actual": [
+          {
+            "type": "recording_input",
+            "session_id": "synthetic-session",
+            "input": {
+              "type": "keyboard",
+              "key": "Process",
+              "modifiers": []
+            },
+            "page_id": "synthetic-page"
+          }
+        ],
+        "expected_behavior_met": false
+      }
+    ]
+  },
+  "probe_summary": {
+    "observations": 25,
+    "desired_behavior_mismatches": 20,
+    "controls_met": 5,
+    "interpretation": "Selected fault cases, not independent bug count, pass rate or scenario certification"
+  },
+  "runtime_observation": {
+    "observed_at": "2026-09-22T00:34:03.506300+00:00",
+    "pid": 1647308,
+    "health": {
+      "status": "healthy",
+      "metrics": {
+        "goroutines": 10328,
+        "heap_mb": 11762.77018737793,
+        "uptime_seconds": 76784.78387547
+      },
+      "build_identity": "sha256:1299d80addef54ad15bd1d3d3b4dceec18640087a56e99db9a8ee68741b7c5a2"
+    },
+    "session_store_key_present": false
+  },
+  "running_binary_inspection": {
+    "pid": 1647308,
+    "method": "Read-only go tool nm/objdump of /proc/PID/exe; no debugger attachment or process mutation",
+    "executable_sha256": "031ee0664d8a1d312971dcf37f66be6cbdb6cbfd436844d833f4d29cdf13572d",
+    "lifecycle_symbols": [
+      " 1038a80 T github.com/vrooli/browser-automation-studio/handlers.InitDefaultDepsWithOptions.func1",
+      " 1981640 R go:itab.*github.com/vrooli/browser-automation-studio/automation/events.WSHubSink,github.com/vrooli/browser-automation-studio/automation/events.Sink",
+      " 1981618 R go:itab.*github.com/vrooli/browser-automation-studio/services/uxmetrics/collector.Collector,github.com/vrooli/browser-automation-studio/automation/events.Sink"
+    ],
+    "cleanup_type_check_excerpt": [
+      "executions.go:759 0xfade8c 488b942400040000 MOVQ 0x400(SP), DX",
+      "executions.go:759 0xfade94 4c8d05a5379d00 LEAQ go:itab.*github.com/vrooli/browser-automation-studio/automation/events.WSHubSink,github.com/vrooli/browser-automation-studio/automation/events.Sink(SB), R8",
+      "executions.go:759 0xfade9b 0f1f440000 NOPL 0(AX)(AX*1)",
+      "executions.go:759 0xfadea0 4c39c2 CMPQ DX, R8",
+      "executions.go:759 0xfadea3 7519 JNE 0xfadebe",
+      "executions.go:760 0xfadea5 0f108424800c0000 MOVUPS 0xc80(SP), X0",
+      "executions.go:760 0xfadead 0f110424 MOVUPS X0, 0(SP)",
+      "executions.go:760 0xfadeb1 488b842490070000 MOVQ 0x790(SP), AX",
+      "executions.go:760 0xfadeb9 e8c293f9ff CALL github.com/vrooli/browser-automation-studio/automation/events.(*WSHubSink).CloseExecution(SB)"
+    ],
+    "sink_factory_excerpt": [
+      "collector.go:32 0x1038b9d 488d059c474b00 LEAQ 0x4b479c(IP), AX",
+      "collector.go:32 0x1038ba4 e857663eff CALL runtime.newobject(SB)",
+      "collector.go:33 0x1038ba9 488d0d908a9400 LEAQ go:itab.*github.com/vrooli/browser-automation-studio/automation/events.WSHubSink,github.com/vrooli/browser-automation-studio/automation/events.Sink(SB), CX",
+      "collector.go:33 0x1038bb0 488908 MOVQ CX, 0(AX)",
+      "collector.go:33 0x1038bb3 833db6bf590100 CMPL runtime.writeBarrier(SB), $0x0",
+      "collector.go:33 0x1038bba 750c JNE 0x1038bc8",
+      "collector.go:33 0x1038bbc 488b4c2428 MOVQ 0x28(SP), CX",
+      "collector.go:33 0x1038bc6 eb16 JMP 0x1038bde",
+      "collector.go:33 0x1038bc8 e8b31c45ff CALL runtime.gcWriteBarrier2(SB)",
+      "collector.go:33 0x1038bcd 488b4c2428 MOVQ 0x28(SP), CX",
+      "collector.go:33 0x1038bd2 49890b MOVQ CX, 0(R11)",
+      "collector.go:33 0x1038bde 48894808 MOVQ CX, 0x8(AX)",
+      "handler.go:233 0x1038bef 4889c3 MOVQ AX, BX",
+      "handler.go:233 0x1038bf2 488d051f8a9400 LEAQ go:itab.*github.com/vrooli/browser-automation-studio/services/uxmetrics/collector.Collector,github.com/vrooli/browser-automation-studio/automation/events.Sink(SB), AX",
+      "handler.go:233 0x1038bf9 4883c458 ADDQ $0x58, SP",
+      "handler.go:233 0x1038bfd 5d POPQ BP",
+      "handler.go:233 0x1038bfe c3 RET"
+    ],
+    "limits": "Confirms compiled implementation presence, not active stacks, allocation attribution or exact source equivalence."
+  },
+  "diagnostic_discovery": {
+    "search_hub": "Returned unrelated library/skill/command matches for non-restart Go heap/stack inspection",
+    "prompt_manager_fallback": "Returned unrelated guidance",
+    "source_scan": "BAS main exposes recording/performance diagnostics; no registered Go heap/stack profiling endpoint found",
+    "disposition": "No production heap or goroutine-stack profile obtained; no claim that broader ecosystem diagnostics do not exist"
+  },
+  "key_provisioning": {
+    "existing_documentation": "docs/ENVIRONMENT.md documents BAS_SESSION_STORE_KEY",
+    "checked_in_bundle_names_key": false,
+    "running_api_environment_key_present": false,
+    "limits": "Environment observation has no key values. Older dirty runtime may differ from current profile implementation. No real profile create/get/list was requested."
+  },
+  "source_files_sha256": {
+    "api/services/session-profile/service.go": "4ad102f4fc5c250221cfd247282474f41d3f40001f823338ed5ea2113d741b24",
+    "api/services/session-profile/persistence/file_repository.go": "e9360f590a90d8036361795add5906e671c66011894f7140e98e213bc4b0d70b",
+    "api/services/session-profile/persistence/protected_state.go": "b4b78e37ef4da28aace265f9d23989e1486cc8dbbd0011d268cb7fc175423498",
+    "api/services/session-profile/persistence/filesystem.go": "fa215be78fef3a743f6b892305c909bab9e5b9697baad8e527f5a0e17b37d9e9",
+    "api/services/session-profile/persistence/types.go": "72ddfdc4fbb70925814f2a91a94ba0686f900c955ae4a2c2f66b45647e198ae5",
+    "api/handlers/record_mode_persistence.go": "1ece5e1970362db3ca324dd363e9a7fb03b3831cb94242dd1b4202c8978948db",
+    "api/handlers/record_mode.go": "b7f35205756ba0f579fa403c8d82f40002713a08bc9784d0e6df5756c44d0d05",
+    "api/handlers/handler.go": "6a604e320092e439fddad4646360d1de71112cf4d109dc4c63355e418a99115d",
+    "api/services/live-capture/workflow_generator.go": "5cddfd4932ca0833c55554b2b043afd5115461f14b76990bd1c112aae75791bc",
+    "api/services/live-capture/action_registry.go": "53be68359e31dc64c3a2f7fd9884a0afb20f23f5c1fbdeee46b02f1c938bfd1f",
+    "api/services/live-capture/service.go": "5d3dbd7dd26dd6ddc989417cc181b1734c865d9f5cef06d894f7c9d96f3689dc",
+    "api/services/workflow/v2_flow_builder.go": "a2956d52351f84775e3835be49672034b680248f5d15944c642f8c283b627a5f",
+    "playwright-driver/src/session/manager.ts": "117350b730a64a73b90e29bf111735ee4f101aab8f6b222f5160ce09154c2acd",
+    "playwright-driver/src/session/context-builder.ts": "39072a2ce342b05aca6bd1a430e3873c59586609b2dd083d8d1f4875feecdc79",
+    "playwright-driver/src/recording/capture/browser-scripts/recording-script.js": "9ce636040c0591341a82d4e1a17bec4a980bb42372cbb8fbe18ccf69eaa4e572",
+    "ui/src/domains/recording/capture/useInputForwarding.ts": "4c4bf86ddbd383dd08689f47f1050d7a5243288541e5d00e2937b314bf9d0a75",
+    "ui/src/domains/recording/capture/PlaywrightView.tsx": "4adea8e108761bacf021de4e60900219e144774484614d4773433eda66f0b0ce",
+    "ui/src/domains/recording/utils/coordinateMapping.ts": "793c43604eb2aff8a89d31f9d3d4a52430d6471a701f2c030fc4134306ca6891",
+    "docs/internal/refactor_profile_probes.go": "2622a9e7847c711252d9f702eaf66c1ab704ce11edb18ab3d68b9a644ce2ad20",
+    "docs/internal/refactor_input_probes.cjs": "554a95c67dd180df1a0f531b481f167216b45fcf6167e1e44377f0817009b0c5",
+    "bundle/bundle.json": "ddd5e1f478979dc547e11528c341f8958d33a2de7f3ec72f73e451b306aadf3a",
+    "docs/ENVIRONMENT.md": "34ffc026610bf6a2a38add23fafba36b95b7bb69be6bbbd8588e3fab081e50e3"
+  },
+  "not_exercised": [
+    "Real browser/OS shortcut effects and IME composition",
+    "Real browser crash/restart with cookie/localStorage/IndexedDB/sessionStorage matrix",
+    "Native desktop key provisioning and supported OS/arch migration",
+    "Physical disk power-loss or fsync durability",
+    "Replay in real tabs/frames",
+    "Production allocation/stack profile and input-to-paint latency"
+  ]
+}

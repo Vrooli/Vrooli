@@ -1,0 +1,194 @@
+--- a/lib/server/chromium/crConnection.js
++++ b/lib/server/chromium/crConnection.js
+@@ -218,58 +218,76 @@
+       });
+     }
+     const contextPayload = await getWorldPromise;
++    if (frame?.isDetached())
++      throw new Error("Frame was detached");
+     this.emit("Runtime.executionContextCreated", {
+       context: contextPayload
+     });
+   }
+   async __re__getMainWorld({ client, frameId, isWorker = false }) {
+-    let contextId;
+-    const randomName = [...Array(Math.floor(Math.random() * (10 + 1)) + 10)].map(() => Math.random().toString(36)[2]).join("");
+-    process.env["REBROWSER_PATCHES_DEBUG"] && console.log(`[rebrowser-patches][getMainWorld] binding name = ${randomName}`);
+-    await client.send("Runtime.addBinding", {
+-      name: randomName
+-    });
+-    const bindingCalledHandler = ({ name, payload, executionContextId }) => {
+-      process.env["REBROWSER_PATCHES_DEBUG"] && console.log("[rebrowser-patches][bindingCalledHandler]", {
+-        name,
+-        payload,
+-        executionContextId
+-      });
+-      if (contextId > 0) {
+-        return;
++    const token = [...Array(Math.floor(Math.random() * 11) + 10)].map(() => Math.random().toString(36)[2]).join("");
++    const name = this.__re__contextBindingName ||= token;
++    let resolveContext;
++    const contextReady = new Promise((resolve) => { resolveContext = resolve; });
++    let objectId;
++    let timer;
++    const bindingCalled = (event) => {
++      if (event.name === name && event.payload === token)
++        resolveContext(event.executionContextId);
++    };
++    client.on("Runtime.bindingCalled", bindingCalled);
++    try {
++      if (!isWorker) {
++        const { frameTree } = await client.send("Page.getFrameTree");
++        let node;
++        if (frameTree.frame.id === frameId) {
++          // Only a verified session-root document may use the default context.
++          await client.send("Runtime.evaluate", { expression: "void 0" });
++        } else {
++          const { backendNodeId } = await client.send("DOM.getFrameOwner", { frameId });
++          node = (await client.send("DOM.describeNode", { backendNodeId, depth: 1, pierce: true })).node.contentDocument;
++          if (!node)
++            throw new Error("Frame document is unavailable");
++          // Materialize scriptless main realms before installing the binding.
++          objectId = (await client.send("DOM.resolveNode", { backendNodeId: node.backendNodeId })).object.objectId;
++          if (!objectId)
++            throw new Error("Frame document could not be resolved");
++        }
+       }
+-      if (name !== randomName) {
+-        return;
++      const invoke = "function(name, id) { if (typeof globalThis[name] !== 'function') return false; globalThis[name](id); return true; }";
++      let call;
++      for (let attempt = 0; attempt < 2; attempt++) {
++        await client.send("Runtime.addBinding", { name });
++        call = !objectId ? await client.send("Runtime.evaluate", {
++          expression: `(${invoke})(${JSON.stringify(name)}, ${JSON.stringify(token)})`
++        }) : await client.send("Runtime.callFunctionOn", {
++          objectId,
++          functionDeclaration: invoke,
++          arguments: [{ value: name }, { value: token }]
++        });
++        if (call.exceptionDetails)
++          throw new Error(`Frame context binding failed: ${call.exceptionDetails.exception?.description || call.exceptionDetails.text}`);
++        if (call.result?.value === true)
++          break;
+       }
+-      if (payload !== frameId) {
+-        return;
+-      }
+-      contextId = executionContextId;
+-      client.off("Runtime.bindingCalled", bindingCalledHandler);
+-    };
+-    client.on("Runtime.bindingCalled", bindingCalledHandler);
+-    if (isWorker) {
+-      await client.send("Runtime.evaluate", {
+-        expression: `this['${randomName}']('${frameId}')`
+-      });
+-    } else {
+-      await client.send("Page.addScriptToEvaluateOnNewDocument", {
+-        source: `document.addEventListener('${randomName}', (e) => self['${randomName}'](e.detail.frameId))`,
+-        runImmediately: true
+-      });
+-      const createIsolatedWorldResult = await client.send("Page.createIsolatedWorld", {
+-        frameId,
+-        // use randomName for worldName to distinguish from normal utility world
+-        worldName: randomName,
+-        grantUniveralAccess: true
+-      });
+-      await client.send("Runtime.evaluate", {
+-        expression: `document.dispatchEvent(new CustomEvent('${randomName}', { detail: { frameId: '${frameId}' } }))`,
+-        contextId: createIsolatedWorldResult.executionContextId
+-      });
++      if (call.result?.value !== true)
++        throw new Error("Frame context binding is unavailable");
++      // CDP events can arrive after the command response. Join the matching
++      // receipt; never let an absent ID select another document by default.
++      const contextId = await Promise.race([
++        contextReady,
++        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("Frame execution context binding was not acknowledged")), 3000); })
++      ]);
++      if (!Number.isInteger(contextId) || contextId <= 0)
++        throw new Error("Frame execution context binding returned an invalid ID");
++      return contextId;
++    } finally {
++      clearTimeout(timer);
++      client.off("Runtime.bindingCalled", bindingCalled);
++      if (objectId)
++        await client._sendMayFail("Runtime.releaseObject", { objectId });
++      // Registration belongs to this CRSession; removing it destabilizes context IDs.
+     }
+-    process.env["REBROWSER_PATCHES_DEBUG"] && console.log(`[rebrowser-patches][getMainWorld] result:`, { contextId });
+-    return contextId;
+   }
+   async __re__getIsolatedWorld({ client, frameId, worldName }) {
+     const createIsolatedWorldResult = await client.send("Page.createIsolatedWorld", {
+--- a/lib/server/frames.js
++++ b/lib/server/frames.js
+@@ -434,7 +434,7 @@
+       this._startNetworkIdleTimer();
+     this._page.mainFrame()._recalculateNetworkIdle(this);
+     this._onLifecycleEvent("commit");
+-    const crSession = (this._page._delegate._sessions.get(this._id) || this._page._delegate._mainFrameSession)._client;
++    const crSession = this._page._delegate._sessionForFrame(this)._client;
+     crSession.emit("Runtime.executionContextsCleared");
+   }
+   setPendingDocument(documentInfo) {
+@@ -608,29 +608,29 @@
+     return this._page._delegate.getFrameElement(this);
+   }
+   _context(world, useContextPromise = false) {
+-    if (process.env["REBROWSER_PATCHES_RUNTIME_FIX_MODE"] === "0" || this._contextData.get(world).context || useContextPromise) {
+-      return this._contextData.get(world).contextPromise.then((contextOrDestroyedReason) => {
++    const data = this._contextData.get(world);
++    if (this._detachedScope.isClosed())
++      return Promise.reject(new Error("Frame was detached"));
++    if (process.env["REBROWSER_PATCHES_RUNTIME_FIX_MODE"] === "0" || data.context || useContextPromise) {
++      return data.contextPromise.then((contextOrDestroyedReason) => {
+         if (contextOrDestroyedReason instanceof js.ExecutionContext)
+           return contextOrDestroyedReason;
+         throw new Error(contextOrDestroyedReason.destroyedReason);
+       });
+     }
+-    const crSession = (this._page._delegate._sessions.get(this._id) || this._page._delegate._mainFrameSession)._client;
+-    return crSession.__re__emitExecutionContext({
+-      world,
+-      targetId: this._id,
+-      frame: this
+-    }).then(() => {
+-      return this._context(world, true);
+-    }).catch((error) => {
+-      if (error.message.includes("No frame for given id found")) {
+-        return {
+-          destroyedReason: "Frame was detached"
+-        };
+-      }
+-      import_debugLogger.debugLogger.log("error", error);
+-      console.error("[rebrowser-patches][frames._context] cannot get world, error:", error);
+-    });
++    if (!data.contextRequest) {
++      const crSession = this._page._delegate._sessionForFrame(this)._client;
++      const request = crSession.__re__emitExecutionContext({
++        world,
++        targetId: this._id,
++        frame: this
++      }).then(() => this._context(world, true)).finally(() => {
++        if (data.contextRequest === request)
++          data.contextRequest = null;
++      });
++      data.contextRequest = request;
++    }
++    return data.contextRequest;
+   }
+   _mainContext() {
+     return this._context("main");
+@@ -1427,8 +1427,10 @@
+     data.context = context;
+     if (context)
+       data.contextPromise.resolve(context);
+-    else
++    else {
+       data.contextPromise = new import_manualPromise.ManualPromise();
++      data.contextRequest = null;
++    }
+   }
+   _contextCreated(world, context) {
+     const data = this._contextData.get(world);

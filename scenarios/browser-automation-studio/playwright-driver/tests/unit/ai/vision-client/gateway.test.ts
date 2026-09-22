@@ -115,10 +115,16 @@ describe('AIGatewayVisionClient', () => {
   });
 
   it('rejects screenshots whose dimensions cannot be determined', async () => {
-    const client = new AIGatewayVisionClient({ gatewayUrl: 'http://ai-gateway.test' });
-    await expect(client.analyze({ ...request, screenshot: Buffer.from('not an image') }))
-      .rejects.toMatchObject({ code: 'PARSE_ERROR' });
-    expect(mockFetch).not.toHaveBeenCalled();
+    jest.useFakeTimers();
+    try {
+      const client = new AIGatewayVisionClient({ gatewayUrl: 'http://ai-gateway.test' });
+      await expect(client.analyze({ ...request, screenshot: Buffer.from('not an image') }))
+        .rejects.toMatchObject({ code: 'PARSE_ERROR' });
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('requires a configured gateway URL', () => {

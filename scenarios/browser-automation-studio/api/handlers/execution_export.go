@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -721,18 +720,9 @@ func (h *Handler) loadRecordedVideo(ctx context.Context, executionID uuid.UUID) 
 	}
 	sort.Strings(files)
 	path := filepath.Join(videoDir, files[0])
-	contentType := mime.TypeByExtension(filepath.Ext(path))
-	if contentType == "" {
-		if data, readErr := os.ReadFile(path); readErr == nil {
-			contentType = http.DetectContentType(data)
-		}
-	}
-	if contentType == "" {
-		contentType = "video/webm"
-	}
 	return &source.VideoSource{
 		Path:        path,
-		ContentType: contentType,
+		ContentType: source.DetectVideoContentType(path),
 	}, nil
 }
 

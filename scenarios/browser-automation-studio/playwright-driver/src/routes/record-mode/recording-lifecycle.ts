@@ -5,7 +5,7 @@
  * This is the core recording lifecycle management.
  *
  * Other recording functionality has been split into:
- * - callback-streaming.ts: Callback streaming with circuit breaker
+ * - callback-streaming.ts: Acknowledged callback delivery
  * - page-events.ts: Multi-tab page event handling
  * - recording-diagnostics-routes.ts: Debug and test endpoints
  */
@@ -16,11 +16,9 @@ import type { Config } from '../../config';
 import { parseJsonBody, sendJson, sendError } from '../../middleware';
 import { logger, metrics, scopedLog, LogContext } from '../../utils';
 import {
-  initRecordingBuffer,
-  bufferTimelineEntry,
   getTimelineEntries,
   getTimelineEntryCount,
-  clearTimelineEntries,
+  acknowledgeTimelineEntries,
 } from '../../recording';
 import { timelineEntryToJson, type TimelineEntry, ActionType } from '../../proto/recording';
 import type {
@@ -34,7 +32,7 @@ import {
   startFrameStreaming,
   stopFrameStreaming,
 } from '../../frame-streaming';
-import { streamEntryWithCircuitBreaker, callbackCircuitBreaker } from './callback-streaming';
+import { streamRecordingEntry } from './callback-streaming';
 import { setupPageLifecycleListeners, sendPageEvent, pageEventCircuitBreaker } from './page-events';
 import { captureThumbnail, emitHistoryCallback } from './recording-pages';
 
@@ -80,7 +78,7 @@ export async function handleRecordStart(
     if (pipelineManager.isRecording()) {
       const currentRecordingId = pipelineManager.getRecordingId();
       // If the same recording_id is provided, this is an idempotent retry - return success
-      if (request.recording_id && currentRecordingId === request.recording_id) {
+      if (request.recording_id && currentRecordingId === request.recording_id && pipelineManager.getState().phase === 'capturing') {
         const recordingData = pipelineManager.getRecordingData();
         logger.info(scopedLog(LogContext.RECORDING, 'idempotent start - already recording'), {
           sessionId,
@@ -114,9 +112,6 @@ export async function handleRecordStart(
       return;
     }
 
-    // Initialize action buffer for this session
-    initRecordingBuffer(sessionId);
-
     logger.info(scopedLog(LogContext.RECORDING, 'starting'), {
       sessionId,
       hasCallback: !!request.callback_url,
@@ -127,13 +122,8 @@ export async function handleRecordStart(
     const recordingId = await pipelineManager.startRecording({
       sessionId,
       recordingId: request.recording_id,
+      acknowledgeOnDelivery: !!request.callback_url,
       onEntry: async (entry: TimelineEntry) => {
-        // Buffer the entry (proto TimelineEntry)
-        bufferTimelineEntry(sessionId, entry);
-
-        // Track recording activity in metrics
-        metrics.recordingActionsTotal.inc();
-
         // Extract action type name for logging
         const actionTypeName = ActionType[entry.action?.type ?? ActionType.UNSPECIFIED] ?? 'UNKNOWN';
 
@@ -145,9 +135,9 @@ export async function handleRecordStart(
           confidence: entry.action?.metadata?.confidence,
         });
 
-        // If callback URL provided, stream to it (with circuit breaker protection)
+        // A callback acknowledges this entry only after the consumer commits it.
         if (request.callback_url) {
-          await streamEntryWithCircuitBreaker(sessionId, request.callback_url, entry);
+          await streamRecordingEntry(request.callback_url, entry);
         }
       },
       onError: (error: Error) => {
@@ -324,7 +314,7 @@ export async function handleRecordStart(
  * Session phase transitions: recording -> ready
  *
  * Idempotency behavior:
- * - If recording is not active, returns success with action_count: 0
+ * - If recording has stopped, returns the retained terminal count and timestamp
  * - This allows safe retries of recording stop requests
  * - Calling stop twice is safe and produces consistent results
  */
@@ -343,31 +333,11 @@ export async function handleRecordStop(
       throw new Error('Pipeline manager not set on session');
     }
 
-    // Idempotency: If not recording, treat as successful no-op
-    // This handles retries where the first request succeeded but response was lost
-    if (!pipelineManager.isRecording()) {
-      // Get last known recording ID from pipeline state if available
-      const lastRecordingId = pipelineManager.getRecordingId();
-      logger.info(scopedLog(LogContext.RECORDING, 'idempotent stop - no active recording'), {
-        sessionId,
-        phase: session.phase,
-        hint: 'No recording active, treating as successful stop (idempotent)',
-      });
-
-      // Return success with zero action count
-      const response: StopRecordingResponse = {
-        recording_id: lastRecordingId || 'unknown',
-        session_id: sessionId,
-        action_count: 0,
-        stopped_at: new Date().toISOString(),
-      };
-
-      sendJson(res, 200, response);
-      return;
-    }
-
     const recordingId = pipelineManager.getRecordingId();
-    const result = await pipelineManager.stopRecording();
+    const prior = pipelineManager.getRecordingData();
+    const result = pipelineManager.isRecording()
+      ? await pipelineManager.stopRecording()
+      : { recordingId: recordingId || 'unknown', actionCount: prior?.actionCount ?? 0 };
 
     // Stop frame streaming if active
     await stopFrameStreaming(sessionId);
@@ -379,11 +349,10 @@ export async function handleRecordStop(
     }
 
     // Clean up circuit breaker state
-    callbackCircuitBreaker.cleanup(sessionId);
     pageEventCircuitBreaker.cleanup(sessionId);
 
     // Update recording session metric
-    metrics.recordingSessionsActive.dec();
+    if (session.phase === 'recording') metrics.recordingSessionsActive.dec();
 
     // Update session phase
     sessionManager.setSessionPhase(sessionId, 'ready');
@@ -400,7 +369,7 @@ export async function handleRecordStop(
       recording_id: recordingId || result.recordingId,
       session_id: sessionId,
       action_count: result.actionCount,
-      stopped_at: new Date().toISOString(),
+      stopped_at: pipelineManager.getRecordingData()?.stoppedAt ?? new Date().toISOString(),
     };
 
     sendJson(res, 200, response);
@@ -450,7 +419,7 @@ export function handleRecordStatus(
  * GET /session/:id/record/actions
  *
  * Returns all buffered actions for the session as TimelineEntry format.
- * Optionally clears the buffer after retrieval.
+ * Retrieval never removes entries. The consumer acknowledges committed IDs separately.
  *
  * Wire format: Returns proto TimelineEntry JSON format for interoperability.
  */
@@ -472,7 +441,7 @@ export function handleRecordActions(
     const shouldClear = url.searchParams.get('clear') === 'true';
 
     if (shouldClear) {
-      clearTimelineEntries(sessionId);
+      throw new Error('Commit retrieved entries, then POST their entry_ids to /record/actions/ack');
     }
 
     // Convert to JSON wire format (snake_case)
@@ -485,5 +454,27 @@ export function handleRecordActions(
     });
   } catch (error) {
     sendError(res, error as Error, `/session/${sessionId}/record/actions`);
+  }
+}
+
+/** Acknowledge only entries the consumer has durably committed. */
+export async function handleRecordActionsAck(
+  req: IncomingMessage,
+  res: ServerResponse,
+  sessionId: string,
+  sessionManager: SessionManager,
+  config: Config
+): Promise<void> {
+  try {
+    sessionManager.getSession(sessionId);
+    const body = await parseJsonBody(req, config);
+    const ids = body.entry_ids;
+    if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string' || !id)) {
+      throw new Error('entry_ids must be an array of nonempty entry identities');
+    }
+    acknowledgeTimelineEntries(sessionId, ids, true);
+    sendJson(res, 200, { entry_ids: ids });
+  } catch (error) {
+    sendError(res, error as Error, `/session/${sessionId}/record/actions/ack`);
   }
 }

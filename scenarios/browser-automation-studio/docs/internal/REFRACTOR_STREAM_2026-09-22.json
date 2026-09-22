@@ -1,0 +1,545 @@
+{
+  "schema_version": 1,
+  "assembled_at": "2026-09-22T02:08:01.780508+00:00",
+  "assessment": "REFRACTOR_ASSESSMENT.md#stream-lifecycle-and-live-fixture-investigation--2026-09-22-utc",
+  "scope": "Seventh investigation pass: producer streaming lifecycle/settings, plus one real fresh about:blank two-click fixture and live read-only CLI validation. No product changes or real profile/site/device access.",
+  "source_head": "7d1c7531d057c061c5ad5a67fbecb97ebe2eb194",
+  "source_digest_sha256": "2df361d5baaaf501715527e57993b6024ca63e798713f5d9e655a9682f584f43",
+  "product_source_digest_unchanged": true,
+  "driver_probes": {
+    "schema_version": 1,
+    "observed_at": "2026-09-22T02:03:58.539Z",
+    "scope": "Actual frame manager and CDP strategy with synthetic browser/CDP, collector, socket and deterministic clock/scheduler. No live latency or memory measurement.",
+    "source_sha256": {
+      "playwright-driver/src/frame-streaming/manager.ts": "45c3642c1808cd75ed6401261bbccc5b6a6586fc7300b14cd2efa5b4cf987d7a",
+      "playwright-driver/src/frame-streaming/strategies/interface.ts": "7f0647cc4bc27502eb1599cfd617fbf0fe1728299522327e67c2b3f581bedd78",
+      "playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts": "22ec894dfbc2e83ef471ce6fbbb64c06a8bfe0670312947b77933885af0e7c32"
+    },
+    "results": [
+      {
+        "id": "replacement-old-stop-deletes-new-owner",
+        "expected": "Finishing old stream cleanup preserves tracking of its replacement",
+        "actual": {
+          "tracked_before_old_stop": true,
+          "tracked_after_old_stop": false,
+          "replacement_active": true,
+          "replacement_socket_open": true
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "replacement-remains-stoppable",
+        "expected": "A stop request reaches every retained replacement resource",
+        "actual": {
+          "replacement_stop_calls": 0,
+          "replacement_active": true,
+          "socket_closed": false
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "start-completes-after-stop",
+        "expected": "A capture start completing after stop is cancelled or immediately disposed",
+        "actual": {
+          "tracked": false,
+          "late_handle_active": true,
+          "late_stop_calls": 0
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "failed-start-socket-cleanup",
+        "expected": "Failed capture startup closes its connection as well as removing its registry entry",
+        "actual": {
+          "tracked": false,
+          "socket_closed": false
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "settled-start-stop-control",
+        "expected": "A settled stream stop closes its handle/socket and removes tracking",
+        "actual": {
+          "active": false,
+          "socket_closed": true,
+          "tracked": false
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "ready-without-new-paint-buffer-flush",
+        "expected": "A retained initial frame becomes deliverable when transport is ready without requiring another page paint",
+        "actual": {
+          "frames_sent_after_ready": 0,
+          "acknowledged": 1
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "next-paint-flush-control",
+        "expected": "A later compositor frame delivers current content through the ready transport",
+        "actual": {
+          "payload_order": [
+            "initial-frame",
+            "next-frame"
+          ]
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "buffer-survives-page-generation",
+        "expected": "Pending old-page bytes are discarded before the new page can publish frames",
+        "actual": {
+          "payload_order": [
+            "old-page-pending",
+            "new-page-current"
+          ]
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "cdp-restart-completes-after-stop",
+        "expected": "A resize restart cannot acquire an active CDP screencast after stream stop",
+        "actual": {
+          "handle_active": false,
+          "new_session_detached": false,
+          "new_start_calls": 1
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "settled-resize-control",
+        "expected": "A settled resize starts capture with the new dimensions and detaches the old CDP session",
+        "actual": {
+          "old_detached": true,
+          "viewport": {
+            "width": 1400,
+            "height": 800
+          },
+          "start": {
+            "format": "jpeg",
+            "quality": 65,
+            "maxWidth": 1400,
+            "maxHeight": 800,
+            "everyNthFrame": 1
+          }
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "settled-cdp-stop-control",
+        "expected": "Settled stop detaches CDP and removes the page monitor",
+        "actual": {
+          "active": false,
+          "detached": true,
+          "intervals": 0
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "quality-update-reports-before-application",
+        "expected": "A successful quality update is applied or explicitly reported as pending",
+        "actual": {
+          "changed": true,
+          "reported_quality": 20,
+          "applied_start_qualities": [
+            65
+          ]
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "fps-setting-not-effective",
+        "expected": "A reported FPS limit is enforced or explicitly reported unsupported by the active strategy",
+        "actual": {
+          "reported_fps": 1,
+          "reported_current_fps": 1,
+          "frames_in_one_simulated_second": 60,
+          "update_target_fps_supported": false
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "perf-header-setting-not-effective",
+        "expected": "Enabling performance headers changes outgoing framing before success is reported",
+        "actual": {
+          "reported_perf_mode": true,
+          "first_payload_uses_timestamp_format": true
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "quality-applies-on-restart-control",
+        "expected": "The retained quality setting takes effect at the next screencast restart",
+        "actual": {
+          "restart_quality": 20
+        },
+        "expected_behavior_met": true
+      }
+    ]
+  },
+  "summary": {
+    "isolated_observations": 15,
+    "desired_behavior_mismatches": 10,
+    "successful_controls": 5,
+    "new_issue_ids": [
+      "BAS-RF-045",
+      "BAS-RF-046",
+      "BAS-RF-047",
+      "BAS-RF-048",
+      "BAS-RF-049"
+    ],
+    "strengthened_issue_ids": [
+      "BAS-RF-009",
+      "BAS-RF-034"
+    ],
+    "interpretation": "Synthetic cases, CLI failures and one live control have separate populations; no failure rate or latency percentile inferred."
+  },
+  "live_control": {
+    "operation": "browser-automation-studio workflows execute-adhoc --flow-file /tmp/bas-frame-live-control.json --wait --name bas-investigation-two-click-control --json",
+    "exit_code": 0,
+    "result": {
+      "execution_id": "312e3508-94b0-4aea-88d3-5046984d1245",
+      "status": "EXECUTION_STATUS_COMPLETED",
+      "completed_at": "2026-09-22T02:00:59.105990770Z"
+    },
+    "flow_definition": {
+      "metadata": {
+        "name": "BAS investigation isolated two-click control",
+        "labels": {
+          "session_reuse_mode": "fresh"
+        }
+      },
+      "nodes": [
+        {
+          "id": "open-fixture",
+          "action": {
+            "type": "ACTION_TYPE_NAVIGATE",
+            "navigate": {
+              "url": "about:blank"
+            }
+          }
+        },
+        {
+          "id": "initialize-counter",
+          "action": {
+            "type": "ACTION_TYPE_EVALUATE",
+            "evaluate": {
+              "expression": "(() => { document.body.innerHTML = '<button id=increment>Increment</button><output id=count data-count=0>0</output>'; const output=document.querySelector('#count'); document.querySelector('#increment').addEventListener('click', () => { const n=Number(output.dataset.count)+1; output.dataset.count=String(n); output.textContent=String(n); }); return {ready:true}; })()"
+            }
+          }
+        },
+        {
+          "id": "click-1",
+          "action": {
+            "type": "ACTION_TYPE_CLICK",
+            "click": {
+              "selector": "#increment"
+            }
+          }
+        },
+        {
+          "id": "click-2",
+          "action": {
+            "type": "ACTION_TYPE_CLICK",
+            "click": {
+              "selector": "#increment"
+            }
+          }
+        },
+        {
+          "id": "verify-two-effects",
+          "action": {
+            "type": "ACTION_TYPE_ASSERT",
+            "assert": {
+              "selector": "#count[data-count=\"2\"]",
+              "mode": "ASSERTION_MODE_EXISTS",
+              "timeout_ms": 2000,
+              "failure_message": "Two distinct clicks must produce counter=2 in the isolated page"
+            }
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "e0",
+          "source": "open-fixture",
+          "target": "initialize-counter",
+          "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+        },
+        {
+          "id": "e1",
+          "source": "initialize-counter",
+          "target": "click-1",
+          "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+        },
+        {
+          "id": "e2",
+          "source": "click-1",
+          "target": "click-2",
+          "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+        },
+        {
+          "id": "e3",
+          "source": "click-2",
+          "target": "verify-two-effects",
+          "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+        }
+      ],
+      "settings": {
+        "viewport_width": 1280,
+        "viewport_height": 720
+      }
+    },
+    "started_at": "2026-09-22T02:00:55.709533656Z",
+    "completed_at": "2026-09-22T02:00:59.105990770Z",
+    "execution_duration_ms": 3396.457,
+    "entries": [
+      {
+        "node_id": "open-fixture",
+        "duration_ms": 338,
+        "context": {
+          "success": true
+        },
+        "screenshot": {
+          "artifact_id": "d5b01445-6e3a-4b2c-a913-9a28fc649869",
+          "url": "/api/v1/screenshots/312e3508-94b0-4aea-88d3-5046984d1245/artifacts/screenshots/00001--bas-investigation-two-click-control--open-fixture--ACTION_TYPE_NAVIGATE.png",
+          "thumbnail_url": "/api/v1/screenshots/312e3508-94b0-4aea-88d3-5046984d1245/artifacts/screenshots/00001--bas-investigation-two-click-control--open-fixture--ACTION_TYPE_NAVIGATE.png",
+          "width": 2560,
+          "height": 1440,
+          "content_type": "image/png",
+          "size_bytes": "14071",
+          "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/recordings/312e3508-94b0-4aea-88d3-5046984d1245/artifacts/screenshots/00001--bas-investigation-two-click-control--open-fixture--ACTION_TYPE_NAVIGATE.png"
+        },
+        "outcome_projection": {
+          "kind": "string_value",
+          "text_with_pointer_addresses_normalized": "{automation-step-outcome-v1 1 312e3508-94b0-4aea-88d3-5046984d1245  0 1 open-fixture navigate  true 2026-09-22 02:00:56.101931106 +0000 UTC 2026-09-22 02:00:56.440094103 +0000 UTC 338  <nil>  <pointer> <pointer> [] [] map[] <nil> <nil> map[] <nil> <nil> <nil> <nil>  0 0 [] [] 0 [] map[] <nil>}"
+        }
+      },
+      {
+        "node_id": "initialize-counter",
+        "duration_ms": 693,
+        "context": {
+          "success": true
+        },
+        "screenshot": {
+          "artifact_id": "726be9e5-aa4d-4e1d-891d-0a53270293a3",
+          "url": "/api/v1/screenshots/312e3508-94b0-4aea-88d3-5046984d1245/artifacts/screenshots/00002--bas-investigation-two-click-control--initialize-counter--ACTION_TYPE_EVALUATE.png",
+          "thumbnail_url": "/api/v1/screenshots/312e3508-94b0-4aea-88d3-5046984d1245/artifacts/screenshots/00002--bas-investigation-two-click-control--initialize-counter--ACTION_TYPE_EVALUATE.png",
+          "width": 2560,
+          "height": 1440,
+          "content_type": "image/png",
+          "size_bytes": "17197",
+          "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/recordings/312e3508-94b0-4aea-88d3-5046984d1245/artifacts/screenshots/00002--bas-investigation-two-click-control--initialize-counter--ACTION_TYPE_EVALUATE.png"
+        },
+        "outcome_projection": {
+          "kind": "string_value",
+          "text_with_pointer_addresses_normalized": "{automation-step-outcome-v1 1 312e3508-94b0-4aea-88d3-5046984d1245  1 1 initialize-counter evaluate  true 2026-09-22 02:00:56.485720866 +0000 UTC 2026-09-22 02:00:57.179263649 +0000 UTC 693  <nil>  <pointer> <pointer> [] [] map[result:map[ready:true]] <nil> <nil> map[] <nil> <nil> <nil> <nil>  0 0 [] [] 0 [] map[] <nil>}"
+        }
+      },
+      {
+        "node_id": "click-1",
+        "duration_ms": 663,
+        "context": {
+          "success": true
+        },
+        "screenshot": {
+          "artifact_id": "d342309e-671f-4b56-a0d3-7cab2191c746",
+          "url": "/api/v1/screenshots/312e3508-94b0-4aea-88d3-5046984d1245/artifacts/screenshots/00003--bas-investigation-two-click-control--click-1--ACTION_TYPE_CLICK.png",
+          "thumbnail_url": "/api/v1/screenshots/312e3508-94b0-4aea-88d3-5046984d1245/artifacts/screenshots/00003--bas-investigation-two-click-control--click-1--ACTION_TYPE_CLICK.png",
+          "width": 2560,
+          "height": 1440,
+          "content_type": "image/png",
+          "size_bytes": "16682",
+          "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/recordings/312e3508-94b0-4aea-88d3-5046984d1245/artifacts/screenshots/00003--bas-investigation-two-click-control--click-1--ACTION_TYPE_CLICK.png"
+        },
+        "outcome_projection": {
+          "kind": "string_value",
+          "text_with_pointer_addresses_normalized": "{automation-step-outcome-v1 1 312e3508-94b0-4aea-88d3-5046984d1245  2 1 click-1 click  true 2026-09-22 02:00:57.228507667 +0000 UTC 2026-09-22 02:00:57.892159206 +0000 UTC 663  <nil>  <pointer> <pointer> [] [] map[] <nil> <nil> map[] <nil> <nil> <nil> <nil>  0 0 [] [] 0 [] map[] <nil>}"
+        }
+      },
+      {
+        "node_id": "click-2",
+        "duration_ms": 533,
+        "context": {
+          "success": true
+        },
+        "screenshot": {
+          "artifact_id": "cd75bb03-b118-43ae-b405-bdaf15e169e1",
+          "url": "/api/v1/screenshots/312e3508-94b0-4aea-88d3-5046984d1245/artifacts/screenshots/00004--bas-investigation-two-click-control--click-2--ACTION_TYPE_CLICK.png",
+          "thumbnail_url": "/api/v1/screenshots/312e3508-94b0-4aea-88d3-5046984d1245/artifacts/screenshots/00004--bas-investigation-two-click-control--click-2--ACTION_TYPE_CLICK.png",
+          "width": 2560,
+          "height": 1440,
+          "content_type": "image/png",
+          "size_bytes": "17040",
+          "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/recordings/312e3508-94b0-4aea-88d3-5046984d1245/artifacts/screenshots/00004--bas-investigation-two-click-control--click-2--ACTION_TYPE_CLICK.png"
+        },
+        "outcome_projection": {
+          "kind": "string_value",
+          "text_with_pointer_addresses_normalized": "{automation-step-outcome-v1 1 312e3508-94b0-4aea-88d3-5046984d1245  3 1 click-2 click  true 2026-09-22 02:00:57.937508389 +0000 UTC 2026-09-22 02:00:58.471411835 +0000 UTC 533  <nil>  <pointer> <pointer> [] [] map[] <nil> <nil> map[] <nil> <nil> <nil> <nil>  0 0 [] [] 0 [] map[] <nil>}"
+        }
+      },
+      {
+        "node_id": "verify-two-effects",
+        "duration_ms": 532,
+        "context": {
+          "success": true,
+          "assertion": {
+            "mode": "ASSERTION_MODE_EXISTS",
+            "selector": "#count[data-count=\"2\"]",
+            "expected": {
+              "string_value": "exists"
+            },
+            "actual": {
+              "string_value": "exists"
+            },
+            "success": true
+          }
+        },
+        "screenshot": {
+          "artifact_id": "7a18ac56-5d89-45f9-a83d-56bce2664da1",
+          "url": "/api/v1/screenshots/312e3508-94b0-4aea-88d3-5046984d1245/artifacts/screenshots/00005--bas-investigation-two-click-control--verify-two-effects--ACTION_TYPE_ASSERT.png",
+          "thumbnail_url": "/api/v1/screenshots/312e3508-94b0-4aea-88d3-5046984d1245/artifacts/screenshots/00005--bas-investigation-two-click-control--verify-two-effects--ACTION_TYPE_ASSERT.png",
+          "width": 2560,
+          "height": 1440,
+          "content_type": "image/png",
+          "size_bytes": "17040",
+          "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/recordings/312e3508-94b0-4aea-88d3-5046984d1245/artifacts/screenshots/00005--bas-investigation-two-click-control--verify-two-effects--ACTION_TYPE_ASSERT.png"
+        },
+        "outcome_projection": {
+          "kind": "string_value",
+          "text_with_pointer_addresses_normalized": "{automation-step-outcome-v1 1 312e3508-94b0-4aea-88d3-5046984d1245  4 1 verify-two-effects assert  true 2026-09-22 02:00:58.52687845 +0000 UTC 2026-09-22 02:00:59.059535065 +0000 UTC 532  <nil>  <pointer> <pointer> [] [] map[assertion:map[actual:exists expected:exists message: mode:exists selector:#count[data-count=\"2\"] success:true]] <pointer> <nil> map[] <nil> <nil> <nil> <nil>  0 0 [] [] 0 [] map[] <nil>}"
+        }
+      }
+    ],
+    "screenshots": 5,
+    "screenshot_bytes": 82030,
+    "requested_css_viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "actual_screenshot_dimensions": {
+      "width": 2560,
+      "height": 1440
+    },
+    "replay_package_id": "f33fff50-fd50-4a62-88e1-d1777fa6ece6",
+    "evidence_manifest_id": "d6225f48-adc7-4fb8-9273-06d624fe2521",
+    "replay_package_schema": "bas-replay/v1",
+    "source_receipts_sha256": {
+      "bas-frame-live-control.json": "1bb6d2c5e2cf5c5727463b6df855704b151dd899d18da5d8564143b5477ae919",
+      "bas-frame-live-control-result.json": "53781aadb0a1fce2359ef4294cb0aa51b85747e208f908a3d0e7123d9838ec67",
+      "bas-frame-live-control-timeline.json": "ae9ec5f651333961624ad524ffe307f75da408afe1584f4472c054f0abb860a7",
+      "bas-frame-live-control-replay.json": "62002b6f939199651ce47eecb7e2d299f4b50657241a1bf9cbd17549ef00f2a0"
+    },
+    "cohort": "One existing shared Linux host and deployed BAS API; same API PID 1647308 as earlier passes. No controlled CPU load, warm/cold classification, UI frame client, input-to-paint clock or matching-build certification.",
+    "retention": "Adhoc execution and artifacts are ordinary owner-managed receipts; not a saved reusable workflow revision. Do not delete evidence as scratch data."
+  },
+  "cli_boolean_flag": {
+    "fixture": "live_control.flow_definition in REFRACTOR_STREAM_2026-09-22.json",
+    "fixture_sha256": "1bb6d2c5e2cf5c5727463b6df855704b151dd899d18da5d8564143b5477ae919",
+    "results": [
+      {
+        "id": "without-flag-control",
+        "argv": [
+          "browser-automation-studio",
+          "workflows",
+          "validate",
+          "--flow-file",
+          "/tmp/bas-frame-live-control.json",
+          "--json"
+        ],
+        "exit_code": 0,
+        "stdout": "{\n  \"result\":  {\n    \"valid\":  true,\n    \"warnings\":  [\n      {\n        \"severity\":  \"VALIDATION_SEVERITY_WARNING\",\n        \"code\":  \"WF_NODE_LABEL_MISSING\",\n        \"message\":  \"Node is missing a label; consider adding one for readability\",\n        \"node_id\":  \"open-fixture\",\n        \"pointer\":  \"/nodes/0/action/metadata/label\"\n      },\n      {\n        \"severity\":  \"VALIDATION_SEVERITY_WARNING\",\n        \"code\":  \"WF_NODE_LABEL_MISSING\",\n        \"message\":  \"Node is missing a label; consider adding one for readability\",\n        \"node_id\":  \"initialize-counter\",\n        \"pointer\":  \"/nodes/1/action/metadata/label\"\n      },\n      {\n        \"severity\":  \"VALIDATION_SEVERITY_WARNING\",\n        \"code\":  \"WF_NODE_LABEL_MISSING\",\n        \"message\":  \"Node is missing a label; consider adding one for readability\",\n        \"node_id\":  \"click-1\",\n        \"pointer\":  \"/nodes/2/action/metadata/label\"\n      },\n      {\n        \"severity\":  \"VALIDATION_SEVERITY_WARNING\",\n        \"code\":  \"WF_NODE_LABEL_MISSING\",\n        \"message\":  \"Node is missing a label; consider adding one for readability\",\n        \"node_id\":  \"click-2\",\n        \"pointer\":  \"/nodes/3/action/metadata/label\"\n      },\n      {\n        \"severity\":  \"VALIDATION_SEVERITY_WARNING\",\n        \"code\":  \"WF_NODE_LABEL_MISSING\",\n        \"message\":  \"Node is missing a label; consider adding one for readability\",\n        \"node_id\":  \"verify-two-effects\",\n        \"pointer\":  \"/nodes/4/action/metadata/label\"\n      }\n    ],\n    \"stats\":  {\n      \"node_count\":  5,\n      \"edge_count\":  4\n    },\n    \"schema_version\":  \"workflow_definition_v2\",\n    \"checked_at\":  \"2026-09-22T02:06:48.662424193Z\"\n  }\n}\n",
+        "stderr": ""
+      },
+      {
+        "id": "boolean-presence",
+        "argv": [
+          "browser-automation-studio",
+          "workflows",
+          "validate",
+          "--flow-file",
+          "/tmp/bas-frame-live-control.json",
+          "--require-assertion",
+          "--json"
+        ],
+        "exit_code": 1,
+        "stdout": "",
+        "stderr": "Error: WorkflowsService.ValidateWorkflow: build request: flag --require-assertion: strconv.ParseBool: parsing \"\": invalid syntax\n"
+      },
+      {
+        "id": "boolean-explicit-value",
+        "argv": [
+          "browser-automation-studio",
+          "workflows",
+          "validate",
+          "--flow-file",
+          "/tmp/bas-frame-live-control.json",
+          "--require-assertion=true",
+          "--json"
+        ],
+        "exit_code": 1,
+        "stdout": "",
+        "stderr": "Error: --require-assertion does not accept a value\n"
+      }
+    ]
+  },
+  "shared_owner_bug": {
+    "id": "knw-1790042809480136792",
+    "topic": "bug-inbox/code-defect/bas-require-assertion-boolean-cannot-cross-generated-proto",
+    "status": "published",
+    "skill": "scenarios/prompt-manager/store/skills/packs/core/report-bug/SKILL.md"
+  },
+  "source_files_sha256": {
+    "api/automation/execution-writer/file_writer.go": "61dd59786acee6d8d5ac3d5200b7ba6435c43c8da2d31ac35d1dc5a2b4e574ae",
+    "api/internal/typeconv/primitives.go": "5934e20f7ac3c6e85d64a64270ded4fb5047e28f9acfbb83a33560e0804f8fbf",
+    "cli/manifest.json": "d8513ba34ba3534bede95130c5d89307a8789bd3a0c186030d0239aa5a0dedea",
+    "cli/workflows/register.go": "e846df1e76c68bfbc6505aaa17dd0d19c253b4c27552a0e4aeb82ae448dd1182",
+    "docs/internal/refactor_stream_probes.cjs": "8dbe03e43b7caf61c85d7b1bf87e5e680a7168cfbe98ec1ca16f60a4e035146a",
+    "playwright-driver/src/frame-streaming/manager.ts": "45c3642c1808cd75ed6401261bbccc5b6a6586fc7300b14cd2efa5b4cf987d7a",
+    "playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts": "22ec894dfbc2e83ef471ce6fbbb64c06a8bfe0670312947b77933885af0e7c32",
+    "playwright-driver/src/frame-streaming/strategies/interface.ts": "7f0647cc4bc27502eb1599cfd617fbf0fe1728299522327e67c2b3f581bedd78",
+    "playwright-driver/src/frame-streaming/strategies/polling.ts": "646d396caed009e6b4e5e9b164a4949e74d1676620c5c83562a3aa0601d71383",
+    "playwright-driver/src/frame-streaming/websocket/connection.ts": "5ae87addf8b9356b95811f7bb27a5b5ee84b3dd1d24d3a77c095dd63b61aa17d",
+    "playwright-driver/src/routes/record-mode/recording-diagnostics-routes.ts": "806d7522eba80e3fa9f64b5aa0dba5a8ff81268c73c25e989a80bee89e4d9971",
+    "ui/src/domains/recording/capture/StreamSettings.tsx": "3bf1b0446c46da4e1337944d474808cd0e6905381694d5550bf20d2325afb09b"
+  },
+  "repository_source_files_sha256": {
+    "packages/cli-core/cliapp/parser.go": "f44704975a8e0054b26d3674cec6d0e1911cdd2edc6625020d8714972a929053",
+    "packages/cli-core/cliapp/runcontext.go": "394e1358d73ae203025c1c3626e94688f4954747e987cef638fb0176f0b6cd13",
+    "packages/cli-core/cliapp/protobindings.go": "87d79dbad41be173bbd41568283e4e5cb719ff73c300d68fad7c35ce4ec80d55"
+  },
+  "prior_art": {
+    "recall": "search-hub query \"browser automation studio input latency frame delivery controlled browser fixture\" --type library,record,skill,doc --limit 2",
+    "prepare_operation_id": "prog_e5b0e343-dfde-4c47-9f68-8e8663e5c52b",
+    "related_history": "agent-manager://runs/fde7ca88-7d8c-46dd-bec3-49884b58c641/events/b01c613e-ffb2-40b6-a677-75923b079218",
+    "disposition": "July timing work warns that screenshot overhead can conceal execution-start races. Current live fixture checks independent DOM state and is not a latency benchmark. Browser usage discovery exposes adhoc execution but no live-recording interaction CLI leaf in inspected help; that does not prove global absence.",
+    "degraded_providers": [
+      "source-ledger.agent-memory timeout",
+      "source-ledger.scopes timeout",
+      "swarm-manager.records circuit unavailable"
+    ]
+  },
+  "limits": [
+    "Synthetic deferred promises control startup/stop/resize interleavings. Counts prove missing ownership fences, not real leak size or incidence.",
+    "The simulated 60-frame second measures absent FPS enforcement, not actual compositor throughput. Quality applies at the next restart in the successful control.",
+    "Transport-ready/no-new-paint does not flush pending bytes in the isolated CDP strategy; actual browser initial-paint timing and UI fallback interplay remain unmeasured.",
+    "The live control proves two distinct click nodes changed a synthetic DOM counter; it does not qualify passive recording, loop retries, streamed input, storage isolation or platforms.",
+    "Raw step_outcome projection is a string, while typed success/assertion/screenshot fields remain available. Canonical result-file fidelity and actual downstream recovery impact were not tested.",
+    "The existing session-reuse-fresh-probe asset uses legacy execution_mode mutating and was rejected by direct validation before flag binding; it was not used as the boolean control. The saved new fixture validates without the flag.",
+    "No source/build equivalence is asserted for deployed API/CLI; current code independently explains observed projection and flag behavior."
+  ],
+  "validation": {
+    "validated_at": "2026-09-22T02:12:48.410626+00:00",
+    "node_syntax": "passed",
+    "git_diff_check_docs": "passed",
+    "issue_ids_unique_ordered": 49,
+    "preservation_journeys": 24,
+    "source_and_probe_hash_checks": 110,
+    "relative_links_checked": 55,
+    "manifest": "each investigation artifact registered once",
+    "live_counter_assertion": "passed",
+    "cli_flag_reproduction": "valid fixture succeeds without flag; bare and explicit-value flag forms fail before RPC",
+    "scenario_suite": "Not run for diagnostic/documentation scope. One owned adhoc live fixture executed; no release or platform certification."
+  }
+}

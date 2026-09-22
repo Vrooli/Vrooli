@@ -1,9 +1,5 @@
 package typeconv
 
-import (
-	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
-)
-
 // RetryHistoryEntry captures the outcome of a single retry attempt for a step.
 type RetryHistoryEntry struct {
 	Attempt        int    `json:"attempt"`
@@ -90,43 +86,4 @@ func ToRetryHistoryEntry(value any) *RetryHistoryEntry {
 		return nil
 	}
 	return &entry
-}
-
-// ToTimelineScreenshot converts an artifact to *TimelineScreenshot.
-// Returns nil if artifact is nil.
-func ToTimelineScreenshot(artifact *executionwriter.ArtifactData) *TimelineScreenshot {
-	if artifact == nil {
-		return nil
-	}
-	shot := &TimelineScreenshot{
-		ArtifactID:   artifact.ArtifactID,
-		URL:          artifact.StorageURL,
-		ThumbnailURL: artifact.ThumbnailURL,
-		ContentType:  artifact.ContentType,
-		SizeBytes:    artifact.SizeBytes,
-	}
-	if artifact.Payload != nil {
-		shot.Width = ToInt(artifact.Payload["width"])
-		shot.Height = ToInt(artifact.Payload["height"])
-	}
-	return shot
-}
-
-// ToTimelineArtifact converts an artifact to TimelineArtifact.
-func ToTimelineArtifact(artifact *executionwriter.ArtifactData) TimelineArtifact {
-	payload := map[string]any{}
-	if artifact.Payload != nil {
-		payload = artifact.Payload
-	}
-	return TimelineArtifact{
-		ID:           artifact.ArtifactID,
-		Type:         artifact.ArtifactType,
-		Label:        artifact.Label,
-		StorageURL:   artifact.StorageURL,
-		ThumbnailURL: artifact.ThumbnailURL,
-		ContentType:  artifact.ContentType,
-		SizeBytes:    artifact.SizeBytes,
-		StepIndex:    artifact.StepIndex,
-		Payload:      payload,
-	}
 }

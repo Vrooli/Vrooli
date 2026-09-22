@@ -1,0 +1,1677 @@
+{
+  "observed_at": "2026-09-22T02:37:39.534360+00:00",
+  "scope": "isolated actual-module regressions; not product or native-platform certification",
+  "cases": [
+    {
+      "case": "recording-driver",
+      "status": "failed",
+      "producer_sha256": "3732225145db3b6ac9a16d204127814fceee326ee4caf22bbdd2b632435140fa",
+      "observations": [
+        {
+          "id": "network-request-identity",
+          "expected": "Two responses retain their own request URL and status",
+          "actual": {
+            "request_strings": [
+              "[object Object]",
+              "[object Object]"
+            ],
+            "distinct_request_objects": true,
+            "events": [
+              {
+                "url": "https://fixture.invalid/b",
+                "status": 201
+              }
+            ]
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "network-sequential-control",
+          "expected": "The same fixture without overlapping requests preserves two correct responses",
+          "actual": [
+            {
+              "url": "https://fixture.invalid/a",
+              "status": 201
+            },
+            {
+              "url": "https://fixture.invalid/b",
+              "status": 202
+            }
+          ],
+          "expected_behavior_met": true
+        },
+        {
+          "id": "browser-pool-retry-coalescing",
+          "expected": "Waiting callers share one retry and every launched browser has an owner",
+          "actual": {
+            "launchCount": 3,
+            "successful_browser_ids": [
+              2,
+              3
+            ],
+            "closed_browser_ids": [
+              3
+            ]
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "browser-pool-shutdown-during-launch",
+          "expected": "Shutdown owns and closes a concurrently completing launch",
+          "actual": {
+            "live_browser_after_close": true,
+            "closedOnShutdown": 0
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "direct-frame-subscription",
+          "expected": "A connection without a session receives no session frames",
+          "actual": {
+            "anonymous_frames": 10,
+            "wrong_session_frames": 0,
+            "matching_frames": 10
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "direct-frame-backpressure",
+          "expected": "A socket already holding 64 MiB cannot accumulate ten more frame sends",
+          "actual": {
+            "initial_buffered_bytes": 67108864,
+            "additional_frames": 10
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "concurrent-input-order",
+          "expected": "A down request started before up applies down before up",
+          "actual": {
+            "applied_order": [
+              "up",
+              "down"
+            ]
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "recorder-clear-field",
+          "expected": "Input snapshots include the final empty value",
+          "actual": {
+            "captured_texts": [
+              "a",
+              "ab"
+            ]
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "recorder-password",
+          "expected": "A password sentinel is absent from raw recording transport",
+          "actual": {
+            "transported_literal": "SYNTHETIC-NOT-A-REAL-SECRET",
+            "input_type": "password"
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "recorder-stop-flush",
+          "expected": "Stopping capture preserves a buffered final edit",
+          "actual": {
+            "new_events_after_stop": 0
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "recorder-http-error-ack",
+          "expected": "An HTTP 500 does not acknowledge or discard a pending event",
+          "actual": {
+            "pending_count": 0,
+            "success_count": 1
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "recorder-timestamp-identity",
+          "expected": "Acknowledging one of two same-millisecond events retains the other",
+          "actual": {
+            "pending_before": 2,
+            "pending_after_one_ack": 0
+          },
+          "expected_behavior_met": false
+        }
+      ],
+      "scope": "isolated actual-module probes with synthetic I/O; not a browser E2E or certification run",
+      "producer_exit": 0
+    },
+    {
+      "case": "recording-api",
+      "status": "failed",
+      "producer_sha256": "611565bcc80f554834302b55ba672ecb12e7a6b3ae86bfe2915f8c14845b0de3",
+      "observations": [
+        {
+          "id": "merge-input-snapshots",
+          "expected": "The latest full-value snapshot is ab",
+          "actual": "aab",
+          "expected_behavior_met": false
+        },
+        {
+          "id": "merge-page-identity",
+          "expected": "Identical selectors in separate pages retain two actions",
+          "actual": 1,
+          "expected_behavior_met": false
+        },
+        {
+          "id": "merge-frame-identity",
+          "expected": "Identical selectors in separate frames retain two actions",
+          "actual": 1,
+          "expected_behavior_met": false
+        },
+        {
+          "id": "recording-persistence-ack",
+          "expected": "A failed durable write does not report success",
+          "actual": {
+            "broadcasts": 1,
+            "returned_error": false,
+            "save_attempts": 1
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "timeline-cache-pagination",
+          "expected": "A 1001-event durable session reports 1001 and offset changes the page",
+          "actual": {
+            "database_reads": 0,
+            "durable_saves": 1001,
+            "first_page_start_sequence": 902,
+            "offset_page_start_sequence": 902,
+            "reported_total": 501
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "frame-window-accounting",
+          "expected": "Two retained non-skipped 1000-byte frames average 1000 bytes",
+          "actual": {
+            "average_frame_bytes": 0,
+            "lifetime_frames": 5,
+            "lifetime_skips": 3,
+            "retained_frames": 2
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "wrapped-sink-cleanup",
+          "expected": "Completing 24 wrapped sinks closes their execution queues",
+          "actual": {
+            "hub_close_calls": 0,
+            "remaining_queue_goroutines": 24
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "probe-resource-cleanup",
+          "expected": "Explicitly closing the underlying sinks releases all probe queues",
+          "actual": 0,
+          "expected_behavior_met": true
+        },
+        {
+          "id": "sink-close-drains-terminal-event",
+          "expected": "Closing a queue delivers its already-accepted terminal event",
+          "actual": {
+            "delivered_events": 1,
+            "published_events": 2
+          },
+          "expected_behavior_met": false
+        }
+      ],
+      "scope": "isolated production-module composition and pure-function probes; no live workflows",
+      "producer_exit": 0
+    },
+    {
+      "case": "profile",
+      "status": "failed",
+      "producer_sha256": "2622a9e7847c711252d9f702eaf66c1ab704ce11edb18ab3d68b9a644ce2ad20",
+      "observations": [
+        {
+          "id": "profile-encryption-roundtrip-control",
+          "expected": "Fresh repository restores synthetic state without putting it in plaintext files",
+          "actual": {
+            "metadata_contains_state": false,
+            "protected_contains_state": false,
+            "read_error": "",
+            "state_restored": true
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "profile-metadata-commit-failure",
+          "expected": "Failed save preserves one coherent previous profile",
+          "actual": {
+            "metadata_name": "old-name",
+            "read_error": "",
+            "save_error": "rename profile: synthetic metadata commit failure",
+            "state_is_new": true
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "profile-interrupted-state-write",
+          "expected": "Interrupted state save leaves previous acknowledged profile readable",
+          "actual": {
+            "prior_state_preserved": false,
+            "save_error": "write protected session state: synthetic interrupted protected-state write",
+            "subsequent_read_error": "open protected session state: protected session payload is truncated"
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "profile-missing-protected-state",
+          "expected": "A profile whose acknowledged protected state is missing reports incomplete recovery",
+          "actual": {
+            "profile_returned": true,
+            "read_error": "",
+            "restored_storage_bytes": 0
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "profile-unreadable-list",
+          "expected": "Listing exposes recovery failure rather than an apparently empty profile store",
+          "actual": {
+            "default_created_replacement": true,
+            "default_resolution_error": "",
+            "direct_read_error": "open protected session state: cipher: message authentication failed",
+            "list_error": "",
+            "listed_count": 0
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "profile-concurrent-field-updates",
+          "expected": "Successful tab and storage updates both survive a legal read-modify-save interleaving",
+          "actual": {
+            "new_tab_retained": true,
+            "storage_error": "",
+            "storage_reverted_to_old": true,
+            "tabs_error": ""
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "profile-persist-http-receipt",
+          "expected": "Persist endpoint reports failed durable save",
+          "actual": {
+            "http_status": 200,
+            "response": "{\"session_id\":\"synthetic-session\",\"status\":\"persisted\"}"
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "profile-close-save-failure",
+          "expected": "Failed final persistence remains visible and recoverable when closing",
+          "actual": {
+            "driver_closed": true,
+            "http_status": 200,
+            "profile_association_after_close": "",
+            "response": "{\"session_id\":\"synthetic-session\",\"status\":\"closed\"}"
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "profile-missing-key-fail-closed-control",
+          "expected": "Profile creation requires an encryption key",
+          "actual": "BAS_SESSION_STORE_KEY is required for protected session storage",
+          "expected_behavior_met": true
+        },
+        {
+          "id": "replay-simple-click-control",
+          "expected": "Basic click remains a valid typed click",
+          "actual": {
+            "generated_action": {
+              "click": {
+                "button": "MOUSE_BUTTON_LEFT",
+                "selector": "#fixture"
+              },
+              "metadata": {
+                "label": "Click element"
+              },
+              "type": "ACTION_TYPE_CLICK"
+            },
+            "typed_ingress_error": ""
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "replay-click-modifiers",
+          "expected": "Recorded Control-click preserves its modifier",
+          "actual": {
+            "generated_action": {
+              "click": {
+                "button": "MOUSE_BUTTON_LEFT",
+                "selector": "#fixture"
+              },
+              "metadata": {
+                "label": "Click element"
+              },
+              "type": "ACTION_TYPE_CLICK"
+            },
+            "typed_ingress_error": ""
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "replay-double-click",
+          "expected": "Recorded double-click preserves click count two",
+          "actual": {
+            "generated_action": {
+              "click": {
+                "button": "MOUSE_BUTTON_LEFT",
+                "selector": "#fixture"
+              },
+              "metadata": {
+                "label": "Click element"
+              },
+              "type": "ACTION_TYPE_CLICK"
+            },
+            "typed_ingress_error": ""
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "replay-keyboard-modifiers",
+          "expected": "Recorded Control-A preserves its modifier",
+          "actual": {
+            "generated_action": {
+              "keyboard": {
+                "key": "a"
+              },
+              "metadata": {
+                "label": "Press a"
+              },
+              "type": "ACTION_TYPE_KEYBOARD"
+            },
+            "typed_ingress_error": ""
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "replay-horizontal-scroll",
+          "expected": "Recorded scroll preserves both axes",
+          "actual": {
+            "generated_action": {
+              "metadata": {
+                "label": "Scroll"
+              },
+              "scroll": {
+                "selector": "#fixture",
+                "y": 400
+              },
+              "type": "ACTION_TYPE_SCROLL"
+            },
+            "typed_ingress_error": ""
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "replay-blur",
+          "expected": "Blur becomes blur or explicit unsupported failure, never click",
+          "actual": {
+            "generated_action": {
+              "click": {
+                "selector": "#fixture"
+              },
+              "metadata": {
+                "label": "blur"
+              },
+              "type": "ACTION_TYPE_CLICK"
+            },
+            "typed_ingress_error": ""
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "replay-browser-drag-event",
+          "expected": "Browser-script drag-drop becomes drag/drop or explicit unsupported failure",
+          "actual": {
+            "generated_action": {
+              "click": {
+                "selector": "#fixture"
+              },
+              "metadata": {
+                "label": "drag-drop"
+              },
+              "type": "ACTION_TYPE_CLICK"
+            },
+            "typed_ingress_error": ""
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "replay-registry-drag-event",
+          "expected": "Registered dragDrop conversion produces valid typed workflow",
+          "actual": {
+            "generated_action": {
+              "dragDrop": {
+                "selector": "#fixture"
+              },
+              "metadata": {
+                "label": "Drag and drop"
+              },
+              "type": "ACTION_TYPE_UNSPECIFIED"
+            },
+            "typed_ingress_error": "decode workflow definition at ingress: proto: (line 1:45): unknown field \"selector\""
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "replay-target-context",
+          "expected": "Target context is retained or its loss is rejected instead of accepting an untargeted flow",
+          "actual": {
+            "flow": {
+              "edges": [
+                {
+                  "id": "edge_1",
+                  "source": "node_1",
+                  "target": "wait_2"
+                },
+                {
+                  "id": "edge_2",
+                  "source": "wait_2",
+                  "target": "node_3"
+                }
+              ],
+              "nodes": [
+                {
+                  "action": {
+                    "click": {
+                      "selector": "#one"
+                    },
+                    "metadata": {
+                      "label": "Click element"
+                    },
+                    "type": "ACTION_TYPE_CLICK"
+                  },
+                  "id": "node_1",
+                  "position": {
+                    "x": 250,
+                    "y": 100
+                  }
+                },
+                {
+                  "action": {
+                    "metadata": {
+                      "label": "Wait for element"
+                    },
+                    "type": "ACTION_TYPE_WAIT",
+                    "wait": {
+                      "selector": "#two",
+                      "state": "WAIT_STATE_VISIBLE",
+                      "timeout_ms": 10000
+                    }
+                  },
+                  "id": "wait_2",
+                  "position": {
+                    "x": 250,
+                    "y": 220
+                  }
+                },
+                {
+                  "action": {
+                    "click": {
+                      "selector": "#two"
+                    },
+                    "metadata": {
+                      "label": "Click element"
+                    },
+                    "type": "ACTION_TYPE_CLICK"
+                  },
+                  "id": "node_3",
+                  "position": {
+                    "x": 250,
+                    "y": 340
+                  }
+                }
+              ]
+            },
+            "typed_ingress_error": ""
+          },
+          "expected_behavior_met": false
+        }
+      ],
+      "scope": "isolated actual profile repository/service/HTTP handlers and workflow generator/typed ingress; synthetic I/O only",
+      "producer_exit": 0
+    },
+    {
+      "case": "input",
+      "status": "failed",
+      "producer_sha256": "554a95c67dd180df1a0f531b481f167216b45fcf6167e1e44377f0817009b0c5",
+      "observations": [
+        {
+          "id": "control-a",
+          "expected": "Printable shortcut retains key and modifier",
+          "actual": {
+            "type": "recording_input",
+            "session_id": "synthetic-session",
+            "input": {
+              "type": "keyboard",
+              "text": "a"
+            },
+            "page_id": "synthetic-page"
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "command-c",
+          "expected": "Printable shortcut retains key and modifier",
+          "actual": {
+            "type": "recording_input",
+            "session_id": "synthetic-session",
+            "input": {
+              "type": "keyboard",
+              "text": "c"
+            },
+            "page_id": "synthetic-page"
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "alt-f",
+          "expected": "Printable shortcut retains key and modifier",
+          "actual": {
+            "type": "recording_input",
+            "session_id": "synthetic-session",
+            "input": {
+              "type": "keyboard",
+              "text": "f"
+            },
+            "page_id": "synthetic-page"
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "plain-text-control",
+          "expected": "Ordinary printable text remains x",
+          "actual": {
+            "type": "recording_input",
+            "session_id": "synthetic-session",
+            "input": {
+              "type": "keyboard",
+              "text": "x"
+            },
+            "page_id": "synthetic-page"
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "special-shortcut-control",
+          "expected": "Shift-Tab retains its modifier",
+          "actual": {
+            "type": "recording_input",
+            "session_id": "synthetic-session",
+            "input": {
+              "type": "keyboard",
+              "key": "Tab",
+              "modifiers": [
+                "Shift"
+              ]
+            },
+            "page_id": "synthetic-page"
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "shift-pointer-down",
+          "expected": "Modified pointer input retains modifier state",
+          "actual": {
+            "type": "recording_input",
+            "session_id": "synthetic-session",
+            "input": {
+              "type": "pointer",
+              "action": "down",
+              "x": 100,
+              "y": 200,
+              "button": "left"
+            },
+            "page_id": "synthetic-page"
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "composition-keydown",
+          "expected": "Composition bookkeeping is not forwarded as a standalone browser key command",
+          "actual": [
+            {
+              "type": "recording_input",
+              "session_id": "synthetic-session",
+              "input": {
+                "type": "keyboard",
+                "key": "Process",
+                "modifiers": []
+              },
+              "page_id": "synthetic-page"
+            }
+          ],
+          "expected_behavior_met": false
+        }
+      ],
+      "scope": "actual hook/coordinate logic; synthetic React hooks and WebSocket sink; OS/browser effects not tested",
+      "producer_exit": 0
+    },
+    {
+      "case": "session-frame",
+      "status": "failed",
+      "producer_sha256": "1302620c06b98dbafe6a3fe10af06aba9ebe8355ed2e7f6edd3af2ecc1d5715a",
+      "observations": [
+        {
+          "id": "admission-distinct-ids",
+          "expected": "maxConcurrent=1 admits at most one concurrent new session",
+          "actual": {
+            "fulfilled": 2,
+            "sessions": 2,
+            "contexts_created": 2
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "admission-same-id-control",
+          "expected": "Concurrent same-execution starts share one session",
+          "actual": {
+            "same_session": true,
+            "contexts_created": 1
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "active-instruction-start-retry",
+          "expected": "A start retry does not make a still-executing session accept another instruction",
+          "actual": {
+            "same_lease": true,
+            "phase_after_retry": "ready",
+            "accepted_before": false,
+            "accepts_after": true
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "ready-start-retry-control",
+          "expected": "A ready session retry preserves identity and lease",
+          "actual": {
+            "session_id": "ready-control",
+            "lease_id": "lease"
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "clean-active-second-tab",
+          "expected": "Successful reset retains an open current page and closes discarded pages",
+          "actual": {
+            "current_page_closed": true,
+            "first_page_closed": false,
+            "retained_page_ids": [
+              "second"
+            ],
+            "page_map_ids": [
+              "first",
+              "second"
+            ],
+            "phase": "ready"
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "failed-reset-lifecycle",
+          "expected": "A failed reset exits resetting into a recoverable or explicitly failed state",
+          "actual": {
+            "error": "synthetic navigation failure",
+            "phase": "resetting",
+            "idle_cleanup_eligible_one_hour_later": false
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "external-target-reset-control",
+          "expected": "Reset refuses an owner-controlled target without changing its phase",
+          "actual": {
+            "refused": true,
+            "phase": "ready"
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "teardown-failure-receipt",
+          "expected": "Failed browser cleanup and trace flush remain owned and appear in the close result",
+          "actual": {
+            "page_close_attempts": 1,
+            "context_close_attempts": 1,
+            "trace_attempts": 1,
+            "page_still_open": true,
+            "sessions_tracked": 0,
+            "status": 200,
+            "close_result": {
+              "success": true,
+              "trace_path": "/synthetic/never-written-trace.zip"
+            }
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "normal-close-control",
+          "expected": "Successful cleanup closes owned resources and removes the session",
+          "actual": {
+            "page_closed": true,
+            "context_closed": true,
+            "tracked_sessions": 0,
+            "status": 200,
+            "close_result": {
+              "success": true
+            }
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "connected-without-frames-fallback",
+          "expected": "Polling continues after socket opens until a frame has arrived",
+          "actual": {
+            "polling_calls": 1,
+            "scheduled_fallback_polls": 0,
+            "binary_frames": 0
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "decode-admission-bound",
+          "expected": "Slow decoding uses bounded active work plus latest pending frame, independent of burst length",
+          "actual": {
+            "frames": 100,
+            "unresolved_decodes": 100
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "same-millisecond-frame-order",
+          "expected": "Older frame cannot overwrite newer frame after out-of-order decode",
+          "actual": {
+            "drawn_order": [
+              "newer",
+              "older"
+            ]
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "distinct-timestamp-frame-control",
+          "expected": "Older frame with a distinct timestamp is discarded and closed",
+          "actual": {
+            "drawn_order": [
+              "newer"
+            ],
+            "older_bitmap_closed": true
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "decode-after-session-switch",
+          "expected": "Old-session decode cannot draw into the new session canvas",
+          "actual": {
+            "drawn_after_switch": [
+              "old-session"
+            ]
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "decode-after-unmount",
+          "expected": "An in-flight decode finishing after cleanup is closed without scheduling a new paint",
+          "actual": {
+            "scheduled_paints_after_cleanup": 1,
+            "bitmap_closed": false
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "config-resolution-after-unmount",
+          "expected": "An unfinished config request cannot create a socket after effect cleanup",
+          "actual": {
+            "socket_count": 1,
+            "open_sockets": 1
+          },
+          "expected_behavior_met": false
+        }
+      ],
+      "scope": "Actual manager/guard/decisions/reset and UI frame hook; synthetic browser/context/pages, hook scheduler, socket, clock, decoder and canvas. No browser or React-renderer certification.",
+      "producer_exit": 0
+    },
+    {
+      "case": "retention",
+      "status": "failed",
+      "producer_sha256": "38d380afb93f64eadd014a172fbaad6cc9605341939e6a57ddde013e7303eaa6",
+      "observations": [
+        {
+          "id": "unbounded-keep-latest-control",
+          "expected": "Unbounded sweep deletes two older rows and protects newest",
+          "actual": {
+            "DryRun": false,
+            "Removed": [
+              {
+                "ExecutionID": "00000000-0000-0000-0000-000000000002",
+                "Status": "completed",
+                "WorkflowID": "00000000-0000-0000-0000-000000000010",
+                "StartedAt": "2026-09-17T00:00:00Z",
+                "CompletedAt": "2026-09-17T00:00:00Z",
+                "ResultPath": "/synthetic/retention-investigation/00000000-0000-0000-0000-000000000002/result.json",
+                "ArtifactDir": "/synthetic/retention-investigation/00000000-0000-0000-0000-000000000002",
+                "EstimatedBytes": 100,
+                "Reason": ""
+              },
+              {
+                "ExecutionID": "00000000-0000-0000-0000-000000000001",
+                "Status": "completed",
+                "WorkflowID": "00000000-0000-0000-0000-000000000010",
+                "StartedAt": "2026-09-12T00:00:00Z",
+                "CompletedAt": "2026-09-12T00:00:00Z",
+                "ResultPath": "/synthetic/retention-investigation/00000000-0000-0000-0000-000000000001/result.json",
+                "ArtifactDir": "/synthetic/retention-investigation/00000000-0000-0000-0000-000000000001",
+                "EstimatedBytes": 100,
+                "Reason": ""
+              }
+            ],
+            "Skipped": [
+              {
+                "ExecutionID": "00000000-0000-0000-0000-000000000003",
+                "Status": "completed",
+                "WorkflowID": "00000000-0000-0000-0000-000000000010",
+                "StartedAt": "2026-09-21T00:00:00Z",
+                "CompletedAt": "2026-09-21T00:00:00Z",
+                "ResultPath": "/synthetic/retention-investigation/00000000-0000-0000-0000-000000000003/result.json",
+                "ArtifactDir": "",
+                "EstimatedBytes": 0,
+                "Reason": "protected by keep_latest"
+              }
+            ],
+            "EstimatedBytes": 200,
+            "RemovedCount": 2,
+            "SkippedCount": 1,
+            "ErrorCount": 0,
+            "RemovedByStatus": {
+              "completed": 2
+            }
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "bounded-keep-latest-progress",
+          "expected": "Repeated size-one batches delete eligible old rows while preserving the actual newest row",
+          "actual": {
+            "remaining_rows": 3,
+            "removed_per_sweep": [
+              0,
+              0,
+              0
+            ]
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "preview-subset-keep-latest",
+          "expected": "Applying an eligible old preview ID does not turn that row into the protected newest row",
+          "actual": {
+            "apply_removed": 0,
+            "apply_skipped": [
+              {
+                "ExecutionID": "00000000-0000-0000-0000-000000000001",
+                "Status": "completed",
+                "WorkflowID": "00000000-0000-0000-0000-000000000010",
+                "StartedAt": "2026-09-12T00:00:00Z",
+                "CompletedAt": "2026-09-12T00:00:00Z",
+                "ResultPath": "/synthetic/retention-investigation/00000000-0000-0000-0000-000000000001/result.json",
+                "ArtifactDir": "",
+                "EstimatedBytes": 0,
+                "Reason": "protected by keep_latest"
+              }
+            ],
+            "preview_eligible_count": 2
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "active-execution-retention-control",
+          "expected": "An explicitly selected running execution is not deleted",
+          "actual": {
+            "filesystem_deletes": 0,
+            "removed": 0
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "bounded-no-keep-control",
+          "expected": "A bounded sweep without keep_latest deletes the oldest row",
+          "actual": {
+            "deleted_ids": [
+              "00000000-0000-0000-0000-000000000001"
+            ],
+            "removed": 1
+          },
+          "expected_behavior_met": true
+        }
+      ],
+      "scope": "Actual retention service with in-memory store/filesystem; production oldest-first LIMIT behavior modelled; no database or filesystem deletion",
+      "producer_exit": 0
+    },
+    {
+      "case": "execution-api",
+      "status": "failed",
+      "producer_sha256": "69f43529464008d59cdcb1d5299ffb2e3dbc27680503bd1e3e9ca76f8b972bfb",
+      "observations": [
+        {
+          "id": "go-retry-attempt-wire-identity",
+          "expected": "New attempts carry distinct invocation identity while transport retries preserve identity",
+          "actual": {
+            "identical_requests": true,
+            "requests": 2,
+            "run_error": ""
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "go-retry-transport-control",
+          "expected": "The executor retries a synthetic transient result and accepts subsequent success",
+          "actual": {
+            "outcomes": 1,
+            "requests": 2,
+            "run_error": ""
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "go-run-lease-wire",
+          "expected": "Instruction requests carry the active execution and immutable lease",
+          "actual": {
+            "execution_id_in_body": false,
+            "headers": {
+              "Content-Type": [
+                "application/json"
+              ]
+            },
+            "lease_id_in_body": false
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "go-loop-invocation-wire-identity",
+          "expected": "Separate loop iterations carry distinct invocation identity",
+          "actual": {
+            "identical_requests": true,
+            "outcome_count": 3,
+            "requests": 2,
+            "run_error": ""
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "linear-cancellation-evidence-control",
+          "expected": "Cancellation retains the terminal step outcome using a live persistence context",
+          "actual": {
+            "cancelled_write_attempts": 0,
+            "close_calls": 1,
+            "run_error": "context canceled",
+            "saved_outcomes": 1
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "graph-cancellation-evidence",
+          "expected": "Cancellation retains the terminal step outcome using a live persistence context",
+          "actual": {
+            "cancelled_write_attempts": 1,
+            "close_calls": 1,
+            "run_error": "record step outcome: context canceled",
+            "saved_outcomes": 0
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "explicit-screenshot-failure-outcome",
+          "expected": "An explicit screenshot failure does not become overall success without caller opt-in to optional capture",
+          "actual": {
+            "last_outcome": {
+              "schema_version": "automation-step-outcome-v1",
+              "payload_version": "1",
+              "execution_id": "11bd91e5-30c0-448f-8f76-d97ba3529c04",
+              "step_index": 1,
+              "attempt": 1,
+              "node_id": "required-screenshot",
+              "step_type": "screenshot",
+              "success": true,
+              "started_at": "2026-09-22T02:37:38.175044272Z",
+              "completed_at": "2026-09-22T02:37:38.175044392Z",
+              "notes": {
+                "non_fatal_failure": "synthetic capture failure",
+                "non_fatal_failure_code": "SYNTHETIC_CAPTURE_FAILURE"
+              }
+            },
+            "run_error": ""
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "executor-close-failure-outcome",
+          "expected": "Execution finalization reports failed resource cleanup",
+          "actual": {
+            "close_attempts": 1,
+            "run_error": "",
+            "saved_outcomes": 1
+          },
+          "expected_behavior_met": false
+        }
+      ],
+      "scope": "Actual public Go executor and Playwright engine/session/client with synthetic HTTP transport; cancellation and cleanup use a fake engine and context-sensitive memory writer. No socket/browser/database or evidence-file writes.",
+      "producer_exit": 0
+    },
+    {
+      "case": "execution-driver",
+      "status": "failed",
+      "producer_sha256": "01af6a82c8be4ad6b8ab1e92acf79e80a31e28b54bc432a387d47fa5db75f810",
+      "observations": [
+        {
+          "id": "run-admission-initializing",
+          "expected": "Only ready/recording sessions admit a new instruction",
+          "actual": {
+            "phase_before": "initializing",
+            "status": 200,
+            "handler_calls": 1,
+            "phase_after": "ready"
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "run-admission-resetting",
+          "expected": "Only ready/recording sessions admit a new instruction",
+          "actual": {
+            "phase_before": "resetting",
+            "status": 200,
+            "handler_calls": 1,
+            "phase_after": "ready"
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "run-admission-closing",
+          "expected": "Only ready/recording sessions admit a new instruction",
+          "actual": {
+            "phase_before": "closing",
+            "status": 200,
+            "handler_calls": 1,
+            "phase_after": "closing"
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "run-admission-executing",
+          "expected": "Only ready/recording sessions admit a new instruction",
+          "actual": {
+            "phase_before": "executing",
+            "status": 409,
+            "handler_calls": 0,
+            "phase_after": "executing"
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "run-stale-lease",
+          "expected": "A command from a previous execution lease cannot mutate the current session",
+          "actual": {
+            "current_owner": "current-owner",
+            "supplied_owner": "old-owner",
+            "status": 200,
+            "handler_calls": 1
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "go-to-driver-retry",
+          "expected": "An explicitly new retry attempt can recover from a completed transient failure",
+          "actual": {
+            "requests": 2,
+            "handler_calls": 1,
+            "response_successes": [
+              false,
+              false
+            ]
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "go-to-driver-loop",
+          "expected": "Two loop iterations perform their browser handler twice",
+          "actual": {
+            "requests": 2,
+            "handler_calls": 1,
+            "response_successes": [
+              true,
+              true
+            ]
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "transport-repeat-control",
+          "expected": "Retransmitting one operation returns its result without repeating the effect",
+          "actual": {
+            "handler_calls": 1
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "distinct-step-control",
+          "expected": "Distinct step identities execute separately",
+          "actual": {
+            "handler_calls": 2
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "changed-payload-same-identity",
+          "expected": "A reused invocation identity with changed payload produces an explicit conflict",
+          "actual": {
+            "handler_calls": 1,
+            "status": 200,
+            "returned_success": true
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "idempotency-cache-lease-and-payload",
+          "expected": "Cache hits are scoped to lease and validated request identity",
+          "actual": {
+            "current_owner": "next-owner",
+            "handler_calls": 1,
+            "status": 200,
+            "returned_success": true
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "retry-after-uncertain-effect",
+          "expected": "Retransmission of an uncertain operation does not silently repeat its effect",
+          "actual": {
+            "first_status": 500,
+            "second_status": 200,
+            "simulated_effects": 2,
+            "handler_calls": 2
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "returned-handler-failure-control",
+          "expected": "A failed instruction retains available console context and attempts failure capture",
+          "actual": {
+            "status": 200,
+            "screenshots": 1,
+            "dom_captures": 1,
+            "returned_console_logs": 1,
+            "remaining_console_listeners": 0,
+            "cached_instructions": 1
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "thrown-handler-failure-evidence",
+          "expected": "A failed instruction retains available console context and attempts failure capture",
+          "actual": {
+            "status": 500,
+            "screenshots": 0,
+            "dom_captures": 0,
+            "returned_console_logs": 0,
+            "remaining_console_listeners": 0,
+            "cached_instructions": 0
+          },
+          "expected_behavior_met": false
+        }
+      ],
+      "scope": "Actual run route, executor pipeline, cache, manager phase methods and telemetry collectors. Synthetic browser handlers/capture, middleware and proto-codec seams. Go packet replay composes wire identity behavior but is not a live HTTP/browser E2E test.",
+      "producer_exit": 0
+    },
+    {
+      "case": "reuse",
+      "status": "failed",
+      "producer_sha256": "4577a8be80e715236f9cc99704eeb8972d00e101272a0469f3573d6e8ec354c9",
+      "observations": [
+        {
+          "id": "reuse-profile-isolation",
+          "expected": "A different requested identity is applied in an isolated context or rejected",
+          "actual": {
+            "status": 200,
+            "same_context": true,
+            "requested_identity": "b",
+            "context_identity": "a",
+            "spec_identity_after": "b",
+            "context_builds": 0
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "reuse-context-settings",
+          "expected": "Accepted viewport, locale and proxy agree with effective context settings",
+          "actual": {
+            "status": 200,
+            "requested_viewport": {
+              "width": 390,
+              "height": 844
+            },
+            "actual_viewport": {
+              "width": 1280,
+              "height": 720,
+              "source": "requested",
+              "reason": "Reused existing session by label match"
+            },
+            "requested_profile": {
+              "fingerprint": {
+                "locale": "fr-FR"
+              },
+              "proxy": {
+                "enabled": true,
+                "server": "http://proxy-b.invalid:8080"
+              }
+            },
+            "effective_profile": {
+              "fingerprint": {
+                "locale": "en-US"
+              },
+              "proxy": {
+                "enabled": true,
+                "server": "http://proxy-a.invalid:8080"
+              }
+            }
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "clean-profile-isolation",
+          "expected": "A different requested identity is applied in an isolated context or rejected",
+          "actual": {
+            "status": 200,
+            "same_context": true,
+            "requested_identity": "b",
+            "context_identity": null,
+            "spec_identity_after": "b",
+            "context_builds": 0
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "clean-context-settings",
+          "expected": "Accepted viewport, locale and proxy agree with effective context settings",
+          "actual": {
+            "status": 200,
+            "requested_viewport": {
+              "width": 390,
+              "height": 844
+            },
+            "actual_viewport": {
+              "width": 1280,
+              "height": 720,
+              "source": "requested",
+              "reason": "Reused existing session by label match"
+            },
+            "requested_profile": {
+              "fingerprint": {
+                "locale": "fr-FR"
+              },
+              "proxy": {
+                "enabled": true,
+                "server": "http://proxy-b.invalid:8080"
+              }
+            },
+            "effective_profile": {
+              "fingerprint": {
+                "locale": "en-US"
+              },
+              "proxy": {
+                "enabled": true,
+                "server": "http://proxy-a.invalid:8080"
+              }
+            }
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "fresh-context-control",
+          "expected": "Fresh request allocates a distinct context and passes the requested identity to its builder",
+          "actual": {
+            "status": 200,
+            "distinct_context": true,
+            "identity": "b"
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "unreleased-lease-control",
+          "expected": "An unreleased or differently labelled session is not transferred",
+          "actual": {
+            "status": 200,
+            "original_owner": "a",
+            "same_session": false
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "different-label-control",
+          "expected": "An unreleased or differently labelled session is not transferred",
+          "actual": {
+            "status": 200,
+            "original_owner": "a",
+            "same_session": false
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "compatible-reuse-control",
+          "expected": "Compatible released reuse transfers the lease and preserves the intended context",
+          "actual": {
+            "status": 200,
+            "reused": true,
+            "new_lease": true,
+            "identity": "a"
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "reuse-artifact-destination",
+          "expected": "New execution evidence uses its requested destination and an explicit capture boundary",
+          "actual": {
+            "status": 200,
+            "requested": {
+              "harPath": "/synthetic/b/har/execution-b.har",
+              "videoDir": "/synthetic/b/videos",
+              "tracePath": "/synthetic/b/traces/execution-b.zip"
+            },
+            "effective": {
+              "tracePath": "/synthetic/a/traces/execution-a.zip",
+              "harPath": "/synthetic/a/har/execution-a.har",
+              "videoDir": "/synthetic/a/videos"
+            },
+            "current_owner": "b"
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "reuse-artifact-close-receipt",
+          "expected": "The new owner close receipt and video name do not mix execution identities",
+          "actual": {
+            "receipt": {
+              "videoPaths": [
+                "/synthetic/a/videos/execution-b-page-1.webm"
+              ],
+              "tracePath": "/synthetic/a/traces/execution-a.zip",
+              "harPath": "/synthetic/a/har/execution-a.har"
+            },
+            "trace_stop_paths": [
+              "/synthetic/a/traces/execution-a.zip"
+            ],
+            "simulated_video_moves": [
+              {
+                "from": "/synthetic/a/videos/random.webm",
+                "to": "/synthetic/a/videos/execution-b-page-1.webm"
+              }
+            ]
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "reuse-enables-required-evidence",
+          "expected": "A newly required capture capability starts collecting or admission fails",
+          "actual": {
+            "status": 200,
+            "requested": {
+              "video": true,
+              "har": true,
+              "tracing": true
+            },
+            "effective_tracing": false,
+            "effective_video": false,
+            "effective_har": false
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "artifact-root-validation-control",
+          "expected": "The route rejects required recording without an artifact root",
+          "actual": {
+            "status": "error",
+            "error": "artifact_paths.root is required when recording video/trace/HAR artifacts"
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "electron-fresh-validation-control",
+          "expected": "Fresh external target admission requires its validation context",
+          "actual": {
+            "status": "error",
+            "error": "Electron validation context is required"
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "electron-reuse-validation",
+          "expected": "Released reuse also enforces target identity and validation context",
+          "actual": {
+            "status": 200,
+            "requested_target": "electron",
+            "actual_external_target": false,
+            "spec_target_after": "electron",
+            "retained_managed_context": true
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "android-webview-fresh-validation-control",
+          "expected": "Fresh external target admission requires its validation context",
+          "actual": {
+            "status": "error",
+            "error": "Electron validation context is required"
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "android-webview-reuse-validation",
+          "expected": "Released reuse also enforces target identity and validation context",
+          "actual": {
+            "status": 200,
+            "requested_target": "android-webview",
+            "actual_external_target": false,
+            "spec_target_after": "android-webview",
+            "retained_managed_context": true
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "external-to-managed-reuse",
+          "expected": "A managed-browser request cannot silently inherit an external app renderer",
+          "actual": {
+            "status": 200,
+            "external_target_after": true,
+            "spec_target_after": null
+          },
+          "expected_behavior_met": false
+        }
+      ],
+      "scope": "Actual start route, manager, decision/reset/teardown and app-target validation; synthetic HTTP, contexts, profile markers, capture handles, filesystem and context-builder seam. No live browser/profile/artifact access.",
+      "producer_exit": 0
+    },
+    {
+      "case": "stream",
+      "status": "failed",
+      "producer_sha256": "8dbe03e43b7caf61c85d7b1bf87e5e680a7168cfbe98ec1ca16f60a4e035146a",
+      "observations": [
+        {
+          "id": "replacement-old-stop-deletes-new-owner",
+          "expected": "Finishing old stream cleanup preserves tracking of its replacement",
+          "actual": {
+            "tracked_before_old_stop": true,
+            "tracked_after_old_stop": false,
+            "replacement_active": true,
+            "replacement_socket_open": true
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "replacement-remains-stoppable",
+          "expected": "A stop request reaches every retained replacement resource",
+          "actual": {
+            "replacement_stop_calls": 0,
+            "replacement_active": true,
+            "socket_closed": false
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "start-completes-after-stop",
+          "expected": "A capture start completing after stop is cancelled or immediately disposed",
+          "actual": {
+            "tracked": false,
+            "late_handle_active": true,
+            "late_stop_calls": 0
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "failed-start-socket-cleanup",
+          "expected": "Failed capture startup closes its connection as well as removing its registry entry",
+          "actual": {
+            "tracked": false,
+            "socket_closed": false
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "settled-start-stop-control",
+          "expected": "A settled stream stop closes its handle/socket and removes tracking",
+          "actual": {
+            "active": false,
+            "socket_closed": true,
+            "tracked": false
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "ready-without-new-paint-buffer-flush",
+          "expected": "A retained initial frame becomes deliverable when transport is ready without requiring another page paint",
+          "actual": {
+            "frames_sent_after_ready": 0,
+            "acknowledged": 1
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "next-paint-flush-control",
+          "expected": "A later compositor frame delivers current content through the ready transport",
+          "actual": {
+            "payload_order": [
+              "initial-frame",
+              "next-frame"
+            ]
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "buffer-survives-page-generation",
+          "expected": "Pending old-page bytes are discarded before the new page can publish frames",
+          "actual": {
+            "payload_order": [
+              "old-page-pending",
+              "new-page-current"
+            ]
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "cdp-restart-completes-after-stop",
+          "expected": "A resize restart cannot acquire an active CDP screencast after stream stop",
+          "actual": {
+            "handle_active": false,
+            "new_session_detached": false,
+            "new_start_calls": 1
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "settled-resize-control",
+          "expected": "A settled resize starts capture with the new dimensions and detaches the old CDP session",
+          "actual": {
+            "old_detached": true,
+            "viewport": {
+              "width": 1400,
+              "height": 800
+            },
+            "start": {
+              "format": "jpeg",
+              "quality": 65,
+              "maxWidth": 1400,
+              "maxHeight": 800,
+              "everyNthFrame": 1
+            }
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "settled-cdp-stop-control",
+          "expected": "Settled stop detaches CDP and removes the page monitor",
+          "actual": {
+            "active": false,
+            "detached": true,
+            "intervals": 0
+          },
+          "expected_behavior_met": true
+        },
+        {
+          "id": "quality-update-reports-before-application",
+          "expected": "A successful quality update is applied or explicitly reported as pending",
+          "actual": {
+            "changed": true,
+            "reported_quality": 20,
+            "applied_start_qualities": [
+              65
+            ]
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "fps-setting-not-effective",
+          "expected": "A reported FPS limit is enforced or explicitly reported unsupported by the active strategy",
+          "actual": {
+            "reported_fps": 1,
+            "reported_current_fps": 1,
+            "frames_in_one_simulated_second": 60,
+            "update_target_fps_supported": false
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "perf-header-setting-not-effective",
+          "expected": "Enabling performance headers changes outgoing framing before success is reported",
+          "actual": {
+            "reported_perf_mode": true,
+            "first_payload_uses_timestamp_format": true
+          },
+          "expected_behavior_met": false
+        },
+        {
+          "id": "quality-applies-on-restart-control",
+          "expected": "The retained quality setting takes effect at the next screencast restart",
+          "actual": {
+            "restart_quality": 20
+          },
+          "expected_behavior_met": true
+        }
+      ],
+      "scope": "Actual frame manager and CDP strategy with synthetic browser/CDP, collector, socket and deterministic clock/scheduler. No live latency or memory measurement.",
+      "producer_exit": 0
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 10,
+    "unavailable": 0
+  }
+}

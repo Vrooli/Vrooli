@@ -3,6 +3,8 @@ package livecapture
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 )
 
@@ -32,8 +34,8 @@ func TestMergeConsecutiveActions_MergesConsecutiveTypeActions(t *testing.T) {
 	selector := &driver.SelectorSet{Primary: "#input"}
 	actions := []driver.RecordedAction{
 		{ActionType: "type", Selector: selector, Payload: map[string]interface{}{"text": "Hello"}},
-		{ActionType: "type", Selector: selector, Payload: map[string]interface{}{"text": " "}},
-		{ActionType: "type", Selector: selector, Payload: map[string]interface{}{"text": "World"}},
+		{ActionType: "type", Selector: selector, Payload: map[string]interface{}{"text": "Hello "}},
+		{ActionType: "type", Selector: selector, Payload: map[string]interface{}{"text": "Hello World"}},
 	}
 
 	result := MergeConsecutiveActions(actions)
@@ -113,7 +115,7 @@ func TestMergeConsecutiveActions_MixedActions(t *testing.T) {
 		{ActionType: "click", Selector: &driver.SelectorSet{Primary: "#btn"}},
 		{ActionType: "focus", Selector: inputSelector},
 		{ActionType: "type", Selector: inputSelector, Payload: map[string]interface{}{"text": "Hello"}},
-		{ActionType: "type", Selector: inputSelector, Payload: map[string]interface{}{"text": " World"}},
+		{ActionType: "type", Selector: inputSelector, Payload: map[string]interface{}{"text": "Hello World"}},
 		{ActionType: "scroll", Payload: map[string]interface{}{"scrollY": 100.0}},
 		{ActionType: "scroll", Payload: map[string]interface{}{"scrollY": 300.0}},
 		{ActionType: "click", Selector: &driver.SelectorSet{Primary: "#submit"}},
@@ -219,55 +221,6 @@ func TestApplyActionRange_FullRange(t *testing.T) {
 	}
 }
 
-func TestSelectorsMatch(t *testing.T) {
-	tests := []struct {
-		name     string
-		a        *driver.SelectorSet
-		b        *driver.SelectorSet
-		expected bool
-	}{
-		{
-			name:     "both nil",
-			a:        nil,
-			b:        nil,
-			expected: false,
-		},
-		{
-			name:     "first nil",
-			a:        nil,
-			b:        &driver.SelectorSet{Primary: "#test"},
-			expected: false,
-		},
-		{
-			name:     "second nil",
-			a:        &driver.SelectorSet{Primary: "#test"},
-			b:        nil,
-			expected: false,
-		},
-		{
-			name:     "matching selectors",
-			a:        &driver.SelectorSet{Primary: "#input"},
-			b:        &driver.SelectorSet{Primary: "#input"},
-			expected: true,
-		},
-		{
-			name:     "different selectors",
-			a:        &driver.SelectorSet{Primary: "#input1"},
-			b:        &driver.SelectorSet{Primary: "#input2"},
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := selectorsMatch(tt.a, tt.b)
-			if result != tt.expected {
-				t.Errorf("selectorsMatch(%v, %v) = %v, expected %v", tt.a, tt.b, result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestGenerateWorkflow_CreatesNodesAndEdges(t *testing.T) {
 	gen := NewWorkflowGenerator()
 	actions := []driver.RecordedAction{
@@ -275,17 +228,9 @@ func TestGenerateWorkflow_CreatesNodesAndEdges(t *testing.T) {
 		{ActionType: "click", Selector: &driver.SelectorSet{Primary: "#btn"}},
 	}
 
-	result := gen.GenerateWorkflow(actions)
-
-	nodes, ok := result["nodes"].([]map[string]interface{})
-	if !ok {
-		t.Fatal("Expected nodes to be []map[string]interface{}")
-	}
-
-	edges, ok := result["edges"].([]map[string]interface{})
-	if !ok {
-		t.Fatal("Expected edges to be []map[string]interface{}")
-	}
+	result, err := gen.GenerateWorkflow(actions)
+	require.NoError(t, err)
+	nodes, edges := result.Nodes, result.Edges
 
 	// Should have at least 2 action nodes (may have wait nodes inserted)
 	if len(nodes) < 2 {
@@ -300,15 +245,10 @@ func TestGenerateWorkflow_CreatesNodesAndEdges(t *testing.T) {
 
 func TestGenerateWorkflow_EmptyActions(t *testing.T) {
 	gen := NewWorkflowGenerator()
-	result := gen.GenerateWorkflow([]driver.RecordedAction{})
-
-	// Verify the result has nodes and edges keys (may be nil or empty)
-	if _, ok := result["nodes"]; !ok {
-		t.Error("Expected result to have 'nodes' key")
-	}
-	if _, ok := result["edges"]; !ok {
-		t.Error("Expected result to have 'edges' key")
-	}
+	result, err := gen.GenerateWorkflow(nil)
+	require.NoError(t, err)
+	require.Empty(t, result.Nodes)
+	require.Empty(t, result.Edges)
 }
 
 func TestTruncateString(t *testing.T) {
@@ -403,4 +343,61 @@ func TestGenerateClickLabel(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMergeSnapshotsPreservesHistoryAndTarget(t *testing.T) {
+	first := driver.RecordedAction{ActionType: "type", PageID: "one", FrameID: "main", Selector: &driver.SelectorSet{Primary: "#input"}, Payload: map[string]any{"text": "first"}}
+	for _, value := range []string{"replacement", ""} {
+		next := first
+		next.Payload = map[string]any{"text": value}
+		result := MergeConsecutiveActions([]driver.RecordedAction{first, next})
+		require.Len(t, result, 1)
+		require.Equal(t, value, result[0].Payload["text"])
+		require.Equal(t, "first", first.Payload["text"])
+	}
+	for _, field := range []string{"page", "driver page", "frame", "selector", "url", "submit"} {
+		t.Run(field, func(t *testing.T) {
+			next := first
+			next.Payload = map[string]any{"text": "second"}
+			previous := first
+			switch field {
+			case "page":
+				next.PageID = "two"
+			case "driver page":
+				next.DriverPageID = "two"
+			case "frame":
+				next.FrameID = "child"
+			case "selector":
+				next.Selector = &driver.SelectorSet{Primary: "#other"}
+			case "url":
+				next.URL = "https://next.invalid"
+			case "submit":
+				previous.Payload = map[string]any{"text": "first", "submit": true}
+			}
+			require.Len(t, MergeConsecutiveActions([]driver.RecordedAction{previous, next}), 2)
+		})
+	}
+}
+
+func TestMergeScrollKeepsAxesAndSeparateTargets(t *testing.T) {
+	first := driver.RecordedAction{ActionType: "scroll", PageID: "one", Selector: &driver.SelectorSet{Primary: "#pane"}, Payload: map[string]any{"scrollX": 10.0, "scrollY": 20.0}}
+	next := first
+	next.Payload = map[string]any{"scrollX": 30.0, "scrollY": 40.0}
+	merged := MergeConsecutiveActions([]driver.RecordedAction{first, next})
+	require.Len(t, merged, 1)
+	require.Equal(t, next.Payload, merged[0].Payload)
+	require.Equal(t, 10.0, first.Payload["scrollX"])
+	next.PageID = "two"
+	require.Len(t, MergeConsecutiveActions([]driver.RecordedAction{first, next}), 2)
+	next.PageID = "one"
+	next.Selector = &driver.SelectorSet{Primary: "#other"}
+	require.Len(t, MergeConsecutiveActions([]driver.RecordedAction{first, next}), 2)
+}
+
+func TestMergeScrollDoesNotLosePartialAxisUpdates(t *testing.T) {
+	first := driver.RecordedAction{ActionType: "scroll", Payload: map[string]any{"scrollX": 100.0, "scrollY": 200.0}}
+	next := driver.RecordedAction{ActionType: "scroll", Payload: map[string]any{"scrollY": 300.0}}
+	require.Len(t, MergeConsecutiveActions([]driver.RecordedAction{first, next}), 2)
+	next.Payload = map[string]any{"deltaY": 10.0}
+	require.Len(t, MergeConsecutiveActions([]driver.RecordedAction{next, next}), 2)
 }

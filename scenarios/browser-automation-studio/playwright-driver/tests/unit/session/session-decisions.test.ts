@@ -5,7 +5,6 @@ import {
   findIdleSessions,
   isSessionActive,
   isSafeForLabelReuse,
-  makeReuseDecision,
   shouldCleanupSession,
 } from '../../../src/session/session-decisions';
 
@@ -56,6 +55,16 @@ describe('session decisions', () => {
     });
   });
 
+  it('neither pools nor reaps a reset session while its earlier instruction is still settling', () => {
+    const session = makeSession({ phase: 'ready', leaseReleasedAt: new Date(), lastUsedAt: new Date(0) });
+    session.instructionInFlight = true;
+    expect(findByLabels([session], { mode: 'execution' })).toBeNull();
+    expect(findIdleSessions(new Map([[session.id, session]]), 100, 1000)).toEqual([]);
+    session.instructionInFlight = false;
+    expect(findByLabels([session], { mode: 'execution' })).toBe(session);
+    expect(findIdleSessions(new Map([[session.id, session]]), 100, 1000)).toEqual([session.id]);
+  });
+
   describe('findByLabels', () => {
     it('skips sessions that are executing for another execution', () => {
       // Regression: two adhoc executions launched concurrently used to match
@@ -92,15 +101,6 @@ describe('session decisions', () => {
     it('still returns busy sessions for the same execution (idempotent retry)', () => {
       const busy = makeSession({ executionId: 'exec-1', phase: 'executing' });
       expect(findByExecutionId([busy], 'exec-1')).toBe(busy);
-    });
-  });
-
-  describe('makeReuseDecision', () => {
-    it('recovers stuck executing phase only for execution_id retries', () => {
-      const stuck = makeSession({ executionId: 'exec-1', phase: 'executing' });
-      const spec = stuck.spec;
-      expect(makeReuseDecision(stuck, spec, 'execution_id_match').shouldRecoverPhase).toBe(true);
-      expect(makeReuseDecision(stuck, spec, 'label_match').shouldRecoverPhase).toBe(false);
     });
   });
 

@@ -27,7 +27,7 @@
   },
   "phases": {
     "unit": {
-      "timeout": "300s"
+      "timeout": "600s"
     },
     "tidiness": {
       "budgets": {
@@ -62,6 +62,17 @@
       },
       "required_roles": [
         {
+          "role": "playwright-driver",
+          "policy_class": "node_jest_driver",
+          "match": {
+            "surface_id": "playwright-driver",
+            "kind": "sidecar",
+            "path": "playwright-driver",
+            "language": "typescript",
+            "framework": "jest"
+          }
+        },
+        {
           "role": "api",
           "policy_class": "go_service",
           "match": {
@@ -94,6 +105,32 @@
         }
       ],
       "policy_classes": {
+        "node_jest_driver": {
+          "language": "typescript",
+          "framework": "jest",
+          "package_manager": "pnpm",
+          "coverage": {
+            "minimum_percent": 30,
+            "mode": "total",
+            "reporters": ["text", "json-summary", "lcov"]
+          },
+          "test_utils": {
+            "required_roots": ["playwright-driver/tests/helpers"],
+            "production_import_ban": true
+          },
+          "projection": {
+            "required_files": ["playwright-driver/jest.config.js"],
+            "required_scripts": ["test", "test:coverage"]
+          },
+          "runner_profile": "default",
+          "test_kind": "unit",
+          "adapter": {"id": "node-jest", "version": "1.0.0"},
+          "hermetic": {
+            "network": "allow",
+            "filesystem": "workspace",
+            "restore_environment": true
+          }
+        },
         "go_service": {
           "language": "go",
           "framework": "go test",

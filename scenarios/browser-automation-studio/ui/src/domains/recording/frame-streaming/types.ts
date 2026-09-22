@@ -36,6 +36,7 @@ export interface FrameStats {
 
 /** Possible bottleneck types in the streaming pipeline */
 export type BottleneckType =
+  | 'processing' // Measured component processing is slow
   | 'capture' // Screenshot capture is slow
   | 'encode' // JPEG encoding is slow (rare with Playwright)
   | 'network' // Network/WebSocket is slow
@@ -58,10 +59,10 @@ export interface FrameStatsAggregated {
   /** Duration of the stats window in milliseconds */
   window_duration_ms: number;
 
-  /** Total frames captured in this window */
+  /** Retained frame observations in this window */
   frame_count: number;
 
-  /** Frames skipped due to unchanged content */
+  /** Skipped observations in this window; API samples include only received frames */
   skipped_count: number;
 
   // Capture timing percentiles (milliseconds)
@@ -74,18 +75,18 @@ export interface FrameStatsAggregated {
   /** Maximum capture time observed */
   capture_max_ms: number;
 
-  // End-to-end timing percentiles (driver capture start -> API broadcast complete)
-  /** 50th percentile end-to-end time */
+  // Processing duration sums (legacy e2e wire names); excludes unmeasured transit/paint.
+  /** 50th percentile processing duration */
   e2e_p50_ms: number;
-  /** 90th percentile end-to-end time */
+  /** 90th percentile processing duration */
   e2e_p90_ms: number;
-  /** 99th percentile end-to-end time */
+  /** 99th percentile processing duration */
   e2e_p99_ms: number;
-  /** Maximum end-to-end time observed */
+  /** Maximum processing duration observed */
   e2e_max_ms: number;
 
   // Throughput metrics
-  /** Actual frames per second achieved */
+  /** Non-skipped samples per second in the observation window */
   actual_fps: number;
   /** Target FPS configured for the session */
   target_fps: number;

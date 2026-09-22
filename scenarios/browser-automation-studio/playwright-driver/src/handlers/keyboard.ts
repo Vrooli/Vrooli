@@ -1,4 +1,5 @@
-import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
+import type { Page } from 'rebrowser-playwright';
+import { BaseHandler, getDocument, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import { getKeyboardParams, getShortcutParams } from '../types';
 import { normalizeError } from '../utils';
@@ -10,6 +11,9 @@ import { getActionType } from '../proto';
  * Handles keyboard operations: press, down, up, and shortcuts
  */
 export class KeyboardHandler extends BaseHandler {
+  // Persistent key-down actions belong to their page and survive temporary chords.
+  private readonly heldKeys = new WeakMap<Page, Set<string>>();
+
   getSupportedTypes(): string[] {
     return ['keyboard', 'shortcut'];
   }
@@ -21,6 +25,7 @@ export class KeyboardHandler extends BaseHandler {
     const { logger } = context;
 
     try {
+
 		const actionType = getActionType(instruction);
 		switch (actionType.toLowerCase()) {
         case 'keyboard':
@@ -60,6 +65,20 @@ export class KeyboardHandler extends BaseHandler {
     }
   }
 
+  private async focusDocument(context: HandlerContext): Promise<void> {
+    const target = getDocument(context);
+    if ('frameElement' in target && !(await target.evaluate(() => document.hasFocus()))) {
+      const element = await target.frameElement();
+      try { await element.focus(); }
+      finally { await element.dispose(); }
+    }
+    // A focused descendant iframe must not receive keys for its selected parent.
+    await target.evaluate(() => {
+      const active = document.activeElement;
+      if (active instanceof HTMLIFrameElement || active instanceof HTMLFrameElement) active.blur();
+    });
+  }
+
   private async handleKeyboard(
     instruction: HandlerInstruction,
     context: HandlerContext
@@ -91,24 +110,43 @@ export class KeyboardHandler extends BaseHandler {
       modifiers: params.modifiers,
     });
 
-    // Handle each key
-    for (const key of keys) {
-      switch (action) {
-        case 'press':
-          // Press and release
-          await page.keyboard.press(key);
-          break;
-
-        case 'down':
-          // Press down only
-          await page.keyboard.down(key);
-          break;
-
-        case 'up':
-          // Release only
-          await page.keyboard.up(key);
-          break;
+    await this.focusDocument(context);
+    const held = this.heldKeys.get(page) ?? new Set<string>();
+    this.heldKeys.set(page, held);
+    const acquired: string[] = [];
+    try {
+      for (const modifier of params.modifiers ?? []) {
+        if (held.has(modifier) || acquired.includes(modifier)) continue;
+        // Track before awaiting: even a rejected transport can have pressed it.
+        acquired.push(modifier);
+        await page.keyboard.down(modifier);
       }
+      for (const key of keys) {
+        switch (action) {
+          case 'press':
+            await page.keyboard.press(key);
+            break;
+          case 'down':
+            await page.keyboard.down(key);
+            held.add(key);
+            break;
+          case 'up':
+            await page.keyboard.up(key);
+            held.delete(key);
+            break;
+          default:
+            throw new Error(`Unsupported keyboard action: ${action}`);
+        }
+      }
+    } finally {
+      const releases = await Promise.allSettled(
+        acquired
+          .reverse()
+          .filter((modifier) => !held.has(modifier))
+          .map((modifier) => page.keyboard.up(modifier))
+      );
+      const failed = releases.find((result) => result.status === 'rejected');
+      if (failed?.status === 'rejected') throw failed.reason;
     }
 
     logger.info('Keyboard operation successful', {
@@ -149,6 +187,7 @@ export class KeyboardHandler extends BaseHandler {
       shortcut,
     });
 
+    await this.focusDocument(context);
     // Playwright handles shortcuts like "Control+A", "Meta+Shift+K", etc.
     await page.keyboard.press(shortcut);
 

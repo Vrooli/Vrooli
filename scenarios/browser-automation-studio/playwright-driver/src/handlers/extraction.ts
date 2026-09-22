@@ -1,4 +1,4 @@
-import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
+import { BaseHandler, getDocument, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import { getExtractParams, getEvaluateParams } from '../types';
 import { getActionType } from '../proto';
@@ -15,15 +15,12 @@ export class ExtractionHandler extends BaseHandler {
     return ['extract', 'evaluate'];
   }
 
-  async execute(
-    instruction: HandlerInstruction,
-    context: HandlerContext
-  ): Promise<HandlerResult> {
+  async execute(instruction: HandlerInstruction, context: HandlerContext): Promise<HandlerResult> {
     const { logger } = context;
 
     try {
-		const actionType = getActionType(instruction);
-		switch (actionType.toLowerCase()) {
+      const actionType = getActionType(instruction);
+      switch (actionType.toLowerCase()) {
         case 'extract':
           return await this.handleExtract(instruction, context);
 
@@ -34,7 +31,7 @@ export class ExtractionHandler extends BaseHandler {
           return {
             success: false,
             error: {
-				message: `Unsupported extraction type: ${actionType}`,
+              message: `Unsupported extraction type: ${actionType}`,
               code: 'UNSUPPORTED_TYPE',
               kind: 'orchestration',
               retryable: false,
@@ -43,7 +40,7 @@ export class ExtractionHandler extends BaseHandler {
       }
     } catch (error) {
       logger.error('Extraction failed', {
-			type: getActionType(instruction),
+        type: getActionType(instruction),
         error: error instanceof Error ? error.message : String(error),
       });
 
@@ -55,7 +52,9 @@ export class ExtractionHandler extends BaseHandler {
           message: driverError.message,
           code: driverError.code,
           kind: driverError.kind,
-          retryable: driverError.retryable,
+          // Arbitrary JavaScript may have committed effects before failing.
+          retryable:
+            getActionType(instruction).toLowerCase() !== 'evaluate' && driverError.retryable,
         },
       };
     }
@@ -65,7 +64,8 @@ export class ExtractionHandler extends BaseHandler {
     instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
-    const { page, logger } = context;
+    const { logger } = context;
+    const page = getDocument(context);
 
     // Get typed params from instruction.action (required after migration)
     const typedParams = instruction.action ? getExtractParams(instruction.action) : undefined;
@@ -106,47 +106,12 @@ export class ExtractionHandler extends BaseHandler {
     };
   }
 
-  /**
-   * Run a script, tolerating a navigation that lands mid-evaluate.
-   *
-   * Playwright tears down the JS execution context when the page navigates, so
-   * a script that started just before a navigation commits dies with
-   * "Execution context was destroyed". That is transient by definition — the
-   * next context can answer the same question — but it surfaced as a hard
-   * failure because the executor defaults to MaxAttempts=1, which makes the
-   * driver's `retryable` classification inert unless a workflow opts into a
-   * resilience block per node.
-   *
-   * Retrying once here fixes the whole class without loosening retry semantics
-   * for genuine failures. A second destruction is not swallowed: the workflow
-   * is then navigating continuously and the caller should see it.
-   */
-  private async evaluateSurvivingNavigation(
-    page: HandlerContext['page'],
-    script: string,
-    logger: HandlerContext['logger']
-  ): Promise<unknown> {
-    try {
-      return await page.evaluate(script);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (!/execution context was destroyed/i.test(message)) {
-        throw error;
-      }
-      logger.debug('evaluate: context destroyed by navigation, retrying once', {
-        scriptLength: script.length,
-      });
-      // Let the new document commit before asking it anything.
-      await page.waitForLoadState('domcontentloaded').catch(() => undefined);
-      return await page.evaluate(script);
-    }
-  }
-
   private async handleEvaluate(
     instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
-    const { page, logger } = context;
+    const { logger } = context;
+    const page = getDocument(context);
 
     // Get typed params from instruction.action (required after migration)
     const typedParams = instruction.action ? getEvaluateParams(instruction.action) : undefined;
@@ -171,7 +136,7 @@ export class ExtractionHandler extends BaseHandler {
 
     // Evaluate script in browser context
     // Note: EvaluateParams from proto doesn't support args - evaluate expression directly
-    const result = await this.evaluateSurvivingNavigation(page, script, logger);
+    const result = await page.evaluate(script);
 
     logger.info('Script evaluation successful', {
       resultType: typeof result,

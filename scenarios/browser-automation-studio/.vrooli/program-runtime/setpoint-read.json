@@ -16,6 +16,15 @@
       "type": "integer",
       "default": 5,
       "description": "Failed executions whose screenshots are counted (0..10)."
+    },
+    "profile": {
+      "type": "string",
+      "default": "operations",
+      "enum": [
+        "operations",
+        "rehabilitation"
+      ],
+      "description": "Operations reads historical usage diagnostics; rehabilitation preserves every required browser-product outcome and explicit measurement gap."
     }
   },
   "assumptions": [
@@ -28,7 +37,10 @@
     "no row set is materialized beyond evidence_sample rows; readings are count and filter",
     "a row whose sensor has no governed binding is reported unavailable with the reason, not computed by hand",
     "the envelope is printed exactly once, on every path",
-    "no setpoint row is computed by hand from files; a row without a governed sensor reads unavailable with the reason"
+    "no setpoint row is computed by hand from files; a row without a governed sensor reads unavailable with the reason",
+    "rehabilitation rows cover every required REFRACTOR_CONTRACT.json outcome",
+    "product_qualified is false while any required outcome lacks applicable owner evidence",
+    "no caller-supplied pass flags or receipts can certify rehabilitation"
   ],
   "bindings": [
     {
@@ -80,9 +92,12 @@
       ]
     },
     "signals": {
-      "rows": "list of {row, reading, target, in_band, unavailable, reason}; one per setpoint row in the improve skill's table order: pass-rate, flake-rate, selector-failure-rate, p95-execution-duration, step-failure-rate, failed-run-evidence, external-friction",
+      "rows": "Fleet setpoint rows. For rehabilitation, target is an immutable contract-id/row reference into docs/internal/REFRACTOR_CONTRACT.json; unavailable rows never count as satisfied.",
       "readable": "count of rows read from a governed binding",
-      "unavailable": "count of rows not readable in-program"
+      "unavailable": "count of rows not readable in-program",
+      "required": "Required rehabilitation outcome count, only for rehabilitation profile",
+      "unmet": "Required outcomes without passing applicable evidence",
+      "product_qualified": "False until all required outcomes have qualified owner evidence"
     },
     "errors": {
       "classes": [
@@ -137,6 +152,22 @@
       "requires": [
         "browser-automation-studio"
       ]
+    },
+    {
+      "id": "rehabilitation-pending",
+      "inputs": {
+        "profile": "rehabilitation"
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "required": 17,
+          "unmet": 17,
+          "product_qualified": false
+        }
+      }
     }
   ],
   "rung": "S3",

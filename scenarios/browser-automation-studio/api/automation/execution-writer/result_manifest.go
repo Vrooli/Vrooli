@@ -6,7 +6,9 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // buildResultManifestPayload owns the durable, human-readable execution
@@ -17,7 +19,16 @@ func buildResultManifestPayload(executionID uuid.UUID, result *ExecutionResultDa
 	payload := map[string]any{}
 
 	if timeline != nil && timeline.pb != nil {
-		raw, err := protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: false}.Marshal(timeline.pb)
+		// Snapshot before shaping: the full timeline remains the artifact authority.
+		timeline.mu.Lock()
+		manifest := proto.Clone(timeline.pb).(*bastimeline.ExecutionTimeline)
+		timeline.mu.Unlock()
+		for _, entry := range manifest.Entries {
+			if aggregates := entry.GetAggregates(); aggregates != nil {
+				aggregates.Artifacts = nil
+			}
+		}
+		raw, err := protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: false}.Marshal(manifest)
 		if err != nil {
 			return nil, fmt.Errorf("marshal timeline payload: %w", err)
 		}
@@ -44,18 +55,5 @@ func buildResultManifestPayload(executionID uuid.UUID, result *ExecutionResultDa
 		payload["status"] = status
 	}
 
-	entriesRaw, ok := payload["entries"].([]any)
-	if !ok {
-		return payload, nil
-	}
-	for _, entryRaw := range entriesRaw {
-		entry, ok := entryRaw.(map[string]any)
-		if !ok {
-			continue
-		}
-		if aggregates, ok := entry["aggregates"].(map[string]any); ok {
-			delete(aggregates, "artifacts")
-		}
-	}
 	return payload, nil
 }

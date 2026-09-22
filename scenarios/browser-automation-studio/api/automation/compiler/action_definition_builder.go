@@ -62,6 +62,8 @@ func BuildActionDefinition(stepType string, params map[string]any) (*basactions.
 		action.Params = &basactions.ActionDefinition_Keyboard{
 			Keyboard: typeconv.BuildKeyboardParams(params),
 		}
+	case basactions.ActionType_ACTION_TYPE_DRAG_DROP:
+		action.Params = &basactions.ActionDefinition_DragDrop{DragDrop: typeconv.BuildDragDropParams(params)}
 	case basactions.ActionType_ACTION_TYPE_HOVER:
 		action.Params = &basactions.ActionDefinition_Hover{
 			Hover: typeconv.BuildHoverParams(params),

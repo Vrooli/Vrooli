@@ -175,9 +175,9 @@ func main() {
 
 	// Initialize unified recording service for timeline persistence
 	// This service manages all recorded actions and page events across the application
-	unifiedRecordingRepo := unifiedpersistence.NewSQLiteRepository(db.Routed, log)
+	unifiedRecordingRepo := unifiedpersistence.NewSQLiteRepository(db.Routed)
 	unifiedRecordingSvc := unifiedrecording.NewService(
-		unifiedRecordingRepo, hub, log, unifiedrecording.ServiceConfig{},
+		unifiedRecordingRepo, unifiedrecording.ServiceConfig{},
 	)
 	log.Info("✅ Unified recording service initialized")
 

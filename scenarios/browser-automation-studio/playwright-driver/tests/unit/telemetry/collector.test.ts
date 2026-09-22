@@ -1,6 +1,7 @@
 import { ConsoleLogCollector, NetworkCollector } from '../../../src/telemetry/collector';
 import { createMockPage } from '../../helpers';
-import type { ConsoleMessage, Request, Response } from 'rebrowser-playwright';
+import { EventEmitter } from 'node:events';
+import type { Page, CDPSession, Request, Response } from 'rebrowser-playwright';
 
 type Listener<T> = (arg: T) => void;
 
@@ -10,19 +11,6 @@ const findListener = <T>(
 ): Listener<T> | undefined => {
   const calls = (page.on as jest.Mock).mock.calls as Array<[string, Listener<T>]>;
   return calls.find(([name]) => name === event)?.[1];
-};
-
-const createConsoleMessage = (params: {
-  type?: string;
-  text?: string;
-  location?: { url?: string; lineNumber?: number; columnNumber?: number };
-} = {}): ConsoleMessage => {
-  const { type = 'log', text = 'Test message', location = {} } = params;
-  return {
-    type: (): string => type,
-    text: (): string => text,
-    location: (): { url?: string; lineNumber?: number; columnNumber?: number } => location,
-  } as unknown as ConsoleMessage;
 };
 
 const createRequest = (params: {
@@ -65,182 +53,76 @@ const createResponse = (params: {
   } as unknown as Response;
 };
 
-describe('ConsoleLogCollector', () => {
-  let mockPage: ReturnType<typeof createMockPage>;
-  let collector: ConsoleLogCollector;
+describe('ConsoleLogCollector native event ownership', () => {
+  const fixture = (limit = 3) => {
+    const session = Object.assign(new EventEmitter(), {
+      send: jest.fn().mockResolvedValue({}), detach: jest.fn().mockResolvedValue(undefined),
+    });
+    const newCDPSession = jest.fn().mockResolvedValue(session);
+    const page = { context: () => ({ newCDPSession }), isClosed: () => false } as unknown as Page;
+    const collector = new ConsoleLogCollector(page, limit);
+    const emit = (text: string, timestamp = Date.now() + 1, type = 'log') => session.emit('Runtime.consoleAPICalled', {
+      type, timestamp, args: [{ value: text }], stackTrace: { callFrames: [{ url: 'https://fixture.test/script.js', lineNumber: 10, columnNumber: 5 }] },
+    });
+    return { session, newCDPSession, page, collector, emit };
+  };
 
-  beforeEach(() => {
-    mockPage = createMockPage();
-    collector = new ConsoleLogCollector(mockPage, 100);
+  it('retains only current bounded events with normalized text and location', async () => {
+    const f = fixture();
+    await f.collector.start();
+    f.emit('old history', 0);
+    for (let i = 0; i < 5; i++) f.emit(`message ${i}`, Date.now() + 1, i === 4 ? 'warning' : 'log');
+    const logs = f.collector.getLogs();
+    expect(logs.map(x => x.text)).toEqual(['message 2', 'message 3', 'message 4']);
+    expect(logs[2]).toMatchObject({ type: 'warn', location: 'https://fixture.test/script.js:10:5' });
+    expect(new Date(logs[2]!.timestamp).getTime()).toBeGreaterThan(0);
+    logs.length = 0;
+    expect(f.collector.getAndClear()).toHaveLength(3);
+    expect(f.collector.getLogs()).toEqual([]);
+    f.emit('clear me'); f.collector.clear(); expect(f.collector.getLogs()).toEqual([]);
+    await f.collector.dispose();
+    f.emit('too late'); expect(f.collector.getLogs()).toEqual([]);
+    expect(f.session.listenerCount('Runtime.consoleAPICalled')).toBe(0);
+    expect(f.session.detach).toHaveBeenCalledTimes(1);
   });
 
-  describe('initialization', () => {
-    it('should setup console listener', () => {
-      const consoleListener = findListener<ConsoleMessage>(mockPage, 'console');
-      expect(consoleListener).toEqual(expect.any(Function));
+  it('keeps primitive and unavailable remote-object descriptions without evaluating them', async () => {
+    const f = fixture(); await f.collector.start();
+    f.session.emit('Runtime.consoleAPICalled', { type: 'error', timestamp: Date.now() + 1,
+      args: [{ value: 'message' }, { value: 42 }, { value: null }, { unserializableValue: 'NaN' }, { type: 'object', description: 'Object' }],
     });
+    expect(f.collector.getLogs()[0]).toMatchObject({ type: 'error', text: 'message 42 null NaN Object' });
+    expect(f.session.send).toHaveBeenCalledTimes(1);
+    await f.collector.dispose();
   });
 
-  describe('log collection', () => {
-    it('should collect console logs', () => {
-      // Simulate console event
-      const mockMessage = createConsoleMessage({
-        type: 'log',
-        text: 'Test message',
-        location: { url: '', lineNumber: 0, columnNumber: 0 },
-      });
-
-      const listener = findListener<ConsoleMessage>(mockPage, 'console');
-      if (!listener) {
-        throw new Error('Console listener not registered');
-      }
-      listener(mockMessage);
-
-      const logs = collector.getLogs();
-
-      expect(logs).toHaveLength(1);
-      const [firstLog] = logs;
-      if (!firstLog) {
-        throw new Error('Expected a console log entry');
-      }
-      expect(firstLog.type).toBe('log'); // Note: 'type' not 'level'
-      expect(firstLog.text).toBe('Test message');
-      expect(firstLog.timestamp).toBeDefined();
-    });
-
-    it('should collect multiple log types', () => {
-      const messages = [
-        createConsoleMessage({ type: 'log', text: 'Log message' }),
-        createConsoleMessage({ type: 'error', text: 'Error message' }),
-        createConsoleMessage({ type: 'warning', text: 'Warning message' }),
-        createConsoleMessage({ type: 'info', text: 'Info message' }),
-      ];
-
-      const listener = findListener<ConsoleMessage>(mockPage, 'console');
-      if (!listener) {
-        throw new Error('Console listener not registered');
-      }
-      messages.forEach((msg) => listener(msg));
-
-      const logs = collector.getLogs();
-
-      expect(logs).toHaveLength(4);
-      const [firstLog, secondLog, thirdLog, fourthLog] = logs;
-      if (!firstLog || !secondLog || !thirdLog || !fourthLog) {
-        throw new Error('Expected four console log entries');
-      }
-      expect(firstLog.type).toBe('log');
-      expect(secondLog.type).toBe('error');
-      expect(thirdLog.type).toBe('warn'); // 'warning' maps to 'warn'
-      expect(fourthLog.type).toBe('info');
-    });
-
-    it('should respect max entries limit', () => {
-      // Create fresh mock page for this test to isolate listeners
-      const freshMockPage = createMockPage();
-      const smallCollector = new ConsoleLogCollector(freshMockPage, 3);
-
-      const listener = findListener<ConsoleMessage>(freshMockPage, 'console');
-      if (!listener) {
-        throw new Error('Console listener not registered');
-      }
-
-      // Add 5 messages (exceeds limit of 3)
-      for (let i = 0; i < 5; i++) {
-        listener(createConsoleMessage({ type: 'log', text: `Message ${i}` }));
-      }
-
-      const logs = smallCollector.getLogs();
-
-      expect(logs).toHaveLength(3);
-      const [firstLog, , thirdLog] = logs;
-      if (!firstLog || !thirdLog) {
-        throw new Error('Expected three console log entries');
-      }
-      expect(firstLog.text).toBe('Message 2'); // Oldest retained
-      expect(thirdLog.text).toBe('Message 4'); // Newest
-    });
-
-    it('should include timestamps', () => {
-      const mockMessage = {
-        ...createConsoleMessage({ type: 'log', text: 'Test message' }),
-      };
-
-      const before = new Date().toISOString();
-      const listener = findListener<ConsoleMessage>(mockPage, 'console');
-      if (!listener) {
-        throw new Error('Console listener not registered');
-      }
-      listener(mockMessage);
-      const after = new Date().toISOString();
-
-      const logs = collector.getLogs();
-
-      const [firstLog] = logs;
-      if (!firstLog) {
-        throw new Error('Expected a console log entry');
-      }
-      expect(firstLog.timestamp).toBeDefined();
-      expect(firstLog.timestamp >= before).toBe(true);
-      expect(firstLog.timestamp <= after).toBe(true);
-    });
-
-    it('should include location when available', () => {
-      const mockMessage = createConsoleMessage({
-        type: 'log',
-        text: 'Test message',
-        location: { url: 'https://example.com/script.js', lineNumber: 10, columnNumber: 5 },
-      });
-
-      const listener = findListener<ConsoleMessage>(mockPage, 'console');
-      if (!listener) {
-        throw new Error('Console listener not registered');
-      }
-      listener(mockMessage);
-
-      const logs = collector.getLogs();
-
-      const [firstLog] = logs;
-      if (!firstLog) {
-        throw new Error('Expected a console log entry');
-      }
-      expect(firstLog.location).toBe('https://example.com/script.js:10:5');
-    });
+  it('does not acknowledge readiness before Runtime.enable settles', async () => {
+    const f = fixture(); let enable!: () => void;
+    f.session.send.mockReturnValueOnce(new Promise<void>(resolve => { enable = resolve; }));
+    let ready = false; const starting = f.collector.start().then(() => { ready = true; });
+    await Promise.resolve(); await Promise.resolve(); expect(ready).toBe(false);
+    enable(); await starting; expect(ready).toBe(true);
+    await Promise.all([f.collector.dispose(), f.collector.dispose()]);
+    expect(f.session.detach).toHaveBeenCalledTimes(1);
   });
 
-  describe('clear', () => {
-    it('should clear all logs', () => {
-      const mockMessage = createConsoleMessage({ type: 'log', text: 'Test message' });
-
-      const listener = findListener<ConsoleMessage>(mockPage, 'console');
-      if (!listener) {
-        throw new Error('Console listener not registered');
-      }
-      listener(mockMessage);
-      listener(mockMessage);
-
-      collector.clear();
-
-      const logs = collector.getLogs();
-      expect(logs).toHaveLength(0);
-    });
+  it('detaches a session acquired after disposal started without enabling it', async () => {
+    const f = fixture(); let attach!: (session: CDPSession) => void;
+    f.newCDPSession.mockReturnValueOnce(new Promise<CDPSession>(resolve => { attach = resolve; }));
+    const starting = f.collector.start(); const closing = f.collector.dispose();
+    attach(f.session as unknown as CDPSession);
+    await Promise.all([starting, closing]);
+    expect(f.session.send).not.toHaveBeenCalled();
+    expect(f.session.detach).toHaveBeenCalledTimes(1);
+    await expect(f.collector.start()).rejects.toThrow('disposed');
   });
 
-  describe('getAndClear', () => {
-    it('should return logs and clear', () => {
-      const mockMessage = createConsoleMessage({ type: 'log', text: 'Test message' });
-
-      const listener = findListener<ConsoleMessage>(mockPage, 'console');
-      if (!listener) {
-        throw new Error('Console listener not registered');
-      }
-      listener(mockMessage);
-
-      const logs = collector.getAndClear();
-
-      expect(logs).toHaveLength(1);
-      expect(collector.getLogs()).toHaveLength(0);
-    });
+  it('releases its attachment when native initialization fails', async () => {
+    const f = fixture(); f.session.send.mockRejectedValueOnce(new Error('native initialization failed'));
+    await expect(f.collector.start()).rejects.toThrow('native initialization failed');
+    await f.collector.dispose();
+    expect(f.session.detach).toHaveBeenCalledTimes(1);
+    expect(f.session.listenerCount('Runtime.consoleAPICalled')).toBe(0);
   });
 });
 

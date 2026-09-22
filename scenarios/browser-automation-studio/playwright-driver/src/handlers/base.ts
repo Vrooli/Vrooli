@@ -16,6 +16,7 @@
  */
 
 import type { Page, BrowserContext, Frame } from 'rebrowser-playwright';
+import { InvalidInstructionError } from '../utils/errors';
 import type { Config } from '../config';
 import type { Metrics } from '../utils/metrics';
 import type winston from 'winston';
@@ -127,6 +128,22 @@ export interface HandlerContext {
   consoleLogs?: ConsoleLogEntry[];
   /** Network events observed during execution */
   networkEvents?: NetworkEvent[];
+}
+
+/** A selected document owns DOM operations; Page still owns physical input and capture. */
+export type BrowserDocument = Page | Frame;
+
+export function getDocument(context: HandlerContext): BrowserDocument {
+  const frames = context.frameStack;
+  if (!frames?.length) return context.page;
+  let parent = context.page.mainFrame();
+  for (const frame of frames) {
+    if (frame.isDetached() || frame.page() !== context.page || frame.parentFrame() !== parent) {
+      throw new InvalidInstructionError('Selected frame is detached or belongs to another document; select a frame again');
+    }
+    parent = frame;
+  }
+  return parent;
 }
 
 /**

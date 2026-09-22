@@ -52,6 +52,7 @@ export {
   handleRecordStop,
   handleRecordStatus,
   handleRecordActions,
+  handleRecordActionsAck,
 } from './recording-lifecycle';
 
 // Recording diagnostics handlers (stream settings, debug, testing)

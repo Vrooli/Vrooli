@@ -1,77 +1,17 @@
-/**
- * Session Run Route Handler
- *
- * POST /session/:id/run - Executes a single browser automation instruction.
- *
- * ┌─────────────────────────────────────────────────────────────────────────┐
- * │ REQUEST FLOW:                                                           │
- * │                                                                         │
- * │  Request ──▶ Idempotency Check ──▶ Session Lock ──▶ Validate           │
- * │                    │                    │              │                │
- * │                    │ (cached?)          │ (busy?)      │                │
- * │                    ▼                    ▼              ▼                │
- * │               Return cached        409 Conflict   400 Bad Request      │
- * │                                                                         │
- * │  ──▶ Replay Check ──▶ Execute ──▶ Collect Telemetry ──▶ Build Outcome  │
- * │           │              │                                   │          │
- * │           │ (seen?)      │                                   │          │
- * │           ▼              │                                   ▼          │
- * │      Return cached  ◀───┴───────────────────────────▶  Cache & Return   │
- * └─────────────────────────────────────────────────────────────────────────┘
- *
- * CONCURRENCY: One instruction per session at a time (returns 409 if busy)
- * IDEMPOTENCY: x-idempotency-key header enables safe retries
- *
- * RESPONSIBILITY ZONES
- * ====================
- *
- * This handler orchestrates multiple concerns. Each zone is marked inline:
- *
- * ┌─────────────────────────────────────────────────────────────────────────┐
- * │ ZONE                │ RESPONSIBILITY              │ COULD EXTRACT TO    │
- * ├─────────────────────┼─────────────────────────────┼─────────────────────┤
- * │ [PRESENTATION]      │ HTTP parsing, response      │ (stays in route)    │
- * │ [INFRASTRUCTURE]    │ Idempotency cache lookups   │ infra/              │
- * │ [COORDINATION]      │ Session phase management    │ execution/          │
- * │ [DOMAIN:VALIDATION] │ Instruction structure check │ execution/          │
- * │ [DOMAIN:EXECUTION]  │ Handler dispatch            │ execution/          │
- * │ [CROSS-CUTTING]     │ Telemetry collection        │ telemetry/          │
- * │ [DOMAIN:OUTCOME]    │ StepOutcome building        │ outcome/            │
- * └─────────────────────────────────────────────────────────────────────────┘
- *
- * The handleSessionRun function is intentionally comprehensive - it shows
- * the full pipeline in one place. P1.1 refactoring extracts the core execution
- * logic into InstructionExecutor while keeping the route handler as thin
- * coordination layer.
- *
- * @see execution/instruction-executor.ts - Extracted execution pipeline (P1.1)
- */
-
+/** Execute one operation owned by the current session lease. */
 import type { IncomingMessage, ServerResponse } from 'http';
+import { createHash } from 'node:crypto';
 import type { SessionManager } from '../session';
-import type { SessionState } from '../types/session';
+import type { SessionState, InstructionReceipt } from '../types/session';
 import type { HandlerRegistry } from '../handlers';
 import type { Config } from '../config';
 import type { Metrics } from '../utils/metrics';
-import type { ExecutedInstructionRecord } from '../types/session';
 import { parseJsonBody, sendJson, sendError } from '../middleware';
-import { getIdempotencyCache } from '../infra';
-import {
-  executeInstruction,
-  validateInstruction,
-  createInstructionKey,
-  type ExecutionContext,
-} from '../execution';
-import { logger, scopedLog, LogContext } from '../utils';
-import { getActionType } from '../proto';
+import { executeInstruction, validateInstruction, type ExecutionContext } from '../execution';
+import { buildStepOutcome, toDriverOutcome } from '../outcome';
+import { InvalidInstructionError } from '../utils';
 import { MAX_EXECUTED_INSTRUCTIONS_PER_SESSION } from '../constants';
-import winston from 'winston';
-
-// =============================================================================
-// Constants
-// =============================================================================
-
-const IDEMPOTENCY_KEY_HEADER = 'x-idempotency-key';
+import type winston from 'winston';
 
 function withAudioCapability(outcome: unknown, session: SessionState): unknown {
   if (!outcome || typeof outcome !== 'object' || Array.isArray(outcome)) return outcome;
@@ -84,80 +24,26 @@ function withAudioCapability(outcome: unknown, session: SessionState): unknown {
   };
 }
 
-// =============================================================================
-// Idempotency Cache (delegated to infra/idempotency-cache.ts)
-// =============================================================================
-
-/**
- * Clear idempotency cache entries for a session.
- * Called when a session is closed to prevent stale cache entries.
- */
-export function clearSessionIdempotencyCache(sessionId: string): void {
-  getIdempotencyCache().clearSession(sessionId);
+// Bind a transport operation to the whole JSON payload, independent of object
+// key ordering. Arrays retain their order; aliases are distinct wire payloads.
+function fingerprint(payload: unknown): string {
+  const canonical = JSON.stringify(payload, (_key, value) =>
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]]))
+      : value);
+  return createHash('sha256').update(canonical).digest('hex');
 }
 
-// =============================================================================
-// Helper Functions
-// =============================================================================
-
-/**
- * Determine the session phase based on recording state.
- *
- * This is the canonical synchronization point between:
- * - SessionPhase (API-level, 6 phases): What external consumers see
- * - RecordingPipelinePhase (infrastructure-level, 8 phases): Internal state
- *
- * The two state machines are intentionally separate:
- * - Recording infrastructure can fail/recover without affecting API state
- * - This function bridges them by querying the pipeline at phase boundaries
- *
- * @see SessionPhase in types/session.ts for API-level documentation
- * @see RecordingPipelinePhase in recording/state-machine.ts for infrastructure docs
- */
-function getDesiredSessionPhase(session: SessionState): 'recording' | 'ready' {
-  return session.pipelineManager?.isRecording() ? 'recording' : 'ready';
-}
-
-/** Record an executed instruction in the session's tracking map. */
-function recordExecutedInstruction(
-  session: SessionState,
-  instructionKey: string,
-  driverOutcome: unknown,
-  success: boolean,
-  completedAt: Date
-): void {
-  if (!session.executedInstructions) return;
-
-  // Enforce max size by evicting oldest
-  if (session.executedInstructions.size >= MAX_EXECUTED_INSTRUCTIONS_PER_SESSION) {
-    const firstKey = session.executedInstructions.keys().next().value;
-    if (firstKey) {
-      session.executedInstructions.delete(firstKey);
-      logger.debug(scopedLog(LogContext.INSTRUCTION, 'evicted old instruction from tracking'), {
-        sessionId: session.id,
-        evictedKey: firstKey,
-        maxTracked: MAX_EXECUTED_INSTRUCTIONS_PER_SESSION,
-      });
-    }
-  }
-
-  session.executedInstructions.set(instructionKey, {
-    key: instructionKey,
-    executedAt: completedAt,
-    success,
-    cachedOutcome: driverOutcome,
-  } as ExecutedInstructionRecord);
+function sendReceipt(res: ServerResponse, receipt: InstructionReceipt): void {
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'application/json');
+  res.end(receipt.response);
 }
 
 /**
- * Run instruction endpoint
- *
- * POST /session/:id/run
- *
- * Executes a single instruction in the browser session.
- *
- * Flow: ready -> executing -> ready
- * Concurrency: One instruction per session (returns 409 if busy)
+ * One in-flight operation per session. Retained receipts replay identical
+ * requests; the lease highwater forbids re-executing evicted/reset operations.
+ * This is an in-memory lease guarantee, not a process-restart guarantee.
  */
 export async function handleSessionRun(
   req: IncomingMessage,
@@ -169,106 +55,62 @@ export async function handleSessionRun(
   appLogger: winston.Logger,
   appMetrics: Metrics
 ): Promise<void> {
-  const idempotencyKey = req.headers[IDEMPOTENCY_KEY_HEADER] as string | undefined;
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // [INFRASTRUCTURE] Idempotency cache fast path
-  // ─────────────────────────────────────────────────────────────────────────
-  const idempotencyCache = getIdempotencyCache();
-  const cachedResponse = idempotencyKey ? idempotencyCache.lookup(idempotencyKey, sessionId) : null;
-  if (cachedResponse) {
-    sendJson(res, 200, cachedResponse);
-    return;
-  }
-
-  let enteredExecutingPhase = false;
-
+  let executingSession: SessionState | undefined;
   try {
-    const session = sessionManager.getSession(sessionId);
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // [COORDINATION] Session phase guard - prevent concurrent execution
-    // ─────────────────────────────────────────────────────────────────────────
-    if (session.phase === 'executing') {
-      logger.warn(scopedLog(LogContext.INSTRUCTION, 'concurrent execution rejected'), {
-        sessionId,
-        phase: session.phase,
-      });
-      sendJson(res, 409, {
-        error: {
-          code: 'SESSION_BUSY',
-          message: 'Session is already executing an instruction',
-          kind: 'orchestration',
-          retryable: true,
-        },
-      });
-      return;
-    }
-
-    sessionManager.setSessionPhase(sessionId, 'executing');
-    enteredExecutingPhase = true;
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // [PRESENTATION] Parse request body
-    // [DOMAIN:VALIDATION] Validate instruction structure (delegated to executor)
-    // ─────────────────────────────────────────────────────────────────────────
+    // Reading yields: check ownership and phase after the full body arrives.
     const body = await parseJsonBody(req, config);
-    const rawInstruction = body.instruction;
-    const validationResult = validateInstruction(rawInstruction);
-    if (!validationResult.valid) {
-      sessionManager.setSessionPhase(sessionId, 'ready');
-      sendJson(res, 400, {
-        error: {
-          code: validationResult.error.code,
-          message: validationResult.error.message,
-          kind: 'orchestration',
-          retryable: false,
-        },
-      });
+    const executionId = typeof body.execution_id === 'string' ? body.execution_id : '';
+    const leaseId = typeof body.lease_id === 'string' ? body.lease_id : '';
+    if (!executionId.trim() || !leaseId.trim()) {
+      throw new InvalidInstructionError('execution_id and lease_id are required to run an instruction');
+    }
+    const validation = validateInstruction(body.instruction);
+    if (!validation.valid) {
+      sendJson(res, 400, { error: { ...validation.error, kind: 'orchestration', retryable: false } });
       return;
     }
-
-    const instruction = validationResult.instruction;
-    const instructionKey = createInstructionKey(instruction);
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // [INFRASTRUCTURE] Replay detection via session-level instruction cache
-    // ─────────────────────────────────────────────────────────────────────────
-    const previousExecution = session.executedInstructions?.get(instructionKey);
-    if (previousExecution?.cachedOutcome) {
-      logger.info(scopedLog(LogContext.INSTRUCTION, 'returning cached replay result'), {
-        sessionId,
-        type: getActionType(instruction),
-        stepIndex: instruction.index,
-        nodeId: instruction.nodeId,
-      });
-      sessionManager.setSessionPhase(sessionId, getDesiredSessionPhase(session));
-      if (idempotencyKey) {
-        idempotencyCache.store(
-          idempotencyKey,
-          sessionId,
-          instructionKey,
-          previousExecution.cachedOutcome
-        );
-      }
-      sendJson(res, 200, previousExecution.cachedOutcome);
+    const session = sessionManager.getSessionForLease(sessionId, executionId, leaseId);
+    const sequence = body.operation_sequence;
+    if (typeof sequence !== 'number' || !Number.isSafeInteger(sequence) || sequence <= 0 ||
+        typeof body.invocation_id !== 'string' || !body.invocation_id.trim() ||
+        typeof body.attempt !== 'number' || !Number.isSafeInteger(body.attempt) || body.attempt <= 0) {
+      throw new InvalidInstructionError('positive operation_sequence, invocation_id and positive attempt are required');
+    }
+    const header = req.headers['x-idempotency-key'];
+    if (header !== undefined && header !== `${leaseId}:${sequence}`) {
+      throw new InvalidInstructionError('X-Idempotency-Key must match lease_id:operation_sequence');
+    }
+    if (!sessionManager.canAcceptInstructions(sessionId) || !sessionManager.setSessionPhase(sessionId, 'executing')) {
+      sendJson(res, 409, { error: { code: 'SESSION_BUSY', message: `Session cannot execute an instruction while ${session.phase}`, kind: 'orchestration', retryable: false } });
       return;
     }
-
-    if (previousExecution) {
-      logger.info(scopedLog(LogContext.INSTRUCTION, 'replay detected (no cached outcome)'), {
-        sessionId,
-        type: getActionType(instruction),
-        stepIndex: instruction.index,
-      });
+    session.instructionInFlight = true;
+    executingSession = session;
+    const requestFingerprint = fingerprint({ invocation_id: body.invocation_id, attempt: body.attempt, instruction: body.instruction });
+    const receipts = session.instructionReceipts ??= new Map();
+    const previous = receipts.get(sequence);
+    if (sequence <= (session.lastInstructionSequence ?? 0)) {
+      if (previous?.fingerprint === requestFingerprint) sendReceipt(res, previous);
+      else sendJson(res, 409, { error: {
+        code: previous ? 'INSTRUCTION_OPERATION_CONFLICT' : 'INSTRUCTION_RECEIPT_UNAVAILABLE',
+        message: previous ? 'Operation number is already bound to another payload' : 'Operation is older than the retained receipts; its effect must not be repeated',
+        kind: 'orchestration', retryable: false,
+      } });
+      return;
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // [DOMAIN:EXECUTION] Delegate to InstructionExecutor service
-    // This handles: handler dispatch, telemetry, outcome building
-    // ─────────────────────────────────────────────────────────────────────────
+    session.lastInstructionSequence = sequence;
+    session.lastUsedAt = new Date();
+    const instruction = { ...validation.instruction, attempt: body.attempt, invocationId: body.invocation_id, operationSequence: sequence };
+    const startedAt = new Date();
     const executionContext: ExecutionContext = {
-      page: session.page,
+      get page() { return session.page; },
+      set page(page) {
+        if (page !== session.page) session.frameStack.length = 0;
+        session.page = page;
+        session.currentPageIndex = session.pages.indexOf(page);
+      },
+      frameStack: session.frameStack,
+      tabStack: session.pages,
       browserContext: session.context,
       config,
       logger: appLogger,
@@ -277,44 +119,41 @@ export async function handleSessionRun(
       electronTarget: session.spec?.app_target,
       interactionState: session.spec?.browser_profile?.interaction_state,
     };
-
-    const executionResult = await executeInstruction(
-      instruction,
-      executionContext,
-      handlerRegistry,
-      sessionManager.getInstrumentation()
-    );
-    sessionManager.incrementInstructionCount(sessionId);
-
-    const { driverOutcome, success } = executionResult;
-    const outcomeWithAudio = withAudioCapability(driverOutcome, session);
-    const completedAt = new Date();
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // [INFRASTRUCTURE] Cache result for replay detection and idempotency
-    // [COORDINATION] Reset session phase
-    // [PRESENTATION] Send response
-    // ─────────────────────────────────────────────────────────────────────────
-    recordExecutedInstruction(session, instructionKey, outcomeWithAudio, success, completedAt);
-    sessionManager.setSessionPhase(sessionId, getDesiredSessionPhase(session));
-    if (idempotencyKey) {
-      idempotencyCache.store(idempotencyKey, sessionId, instructionKey, outcomeWithAudio);
+    let response: string;
+    let uncertain = false;
+    try {
+      const result = await executeInstruction(instruction, executionContext, handlerRegistry, sessionManager.getInstrumentation());
+      sessionManager.incrementInstructionCount(sessionId);
+      // Serialize before retaining: a getter/cycle/decoration failure after a
+      // browser effect must also become one stable, nonretryable receipt.
+      response = JSON.stringify(withAudioCapability(result.driverOutcome, session));
+    } catch (error) {
+      uncertain = true;
+      response = JSON.stringify(toDriverOutcome(buildStepOutcome({
+        instruction, startedAt, completedAt: new Date(), finalUrl: '',
+        result: { success: false, error: {
+          code: 'INSTRUCTION_OUTCOME_UNCERTAIN', kind: 'infra', retryable: false,
+          message: `Instruction may have taken effect: ${error instanceof Error ? error.message : String(error)}`,
+        } },
+      })));
     }
-
-    sendJson(res, 200, outcomeWithAudio);
+    const receipt = { fingerprint: requestFingerprint, response };
+    receipts.set(sequence, receipt);
+    if (receipts.size > MAX_EXECUTED_INSTRUCTIONS_PER_SESSION) {
+      receipts.delete(receipts.keys().next().value!);
+    }
+    if (uncertain) appMetrics.instructionErrors.inc({ type: 'unknown', error_kind: 'infra' });
+    sendReceipt(res, receipt);
   } catch (error) {
-    // ─────────────────────────────────────────────────────────────────────────
-    // [COORDINATION] Error recovery - reset phase
-    // [PRESENTATION] Error response
-    // ─────────────────────────────────────────────────────────────────────────
-    if (enteredExecutingPhase) {
-      try {
-        sessionManager.setSessionPhase(sessionId, 'ready');
-      } catch {
-        /* Session may be closed */
-      }
-    }
     sendError(res, error as Error, `/session/${sessionId}/run`);
     appMetrics.instructionErrors.inc({ type: 'unknown', error_kind: 'engine' });
+  } finally {
+    // Reset/close may have taken ownership while execution was pending.
+    if (executingSession) {
+      executingSession.instructionInFlight = false;
+      if (executingSession.phase === 'executing') {
+        sessionManager.setSessionPhase(sessionId, executingSession.pipelineManager?.isRecording() ? 'recording' : 'ready');
+      }
+    }
   }
 }

@@ -1,0 +1,503 @@
+{
+  "schema_version": 1,
+  "record": "BAS-WORK-005",
+  "observed_at": "2026-09-22T04:27:34.630693+00:00",
+  "head": "7d1c7531d057c061c5ad5a67fbecb97ebe2eb194",
+  "scope": "One-profile atomic publication and authority-owned generated keyring; Linux local offline conversion. Not full journey/native qualification.",
+  "source_sha256": {
+    "api/services/session-profile/persistence/file_repository.go": "920e200e00cc5d73040b95a1364587264a7be05c6f44fcaafd45cdad4ad5106f",
+    "api/services/session-profile/persistence/file_repository_test.go": "8be32380870c4cf40f2f29dc6303d7f32d85ef4e6acc57d500c807b097a40efd",
+    "api/services/session-profile/persistence/protected_state.go": "72461ec0c31c5c216f31b37a91f157f754d3d48fa2682bb595783aca0681c20b",
+    "api/services/session-profile/persistence/credentials.go": "c4d2df294a1f61ba3f3cebf64a4a67334b113bb48f35322634930b64842ae286",
+    "api/services/session-profile/persistence/credentials_test.go": "28aa2b85b10fe9997cceb2aa7d909448c3dc7c4a4c29b6311c4ab748352a9c4a",
+    "api/services/session-profile/persistence/filesystem.go": "6ac86773b79b842205a10893c25a9b5b6e8ce3385149812ff78ca8b061b155cb",
+    "api/services/session-profile/persistence/filesystem_mock.go": "94737ec14ec042a866d79b11aa591015b069cbbd42e8373be1e097022287606e",
+    "api/services/session-profile/service_test.go": "4e3eedf88c27de02dd8fea647fe71a6460e395435f04b734ce94845455c6315b",
+    "api/internal/testutil/credentials.go": "4afa23e723d43ea73b8364ca0d30adcf8a44142fa4dc52402dc0a0f3edecfb77",
+    "api/handlers/record_mode_test.go": "9d23ae3449d150f73af94788d686371cae7af8517fea8b204a458a5936235978",
+    "api/go.mod": "83befaacae279122f4e5af720ff6764940ede986598f5c1247a9071fdc5da212",
+    ".vrooli/service.json": "576873f04e1a746fbbab450b30430a7e88dbaee345b2fd32e14ba81978b4d881",
+    "docs/internal/refactor_profile_probes.go": "0f1d97d7848277ace08eab2ff138f855e3621e180a6ccf831e531e90b558032f",
+    "docs/ENVIRONMENT.md": "219c31eed300c1aa51355dd35d053deac2e43ba47abbc585b57e2c5b81ad21f5"
+  },
+  "contract_sha256": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+  "checks": {
+    "atomic_fault_red": "--- FAIL: TestFileRepositoryCommitPreservesAcknowledgedSnapshot (0.00s)\n    --- FAIL: TestFileRepositoryCommitPreservesAcknowledgedSnapshot/rename (0.00s)\n        file_repository_test.go:33: failed commit changed the acknowledged snapshot\n--- FAIL: TestFileRepositoryCommitUsesOneDocument (0.00s)\n    file_repository_test.go:47: one aggregate has 2 commit documents\nFAIL\nFAIL\tgithub.com/vrooli/browser-automation-studio/services/session-profile/persistence\t0.004s\nFAIL\n",
+    "final_profile_race": "ok  \tgithub.com/vrooli/browser-automation-studio/services/session-profile\t1.280s\nok  \tgithub.com/vrooli/browser-automation-studio/services/session-profile/persistence\t1.273s\n",
+    "handler_and_testutil_race": "ok  \tgithub.com/vrooli/browser-automation-studio/services/session-profile\t1.243s\nok  \tgithub.com/vrooli/browser-automation-studio/services/session-profile/persistence\t1.249s\nok  \tgithub.com/vrooli/browser-automation-studio/handlers\t1.183s\nok  \tgithub.com/vrooli/browser-automation-studio/internal/testutil\t1.096s\nok  \tgithub.com/vrooli/browser-automation-studio/internal/testutil/fixtures\t1.016s\nok  \tgithub.com/vrooli/browser-automation-studio/internal/testutil/integration\t1.012s\nok  \tgithub.com/vrooli/browser-automation-studio/internal/testutil/mocks\t1.033s\n",
+    "shared_atomic_writer": "ok  \tgithub.com/vrooli/api-core/storage\t0.069s\n",
+    "offline_converter": "conversion, encrypted roundtrip, rollback, source-change refusal and unknown-field refusal: PASS\n",
+    "live_repository_readback": "read 1: complete identity preserved; elapsed_ms=1230.04\nread 2: complete identity preserved; elapsed_ms=0.40\nread 3: complete identity preserved; elapsed_ms=0.30\n"
+  },
+  "api_compile_passed": true,
+  "lifecycle_build_passed": true,
+  "lifecycle_start_operation": "startop-61bbc2e53728c37501c85b5678b795e7",
+  "live_http": {
+    "api_status": "healthy",
+    "build_identity": "sha256:ad61ab7fb5444f3de0c8143db5918afef1755e3b8bb53951551e1d569b2f52ae",
+    "profile_count": 1,
+    "original_identity_and_name_preserved": true,
+    "protected_storage_omitted_from_metadata": true
+  },
+  "offline_converter": {
+    "path": "/tmp/browser-automation-studio/migrate-profile.go",
+    "sha256": "a81bfa922cde0d0580b94faa17cace0d138977252fb02d9deb253b82d34e2862",
+    "profiles": 1,
+    "rollback_directory": "~/.vrooli/data/vrooli/browser-automation-studio/session-profiles.rollback-20260922",
+    "canonical_all_fields_equal": true,
+    "original_file_hashes_preserved": true,
+    "runtime_migrator": false
+  },
+  "profile_probe": {
+    "observed_at": "2026-09-22T04:14:04.421511+00:00",
+    "scope": "isolated actual-module regressions; not product or native-platform certification",
+    "cases": [
+      {
+        "case": "profile",
+        "status": "failed",
+        "producer_sha256": "0f1d97d7848277ace08eab2ff138f855e3621e180a6ccf831e531e90b558032f",
+        "observations": [
+          {
+            "id": "profile-encryption-roundtrip-control",
+            "expected": "Fresh repository restores synthetic state without putting it in plaintext files",
+            "actual": {
+              "metadata_contains_state": false,
+              "protected_contains_state": false,
+              "read_error": "",
+              "state_restored": true
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "profile-metadata-commit-failure",
+            "expected": "Failed save preserves one coherent previous profile",
+            "actual": {
+              "metadata_name": "old-name",
+              "read_error": "",
+              "save_error": "commit profile: synthetic metadata commit failure",
+              "state_is_new": false
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "profile-interrupted-state-write",
+            "expected": "Interrupted state save leaves previous acknowledged profile readable",
+            "actual": {
+              "prior_state_preserved": true,
+              "save_error": "commit profile: synthetic interrupted profile staging write",
+              "subsequent_read_error": ""
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "profile-missing-protected-state",
+            "expected": "A profile whose acknowledged protected state is missing reports incomplete recovery",
+            "actual": {
+              "profile_returned": false,
+              "read_error": "unsupported or incomplete profile document; restore or convert the saved profile offline",
+              "restored_storage_bytes": 0
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "profile-unreadable-list",
+            "expected": "Listing exposes recovery failure rather than an apparently empty profile store",
+            "actual": {
+              "default_created_replacement": false,
+              "default_resolution_error": "failed to list profiles: recover session profile \"synthetic-profile\": open protected profile: cipher: message authentication failed",
+              "direct_read_error": "open protected profile: cipher: message authentication failed",
+              "list_error": "recover session profile \"synthetic-profile\": open protected profile: cipher: message authentication failed",
+              "listed_count": 0
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "profile-concurrent-field-updates",
+            "expected": "Successful tab and storage updates both survive a legal read-modify-save interleaving",
+            "actual": {
+              "new_tab_retained": true,
+              "storage_error": "",
+              "storage_reverted_to_old": true,
+              "tabs_error": ""
+            },
+            "expected_behavior_met": false
+          },
+          {
+            "id": "profile-persist-http-receipt",
+            "expected": "Persist endpoint reports failed durable save",
+            "actual": {
+              "http_status": 500,
+              "response": "{\"code\":\"INTERNAL_SERVER_ERROR\",\"message\":\"An internal server error occurred\",\"details\":{\"error\":\"synthetic profile save failure\"}}"
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "profile-close-save-failure",
+            "expected": "Failed final persistence remains visible and recoverable when closing",
+            "actual": {
+              "driver_closed": false,
+              "http_status": 500,
+              "profile_association_after_close": "synthetic-profile",
+              "response": "{\"code\":\"INTERNAL_SERVER_ERROR\",\"message\":\"Session profile could not be saved; the browser remains open. Retry closing after resolving the save failure.\",\"details\":{\"error\":\"synthetic profile save failure\"}}"
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "profile-missing-key-fail-closed-control",
+            "expected": "Profile creation requires an encryption key",
+            "actual": "resolve credential vrooli/browser-automation-studio:session-profile-keyring: credential provider is not implemented on this host: operating-system secure storage is not implemented on this host: synthetic absent provider",
+            "expected_behavior_met": true
+          },
+          {
+            "id": "replay-simple-click-control",
+            "expected": "Basic click remains a valid typed click",
+            "actual": {
+              "generated_action": {
+                "click": {
+                  "button": "MOUSE_BUTTON_LEFT",
+                  "selector": "#fixture"
+                },
+                "metadata": {
+                  "label": "Click element"
+                },
+                "type": "ACTION_TYPE_CLICK"
+              },
+              "typed_ingress_error": ""
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "replay-click-modifiers",
+            "expected": "Recorded Control-click preserves its modifier",
+            "actual": {
+              "generated_action": {
+                "click": {
+                  "button": "MOUSE_BUTTON_LEFT",
+                  "selector": "#fixture"
+                },
+                "metadata": {
+                  "label": "Click element"
+                },
+                "type": "ACTION_TYPE_CLICK"
+              },
+              "typed_ingress_error": ""
+            },
+            "expected_behavior_met": false
+          },
+          {
+            "id": "replay-double-click",
+            "expected": "Recorded double-click preserves click count two",
+            "actual": {
+              "generated_action": {
+                "click": {
+                  "button": "MOUSE_BUTTON_LEFT",
+                  "selector": "#fixture"
+                },
+                "metadata": {
+                  "label": "Click element"
+                },
+                "type": "ACTION_TYPE_CLICK"
+              },
+              "typed_ingress_error": ""
+            },
+            "expected_behavior_met": false
+          },
+          {
+            "id": "replay-keyboard-modifiers",
+            "expected": "Recorded Control-A preserves its modifier",
+            "actual": {
+              "generated_action": {
+                "keyboard": {
+                  "key": "a"
+                },
+                "metadata": {
+                  "label": "Press a"
+                },
+                "type": "ACTION_TYPE_KEYBOARD"
+              },
+              "typed_ingress_error": ""
+            },
+            "expected_behavior_met": false
+          },
+          {
+            "id": "replay-horizontal-scroll",
+            "expected": "Recorded scroll preserves both axes",
+            "actual": {
+              "generated_action": {
+                "metadata": {
+                  "label": "Scroll"
+                },
+                "scroll": {
+                  "selector": "#fixture",
+                  "y": 400
+                },
+                "type": "ACTION_TYPE_SCROLL"
+              },
+              "typed_ingress_error": ""
+            },
+            "expected_behavior_met": false
+          },
+          {
+            "id": "replay-blur",
+            "expected": "Blur becomes blur or explicit unsupported failure, never click",
+            "actual": {
+              "generated_action": {
+                "click": {
+                  "selector": "#fixture"
+                },
+                "metadata": {
+                  "label": "blur"
+                },
+                "type": "ACTION_TYPE_CLICK"
+              },
+              "typed_ingress_error": ""
+            },
+            "expected_behavior_met": false
+          },
+          {
+            "id": "replay-browser-drag-event",
+            "expected": "Browser-script drag-drop becomes drag/drop or explicit unsupported failure",
+            "actual": {
+              "generated_action": {
+                "click": {
+                  "selector": "#fixture"
+                },
+                "metadata": {
+                  "label": "drag-drop"
+                },
+                "type": "ACTION_TYPE_CLICK"
+              },
+              "typed_ingress_error": ""
+            },
+            "expected_behavior_met": false
+          },
+          {
+            "id": "replay-registry-drag-event",
+            "expected": "Registered dragDrop conversion produces valid typed workflow",
+            "actual": {
+              "generated_action": {
+                "dragDrop": {
+                  "selector": "#fixture"
+                },
+                "metadata": {
+                  "label": "Drag and drop"
+                },
+                "type": "ACTION_TYPE_UNSPECIFIED"
+              },
+              "typed_ingress_error": "decode workflow definition at ingress: proto:\u00a0(line 1:45): unknown field \"selector\""
+            },
+            "expected_behavior_met": false
+          },
+          {
+            "id": "replay-target-context",
+            "expected": "Target context is retained or its loss is rejected instead of accepting an untargeted flow",
+            "actual": {
+              "flow": {
+                "edges": [
+                  {
+                    "id": "edge_1",
+                    "source": "node_1",
+                    "target": "wait_2"
+                  },
+                  {
+                    "id": "edge_2",
+                    "source": "wait_2",
+                    "target": "node_3"
+                  }
+                ],
+                "nodes": [
+                  {
+                    "action": {
+                      "click": {
+                        "selector": "#one"
+                      },
+                      "metadata": {
+                        "label": "Click element"
+                      },
+                      "type": "ACTION_TYPE_CLICK"
+                    },
+                    "id": "node_1",
+                    "position": {
+                      "x": 250,
+                      "y": 100
+                    }
+                  },
+                  {
+                    "action": {
+                      "metadata": {
+                        "label": "Wait for element"
+                      },
+                      "type": "ACTION_TYPE_WAIT",
+                      "wait": {
+                        "selector": "#two",
+                        "state": "WAIT_STATE_VISIBLE",
+                        "timeout_ms": 10000
+                      }
+                    },
+                    "id": "wait_2",
+                    "position": {
+                      "x": 250,
+                      "y": 220
+                    }
+                  },
+                  {
+                    "action": {
+                      "click": {
+                        "selector": "#two"
+                      },
+                      "metadata": {
+                        "label": "Click element"
+                      },
+                      "type": "ACTION_TYPE_CLICK"
+                    },
+                    "id": "node_3",
+                    "position": {
+                      "x": 250,
+                      "y": 340
+                    }
+                  }
+                ]
+              },
+              "typed_ingress_error": ""
+            },
+            "expected_behavior_met": false
+          }
+        ],
+        "scope": "isolated actual profile repository/service/HTTP handlers and workflow generator/typed ingress; synthetic I/O only",
+        "producer_exit": 0
+      }
+    ],
+    "summary": {
+      "passed": 0,
+      "failed": 1,
+      "unavailable": 0
+    }
+  },
+  "inventory": {
+    "digest": "57d9b2e280c4984006213018f06254c610db9edb16cc639cdc6384879a1f9756",
+    "surfaces": {
+      ".vrooli": {
+        "tracked_source_files": 9,
+        "tracked_source_lines": 2398,
+        "runtime_files": 0,
+        "runtime_lines": 0,
+        "runtime_over_500_lines": 0,
+        "runtime_over_1000_lines": 0
+      },
+      "api": {
+        "tracked_source_files": 637,
+        "tracked_source_lines": 158264,
+        "runtime_files": 423,
+        "runtime_lines": 94102,
+        "runtime_over_500_lines": 44,
+        "runtime_over_1000_lines": 10
+      },
+      "bas": {
+        "tracked_source_files": 2,
+        "tracked_source_lines": 546,
+        "runtime_files": 0,
+        "runtime_lines": 0,
+        "runtime_over_500_lines": 0,
+        "runtime_over_1000_lines": 0
+      },
+      "cli": {
+        "tracked_source_files": 73,
+        "tracked_source_lines": 5362,
+        "runtime_files": 43,
+        "runtime_lines": 3179,
+        "runtime_over_500_lines": 0,
+        "runtime_over_1000_lines": 0
+      },
+      "docs": {
+        "tracked_source_files": 8,
+        "tracked_source_lines": 1235,
+        "runtime_files": 0,
+        "runtime_lines": 0,
+        "runtime_over_500_lines": 0,
+        "runtime_over_1000_lines": 0
+      },
+      "playwright-driver": {
+        "tracked_source_files": 354,
+        "tracked_source_lines": 90527,
+        "runtime_files": 210,
+        "runtime_lines": 55567,
+        "runtime_over_500_lines": 25,
+        "runtime_over_1000_lines": 4
+      },
+      "ui": {
+        "tracked_source_files": 795,
+        "tracked_source_lines": 150787,
+        "runtime_files": 685,
+        "runtime_lines": 131518,
+        "runtime_over_500_lines": 56,
+        "runtime_over_1000_lines": 11
+      }
+    },
+    "api_runtime_original": 94165,
+    "api_runtime_cycle_start": 94084,
+    "api_runtime_final": 94102,
+    "api_runtime_cumulative_delta": -63,
+    "api_runtime_cycle_delta": 18,
+    "ui_runtime_cumulative_delta": -14
+  },
+  "cumulative_go_complexity": {
+    "comparison": "Changed-file union vs HEAD; includes persistence filesystem mock, excludes tests and testutil",
+    "paths": [
+      "api/automation/events/sink.go",
+      "api/automation/events/ws_sink.go",
+      "api/handlers/execution_export.go",
+      "api/handlers/record_mode.go",
+      "api/handlers/record_mode_persistence.go",
+      "api/services/export/source/video_source.go",
+      "api/services/session-profile/persistence/credentials.go",
+      "api/services/session-profile/persistence/file_repository.go",
+      "api/services/session-profile/persistence/filesystem.go",
+      "api/services/session-profile/persistence/filesystem_mock.go",
+      "api/services/session-profile/persistence/protected_state.go",
+      "api/services/uxmetrics/collector/collector.go",
+      "api/services/workflow/executions.go",
+      "api/services/workflow/executions_list.go"
+    ],
+    "functions_before": 147,
+    "functions_after": 147,
+    "sum_before": 853,
+    "sum_after": 840,
+    "delta": -13,
+    "before": "64 handlers (*Handler).PostExecutionExport /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/execution_export.go:33:1\n56 workflow (*WorkflowService).executeWorkflowAsyncWithOptions /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions.go:492:1\n41 handlers (*Handler).CreateRecordingSession /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode.go:41:1\n29 workflow (*WorkflowService).ExecuteWorkflowAPIWithOptions /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions.go:133:1\n20 handlers (*Handler).serveRecordedVideo /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/execution_export.go:739:1\n19 handlers (*Handler).GenerateWorkflowFromRecording /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode.go:429:1\n18 source videoFromArtifact /tmp/browser-automation-studio/cumulative-complexity-before/api/services/export/source/video_source.go:93:1\n17 collector (*Collector).buildCursorPath /tmp/browser-automation-studio/cumulative-complexity-before/api/services/uxmetrics/collector/collector.go:154:1\n17 events (*executionQueue).enqueue /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:136:1\n16 handlers (*Handler).CloseRecordingSession /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode.go:247:1\n14 events buildTimelineEntryFromEnvelope /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:344:1\n13 workflow executionParametersToMaps /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions.go:347:1\n13 handlers (*Handler).HandleDriverFrameStream /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode.go:541:1\n13 handlers (*Handler).loadRecordedVideo /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/execution_export.go:692:1\n13 handlers (*Handler).renderRecordedVideoToFile /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/execution_export.go:503:1\n12 workflow (*WorkflowService).ResumeExecution /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions_list.go:31:1\n12 events (*executionQueue).dropOldest /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:220:1\n11 handlers (*Handler).renderExportInBackground /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/execution_export.go:384:1\n11 events mapExecutionStatus /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:423:1\n10 persistence (*FileRepository).Save /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/file_repository.go:140:1\n10 persistence (*FileRepository).Get /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/file_repository.go:58:1\n10 handlers (*Handler).persistSessionProfile /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode_persistence.go:66:1\n9 workflow (*WorkflowService).executeResumedWorkflowAsync /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions_list.go:134:1\n9 persistence (*MockFileSystem).ReadDir /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:99:1\n9 persistence (*FileRepository).List /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/file_repository.go:83:1\n9 handlers (*Handler).GetRecordingDebug /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode.go:341:1\n9 events extractInt /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:465:1\n9 events (*executionQueue).run /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:172:1\n8 collector mapStepTypeToAction /tmp/browser-automation-studio/cumulative-complexity-before/api/services/uxmetrics/collector/collector.go:249:1\n8 events convertEventToProto /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:279:1\n7 persistence (*FileRepository).Delete /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/file_repository.go:191:1\n7 source downloadVideoFromStorage /tmp/browser-automation-studio/cumulative-complexity-before/api/services/export/source/video_source.go:252:1\n7 handlers (*Handler).UpdateRecordingViewport /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode.go:972:1\n7 handlers (*Handler).GoForwardRecordingSession /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode.go:827:1\n7 handlers (*Handler).GoBackRecordingSession /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode.go:732:1\n7 handlers (*Handler).ReloadRecordingSession /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode.go:651:1\n6 workflow executionProjectRoot /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions.go:312:1\n6 workflow (*WorkflowService).ExecuteWorkflow /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions.go:36:1\n6 collector (*Collector).Publish /tmp/browser-automation-studio/cumulative-complexity-before/api/services/uxmetrics/collector/collector.go:40:1\n6 persistence (*FileRepository).loadProtected /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/protected_state.go:71:1\n6 persistence (*FileRepository).encryptionKey /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/protected_state.go:35:1\n6 persistence NewFileRepositoryWithConfig /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/file_repository.go:36:1\n6 source artifactObjectNameFromURL /tmp/browser-automation-studio/cumulative-complexity-before/api/services/export/source/video_source.go:223:1\n6 source ResolveVideoSource /tmp/browser-automation-studio/cumulative-complexity-before/api/services/export/source/video_source.go:63:1\n6 handlers (*Handler).resolveSessionProfile /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode_persistence.go:31:1\n6 handlers (*Handler).CreateInputForwarder /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode.go:1213:1\n6 handlers (*Handler).GetRecordingFrame /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode.go:1141:1\n6 events extractString /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:487:1\n6 events (*WSHubSink).CloseExecution /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:90:1\n5 workflow (*WorkflowService).cancelExecutionByID /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions.go:772:1\n5 workflow (*WorkflowService).resolveWorkflowForExecution /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions.go:288:1\n5 persistence (*FileRepository).saveProtected /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/protected_state.go:52:1\n5 persistence (*FileRepository).Create /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/file_repository.go:118:1\n5 source DetectVideoContentType /tmp/browser-automation-studio/cumulative-complexity-before/api/services/export/source/video_source.go:190:1\n5 handlers (*Handler).ForwardRecordingInput /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode.go:1097:1\n5 handlers (*Handler).UpdateStreamSettings /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode.go:1034:1\n5 handlers (*Handler).CaptureRecordingScreenshot /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode.go:922:1\n5 handlers (*Handler).handleAsyncBinaryExport /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/execution_export.go:321:1\n5 events eventToProtoMap /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:263:1\n5 events (*WSHubSink).Publish /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:49:1\n4 workflow executionOutcome /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions.go:795:1\n4 workflow navigateWaitEventToString /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions.go:423:1\n4 workflow requiredVideoArtifactError /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions.go:114:1\n4 collector (*Collector).FlushExecution /tmp/browser-automation-studio/cumulative-complexity-before/api/services/uxmetrics/collector/collector.go:109:1\n4 collector (*Collector).OnStepOutcome /tmp/browser-automation-studio/cumulative-complexity-before/api/services/uxmetrics/collector/collector.go:66:1\n4 persistence openProtected /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/protected_state.go:114:1\n4 persistence sealProtected /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/protected_state.go:98:1\n4 persistence (*MockFileSystem).Stat /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:149:1\n4 source ExtensionForContentType /tmp/browser-automation-studio/cumulative-complexity-before/api/services/export/source/video_source.go:209:1\n4 source payloadBool /tmp/browser-automation-studio/cumulative-complexity-before/api/services/export/source/video_source.go:177:1\n4 source payloadString /tmp/browser-automation-studio/cumulative-complexity-before/api/services/export/source/video_source.go:165:1\n4 handlers (*Handler).handleAsyncRecordedVideoExport /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/execution_export.go:595:1\n4 events mapStepStatus /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:452:1\n3 workflow withTestModeBrowserHeader /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions.go:464:1\n3 workflow validateProjectRoot /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions.go:333:1\n3 collector (*Collector).onStepCompleted /tmp/browser-automation-studio/cumulative-complexity-before/api/services/uxmetrics/collector/collector.go:121:1\n3 persistence indexOf /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:229:1\n3 persistence (*MockFileSystem).Rename /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:83:1\n3 persistence (*MockFileSystem).Remove /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:69:1\n3 persistence (*MockFileSystem).ReadFile /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:38:1\n3 source firstNonEmptyString /tmp/browser-automation-studio/cumulative-complexity-before/api/services/export/source/video_source.go:292:1\n3 source NormalizeRenderSource /tmp/browser-automation-studio/cumulative-complexity-before/api/services/export/source/video_source.go:48:1\n3 handlers (*Handler).PersistRecordingSession /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode_persistence.go:15:1\n3 handlers (*Handler).GetRecordedActions /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode.go:390:1\n3 handlers copyFile /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/execution_export.go:675:1\n3 events (*WSHubSink).ensureQueue /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:70:1\n2 workflow (*WorkflowService).ListExecutions /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions_list.go:21:1\n2 workflow (*WorkflowService).StopExecution /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions.go:784:1\n2 workflow (*WorkflowService).storeExecutionCancel /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions.go:765:1\n2 workflow (*WorkflowService).startExecutionRunnerWithOptions /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions.go:447:1\n2 persistence (*MockFileSystem).ListFiles /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:195:1\n2 persistence (*MockFileSystem).GetFile /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:174:1\n2 persistence (*MockFileSystem).MkdirAll /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:138:1\n2 persistence (*MockFileSystem).WriteFile /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:55:1\n2 source filePathFromStorageURL /tmp/browser-automation-studio/cumulative-complexity-before/api/services/export/source/video_source.go:244:1\n2 source isRecordedVideoArtifact /tmp/browser-automation-studio/cumulative-complexity-before/api/services/export/source/video_source.go:84:1\n2 handlers (*Handler).getActiveSessionProfile /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode_persistence.go:59:1\n2 handlers (*Handler).clearActiveSessionProfile /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode_persistence.go:53:1\n2 handlers (*Handler).setActiveSessionProfile /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode_persistence.go:48:1\n2 handlers (*Handler).generateCorrelationID /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode.go:1268:1\n2 events ptrOrZero /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:502:1\n2 events (*executionQueue).emit /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:201:1\n2 events NewWSHubSink /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:34:1\n1 workflow (*WorkflowService).startResumedExecution /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions_list.go:120:1\n1 workflow detachedExecutionContext /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions.go:477:1\n1 workflow (*WorkflowService).startExecutionRunnerWithNamespaces /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions.go:443:1\n1 workflow (*WorkflowService).startExecutionRunner /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions.go:436:1\n1 workflow jsonValueToAny /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions.go:418:1\n1 workflow (*WorkflowService).ExecuteWorkflowAPI /tmp/browser-automation-studio/cumulative-complexity-before/api/services/workflow/executions.go:128:1\n1 collector cursorBufferKey /tmp/browser-automation-studio/cumulative-complexity-before/api/services/uxmetrics/collector/collector.go:245:1\n1 collector (*Collector).onStepFailed /tmp/browser-automation-studio/cumulative-complexity-before/api/services/uxmetrics/collector/collector.go:149:1\n1 collector (*Collector).OnCursorUpdate /tmp/browser-automation-studio/cumulative-complexity-before/api/services/uxmetrics/collector/collector.go:98:1\n1 collector (*Collector).Limits /tmp/browser-automation-studio/cumulative-complexity-before/api/services/uxmetrics/collector/collector.go:61:1\n1 collector NewCollector /tmp/browser-automation-studio/cumulative-complexity-before/api/services/uxmetrics/collector/collector.go:31:1\n1 persistence (*FileRepository).protectedPath /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/protected_state.go:31:1\n1 persistence (*mockFileInfo).Sys /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:261:1\n1 persistence (*mockFileInfo).IsDir /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:260:1\n1 persistence (*mockFileInfo).ModTime /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:259:1\n1 persistence (*mockFileInfo).Mode /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:258:1\n1 persistence (*mockFileInfo).Size /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:257:1\n1 persistence (*mockFileInfo).Name /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:256:1\n1 persistence (*mockDirEntry).Info /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:247:1\n1 persistence (*mockDirEntry).Type /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:246:1\n1 persistence (*mockDirEntry).IsDir /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:245:1\n1 persistence (*mockDirEntry).Name /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:244:1\n1 persistence (*MockFileSystem).Reset /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:214:1\n1 persistence (*MockFileSystem).Clear /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:206:1\n1 persistence (*MockFileSystem).FileExists /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:187:1\n1 persistence (*MockFileSystem).SetFile /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:165:1\n1 persistence NewMockFileSystem /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem_mock.go:30:1\n1 persistence NewOSFileSystem /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem.go:73:1\n1 persistence (OSFileSystem).Stat /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem.go:68:1\n1 persistence (OSFileSystem).MkdirAll /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem.go:63:1\n1 persistence (OSFileSystem).ReadDir /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem.go:58:1\n1 persistence (OSFileSystem).Rename /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem.go:53:1\n1 persistence (OSFileSystem).Remove /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem.go:48:1\n1 persistence (OSFileSystem).WriteFile /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem.go:43:1\n1 persistence (OSFileSystem).ReadFile /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/filesystem.go:38:1\n1 persistence (*FileRepository).profilePath /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/file_repository.go:211:1\n1 persistence NewFileRepository /tmp/browser-automation-studio/cumulative-complexity-before/api/services/session-profile/persistence/file_repository.go:31:1\n1 handlers getPlaywrightDriverURL /tmp/browser-automation-studio/cumulative-complexity-before/api/handlers/record_mode.go:35:1\n1 events convertElementFocus /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:512:1\n1 events (*WSHubSink).isClosed /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:256:1\n1 events (*executionQueue).close /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:248:1\n1 events attemptKey /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:244:1\n1 events newExecutionQueue /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:124:1\n1 events (*WSHubSink).Limits /tmp/browser-automation-studio/cumulative-complexity-before/api/automation/events/ws_sink.go:66:1\n",
+    "after": "64 handlers (*Handler).PostExecutionExport scenarios/browser-automation-studio/api/handlers/execution_export.go:32:1\n56 workflow (*WorkflowService).executeWorkflowAsyncWithOptions scenarios/browser-automation-studio/api/services/workflow/executions.go:491:1\n41 handlers (*Handler).CreateRecordingSession scenarios/browser-automation-studio/api/handlers/record_mode.go:41:1\n29 workflow (*WorkflowService).ExecuteWorkflowAPIWithOptions scenarios/browser-automation-studio/api/services/workflow/executions.go:132:1\n20 handlers (*Handler).serveRecordedVideo scenarios/browser-automation-studio/api/handlers/execution_export.go:729:1\n19 handlers (*Handler).GenerateWorkflowFromRecording scenarios/browser-automation-studio/api/handlers/record_mode.go:380:1\n18 source videoFromArtifact scenarios/browser-automation-studio/api/services/export/source/video_source.go:93:1\n17 collector (*Collector).buildCursorPath scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:162:1\n17 events (*executionQueue).enqueue scenarios/browser-automation-studio/api/automation/events/ws_sink.go:136:1\n14 events buildTimelineEntryFromEnvelope scenarios/browser-automation-studio/api/automation/events/ws_sink.go:338:1\n13 workflow executionParametersToMaps scenarios/browser-automation-studio/api/services/workflow/executions.go:346:1\n13 handlers (*Handler).HandleDriverFrameStream scenarios/browser-automation-studio/api/handlers/record_mode.go:492:1\n13 handlers (*Handler).renderRecordedVideoToFile scenarios/browser-automation-studio/api/handlers/execution_export.go:502:1\n12 workflow (*WorkflowService).ResumeExecution scenarios/browser-automation-studio/api/services/workflow/executions_list.go:31:1\n12 events (*executionQueue).dropOldest scenarios/browser-automation-studio/api/automation/events/ws_sink.go:222:1\n11 handlers (*Handler).renderExportInBackground scenarios/browser-automation-studio/api/handlers/execution_export.go:383:1\n11 events mapExecutionStatus scenarios/browser-automation-studio/api/automation/events/ws_sink.go:417:1\n10 persistence (*FileRepository).decodeProfile scenarios/browser-automation-studio/api/services/session-profile/persistence/protected_state.go:37:1\n10 persistence (*FileRepository).encryptionKeys scenarios/browser-automation-studio/api/services/session-profile/persistence/credentials.go:28:1\n10 handlers (*Handler).loadRecordedVideo scenarios/browser-automation-studio/api/handlers/execution_export.go:691:1\n9 persistence (*MockFileSystem).ReadDir scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:84:1\n9 handlers (*Handler).GetRecordingDebug scenarios/browser-automation-studio/api/handlers/record_mode.go:292:1\n9 events extractInt scenarios/browser-automation-studio/api/automation/events/ws_sink.go:459:1\n9 events (*executionQueue).run scenarios/browser-automation-studio/api/automation/events/ws_sink.go:173:1\n8 collector mapStepTypeToAction scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:257:1\n8 persistence (*FileRepository).Save scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:133:1\n8 persistence (*FileRepository).List scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:79:1\n8 events convertEventToProto scenarios/browser-automation-studio/api/automation/events/ws_sink.go:273:1\n7 workflow (*WorkflowService).executeResumedWorkflowAsync scenarios/browser-automation-studio/api/services/workflow/executions_list.go:134:1\n7 collector (*Collector).Publish scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:40:1\n7 persistence NewFileRepositoryWithConfig scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:38:1\n7 persistence (*FileRepository).Minted scenarios/browser-automation-studio/api/services/session-profile/persistence/credentials.go:67:1\n7 source downloadVideoFromStorage scenarios/browser-automation-studio/api/services/export/source/video_source.go:248:1\n7 handlers (*Handler).UpdateRecordingViewport scenarios/browser-automation-studio/api/handlers/record_mode.go:923:1\n7 handlers (*Handler).GoForwardRecordingSession scenarios/browser-automation-studio/api/handlers/record_mode.go:778:1\n7 handlers (*Handler).GoBackRecordingSession scenarios/browser-automation-studio/api/handlers/record_mode.go:683:1\n7 handlers (*Handler).ReloadRecordingSession scenarios/browser-automation-studio/api/handlers/record_mode.go:602:1\n7 events (*WSHubSink).CloseExecution scenarios/browser-automation-studio/api/automation/events/ws_sink.go:87:1\n6 workflow executionProjectRoot scenarios/browser-automation-studio/api/services/workflow/executions.go:311:1\n6 workflow (*WorkflowService).ExecuteWorkflow scenarios/browser-automation-studio/api/services/workflow/executions.go:35:1\n6 source artifactObjectNameFromURL scenarios/browser-automation-studio/api/services/export/source/video_source.go:219:1\n6 source ResolveVideoSource scenarios/browser-automation-studio/api/services/export/source/video_source.go:63:1\n6 handlers (*Handler).persistSessionProfile scenarios/browser-automation-studio/api/handlers/record_mode_persistence.go:68:1\n6 handlers (*Handler).resolveSessionProfile scenarios/browser-automation-studio/api/handlers/record_mode_persistence.go:31:1\n6 handlers (*Handler).CreateInputForwarder scenarios/browser-automation-studio/api/handlers/record_mode.go:1164:1\n6 handlers (*Handler).GetRecordingFrame scenarios/browser-automation-studio/api/handlers/record_mode.go:1092:1\n6 handlers (*Handler).CloseRecordingSession scenarios/browser-automation-studio/api/handlers/record_mode.go:247:1\n6 events extractString scenarios/browser-automation-studio/api/automation/events/ws_sink.go:481:1\n5 workflow (*WorkflowService).cancelExecutionByID scenarios/browser-automation-studio/api/services/workflow/executions.go:769:1\n5 workflow (*WorkflowService).resolveWorkflowForExecution scenarios/browser-automation-studio/api/services/workflow/executions.go:287:1\n5 persistence (*FileRepository).Delete scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:164:1\n5 persistence (*FileRepository).Create scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:111:1\n5 handlers (*Handler).ForwardRecordingInput scenarios/browser-automation-studio/api/handlers/record_mode.go:1048:1\n5 handlers (*Handler).UpdateStreamSettings scenarios/browser-automation-studio/api/handlers/record_mode.go:985:1\n5 handlers (*Handler).CaptureRecordingScreenshot scenarios/browser-automation-studio/api/handlers/record_mode.go:873:1\n5 handlers (*Handler).handleAsyncBinaryExport scenarios/browser-automation-studio/api/handlers/execution_export.go:320:1\n5 events eventToProtoMap scenarios/browser-automation-studio/api/automation/events/ws_sink.go:257:1\n5 events (*WSHubSink).Publish scenarios/browser-automation-studio/api/automation/events/ws_sink.go:52:1\n4 workflow executionOutcome scenarios/browser-automation-studio/api/services/workflow/executions.go:792:1\n4 workflow navigateWaitEventToString scenarios/browser-automation-studio/api/services/workflow/executions.go:422:1\n4 workflow requiredVideoArtifactError scenarios/browser-automation-studio/api/services/workflow/executions.go:113:1\n4 collector (*Collector).FlushExecution scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:117:1\n4 collector (*Collector).OnStepOutcome scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:74:1\n4 persistence openProtected scenarios/browser-automation-studio/api/services/session-profile/persistence/protected_state.go:83:1\n4 persistence sealProtected scenarios/browser-automation-studio/api/services/session-profile/persistence/protected_state.go:67:1\n4 persistence (*FileRepository).encodeProfile scenarios/browser-automation-studio/api/services/session-profile/persistence/protected_state.go:21:1\n4 persistence (*MockFileSystem).Stat scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:134:1\n4 persistence (*FileRepository).Get scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:64:1\n4 source ExtensionForContentType scenarios/browser-automation-studio/api/services/export/source/video_source.go:205:1\n4 source DetectVideoContentType scenarios/browser-automation-studio/api/services/export/source/video_source.go:190:1\n4 source payloadBool scenarios/browser-automation-studio/api/services/export/source/video_source.go:177:1\n4 source payloadString scenarios/browser-automation-studio/api/services/export/source/video_source.go:165:1\n4 handlers (*Handler).handleAsyncRecordedVideoExport scenarios/browser-automation-studio/api/handlers/execution_export.go:594:1\n4 events mapStepStatus scenarios/browser-automation-studio/api/automation/events/ws_sink.go:446:1\n3 workflow withTestModeBrowserHeader scenarios/browser-automation-studio/api/services/workflow/executions.go:463:1\n3 workflow validateProjectRoot scenarios/browser-automation-studio/api/services/workflow/executions.go:332:1\n3 collector (*Collector).onStepCompleted scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:129:1\n3 persistence indexOf scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:214:1\n3 persistence (*MockFileSystem).Remove scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:70:1\n3 persistence (*MockFileSystem).WriteFileAtomic scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:55:1\n3 persistence (*MockFileSystem).ReadFile scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:38:1\n3 persistence (*FileRepository).RecordMint scenarios/browser-automation-studio/api/services/session-profile/persistence/credentials.go:85:1\n3 source firstNonEmptyString scenarios/browser-automation-studio/api/services/export/source/video_source.go:288:1\n3 source NormalizeRenderSource scenarios/browser-automation-studio/api/services/export/source/video_source.go:48:1\n3 handlers (*Handler).PersistRecordingSession scenarios/browser-automation-studio/api/handlers/record_mode_persistence.go:15:1\n3 handlers (*Handler).GetRecordedActions scenarios/browser-automation-studio/api/handlers/record_mode.go:341:1\n3 handlers copyFile scenarios/browser-automation-studio/api/handlers/execution_export.go:674:1\n3 events (*WSHubSink).ensureQueue scenarios/browser-automation-studio/api/automation/events/ws_sink.go:68:1\n2 workflow (*WorkflowService).ListExecutions scenarios/browser-automation-studio/api/services/workflow/executions_list.go:21:1\n2 workflow (*WorkflowService).StopExecution scenarios/browser-automation-studio/api/services/workflow/executions.go:781:1\n2 workflow (*WorkflowService).storeExecutionCancel scenarios/browser-automation-studio/api/services/workflow/executions.go:762:1\n2 workflow (*WorkflowService).startExecutionRunnerWithOptions scenarios/browser-automation-studio/api/services/workflow/executions.go:446:1\n2 persistence (*MockFileSystem).ListFiles scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:180:1\n2 persistence (*MockFileSystem).GetFile scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:159:1\n2 persistence (*MockFileSystem).MkdirAll scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:123:1\n2 persistence mintProfileKeys scenarios/browser-automation-studio/api/services/session-profile/persistence/credentials.go:56:1\n2 source filePathFromStorageURL scenarios/browser-automation-studio/api/services/export/source/video_source.go:240:1\n2 source isRecordedVideoArtifact scenarios/browser-automation-studio/api/services/export/source/video_source.go:84:1\n2 handlers (*Handler).getActiveSessionProfile scenarios/browser-automation-studio/api/handlers/record_mode_persistence.go:61:1\n2 handlers (*Handler).clearActiveSessionProfile scenarios/browser-automation-studio/api/handlers/record_mode_persistence.go:54:1\n2 handlers (*Handler).setActiveSessionProfile scenarios/browser-automation-studio/api/handlers/record_mode_persistence.go:48:1\n2 handlers (*Handler).generateCorrelationID scenarios/browser-automation-studio/api/handlers/record_mode.go:1219:1\n2 events ptrOrZero scenarios/browser-automation-studio/api/automation/events/ws_sink.go:496:1\n2 events (*executionQueue).emit scenarios/browser-automation-studio/api/automation/events/ws_sink.go:203:1\n2 events NewWSHubSink scenarios/browser-automation-studio/api/automation/events/ws_sink.go:37:1\n1 workflow (*WorkflowService).startResumedExecution scenarios/browser-automation-studio/api/services/workflow/executions_list.go:120:1\n1 workflow detachedExecutionContext scenarios/browser-automation-studio/api/services/workflow/executions.go:476:1\n1 workflow (*WorkflowService).startExecutionRunnerWithNamespaces scenarios/browser-automation-studio/api/services/workflow/executions.go:442:1\n1 workflow (*WorkflowService).startExecutionRunner scenarios/browser-automation-studio/api/services/workflow/executions.go:435:1\n1 workflow jsonValueToAny scenarios/browser-automation-studio/api/services/workflow/executions.go:417:1\n1 workflow (*WorkflowService).ExecuteWorkflowAPI scenarios/browser-automation-studio/api/services/workflow/executions.go:127:1\n1 collector cursorBufferKey scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:253:1\n1 collector (*Collector).onStepFailed scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:157:1\n1 collector (*Collector).OnCursorUpdate scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:106:1\n1 collector (*Collector).CloseExecution scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:68:1\n1 collector (*Collector).Limits scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:63:1\n1 collector NewCollector scenarios/browser-automation-studio/api/services/uxmetrics/collector/collector.go:31:1\n1 persistence (*mockFileInfo).Sys scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:246:1\n1 persistence (*mockFileInfo).IsDir scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:245:1\n1 persistence (*mockFileInfo).ModTime scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:244:1\n1 persistence (*mockFileInfo).Mode scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:243:1\n1 persistence (*mockFileInfo).Size scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:242:1\n1 persistence (*mockFileInfo).Name scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:241:1\n1 persistence (*mockDirEntry).Info scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:232:1\n1 persistence (*mockDirEntry).Type scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:231:1\n1 persistence (*mockDirEntry).IsDir scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:230:1\n1 persistence (*mockDirEntry).Name scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:229:1\n1 persistence (*MockFileSystem).Reset scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:199:1\n1 persistence (*MockFileSystem).Clear scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:191:1\n1 persistence (*MockFileSystem).FileExists scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:172:1\n1 persistence (*MockFileSystem).SetFile scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:150:1\n1 persistence NewMockFileSystem scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem_mock.go:30:1\n1 persistence NewOSFileSystem scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem.go:67:1\n1 persistence (OSFileSystem).Stat scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem.go:62:1\n1 persistence (OSFileSystem).MkdirAll scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem.go:57:1\n1 persistence (OSFileSystem).ReadDir scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem.go:52:1\n1 persistence (OSFileSystem).Remove scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem.go:47:1\n1 persistence (OSFileSystem).WriteFileAtomic scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem.go:42:1\n1 persistence (OSFileSystem).ReadFile scenarios/browser-automation-studio/api/services/session-profile/persistence/filesystem.go:37:1\n1 persistence (*FileRepository).profilePath scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:181:1\n1 persistence NewFileRepository scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:33:1\n1 handlers getPlaywrightDriverURL scenarios/browser-automation-studio/api/handlers/record_mode.go:35:1\n1 events convertElementFocus scenarios/browser-automation-studio/api/automation/events/ws_sink.go:506:1\n1 events (*executionQueue).close scenarios/browser-automation-studio/api/automation/events/ws_sink.go:250:1\n1 events attemptKey scenarios/browser-automation-studio/api/automation/events/ws_sink.go:246:1\n1 events newExecutionQueue scenarios/browser-automation-studio/api/automation/events/ws_sink.go:124:1\n1 events (*WSHubSink).Limits scenarios/browser-automation-studio/api/automation/events/ws_sink.go:64:1\n"
+  },
+  "owner_run": {
+    "id": "20260922-042038-b5b05137",
+    "status": "failed",
+    "phase_summary": {
+      "total": 2,
+      "passed": 0,
+      "failed": 2,
+      "skipped": 0,
+      "durationSeconds": 97,
+      "observationCount": 0
+    },
+    "unit_failure": "UI coverage below unchanged 85%",
+    "tidiness_only_rerun": "20260922-042610-4dbb9896",
+    "tidiness_status": "failed",
+    "tidiness_findings": 1105,
+    "tidiness_errors": 1,
+    "tidiness_warnings": 236,
+    "tidiness_infos": 868,
+    "limiting_ratchet": "long_files=82 vs baseline81",
+    "new_test_complexity_warnings_after_repair": 0
+  },
+  "board": {
+    "id": "prog_1f53d16a-40b5-41d7-96bf-1c60c1080cc2",
+    "status": "ok",
+    "pending": 17,
+    "product_qualified": false
+  },
+  "limitations": [
+    "RF-026 concurrent field updates still fail; eight replay probes remain failed",
+    "Physical power-loss and native OS/arch storage/key recovery unverified",
+    "No off-host credential recovery receipt or actual browser sign-in continuity assertion",
+    "Read latency samples are observational on shared host, without comparable baseline",
+    "Shared dirty tree; unrelated driver changes preserved; no thresholds weakened"
+  ]
+}

@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/domain"
+	recordingschema "github.com/vrooli/browser-automation-studio/internal/recording"
 	_ "modernc.org/sqlite"
 )
 
@@ -26,33 +26,8 @@ func newTestDB(t *testing.T) *sql.DB {
 	// Set connection pool to single connection to avoid table creation race
 	db.SetMaxOpenConns(1)
 
-	// Create tables
-	schema := `
-		CREATE TABLE IF NOT EXISTS recording_sessions (
-			id TEXT PRIMARY KEY,
-			profile_id TEXT,
-			status TEXT NOT NULL,
-			viewport_width INTEGER NOT NULL,
-			viewport_height INTEGER NOT NULL,
-			created_at TIMESTAMP NOT NULL,
-			closed_at TIMESTAMP
-		);
-
-		CREATE TABLE IF NOT EXISTS timeline_entries (
-			id TEXT PRIMARY KEY,
-			type TEXT NOT NULL,
-			timestamp TIMESTAMP NOT NULL,
-			session_id TEXT NOT NULL,
-			page_id TEXT NOT NULL,
-			sequence INTEGER NOT NULL,
-			action_json TEXT,
-			page_event_json TEXT,
-			FOREIGN KEY (session_id) REFERENCES recording_sessions(id)
-		);
-
-		CREATE INDEX IF NOT EXISTS idx_timeline_session_sequence ON timeline_entries(session_id, sequence);
-		CREATE INDEX IF NOT EXISTS idx_timeline_session_page ON timeline_entries(session_id, page_id);
-	`
+	// Exercise the same embedded recording schema as production and leased pools.
+	schema := recordingschema.Schema()
 
 	if _, err := db.Exec(schema); err != nil {
 		db.Close()
@@ -65,9 +40,7 @@ func newTestDB(t *testing.T) *sql.DB {
 func newTestRepo(t *testing.T) (*SQLiteRepository, *sql.DB) {
 	t.Helper()
 	db := newTestDB(t)
-	log := logrus.New()
-	log.SetLevel(logrus.PanicLevel)
-	return NewSQLiteRepository(db, log), db
+	return NewSQLiteRepository(db), db
 }
 
 func TestSQLiteRepository_CreateSession(t *testing.T) {
@@ -190,8 +163,8 @@ func TestSQLiteRepository_DeleteSession(t *testing.T) {
 		PageID:    uuid.New(),
 		Sequence:  1,
 	}
-	if err := repo.SaveTimelineEntry(ctx, entry); err != nil {
-		t.Fatalf("SaveTimelineEntry failed: %v", err)
+	if _, err := repo.AppendTimelineEntry(ctx, entry); err != nil {
+		t.Fatalf("AppendTimelineEntry failed: %v", err)
 	}
 
 	// Delete the session
@@ -281,7 +254,7 @@ func TestSQLiteRepository_ListSessions(t *testing.T) {
 	}
 }
 
-func TestSQLiteRepository_SaveTimelineEntry(t *testing.T) {
+func TestSQLiteRepository_AppendTimelineEntry(t *testing.T) {
 	repo, db := newTestRepo(t)
 	defer db.Close()
 
@@ -318,8 +291,8 @@ func TestSQLiteRepository_SaveTimelineEntry(t *testing.T) {
 		Action:    action,
 	}
 
-	if err := repo.SaveTimelineEntry(ctx, entry); err != nil {
-		t.Fatalf("SaveTimelineEntry failed: %v", err)
+	if _, err := repo.AppendTimelineEntry(ctx, entry); err != nil {
+		t.Fatalf("AppendTimelineEntry failed: %v", err)
 	}
 
 	// Retrieve it
@@ -344,7 +317,7 @@ func TestSQLiteRepository_SaveTimelineEntry(t *testing.T) {
 	}
 }
 
-func TestSQLiteRepository_SaveTimelineEntries_Batch(t *testing.T) {
+func TestSQLiteRepository_AppendTimelineEntries(t *testing.T) {
 	repo, db := newTestRepo(t)
 	defer db.Close()
 
@@ -375,8 +348,10 @@ func TestSQLiteRepository_SaveTimelineEntries_Batch(t *testing.T) {
 		}
 	}
 
-	if err := repo.SaveTimelineEntries(ctx, entries); err != nil {
-		t.Fatalf("SaveTimelineEntries failed: %v", err)
+	for _, entry := range entries {
+		if _, err := repo.AppendTimelineEntry(ctx, entry); err != nil {
+			t.Fatalf("append fixture: %v", err)
+		}
 	}
 
 	// Verify count
@@ -418,8 +393,8 @@ func TestSQLiteRepository_GetTimeline_Filtering(t *testing.T) {
 	}
 
 	for _, e := range entries {
-		if err := repo.SaveTimelineEntry(ctx, e); err != nil {
-			t.Fatalf("SaveTimelineEntry failed: %v", err)
+		if _, err := repo.AppendTimelineEntry(ctx, e); err != nil {
+			t.Fatalf("AppendTimelineEntry failed: %v", err)
 		}
 	}
 
@@ -495,8 +470,8 @@ func TestSQLiteRepository_PruneOldSessions(t *testing.T) {
 		PageID:    uuid.New(),
 		Sequence:  1,
 	}
-	if err := repo.SaveTimelineEntry(ctx, entry); err != nil {
-		t.Fatalf("SaveTimelineEntry failed: %v", err)
+	if _, err := repo.AppendTimelineEntry(ctx, entry); err != nil {
+		t.Fatalf("AppendTimelineEntry failed: %v", err)
 	}
 
 	// Create recent session
@@ -573,7 +548,7 @@ func TestSQLiteRepository_ConcurrentAccess(t *testing.T) {
 				PageID:    uuid.New(),
 				Sequence:  seq,
 			}
-			if err := repo.SaveTimelineEntry(ctx, entry); err != nil {
+			if _, err := repo.AppendTimelineEntry(ctx, entry); err != nil {
 				errors <- err
 			}
 		}(i)

@@ -1,0 +1,161 @@
+{
+  "cycle": "BAS-WORK-017",
+  "date": "2026-09-22",
+  "issues": [
+    "BAS-RF-036",
+    "BAS-RF-013"
+  ],
+  "journeys": [
+    "J08",
+    "J18"
+  ],
+  "changes": [
+    "Execute joins close and artifact errors with action result through bounded WithoutCancel context retaining routing values",
+    "One video/trace/HAR import path propagates absent/invalid/download failures and persists valid siblings",
+    "Actual writer propagates stat/read/sanitize/store faults; trace bytes now retained through the storage owner",
+    "Empty/incomplete/mismatched-size storage receipts rejected; sanitized HAR bytes only; original captures preserved"
+  ],
+  "evidence": {
+    "executor_red": "/tmp/bas-finalization-red-final-017.txt",
+    "writer_red": "/tmp/bas-artifact-writer-red-017.txt",
+    "focused_green": "/tmp/bas-finalization-final-green-017.txt;writer2.012s/executor1.297s/engine1.081s/workflow1.074s races",
+    "public_boundary": "Execute ordinary/artifact close, write, download, cancellation, success, real FileWriter malformed HAR; errors reach caller",
+    "storage_oracle": "remove original trace then read stored bytes and verify hash; HAR stored derivative excludes synthetic secrets and original unchanged",
+    "retained_probes": "execution-api close failure passes;3/8 checks pass,5prior failures retained",
+    "build": "Final BAS make build passed; /tmp/bas-build-final-017.txt",
+    "contract": "passed preparation",
+    "board": "prog_69711429-a0b9-4483-8001-351a73793ee7;17pending/productfalse",
+    "owner_interim": "20260922-080702-56cc1e9d tidiness terminalfailed before writer extension;one quiet wait completed",
+    "owner_final": "20260922-081559-47cf38fc terminal failed401s;unit397s;one quiet wait completed"
+  },
+  "local_metrics": {
+    "paths": [
+      "api/automation/executor/simple_executor.go",
+      "api/automation/execution-writer/external_artifacts.go"
+    ],
+    "before": {
+      "lines": 2042,
+      "functions": 52,
+      "cyclomatic": 414
+    },
+    "after": {
+      "lines": 2007,
+      "functions": 52,
+      "cyclomatic": 403
+    },
+    "cohesion_review": "prepareExternalArtifact remains cyclomatic27, down from old RecordExecutionArtifacts37. It owns one read/sanitize/store/receipt transaction; batch policy is separate. Required guards remain explicit; no wrapper split or net-reduction claim from moving branches."
+  },
+  "cumulative_go": {
+    "basis": "Original HEAD vs current affected BAS Go union; includes existing test-helper Go files. Other shared-tree edits are not independently attributed. Shared owner009 separately adds17 cyclomatic.",
+    "paths": [
+      "api/automation/compiler/action_definition_builder.go",
+      "api/automation/events/sink.go",
+      "api/automation/events/ws_sink.go",
+      "api/automation/execution-writer/external_artifacts.go",
+      "api/automation/executor/simple_executor.go",
+      "api/handlers/execution_export.go",
+      "api/handlers/handler.go",
+      "api/handlers/record_mode.go",
+      "api/handlers/record_mode_actions.go",
+      "api/handlers/record_mode_pages.go",
+      "api/handlers/record_mode_persistence.go",
+      "api/handlers/recordings/module.go",
+      "api/handlers/recordings/service.go",
+      "api/handlers/testutil_mock_services.go",
+      "api/internal/typeconv/builders.go",
+      "api/internal/wire/wire.go",
+      "api/main.go",
+      "api/performance/collector.go",
+      "api/performance/types.go",
+      "api/services/export/source/video_source.go",
+      "api/services/live-capture/action_registry.go",
+      "api/services/live-capture/service.go",
+      "api/services/live-capture/workflow_generator.go",
+      "api/services/recording/persistence/mock_repository.go",
+      "api/services/recording/persistence/repository.go",
+      "api/services/recording/persistence/sqlite.go",
+      "api/services/recording/persistence/types.go",
+      "api/services/recording/recorder.go",
+      "api/services/recording/service.go",
+      "api/services/session-profile/persistence/credentials.go",
+      "api/services/session-profile/persistence/file_repository.go",
+      "api/services/session-profile/persistence/filesystem.go",
+      "api/services/session-profile/persistence/filesystem_mock.go",
+      "api/services/session-profile/persistence/mock_repository.go",
+      "api/services/session-profile/persistence/protected_state.go",
+      "api/services/session-profile/persistence/repository.go",
+      "api/services/session-profile/service.go",
+      "api/services/uxmetrics/collector/collector.go",
+      "api/services/workflow/executions.go",
+      "api/services/workflow/executions_list.go"
+    ],
+    "original": {
+      "files": 39,
+      "lines": 17887,
+      "functions": 593,
+      "cyclomatic": 2820
+    },
+    "current": {
+      "files": 39,
+      "lines": 16265,
+      "functions": 575,
+      "cyclomatic": 2669
+    },
+    "shared_owner_009_cyclomatic_delta": 17
+  },
+  "source_inventory_digest": "dcc5ce052e5c567d0c9ad5f8acf87b61096839f3b075fe9c30afe03d6928b0a1",
+  "deployed": false,
+  "limitations": [
+    "Driver teardown still suppresses recording/tracing/resource errors and removes ownership; connected next owner",
+    "Actual MinIO/filesystem interruption/physical durability unqualified; storage failure tests use deterministic adapter faults",
+    "Whole required/optional capture policy and live workflow recovery not qualified",
+    "Source files retained after import failure; remote source availability still depends on driver owner/retention",
+    "Shared dirty tree source observation does not establish isolated candidate execution"
+  ],
+  "owner_final": {
+    "artifacts_catalog": "/tmp/bas-artifacts-017.json",
+    "commands": [
+      {
+        "workingDirectory": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api",
+        "status": "passed",
+        "durationMs": "23434",
+        "failureReason": null
+      },
+      {
+        "workingDirectory": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/cli",
+        "status": "passed",
+        "durationMs": "1158",
+        "failureReason": null
+      },
+      {
+        "workingDirectory": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver",
+        "status": "passed",
+        "durationMs": "302539",
+        "failureReason": null
+      },
+      {
+        "workingDirectory": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/ui",
+        "status": "failed",
+        "durationMs": "54746",
+        "failureReason": "exit status 1"
+      },
+      {
+        "workingDirectory": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/ui",
+        "status": "passed",
+        "durationMs": "12050",
+        "failureReason": null
+      }
+    ],
+    "tidiness": {
+      "totalFindings": 1078,
+      "longFiles": 80,
+      "complexity": 380,
+      "duplication": 605,
+      "coupling": 12,
+      "duplicationLineDebt": 33679
+    },
+    "failure": "UI coverage28.57/30.34/64.96/28.57 below85; unchanged complexity ratchet",
+    "duplication_delta_cycle": -18,
+    "duplication_delta_original": -1924
+  }
+}

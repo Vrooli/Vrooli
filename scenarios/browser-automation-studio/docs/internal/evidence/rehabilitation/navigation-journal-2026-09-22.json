@@ -1,0 +1,300 @@
+{
+  "cycle": "BAS-WORK-015",
+  "date": "2026-09-22",
+  "issues": [
+    "BAS-RF-002",
+    "BAS-RF-015"
+  ],
+  "changes": [
+    "One post-browser owner for reload/back/forward commit, page metadata and notifications",
+    "Missing API session returns503 after browser effect; reload updates tracked page URL/title",
+    "Journal action/page JSON uses common whole-document validation and exact JSON numbers; trailing corruption rejected"
+  ],
+  "evidence": {
+    "red": "/tmp/bas-navigation-red-015.txt",
+    "green": "/tmp/bas-navigation-green-final-015.txt",
+    "assertions": "9 navigation route/state cases preserve payload/action/notification behavior; disk corruption rejects both query and retry",
+    "build": "make build passed; /tmp/bas-build-final-015.txt",
+    "owner_run": "20260922-072645-a721922d",
+    "owner_status": "failed unchanged complexity ratchet",
+    "tidiness": {
+      "totalFindings": 1080,
+      "longFiles": 80,
+      "complexity": 380,
+      "duplication": 607,
+      "coupling": 12,
+      "duplicationLineDebt": 33521
+    },
+    "artifact_catalog": {
+      "schema_version": 1,
+      "digest": "ac:sha256:8fad0e063788b64b681b1614e582bbaaacc4c0c2bd8f989eefeabfab12e6db7e",
+      "artifacts": [
+        {
+          "id": "artifact_e12156c46768621d1cd1e8c32034aef6",
+          "kind": "command.log",
+          "media_type": "text/plain; charset=utf-8",
+          "label": "tidiness.log",
+          "producing_phase": "tidiness",
+          "size_bytes": "438879",
+          "created_at": "2026-09-22T07:26:50.036158498Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-072645-a721922d/artifacts/artifact_e12156c46768621d1cd1e8c32034aef6",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_59c988891b299bc3ea9d4c31b8c46cce",
+          "kind": "findings.report",
+          "media_type": "application/json",
+          "label": "findings.json",
+          "size_bytes": "5784037",
+          "created_at": "2026-09-22T07:26:50.273159859Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-072645-a721922d/artifacts/artifact_59c988891b299bc3ea9d4c31b8c46cce",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_6bee489d323b3d2722d9742350d8f85d",
+          "kind": "generic.file",
+          "media_type": "application/json",
+          "label": "evidence-manifest.json",
+          "size_bytes": "77929",
+          "created_at": "2026-09-22T07:26:50.283159917Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-072645-a721922d/artifacts/artifact_6bee489d323b3d2722d9742350d8f85d",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_e787e3bf42b032e69a7017fa093fe237",
+          "kind": "phase.result",
+          "media_type": "application/json",
+          "label": "tidiness.json",
+          "producing_phase": "tidiness",
+          "size_bytes": "2987",
+          "created_at": "2026-09-22T07:26:50.035158492Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-072645-a721922d/artifacts/artifact_e787e3bf42b032e69a7017fa093fe237",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        }
+      ]
+    },
+    "prior_run": "20260922-072400-60d89a29 retained; two threshold crossings simplified with assertions retained",
+    "contract": "passed preparation only",
+    "board": "prog_fc9a7819-8cfe-41ee-9ce3-5b1cabbfe276;17pending;product_qualified=false"
+  },
+  "metrics": {
+    "paths": [
+      "api/handlers/record_mode_actions.go",
+      "api/handlers/record_mode.go",
+      "api/services/recording/persistence/sqlite.go"
+    ],
+    "before": {
+      "lines": 1787,
+      "functions": 34,
+      "cyclomatic": 246
+    },
+    "after": {
+      "lines": 1699,
+      "functions": 36,
+      "cyclomatic": 247
+    },
+    "note": "recording/service.go separately expands three composites for readability only, adding10lines; no branch/function change"
+  },
+  "source_inventory_digest": "b6a9695225634317dc093f60dcb432ffe7c7552c46af3d8df1d952d0e75a3248",
+  "duplication_delta": {
+    "previous": 35064,
+    "current": 33521,
+    "original": 35603,
+    "cycle": -1543,
+    "cumulative": -2082
+  },
+  "deployed": false,
+  "limitations": [
+    "Shared dirty tree: source digest is observation, not an isolated candidate snapshot",
+    "Three-file aggregate cyclomatic increased1 despite eliminating three independent navigation policies; no net complexity reduction claimed for015",
+    "Driver callback recovery, native portability, physical durability and full journey remain unqualified",
+    "Owner014 unit evidence retained; focused changed Go suites rerun with race, not full unit coverage"
+  ],
+  "final_owner_validation": {
+    "run_id": "20260922-074813-d12be3cc",
+    "status": "terminal failed",
+    "unit_seconds": 438,
+    "api": "passed19.051s",
+    "cli": "passed0.859s",
+    "driver": "126suites1478tests passed;2skips;naturalexit345.608s;command346.324s",
+    "ui": "coverage28.57/30.34/64.96/28.57 below85%;typecheckpassed11.405s",
+    "tidiness": {
+      "totalFindings": 1080,
+      "longFiles": 80,
+      "complexity": 380,
+      "duplication": 607,
+      "coupling": 12,
+      "duplicationLineDebt": 33697
+    },
+    "failure": "unchanged complexity380 vs baseline363"
+  },
+  "deployment_deferred": {
+    "observed_at": "2026-09-22T07:57:39.065318+00:00",
+    "new_nonterminal": [
+      {
+        "executionId": "5fa57bc5-ef29-4b90-832c-8ac817b59c95",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-22T07:57:38.611093913Z",
+        "createdAt": "2026-09-22T07:57:38Z",
+        "updatedAt": "2026-09-22T07:57:38.611313433Z"
+      },
+      {
+        "executionId": "9f027064-d65c-4fed-82c9-a8bb3afe2366",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-22T07:57:38.545170520Z",
+        "createdAt": "2026-09-22T07:57:38Z",
+        "updatedAt": "2026-09-22T07:57:38.545554961Z"
+      },
+      {
+        "executionId": "afcbcd45-f551-4dbf-a887-e920761abc4c",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-22T07:57:38.314205216Z",
+        "createdAt": "2026-09-22T07:57:38Z",
+        "updatedAt": "2026-09-22T07:57:38.314452207Z"
+      },
+      {
+        "executionId": "6bd0350c-fbd0-48dc-bb19-c0a751f72d02",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-22T07:57:34.382542747Z",
+        "createdAt": "2026-09-22T07:57:34Z",
+        "updatedAt": "2026-09-22T07:57:35.265856242Z"
+      },
+      {
+        "executionId": "d4a0ce59-021b-4add-a2ac-9ea8773d7efe",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-22T07:57:31.389050724Z",
+        "createdAt": "2026-09-22T07:57:31Z",
+        "updatedAt": "2026-09-22T07:57:31.976721665Z"
+      },
+      {
+        "executionId": "e87bd368-66d6-4c1b-bc03-ec1ec11a1569",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-22T07:57:29.571545144Z",
+        "createdAt": "2026-09-22T07:57:29Z",
+        "updatedAt": "2026-09-22T07:57:30.400007118Z"
+      },
+      {
+        "executionId": "c24ead16-fcd8-43fa-8731-c8a01602ae66",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-22T07:57:24.964950495Z",
+        "createdAt": "2026-09-22T07:57:24Z",
+        "updatedAt": "2026-09-22T07:57:25.449756058Z"
+      },
+      {
+        "executionId": "7fadce98-ed84-41c9-8904-8b5bb530e592",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-22T07:57:11.932138622Z",
+        "createdAt": "2026-09-22T07:57:11Z",
+        "updatedAt": "2026-09-22T07:57:12.809429071Z"
+      },
+      {
+        "executionId": "a373c8e7-dff2-40dd-b598-2860a484b235",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-22T07:57:09.913296213Z",
+        "createdAt": "2026-09-22T07:57:09Z",
+        "updatedAt": "2026-09-22T07:57:10.684902260Z"
+      },
+      {
+        "executionId": "b9aa739f-3a4b-4466-a228-46f21e12219c",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-22T07:56:30.544366620Z",
+        "createdAt": "2026-09-22T07:56:30Z",
+        "updatedAt": "2026-09-22T07:57:16.164549662Z"
+      }
+    ],
+    "driver_sessions": 10,
+    "driver_recordings": 0,
+    "decision": "no stop; live work present",
+    "rows": 3046
+  },
+  "owner_artifact_catalog_016": {
+    "schema_version": 1,
+    "digest": "ac:sha256:c8bc98b5a2902ddf60d9e8f394d5161d9d52e2baba25562da02d8fd20a24373a",
+    "artifacts": [
+      {
+        "id": "artifact_083a26458bad39d4f051308ff02f1f1d",
+        "kind": "command.log",
+        "media_type": "text/plain; charset=utf-8",
+        "label": "unit.log",
+        "producing_phase": "unit",
+        "size_bytes": "29019",
+        "created_at": "2026-09-22T07:55:31.990609034Z",
+        "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-074813-d12be3cc/artifacts/artifact_083a26458bad39d4f051308ff02f1f1d",
+        "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+      },
+      {
+        "id": "artifact_db3c0e5631c2e34ec06050d52cfe3b80",
+        "kind": "command.log",
+        "media_type": "text/plain; charset=utf-8",
+        "label": "tidiness.log",
+        "producing_phase": "tidiness",
+        "size_bytes": "438913",
+        "created_at": "2026-09-22T07:55:41.561659995Z",
+        "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-074813-d12be3cc/artifacts/artifact_db3c0e5631c2e34ec06050d52cfe3b80",
+        "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+      },
+      {
+        "id": "artifact_d684b93ec14412ce83ef52e1c62ed4bc",
+        "kind": "findings.report",
+        "media_type": "application/json",
+        "label": "findings.json",
+        "size_bytes": "7679904",
+        "created_at": "2026-09-22T07:55:41.838661469Z",
+        "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-074813-d12be3cc/artifacts/artifact_d684b93ec14412ce83ef52e1c62ed4bc",
+        "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+      },
+      {
+        "id": "artifact_42878e0e0d3565df14987a0d7355aacb",
+        "kind": "generic.file",
+        "media_type": "application/json",
+        "label": "evidence-manifest.json",
+        "size_bytes": "92763",
+        "created_at": "2026-09-22T07:55:41.853661549Z",
+        "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-074813-d12be3cc/artifacts/artifact_42878e0e0d3565df14987a0d7355aacb",
+        "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+      },
+      {
+        "id": "artifact_075d3cd2eaaddf9dba86e9fdd59c444f",
+        "kind": "phase.result",
+        "media_type": "application/json",
+        "label": "tidiness.json",
+        "producing_phase": "tidiness",
+        "size_bytes": "2987",
+        "created_at": "2026-09-22T07:55:41.559659984Z",
+        "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-074813-d12be3cc/artifacts/artifact_075d3cd2eaaddf9dba86e9fdd59c444f",
+        "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+      },
+      {
+        "id": "artifact_fbdff2b206e827c895f6fb8ca623a608",
+        "kind": "phase.result",
+        "media_type": "application/json",
+        "label": "unit.json",
+        "producing_phase": "unit",
+        "size_bytes": "3038",
+        "created_at": "2026-09-22T07:55:31.989609029Z",
+        "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-074813-d12be3cc/artifacts/artifact_fbdff2b206e827c895f6fb8ca623a608",
+        "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+      }
+    ]
+  }
+}

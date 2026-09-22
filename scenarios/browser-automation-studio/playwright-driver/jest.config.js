@@ -1,10 +1,13 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  maxWorkers: 1,
   roots: ['<rootDir>/tests'],
   testMatch: ['**/*.test.ts'],
   setupFilesAfterEnv: ['<rootDir>/tests/setup/silent-logger.ts'],
   collectCoverage: true,
+  // Browser-bound evaluate callbacks must remain free of Node-only counters.
+  coverageProvider: 'v8',
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'json-summary', 'lcov'],
   collectCoverageFrom: [

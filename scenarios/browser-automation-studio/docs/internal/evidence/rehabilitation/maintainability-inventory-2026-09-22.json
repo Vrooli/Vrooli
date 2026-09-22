@@ -1,0 +1,176 @@
+{
+  "cycle": "BAS-WORK-028",
+  "date": "2026-09-22",
+  "issues": [
+    "BAS-RF-062",
+    "BAS-RF-063"
+  ],
+  "new_open_issue": "BAS-RF-064",
+  "deployed": true,
+  "changes": [
+    "Removed shared playwright-driver directory exclusion",
+    "One filtered file inventory owns language classification and file metrics; removed duplicate walkers and per-language rescans",
+    "Incremental file output remains changed-only while full language inventory remains complete",
+    "Go execution evidence accepts the planner-selected absolute toolchain and preserves existing JSON/fresh-test instrumentation",
+    "Tidiness test contract fixture resolves independently of compiler source paths"
+  ],
+  "builds": {
+    "tidiness": "sha256:3ffde178c724df1acbfd9956084e13d462edf1df9d7c76cbd303bcab94378011",
+    "unit": "sha256:2971b6b619fdeb4d8905c3ce925dc709f9fb59f0519b028c76bef6f4650878f0"
+  },
+  "validation": {
+    "red": [
+      "/tmp/bas-filter-red-028.txt",
+      "/tmp/bas-inventory-red-028.txt",
+      "/tmp/bas-inventory-incremental-red-final-028.txt",
+      "/tmp/bas-go-output-red-028.txt"
+    ],
+    "races": {
+      "inventory_seconds": 7.322,
+      "pathfilter_seconds": 1.013,
+      "go_evidence_seconds": 1.27,
+      "unit_validation_seconds": 2.821
+    },
+    "builds": "Tidiness and Unit Health make build passed; lifecycle make restart completed healthy",
+    "diagnostic": {
+      "seconds": 90.429,
+      "passed": 718,
+      "skipped": 14,
+      "failed": 1,
+      "failure": "TestRepositoryExecutableSeamMatchesDeclaredBudget:864 observed vs472 budget; original-filter overlay reproduces same failure"
+    },
+    "tidiness_owner": {
+      "run": "20260922-122015-cbf7d8e5",
+      "status": "failed",
+      "unit_seconds": 121,
+      "tidiness_seconds": 2,
+      "api_command_seconds": 113.115,
+      "api_failure": "test_failure (no false no_output_stall)",
+      "other_commands": "CLI, UI tests and UI types passed",
+      "blocking": "Existing executable-budget assertion plus10 UI policy projection findings"
+    },
+    "unit_health_owner": {
+      "run": "20260922-122233-b1f4bc2d",
+      "status": "failed",
+      "unit": "passed12s,0findings;API4.306s/CLI0.625s/UIcoverage3.891s/UItypes2.767s",
+      "tidiness": "failed2s"
+    },
+    "bas_tidiness": {
+      "run": "20260922-122311-0fd78914",
+      "status": "failed",
+      "summary": {
+        "totalFindings": 1121,
+        "longFiles": 103,
+        "complexity": 387,
+        "duplication": 613,
+        "coupling": 17,
+        "duplicationLineDebt": 33666
+      }
+    },
+    "board": {
+      "run": "prog_112922f0-8ab9-44bd-a6e9-fab640816076",
+      "pending_rows": 17,
+      "product_qualified": false
+    },
+    "waits": "Each admitted Test Genie run used one quiet wait; all waits and tool sessions consumed. Initial Unit Health admission rejected by preview capacity; retried only after Tidiness terminal."
+  },
+  "native_expanded": {
+    "original_head": "7d1c7531d057c061c5ad5a67fbecb97ebe2eb194",
+    "original_archive": "/tmp/bas-expanded-original-028/scenarios/browser-automation-studio",
+    "original": {
+      "totalFindings": 1131,
+      "longFiles": 105,
+      "complexity": 384,
+      "duplication": 628,
+      "coupling": 13,
+      "duplicationLineDebt": 35603
+    },
+    "current": {
+      "totalFindings": 1121,
+      "longFiles": 103,
+      "complexity": 387,
+      "duplication": 613,
+      "coupling": 17,
+      "duplicationLineDebt": 33666
+    },
+    "duplication_line_debt_delta": -1937,
+    "driver_observations_each": {
+      "long_files": 23,
+      "coupling": 1
+    },
+    "limitation": "Supported observations only. TypeScript AST complexity unsupported; JavaScript duplication still ignores inventory and invalid reports can become empty (RF064). Not whole-codebase complexity/duplication qualification. Archive lacks ancestor seam files; metric comparisons use same per-target settings and provider, not seam parity."
+  },
+  "local_go": {
+    "paths": [
+      "packages/api-core/pathfilter/doc.go",
+      "packages/api-core/pathfilter/pathfilter.go",
+      "scenarios/tidiness-manager/api/handlers.go",
+      "scenarios/tidiness-manager/api/language_detector.go",
+      "scenarios/tidiness-manager/api/light_scanner.go"
+    ],
+    "before": {
+      "files": 5,
+      "lines": 1909,
+      "functions": 63,
+      "cyclomatic": 318
+    },
+    "current": {
+      "files": 5,
+      "lines": 1710,
+      "functions": 58,
+      "cyclomatic": 288
+    }
+  },
+  "output_extension_go": {
+    "before": {
+      "lines": 169,
+      "functions": 3,
+      "cyclomatic": 54
+    },
+    "after": {
+      "lines": 170,
+      "functions": 3,
+      "cyclomatic": 55
+    }
+  },
+  "net_shared_delta": {
+    "lines": -198,
+    "functions": -5,
+    "cyclomatic": -29
+  },
+  "cumulative_go": {
+    "bas_cyclomatic_delta": -160,
+    "prior_shared009_delta": 17,
+    "shared028_delta": -29,
+    "affected_net_delta": -172
+  },
+  "preservation": "No BAS runtime restart or product data/schema change. Baseline ratchets unchanged. Vendor/build/data exclusions retained. BAS cycles001\u2013027 remain live.",
+  "limitations": [
+    "Owner repository executable debt and UI policy drift remain visible; no unrelated executable deletion",
+    "Single native scan durations5.266/4.764s are not a performance benchmark",
+    "Original and current sources include the shared dirty workspace context; other authors edits preserved",
+    "RF041 failure diagnostics remain next BAS behavior repair"
+  ],
+  "evidence_files": [
+    {
+      "path": "/tmp/bas-expanded-original-028.json",
+      "sha256": "eecbb26478019cb0a14285acb9957ed96df68644a3c2c16bae21dc5f79bf4ad9"
+    },
+    {
+      "path": "/tmp/bas-expanded-current-028.json",
+      "sha256": "9f277a1d80542772df0980cda96cd3d67c29709f2b86867a065e1a1214a2385f"
+    },
+    {
+      "path": "/tmp/bas-inventory-owner-final-findings-028.json",
+      "sha256": "88e895b6bc19e2a1268e6ef4ed731ffbcc0539ff2431cd4d44ae656a8b9b9ad7"
+    },
+    {
+      "path": "/tmp/bas-go-output-owner-final-findings-028.json",
+      "sha256": "f76c8b3a0395b1b9081389001cd6bf6f238ba65059c1c1af8252466f92d0d5bd"
+    },
+    {
+      "path": "/tmp/bas-tidiness-findings-028.json",
+      "sha256": "93584e829f0279083935914b3acb67b28bdf290ca7698bccb20b7f6455efe838"
+    }
+  ]
+}

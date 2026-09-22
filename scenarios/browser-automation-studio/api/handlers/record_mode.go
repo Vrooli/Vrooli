@@ -18,12 +18,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/config"
-	"github.com/vrooli/browser-automation-studio/domain"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 	"github.com/vrooli/browser-automation-studio/performance"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
-	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/websocket"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 )
@@ -256,38 +254,12 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Capture storage state and open tabs before closing (for session profile persistence)
-	var storageState json.RawMessage
-	var openTabs []sessionprofilepersistence.TabState
-	profileID := h.getActiveSessionProfile(sessionID)
-	if profileID != "" && h.sessionProfileService != nil {
-		// Capture storage state
-		if state, err := h.recordModeService.GetStorageState(ctx, sessionID); err != nil {
-			h.log.WithError(err).WithFields(map[string]interface{}{
-				"session_id": sessionID,
-				"profile_id": profileID,
-			}).Warn("Failed to capture storage state before closing session")
-		} else {
-			storageState = state
-		}
-
-		// Capture open tabs for restoration
-		if pages, activePageID, err := h.recordModeService.GetOpenPages(sessionID); err != nil {
-			h.log.WithError(err).WithFields(map[string]interface{}{
-				"session_id": sessionID,
-				"profile_id": profileID,
-			}).Warn("Failed to capture open tabs before closing session")
-		} else {
-			openTabs = make([]sessionprofilepersistence.TabState, 0, len(pages))
-			for i, page := range pages {
-				openTabs = append(openTabs, sessionprofilepersistence.TabState{
-					URL:      page.URL,
-					Title:    page.Title,
-					IsActive: page.ID == activePageID,
-					Order:    i,
-				})
-			}
-		}
+	// Keep the browser available for retry until its complete profile snapshot
+	// has committed. Closing first destroys the only recoverable live state.
+	if err := h.persistSessionProfile(ctx, sessionID); err != nil {
+		h.log.WithError(err).WithField("session_id", sessionID).Warn("Failed to save profile before close")
+		h.respondError(w, ErrInternalServer.WithMessage("Session profile could not be saved; the browser remains open. Retry closing after resolving the save failure.").WithDetails(map[string]string{"error": err.Error()}))
+		return
 	}
 
 	// Delegate to recordmode service
@@ -302,29 +274,6 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 			"error": err.Error(),
 		}))
 		return
-	}
-
-	// Persist storage state and open tabs to profile after successful close
-	if profileID != "" && h.sessionProfileService != nil {
-		if len(storageState) > 0 {
-			if _, err := h.sessionProfileService.SaveStorageState(sessionprofilepersistence.ProfileID(profileID), storageState); err != nil {
-				h.log.WithError(err).WithFields(map[string]interface{}{
-					"profile_id": profileID,
-					"session_id": sessionID,
-				}).Warn("Failed to persist session profile storage state")
-			}
-		}
-
-		// Save open tabs for restoration on next session start
-		if len(openTabs) > 0 {
-			if _, err := h.sessionProfileService.SaveOpenTabs(sessionprofilepersistence.ProfileID(profileID), openTabs); err != nil {
-				h.log.WithError(err).WithFields(map[string]interface{}{
-					"profile_id": profileID,
-					"session_id": sessionID,
-					"tab_count":  len(openTabs),
-				}).Warn("Failed to persist session profile open tabs")
-			}
-		}
 	}
 
 	h.clearActiveSessionProfile(sessionID)
@@ -402,14 +351,30 @@ func (h *Handler) GetRecordedActions(w http.ResponseWriter, r *http.Request) {
 	// Check for clear query param
 	clearActions := r.URL.Query().Get("clear") == "true"
 
-	// Delegate directly to driver client (no service-layer business logic needed)
-	resp, err := h.recordModeService.DriverClient().GetRecordedActions(ctx, sessionID, clearActions)
+	// Read without mutation; acknowledgement follows journal commit.
+	resp, err := h.recordModeService.DriverClient().GetRecordedActions(ctx, sessionID)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to get recorded actions")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
 			"error": err.Error(),
 		}))
 		return
+	}
+
+	if clearActions && len(resp.Actions) > 0 {
+		ids := make([]string, 0, len(resp.Actions))
+		for i := range resp.Actions {
+			action := &resp.Actions[i]
+			if err := h.commitRecordingAction(ctx, sessionID, action); err != nil {
+				h.respondError(w, err)
+				return
+			}
+			ids = append(ids, action.ID)
+		}
+		if err := h.recordModeService.DriverClient().AcknowledgeRecordedActions(ctx, sessionID, ids); err != nil {
+			h.respondError(w, ErrServiceUnavailable.WithMessage("Recording committed but driver acknowledgement failed").WithDetails(map[string]string{"error": err.Error()}))
+			return
+		}
 	}
 
 	// Map service response to handler response type
@@ -484,12 +449,7 @@ func (h *Handler) GenerateWorkflowFromRecording(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	// Build V2 flow definition for storage
-	v2, err := workflowservice.BuildFlowDefinitionV2ForWrite(genResult.FlowDefinition, nil, nil)
-	if err != nil {
-		h.respondError(w, ErrInvalidWorkflowPayload.WithDetails(map[string]string{"error": err.Error()}))
-		return
-	}
+	v2 := genResult.FlowDefinition
 
 	// Bind recorded locators to this project's contract when recording its own UI.
 	if project, lookupErr := h.repo.GetProject(ctx, projectID); lookupErr == nil && project != nil {
@@ -564,8 +524,6 @@ func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request
 
 	// Read binary frames from driver and broadcast to browser clients
 	for {
-		receiveStart := time.Now()
-
 		messageType, data, err := conn.ReadMessage()
 		if err != nil {
 			// Check for normal closure
@@ -582,7 +540,7 @@ func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request
 			continue
 		}
 
-		receiveMs := float64(time.Since(receiveStart).Microseconds()) / 1000.0
+		processingStart := time.Now()
 
 		frameData, driverHeader, decodeErr := decodeDriverFrame(data)
 		if decodeErr != nil {
@@ -607,9 +565,8 @@ func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request
 				DriverCompareMs: driverHeader.CompareMs,
 				DriverWsSendMs:  driverHeader.WsSendMs,
 				DriverTotalMs:   driverHeader.CaptureMs + driverHeader.CompareMs + driverHeader.WsSendMs,
-				APIReceiveMs:    receiveMs,
 				APIBroadcastMs:  broadcastMs,
-				APITotalMs:      receiveMs + broadcastMs,
+				APITotalMs:      float64(time.Since(processingStart).Microseconds()) / 1000.0,
 				FrameBytes:      len(frameData),
 				Skipped:         false,
 			}
@@ -681,39 +638,9 @@ func (h *Handler) ReloadRecordingSession(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Create a reload action for the recording timeline
-	if sess, ok := h.recordModeService.GetSession(sessionID); ok && sess.Pages() != nil {
-		correlationID := h.generateCorrelationID(sessionID)
-		pages := sess.Pages()
-		activePageID := pages.GetActivePageID()
-
-		now := time.Now()
-		reloadAction := driver.RecordedAction{
-			ID:         uuid.NewString(),
-			SessionID:  sessionID,
-			Timestamp:  now.Format(time.RFC3339Nano),
-			ActionType: "reload",
-			Confidence: 1.0,
-			URL:        resp.URL,
-			PageID:     activePageID.String(),
-			PageTitle:  resp.Title,
-		}
-
-		h.recordModeService.AddTimelineAction(sessionID, &reloadAction, activePageID)
-
-		// Broadcast unified timeline entry
-		broadcastResult := h.wsHub.BroadcastTimelineEntry(sessionID, h.createTimelineEntry(&reloadAction))
-
-		h.log.WithFields(map[string]interface{}{
-			"correlation_id":   correlationID,
-			"session_id":       sessionID,
-			"action_type":      "reload",
-			"action_id":        reloadAction.ID,
-			"url":              resp.URL,
-			"persisted":        true,
-			"broadcast_sent":   broadcastResult.SentCount > 0,
-			"subscriber_count": broadcastResult.SubscriberCount,
-		}).Debug("Reload action recorded")
+	if apiErr := h.recordCompletedNavigation(ctx, sessionID, "reload", resp.URL, resp.Title); apiErr != nil {
+		h.respondError(w, apiErr)
+		return
 	}
 
 	driverResp := ReloadRecordingResponse{
@@ -762,53 +689,9 @@ func (h *Handler) GoBackRecordingSession(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Create a goBack action for the recording timeline
-	if sess, ok := h.recordModeService.GetSession(sessionID); ok && sess.Pages() != nil {
-		correlationID := h.generateCorrelationID(sessionID)
-		pages := sess.Pages()
-		activePageID := pages.GetActivePageID()
-
-		// Update page info
-		pages.UpdatePageInfo(activePageID, resp.URL, resp.Title)
-
-		now := time.Now()
-		goBackAction := driver.RecordedAction{
-			ID:         uuid.NewString(),
-			SessionID:  sessionID,
-			Timestamp:  now.Format(time.RFC3339Nano),
-			ActionType: "goBack",
-			Confidence: 1.0,
-			URL:        resp.URL,
-			PageID:     activePageID.String(),
-			PageTitle:  resp.Title,
-		}
-
-		h.recordModeService.AddTimelineAction(sessionID, &goBackAction, activePageID)
-
-		// Broadcast unified timeline entry
-		broadcastResult := h.wsHub.BroadcastTimelineEntry(sessionID, h.createTimelineEntry(&goBackAction))
-
-		// Broadcast page_navigated event
-		pageEvent := &domain.PageEvent{
-			ID:        uuid.New(),
-			Type:      domain.PageEventNavigated,
-			PageID:    activePageID,
-			URL:       resp.URL,
-			Title:     resp.Title,
-			Timestamp: now,
-		}
-		h.wsHub.BroadcastPageEvent(sessionID, pageEvent)
-
-		h.log.WithFields(map[string]interface{}{
-			"correlation_id":   correlationID,
-			"session_id":       sessionID,
-			"action_type":      "goBack",
-			"action_id":        goBackAction.ID,
-			"url":              resp.URL,
-			"persisted":        true,
-			"broadcast_sent":   broadcastResult.SentCount > 0,
-			"subscriber_count": broadcastResult.SubscriberCount,
-		}).Debug("GoBack action recorded")
+	if apiErr := h.recordCompletedNavigation(ctx, sessionID, "goBack", resp.URL, resp.Title); apiErr != nil {
+		h.respondError(w, apiErr)
+		return
 	}
 
 	driverResp := GoBackRecordingResponse{
@@ -857,53 +740,9 @@ func (h *Handler) GoForwardRecordingSession(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Create a goForward action for the recording timeline
-	if sess, ok := h.recordModeService.GetSession(sessionID); ok && sess.Pages() != nil {
-		correlationID := h.generateCorrelationID(sessionID)
-		pages := sess.Pages()
-		activePageID := pages.GetActivePageID()
-
-		// Update page info
-		pages.UpdatePageInfo(activePageID, resp.URL, resp.Title)
-
-		now := time.Now()
-		goForwardAction := driver.RecordedAction{
-			ID:         uuid.NewString(),
-			SessionID:  sessionID,
-			Timestamp:  now.Format(time.RFC3339Nano),
-			ActionType: "goForward",
-			Confidence: 1.0,
-			URL:        resp.URL,
-			PageID:     activePageID.String(),
-			PageTitle:  resp.Title,
-		}
-
-		h.recordModeService.AddTimelineAction(sessionID, &goForwardAction, activePageID)
-
-		// Broadcast unified timeline entry
-		broadcastResult := h.wsHub.BroadcastTimelineEntry(sessionID, h.createTimelineEntry(&goForwardAction))
-
-		// Broadcast page_navigated event
-		pageEvent := &domain.PageEvent{
-			ID:        uuid.New(),
-			Type:      domain.PageEventNavigated,
-			PageID:    activePageID,
-			URL:       resp.URL,
-			Title:     resp.Title,
-			Timestamp: now,
-		}
-		h.wsHub.BroadcastPageEvent(sessionID, pageEvent)
-
-		h.log.WithFields(map[string]interface{}{
-			"correlation_id":   correlationID,
-			"session_id":       sessionID,
-			"action_type":      "goForward",
-			"action_id":        goForwardAction.ID,
-			"url":              resp.URL,
-			"persisted":        true,
-			"broadcast_sent":   broadcastResult.SentCount > 0,
-			"subscriber_count": broadcastResult.SubscriberCount,
-		}).Debug("GoForward action recorded")
+	if apiErr := h.recordCompletedNavigation(ctx, sessionID, "goForward", resp.URL, resp.Title); apiErr != nil {
+		h.respondError(w, apiErr)
+		return
 	}
 
 	driverResp := GoForwardRecordingResponse{

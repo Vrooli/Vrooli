@@ -178,10 +178,6 @@ func normalizeEdgeCondition(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
 }
 
-func intPtr(v int) *int {
-	return &v
-}
-
 func minInt(a, b int) int {
 	if a < b {
 		return a

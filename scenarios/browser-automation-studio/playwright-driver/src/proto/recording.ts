@@ -115,6 +115,8 @@ export interface RawSelectorSet {
  * This is the format received from page.exposeFunction() before conversion to proto.
  */
 export interface RawBrowserEvent {
+  id?: string;
+  recordingId?: string;
   actionType: string;
   timestamp: number;
   selector: RawSelectorSet;
@@ -201,7 +203,7 @@ export function rawBrowserEventToTimelineEntry(
   ctx: ConversionContext
 ): TimelineEntry {
   // Generate unique ID
-  const id = uuidv4();
+  const id = raw.id ?? uuidv4();
 
   // Normalize timestamp
   const timestamp = normalizeTimestamp(raw.timestamp);

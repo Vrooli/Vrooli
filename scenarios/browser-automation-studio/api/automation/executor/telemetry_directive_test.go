@@ -1,8 +1,25 @@
 package executor
 
 import (
-	"google.golang.org/protobuf/proto"
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"image"
+	"image/png"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"google.golang.org/protobuf/proto"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+	"github.com/vrooli/browser-automation-studio/automation/engine"
+	"github.com/vrooli/browser-automation-studio/automation/events"
+	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
+	"github.com/vrooli/browser-automation-studio/storage"
 
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/config"
@@ -149,5 +166,135 @@ func TestCheckpointProfileDisablesAutomaticFramesButRetainsExplicitImages(t *tes
 	none := config.ResolveArtifactSettings(&basexecution.ArtifactCollectionConfig{Profile: proto.String(config.ProfileNone)})
 	if none.CollectScreenshots {
 		t.Fatal("none profile must still discard all image artifacts")
+	}
+}
+
+type screenshotOutcomeSession struct {
+	stubEngineSession
+	calls          int
+	failures       int
+	transportError bool
+	png            []byte
+}
+
+func (s *screenshotOutcomeSession) Run(_ context.Context, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+	if instruction.Action.Type != basactions.ActionType_ACTION_TYPE_SCREENSHOT {
+		return contracts.StepOutcome{Success: true}, nil
+	}
+	s.calls++
+	if s.calls <= s.failures {
+		if s.transportError {
+			return contracts.StepOutcome{}, errors.New("capture transport failed")
+		}
+		return contracts.StepOutcome{Failure: &contracts.StepFailure{Code: "SCREENSHOT_FAILED", Message: "capture failed", Retryable: true}}, nil
+	}
+	return contracts.StepOutcome{Success: true, Screenshot: &contracts.Screenshot{Data: s.png, MediaType: "image/png", Width: 1, Height: 1}}, nil
+}
+
+// [REQ:BAS-RH-J08] Explicit screenshot failures obey retry/continuation policy
+// and remain failed in the persisted outcome, even when continuation is allowed.
+func TestExecuteExplicitScreenshotOutcome(t *testing.T) {
+	cases := []struct {
+		name                         string
+		context                      map[string]any
+		workflowContinue             *bool
+		failures, calls              int
+		workflowSuccess, stepSuccess bool
+	}{
+		{name: "required", failures: 1, calls: 1},
+		{name: "workflow-continue", workflowContinue: proto.Bool(true), failures: 1, calls: 1, workflowSuccess: true},
+		{name: "node-continue", context: map[string]any{"continueOnError": true}, failures: 1, calls: 1, workflowSuccess: true},
+		{name: "node-stop", context: map[string]any{"continueOnError": false}, workflowContinue: proto.Bool(true), failures: 1, calls: 1},
+		{name: "success", calls: 1, workflowSuccess: true, stepSuccess: true},
+		{name: "retry", context: map[string]any{"resilience": map[string]any{"maxAttempts": 2, "delayMs": 0}}, failures: 1, calls: 2, workflowSuccess: true, stepSuccess: true},
+	}
+	for _, graph := range []bool{false, true} {
+		for _, transportError := range []bool{false, true} {
+			for _, tc := range cases {
+				t.Run(fmt.Sprintf("graph=%t/transport=%t/%s", graph, transportError, tc.name), func(t *testing.T) {
+					var pngData bytes.Buffer
+					require.NoError(t, png.Encode(&pngData, image.NewRGBA(image.Rect(0, 0, 1, 1))))
+					sess := &screenshotOutcomeSession{failures: tc.failures, transportError: transportError, png: pngData.Bytes()}
+					eng := &finalizationEngine{session: sess}
+
+					instructions := []contracts.CompiledInstruction{
+						{Index: 0, NodeID: "navigate", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid"}}}},
+						{Index: 1, NodeID: "screenshot", Context: tc.context, Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_SCREENSHOT, Params: &basactions.ActionDefinition_Screenshot{Screenshot: &basactions.ScreenshotParams{}}}},
+					}
+					plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Instructions: instructions}
+					if graph {
+						plan.Instructions = nil
+						plan.Graph = &contracts.PlanGraph{Steps: []contracts.PlanStep{
+							{Index: 0, NodeID: "navigate", Action: instructions[0].Action, Outgoing: []contracts.PlanEdge{{Target: "screenshot"}}},
+							{Index: 1, NodeID: "screenshot", Action: instructions[1].Action, Context: tc.context},
+						}}
+					}
+					dir := t.TempDir()
+					store := storage.NewMemoryStorage()
+					writer := executionwriter.NewFileWriter(nil, store, nil, executionwriter.NewStaticRoot(dir))
+					err := NewSimpleExecutor(nil).Execute(context.Background(), Request{Plan: plan, EngineName: eng.Name(), EngineFactory: engine.NewStaticFactory(eng), Recorder: writer, EventSink: events.NewMemorySink(contracts.DefaultEventBufferLimits), ContinueOnError: tc.workflowContinue, StartFromStepIndex: -1})
+					if tc.workflowSuccess {
+						require.NoError(t, err)
+					} else {
+						require.ErrorContains(t, err, "capture")
+					}
+					require.Equal(t, tc.calls, sess.calls, "declared retry must remain available")
+					data, readErr := os.ReadFile(filepath.Join(dir, plan.ExecutionID.String(), "result.json"))
+					require.NoError(t, readErr)
+					var result struct {
+						Entries []struct {
+							Context struct {
+								Success bool   `json:"success"`
+								Error   string `json:"error"`
+							} `json:"context"`
+						} `json:"entries"`
+					}
+					require.NoError(t, json.Unmarshal(data, &result))
+					require.Len(t, result.Entries, 2)
+					require.Equal(t, tc.stepSuccess, result.Entries[1].Context.Success)
+					if !tc.stepSuccess {
+						require.Contains(t, result.Entries[1].Context.Error, "capture")
+						require.Zero(t, store.ObjectCount())
+					} else {
+						require.Greater(t, store.ObjectCount(), 0)
+					}
+				})
+			}
+		}
+	}
+}
+
+type failedScreenshotStorage struct {
+	*storage.MemoryStorage
+	err error
+}
+
+func (s *failedScreenshotStorage) StoreScreenshot(context.Context, uuid.UUID, string, []byte, string) (*storage.ScreenshotInfo, error) {
+	return nil, s.err
+}
+
+func TestExecuteReportsScreenshotStorageFailure(t *testing.T) {
+	for _, storeErr := range []error{errors.New("image store unavailable"), nil} {
+		t.Run(fmt.Sprint(storeErr), func(t *testing.T) {
+			var data bytes.Buffer
+			require.NoError(t, png.Encode(&data, image.NewRGBA(image.Rect(0, 0, 1, 1))))
+			sess := &screenshotOutcomeSession{png: data.Bytes()}
+			eng := &finalizationEngine{session: sess}
+			dir := t.TempDir()
+			writer := executionwriter.NewFileWriter(nil, &failedScreenshotStorage{MemoryStorage: storage.NewMemoryStorage(), err: storeErr}, nil, executionwriter.NewStaticRoot(dir))
+			plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "navigate", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid"}}}},
+				{Index: 1, NodeID: "capture", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_SCREENSHOT, Params: &basactions.ActionDefinition_Screenshot{Screenshot: &basactions.ScreenshotParams{}}}},
+			}}
+			err := NewSimpleExecutor(nil).Execute(context.Background(), Request{Plan: plan, EngineName: eng.Name(), EngineFactory: engine.NewStaticFactory(eng), Recorder: writer, EventSink: events.NewMemorySink(contracts.DefaultEventBufferLimits), StartFromStepIndex: -1})
+			require.ErrorContains(t, err, "screenshot")
+			if storeErr != nil {
+				require.ErrorIs(t, err, storeErr)
+			}
+			manifest, readErr := os.ReadFile(filepath.Join(dir, plan.ExecutionID.String(), "result.json"))
+			require.NoError(t, readErr)
+			require.Contains(t, string(manifest), "SCREENSHOT_PERSISTENCE_FAILED")
+			require.Contains(t, string(manifest), "EXECUTION_STATUS_FAILED")
+		})
 	}
 }

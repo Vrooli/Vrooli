@@ -1,6 +1,7 @@
 import { detectHostAudioCapability, generateSilentSinkPatch, measureRealtimeAudio, selectAudioStrategy } from '../../../src/session/audio';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import ts from 'typescript';
 
 const audioSourceDirectory = path.resolve(__dirname, '../../../src/session/audio');
 
@@ -54,10 +55,22 @@ describe('measureRealtimeAudio', () => {
   });
 
   it('does not encode host or platform assumptions in the audio decision path', () => {
-    const source = readdirSync(audioSourceDirectory)
-      .filter((file) => file.endsWith('.ts'))
-      .map((file) => readFileSync(path.join(audioSourceDirectory, file), 'utf8'))
-      .join('\n');
-    expect(source).not.toMatch(/process\.platform|pipewire|pactl|wpctl|darwin/i);
+    // Follow the decision module's actual imports/exports. Optional qualification
+    // devices are separate consumers, not dependencies of strategy selection.
+    const pending = [path.join(audioSourceDirectory, 'index.ts')];
+    const visited = new Set<string>();
+    while (pending.length) {
+      const file = pending.pop()!;
+      if (visited.has(file)) continue;
+      visited.add(file);
+      const source = readFileSync(file, 'utf8');
+      expect(source).not.toMatch(/process\.platform|pipewire|pactl|wpctl|darwin|node:child_process/i);
+      for (const imported of ts.preProcessFile(source).importedFiles) {
+        if (!imported.fileName.startsWith('.')) continue;
+        const resolved = ts.resolveModuleName(imported.fileName, file, {}, ts.sys).resolvedModule;
+        expect(resolved).toBeDefined();
+        pending.push(resolved!.resolvedFileName);
+      }
+    }
   });
 });

@@ -10,7 +10,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
+	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
 // mockHTTPHandler creates a test HTTP server that responds to session lifecycle requests.
@@ -989,4 +992,45 @@ func TestManager_WithExecutionArtifactsRoot_TrimsWhitespace(t *testing.T) {
 	if m.executionArtifactsRoot != "/artifacts/path" {
 		t.Errorf("expected whitespace to be trimmed, got '%s'", m.executionArtifactsRoot)
 	}
+}
+
+func TestRepeatedStartPreservesTransportSequenceAcrossLiveHandles(t *testing.T) {
+	var mu sync.Mutex
+	highWater := float64(17)
+	var sequences []float64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		if request.URL.Path == "/session/start" {
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{"session_id": "same-session", "lease_id": "same-lease", "last_instruction_sequence": highWater}))
+			return
+		}
+		var body map[string]any
+		require.NoError(t, json.NewDecoder(request.Body).Decode(&body))
+		sequence, _ := body["operation_sequence"].(float64)
+		sequences = append(sequences, sequence)
+		if sequence > highWater {
+			highWater = sequence
+		}
+		_, _ = w.Write([]byte(`{"success":true}`))
+	}))
+	defer server.Close()
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	manager := NewManagerWithClient(client)
+	spec := Spec{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Mode: ModeExecution}
+	first, err := manager.Create(context.Background(), spec)
+	require.NoError(t, err)
+	instruction := contracts.CompiledInstruction{NodeID: "node", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_CLICK}}
+	_, err = first.Run(context.Background(), instruction)
+	require.NoError(t, err)
+	second, err := manager.Create(context.Background(), spec)
+	require.NoError(t, err)
+	_, err = first.Run(context.Background(), instruction)
+	require.NoError(t, err)
+	_, err = second.Run(context.Background(), instruction)
+	require.NoError(t, err)
+	mu.Lock()
+	defer mu.Unlock()
+	require.Equal(t, []float64{18, 19, 20}, sequences, "start retries cannot fork/reset transport ownership")
 }

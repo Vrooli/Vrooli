@@ -1,0 +1,224 @@
+{
+  "cycle": "BAS-WORK-037",
+  "issues": [
+    "BAS-RF-071",
+    "BAS-RF-074",
+    "BAS-RF-075"
+  ],
+  "status": "qualified_source_dependency_remediation_awaiting_BAS_publication",
+  "baseline": {
+    "receipt": "/tmp/bas-dependency-security-035.json",
+    "findings": 773,
+    "errors": 8,
+    "warnings": 357,
+    "infos": 408
+  },
+  "advisory": {
+    "id": "GHSA-2883-xcg3-v3hh",
+    "fixed_version": "4.3.2",
+    "source": "https://github.com/nodeca/js-yaml/security/advisories/GHSA-2883-xcg3-v3hh",
+    "receipt": "/tmp/bas-js-yaml-vulnerabilities-037.json",
+    "native_before": {
+      "version": "4.3.1",
+      "maxTotalMergeKeys": 8,
+      "emptyMergeSources": 32,
+      "expectedRejection": true,
+      "actualRejection": false,
+      "ordinary": {
+        "workflow": {
+          "name": "fixture",
+          "steps": [
+            "navigate",
+            "click"
+          ]
+        }
+      }
+    },
+    "native_after": {
+      "version": "4.3.2",
+      "maxTotalMergeKeys": 8,
+      "emptyMergeSources": 32,
+      "expectedRejection": true,
+      "actualRejection": true,
+      "error": "merge keys exceeded maxTotalMergeKeys (8) (2:20)\n\n 1 | empty: &empty [{},{},{},{},{},{},{},{},{},{},{},{}, ...\n 2 | target: {<<: *empty}\n------------------------^",
+      "ordinary": {
+        "workflow": {
+          "name": "fixture",
+          "steps": [
+            "navigate",
+            "click"
+          ]
+        }
+      }
+    }
+  },
+  "governance": {
+    "approval_upsert": "/tmp/bas-js-yaml-approval-applied-037.json",
+    "prior_grant_preserved": "vrooli-onboarding",
+    "added_grant": "browser-automation-studio",
+    "pre_repair_scope_mismatch": "/tmp/bas-js-yaml-override-preview-037.json",
+    "installs_applied": [
+      "/tmp/bas-js-yaml-driver-install-037.json",
+      "/tmp/bas-js-yaml-driver-override-037.json",
+      "/tmp/bas-js-yaml-ui-override-037.json"
+    ],
+    "post_validation": {
+      "receipt": "/tmp/bas-deps-final-037.json",
+      "warning_count": 44,
+      "out_of_range": 11,
+      "out_of_scope": 3,
+      "limitation": "Other pre-existing advisory governance findings remain."
+    }
+  },
+  "secret_review": {
+    "digest_lines": [
+      {
+        "location": "docs/internal/REFRACTOR_EXECUTION_2026-09-22.json:417",
+        "key": "api/automation/driver/client.go",
+        "value": "9cadae6081ea1f40c9f28a1bd980136763a61d7728f2069322b68daabb4beb14",
+        "classification": "source digest, not credential"
+      },
+      {
+        "location": "docs/internal/REFRACTOR_REUSE_2026-09-22.json:299",
+        "key": "api/automation/driver/client.go",
+        "value": "9cadae6081ea1f40c9f28a1bd980136763a61d7728f2069322b68daabb4beb14",
+        "classification": "source digest, not credential"
+      },
+      {
+        "location": "docs/internal/evidence/rehabilitation/ai-suggestion-contract-2026-09-22.json:8",
+        "key": "api/handlers/ai/ollama_client.go",
+        "value": "0519bc3824223bfc0db326825c06cefcbff830c769c05422948876f5ab376fe2",
+        "classification": "source digest, not credential"
+      },
+      {
+        "location": "docs/internal/evidence/rehabilitation/browser-semantics-2026-09-22.json:16",
+        "key": "playwright-driver/src/handlers/keyboard.ts",
+        "value": "79823f7ce8506bf5f002f11aa161d253e46f1aa1eaf172e879b72249404e5374",
+        "classification": "source digest, not credential"
+      },
+      {
+        "location": "docs/internal/evidence/rehabilitation/instruction-operation-2026-09-22.json:163",
+        "key": "api/automation/driver/client.go",
+        "value": "d218106d23aee1b2a34d09b07a74168a81f08b898409e0a870e0e5261b97e756",
+        "classification": "source digest, not credential"
+      }
+    ],
+    "config": ".gitleaks.toml",
+    "rule_set": "all defaults preserved; exact complete reviewed lines only; no file exclusion",
+    "counterexample_receipts": [
+      "/tmp/bas-gitleaks-fixture-before-037.json",
+      "/tmp/bas-gitleaks-fixture-candidate-037.json"
+    ],
+    "native_version": "8.18.1",
+    "fixture_findings_before": 8,
+    "fixture_findings_after": 3,
+    "all_three_synthetic_controls_detected": true,
+    "initial_owner_scan_errors": 3,
+    "native_G101_after": [],
+    "annotation": "public authority namespace constant only; actual key material comes from credential authority and crypto/rand"
+  },
+  "SDA": {
+    "override_red": "/tmp/bas-sda-override-red-037.txt",
+    "scope_red": "/tmp/bas-sda-scope-red-037.txt",
+    "scope_failing_cases": 6,
+    "focused_races": "/tmp/bas-sda-final-race-037.txt",
+    "build": "/tmp/bas-sda-build-037.txt",
+    "full_owner": {
+      "run_id": "uh-20260922-164500-7aefb46ceaa5aa04865b6682e1006c6c",
+      "status": "failed",
+      "duration_ms": 15803,
+      "receipt": "/tmp/bas-sda-owner-unit-037.json",
+      "limitation": "bounded output lacks failed assertion; untruncated reproduction pending"
+    },
+    "first_failure_cause": [
+      "coreset test uses runtime.Caller filesystem path under -trimpath",
+      "portability fixtures leak real operator authority into temporary roots"
+    ],
+    "untruncated_receipt": "/tmp/bas-sda-local-037.jsonl",
+    "fixture_repairs": "existing repo root resolver; isolated operator storage; expected resource contradiction asserted",
+    "full_owner_final": {
+      "run_id": "uh-20260922-164831-94a58551fb070680f95ca89f3d26aa50",
+      "status": "passed",
+      "duration_ms": [
+        "12241"
+      ],
+      "receipt": "/tmp/bas-sda-owner-final-037.json",
+      "consumed_tool_session": 99496
+    },
+    "fixture_races": {
+      "coreset_s": 1.102,
+      "dependencyhealth_s": 1.124,
+      "receipt": "/tmp/bas-sda-fixture-race-037.txt",
+      "tool_session_consumed": 15319
+    },
+    "runtime_metrics": [
+      {
+        "path": "/home/matthalloran8/Vrooli/scenarios/scenario-dependency-analyzer/api/internal/installgateway/gateway.go",
+        "before": {
+          "lines": 567,
+          "functions": 19,
+          "cyclomatic": 172
+        },
+        "after": {
+          "lines": 578,
+          "functions": 19,
+          "cyclomatic": 175
+        }
+      },
+      {
+        "path": "/home/matthalloran8/Vrooli/scenarios/scenario-dependency-analyzer/api/internal/dependencygovernance/install.go",
+        "before": {
+          "lines": 186,
+          "functions": 5,
+          "cyclomatic": 37
+        },
+        "after": {
+          "lines": 191,
+          "functions": 5,
+          "cyclomatic": 38
+        }
+      }
+    ],
+    "publication": {
+      "status": "healthy",
+      "service": "scenario-dependency-analyzer-api",
+      "timestamp": "2026-09-22T16:52:11Z",
+      "readiness": true,
+      "version": "1.0.0",
+      "build_identity": "sha256:6034b18af0b24f9b4ffc33a3a1fcb88c7c6b3f6945965338a77194764504fe2b",
+      "uptime_seconds": 34.522195051,
+      "dependencies": {
+        "database": {
+          "connected": true,
+          "latency_ms": 0.058
+        }
+      },
+      "metrics": {
+        "goroutines": 19,
+        "heap_mb": 118.31172180175781,
+        "uptime_seconds": 34.522195051
+      }
+    },
+    "restart_session_consumed": 43426
+  },
+  "pending_operations": [],
+  "security_final": {
+    "status": "VALIDATION_STATUS_PASSED",
+    "duration_ms": "20186",
+    "counts": {
+      "FINDING_SEVERITY_INFO": 406,
+      "FINDING_SEVERITY_WARNING": 357
+    },
+    "receipt": "/tmp/bas-security-final-037.json"
+  },
+  "lockfile_change_scope": "Only js-yaml version/integrity/edges and its override declaration changed; pinned Rebrowser patch hash unchanged.",
+  "build": {
+    "receipt": "/tmp/bas-build-security-037.txt",
+    "status": "passed"
+  },
+  "combined_bas_publication_038": {
+    "status": "deployed",
+    "build_identity": "sha256:8129e9e98743f51dfb61a568315b0662dd69c312ca63beff80197474745a2e80",
+    "receipt": "download-url-2026-09-22.json"
+  }
+}

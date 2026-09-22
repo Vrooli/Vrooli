@@ -14,8 +14,8 @@ import (
 // OllamaClient provides an interface for interacting with Ollama LLM services
 // via the resource-ollama gateway CLI.
 type OllamaClient interface {
-	// Query sends a prompt to Ollama and returns the response text.
-	Query(ctx context.Context, role, prompt string) (string, error)
+	// Query sends a prompt and optional JSON format/schema through the gateway.
+	Query(ctx context.Context, role, prompt, format string) (string, error)
 }
 
 // DefaultOllamaClient implements OllamaClient by shelling out to
@@ -47,7 +47,7 @@ func NewDefaultOllamaClient(log *logrus.Logger, opts ...OllamaClientOption) *Def
 }
 
 // Query sends a prompt to Ollama via the resource-ollama gateway CLI.
-func (c *DefaultOllamaClient) Query(ctx context.Context, role, prompt string) (string, error) {
+func (c *DefaultOllamaClient) Query(ctx context.Context, role, prompt, format string) (string, error) {
 	if strings.TrimSpace(prompt) == "" {
 		return "", fmt.Errorf("prompt is required")
 	}
@@ -56,6 +56,9 @@ func (c *DefaultOllamaClient) Query(ctx context.Context, role, prompt string) (s
 	}
 
 	args := []string{"gateway", "generate", "--role", role, "--json", "--prompt-stdin"}
+	if format != "" {
+		args = append(args, "--format", format)
+	}
 	if c.log != nil {
 		c.log.WithFields(logrus.Fields{"role": role}).Debug("Sending request to resource-ollama gateway")
 	}
@@ -113,6 +116,7 @@ type MockOllamaClient struct {
 type MockOllamaQuery struct {
 	Role   string
 	Prompt string
+	Format string
 }
 
 // NewMockOllamaClient creates a MockOllamaClient with a default response.
@@ -121,8 +125,8 @@ func NewMockOllamaClient(response string) *MockOllamaClient {
 }
 
 // Query records the query and returns the configured response or error.
-func (m *MockOllamaClient) Query(_ context.Context, role, prompt string) (string, error) {
-	m.QueriesCalled = append(m.QueriesCalled, MockOllamaQuery{Role: role, Prompt: prompt})
+func (m *MockOllamaClient) Query(_ context.Context, role, prompt, format string) (string, error) {
+	m.QueriesCalled = append(m.QueriesCalled, MockOllamaQuery{Role: role, Prompt: prompt, Format: format})
 	if m.Err != nil {
 		return "", m.Err
 	}

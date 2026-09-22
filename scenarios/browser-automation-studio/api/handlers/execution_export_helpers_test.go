@@ -4,14 +4,44 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"mime"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/google/uuid"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
+	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services/export/source"
 	"github.com/vrooli/browser-automation-studio/storage"
 )
+
+func TestLoadRecordedVideoUsesVideoMediaType(t *testing.T) {
+	previous := mime.TypeByExtension(".webm")
+	t.Cleanup(func() { _ = mime.AddExtensionType(".webm", previous) })
+	if err := mime.AddExtensionType(".webm", "audio/webm"); err != nil {
+		t.Fatal(err)
+	}
+	id := uuid.New()
+	root := t.TempDir()
+	path := filepath.Join(root, id.String(), "artifacts", "videos", "recording.webm")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("synthetic video"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewMockRepository()
+	repo.executions[id] = &database.ExecutionIndex{ID: id, ResultPath: "result.json"}
+	h := &Handler{repo: repo, recordingsRoot: root}
+	video, err := h.loadRecordedVideo(context.Background(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if video.ContentType != "video/webm" {
+		t.Fatalf("video content type = %q", video.ContentType)
+	}
+}
 
 func TestNormalizeRenderSource(t *testing.T) {
 	if result, ok := source.NormalizeRenderSource(""); !ok || result != source.RenderSourceAuto {

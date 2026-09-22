@@ -4,95 +4,64 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
-// protectedState is deliberately stored separately from profile metadata. It
-// contains browser state that can authenticate an account or reveal browsing
-// activity and must never be emitted by profile listing or metadata APIs.
-type protectedState struct {
-	StorageState   jsonBytes       `json:"storage_state,omitempty"`
-	BrowserProfile *BrowserProfile `json:"browser_profile,omitempty"`
-	History        []HistoryEntry  `json:"history,omitempty"`
-	OpenTabs       []TabState      `json:"open_tabs,omitempty"`
+// profileDocument has one commit point for metadata and authenticated browser state.
+// The encrypted payload is the complete SessionProfile, including its identity.
+type profileDocument struct {
+	Version    int    `json:"version"`
+	KeyVersion int    `json:"key_version"`
+	Sealed     []byte `json:"sealed"`
 }
 
-// jsonBytes keeps the protected payload's JSON shape independent from the
-// public SessionProfile encoding.
-type jsonBytes []byte
-
-func (r *FileRepository) protectedPath(id ProfileID) string {
-	return filepath.Join(r.root, fmt.Sprintf("%s.protected", id))
+func (r *FileRepository) encodeProfile(profile *SessionProfile) ([]byte, error) {
+	ring, err := r.encryptionKeys()
+	if err != nil {
+		return nil, err
+	}
+	plain, err := json.Marshal(profile)
+	if err != nil {
+		return nil, fmt.Errorf("encode profile: %w", err)
+	}
+	sealed, err := sealProtected(ring.Keys[ring.Active], plain)
+	if err != nil {
+		return nil, fmt.Errorf("seal profile: %w", err)
+	}
+	return json.Marshal(profileDocument{Version: 1, KeyVersion: ring.Active, Sealed: sealed})
 }
 
-func (r *FileRepository) encryptionKey() ([]byte, error) {
-	value := os.Getenv("BAS_SESSION_STORE_KEY")
-	if value == "" && strings.HasSuffix(os.Args[0], ".test") {
-		// Tests must opt into a deterministic, non-production key without
-		// weakening the runtime requirement for an operator-managed key.
-		return make([]byte, 32), nil
+func (r *FileRepository) decodeProfile(id ProfileID, data []byte) (*SessionProfile, error) {
+	var document profileDocument
+	if err := json.Unmarshal(data, &document); err != nil {
+		return nil, fmt.Errorf("parse profile document: %w", err)
 	}
-	if value == "" {
-		return nil, errors.New("BAS_SESSION_STORE_KEY is required for protected session storage")
+	if document.Version != 1 || document.KeyVersion < 1 || len(document.Sealed) == 0 {
+		return nil, errors.New("unsupported or incomplete profile document; restore or convert the saved profile offline")
 	}
-	key, err := base64.RawStdEncoding.DecodeString(value)
-	if err != nil || len(key) != 32 {
-		return nil, errors.New("BAS_SESSION_STORE_KEY must be a base64 raw 32-byte key")
-	}
-	return key, nil
-}
-
-func (r *FileRepository) saveProtected(profile *SessionProfile) error {
-	key, err := r.encryptionKey()
+	ring, err := r.encryptionKeys()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	payload, err := json.Marshal(protectedState{StorageState: jsonBytes(profile.StorageState), BrowserProfile: profile.BrowserProfile, History: profile.History, OpenTabs: profile.OpenTabs})
+	key, ok := ring.Keys[document.KeyVersion]
+	if !ok {
+		return nil, fmt.Errorf("profile requires missing encryption key version %d; restore the credential keyring", document.KeyVersion)
+	}
+	plain, err := openProtected(key, document.Sealed)
 	if err != nil {
-		return fmt.Errorf("marshal protected session state: %w", err)
+		return nil, fmt.Errorf("open protected profile: %w", err)
 	}
-	sealed, err := sealProtected(key, payload)
-	if err != nil {
-		return fmt.Errorf("seal protected session state: %w", err)
+	var profile SessionProfile
+	if err := json.Unmarshal(plain, &profile); err != nil {
+		return nil, fmt.Errorf("decode profile: %w", err)
 	}
-	if err := r.fs.WriteFile(r.protectedPath(profile.ID), sealed, 0o600); err != nil {
-		return fmt.Errorf("write protected session state: %w", err)
+	if profile.ID != id {
+		return nil, errors.New("saved profile identity does not match its address")
 	}
-	return nil
-}
-
-func (r *FileRepository) loadProtected(profile *SessionProfile) error {
-	data, err := r.fs.ReadFile(r.protectedPath(profile.ID))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("read protected session state: %w", err)
-	}
-	key, err := r.encryptionKey()
-	if err != nil {
-		return err
-	}
-	plain, err := openProtected(key, data)
-	if err != nil {
-		return fmt.Errorf("open protected session state: %w", err)
-	}
-	var payload protectedState
-	if err := json.Unmarshal(plain, &payload); err != nil {
-		return fmt.Errorf("decode protected session state: %w", err)
-	}
-	profile.StorageState = []byte(payload.StorageState)
-	profile.BrowserProfile = payload.BrowserProfile
-	profile.History = payload.History
-	profile.OpenTabs = payload.OpenTabs
-	return nil
+	return &profile, nil
 }
 
 func sealProtected(key, plaintext []byte) ([]byte, error) {

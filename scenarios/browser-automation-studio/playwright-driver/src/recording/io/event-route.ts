@@ -42,7 +42,7 @@ const RECORDING_EVENT_URL = '/__vrooli_recording_event__';
 /**
  * Handler function for recording events received from the browser.
  */
-export type RecordingEventHandler = (event: RawBrowserEvent) => void;
+export type RecordingEventHandler = (event: RawBrowserEvent) => void | Promise<void>;
 
 /**
  * Statistics about route handler event processing.
@@ -151,7 +151,7 @@ export function createEventRouteManager(options: EventRouteOptions): EventRouteM
   /**
    * Handle a recording event from the page route.
    */
-  function handleRecordingEvent(postData: string): void {
+  async function handleRecordingEvent(postData: string): Promise<string | undefined> {
     const rawEvent = JSON.parse(postData) as RawBrowserEvent;
     stats.lastEventType = rawEvent.actionType;
 
@@ -171,14 +171,16 @@ export function createEventRouteManager(options: EventRouteOptions): EventRouteM
 
     if (decision.shouldProcess && eventHandler) {
       try {
-        eventHandler(rawEvent);
+        await eventHandler(rawEvent);
         stats.eventsProcessed++;
+        return rawEvent.id;
       } catch (error) {
         stats.eventsWithErrors++;
         logger.error(scopedLog(LogContext.RECORDING, 'event handler error'), {
           error: error instanceof Error ? error.message : String(error),
           actionType: rawEvent.actionType,
         });
+        throw error;
       }
     } else {
       stats.eventsDroppedNoHandler++;
@@ -186,6 +188,7 @@ export function createEventRouteManager(options: EventRouteOptions): EventRouteM
         scopedLog(LogContext.RECORDING, `event dropped: ${decision.reason}`),
         formatDecisionForLog(decision)
       );
+      throw new Error('Recording event has no active consumer');
     }
   }
 
@@ -249,15 +252,14 @@ export function createEventRouteManager(options: EventRouteOptions): EventRouteM
           });
 
           const postData = request.postData();
-          if (postData) {
-            handleRecordingEvent(postData);
-          }
+          if (!postData) throw new Error('Recording event body is required');
+          const entryId = await handleRecordingEvent(postData);
 
-          // Respond immediately to not block the page
+          // Acknowledge only after the recording consumer accepts the entry.
           await route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: '{"ok":true}',
+            body: JSON.stringify({ ok: true, entry_id: entryId }),
           });
         } catch (error) {
           logger.error(scopedLog(LogContext.RECORDING, 'page event route handler error'), {

@@ -156,4 +156,36 @@ describe('Session Close Route', () => {
       await fs.rm(tempDir, { recursive: true, force: true });
     }
   });
+  it('closes real Chromium and returns readable video, trace and HAR bytes', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'bas-close-captures-'));
+    sessionManager = new SessionManager(createTestConfig({ telemetry: { har: { enabled: true } } }));
+    try {
+      const { sessionId, leaseId } = await sessionManager.startSession({
+        execution_id: 'actual-capture-close', workflow_id: 'local-fixture',
+        viewport: { width: 640, height: 480 }, reuse_mode: 'fresh',
+        required_capabilities: { video: true, tracing: true, har: true },
+        artifact_paths: { root },
+      });
+      await sessionManager.getSession(sessionId).page.goto('data:text/html,<title>Capture fixture</title><h1>Retained evidence</h1>');
+      await sessionManager.getSession(sessionId).page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const res = createMockHttpResponse();
+      await handleSessionClose(createMockHttpRequest({ body: { execution_id: 'actual-capture-close', lease_id: leaseId } }), res, sessionId, sessionManager);
+      expect(res.getJSON()).not.toHaveProperty('error');
+      expect(res.statusCode).toBe(200);
+      const result = res.getJSON() as { success: boolean; video_paths: string[]; trace_path: string; har_path: string };
+      expect(result.success).toBe(true);
+      expect(result.video_paths).toHaveLength(1);
+      const video = await fs.readFile(result.video_paths[0]!);
+      const trace = await fs.readFile(result.trace_path);
+      const har = JSON.parse(await fs.readFile(result.har_path, 'utf8'));
+      expect(video.subarray(0, 4)).toEqual(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]));
+      expect(trace.subarray(0, 2).toString()).toBe('PK');
+      expect(har.log.version).toBe('1.2');
+      expect(sessionManager.getSessionCount()).toBe(0);
+    } finally {
+      await sessionManager.shutdown();
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  }, 30000);
+
 });

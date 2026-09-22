@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { Command, NotebookPen, Sparkles } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3.1.6";
 import { Input } from "@vrooli/react-component-library/Input/1";
 import { createWorkItem } from "../api/work";
 import { applyAllocationProposal, previewAllocation } from "../api/calendar";
@@ -67,7 +68,7 @@ export function GlobalCapture() {
   const parsed = value ? parseNaturalCapture(value) : null;
   return <>
     <Button className="global-capture-trigger" type="button" variant="ghost" onClick={openCapture} icon={<Command size={15} aria-hidden="true" />}>Capture <kbd>⌘K</kbd></Button>
-    <Button className="global-capture-fab" type="button" variant="primary" shape="pill" size="icon" aria-label="Capture task" title="Capture task" onClick={openCapture}><NotebookPen size={21} aria-hidden="true" /></Button>
+    <IconButton className="global-capture-fab" type="button" surface="solid" shape="circle" size="lg" aria-label="Capture task" onClick={openCapture}><NotebookPen size={21} aria-hidden="true" /></IconButton>
     <PlannerDialog open={open} title="Capture a useful next step" description="Write it as you would say it. For example: lunch with Sam tue 1pm 1h" onClose={() => { setOpen(false); mutation.reset(); }} closeLabel="Close capture" contentClassName="global-capture-dialog">
       <form onSubmit={(event) => { event.preventDefault(); if (value.trim()) mutation.mutate(); }}>
         <label className="global-capture-input"><span>What should become true?</span><Input autoFocus value={value} onChange={(event) => setValue(event.target.value)} placeholder="lunch with Sam tue 1pm 1h" /></label>

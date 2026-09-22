@@ -624,3 +624,49 @@
 ### Comprehensive validation receipt
 
 - Test Genie run `20260921-223710-17d6b491` completed with 25/27 phases passed in 338 seconds. UI health, performance, unit, experience, business, and structure passed; the terminal failures were portability (`local_clean: false` with no reported blocker details) and the pre-existing docs-health debt (1 required-doc error, 553 warnings, 25 infos). No visual or application phase failed.
+
+## 2026-09-21 — mobile scene, scrolling, and foreground hierarchy repair
+
+### Confirmed root causes
+
+- AppShell scheduled route scroll resets at 100, 400, and 1000 milliseconds and reset every descendant, so an initial user swipe could be overwritten after the route appeared.
+- The document and route content could both become scroll owners on mobile, allowing the bottom navigation to move with the outer document.
+- Focus explicitly hid the mobile shell tabs during an active session, despite the app still being in mobile navigation mode.
+- Scene plates were positioned inside route content, so their artwork moved with that content rather than remaining viewport-fixed.
+- Mobile Today Night lost a CSS-specificity conflict and loaded `night-panorama.webp`; Day loaded `day-wide.webp`. Although the wide Day/Night pair has identical landmark coordinates, the rendered pair therefore did not.
+- The first Today foreground revision over-contained the hierarchy by placing the header, controls, and card-bearing day section inside large reading surfaces.
+
+### Changed
+
+- Established `.planner-route-scroll` as the stable, shell-owned page scroller; locked the document and app-shell main region; and reduced route-entry reset to one synchronous reset of that stable owner.
+- Kept the mobile navigation mounted and viewport-pinned in active Focus, and made all scenic backgrounds viewport-fixed.
+- Extended scenery through the top safe area while preserving safe-area padding for interactive content.
+- Re-composed mobile Today as a full-viewport scenic surface, removed the oversized foreground wrappers, and retained surfaces only on actual cards and controls that need their own boundary.
+- Raised the mobile Today Night selector to the correct specificity so the Day and Night variants both use the coordinate-matched wide assets.
+
+### Verified
+
+- Browser execution `33c1446f-4797-4eb2-b2f8-41711ff035e9` held route scroll at `360` beyond the former delayed-reset window while `window.scrollY` stayed `0`; the nav bottom remained equal to the 844px viewport edge, and both Today and Plan scene layers reported `position: fixed`.
+- Corrected Today Day and Night captures `d6500e3a-7ff6-40ec-a80c-534819942470` and `08520475-f37a-4153-a232-9983b6827e0d` place the dome, building, ridgeline, and foreground rocks at matching viewport coordinates.
+- The full UI suite passes: 39 files / 253 tests. UI type-check and production build pass.
+
+## 2026-09-21 — governed mobile controls and overlay production pass
+
+### Changed
+
+- Replaced the three-button Today appearance row with the React Component Library `IconButton`; one compact control now cycles Auto, Day, and Night with the library's native icon morphing.
+- Removed the duplicate mobile header capture action and moved the global mobile capture affordance onto the library's geometrically centered circular `IconButton`.
+- Replaced the planner's hand-built dialog shell across Today, Plan, Goals, Focus, and global capture with the library `ResponsiveDialog`. Mobile now receives a bottom sheet with a grabber and swipe dismissal; desktop retains a centered dialog with its close affordance.
+- Removed obsolete page-specific dialog sizing and fake-sheet CSS. Refined Plan's supporting-action sheet into compact icon-led action tiles and promoted form completion actions to clear primary controls.
+
+### Verified
+
+- RCL adoption obligations report `adoption_record`, `component_import`, `locale_bridge`, `package`, `selector`, and `token` as satisfied for `personal-planner`.
+- Browser execution `8fadb6dc-6e19-48df-95a6-ed1f0439b8dc` at 390×844 measured a compact 44×44 appearance control, no duplicate header capture, and a 44×44 FAB whose icon center offset is exactly `0,0`.
+- The same execution confirmed both global capture and Plan More render as `sheet`, expose the grabber, omit the mobile close button, and terminate at the 844px viewport edge.
+- Browser execution `3f97f273-e8a9-4fa3-913c-4a412238495c` used a driver-backed downward swipe on the grabber and confirmed the capture sheet dismissed.
+- Full UI coverage passes: 39 files / 253 tests, 97.08% statements, 85.45% branches, and 85.2% functions. UI type-check and production build pass.
+
+### Tooling finding
+
+- Responsive Dialog static preflight still marks BaseStyles-owned safe-area and viewport tokens missing even though BaseStyles 1.3.0 is linked, all adoption obligations pass, and live browser evidence proves the contract. Filed Scenario QA bug `knw-1790040920524379360`; no duplicate app token shim was added.

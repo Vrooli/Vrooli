@@ -1,4 +1,4 @@
-import type { Page, ConsoleMessage, Request, Response } from 'rebrowser-playwright';
+import type { Page, CDPSession, Request, Response } from 'rebrowser-playwright';
 import type { ConsoleLogEntry, NetworkEvent } from '../types';
 import { MAX_CONSOLE_ENTRIES, MAX_NETWORK_EVENTS } from '../constants';
 import { logger, normalizeConsoleLogType } from '../utils';
@@ -14,77 +14,66 @@ import { logger, normalizeConsoleLogType } from '../utils';
  */
 export class ConsoleLogCollector {
   private logs: ConsoleLogEntry[] = [];
-  private maxEntries: number;
-  private page: Page;
-  /** Bound listener reference for cleanup */
-  private consoleHandler: ((msg: ConsoleMessage) => void) | null = null;
-  /** Track if collector has been disposed */
+  private session?: CDPSession;
+  private removeListener?: () => void;
+  private starting?: Promise<void>;
+  private disposing?: Promise<void>;
   private disposed = false;
 
-  constructor(page: Page, maxEntries: number = MAX_CONSOLE_ENTRIES) {
-    this.page = page;
-    this.maxEntries = maxEntries;
-    this.setupListener();
+  constructor(private readonly page: Page, private readonly maxEntries: number = MAX_CONSOLE_ENTRIES) {}
+
+  start(): Promise<void> {
+    if (this.disposed) return Promise.reject(new Error('Console collector disposed'));
+    return this.starting ??= this.initialize();
   }
 
-  private setupListener(): void {
-    // Store bound handler so we can remove it later
-    this.consoleHandler = (msg: ConsoleMessage): void => {
-      // Guard: Don't process events after dispose
-      if (this.disposed) return;
-      if (this.logs.length >= this.maxEntries) {
-        // Remove oldest entry when limit reached
-        this.logs.shift();
-      }
-
-      const loc = msg.location();
-      const locationStr = loc.url ? `${loc.url}:${loc.lineNumber}:${loc.columnNumber}` : '';
-
-      // Hardened: Use validated console log type mapping
-      const type = normalizeConsoleLogType(msg.type());
-
-      const entry: ConsoleLogEntry = {
-        timestamp: new Date().toISOString(),
-        type,
-        text: msg.text(),
-        location: locationStr,
-      };
-
-      this.logs.push(entry);
+  private async initialize(): Promise<void> {
+    const since = Date.now();
+    const session = this.session = await this.page.context().newCDPSession(this.page);
+    if (this.disposed) return;
+    const onConsole: Parameters<typeof session.on<'Runtime.consoleAPICalled'>>[1] = event => {
+      // Runtime.enable also replays console history; only this collection window
+      // belongs to the instruction. Never evaluate remote objects/getters.
+      if (this.disposed || event.timestamp < since) return;
+      if (this.logs.length >= this.maxEntries) this.logs.shift();
+      const frame = event.stackTrace?.callFrames[0];
+      this.logs.push({
+        type: normalizeConsoleLogType(event.type),
+        text: event.args.map(arg => arg.unserializableValue ?? (arg.value === undefined
+          ? arg.description ?? arg.type
+          : typeof arg.value === 'string' ? arg.value : JSON.stringify(arg.value))).join(' '),
+        timestamp: new Date(event.timestamp).toISOString(),
+        location: frame?.url ? `${frame.url}:${frame.lineNumber}:${frame.columnNumber}` : '',
+      });
     };
-
-    this.page.on('console', this.consoleHandler);
+    session.on('Runtime.consoleAPICalled', onConsole);
+    this.removeListener = () => session.off('Runtime.consoleAPICalled', onConsole);
+    await session.send('Runtime.enable');
   }
 
-  getLogs(): ConsoleLogEntry[] {
-    return [...this.logs];
-  }
-
-  clear(): void {
-    this.logs = [];
-  }
-
+  getLogs(): ConsoleLogEntry[] { return [...this.logs]; }
+  clear(): void { this.logs = []; }
   getAndClear(): ConsoleLogEntry[] {
     const logs = this.getLogs();
     this.clear();
     return logs;
   }
 
-  /**
-   * Dispose the collector and remove event listeners.
-   *
-   * Temporal hardening: Must be called to prevent memory leaks and
-   * stale event handlers when the collector is no longer needed.
-   */
-  dispose(): void {
-    if (this.disposed) return;
+  dispose(): Promise<void> {
+    return this.disposing ??= this.close();
+  }
+
+  private async close(): Promise<void> {
     this.disposed = true;
-
-    if (this.consoleHandler) {
-      this.page.off('console', this.consoleHandler);
-      this.consoleHandler = null;
+    // A late attachment remains owned until it has been detached.
+    await this.starting?.catch(() => undefined);
+    if (this.session) {
+      this.removeListener?.();
+      this.removeListener = undefined;
+      try { await this.session.detach(); }
+      catch (error) { if (!this.page.isClosed()) throw error; }
+      this.session = undefined;
     }
-
     this.logs = [];
   }
 }

@@ -172,11 +172,9 @@ func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub
 	var unifiedRecordingSvc *unifiedrecording.Service
 	if db != nil {
 		// Access underlying *sql.DB from *sqlx.DB embedded in database.DB
-		unifiedRecordingRepo = unifiedpersistence.NewSQLiteRepository(db.Routed, log)
+		unifiedRecordingRepo = unifiedpersistence.NewSQLiteRepository(db.Routed)
 		unifiedRecordingSvc = unifiedrecording.NewService(
 			unifiedRecordingRepo,
-			hub,
-			log,
 			unifiedrecording.ServiceConfig{},
 		)
 		log.Info("✅ Unified recording service initialized")
@@ -222,7 +220,9 @@ func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub
 
 		// Route through live-capture service's unified recording pipeline
 		// The source is determined from payload["source"] = "ai"
-		recordModeSvc.AddTimelineAction(sessionID, driverAction, uuid.Nil)
+		if err := recordModeSvc.AddTimelineAction(context.Background(), sessionID, driverAction, uuid.Nil); err != nil {
+			log.WithError(err).WithField("session_id", sessionID).Error("AI action was not committed to recording journal")
+		}
 	})
 	log.Info("✅ Vision navigator connected to unified recording via live-capture service")
 

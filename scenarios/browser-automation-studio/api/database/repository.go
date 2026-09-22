@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -45,8 +46,7 @@ type Repository interface {
 	UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error
 	UpdateExecutionResultPath(ctx context.Context, id uuid.UUID, resultPath string, updatedAt time.Time) error
 	DeleteExecution(ctx context.Context, id uuid.UUID) error
-	ListExecutions(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*ExecutionIndex, error)
-	ListExecutionsByStatus(ctx context.Context, status string, limit, offset int) ([]*ExecutionIndex, error)
+	ListExecutions(ctx context.Context, query ExecutionQuery) ([]*ExecutionIndex, int, error)
 
 	// Schedule operations (must be in DB for cron queries)
 	CreateSchedule(ctx context.Context, schedule *ScheduleIndex) error
@@ -531,74 +531,57 @@ func (r *repository) DeleteExecution(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (r *repository) ListExecutions(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*ExecutionIndex, error) {
-	var base string
-	var args []any
+// ListExecutions reads the matching count and page from the same routed
+// transaction. Separate requests still observe separate history snapshots.
+func (r *repository) ListExecutions(ctx context.Context, query ExecutionQuery) ([]*ExecutionIndex, int, error) {
 	var conditions []string
-
-	if projectID != nil {
-		// Join with workflows to filter by project_id
-		base = fmt.Sprintf("SELECT e.%s FROM executions e JOIN workflows w ON e.workflow_id = w.id",
-			"id, e.workflow_id, e.status, e.started_at, e.completed_at, COALESCE(e.error_message, '') as error_message, COALESCE(e.result_path, '') as result_path, e.resumed_from_id, e.created_at, e.updated_at")
-		conditions = append(conditions, "w.project_id = ?")
-		args = append(args, *projectID)
-	} else {
-		base = fmt.Sprintf("SELECT %s FROM executions", executionSelectColumns)
+	var args []any
+	if query.ProjectID != nil {
+		conditions = append(conditions, "workflow_id IN (SELECT id FROM workflows WHERE project_id = ?)")
+		args = append(args, *query.ProjectID)
 	}
-
-	if workflowID != nil {
-		if projectID != nil {
-			conditions = append(conditions, "e.workflow_id = ?")
-		} else {
-			conditions = append(conditions, "workflow_id = ?")
-		}
-		args = append(args, *workflowID)
+	if query.WorkflowID != nil {
+		conditions = append(conditions, "workflow_id = ?")
+		args = append(args, *query.WorkflowID)
 	}
-
+	if query.Status != "" {
+		conditions = append(conditions, "status = ?")
+		args = append(args, query.Status)
+	}
+	from := " FROM executions"
 	if len(conditions) > 0 {
-		base += " WHERE " + conditions[0]
-		for i := 1; i < len(conditions); i++ {
-			base += " AND " + conditions[i]
-		}
+		from += " WHERE " + strings.Join(conditions, " AND ")
 	}
-
-	base += " ORDER BY started_at DESC"
-	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
-	args = append(args, pagingArgs...)
-	query := r.db.Rebind(queryWithPaging)
-
+	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, 0, fmt.Errorf("begin execution query: %w", err)
+	}
+	defer tx.Rollback()
+	var total int
+	if err := tx.QueryRowContext(ctx, r.db.Rebind("SELECT COUNT(*)"+from), args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count executions: %w", err)
+	}
+	order := " ORDER BY started_at DESC, id DESC"
+	if query.OldestFirst {
+		order = " ORDER BY started_at ASC, id ASC"
+	}
+	paged, pagingArgs := appendLimitOffset("SELECT "+executionSelectColumns+from+order, query.Limit, query.Offset)
+	rows, err := tx.QueryContext(ctx, r.db.Rebind(paged), append(args, pagingArgs...)...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list executions: %w", err)
+	}
+	defer rows.Close()
 	var executions []*ExecutionIndex
-	if err := r.db.SelectContext(ctx, &executions, query, args...); err != nil {
-		return nil, fmt.Errorf("failed to list executions: %w", err)
+	if err := sqlx.StructScan(rows, &executions); err != nil {
+		return nil, 0, fmt.Errorf("scan executions: %w", err)
 	}
-	return executions, nil
-}
-
-func (r *repository) ListExecutionsByStatus(ctx context.Context, status string, limit, offset int) ([]*ExecutionIndex, error) {
-	base := fmt.Sprintf("SELECT %s FROM executions WHERE status = ? ORDER BY started_at DESC", executionSelectColumns)
-	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
-	args := append([]any{status}, pagingArgs...)
-	query := r.db.Rebind(queryWithPaging)
-	var executions []*ExecutionIndex
-	if err := r.db.SelectContext(ctx, &executions, query, args...); err != nil {
-		return nil, fmt.Errorf("failed to list executions by status: %w", err)
+	if err := rows.Close(); err != nil {
+		return nil, 0, err
 	}
-	return executions, nil
-}
-
-// ListExecutionsByStatusOldest returns the oldest terminal-index rows first.
-// Recovery previews use this bounded query so they can advance through aged
-// evidence without loading the complete execution table into the API.
-func (r *repository) ListExecutionsByStatusOldest(ctx context.Context, status string, limit, offset int) ([]*ExecutionIndex, error) {
-	base := fmt.Sprintf("SELECT %s FROM executions WHERE status = ? ORDER BY started_at ASC", executionSelectColumns)
-	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
-	args := append([]any{status}, pagingArgs...)
-	query := r.db.Rebind(queryWithPaging)
-	var executions []*ExecutionIndex
-	if err := r.db.SelectContext(ctx, &executions, query, args...); err != nil {
-		return nil, fmt.Errorf("failed to list oldest executions by status: %w", err)
+	if err := tx.Commit(); err != nil {
+		return nil, 0, err
 	}
-	return executions, nil
+	return executions, total, nil
 }
 
 // ============================================================================

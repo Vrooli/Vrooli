@@ -1,5 +1,4 @@
-import type { Page } from 'rebrowser-playwright';
-import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
+import { BaseHandler, getDocument, type BrowserDocument, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction, AssertionOutcome } from '../types';
 import { getAssertParams } from '../types';
 import { DEFAULT_ASSERTION_TIMEOUT_MS } from '../constants';
@@ -20,9 +19,9 @@ export class AssertionHandler extends BaseHandler {
     instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
-    const { page, logger } = context;
-
+    const { logger } = context;
     try {
+      const page = getDocument(context);
       // Extract typed params from action
       const typedParams = instruction.action ? getAssertParams(instruction.action) : undefined;
       const params = this.requireTypedParams(typedParams, 'assert', instruction.nodeId);
@@ -189,7 +188,7 @@ export class AssertionHandler extends BaseHandler {
   }
 
   private async assertExists(
-    page: Page,
+    page: BrowserDocument,
     selector: string,
     timeout: number
   ): Promise<AssertionOutcome> {
@@ -221,7 +220,7 @@ export class AssertionHandler extends BaseHandler {
   }
 
   private async assertNotExists(
-    page: Page,
+    page: BrowserDocument,
     selector: string,
     timeout: number,
     logger: HandlerContext['logger']
@@ -279,7 +278,7 @@ export class AssertionHandler extends BaseHandler {
   }
 
   private async assertVisible(
-    page: Page,
+    page: BrowserDocument,
     selector: string,
     timeout: number
   ): Promise<AssertionOutcome> {
@@ -296,7 +295,7 @@ export class AssertionHandler extends BaseHandler {
   }
 
   private async assertHidden(
-    page: Page,
+    page: BrowserDocument,
     selector: string,
     timeout: number
   ): Promise<AssertionOutcome> {
@@ -314,7 +313,7 @@ export class AssertionHandler extends BaseHandler {
   }
 
   private async assertAttribute(
-    page: Page,
+    page: BrowserDocument,
     selector: string,
     attribute: string,
     expected: string,
@@ -346,7 +345,7 @@ export class AssertionHandler extends BaseHandler {
   }
 
   private async assertText(
-    page: Page,
+    page: BrowserDocument,
     selector: string,
     mode: string,
     expected: string,

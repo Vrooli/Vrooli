@@ -42,6 +42,10 @@ import { actionTypeToString } from './action-type-utils';
  * ```
  */
 export interface HandlerInstruction {
+  /** Declared runtime attempt; absent only for direct handler callers. */
+  attempt?: number;
+  invocationId?: string;
+  operationSequence?: number;
   /** Zero-based index in execution order */
   index: number;
   /** Node ID from the workflow definition (UUID) */

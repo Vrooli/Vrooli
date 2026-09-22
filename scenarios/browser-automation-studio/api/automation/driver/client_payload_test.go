@@ -1,6 +1,10 @@
 package driver
 
 import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -73,4 +77,43 @@ func TestBuildInstructionPayloadPreservesTypedActionVariants(t *testing.T) {
 			require.NotContains(t, instruction, "params")
 		})
 	}
+}
+
+func TestRecordingPullTransportRequiresMatchingAcknowledgement(t *testing.T) {
+	for _, response := range []string{`{}`, `{"entry_ids":["different"]}`, `{"entry_ids":["entry"]}`} {
+		t.Run(response, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				require.Equal(t, http.MethodPost, r.Method)
+				require.Equal(t, "/session/session/record/actions/ack", r.URL.Path)
+				var request struct {
+					EntryIDs []string `json:"entry_ids"`
+				}
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&request))
+				require.Equal(t, []string{"entry"}, request.EntryIDs)
+				_, _ = w.Write([]byte(response))
+			}))
+			defer server.Close()
+			client, err := NewClientWithURL(server.URL)
+			require.NoError(t, err)
+			err = client.AcknowledgeRecordedActions(context.Background(), "session", []string{"entry"})
+			if response == `{"entry_ids":["entry"]}` {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+		})
+	}
+}
+
+func TestRecordingPullRejectsMalformedTimelineWithoutDestructiveRead(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodGet, r.Method)
+		require.Empty(t, r.URL.RawQuery)
+		_, _ = w.Write([]byte(`{"session_id":"session","entries":[{"id":"entry","unknown_field":1}]}`))
+	}))
+	defer server.Close()
+	client, err := NewClientWithURL(server.URL)
+	require.NoError(t, err)
+	_, err = client.GetRecordedActions(context.Background(), "session")
+	require.ErrorContains(t, err, "parse recorded entry")
 }

@@ -3,6 +3,7 @@ package livecapture
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	unifiedrecording "github.com/vrooli/browser-automation-studio/services/recording"
 	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
+	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 )
 
 // Service provides high-level operations for live capture mode.
@@ -132,6 +134,9 @@ func (s *Service) CreateSession(ctx context.Context, cfg *SessionConfig) (*Sessi
 	if s.sessions == nil {
 		return nil, fmt.Errorf("session manager not initialized")
 	}
+	if s.unifiedRecordingSvc == nil {
+		return nil, unifiedrecording.ErrRepositoryUnavailable
+	}
 
 	// Get defaults from config - this is the single source of truth for defaults
 	appCfg := config.Load()
@@ -198,7 +203,10 @@ func (s *Service) CreateSession(ctx context.Context, cfg *SessionConfig) (*Sessi
 			ViewportHeight: cfg.ViewportHeight,
 		}
 		if err := s.unifiedRecordingSvc.RegisterSession(ctx, sess.ID(), regCfg); err != nil {
-			s.log.WithError(err).Warn("Failed to register session with unified recording service - timeline persistence may fail")
+			cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+			defer cancel()
+			closeErr := s.sessions.Close(cleanupCtx, sess.ID())
+			return nil, errors.Join(fmt.Errorf("register recording journal: %w", err), closeErr)
 		}
 	}
 
@@ -350,7 +358,7 @@ type ActionRange struct {
 
 // GenerateWorkflowResult is the result of workflow generation.
 type GenerateWorkflowResult struct {
-	FlowDefinition map[string]interface{}
+	FlowDefinition *basworkflows.WorkflowDefinitionV2
 	NodeCount      int
 	ActionCount    int
 }
@@ -363,7 +371,7 @@ func (s *Service) GenerateWorkflow(ctx context.Context, sessionID string, cfg *G
 	if len(cfg.Actions) > 0 {
 		actions = cfg.Actions
 	} else {
-		resp, err := s.sessions.Client().GetRecordedActions(ctx, sessionID, false)
+		resp, err := s.sessions.Client().GetRecordedActions(ctx, sessionID)
 		if err != nil {
 			return nil, fmt.Errorf("get actions: %w", err)
 		}
@@ -380,17 +388,14 @@ func (s *Service) GenerateWorkflow(ctx context.Context, sessionID string, cfg *G
 	}
 
 	// Generate workflow
-	flowDef := s.generator.GenerateWorkflow(actions)
-
-	// Count nodes
-	nodeCount := 0
-	if nodes, ok := flowDef["nodes"].([]map[string]interface{}); ok {
-		nodeCount = len(nodes)
+	flowDef, err := s.generator.GenerateWorkflow(actions)
+	if err != nil {
+		return nil, fmt.Errorf("generate workflow: %w", err)
 	}
 
 	return &GenerateWorkflowResult{
 		FlowDefinition: flowDef,
-		NodeCount:      nodeCount,
+		NodeCount:      len(flowDef.Nodes),
 		ActionCount:    len(actions),
 	}, nil
 }
@@ -648,55 +653,32 @@ func (s *Service) RestoreTabs(ctx context.Context, sessionID string, tabs []sess
 
 // AddTimelineAction adds a recorded action to the timeline via the unified recording service.
 // DOC: docs/architecture/recording.md#data-flow
-func (s *Service) AddTimelineAction(sessionID string, action *driver.RecordedAction, pageID uuid.UUID) {
+func (s *Service) AddTimelineAction(ctx context.Context, sessionID string, action *driver.RecordedAction, pageID uuid.UUID) error {
 	if s.unifiedRecordingSvc == nil {
-		return
+		return unifiedrecording.ErrRepositoryUnavailable
 	}
-
-	ctx := context.Background()
-	// Determine source from payload or default to manual for HTTP callback actions
 	source := unifiedrecording.ActionSourceManual
-	if action.Payload != nil {
-		if srcVal, ok := action.Payload["source"].(string); ok && srcVal == "ai" {
-			source = unifiedrecording.ActionSourceAI
-		}
+	if action != nil && action.Payload != nil && action.Payload["source"] == "ai" {
+		source = unifiedrecording.ActionSourceAI
 	}
-	if err := s.unifiedRecordingSvc.RecordAction(ctx, sessionID, action, pageID, source); err != nil {
-		s.log.WithError(err).WithFields(logrus.Fields{
-			"session_id":  sessionID,
-			"action_type": action.ActionType,
-		}).Warn("Failed to record action")
-	}
+	return s.unifiedRecordingSvc.RecordAction(ctx, sessionID, action, pageID, source)
 }
 
-// AddTimelinePageEvent adds a page event to the timeline via the unified recording service.
-func (s *Service) AddTimelinePageEvent(sessionID string, event *domain.PageEvent) {
+func (s *Service) AddTimelinePageEvent(ctx context.Context, sessionID string, event *domain.PageEvent) error {
 	if s.unifiedRecordingSvc == nil {
-		return
+		return unifiedrecording.ErrRepositoryUnavailable
 	}
-
-	ctx := context.Background()
-	if err := s.unifiedRecordingSvc.RecordPageEvent(ctx, sessionID, event); err != nil {
-		s.log.WithError(err).WithFields(logrus.Fields{
-			"session_id": sessionID,
-			"event_type": event.Type,
-			"page_id":    event.PageID,
-		}).Warn("Failed to record page event")
-	}
+	return s.unifiedRecordingSvc.RecordPageEvent(ctx, sessionID, event)
 }
 
 // GetTimeline returns the unified timeline for a session.
-func (s *Service) GetTimeline(sessionID string, pageID *uuid.UUID, limit int) (*domain.TimelineResponse, error) {
+func (s *Service) GetTimeline(ctx context.Context, sessionID string, pageID *uuid.UUID, limit, offset int) (*domain.TimelineResponse, error) {
 	if _, ok := s.sessions.Get(sessionID); !ok {
 		return nil, fmt.Errorf("session not found: %s", sessionID)
 	}
 
 	if s.unifiedRecordingSvc == nil {
-		return &domain.TimelineResponse{
-			Entries:      []domain.TimelineEntry{},
-			HasMore:      false,
-			TotalEntries: 0,
-		}, nil
+		return nil, unifiedrecording.ErrRepositoryUnavailable
 	}
 
 	// Build query for unified recording service
@@ -704,9 +686,10 @@ func (s *Service) GetTimeline(sessionID string, pageID *uuid.UUID, limit int) (*
 		SessionID: sessionID,
 		PageID:    pageID,
 		Limit:     limit,
+		Offset:    offset,
 	}
 
-	resp, err := s.unifiedRecordingSvc.GetTimeline(context.Background(), query)
+	resp, err := s.unifiedRecordingSvc.GetTimeline(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("get timeline: %w", err)
 	}
@@ -748,13 +731,6 @@ func (s *Service) GetTimeline(sessionID string, pageID *uuid.UUID, limit int) (*
 		HasMore:      resp.HasMore,
 		TotalEntries: resp.TotalCount,
 	}, nil
-}
-
-// ClearTimeline clears the timeline for a session.
-func (s *Service) ClearTimeline(sessionID string) {
-	if s.unifiedRecordingSvc != nil {
-		s.unifiedRecordingSvc.ClearSession(sessionID)
-	}
 }
 
 // buildRecordingCallbacks creates recording callbacks that route to the unified recording service.

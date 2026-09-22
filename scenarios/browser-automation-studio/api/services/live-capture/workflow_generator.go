@@ -4,53 +4,15 @@ package livecapture
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/vrooli/browser-automation-studio/automation/actions"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
+	"google.golang.org/protobuf/proto"
 )
-
-// Enum normalization functions for converting lowercase strings to proto enum format.
-// These ensure generated workflows use proper proto enum names that protojson can parse.
-
-// normalizeMouseButton converts a lowercase button name to proto MouseButton format.
-func normalizeMouseButton(button string) string {
-	switch strings.ToLower(button) {
-	case "left":
-		return "MOUSE_BUTTON_LEFT"
-	case "right":
-		return "MOUSE_BUTTON_RIGHT"
-	case "middle":
-		return "MOUSE_BUTTON_MIDDLE"
-	default:
-		return button // Return as-is if already in proto format or unknown
-	}
-}
-
-// normalizeAssertionMode converts a lowercase mode to proto AssertionMode format.
-func normalizeAssertionMode(mode string) string {
-	switch strings.ToLower(mode) {
-	case "exists":
-		return "ASSERTION_MODE_EXISTS"
-	case "not_exists", "notexists":
-		return "ASSERTION_MODE_NOT_EXISTS"
-	case "visible":
-		return "ASSERTION_MODE_VISIBLE"
-	case "hidden":
-		return "ASSERTION_MODE_HIDDEN"
-	case "text_equals":
-		return "ASSERTION_MODE_TEXT_EQUALS"
-	case "text_contains":
-		return "ASSERTION_MODE_TEXT_CONTAINS"
-	case "attribute_equals":
-		return "ASSERTION_MODE_ATTRIBUTE_EQUALS"
-	case "attribute_contains":
-		return "ASSERTION_MODE_ATTRIBUTE_CONTAINS"
-	default:
-		return mode
-	}
-}
 
 // WorkflowGenerator converts recorded actions into workflow definitions.
 type WorkflowGenerator struct{}
@@ -60,119 +22,85 @@ func NewWorkflowGenerator() *WorkflowGenerator {
 	return &WorkflowGenerator{}
 }
 
-// GenerateWorkflow converts recorded actions to a workflow flow definition.
-// It applies action merging and inserts smart wait nodes to improve reliability.
-func (g *WorkflowGenerator) GenerateWorkflow(actions []driver.RecordedAction) map[string]interface{} {
-	// First, merge consecutive actions for cleaner workflows
-	mergedActions := MergeConsecutiveActions(actions)
-
-	// Insert smart wait nodes between actions that need them
-	nodes, edges := insertSmartWaits(mergedActions)
-
-	return map[string]interface{}{
-		"nodes": nodes,
-		"edges": edges,
+// GenerateWorkflow derives typed candidates; unsupported observations never become clicks.
+func (g *WorkflowGenerator) GenerateWorkflow(recorded []driver.RecordedAction) (*basworkflows.WorkflowDefinitionV2, error) {
+	actions, err := prepareRecordedActions(recorded)
+	if err != nil {
+		return nil, err
 	}
+	actions = MergeConsecutiveActions(actions)
+	flow := &basworkflows.WorkflowDefinitionV2{}
+	appendNode := func(action *basactions.ActionDefinition) {
+		index := len(flow.Nodes)
+		node := &basworkflows.WorkflowNodeV2{Id: fmt.Sprintf("node_%d", index+1), Action: action, Position: &basbase.NodePosition{X: 250, Y: float64(100 + index*120)}}
+		if index > 0 {
+			flow.Edges = append(flow.Edges, &basworkflows.WorkflowEdgeV2{Id: fmt.Sprintf("edge_%d", index), Source: flow.Nodes[index-1].Id, Target: node.Id})
+		}
+		flow.Nodes = append(flow.Nodes, node)
+	}
+	for index, recordedAction := range actions {
+		action, err := recordedActionDefinition(recordedAction)
+		if err != nil {
+			return nil, fmt.Errorf("recorded action %d (%s): %w", index+1, recordedAction.ActionType, err)
+		}
+		appendNode(action)
+		if index+1 < len(actions) {
+			if wait := analyzeTransitionForWait(recordedAction, actions[index+1]); wait != nil {
+				appendNode(waitAction(wait))
+			}
+		}
+	}
+	return flow, nil
 }
 
-// MergeConsecutiveActions optimizes recorded actions by merging:
-// - Consecutive type actions on the same selector (text is concatenated)
-// - Consecutive scroll actions (uses final scroll position)
-// - Removes focus events that precede type events on the same element
-func MergeConsecutiveActions(actions []driver.RecordedAction) []driver.RecordedAction {
-	if len(actions) <= 1 {
-		return actions
+// MergeConsecutiveActions coalesces full input/scroll snapshots only within one
+// target. It never writes through the recorded payload maps.
+func MergeConsecutiveActions(recorded []driver.RecordedAction) []driver.RecordedAction {
+	if recorded == nil {
+		return nil
 	}
-
-	merged := make([]driver.RecordedAction, 0, len(actions))
-
-	for i := 0; i < len(actions); i++ {
-		action := actions[i]
-
-		// Skip focus events that are immediately followed by type on the same element
-		if action.ActionType == "focus" && i+1 < len(actions) {
-			next := actions[i+1]
-			if next.ActionType == "type" && selectorsMatch(action.Selector, next.Selector) {
-				continue // Skip this focus event
+	merged := make([]driver.RecordedAction, 0, len(recorded))
+	for index, action := range recorded {
+		if action.ActionType == "focus" && index+1 < len(recorded) && recorded[index+1].ActionType == "type" && sameTarget(action, recorded[index+1]) {
+			continue
+		}
+		if len(merged) > 0 {
+			previous := merged[len(merged)-1]
+			if previous.ActionType == action.ActionType && sameTarget(previous, action) && coalescibleSnapshots(previous, action) {
+				merged[len(merged)-1] = action
+				continue
 			}
 		}
-
-		// Merge consecutive type actions on same selector
-		if action.ActionType == "type" && action.Selector != nil {
-			mergedText := ""
-			if action.Payload != nil {
-				if text, ok := action.Payload["text"].(string); ok {
-					mergedText = text
-				}
-			}
-
-			// Look ahead for more type actions on same element
-			for i+1 < len(actions) {
-				next := actions[i+1]
-				if next.ActionType != "type" || !selectorsMatch(action.Selector, next.Selector) {
-					break
-				}
-				// Merge the text
-				if next.Payload != nil {
-					if text, ok := next.Payload["text"].(string); ok {
-						mergedText += text
-					}
-				}
-				i++ // Skip this action, we've merged it
-			}
-
-			// Update the action with merged text
-			if mergedText != "" {
-				if action.Payload == nil {
-					action.Payload = make(map[string]interface{})
-				}
-				action.Payload["text"] = mergedText
-			}
-		}
-
-		// Merge consecutive scroll actions
-		if action.ActionType == "scroll" {
-			var finalScrollY float64
-			if action.Payload != nil {
-				if y, ok := action.Payload["scrollY"].(float64); ok {
-					finalScrollY = y
-				}
-			}
-
-			// Look ahead for more scroll actions
-			for i+1 < len(actions) {
-				next := actions[i+1]
-				if next.ActionType != "scroll" {
-					break
-				}
-				// Use the final scroll position
-				if next.Payload != nil {
-					if y, ok := next.Payload["scrollY"].(float64); ok {
-						finalScrollY = y
-					}
-				}
-				i++ // Skip this action, we've merged it
-			}
-
-			// Update the action with final scroll position
-			if action.Payload == nil {
-				action.Payload = make(map[string]interface{})
-			}
-			action.Payload["scrollY"] = finalScrollY
-		}
-
 		merged = append(merged, action)
 	}
-
 	return merged
 }
 
-// selectorsMatch checks if two SelectorSets refer to the same element
-func selectorsMatch(a, b *driver.SelectorSet) bool {
-	if a == nil || b == nil {
+func sameTarget(a, b driver.RecordedAction) bool {
+	if a.PageID != b.PageID || a.DriverPageID != b.DriverPageID || a.FrameID != b.FrameID || a.URL != b.URL {
 		return false
 	}
-	return a.Primary == b.Primary
+	if a.Selector == nil || b.Selector == nil {
+		return a.Selector == nil && b.Selector == nil
+	}
+	return a.Selector.Primary == b.Selector.Primary
+}
+
+func coalescibleSnapshots(previous, next driver.RecordedAction) bool {
+	switch next.ActionType {
+	case "type":
+		_, old := previous.Payload["text"].(string)
+		_, current := next.Payload["text"].(string)
+		return old && current && previous.Payload["submit"] != true
+	case "scroll":
+		_, oldX := previous.Payload["scrollX"]
+		_, oldY := previous.Payload["scrollY"]
+		_, newX := next.Payload["scrollX"]
+		_, newY := next.Payload["scrollY"]
+		return (oldX || oldY) && oldX == newX && oldY == newY
+	default:
+		return false
+	}
 }
 
 // ApplyActionRange returns the requested action subset, clamping indices to the available actions.
@@ -193,188 +121,6 @@ func ApplyActionRange(actions []driver.RecordedAction, start, end int) []driver.
 	return actions
 }
 
-// nodeTypeToV2ActionType maps V1 node type strings to V2 ACTION_TYPE_ enum values.
-func nodeTypeToV2ActionType(nodeType string) string {
-	switch nodeType {
-	case "navigate":
-		return "ACTION_TYPE_NAVIGATE"
-	case "click":
-		return "ACTION_TYPE_CLICK"
-	case "type":
-		return "ACTION_TYPE_INPUT"
-	case "wait":
-		return "ACTION_TYPE_WAIT"
-	case "assert":
-		return "ACTION_TYPE_ASSERT"
-	case "scroll":
-		return "ACTION_TYPE_SCROLL"
-	case "select":
-		return "ACTION_TYPE_SELECT"
-	case "evaluate":
-		return "ACTION_TYPE_EVALUATE"
-	case "keyboard":
-		return "ACTION_TYPE_KEYBOARD"
-	case "hover":
-		return "ACTION_TYPE_HOVER"
-	case "screenshot":
-		return "ACTION_TYPE_SCREENSHOT"
-	case "focus":
-		return "ACTION_TYPE_FOCUS"
-	case "blur":
-		return "ACTION_TYPE_BLUR"
-	default:
-		return "ACTION_TYPE_UNSPECIFIED"
-	}
-}
-
-// nodeTypeToV2ParamKey maps V1 node type to the V2 action param key.
-func nodeTypeToV2ParamKey(nodeType string) string {
-	switch nodeType {
-	case "type":
-		return "input" // V2 uses "input" for type actions
-	case "select":
-		return "select_option"
-	default:
-		return nodeType
-	}
-}
-
-// mapActionToNode converts a single recorded action to a workflow node in V2 format.
-// Uses the action registry to look up type-specific configuration.
-func mapActionToNode(action driver.RecordedAction, nodeID string, index int) map[string]interface{} {
-	// Calculate position (vertical layout)
-	posX := 250.0
-	posY := float64(100 + index*120)
-
-	// Get action configuration from registry
-	cfg := GetActionNodeConfig(actions.ActionType(action.ActionType))
-
-	// Build node data using registry builder
-	data, _ := cfg.BuildNode(action)
-
-	// Generate label using registry label generator
-	label := cfg.GenerateLabel(action)
-
-	// Build V2 action definition
-	v2ActionType := nodeTypeToV2ActionType(cfg.NodeType)
-	v2ParamKey := nodeTypeToV2ParamKey(cfg.NodeType)
-
-	// Build typed params for the action
-	actionParams := buildV2ActionParams(cfg.NodeType, action, data)
-
-	actionDef := map[string]interface{}{
-		"type": v2ActionType,
-		"metadata": map[string]interface{}{
-			"label": label,
-		},
-	}
-	// Add the typed params under the appropriate key
-	if len(actionParams) > 0 {
-		actionDef[v2ParamKey] = actionParams
-	}
-
-	node := map[string]interface{}{
-		"id":     nodeID,
-		"action": actionDef,
-		"position": map[string]interface{}{
-			"x": posX,
-			"y": posY,
-		},
-	}
-
-	return node
-}
-
-// buildV2ActionParams builds the typed params for a V2 action.
-func buildV2ActionParams(nodeType string, action driver.RecordedAction, data map[string]interface{}) map[string]interface{} {
-	params := make(map[string]interface{})
-
-	switch nodeType {
-	case "navigate":
-		if url := action.URL; url != "" {
-			params["url"] = url
-		}
-		if waitFor, ok := data["waitForSelector"]; ok {
-			params["wait_for_selector"] = waitFor
-		}
-	case "click":
-		if action.Selector != nil {
-			params["selector"] = action.Selector.Primary
-		}
-		if btn, ok := data["button"].(string); ok {
-			params["button"] = normalizeMouseButton(btn)
-		}
-		if count, ok := data["clickCount"]; ok {
-			params["click_count"] = count
-		}
-	case "type":
-		if action.Selector != nil {
-			params["selector"] = action.Selector.Primary
-		}
-		if text, ok := data["text"].(string); ok {
-			params["value"] = text
-		}
-	case "wait":
-		if action.Selector != nil {
-			params["selector"] = action.Selector.Primary
-		}
-		if timeout, ok := data["timeoutMs"]; ok {
-			params["timeout_ms"] = timeout
-		}
-	case "scroll":
-		if action.Selector != nil {
-			params["selector"] = action.Selector.Primary
-		}
-		if y, ok := data["y"]; ok {
-			params["y"] = y
-		}
-	case "select":
-		if action.Selector != nil {
-			params["selector"] = action.Selector.Primary
-		}
-		if val, ok := data["value"]; ok {
-			params["value"] = val
-		}
-	case "hover":
-		if action.Selector != nil {
-			params["selector"] = action.Selector.Primary
-		}
-	case "keyboard":
-		if key, ok := data["key"]; ok {
-			params["key"] = key
-		}
-	case "screenshot":
-		if name, ok := data["name"]; ok {
-			params["name"] = name
-		}
-	case "assert":
-		if action.Selector != nil {
-			params["selector"] = action.Selector.Primary
-		}
-		// Copy all payload data as assert params, normalizing enum values
-		for k, v := range data {
-			if k == "selector" || k == "label" {
-				continue
-			}
-			// Normalize mode enum if present
-			if k == "mode" {
-				if mode, ok := v.(string); ok {
-					params[k] = normalizeAssertionMode(mode)
-					continue
-				}
-			}
-			params[k] = v
-		}
-	default:
-		// For unknown types, copy data as params
-		if action.Selector != nil {
-			params["selector"] = action.Selector.Primary
-		}
-	}
-
-	return params
-}
-
 // WaitTemplate describes a wait node to be inserted between actions.
 type WaitTemplate struct {
 	WaitType  string // "selector" or "timeout"
@@ -388,9 +134,9 @@ type WaitTemplate struct {
 // Returns nil if no wait is needed.
 func analyzeTransitionForWait(current, next driver.RecordedAction) *WaitTemplate {
 	// Check if the next action needs its selector to exist (uses action registry)
-	if NeedsSelectorWait(next.ActionType) && next.Selector != nil && next.Selector.Primary != "" {
+	if actions.NeedsSelectorWait(actions.ActionType(next.ActionType)) && next.Selector != nil && next.Selector.Primary != "" {
 		// If current action might trigger DOM changes, add a wait (uses action registry)
-		triggersChanges := TriggersDOMChanges(current.ActionType)
+		triggersChanges := actions.TriggersDOMChanges(actions.ActionType(current.ActionType))
 
 		// Check for URL change (indicates navigation happened)
 		urlChanged := current.URL != next.URL
@@ -459,105 +205,15 @@ func describeElement(action driver.RecordedAction) string {
 	return "element"
 }
 
-// createWaitNode generates a workflow wait node from a WaitTemplate in V2 format.
-func createWaitNode(template *WaitTemplate, nodeID string, posY float64) map[string]interface{} {
-	// Build V2 wait params
-	waitParams := map[string]interface{}{
-		"timeout_ms": template.TimeoutMs,
+func waitAction(template *WaitTemplate) *basactions.ActionDefinition {
+	params := &basactions.WaitParams{TimeoutMs: proto.Int32(int32(template.TimeoutMs))}
+	if template.WaitType == "selector" {
+		params.WaitFor = &basactions.WaitParams_Selector{Selector: template.Selector}
+		params.State = basactions.WaitState_WAIT_STATE_VISIBLE.Enum()
+	} else {
+		params.WaitFor = &basactions.WaitParams_DurationMs{DurationMs: int32(template.TimeoutMs)}
 	}
-
-	if template.WaitType == "selector" && template.Selector != "" {
-		waitParams["selector"] = template.Selector
-		waitParams["state"] = "WAIT_STATE_VISIBLE" // Default to waiting for visible state
-	} else if template.WaitType == "timeout" {
-		waitParams["duration_ms"] = template.TimeoutMs
-	}
-
-	// Build V2 action definition
-	actionDef := map[string]interface{}{
-		"type": "ACTION_TYPE_WAIT",
-		"wait": waitParams,
-		"metadata": map[string]interface{}{
-			"label": template.Label,
-		},
-	}
-
-	return map[string]interface{}{
-		"id":     nodeID,
-		"action": actionDef,
-		"position": map[string]interface{}{
-			"x": 250.0,
-			"y": posY,
-		},
-	}
-}
-
-// insertSmartWaits analyzes action transitions and inserts wait nodes where needed.
-// This improves reliability of recorded workflows by ensuring elements exist before interaction.
-func insertSmartWaits(actions []driver.RecordedAction) ([]map[string]interface{}, []map[string]interface{}) {
-	if len(actions) == 0 {
-		return nil, nil
-	}
-
-	nodes := make([]map[string]interface{}, 0, len(actions)*2)
-	edges := make([]map[string]interface{}, 0, len(actions)*2)
-
-	var prevNodeID string
-	nodeIndex := 0
-	edgeIndex := 0
-	posY := 100.0
-	posYIncrement := 120.0
-
-	for i, action := range actions {
-		// Create the action node
-		nodeID := fmt.Sprintf("node_%d", nodeIndex+1)
-		node := mapActionToNode(action, nodeID, nodeIndex)
-		// Override position to account for inserted wait nodes
-		node["position"] = map[string]interface{}{
-			"x": 250.0,
-			"y": posY,
-		}
-		nodes = append(nodes, node)
-		posY += posYIncrement
-		nodeIndex++
-
-		// Create edge from previous node
-		if prevNodeID != "" {
-			edges = append(edges, map[string]interface{}{
-				"id":     fmt.Sprintf("edge_%d", edgeIndex+1),
-				"source": prevNodeID,
-				"target": nodeID,
-			})
-			edgeIndex++
-		}
-		prevNodeID = nodeID
-
-		// Check if we need a wait before the next action
-		if i < len(actions)-1 {
-			nextAction := actions[i+1]
-			waitTemplate := analyzeTransitionForWait(action, nextAction)
-
-			if waitTemplate != nil {
-				// Create wait node
-				waitNodeID := fmt.Sprintf("wait_%d", nodeIndex+1)
-				waitNode := createWaitNode(waitTemplate, waitNodeID, posY)
-				nodes = append(nodes, waitNode)
-				posY += posYIncrement
-				nodeIndex++
-
-				// Create edge from action to wait
-				edges = append(edges, map[string]interface{}{
-					"id":     fmt.Sprintf("edge_%d", edgeIndex+1),
-					"source": prevNodeID,
-					"target": waitNodeID,
-				})
-				edgeIndex++
-				prevNodeID = waitNodeID
-			}
-		}
-	}
-
-	return nodes, edges
+	return &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_WAIT, Params: &basactions.ActionDefinition_Wait{Wait: params}, Metadata: &basactions.ActionMetadata{Label: proto.String(template.Label)}}
 }
 
 // generateClickLabel creates a readable label for a click action.

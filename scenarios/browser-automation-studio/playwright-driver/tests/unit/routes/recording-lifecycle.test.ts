@@ -4,6 +4,7 @@ import { createMockHttpRequest, createMockHttpResponse } from '../../helpers';
 
 type PipelineManagerStub = {
   getRecordingId: jest.Mock;
+  getRecordingData: jest.Mock;
   getState: jest.Mock;
   isRecording: jest.Mock;
   stopRecording: jest.Mock;
@@ -12,6 +13,7 @@ type PipelineManagerStub = {
 function createPipelineManager(overrides?: Partial<PipelineManagerStub>): PipelineManagerStub {
   return {
     getRecordingId: jest.fn().mockReturnValue('recording-123'),
+    getRecordingData: jest.fn().mockReturnValue(undefined),
     getState: jest.fn().mockReturnValue(undefined),
     isRecording: jest.fn().mockReturnValue(false),
     stopRecording: jest.fn(),
@@ -82,9 +84,10 @@ describe('recording lifecycle routes', () => {
   });
 
   describe('handleRecordStop', () => {
-    it('treats repeated stop requests as successful no-ops', async () => {
+    it('retains the committed result when stop is retried', async () => {
       const pipelineManager = createPipelineManager({
         getRecordingId: jest.fn().mockReturnValue('recording-previous'),
+        getRecordingData: jest.fn().mockReturnValue({ actionCount: 7, stoppedAt: '2026-09-22T00:00:00.000Z' }),
         isRecording: jest.fn().mockReturnValue(false),
       });
       const sessionManager = createSessionManager({
@@ -100,12 +103,13 @@ describe('recording lifecycle routes', () => {
       await handleRecordStop(req, res, 'session-123', sessionManager);
 
       expect(pipelineManager.stopRecording).not.toHaveBeenCalled();
-      expect(sessionManager.setSessionPhase).not.toHaveBeenCalled();
+      expect(sessionManager.setSessionPhase).toHaveBeenCalledWith('session-123', 'ready');
       expect(res.statusCode).toBe(200);
       expect(res.getJSON()).toMatchObject({
         recording_id: 'recording-previous',
         session_id: 'session-123',
-        action_count: 0,
+        action_count: 7,
+        stopped_at: '2026-09-22T00:00:00.000Z',
       });
       expect(res.getJSON().stopped_at).toEqual(expect.any(String));
     });

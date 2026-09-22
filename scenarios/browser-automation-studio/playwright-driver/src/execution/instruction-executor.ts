@@ -21,7 +21,7 @@
  * │                                                                         │
  * │ - HTTP request/response handling (route layer)                          │
  * │ - Session phase management (session manager)                            │
- * │ - Idempotency caching (infra layer)                                     │
+ * │ - Lease receipt caching (route layer)                                     │
  * │ - Replay detection (route layer)                                        │
  * └─────────────────────────────────────────────────────────────────────────┘
  *
@@ -162,14 +162,6 @@ export function validateInstruction(rawInstruction: unknown): ValidationResult {
 }
 
 /**
- * Create a unique key for an instruction based on nodeId and index.
- * Used to track which instructions have been executed in a session.
- */
-export function createInstructionKey(instruction: HandlerInstruction): string {
-  return `${instruction.nodeId}:${instruction.index}`;
-}
-
-/**
  * Apply the API's per-step screenshot directive.
  *
  * The API decides intent (it knows the execution's artifact profile and the
@@ -242,94 +234,94 @@ export async function executeInstruction(
 
   // Setup telemetry collection
   const telemetryOrchestrator = new TelemetryOrchestrator(context.page, context.config);
-  telemetryOrchestrator.start();
-
-  // Per-instruction instrumentation hook (no-op by default).
-  await safeInvoke(instr.onInstructionStart?.bind(instr), instrCtx);
-
-  // Execute the instruction
-  let handlerResult: HandlerResult;
-  let instructionDuration: number;
-
   try {
+    await telemetryOrchestrator.start();
+    await safeInvoke(instr.onInstructionStart?.bind(instr), instrCtx);
+
     const instructionStart = Date.now();
-    // Context is now unified - pass directly to handler
-    handlerResult = await handler.execute(instruction, context);
-    instructionDuration = Date.now() - instructionStart;
-  } catch (error) {
-    await safeInvoke(instr.onInstructionEnd?.bind(instr), instrCtx, {
-      success: false,
-      durationMs: Date.now() - startedAt.getTime(),
-      error,
+    let handlerResult: HandlerResult;
+    let handlerError: unknown;
+    try {
+      handlerResult = await handler.execute(instruction, context);
+    } catch (error) {
+      // A thrown handler may already have changed the browser. Preserve that
+      // uncertainty while collecting the same diagnostics as a declared failure.
+      handlerError = error;
+      handlerResult = { success: false, error: {
+        code: 'INSTRUCTION_OUTCOME_UNCERTAIN', kind: 'infra', retryable: false,
+        message: `Instruction may have taken effect: ${error instanceof Error ? error.message : String(error)}`,
+      } };
+    }
+    const instructionDuration = Date.now() - instructionStart;
+    const telemetry = await telemetryOrchestrator.collectForStep(handlerResult, {
+      skipScreenshot: !shouldCaptureStepScreenshot(instruction.telemetry?.screenshot, handlerResult.success),
     });
-    // Ensure telemetry is disposed on error
-    telemetryOrchestrator.dispose();
-    throw error;
+    if (telemetry.captureErrors?.length && handlerResult.success) {
+      handlerResult = { ...handlerResult, success: false, error: {
+        code: 'INSTRUCTION_EVIDENCE_FAILED', kind: 'infra', retryable: false,
+        message: `Instruction completed but evidence collection failed: ${telemetry.captureErrors.join('; ')}`,
+      } };
+    }
+    await safeInvoke(instr.onInstructionEnd?.bind(instr), instrCtx, {
+      success: handlerResult.success, durationMs: instructionDuration,
+      error: handlerError ?? handlerResult.error,
+    });
+    // Metrics are observers; their failure must not discard completed evidence.
+    await safeInvoke(recordMetrics, context.metrics, getActionType(instruction), handlerResult, instructionDuration);
+
+    // Build outcome
+    const completedAt = new Date();
+    const outcome = buildStepOutcome({
+      instruction,
+      result: handlerResult,
+      startedAt,
+      completedAt,
+      finalUrl: context.page.url(),
+      screenshot: telemetry.screenshot,
+      domSnapshot: telemetry.domSnapshot,
+      consoleLogs: telemetry.consoleLogs,
+      networkEvents: telemetry.networkEvents,
+    });
+
+    if (telemetry.captureErrors?.length) {
+      outcome.notes.telemetry_errors = JSON.stringify(telemetry.captureErrors);
+    }
+
+    logger.info(scopedLog(LogContext.INSTRUCTION, handlerResult.success ? 'completed' : 'failed'), {
+      sessionId: context.sessionId,
+      type: getActionType(instruction),
+      stepIndex: instruction.index,
+      success: handlerResult.success,
+      durationMs: outcome.durationMs,
+      finalUrl: context.page.url(),
+      ...(handlerResult.error && {
+        errorCode: handlerResult.error.code,
+        errorKind: handlerResult.error.kind,
+        errorMessage: handlerResult.error.message,
+      }),
+    });
+
+    // Convert to wire format
+    // Pass raw extracted_data to avoid proto JsonValue wrapper issues with Go API
+    const driverOutcome = toDriverOutcome(
+      outcome,
+      telemetry.screenshot,
+      telemetry.domSnapshot,
+      handlerResult.extracted_data
+    );
+
+    return {
+      success: handlerResult.success,
+      outcome,
+      driverOutcome,
+      telemetry,
+      handlerResult,
+      durationMs: instructionDuration,
+      instruction,
+    };
+  } finally {
+    await telemetryOrchestrator.dispose();
   }
-
-  await safeInvoke(instr.onInstructionEnd?.bind(instr), instrCtx, {
-    success: handlerResult.success,
-    durationMs: instructionDuration,
-  });
-
-  // Record metrics
-  recordMetrics(context.metrics, getActionType(instruction), handlerResult, instructionDuration);
-
-  // Collect telemetry
-  const telemetry = await telemetryOrchestrator.collectForStep(handlerResult, {
-    skipScreenshot: !shouldCaptureStepScreenshot(
-      instruction.telemetry?.screenshot,
-      handlerResult.success
-    ),
-  });
-  telemetryOrchestrator.dispose();
-
-  // Build outcome
-  const completedAt = new Date();
-  const outcome = buildStepOutcome({
-    instruction,
-    result: handlerResult,
-    startedAt,
-    completedAt,
-    finalUrl: context.page.url(),
-    screenshot: telemetry.screenshot,
-    domSnapshot: telemetry.domSnapshot,
-    consoleLogs: telemetry.consoleLogs,
-    networkEvents: telemetry.networkEvents,
-  });
-
-  logger.info(scopedLog(LogContext.INSTRUCTION, handlerResult.success ? 'completed' : 'failed'), {
-    sessionId: context.sessionId,
-    type: getActionType(instruction),
-    stepIndex: instruction.index,
-    success: handlerResult.success,
-    durationMs: outcome.durationMs,
-    finalUrl: context.page.url(),
-    ...(handlerResult.error && {
-      errorCode: handlerResult.error.code,
-      errorKind: handlerResult.error.kind,
-      errorMessage: handlerResult.error.message,
-    }),
-  });
-
-  // Convert to wire format
-  // Pass raw extracted_data to avoid proto JsonValue wrapper issues with Go API
-  const driverOutcome = toDriverOutcome(
-    outcome,
-    telemetry.screenshot,
-    telemetry.domSnapshot,
-    handlerResult.extracted_data
-  );
-
-  return {
-    success: handlerResult.success,
-    outcome,
-    driverOutcome,
-    telemetry,
-    handlerResult,
-    durationMs: instructionDuration,
-    instruction,
-  };
 }
 
 // =============================================================================

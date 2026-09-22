@@ -2,7 +2,25 @@ package livecapture
 
 import (
 	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
 	"testing"
+
+	autosession "github.com/vrooli/browser-automation-studio/automation/session"
+	"github.com/vrooli/browser-automation-studio/services/recording"
+	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+	"github.com/vrooli/browser-automation-studio/automation/compiler"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
@@ -150,3 +168,180 @@ func TestService_Sessions_ReturnsNilWhenNotInitialized(t *testing.T) {
 
 // Note: GetSession requires a valid sessions manager and will panic if nil.
 // Testing with nil sessions is not meaningful since callers should check Sessions() first.
+
+// Recorded payloads must survive the complete service-to-typed-candidate boundary.
+func TestGenerateWorkflowPreservesRecordedSemantics(t *testing.T) {
+	tests := []struct {
+		name, kind string
+		payload    map[string]any
+		check      func(*testing.T, *basactions.ActionDefinition)
+	}{
+		{"control double click", "click", map[string]any{"button": "right", "clickCount": 2, "modifiers": []string{"ctrl", "shift"}, "delay": 25}, func(t *testing.T, a *basactions.ActionDefinition) {
+			p := a.GetClick()
+			require.NotNil(t, p)
+			require.Equal(t, int32(2), p.GetClickCount())
+			require.Equal(t, int32(25), p.GetDelayMs())
+			require.Equal(t, basactions.MouseButton_MOUSE_BUTTON_RIGHT, p.GetButton())
+			require.Equal(t, []basactions.KeyboardModifier{basactions.KeyboardModifier_KEYBOARD_MODIFIER_CTRL, basactions.KeyboardModifier_KEYBOARD_MODIFIER_SHIFT}, p.Modifiers)
+		}},
+		{"keyboard modifiers", "keyboard", map[string]any{"key": "a", "modifiers": []any{"ctrl"}}, func(t *testing.T, a *basactions.ActionDefinition) {
+			require.Equal(t, []basactions.KeyboardModifier{basactions.KeyboardModifier_KEYBOARD_MODIFIER_CTRL}, a.GetKeyboard().Modifiers)
+		}},
+		{"both scroll axes", "scroll", map[string]any{"scrollX": 200.0, "scrollY": 400.0, "deltaX": 50.0, "deltaY": 90.0}, func(t *testing.T, a *basactions.ActionDefinition) {
+			p := a.GetScroll()
+			require.Equal(t, int32(200), p.GetX())
+			require.Equal(t, int32(400), p.GetY())
+			require.Nil(t, p.DeltaX)
+			require.Nil(t, p.DeltaY)
+		}},
+		{"focus stays focus", "focus", nil, func(t *testing.T, a *basactions.ActionDefinition) {
+			require.NotNil(t, a.GetFocus())
+			require.Equal(t, "#fixture", a.GetFocus().Selector)
+		}},
+		{"blur stays blur", "blur", nil, func(t *testing.T, a *basactions.ActionDefinition) {
+			require.NotNil(t, a.GetBlur())
+			require.Equal(t, "#fixture", a.GetBlur().GetSelector())
+		}},
+		{"drag complete", "dragDrop", map[string]any{"targetSelector": "#target"}, func(t *testing.T, a *basactions.ActionDefinition) {
+			require.NotNil(t, a.GetDragDrop())
+			require.Equal(t, "#fixture", a.GetDragDrop().SourceSelector)
+			require.Equal(t, "#target", a.GetDragDrop().GetTargetSelector())
+		}},
+		{"browser drop", "drag-drop", map[string]any{"phase": "drop", "sourceSelector": "#source", "targetSelector": "#target"}, func(t *testing.T, a *basactions.ActionDefinition) {
+			require.NotNil(t, a.GetDragDrop())
+			require.Equal(t, "#source", a.GetDragDrop().SourceSelector)
+			require.Equal(t, "#target", a.GetDragDrop().GetTargetSelector())
+		}},
+		{"empty input replaces", "type", map[string]any{"text": "", "submit": true}, func(t *testing.T, a *basactions.ActionDefinition) {
+			require.NotNil(t, a.GetInput())
+			require.Equal(t, "", a.GetInput().Value)
+			require.True(t, a.GetInput().GetClearFirst())
+			require.True(t, a.GetInput().GetSubmit())
+		}},
+		{"select empty option", "select", map[string]any{"value": ""}, func(t *testing.T, a *basactions.ActionDefinition) {
+			require.IsType(t, &basactions.SelectParams_Value{}, a.GetSelectOption().SelectBy)
+			require.Equal(t, "", a.GetSelectOption().GetValue())
+		}},
+		{"hover", "hover", map[string]any{"timeoutMs": 2500}, func(t *testing.T, a *basactions.ActionDefinition) {
+			require.Equal(t, "#fixture", a.GetHover().Selector)
+			require.Equal(t, int32(2500), a.GetHover().GetTimeoutMs())
+		}},
+		{"selector wait", "wait", map[string]any{"timeoutMs": 3500}, func(t *testing.T, a *basactions.ActionDefinition) {
+			require.Equal(t, "#fixture", a.GetWait().GetSelector())
+			require.Equal(t, int32(3500), a.GetWait().GetTimeoutMs())
+		}},
+		{"screenshot options", "screenshot", map[string]any{"fullPage": true, "quality": 90}, func(t *testing.T, a *basactions.ActionDefinition) {
+			require.True(t, a.GetScreenshot().GetFullPage())
+			require.Equal(t, int32(90), a.GetScreenshot().GetQuality())
+		}},
+		{"assertion", "assert", map[string]any{"mode": "text_equals", "expected": "expected"}, func(t *testing.T, a *basactions.ActionDefinition) {
+			require.Equal(t, basbase.AssertionMode_ASSERTION_MODE_TEXT_EQUALS, a.GetAssert().Mode)
+			require.NotNil(t, a.GetAssert().Expected)
+		}},
+	}
+	svc := &Service{generator: NewWorkflowGenerator()}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := svc.GenerateWorkflow(context.Background(), "fixture", &GenerateWorkflowConfig{Actions: []driver.RecordedAction{{ActionType: tt.kind, Selector: &driver.SelectorSet{Primary: "#fixture"}, Payload: tt.payload}}})
+			require.NoError(t, err)
+			flow := result.FlowDefinition
+			require.Len(t, flow.Nodes, 1)
+			bytes, err := protojson.Marshal(flow)
+			require.NoError(t, err)
+			restored := &basworkflows.WorkflowDefinitionV2{}
+			require.NoError(t, protojson.Unmarshal(bytes, restored))
+			require.True(t, proto.Equal(flow, restored))
+			tt.check(t, flow.Nodes[0].Action)
+			_, instructions, err := compiler.CompileWorkflowToContracts(context.Background(), uuid.New(), &basapi.WorkflowSummary{Id: uuid.NewString(), FlowDefinition: flow})
+			require.NoError(t, err)
+			require.Len(t, instructions, 1)
+			require.True(t, proto.Equal(flow.Nodes[0].Action, instructions[0].Action))
+			tt.check(t, instructions[0].Action)
+		})
+	}
+}
+
+func TestGenerateWorkflowRejectsUnrepresentableRecording(t *testing.T) {
+	svc := &Service{generator: NewWorkflowGenerator()}
+	cases := map[string][]driver.RecordedAction{
+		"missing input snapshot": {{ActionType: "type", Selector: &driver.SelectorSet{Primary: "#fixture"}}},
+		"ambiguous page":         {{ActionType: "click", PageID: "first", Selector: &driver.SelectorSet{Primary: "#one"}}, {ActionType: "click", Selector: &driver.SelectorSet{Primary: "#two"}}},
+		"unknown action":         {{ActionType: "not-a-recorded-action", Selector: &driver.SelectorSet{Primary: "#fixture"}}},
+		"frame":                  {{ActionType: "click", FrameID: "child", Selector: &driver.SelectorSet{Primary: "#fixture"}}},
+		"multiple pages":         {{ActionType: "click", PageID: "first", Selector: &driver.SelectorSet{Primary: "#one"}}, {ActionType: "click", PageID: "second", Selector: &driver.SelectorSet{Primary: "#two"}}},
+		"unfinished drag":        {{ActionType: "drag-drop", Payload: map[string]any{"phase": "start"}, Selector: &driver.SelectorSet{Primary: "#source"}}},
+	}
+	for name, actions := range cases {
+		t.Run(name, func(t *testing.T) {
+			result, err := svc.GenerateWorkflow(context.Background(), "fixture", &GenerateWorkflowConfig{Actions: actions})
+			require.Error(t, err)
+			require.Nil(t, result)
+		})
+	}
+}
+
+func TestGenerateWorkflowJoinsDragPhases(t *testing.T) {
+	svc := &Service{generator: NewWorkflowGenerator()}
+	actions := []driver.RecordedAction{
+		{ActionType: "drag-drop", Selector: &driver.SelectorSet{Primary: "#source"}, Payload: map[string]any{"phase": "start"}},
+		{ActionType: "drag-drop", Selector: &driver.SelectorSet{Primary: "#target"}, Payload: map[string]any{"phase": "drop", "sourceSelector": "#source", "targetSelector": "#target"}},
+	}
+	result, err := svc.GenerateWorkflow(context.Background(), "fixture", &GenerateWorkflowConfig{Actions: actions})
+	require.NoError(t, err)
+	require.Len(t, result.FlowDefinition.Nodes, 1)
+	require.Equal(t, "#source", result.FlowDefinition.Nodes[0].Action.GetDragDrop().SourceSelector)
+	require.Equal(t, "#target", result.FlowDefinition.Nodes[0].Action.GetDragDrop().GetTargetSelector())
+	require.Equal(t, "drag-drop", actions[1].ActionType)
+}
+
+func TestGenerateWorkflowNavigationAndDurationWait(t *testing.T) {
+	flow, err := NewWorkflowGenerator().GenerateWorkflow([]driver.RecordedAction{
+		{ActionType: "navigate", URL: "https://fixture.invalid", Payload: map[string]any{"waitForSelector": "#ready", "timeoutMs": 4000}},
+		{ActionType: "wait", Payload: map[string]any{"timeoutMs": 75}},
+	})
+	require.NoError(t, err)
+	require.Len(t, flow.Nodes, 2)
+	p := flow.Nodes[0].Action.GetNavigate()
+	require.Equal(t, "https://fixture.invalid", p.Url)
+	require.Equal(t, "#ready", p.GetWaitForSelector())
+	require.Equal(t, int32(4000), p.GetTimeoutMs())
+	require.Equal(t, int32(75), flow.Nodes[1].Action.GetWait().GetDurationMs())
+}
+
+func TestCreateSessionJournalFailureReleasesBrowser(t *testing.T) {
+	for _, response := range []string{`{"success":true}`, `{}`, `{"success":false}`} {
+		t.Run(response, func(t *testing.T) {
+			var closed atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch r.URL.Path {
+				case "/session/start":
+					_, _ = w.Write([]byte(`{"session_id":"failed-journal","lease_id":"lease"}`))
+				case "/session/failed-journal/close":
+					closed.Add(1)
+					_, _ = w.Write([]byte(response))
+				default:
+					t.Errorf("unexpected driver request: %s", r.URL.Path)
+					w.WriteHeader(404)
+				}
+			}))
+			defer server.Close()
+			t.Setenv(driver.PlaywrightDriverEnv, server.URL)
+			manager, err := autosession.NewManager()
+			require.NoError(t, err)
+			repo := persistence.NewMockRepository()
+			repo.CreateSessionErr = errors.New("journal storage unavailable")
+			svc := &Service{sessions: manager, log: logrus.New(), unifiedRecordingSvc: recording.NewService(repo, recording.ServiceConfig{})}
+			result, err := svc.CreateSession(context.Background(), &SessionConfig{})
+			require.ErrorContains(t, err, "journal storage unavailable")
+			require.Nil(t, result)
+			require.Equal(t, int32(1), closed.Load())
+			if response == `{"success":true}` {
+				require.Zero(t, manager.ActiveCount())
+			} else {
+				require.Equal(t, 1, manager.ActiveCount(), "unacknowledged cleanup must retain recovery ownership")
+				require.Contains(t, err.Error(), "acknowledge")
+			}
+		})
+	}
+}

@@ -1,0 +1,213 @@
+{
+  "cycle": "BAS-WORK-025",
+  "date": "2026-09-22",
+  "issues": [
+    "BAS-RF-049",
+    "BAS-RF-023"
+  ],
+  "journeys": [
+    "J24",
+    "J07"
+  ],
+  "changes": [
+    "Shared strict raw-value conversion preserves structs/pointers, JSON field names, exact signed integers, null/empty distinction and map keys",
+    "Invalid whole payload rejected before writer accumulators change; normal subsequent write succeeds",
+    "Writer private converter removed; two unused reverse-dependency adapters and a forwarding wrapper deleted",
+    "Manifest strips artifact payloads from a locked proto snapshot before serializing; full source timeline remains unchanged"
+  ],
+  "evidence": {
+    "red": "/tmp/bas-structured-red-025.txt;/tmp/bas-structured-nil-red-025.txt",
+    "focused": "30 new cases across real disk projection/shared converter/manifest preservation; /tmp/bas-structured-final-green-025.txt",
+    "races": "writer3.710/executor3.760/workflow1.065s;others cached earlier typeconv1.024/protoconv1.044/compiler1.047/telemetry1.017",
+    "all_api": "/tmp/bas-api-all-025.txt go test ./... pass",
+    "build": "/tmp/bas-build-025.txt pass",
+    "contract": "pass",
+    "board": "prog_3e865214-cf16-41fe-aa27-cf7f3b4d0024;17pending/productfalse",
+    "owner": "20260922-104555-6dcd0052 tidinessfailed4s; quietwait completed once"
+  },
+  "local_metrics": {
+    "paths": [
+      "api/automation/execution-writer/file_writer.go",
+      "api/automation/execution-writer/result_manifest.go",
+      "api/internal/typeconv/primitives.go",
+      "api/internal/typeconv/timeline.go"
+    ],
+    "before": {
+      "lines": 2260,
+      "functions": 62,
+      "cyclomatic": 515
+    },
+    "current": {
+      "lines": 2220,
+      "functions": 60,
+      "cyclomatic": 502
+    }
+  },
+  "cumulative_go": {
+    "paths": [
+      "api/automation/compiler/action_definition_builder.go",
+      "api/automation/driver/client.go",
+      "api/automation/events/sink.go",
+      "api/automation/events/ws_sink.go",
+      "api/automation/execution-writer/artifact_config.go",
+      "api/automation/execution-writer/external_artifacts.go",
+      "api/automation/execution-writer/file_writer.go",
+      "api/automation/execution-writer/interface.go",
+      "api/automation/execution-writer/result_manifest.go",
+      "api/automation/executor/flow_executor.go",
+      "api/automation/executor/flow_utils.go",
+      "api/automation/executor/simple_executor.go",
+      "api/automation/session/session.go",
+      "api/handlers/execution_export.go",
+      "api/handlers/handler.go",
+      "api/handlers/record_mode.go",
+      "api/handlers/record_mode_actions.go",
+      "api/handlers/record_mode_pages.go",
+      "api/handlers/record_mode_persistence.go",
+      "api/handlers/recordings/module.go",
+      "api/handlers/recordings/service.go",
+      "api/handlers/testutil_mock_services.go",
+      "api/internal/typeconv/builders.go",
+      "api/internal/typeconv/primitives.go",
+      "api/internal/typeconv/timeline.go",
+      "api/internal/wire/wire.go",
+      "api/main.go",
+      "api/performance/collector.go",
+      "api/performance/types.go",
+      "api/services/archive-ingestion/persistence.go",
+      "api/services/export/source/video_source.go",
+      "api/services/live-capture/action_registry.go",
+      "api/services/live-capture/service.go",
+      "api/services/live-capture/workflow_generator.go",
+      "api/services/recording/persistence/mock_repository.go",
+      "api/services/recording/persistence/repository.go",
+      "api/services/recording/persistence/sqlite.go",
+      "api/services/recording/persistence/types.go",
+      "api/services/recording/recorder.go",
+      "api/services/recording/service.go",
+      "api/services/session-profile/persistence/credentials.go",
+      "api/services/session-profile/persistence/file_repository.go",
+      "api/services/session-profile/persistence/filesystem.go",
+      "api/services/session-profile/persistence/filesystem_mock.go",
+      "api/services/session-profile/persistence/mock_repository.go",
+      "api/services/session-profile/persistence/protected_state.go",
+      "api/services/session-profile/persistence/repository.go",
+      "api/services/session-profile/service.go",
+      "api/services/uxmetrics/collector/collector.go",
+      "api/services/workflow/executions.go",
+      "api/services/workflow/executions_list.go"
+    ],
+    "original": {
+      "lines": 23196,
+      "functions": 806,
+      "cyclomatic": 3911
+    },
+    "current": {
+      "lines": 21431,
+      "functions": 786,
+      "cyclomatic": 3737
+    },
+    "current_files": 50
+  },
+  "shared_owner_009_cyclomatic_delta": 17,
+  "tidiness": {
+    "totalFindings": 1080,
+    "longFiles": 80,
+    "complexity": 379,
+    "duplication": 606,
+    "coupling": 14,
+    "duplicationLineDebt": 33642
+  },
+  "performance": {
+    "manifest_fixture": "10 entries with identical roughly557KB DOM strings per artifact; same output and untouched full timeline;3x10iterations",
+    "manifest_before_ns": [
+      24474373,
+      25005647,
+      25231498
+    ],
+    "manifest_after_ns": [
+      28824,
+      25343,
+      36929
+    ],
+    "manifest_before_bytes": [
+      33469207,
+      33469190,
+      33469119
+    ],
+    "manifest_after_bytes": [
+      19304,
+      19304,
+      19304
+    ],
+    "whole_write_fixture": "real writer+disk; typed assertion/extraction fixture;3x20iterations",
+    "initial_before_ns": [
+      31843512,
+      39932498,
+      45788457
+    ],
+    "initial_after_ns": [
+      61048622,
+      61121792,
+      59988236
+    ],
+    "initial_note": "Focused races overlapped initial cohort; preserve observations but no latency causality claim",
+    "final_before_ns": [
+      20185889,
+      20566740,
+      21425881
+    ],
+    "final_after_ns": [
+      20704380,
+      21647969,
+      20697653
+    ],
+    "final_before_bytes": [
+      92118,
+      93166,
+      93198
+    ],
+    "final_after_bytes": [
+      321846,
+      323220,
+      323496
+    ],
+    "interpretation": "Isolated manifest computation materially cheaper; whole-write time within noise in final repeats. Structured fidelity still adds roughly230KB/op versus broken debug-string baseline. No browserjourney speed claim.",
+    "hybrid_control": "/tmp/bas-structured-bench-repeat-before-025.txt used old converter with new manifest; excluded from original comparison. Correct full original repeat retained."
+  },
+  "source_inventory_digest": "7d5b6d4bb96e99c3b0f26c48b0f5dae0417d2d82b5967804f79e0549a4e6048f",
+  "deployed": true,
+  "limitations": [
+    "Historical debug strings cannot be reconstructed; original files retained; full read/replay historical policy still open",
+    "AnyToJsonValue existing convenience adapter retains serialized-envelope interpretation; strict persistence uses EncodeJsonValue",
+    "Raw integers outside signed64 range explicitly rejected because current JsonValue schema has no lossless unsigned representation",
+    "Whole evidence projection adds allocation cost; active-execution memory/soak unqualified",
+    "No atomic transaction across files/store/index",
+    "Full unit020 is reused driver/UI proof, not current qualification;UIcoverage/tidinessfailed;dirtytree applicabilitylimits"
+  ],
+  "deployment": {
+    "build": "sha256:10a20446d1a26b20842b967c0ed11451ee8e01815e11ca066dcfafc87dd38f2f",
+    "healthy_at": "2026-09-22T10:50:33Z",
+    "gate_rows": 3125,
+    "unchanged_historical_orphans": 5,
+    "driver_sessions": 0,
+    "profile": "oneoriginal;alloriginalfields/identitypreserved",
+    "limitation": "observationalgate;sharedtree"
+  },
+  "memory_followup_025": {
+    "cohort16_bytes_per_execution": [
+      44152,
+      128870,
+      44408
+    ],
+    "cohort64_bytes_per_execution": [
+      11182,
+      32261,
+      32138
+    ],
+    "interpretation": "Total ordinary-GC delta about0.7\u20132.1MB at both16and64, supports bounded serializer retention. In-use profile at measurement attributes most residue to bytes.growSlice and encoding/json.unquote. Diagnostic additionalGC with writer kept alive removes those sites and leaves60.38B/execution delta. No forcedGC added to production; original024numbers are not deployed025measurements.",
+    "live_profile": "/tmp/bas-writer-live-heap-025.pprof; /tmp/bas-writer-live-heap-top-025.txt",
+    "settled_diagnostic": "/tmp/bas-writer-settled-heap-025.txt; /tmp/bas-writer-settled-heap-top-025.txt",
+    "limits": "No live production soak or attribution of the original~10GiB observed heap"
+  }
+}

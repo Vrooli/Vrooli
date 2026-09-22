@@ -3,6 +3,7 @@ package events
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -16,6 +17,8 @@ import (
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/encoding/protojson"
 )
+
+var ErrExecutionClosed = errors.New("execution event sink is closed")
 
 // WSHubSink bridges contract event envelopes to the websocket hub while
 // preserving per-execution ordering and drop policy.
@@ -50,15 +53,10 @@ func (s *WSHubSink) Publish(_ context.Context, event contracts.EventEnvelope) er
 	if s == nil || s.hub == nil {
 		return nil
 	}
-	if s.isClosed(event.ExecutionID) {
-		return nil
-	}
-
 	queue := s.ensureQueue(event.ExecutionID)
-	if queue == nil {
-		return nil
+	if queue == nil || !queue.enqueue(event) {
+		return ErrExecutionClosed
 	}
-	queue.enqueue(event)
 	return nil
 }
 
@@ -68,13 +66,12 @@ func (s *WSHubSink) Limits() contracts.EventBufferLimits {
 }
 
 func (s *WSHubSink) ensureQueue(executionID uuid.UUID) *executionQueue {
-	if s.isClosed(executionID) {
-		return nil
-	}
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if _, closed := s.closed[executionID]; closed {
+		return nil
+	}
 	if queue, ok := s.queues[executionID]; ok {
 		return queue
 	}
@@ -85,13 +82,17 @@ func (s *WSHubSink) ensureQueue(executionID uuid.UUID) *executionQueue {
 	return queue
 }
 
-// CloseExecution drains and closes the per-execution queue to avoid goroutine
-// leaks after a run finishes.
+// CloseExecution stops admission and lets the worker drain accepted events.
+// The worker notifies the hub after delivery and then releases its resources.
 func (s *WSHubSink) CloseExecution(executionID uuid.UUID) {
 	if s == nil {
 		return
 	}
 	s.mu.Lock()
+	if _, closed := s.closed[executionID]; closed {
+		s.mu.Unlock()
+		return
+	}
 	queue, ok := s.queues[executionID]
 	if ok {
 		delete(s.queues, executionID)
@@ -100,8 +101,7 @@ func (s *WSHubSink) CloseExecution(executionID uuid.UUID) {
 	s.mu.Unlock()
 	if ok && queue != nil {
 		queue.close()
-	}
-	if s.hub != nil {
+	} else if s.hub != nil {
 		s.hub.CloseExecution(executionID)
 	}
 }
@@ -133,11 +133,11 @@ func newExecutionQueue(executionID uuid.UUID, hub wsHub.HubInterface, limits con
 	return q
 }
 
-func (q *executionQueue) enqueue(event contracts.EventEnvelope) {
+func (q *executionQueue) enqueue(event contracts.EventEnvelope) bool {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if q.closed {
-		return
+		return false
 	}
 
 	// Drop oldest droppable events when execution or attempt buffers are full.
@@ -167,9 +167,11 @@ func (q *executionQueue) enqueue(event contracts.EventEnvelope) {
 
 	q.events = append(q.events, event)
 	q.cond.Signal()
+	return true
 }
 
 func (q *executionQueue) run() {
+	defer q.hub.CloseExecution(q.executionID)
 	for {
 		q.mu.Lock()
 		for len(q.events) == 0 && !q.closed {
@@ -248,16 +250,8 @@ func attemptKey(stepIndex, attempt int) string {
 func (q *executionQueue) close() {
 	q.mu.Lock()
 	q.closed = true
-	q.events = nil
 	q.cond.Broadcast()
 	q.mu.Unlock()
-}
-
-func (s *WSHubSink) isClosed(executionID uuid.UUID) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	_, ok := s.closed[executionID]
-	return ok
 }
 
 func eventToProtoMap(ev contracts.EventEnvelope) (map[string]any, bool) {

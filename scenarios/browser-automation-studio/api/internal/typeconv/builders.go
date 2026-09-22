@@ -128,12 +128,8 @@ func BuildClickParams(data map[string]any) *basactions.ClickParams {
 	if dm, ok := ToInt32(data["delayMs"]); ok {
 		p.DelayMs = &dm
 	}
-	if mods, ok := data["modifiers"].([]any); ok {
-		for _, m := range mods {
-			if s, ok := m.(string); ok {
-				p.Modifiers = append(p.Modifiers, enums.StringToKeyboardModifier(s))
-			}
-		}
+	for _, modifier := range ToStringSlice(data["modifiers"]) {
+		p.Modifiers = append(p.Modifiers, enums.StringToKeyboardModifier(modifier))
 	}
 	if force, ok := data["force"].(bool); ok {
 		p.Force = &force
@@ -271,6 +267,21 @@ func BuildScrollParams(data map[string]any) *basactions.ScrollParams {
 	return p
 }
 
+// BuildDragDropParams converts the canonical drag parameter vocabulary.
+func BuildDragDropParams(data map[string]any) *basactions.DragDropParams {
+	p := &basactions.DragDropParams{}
+	p.SourceSelector, _ = data["sourceSelector"].(string)
+	if target, ok := data["targetSelector"].(string); ok {
+		p.TargetSelector = &target
+	}
+	for key, target := range map[string]**int32{"offsetX": &p.OffsetX, "offsetY": &p.OffsetY, "targetOffsetX": &p.TargetOffsetX, "targetOffsetY": &p.TargetOffsetY, "steps": &p.Steps, "delayMs": &p.DelayMs, "timeoutMs": &p.TimeoutMs} {
+		if value, ok := ToInt32(data[key]); ok {
+			*target = &value
+		}
+	}
+	return p
+}
+
 // BuildSelectParams converts a data map to SelectParams proto.
 func BuildSelectParams(data map[string]any) *basactions.SelectParams {
 	p := &basactions.SelectParams{}
@@ -315,12 +326,8 @@ func BuildKeyboardParams(data map[string]any) *basactions.KeyboardParams {
 			}
 		}
 	}
-	if mods, ok := data["modifiers"].([]any); ok {
-		for _, m := range mods {
-			if s, ok := m.(string); ok {
-				p.Modifiers = append(p.Modifiers, enums.StringToKeyboardModifier(s))
-			}
-		}
+	for _, modifier := range ToStringSlice(data["modifiers"]) {
+		p.Modifiers = append(p.Modifiers, enums.StringToKeyboardModifier(modifier))
 	}
 	if action, ok := data["action"].(string); ok {
 		act := StringToKeyAction(action)

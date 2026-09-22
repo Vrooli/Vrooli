@@ -1,0 +1,305 @@
+{
+  "cycle": "032",
+  "issue": "BAS-RF-054",
+  "status": "repaired_validated_deployed",
+  "recorded_at": "2026-09-22T13:31:55.045968+00:00",
+  "behavior": "One repository query composes status, project and workflow filters before pagination; count/page share a routed read transaction; ID breaks equal timestamp ties; public defaults50 and limits1\u2013100; UI preserves complete/large caller reads via bounded pages.",
+  "removed": [
+    "ListExecutionsByStatus",
+    "ListExecutionsByStatusOldest",
+    "oldestExecutionStore",
+    "filterExecutionIDs",
+    "retention duplicate workflow/project in-memory status filtering"
+  ],
+  "validation": {
+    "red_sqlite_http": "/tmp/bas-execution-query-red-032.txt",
+    "red_ui": "4/6 failed before repair: /tmp/bas-execution-ui-red-032.txt",
+    "focused_ui": "8/8 passed including controller, types pass",
+    "races": {
+      "database_seconds": 12.75,
+      "public_handler_seconds": 6.961,
+      "retention_seconds": 1.025,
+      "recovery_seconds": 1.024,
+      "workflow_seconds": 1.06,
+      "handlers_seconds": 1.339
+    },
+    "owner_run": "uh-20260922-132421-9872f5a2c01b750a51a0bcc58cff6cb1",
+    "scoped_owner_status": "failed",
+    "commands": [
+      {
+        "name": "go test",
+        "status": "passed",
+        "working_directory": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api",
+        "duration_ms": "39743"
+      },
+      {
+        "name": "go test",
+        "status": "passed",
+        "working_directory": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/cli",
+        "duration_ms": "2297"
+      },
+      {
+        "name": "typescript test",
+        "status": "failed",
+        "working_directory": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/ui",
+        "duration_ms": "55562"
+      },
+      {
+        "name": "typescript typecheck",
+        "status": "passed",
+        "working_directory": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/ui",
+        "duration_ms": "10626"
+      }
+    ],
+    "ui_failure": "Merged coverage28.59/30.34/65.15/28.59 vs85; floors unchanged. Shared135/135 pass; focused8/8 pass.",
+    "build": "/tmp/bas-build-032.txt passed",
+    "tidiness_run": "20260922-132426-85e2b06f",
+    "tidiness_status": "failed",
+    "tidiness_summary": {
+      "totalFindings": 1117,
+      "longFiles": 103,
+      "complexity": 389,
+      "duplication": 607,
+      "coupling": 17,
+      "duplicationLineDebt": 33524
+    },
+    "debt_delta_cycle": -92,
+    "debt_delta_expanded_original": -2079,
+    "board": "prog_94bdf9ed-0f67-45c8-8581-6e0b383f6b16:17pending/productfalse",
+    "contract": "preparation valid, no product verdict"
+  },
+  "metrics": {
+    "local_non_test_go_including_compiled_helpers": {
+      "scope": "Changed non-_test.go files, including existing compiled test helpers",
+      "paths": [
+        "scenarios/browser-automation-studio/api/owner_cleanup.go",
+        "scenarios/browser-automation-studio/api/database/repository.go",
+        "scenarios/browser-automation-studio/api/database/models.go",
+        "scenarios/browser-automation-studio/api/handlers/testutil_mock_services.go",
+        "scenarios/browser-automation-studio/api/handlers/testutil_mock_repository.go",
+        "scenarios/browser-automation-studio/api/handlers/executions/service.go",
+        "scenarios/browser-automation-studio/api/services/recovery/service.go",
+        "scenarios/browser-automation-studio/api/services/workflow/interfaces.go",
+        "scenarios/browser-automation-studio/api/services/workflow/executions_list.go",
+        "scenarios/browser-automation-studio/api/services/retention/retention.go",
+        "scenarios/browser-automation-studio/api/internal/testutil/mocks/workflow_services.go"
+      ],
+      "before": {
+        "files": 11,
+        "lines": 6482,
+        "functions": 359,
+        "cyclomatic": 1126
+      },
+      "after": {
+        "files": 11,
+        "lines": 6435,
+        "functions": 355,
+        "cyclomatic": 1126
+      }
+    },
+    "cumulative": {
+      "paths": [
+        "api/automation/compiler/action_definition_builder.go",
+        "api/automation/contracts/plan.go",
+        "api/automation/driver/claudecode/driver.go",
+        "api/automation/driver/client.go",
+        "api/automation/driver/interface.go",
+        "api/automation/driver/playwright/driver.go",
+        "api/automation/driver/types.go",
+        "api/automation/events/sink.go",
+        "api/automation/events/ws_sink.go",
+        "api/automation/execution-writer/artifact_config.go",
+        "api/automation/execution-writer/external_artifacts.go",
+        "api/automation/execution-writer/file_writer.go",
+        "api/automation/execution-writer/interface.go",
+        "api/automation/execution-writer/result_manifest.go",
+        "api/automation/executor/flow_executor.go",
+        "api/automation/executor/flow_utils.go",
+        "api/automation/executor/simple_executor.go",
+        "api/automation/session/manager.go",
+        "api/automation/session/session.go",
+        "api/database/models.go",
+        "api/database/repository.go",
+        "api/handlers/execution_export.go",
+        "api/handlers/executions/service.go",
+        "api/handlers/handler.go",
+        "api/handlers/record_mode.go",
+        "api/handlers/record_mode_actions.go",
+        "api/handlers/record_mode_pages.go",
+        "api/handlers/record_mode_persistence.go",
+        "api/handlers/recordings/module.go",
+        "api/handlers/recordings/service.go",
+        "api/handlers/testutil_mock_repository.go",
+        "api/handlers/testutil_mock_services.go",
+        "api/internal/testutil/mocks/workflow_services.go",
+        "api/internal/typeconv/builders.go",
+        "api/internal/typeconv/primitives.go",
+        "api/internal/typeconv/timeline.go",
+        "api/internal/wire/wire.go",
+        "api/main.go",
+        "api/owner_cleanup.go",
+        "api/performance/collector.go",
+        "api/performance/types.go",
+        "api/services/archive-ingestion/persistence.go",
+        "api/services/export/source/video_source.go",
+        "api/services/live-capture/action_registry.go",
+        "api/services/live-capture/service.go",
+        "api/services/live-capture/workflow_generator.go",
+        "api/services/recording/persistence/mock_repository.go",
+        "api/services/recording/persistence/repository.go",
+        "api/services/recording/persistence/sqlite.go",
+        "api/services/recording/persistence/types.go",
+        "api/services/recording/recorder.go",
+        "api/services/recording/service.go",
+        "api/services/recovery/service.go",
+        "api/services/retention/retention.go",
+        "api/services/session-profile/persistence/credentials.go",
+        "api/services/session-profile/persistence/file_repository.go",
+        "api/services/session-profile/persistence/filesystem.go",
+        "api/services/session-profile/persistence/filesystem_mock.go",
+        "api/services/session-profile/persistence/mock_repository.go",
+        "api/services/session-profile/persistence/protected_state.go",
+        "api/services/session-profile/persistence/repository.go",
+        "api/services/session-profile/service.go",
+        "api/services/uxmetrics/collector/collector.go",
+        "api/services/workflow/executions.go",
+        "api/services/workflow/executions_list.go",
+        "api/services/workflow/interfaces.go"
+      ],
+      "original": {
+        "files": 65,
+        "lines": 30110,
+        "functions": 1096,
+        "cyclomatic": 4952
+      },
+      "current": {
+        "files": 62,
+        "lines": 27433,
+        "functions": 1044,
+        "cyclomatic": 4706
+      },
+      "bas_delta": -246,
+      "shared_delta": -12,
+      "net_affected_delta": -258
+    },
+    "ui_adapter_line_delta": 25,
+    "interpretation": "Eleven non-_test.go files -47lines/-4functions/0cyclomatic. UI+25lines. Domain-only8Go files -40lines/-3functions/-7cyclomatic; helper changes offset those7. Cumulative affected Go remains-258. No claim of whole-codebase TypeScript complexity measurement."
+  },
+  "performance": {
+    "before": {
+      "fixture_rows": 5000,
+      "median_microseconds": [
+        181.39,
+        159.86,
+        188.881
+      ],
+      "page_rows": 50,
+      "samples_per_trial": 100,
+      "trials": 3,
+      "warmups": 10
+    },
+    "after": {
+      "fixture_rows": 5000,
+      "median_microseconds": [
+        252.411,
+        255.621,
+        253.381
+      ],
+      "page_rows": 50,
+      "samples_per_trial": 100,
+      "trials": 3,
+      "warmups": 10
+    },
+    "median_of_medians_microseconds": {
+      "before": 181.39,
+      "after": 253.381,
+      "delta": 71.99100000000001,
+      "relative_percent": 39.68851645625448
+    },
+    "cause": "The correct query adds a count statement, transaction ownership and deterministic secondary ordering. This is not equivalent functionality: the old response had no matching-total evidence.",
+    "scope": "Temporary SQLite5000rows/page50,3trials100samples10warmups; repeated after coverage execution ended; not end-to-end workflow latency or release qualification.",
+    "first_pair": "/tmp/bas-query-cost-{before,after}-032.json retained; before196.910us/after270.171us while broader validation active"
+  },
+  "deployment": {
+    "gate": "/tmp/bas-drain-gate-032.json",
+    "decision": "stop admitted and completed",
+    "gate_summary": "2833rows,2435completed/393failed/exact historical5RUNNING;0sessions/0recordings",
+    "start_log": "/tmp/bas-start-032.txt",
+    "status": "healthy",
+    "health": {
+      "status": "healthy",
+      "service": "browser-automation-studio-api",
+      "timestamp": "2026-09-22T13:32:32Z",
+      "readiness": true,
+      "version": "1.0.0",
+      "build_identity": "sha256:27b9cd6d7734e44874e92bb6e3213ffb3dc83873696d10f9433f34e642a7c13b",
+      "uptime_seconds": 86.476184348,
+      "dependencies": {
+        "automation_engine": {
+          "connected": true
+        },
+        "database": {
+          "connected": true,
+          "latency_ms": 0.041
+        },
+        "playwright_driver": {
+          "connected": true,
+          "latency_ms": 1.137
+        },
+        "storage": {
+          "connected": true,
+          "latency_ms": 0.241
+        }
+      },
+      "metrics": {
+        "goroutines": 32,
+        "heap_mb": 5.7549896240234375,
+        "uptime_seconds": 86.476184348
+      }
+    },
+    "live_query_checks": {
+      "EXECUTION_STATUS_PENDING": {
+        "total": 0,
+        "returned": 0,
+        "has_more": false,
+        "execution_ids": []
+      },
+      "EXECUTION_STATUS_RUNNING": {
+        "total": 5,
+        "returned": 5,
+        "has_more": false,
+        "execution_ids": [
+          "879c542b-d9cd-481b-82d2-6b6c7c11ebf1",
+          "d19bd80e-2624-4874-ab9f-eab0cda42286",
+          "b74ec692-da21-42f7-a86c-f33d436ecfbb",
+          "e0d33e05-297d-4867-aee0-783d59882fa8",
+          "206d68cf-a72c-4838-872b-f913a6a8def6"
+        ]
+      },
+      "page_one": {
+        "total": 2833,
+        "returned": 1,
+        "has_more": true
+      },
+      "past_end": {
+        "total": 2833,
+        "returned": 0,
+        "has_more": false
+      },
+      "default": {
+        "total": 2833,
+        "returned": 50,
+        "has_more": true
+      }
+    },
+    "profile_preservation": "API metadata equals031 and every original field preserved in three repository reads against untouched rollback",
+    "pending_operations": []
+  },
+  "limitations": [
+    "Offset pagination across requests has no shared snapshot under writes; UI detects duplicate/empty continuation rather than quietly returning a partial result.",
+    "UI merged-coverage gate and full native journey matrix remain open.",
+    "No engine alternatives or dependency changes introduced.",
+    "Unchanged driver owner029 result reused; no fresh driver rerun for Go/UI read-path changes."
+  ],
+  "next": "Verify served032 identity and read-only query/profile preservation, then investigate recording callback acknowledgement/delivery (RF002)."
+}

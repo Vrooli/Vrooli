@@ -37,3 +37,18 @@ CREATE INDEX IF NOT EXISTS idx_recording_actions_session ON recording_actions(se
 CREATE INDEX IF NOT EXISTS idx_recording_actions_page ON recording_actions(page_id);
 CREATE INDEX IF NOT EXISTS idx_recording_actions_type ON recording_actions(action_type);
 CREATE INDEX IF NOT EXISTS idx_recording_actions_timestamp ON recording_actions(timestamp);
+
+-- The immutable action/page-event journal is separate from workflow derivation.
+CREATE TABLE IF NOT EXISTS timeline_entries (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL,
+    timestamp TIMESTAMP NOT NULL,
+    session_id TEXT NOT NULL REFERENCES recording_sessions(id) ON DELETE CASCADE,
+    page_id TEXT NOT NULL,
+    sequence INTEGER NOT NULL,
+    action_json TEXT,
+    page_event_json TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_timeline_session_sequence ON timeline_entries(session_id, sequence);
+CREATE INDEX IF NOT EXISTS idx_timeline_session_page ON timeline_entries(session_id, page_id);

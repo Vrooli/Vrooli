@@ -35,7 +35,6 @@ import {
   findByExecutionId,
   findByLabels,
   shouldAttemptReuse,
-  makeReuseDecision,
   findIdleSessions,
 } from './session-decisions';
 import { setupDiagnosticLogging } from './diagnostic-logger';
@@ -86,7 +85,7 @@ import {
  *
  * CONCURRENCY SAFETY:
  * - closeSession may be called from multiple sources (idle cleanup, explicit close)
- * - Uses closingSessionIds Set to prevent double-close
+ * - Concurrent close callers share the same pending result
  * - Browser concurrency handled by BrowserManager
  */
 /** Result type for session creation */
@@ -116,8 +115,10 @@ export class SessionManager {
    */
   private instrumentation: Instrumentation;
 
+  private resettingSessions = new Map<string, Promise<void>>();
+
   /** Track sessions currently being closed to prevent double-close */
-  private closingSessionIds: Set<string> = new Set();
+  private closingSessions = new Map<string, { session: SessionState; result: Promise<SessionCloseResult> }>();
 
   /**
    * In-flight guard for session creation.
@@ -205,32 +206,15 @@ export class SessionManager {
     // Decision logic is in session-decisions.ts
     const existingByExecutionId = findByExecutionId(this.sessions.values(), spec.execution_id);
     if (existingByExecutionId) {
-      const decision = makeReuseDecision(existingByExecutionId, spec, 'execution_id_match');
-
       logger.info(scopedLog(LogContext.SESSION, 'idempotent return of existing session'), {
         sessionId: existingByExecutionId.id,
         executionId: spec.execution_id,
         phase: existingByExecutionId.phase,
-        decision: decision.reason,
       });
 
-      // Apply reuse decision
-      if (decision.shouldReset) {
-        await this.resetSession(existingByExecutionId.id);
-      }
-
+      // A repeated start observes the same lease. It cannot establish that a
+      // pending action was abandoned or authorize clearing browser state.
       existingByExecutionId.lastUsedAt = new Date();
-
-      // Phase recovery based on decision
-      if (decision.shouldRecoverPhase) {
-        logger.warn(scopedLog(LogContext.SESSION, 'recovering from stuck executing phase'), {
-          sessionId: existingByExecutionId.id,
-          executionId: spec.execution_id,
-          previousPhase: 'executing',
-          hint: decision.reason,
-        });
-        existingByExecutionId.phase = 'ready';
-      }
 
       metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
       const viewportSize = existingByExecutionId.page.viewportSize() ?? {
@@ -257,27 +241,14 @@ export class SessionManager {
     if (shouldAttemptReuse(spec.reuse_mode)) {
       const existingSession = findByLabels(this.sessions.values(), spec.labels);
       if (existingSession) {
-        const decision = makeReuseDecision(existingSession, spec, 'label_match');
-
-        // Log warning if session was stuck in executing phase
-        if (decision.shouldRecoverPhase) {
-          logger.warn(scopedLog(LogContext.SESSION, 'recovering stuck session via reuse'), {
-            sessionId: existingSession.id,
-            reuseMode: spec.reuse_mode,
-            previousPhase: existingSession.phase,
-            hint: decision.reason,
-          });
-        }
-
         logger.info(scopedLog(LogContext.SESSION, 'reusing existing'), {
           sessionId: existingSession.id,
           reuseMode: spec.reuse_mode,
           previousPhase: existingSession.phase,
           instructionCount: existingSession.instructionCount,
-          decision: decision.reason,
         });
 
-        if (decision.shouldReset) {
+        if (spec.reuse_mode === 'clean') {
           await this.resetSession(existingSession.id);
         }
 
@@ -287,7 +258,8 @@ export class SessionManager {
         existingSession.ownerExecutionId = spec.execution_id;
         existingSession.leaseId = uuidv4();
         existingSession.leaseReleasedAt = undefined;
-        existingSession.executedInstructions?.clear();
+        existingSession.instructionReceipts?.clear();
+        existingSession.lastInstructionSequence = 0;
         existingSession.instructionCount = 0;
         existingSession.spec = {
           ...existingSession.spec,
@@ -385,6 +357,7 @@ export class SessionManager {
       // Build context (includes actualViewport with source attribution)
       const {
         context,
+        storageOrigins,
         harPath,
         tracePath,
         videoDir,
@@ -441,19 +414,26 @@ export class SessionManager {
                 );
               }
             );
-            const initialPlayback = startPlayback();
-            await initialPlayback.ready;
-            audioPlaybackStop = initialPlayback.stop;
             audioPlaybackRestart = async () => {
               await audioPlaybackStop?.();
               const restartedPlayback = startPlayback();
               await restartedPlayback.ready;
               audioPlaybackStop = restartedPlayback.stop;
             };
-            logger.info('browser: host capture qualification playback started', {
-              path: fakeMicrophoneWav,
-              pauseMs: spec.audio_playback_pause_ms ?? 0,
-            });
+            if (spec.audio_playback_defer_start) {
+              logger.info('browser: host capture qualification playback deferred', {
+                path: fakeMicrophoneWav,
+                pauseMs: spec.audio_playback_pause_ms ?? 0,
+              });
+            } else {
+              const initialPlayback = startPlayback();
+              await initialPlayback.ready;
+              audioPlaybackStop = initialPlayback.stop;
+              logger.info('browser: host capture qualification playback started', {
+                path: fakeMicrophoneWav,
+                pauseMs: spec.audio_playback_pause_ms ?? 0,
+              });
+            }
           }
         } finally {
           await evidencePage.close().catch(() => undefined);
@@ -502,10 +482,15 @@ export class SessionManager {
         audioCapability,
         audioStrategy,
         audioDeviceEvidence,
-        audioPlaybackStop: audioPlaybackStop ? async () => { await audioPlaybackStop?.(); } : undefined,
+        // Deferred qualification playback has no handle until the first
+        // turn-boundary restart. Keep a closure in the session state so the
+        // later stop endpoint observes the current handle rather than the
+        // undefined construction-time value.
+        audioPlaybackStop: audioPlaybackRestart ? async () => { await audioPlaybackStop?.(); } : undefined,
         audioPlaybackRestart,
         audioPlaybackFailure: () => audioPlaybackFailure,
         context,
+        storageOrigins,
         page,
         spec,
         createdAt,
@@ -524,7 +509,8 @@ export class SessionManager {
         pageToIdMap: new WeakMap(),
         activeMocks: new Map(),
         // Idempotency: Track executed instructions for replay safety
-        executedInstructions: new Map(),
+        instructionReceipts: new Map(),
+        lastInstructionSequence: 0,
         // Service worker control
         serviceWorkerController,
         // Recording context initializer (binding + init script)
@@ -781,6 +767,7 @@ export class SessionManager {
         externalTarget: true,
         audioStrategy: 'host_device',
         context,
+        storageOrigins: new Set(),
         page,
         spec,
         createdAt,
@@ -795,7 +782,8 @@ export class SessionManager {
         pageIdMap: new Map(),
         pageToIdMap: new WeakMap(),
         activeMocks: new Map(),
-        executedInstructions: new Map(),
+        instructionReceipts: new Map(),
+        lastInstructionSequence: 0,
         serviceWorkerController,
         recordingInitializer,
         pipelineManager,
@@ -863,6 +851,16 @@ export class SessionManager {
     return session;
   }
 
+  /** Admit work only for the current, unreleased execution lease. */
+  getSessionForLease(sessionId: string, executionId: string, leaseId: string): SessionState {
+    const session = this.peekSession(sessionId);
+    if (!executionId || !leaseId || session.ownerExecutionId !== executionId ||
+        session.leaseId !== leaseId || session.leaseReleasedAt) {
+      throw new SessionNotFoundError(sessionId);
+    }
+    return session;
+  }
+
   /**
    * Releases an execution's lease without transferring ownership. Only the
    * active owner and exact lease token may release it; stale cleanup from an
@@ -895,13 +893,25 @@ export class SessionManager {
     return true;
   }
 
+  /** Stop deterministic host playback at the owner-defined turn boundary. */
+  async stopAudioPlayback(sessionId: string, executionId: string, leaseId: string): Promise<boolean> {
+    const session = this.sessions.get(sessionId);
+    if (!session || session.ownerExecutionId !== executionId || session.leaseId !== leaseId) {
+      return false;
+    }
+    if (!session.audioPlaybackStop) return true;
+    await session.audioPlaybackStop();
+    logger.info(scopedLog(LogContext.SESSION, 'session audio playback stopped'), { sessionId, executionId });
+    return true;
+  }
+
   /** Close only if this exact execution still owns the active lease. */
   async closeSessionForLease(
     sessionId: string,
     executionId: string,
     leaseId: string
   ): Promise<SessionCloseResult> {
-    const session = this.sessions.get(sessionId);
+    const session = this.sessions.get(sessionId) ?? this.closingSessions.get(sessionId)?.session;
     if (!session || session.ownerExecutionId !== executionId || session.leaseId !== leaseId) {
       throw new SessionNotFoundError(sessionId);
     }
@@ -914,13 +924,13 @@ export class SessionManager {
   }
 
   /**
-   * Export the current storage state (cookies/localStorage/etc) for a session.
+   * Export cookies, localStorage and IndexedDB authentication state for a session.
    */
-  async getStorageState(sessionId: string): Promise<unknown> {
+  async getStorageState(sessionId: string): Promise<Awaited<ReturnType<BrowserContext['storageState']>>> {
     // Exporting storage is an operation on the session, not observation. Keep
     // the idle lease alive while the caller is actively using it.
     const session = this.getSession(sessionId);
-    return session.context.storageState();
+    return session.context.storageState({ indexedDB: true });
   }
 
   /**
@@ -937,34 +947,21 @@ export class SessionManager {
    */
   async waitForPipelineReady(sessionId: string, timeoutMs = 10000): Promise<boolean> {
     const session = this.sessions.get(sessionId);
-    if (!session) {
+    if (!session) return false;
+    if (!session.pipelineManager || session.pipelineManager.isReady()) return true;
+    if (!session.pipelineReadyPromise) return false;
+
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        session.pipelineReadyPromise,
+        new Promise<boolean>((resolve) => { deadline = setTimeout(() => resolve(false), timeoutMs); }),
+      ]);
+    } catch {
       return false;
+    } finally {
+      if (deadline) clearTimeout(deadline);
     }
-
-    // If no pipeline manager, nothing to wait for
-    if (!session.pipelineManager) {
-      return true;
-    }
-
-    // If already ready (phase check), return immediately
-    if (session.pipelineManager.isReady()) {
-      return true;
-    }
-
-    // If we have a readiness promise, wait for it with timeout
-    if (session.pipelineReadyPromise) {
-      try {
-        const result = await Promise.race([
-          session.pipelineReadyPromise,
-          new Promise<boolean>((resolve) => setTimeout(() => resolve(false), timeoutMs)),
-        ]);
-        return result;
-      } catch {
-        return false;
-      }
-    }
-
-    return false;
   }
 
   /**
@@ -1019,7 +1016,7 @@ export class SessionManager {
     if (!session) {
       return false;
     }
-    return canAcceptInstructions(session.phase);
+    return !session.instructionInFlight && canAcceptInstructions(session.phase);
   }
 
   /**
@@ -1065,7 +1062,24 @@ export class SessionManager {
    * Reset session (navigate to about:blank, clear state)
    */
   async resetSession(sessionId: string): Promise<void> {
-    await resetSessionState(this.getSession(sessionId));
+    const session = this.peekSession(sessionId);
+    if (session.externalTarget) {
+      throw new Error('resetting an external target is refused; the target owner controls its browser state');
+    }
+    if (session.phase !== 'resetting' && !canTransition(session.phase, 'resetting')) {
+      throw new Error(`Cannot reset session while ${session.phase}`);
+    }
+    const pending = this.resettingSessions.get(sessionId);
+    if (pending) return pending;
+    // Reserve before recording flush or browser I/O can yield. Failed attempts
+    // stay resetting and may be explicitly retried; closing remains terminal.
+    session.phase = 'resetting';
+    session.lastUsedAt = new Date();
+    const reset = resetSessionState(session).then(() => {
+      if (session.phase === 'resetting') session.phase = 'ready';
+    }).finally(() => { this.resettingSessions.delete(sessionId); });
+    this.resettingSessions.set(sessionId, reset);
+    return reset;
   }
 
   /**
@@ -1075,85 +1089,45 @@ export class SessionManager {
    * (e.g., explicit close and idle cleanup).
    */
   async closeSession(sessionId: string): Promise<SessionCloseResult> {
-    // Check if session exists
-    const session = this.sessions.get(sessionId);
-    if (!session) {
-      // Session doesn't exist - may have been closed already
-      if (this.closingSessionIds.has(sessionId)) {
-        // Another call is closing this session - just return
-        logger.debug(scopedLog(LogContext.SESSION, 'already closing'), { sessionId });
-        return { videoPaths: [] };
-      }
-      throw new SessionNotFoundError(sessionId);
-    }
-
-    // Check if already being closed (concurrent close protection)
-    if (this.closingSessionIds.has(sessionId)) {
-      logger.debug(scopedLog(LogContext.SESSION, 'close already in progress'), { sessionId });
-      return { videoPaths: [] };
-    }
-
-    // Mark as closing to prevent concurrent close attempts
-    this.closingSessionIds.add(sessionId);
-
+    const pending = this.closingSessions.get(sessionId);
+    if (pending) return pending.result;
+    const session = this.peekSession(sessionId);
     const previousPhase = session.phase;
     session.phase = 'closing';
 
-    // Session-level instrumentation hook (no-op by default). Fires once
-    // per real close, before teardown, so a collector can flush per-
-    // session telemetry (e.g. stop a trace) while the context still lives.
-    await safeInvoke(this.instrumentation.onSessionClose?.bind(this.instrumentation), {
-      sessionId,
-      executionId: session.spec.execution_id,
-      leaseId: session.leaseId,
-    });
-
-    logger.info(scopedLog(LogContext.SESSION, 'closing'), {
-      sessionId,
-      previousPhase,
-      instructionCount: session.instructionCount,
-      lifetimeMs: Date.now() - session.createdAt.getTime(),
-    });
-
-    const startTime = Date.now();
-
-    let videoPaths: string[] = [];
-    try {
-      videoPaths = await teardownSessionResources(session);
-
-      const duration = Date.now() - startTime;
-      metrics.sessionDuration.observe(duration);
-
-      logger.info(scopedLog(LogContext.SESSION, 'closed'), {
-        sessionId,
-        cleanupDurationMs: duration,
-        totalLifetimeMs: Date.now() - session.createdAt.getTime(),
-        instructionCount: session.instructionCount,
+    const closing = (async (): Promise<SessionCloseResult> => {
+      await safeInvoke(this.instrumentation.onSessionClose?.bind(this.instrumentation), {
+        sessionId, executionId: session.spec.execution_id, leaseId: session.leaseId,
       });
-    } catch (error) {
-      logger.error(scopedLog(LogContext.SESSION, 'close failed'), {
-        sessionId,
-        error: error instanceof Error ? error.message : String(error),
-        hint: 'Session cleanup may be incomplete; browser resources may leak',
-      });
-    } finally {
-      this.sessions.delete(sessionId);
-      this.closingSessionIds.delete(sessionId);
-      metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
-      metrics.sessionCount.set({ state: 'total' }, this.sessions.size);
-      await this.closeQualificationDeviceIfIdle();
-    }
-    return {
-      videoPaths,
-      tracePath: session.tracePath,
-      harPath: session.harPath,
-    };
+      const startTime = Date.now();
+      logger.info(scopedLog(LogContext.SESSION, 'closing'), { sessionId, previousPhase });
+      try {
+        // A reset may already own browser I/O. Join its settlement before disposal;
+        // close can still recover a reset that failed partway through clearing.
+        await this.resettingSessions.get(sessionId)?.catch(() => undefined);
+        const videoPaths = await teardownSessionResources(session);
+        this.sessions.delete(sessionId);
+        metrics.sessionDuration.observe(Date.now() - startTime);
+        logger.info(scopedLog(LogContext.SESSION, 'closed'), { sessionId, cleanupDurationMs: Date.now() - startTime });
+        return { videoPaths, tracePath: session.tracePath, harPath: session.harPath };
+      } catch (error) {
+        logger.error(scopedLog(LogContext.SESSION, 'close failed; recovery ownership retained'), {
+          sessionId, error: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      } finally {
+        metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
+        metrics.sessionCount.set({ state: 'total' }, this.sessions.size);
+        await this.closeQualificationDeviceIfIdle();
+      }
+    })().finally(() => { this.closingSessions.delete(sessionId); });
+    this.closingSessions.set(sessionId, { session, result: closing });
+    return closing;
   }
 
   // Session lookup functions moved to session-decisions.ts:
   // - findByExecutionId (was findSessionByExecutionId)
   // - findByLabels (was findReusableSession)
-  // - makeReuseDecision (new - encapsulates reuse logic)
   // - findIdleSessions (new - encapsulates idle detection)
 
   /**
@@ -1176,11 +1150,9 @@ export class SessionManager {
         idleTimeoutMs: this.config.session.idleTimeoutMs,
       });
 
-      for (const sessionId of idleSessions) {
-        await this.closeSession(sessionId);
-      }
-
+      const failures = await this.closeSessions(idleSessions);
       metrics.sessionCount.set({ state: 'idle' }, 0);
+      if (failures.length) throw new AggregateError(failures, 'Idle session cleanup incomplete');
     }
   }
 
@@ -1214,20 +1186,22 @@ export class SessionManager {
     return listSessions(this.sessions.values(), this.config);
   }
 
-  /**
-   * Shutdown manager and cleanup all sessions
-   */
+  /** Attempt every selected close, keeping failed sessions owned. */
+  private async closeSessions(sessionIds: string[]): Promise<unknown[]> {
+    const results = await Promise.allSettled(sessionIds.map((id) => this.closeSession(id)));
+    return results.flatMap((result) => result.status === 'rejected' ? [result.reason] : []);
+  }
+
   async shutdown(): Promise<void> {
     logger.info('session-manager: shutting down', { sessionCount: this.sessions.size });
-
-    const sessionIds = Array.from(this.sessions.keys());
-    for (const sessionId of sessionIds) {
-      await this.closeSession(sessionId);
+    const failures = await this.closeSessions([...this.sessions.keys()]);
+    try {
+      await this.browserManager.shutdown();
+      await this.closeQualificationDeviceIfIdle();
+    } catch (error) {
+      failures.push(error);
     }
-
-    await this.browserManager.shutdown();
-    await this.closeQualificationDeviceIfIdle();
-
+    if (failures.length) throw new AggregateError(failures, 'Session manager shutdown incomplete');
     logger.info('session-manager: shutdown complete');
   }
 }

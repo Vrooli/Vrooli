@@ -305,8 +305,6 @@ export class AIGatewayVisionClient implements VisionModelClient {
   }
 
   async analyze(request: VisionAnalysisRequest): Promise<VisionAnalysisResponse> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
     const body: GatewayRunRequest = {
       source: `browser navigation at ${request.currentUrl}`,
       schemaJson: ACTION_SCHEMA,
@@ -315,6 +313,8 @@ export class AIGatewayVisionClient implements VisionModelClient {
       turns: buildTurns(request),
       profile: this.profile === 'remote_only' ? 'PROFILE_REMOTE_ONLY' : 'PROFILE_LOCAL_FIRST',
     };
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
 
     try {
       const response = await fetch(`${this.gatewayUrl}${INFERENCE_PROCEDURE}`, {

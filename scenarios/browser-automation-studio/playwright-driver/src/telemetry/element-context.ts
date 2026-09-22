@@ -17,7 +17,7 @@
  * Related design work is historical; current plans are owned by Plan Manager.
  */
 
-import type { Page, Locator } from 'rebrowser-playwright';
+import type { Page, Frame, Locator } from 'rebrowser-playwright';
 import { create } from '@bufbuild/protobuf';
 import {
   ElementMetaSchema,
@@ -86,7 +86,7 @@ interface RawElementMeta {
  * @returns Element context, or minimal context if element not found
  */
 export async function captureElementContext(
-  page: Page,
+  page: Page | Frame,
   selector: string,
   options: {
     /** Timeout for locating element (ms). Default: 1000 */

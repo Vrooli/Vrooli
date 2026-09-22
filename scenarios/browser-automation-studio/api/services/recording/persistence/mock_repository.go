@@ -3,6 +3,8 @@ package persistence
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
@@ -18,8 +20,7 @@ type CallCounts struct {
 	CloseSession         int
 	ListSessions         int
 	DeleteSession        int
-	SaveTimelineEntry    int
-	SaveTimelineEntries  int
+	AppendTimelineEntry  int
 	GetTimelineEntry     int
 	GetTimeline          int
 	CountTimelineEntries int
@@ -43,8 +44,7 @@ type MockRepository struct {
 	CloseSessionErr         error
 	ListSessionsErr         error
 	DeleteSessionErr        error
-	SaveTimelineEntryErr    error
-	SaveTimelineEntriesErr  error
+	AppendTimelineEntryErr  error
 	GetTimelineEntryErr     error
 	GetTimelineErr          error
 	CountTimelineErr        error
@@ -153,36 +153,35 @@ func (r *MockRepository) DeleteSession(ctx context.Context, sessionID string) er
 	return nil
 }
 
-// SaveTimelineEntry stores a single timeline entry.
-func (r *MockRepository) SaveTimelineEntry(ctx context.Context, entry *UnifiedTimelineEntry) error {
-	r.mu.Lock()
-	r.callCounts.SaveTimelineEntry++
-	r.mu.Unlock()
-
-	if r.SaveTimelineEntryErr != nil {
-		return r.SaveTimelineEntryErr
-	}
+func (r *MockRepository) AppendTimelineEntry(ctx context.Context, entry *UnifiedTimelineEntry) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.entries[entry.SessionID] = append(r.entries[entry.SessionID], entry)
-	return nil
-}
-
-// SaveTimelineEntries stores multiple entries in a batch.
-func (r *MockRepository) SaveTimelineEntries(ctx context.Context, entries []*UnifiedTimelineEntry) error {
-	r.mu.Lock()
-	r.callCounts.SaveTimelineEntries++
-	r.mu.Unlock()
-
-	if r.SaveTimelineEntriesErr != nil {
-		return r.SaveTimelineEntriesErr
+	r.callCounts.AppendTimelineEntry++
+	if r.AppendTimelineEntryErr != nil {
+		return false, r.AppendTimelineEntryErr
 	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	for _, e := range entries {
-		r.entries[e.SessionID] = append(r.entries[e.SessionID], e)
+	for _, entries := range r.entries {
+		for _, old := range entries {
+			if old.ID == entry.ID {
+				if !sameObservation(entry, old) {
+					return false, fmt.Errorf("conflicting journal identity")
+				}
+				entry.Sequence = old.Sequence
+				return false, nil
+			}
+		}
 	}
-	return nil
+	entry.Sequence = len(r.entries[entry.SessionID]) + 1
+	data, err := json.Marshal(entry)
+	if err != nil {
+		return false, err
+	}
+	var committed UnifiedTimelineEntry
+	if err := json.Unmarshal(data, &committed); err != nil {
+		return false, err
+	}
+	r.entries[entry.SessionID] = append(r.entries[entry.SessionID], &committed)
+	return true, nil
 }
 
 // GetTimelineEntry retrieves a single entry by ID.
@@ -240,6 +239,12 @@ func (r *MockRepository) GetTimeline(ctx context.Context, query TimelineQuery) (
 			}
 		}
 		result = append(result, *e)
+	}
+	query.ApplyDefaults()
+	if query.Offset >= len(result) {
+		result = []UnifiedTimelineEntry{}
+	} else {
+		result = result[query.Offset:]
 	}
 	hasMore := len(result) > query.Limit && query.Limit > 0
 	if hasMore {

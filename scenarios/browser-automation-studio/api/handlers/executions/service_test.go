@@ -3,12 +3,15 @@ package executions
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 
 	"github.com/vrooli/browser-automation-studio/database"
@@ -16,6 +19,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/storage"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api/apiconnect"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
@@ -25,7 +29,7 @@ import (
 // the active test set are non-trivial; the rest panic to flag accidental
 // surface broadening.
 type stubExecutor struct {
-	listFn          func(ctx context.Context, wf, proj *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error)
+	listFn          func(ctx context.Context, query database.ExecutionQuery) ([]*database.ExecutionIndex, int, error)
 	getFn           func(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error)
 	hydrateFn       func(ctx context.Context, e *database.ExecutionIndex) (*basexecution.Execution, error)
 	stopFn          func(ctx context.Context, id uuid.UUID) error
@@ -39,8 +43,8 @@ type stubExecutor struct {
 	harFn           func(ctx context.Context, id uuid.UUID) ([]workflowservice.ExecutionFileArtifact, error)
 }
 
-func (s *stubExecutor) ListExecutions(ctx context.Context, wf, proj *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error) {
-	return s.listFn(ctx, wf, proj, limit, offset)
+func (s *stubExecutor) ListExecutions(ctx context.Context, query database.ExecutionQuery) ([]*database.ExecutionIndex, int, error) {
+	return s.listFn(ctx, query)
 }
 
 func (s *stubExecutor) GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
@@ -231,8 +235,8 @@ func TestListExecutions_Success(t *testing.T) {
 	a := uuid.New()
 	b := uuid.New()
 	exec := &stubExecutor{
-		listFn: func(_ context.Context, _, _ *uuid.UUID, _ int, _ int) ([]*database.ExecutionIndex, error) {
-			return []*database.ExecutionIndex{{ID: a}, {ID: b}}, nil
+		listFn: func(_ context.Context, _ database.ExecutionQuery) ([]*database.ExecutionIndex, int, error) {
+			return []*database.ExecutionIndex{{ID: a}, {ID: b}}, 2, nil
 		},
 		hydrateFn: func(_ context.Context, e *database.ExecutionIndex) (*basexecution.Execution, error) {
 			return &basexecution.Execution{ExecutionId: e.ID.String()}, nil
@@ -402,3 +406,88 @@ func TestGetExecutionReplayPackage_Success(t *testing.T) {
 }
 
 func pstr(s string) *string { return &s }
+
+func TestListExecutions_QueryContract(t *testing.T) {
+	ctx := context.Background()
+	db, err := sqlx.Connect("sqlite", "file:"+filepath.Join(t.TempDir(), "history.db")+"?_pragma=foreign_keys(ON)&_time_format=sqlite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := database.ApplySchemaRegistry(ctx, db, ""); err != nil {
+		t.Fatal(err)
+	}
+	repo := database.NewRepository(&database.DB{DB: db}, logrus.New())
+	projects := []uuid.UUID{uuid.New(), uuid.New()}
+	for i, id := range projects {
+		if err := repo.CreateProject(ctx, &database.ProjectIndex{ID: id, Name: fmt.Sprintf("project%d", i), FolderPath: fmt.Sprintf("/project%d", i)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	workflows := []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
+	for i, id := range workflows {
+		if err := repo.CreateWorkflow(ctx, &database.WorkflowIndex{ID: id, ProjectID: &projects[i/2], Name: fmt.Sprintf("workflow%d", i), FolderPath: fmt.Sprintf("/workflow%d", i), Version: 1}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ids := make([]uuid.UUID, 60)
+	started := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	for i := range ids {
+		ids[i] = uuid.MustParse(fmt.Sprintf("00000000-0000-4000-8000-%012d", i+1))
+		status := database.ExecutionStatusCompleted
+		if i%2 == 0 {
+			status = database.ExecutionStatusRunning
+		}
+		if err := repo.CreateExecution(ctx, &database.ExecutionIndex{ID: ids[i], WorkflowID: workflows[i%3], Status: status, StartedAt: started}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	exec := &stubExecutor{listFn: repo.ListExecutions, hydrateFn: func(_ context.Context, e *database.ExecutionIndex) (*basexecution.Execution, error) {
+		return &basexecution.Execution{ExecutionId: e.ID.String()}, nil
+	}}
+	client, stop := newTestService(t, exec, nil)
+	defer stop()
+	running := basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING
+	for _, tc := range []struct {
+		name              string
+		limit, offset     int32
+		workflow, project *string
+		status            *basbase.ExecutionStatus
+		count, total      int
+		more              bool
+		first             string
+	}{
+		{name: "default", count: 50, total: 60, more: true, first: ids[59].String()},
+		{name: "all", limit: 100, count: 60, total: 60, first: ids[59].String()},
+		{name: "project", limit: 100, project: pstr(projects[0].String()), count: 40, total: 40, first: ids[58].String()},
+		{name: "status and workflow", limit: 2, workflow: pstr(workflows[0].String()), status: &running, count: 2, total: 10, more: true, first: ids[54].String()},
+		{name: "final full page", limit: 2, offset: 8, workflow: pstr(workflows[0].String()), status: &running, count: 2, total: 10, first: ids[6].String()},
+		{name: "past end", limit: 2, offset: 10, workflow: pstr(workflows[0].String()), status: &running, total: 10},
+		{name: "disjoint filters", limit: 2, workflow: pstr(workflows[0].String()), project: pstr(projects[1].String()), status: &running},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &basapi.ListExecutionsRequest{WorkflowId: tc.workflow, ProjectId: tc.project, Status: tc.status, Offset: &tc.offset}
+			if tc.limit != 0 {
+				req.Limit = &tc.limit
+			}
+			resp, err := client.ListExecutions(ctx, connect.NewRequest(req))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(resp.Msg.Executions) != tc.count || int(resp.Msg.Total) != tc.total || resp.Msg.HasMore != tc.more {
+				t.Fatalf("page count=%d total=%d more=%t; want %d/%d/%t", len(resp.Msg.Executions), resp.Msg.Total, resp.Msg.HasMore, tc.count, tc.total, tc.more)
+			}
+			if tc.first != "" && resp.Msg.Executions[0].ExecutionId != tc.first {
+				t.Fatalf("equal-time order first=%s want=%s", resp.Msg.Executions[0].ExecutionId, tc.first)
+			}
+		})
+	}
+	zero, negative, large := int32(0), int32(-1), int32(101)
+	unknown := basbase.ExecutionStatus(999)
+	for _, req := range []*basapi.ListExecutionsRequest{{Limit: &zero}, {Limit: &negative}, {Limit: &large}, {Offset: &negative}, {Status: &unknown}} {
+		_, err := client.ListExecutions(ctx, connect.NewRequest(req))
+		if connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Errorf("invalid query %v: %v", req, err)
+		}
+	}
+}

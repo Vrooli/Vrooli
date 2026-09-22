@@ -192,6 +192,40 @@ describe('Pipeline E2E Tests', () => {
     await server.stop();
   });
 
+  it.each(['protocol', 'poll'] as const)('ends readiness when its page closes during %s without further protocol attempts', async (stage) => {
+    // No injection: the browser remains unready until the fixture closes it.
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    const createSession = context.newCDPSession.bind(context);
+    let firstAttached!: () => void;
+    const attached = new Promise<void>((resolve) => { firstAttached = resolve; });
+    let firstChecked!: () => void;
+    const checked = new Promise<void>((resolve) => { firstChecked = resolve; });
+    let attemptsAfterClose = 0;
+    jest.spyOn(context, 'newCDPSession').mockImplementation(async (target) => {
+      if (page.isClosed()) attemptsAfterClose++;
+      const session = await createSession(target);
+      const detach = session.detach.bind(session);
+      session.detach = async () => { await detach(); firstChecked(); };
+      firstAttached();
+      return session;
+    });
+    try {
+      const readiness = waitForScriptReady(page, 1000, 500).then(
+        () => 'unexpected readiness result',
+        (error: Error) => error.message,
+      );
+      await (stage === 'protocol' ? attached : checked);
+      // Let the completed check reach its inter-poll wait before closing.
+      if (stage === 'poll') await new Promise<void>((resolve) => setImmediate(resolve));
+      await page.close();
+      expect(await readiness).toMatch(/page.*closed/i);
+      expect(attemptsAfterClose).toBe(0);
+    } finally {
+      await context.close();
+    }
+  });
+
   describe('complete pipeline validation', () => {
     let context: BrowserContext;
     let page: Page;
@@ -217,6 +251,160 @@ describe('Pipeline E2E Tests', () => {
         await pipelineManager.stopRecording();
       }
       await context.close();
+    });
+
+    it('retains a rejected browser event until the same identity is acknowledged', async () => {
+      await page.goto(server.getUrl('/'));
+      await waitForScriptReady(page, 5000);
+      await pipelineManager.startRecording({ sessionId: 'pipeline-e2e-test', recordingId: 'browser-retry', onEntry: () => {} });
+      const posts: Array<{ id?: string; actionType?: string }> = [];
+      let acknowledge!: () => void;
+      const acknowledged = new Promise<void>((resolve) => { acknowledge = resolve; });
+      await page.route('**/__vrooli_recording_event__', async (route) => {
+        const event = route.request().postDataJSON() as { id?: string; actionType?: string };
+        if (event.actionType !== 'click') { await route.fulfill({ status: 200, body: JSON.stringify({ ok: true, entry_id: event.id }) }); return; }
+        posts.push(event);
+        const accepted = posts.length > 1;
+        await route.fulfill({ status: accepted ? 200 : 503, contentType: 'application/json', body: JSON.stringify({ ok: accepted, entry_id: event.id }) });
+        if (accepted) acknowledge();
+      });
+      const failed = page.waitForResponse((r) => r.url().endsWith('/__vrooli_recording_event__') && r.status() === 503);
+      await page.click('#test-btn');
+      await (await failed).finished();
+      expect(posts[0]?.id).toMatch(/^[0-9a-f-]{36}$/i);
+      const pending = await page.evaluate(() => JSON.parse(sessionStorage.getItem('__vrooli_pending_events__') || '[]') as Array<{data:{id:string}}>);
+      expect(pending.some(item => item.data.id === posts[0]?.id)).toBe(true);
+      let deadline: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([acknowledged, new Promise<never>((_, reject) => { deadline = setTimeout(() => reject(new Error('rejected browser event was not retried')), 3000); })]);
+      } finally { if (deadline) clearTimeout(deadline); }
+      expect(posts[1]?.id).toBe(posts[0]?.id);
+    });
+
+    it('does not acknowledge a browser event when delivery rejects', async () => {
+      await page.goto(server.getUrl('/'));
+      await waitForScriptReady(page, 5000);
+      const attempts: Array<{id: string; sequence: number}> = [];
+      let allowRecovery = false;
+      await pipelineManager.startRecording({
+        sessionId: 'pipeline-e2e-test', recordingId: 'rejected-delivery',
+        onEntry: async (entry) => {
+          if (getActionType(entry) === ActionType.CLICK) {
+            attempts.push({ id: entry.id, sequence: entry.sequenceNum });
+            if (!allowRecovery) throw new Error('journal commit rejected');
+          }
+        },
+      });
+      const response = page.waitForResponse((r) => r.url().endsWith('/__vrooli_recording_event__') &&
+        r.request().postDataJSON()?.actionType === 'click');
+      await page.click('#test-btn');
+      expect((await response).status()).toBeGreaterThanOrEqual(500);
+      expect(attempts.length).toBeGreaterThan(0);
+      try {
+        await expect(pipelineManager.stopRecording()).rejects.toThrow('Recording delivery returned 500');
+        expect(pipelineManager.isRecording()).toBe(true);
+      } finally { allowRecovery = true; }
+      const stopped = await pipelineManager.stopRecording();
+      expect(stopped.actionCount).toBe(2);
+      expect(new Set(attempts.map((attempt) => `${attempt.id}/${attempt.sequence}`)).size).toBe(1);
+    });
+
+    it('does not report stopped while an admitted delivery is uncommitted', async () => {
+      await page.goto(server.getUrl('/'));
+      await waitForScriptReady(page, 5000);
+      let admit!: () => void;
+      let commit!: () => void;
+      const admitted = new Promise<void>((resolve) => { admit = resolve; });
+      const committed = new Promise<void>((resolve) => { commit = resolve; });
+      await pipelineManager.startRecording({
+        sessionId: 'pipeline-e2e-test', recordingId: 'delayed-delivery',
+        onEntry: async (entry) => {
+          if (getActionType(entry) === ActionType.CLICK) { admit(); await committed; }
+        },
+      });
+      await page.click('#test-btn');
+      await admitted;
+      let reportedSuccess = false;
+      const stop = pipelineManager.stopRecording().then(() => { reportedSuccess = true; });
+      try {
+        // The controlled commit gate stays closed during this observation.
+        await new Promise<void>((resolve) => setTimeout(resolve, 100));
+        expect(reportedSuccess).toBe(false);
+      } finally {
+        commit();
+        await stop;
+      }
+      expect(reportedSuccess).toBe(true);
+    });
+
+    it('flushes the final input before its debounce timer when stopped', async () => {
+      await page.goto(server.getUrl('/'));
+      await pipelineManager.startRecording({ sessionId: 'pipeline-e2e-test', onEntry: (entry) => { capturedEntries.push(entry); } });
+      await page.fill('#test-input', 'final value');
+      const result = await pipelineManager.stopRecording();
+      const inputs = capturedEntries.filter((entry) => getActionType(entry) === ActionType.INPUT);
+      expect(inputs).toHaveLength(1);
+      expect(inputs[0]?.action?.params).toMatchObject({ case: 'input', value: { value: 'final value' } });
+      expect(result.actionCount).toBe(capturedEntries.length);
+    });
+
+    it('joins an admitted start before stop and leaves browser capture inactive', async () => {
+      await page.goto(server.getUrl('/'));
+      let admit!: () => void;
+      let commit!: () => void;
+      const admitted = new Promise<void>((resolve) => { admit = resolve; });
+      const committed = new Promise<void>((resolve) => { commit = resolve; });
+      const start = pipelineManager.startRecording({
+        sessionId: 'pipeline-e2e-test', recordingId: 'overlapping-start-stop',
+        onEntry: async (entry) => { capturedEntries.push(entry); admit(); await committed; },
+      });
+      await Promise.race([admitted, start]);
+      const stop = pipelineManager.stopRecording();
+      try {
+        expect(pipelineManager.getState().phase).toBe('starting');
+        await expect(pipelineManager.startRecording({ sessionId: 'pipeline-e2e-test', onEntry: () => {} })).rejects.toThrow('already owned');
+      } finally { commit(); }
+      await start;
+      const stopped = await stop;
+      expect(stopped.actionCount).toBe(1);
+      expect(pipelineManager.isRecording()).toBe(false);
+      await page.click('#test-btn');
+      await page.waitForTimeout(100);
+      expect(capturedEntries).toHaveLength(1);
+      const pending = await page.evaluate(() => JSON.parse(sessionStorage.getItem('__vrooli_pending_events__') || '[]'));
+      expect(pending).toEqual([]);
+    });
+
+    it('retains the queued navigation when a slow click delivery crosses origins', async () => {
+      await page.goto(server.getUrl('/'));
+      const target = server.getUrl('/page-2').replace('localhost', '127.0.0.1');
+      await page.evaluate((url) => { (document.querySelector('#test-link') as HTMLAnchorElement).href = url; }, target);
+      let commit!: () => void;
+      const committed = new Promise<void>((resolve) => { commit = resolve; });
+      await pipelineManager.startRecording({
+        sessionId: 'pipeline-e2e-test', recordingId: 'cross-origin-pending',
+        onEntry: async (entry) => {
+          if (getActionType(entry) === ActionType.CLICK) await committed;
+          capturedEntries.push(entry);
+        },
+      });
+      try {
+        await Promise.all([page.waitForURL(target), page.click('#test-link')]);
+      } finally { commit(); }
+      await pipelineManager.stopRecording();
+      expect(capturedEntries.some((entry) => entry.action?.params.case === 'navigate' && entry.action.params.value.url === target)).toBe(true);
+    });
+
+    it('captures a dynamically attached frame after recording has started', async () => {
+      await page.goto(server.getUrl('/'));
+      await pipelineManager.startRecording({ sessionId: 'pipeline-e2e-test', onEntry: (entry) => { capturedEntries.push(entry); } });
+      const target = server.getUrl('/').replace('localhost', '127.0.0.1');
+      await page.evaluate((url) => {
+        const frame = document.createElement('iframe'); frame.src = url; frame.id = 'late-frame'; document.body.appendChild(frame);
+      }, target);
+      await page.frameLocator('#late-frame').locator('#test-btn').click();
+      await pipelineManager.stopRecording();
+      expect(capturedEntries.filter((entry) => getActionType(entry) === ActionType.CLICK)).toHaveLength(1);
     });
 
     it('[CRITICAL] should capture all core event types in single session', async () => {

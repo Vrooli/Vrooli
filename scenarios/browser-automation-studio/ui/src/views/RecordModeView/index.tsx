@@ -66,26 +66,29 @@ export default function RecordModeView() {
     return '/';
   }, []);
 
-  const handleClose = useCallback(async () => {
+  const closeSession = useCallback(async () => {
+    if (isClosingRef.current) return false;
     isClosingRef.current = true;
-    if (sessionId) {
-      try {
+    try {
+      if (sessionId) {
         const config = await getConfig();
-        await fetch(`${config.API_URL}/recordings/live/session/${sessionId}/close`, {
+        const response = await fetch(`${config.API_URL}/recordings/live/session/${sessionId}/close`, {
           method: 'POST',
         });
-      } catch (error) {
-        logger.warn(
-          'Failed to close recording session',
-          { component: 'RecordModeView', action: 'handleClose' },
-          error
-        );
+        if (!response.ok) throw new Error(`Session close failed (${response.status})`);
       }
+      return true;
+    } catch (error) {
+      isClosingRef.current = false;
+      logger.warn('Failed to close recording session', { component: 'RecordModeView', action: 'closeSession' }, error);
+      toast.error('Could not save and close the browser. Your workspace is still here. Try Close again.');
+      return false;
     }
-    const returnPath = getReturnPath();
-    navigate(returnPath, { replace: true });
-    window.location.assign(returnPath);
-  }, [sessionId, navigate, getReturnPath]);
+  }, [sessionId]);
+
+  const handleClose = useCallback(async () => {
+    if (await closeSession()) navigate(getReturnPath(), { replace: true });
+  }, [closeSession, navigate, getReturnPath]);
 
   const handleSessionReady = useCallback(
     (newSessionId: string) => {
@@ -105,27 +108,10 @@ export default function RecordModeView() {
 
   const handleWorkflowGenerated = useCallback(
     async (workflowId: string, projectId: string) => {
-      // Close the recording session on the server
-      if (sessionId) {
-        try {
-          const config = await getConfig();
-          await fetch(`${config.API_URL}/recordings/live/session/${sessionId}/close`, {
-            method: 'POST',
-          });
-        } catch (error) {
-          logger.warn(
-            'Failed to close recording session',
-            { component: 'RecordModeView', action: 'handleWorkflowGenerated' },
-            error
-          );
-        }
-      }
-
-      // Navigate to the project page with the workflow focused in the preview pane
       toast.success('Workflow generated from recording!');
-      navigate(`/projects/${projectId}?preview=${workflowId}`);
+      if (await closeSession()) navigate(`/projects/${projectId}?preview=${workflowId}`);
     },
-    [sessionId, navigate]
+    [closeSession, navigate]
   );
 
   return (

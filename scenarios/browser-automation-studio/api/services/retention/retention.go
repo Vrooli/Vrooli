@@ -62,17 +62,8 @@ type pathExistence interface {
 // ExecutionStore is the minimal repository surface retention needs.
 type ExecutionStore interface {
 	GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error)
-	ListExecutions(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error)
-	ListExecutionsByStatus(ctx context.Context, status string, limit, offset int) ([]*database.ExecutionIndex, error)
+	ListExecutions(ctx context.Context, query database.ExecutionQuery) ([]*database.ExecutionIndex, int, error)
 	DeleteExecution(ctx context.Context, id uuid.UUID) error
-}
-
-// oldestExecutionStore is an optional optimization for bounded recovery
-// previews. The base interface remains compatible with repository fakes and
-// other callers, while the production repository can select the oldest rows
-// in SQL instead of loading the complete terminal index.
-type oldestExecutionStore interface {
-	ListExecutionsByStatusOldest(ctx context.Context, status string, limit, offset int) ([]*database.ExecutionIndex, error)
 }
 
 // Service performs retention sweeps.
@@ -369,64 +360,24 @@ func (s *Service) gatherCandidates(ctx context.Context, opts Options, status str
 		return out, nil
 	}
 
-	// When a workflow/project filter is present the repository can only filter by
-	// those dimensions, so we list and filter to terminal statuses in memory.
-	if opts.WorkflowID != nil || opts.ProjectID != nil {
-		all, err := s.store.ListExecutions(ctx, opts.WorkflowID, opts.ProjectID, 0, 0)
-		if err != nil {
-			return nil, fmt.Errorf("list executions: %w", err)
-		}
-		want := map[string]bool{}
-		for _, st := range targetStatuses {
-			want[st] = true
-		}
-		out := make([]*database.ExecutionIndex, 0, len(all))
-		for _, e := range all {
-			if e != nil && want[e.Status] {
-				out = append(out, e)
-			}
-		}
-		return filterExecutionIDs(out, opts.ExecutionIDs), nil
-	}
-
 	var out []*database.ExecutionIndex
 	for _, st := range targetStatuses {
 		limit := 0
-		if opts.MaxItems > 0 {
+		// Preserve the unbounded filtered sweep and the existing per-status
+		// preview budget. Both use the canonical repository query.
+		if opts.WorkflowID == nil && opts.ProjectID == nil && opts.MaxItems > 0 {
 			limit = opts.MaxItems
 		}
-		var list []*database.ExecutionIndex
-		var err error
-		if oldest, ok := s.store.(oldestExecutionStore); ok && limit > 0 {
-			list, err = oldest.ListExecutionsByStatusOldest(ctx, st, limit, 0)
-		} else {
-			list, err = s.store.ListExecutionsByStatus(ctx, st, limit, 0)
-		}
+		list, _, err := s.store.ListExecutions(ctx, database.ExecutionQuery{
+			WorkflowID: opts.WorkflowID, ProjectID: opts.ProjectID, Status: st,
+			Limit: limit, OldestFirst: limit > 0,
+		})
 		if err != nil {
 			return nil, fmt.Errorf("list executions by status %q: %w", st, err)
 		}
 		out = append(out, list...)
 	}
-	return filterExecutionIDs(out, opts.ExecutionIDs), nil
-}
-
-func filterExecutionIDs(candidates []*database.ExecutionIndex, wanted []uuid.UUID) []*database.ExecutionIndex {
-	if len(wanted) == 0 {
-		return candidates
-	}
-	set := make(map[uuid.UUID]struct{}, len(wanted))
-	for _, id := range wanted {
-		set[id] = struct{}{}
-	}
-	out := make([]*database.ExecutionIndex, 0, len(wanted))
-	for _, candidate := range candidates {
-		if candidate != nil {
-			if _, ok := set[candidate.ID]; ok {
-				out = append(out, candidate)
-			}
-		}
-	}
-	return out
+	return out, nil
 }
 
 func (s *Service) computeProtected(candidates []*database.ExecutionIndex, keepLatest int) map[uuid.UUID]bool {

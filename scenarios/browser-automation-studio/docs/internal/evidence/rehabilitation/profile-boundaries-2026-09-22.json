@@ -1,0 +1,891 @@
+{
+  "schema_version": 1,
+  "records": [
+    "BAS-WORK-001",
+    "BAS-WORK-002"
+  ],
+  "observed_at": "2026-09-22T03:33:16.751248+00:00",
+  "head": "7d1c7531d057c061c5ad5a67fbecb97ebe2eb194",
+  "scope": "maintained module/HTTP/React and real temporary filesystem fault tests; not live browser or native certification",
+  "contract_sha256": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+  "source_sha256": {
+    "api/handlers/record_mode.go": "c772ea2fc69742cfb64ac6e6d9160b183733c6d5e6813fea7d7bf55ead29e110",
+    "api/handlers/record_mode_persistence.go": "6a5547af0e9bc1109d92be6c8f43fd5bd38eb9020bba89f115aaecc407214f02",
+    "api/handlers/record_mode_test.go": "e8348ec409a799c17aa0b4d8df336ee86631f2c8e6e014e5f76c1058b9bf72b3",
+    "api/services/session-profile/persistence/file_repository.go": "6896676fc38f039c44f00bf40621f1632f0718fe17522b6204be069a747289d8",
+    "api/services/session-profile/persistence/protected_state.go": "e4ee994d046205cfcb27680084795d45e8ed07c49cffc6a6ca47471518b98737",
+    "api/services/session-profile/persistence/file_repository_test.go": "5662a16208e9a3add3b58ca0eedb56e4472eb447adb798e4d166e5183baf8b2e",
+    "api/services/session-profile/service_test.go": "8c1024746c3faf549ef6e7fa50c4e80857d20f37e50147b16de40b77dd190e30",
+    "ui/src/views/RecordModeView/index.tsx": "0ba385f631faa3cc092996fbe37e4cf76a753430fe635ca40694fb2d20a6aa59",
+    "ui/src/views/RecordModeView/index.test.tsx": "499808f1b784bf4aa62ff29a15c8f0d57c71a4e0579bfb5a9b80e3be337f352a",
+    "ui/vite.config.ts": "894b6ea96ee65bd4885551c12f0831cb4c2b9257826ae83b74b55f17e0f72643",
+    "docs/internal/refactor_profile_probes.go": "2afe3d53f0d13e95320a306b16193945dee55e9da77c8be5fd76c62b30824cd1"
+  },
+  "runtime": {
+    "go": "go version go1.26.0 linux/amd64",
+    "node": "v20.19.4"
+  },
+  "checks": {
+    "http_red": "--- FAIL: TestRecordingProfileCommit (0.00s)\n    --- FAIL: TestRecordingProfileCommit/persist/none (0.00s)\n        record_mode_test.go:976: one snapshot requires one aggregate commit, got 2\n    --- FAIL: TestRecordingProfileCommit/persist/storage (0.00s)\n        record_mode_test.go:976: one snapshot requires one aggregate commit, got 2\n    --- FAIL: TestRecordingProfileCommit/persist/tabs (0.00s)\n        record_mode_test.go:952: failed tabs acknowledged: 200 {\"session_id\":\"session\",\"status\":\"persisted\"}\n    --- FAIL: TestRecordingProfileCommit/persist/save (0.00s)\n        record_mode_test.go:952: failed save acknowledged: 200 {\"session_id\":\"session\",\"status\":\"persisted\"}\n    --- FAIL: TestRecordingProfileCommit/persist/empty-tabs (0.00s)\n        record_mode_test.go:974: snapshot not committed together: storage={\"cookies\":[{\"name\":\"identity\",\"value\":\"new\"}],\"origins\":[]}, tabs=[{URL:https://fixture.invalid/old Title: IsActive:false Order:0}]\n    --- FAIL: TestRecordingProfileCommit/close/none (0.00s)\n        record_mode_test.go:875: snapshot not committed together: storage={\"cookies\":[{\"name\":\"identity\",\"value\":\"old\"}],\"origins\":[]}, tabs=[{URL:https://fixture.invalid/old Title: IsActive:false Order:0}]\n    --- FAIL: TestRecordingProfileCommit/close/storage (0.00s)\n        record_mode_test.go:875: snapshot not committed together: storage={\"cookies\":[{\"name\":\"identity\",\"value\":\"old\"}],\"origins\":[]}, tabs=[{URL:https://fixture.invalid/old Title: IsActive:false Order:0}]\n    --- FAIL: TestRecordingProfileCommit/close/tabs (0.00s)\n        record_mode_test.go:875: snapshot not committed together: storage={\"cookies\":[{\"name\":\"identity\",\"value\":\"old\"}],\"origins\":[]}, tabs=[{URL:https://fixture.invalid/old Title: IsActive:false Order:0}]\n    --- FAIL: TestRecordingProfileCommit/close/save (0.00s)\n        record_mode_test.go:875: snapshot not committed together: storage={\"cookies\":[{\"name\":\"identity\",\"value\":\"old\"}],\"origins\":[]}, tabs=[{URL:https://fixture.invalid/old Title: IsActive:false Order:0}]\n    --- FAIL: TestRecordingProfileCommit/close/empty-tabs (0.00s)\n        record_mode_test.go:875: snapshot not committed together: storage={\"cookies\":[{\"name\":\"identity\",\"value\":\"old\"}],\"origins\":[]}, tabs=[{URL:https://fixture.invalid/old Title: IsActive:false Order:0}]\n    --- FAIL: TestRecordingProfileCommit/close/close (0.00s)\n        record_mode_test.go:875: snapshot not committed together: storage={\"cookies\":[{\"name\":\"identity\",\"value\":\"old\"}],\"origins\":[]}, tabs=[{URL:https://fixture.invalid/old Title: IsActive:false Order:0}]\nFAIL\nFAIL\tgithub.com/vrooli/browser-automation-studio/handlers\t0.010s\nFAIL\n",
+    "http_green": "ok  \tgithub.com/vrooli/browser-automation-studio/handlers\t0.021s\nok  \tgithub.com/vrooli/browser-automation-studio/services/session-profile\t0.006s\nok  \tgithub.com/vrooli/browser-automation-studio/services/session-profile/persistence\t0.007s\n",
+    "http_race": "ok  \tgithub.com/vrooli/browser-automation-studio/handlers\t1.040s\n",
+    "ui_red": " \u00d7 |record-mode| src/views/RecordModeView/index.test.tsx > profile recovery on close [REQ:BAS-RH-J06] > keeps the browser reachable when Close browser is rejected 1113ms\n   \u2192 expected \"spy\" to be called at least once\n \u00d7 |record-mode| src/views/RecordModeView/index.test.tsx > profile recovery on close [REQ:BAS-RH-J06] > keeps the browser reachable when Finish workflow is rejected 1018ms\n   \u2192 expected \"spy\" to be called at least once\n \u00d7 |record-mode| src/views/RecordModeView/index.test.tsx > profile recovery on close [REQ:BAS-RH-J06] > keeps the browser reachable after a transport failure 1018ms\n   \u2192 expected \"spy\" to be called at least once\n \u00d7 |record-mode| src/views/RecordModeView/index.test.tsx > profile recovery on close [REQ:BAS-RH-J06] > retries the same session after a failed save and then returns to the dashboard 1011ms\n   \u2192 expected \"spy\" to be called at least once\n \u00d7 |record-mode| src/views/RecordModeView/index.test.tsx > profile recovery on close [REQ:BAS-RH-J06] > admits one close while persistence is pending 1013ms\n   \u2192 expected \"spy\" to be called 1 times, but got 2 times\n \u2713 |record-mode| src/views/RecordModeView/index.test.tsx > profile recovery on close [REQ:BAS-RH-J06] > opens the saved workflow after the session closes successfully 13ms\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 5 \u23af\u23af\u23af\u23af\u23af\u23af\u23af\nAssertionError: expected \"spy\" to be called at least once\nAssertionError: expected \"spy\" to be called at least once\nAssertionError: expected \"spy\" to be called at least once\nAssertionError: expected \"spy\" to be called at least once\nAssertionError: expected \"spy\" to be called 1 times, but got 2 times\n Test Files  1 failed (1)\n      Tests  5 failed | 1 passed (6)\n   Start at  23:23:16\n   Duration  6.40s (transform 398ms, setup 103ms, collect 623ms, tests 5.19s, environment 303ms, prepare 97ms)",
+    "ui_green": "[vite.config] Direct frame server proxy: DRIVER_PORT=39400, DIRECT_FRAME_PORT=39401\n\n RUN  v3.2.4 /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/ui\n\n \u2713 |record-mode| src/views/RecordModeView/index.test.tsx > profile recovery on close [REQ:BAS-RH-J06] > keeps the browser reachable when Close browser is rejected 142ms\n \u2713 |record-mode| src/views/RecordModeView/index.test.tsx > profile recovery on close [REQ:BAS-RH-J06] > keeps the browser reachable when Finish workflow is rejected 69ms\n \u2713 |record-mode| src/views/RecordModeView/index.test.tsx > profile recovery on close [REQ:BAS-RH-J06] > keeps the browser reachable after a transport failure 63ms\n \u2713 |record-mode| src/views/RecordModeView/index.test.tsx > profile recovery on close [REQ:BAS-RH-J06] > retries the same session after a failed save and then returns to the dashboard 66ms\n \u2713 |record-mode| src/views/RecordModeView/index.test.tsx > profile recovery on close [REQ:BAS-RH-J06] > admits one close while persistence is pending 62ms\n \u2713 |record-mode| src/views/RecordModeView/index.test.tsx > profile recovery on close [REQ:BAS-RH-J06] > opens the saved workflow after the session closes successfully 11ms\n\n Test Files  1 passed (1)\n      Tests  6 passed (6)\n   Start at  23:24:49\n   Duration  1.26s (transform 165ms, setup 88ms, collect 336ms, tests 414ms, environment 255ms, prepare 87ms)\n\n",
+    "ui_lint": "",
+    "ui_typecheck": "",
+    "recovery_red": "--- FAIL: TestService_ProfileRecoveryPreservesIdentity (0.00s)\n    --- FAIL: TestService_ProfileRecoveryPreservesIdentity/missing-state (0.00s)\n        service_test.go:142: unreadable profile was treated as recovered\n        service_test.go:145: listing concealed the recovery failure\n        service_test.go:148: default resolution replaced or accepted an unreadable identity\n    --- FAIL: TestService_ProfileRecoveryPreservesIdentity/corrupt-state (0.00s)\n        service_test.go:145: listing concealed the recovery failure\n        service_test.go:148: default resolution replaced or accepted an unreadable identity\n        service_test.go:151: failed recovery changed saved files\n    --- FAIL: TestService_ProfileRecoveryPreservesIdentity/wrong-key (0.00s)\n        service_test.go:145: listing concealed the recovery failure\n        service_test.go:148: default resolution replaced or accepted an unreadable identity\n        service_test.go:151: failed recovery changed saved files\n    --- FAIL: TestService_ProfileRecoveryPreservesIdentity/invalid-key (0.00s)\n        service_test.go:145: listing concealed the recovery failure\n    --- FAIL: TestService_ProfileRecoveryPreservesIdentity/corrupt-metadata (0.00s)\n        service_test.go:145: listing concealed the recovery failure\n        service_test.go:148: default resolution replaced or accepted an unreadable identity\n        service_test.go:151: failed recovery changed saved files\nFAIL\nFAIL\tgithub.com/vrooli/browser-automation-studio/services/session-profile\t0.006s\nFAIL\n",
+    "recovery_green": "ok  \tgithub.com/vrooli/browser-automation-studio/services/session-profile\t0.007s\nok  \tgithub.com/vrooli/browser-automation-studio/services/session-profile/persistence\t0.003s\nok  \tgithub.com/vrooli/browser-automation-studio/handlers\t0.012s\n",
+    "profile_packages_race": "ok  \tgithub.com/vrooli/browser-automation-studio/services/session-profile\t1.025s\nok  \tgithub.com/vrooli/browser-automation-studio/services/session-profile/persistence\t1.015s\nok  \tgithub.com/vrooli/browser-automation-studio/handlers/session_profiles\t1.044s\n"
+  },
+  "retained_probes": {
+    "before": {
+      "observed_at": "2026-09-22T03:17:03.807334+00:00",
+      "scope": "isolated actual-module regressions; not product or native-platform certification",
+      "cases": [
+        {
+          "case": "profile",
+          "status": "failed",
+          "producer_sha256": "2622a9e7847c711252d9f702eaf66c1ab704ce11edb18ab3d68b9a644ce2ad20",
+          "observations": [
+            {
+              "id": "profile-encryption-roundtrip-control",
+              "expected": "Fresh repository restores synthetic state without putting it in plaintext files",
+              "actual": {
+                "metadata_contains_state": false,
+                "protected_contains_state": false,
+                "read_error": "",
+                "state_restored": true
+              },
+              "expected_behavior_met": true
+            },
+            {
+              "id": "profile-metadata-commit-failure",
+              "expected": "Failed save preserves one coherent previous profile",
+              "actual": {
+                "metadata_name": "old-name",
+                "read_error": "",
+                "save_error": "rename profile: synthetic metadata commit failure",
+                "state_is_new": true
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "profile-interrupted-state-write",
+              "expected": "Interrupted state save leaves previous acknowledged profile readable",
+              "actual": {
+                "prior_state_preserved": false,
+                "save_error": "write protected session state: synthetic interrupted protected-state write",
+                "subsequent_read_error": "open protected session state: protected session payload is truncated"
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "profile-missing-protected-state",
+              "expected": "A profile whose acknowledged protected state is missing reports incomplete recovery",
+              "actual": {
+                "profile_returned": true,
+                "read_error": "",
+                "restored_storage_bytes": 0
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "profile-unreadable-list",
+              "expected": "Listing exposes recovery failure rather than an apparently empty profile store",
+              "actual": {
+                "default_created_replacement": true,
+                "default_resolution_error": "",
+                "direct_read_error": "open protected session state: cipher: message authentication failed",
+                "list_error": "",
+                "listed_count": 0
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "profile-concurrent-field-updates",
+              "expected": "Successful tab and storage updates both survive a legal read-modify-save interleaving",
+              "actual": {
+                "new_tab_retained": true,
+                "storage_error": "",
+                "storage_reverted_to_old": true,
+                "tabs_error": ""
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "profile-persist-http-receipt",
+              "expected": "Persist endpoint reports failed durable save",
+              "actual": {
+                "http_status": 200,
+                "response": "{\"session_id\":\"synthetic-session\",\"status\":\"persisted\"}"
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "profile-close-save-failure",
+              "expected": "Failed final persistence remains visible and recoverable when closing",
+              "actual": {
+                "driver_closed": true,
+                "http_status": 200,
+                "profile_association_after_close": "",
+                "response": "{\"session_id\":\"synthetic-session\",\"status\":\"closed\"}"
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "profile-missing-key-fail-closed-control",
+              "expected": "Profile creation requires an encryption key",
+              "actual": "BAS_SESSION_STORE_KEY is required for protected session storage",
+              "expected_behavior_met": true
+            },
+            {
+              "id": "replay-simple-click-control",
+              "expected": "Basic click remains a valid typed click",
+              "actual": {
+                "generated_action": {
+                  "click": {
+                    "button": "MOUSE_BUTTON_LEFT",
+                    "selector": "#fixture"
+                  },
+                  "metadata": {
+                    "label": "Click element"
+                  },
+                  "type": "ACTION_TYPE_CLICK"
+                },
+                "typed_ingress_error": ""
+              },
+              "expected_behavior_met": true
+            },
+            {
+              "id": "replay-click-modifiers",
+              "expected": "Recorded Control-click preserves its modifier",
+              "actual": {
+                "generated_action": {
+                  "click": {
+                    "button": "MOUSE_BUTTON_LEFT",
+                    "selector": "#fixture"
+                  },
+                  "metadata": {
+                    "label": "Click element"
+                  },
+                  "type": "ACTION_TYPE_CLICK"
+                },
+                "typed_ingress_error": ""
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "replay-double-click",
+              "expected": "Recorded double-click preserves click count two",
+              "actual": {
+                "generated_action": {
+                  "click": {
+                    "button": "MOUSE_BUTTON_LEFT",
+                    "selector": "#fixture"
+                  },
+                  "metadata": {
+                    "label": "Click element"
+                  },
+                  "type": "ACTION_TYPE_CLICK"
+                },
+                "typed_ingress_error": ""
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "replay-keyboard-modifiers",
+              "expected": "Recorded Control-A preserves its modifier",
+              "actual": {
+                "generated_action": {
+                  "keyboard": {
+                    "key": "a"
+                  },
+                  "metadata": {
+                    "label": "Press a"
+                  },
+                  "type": "ACTION_TYPE_KEYBOARD"
+                },
+                "typed_ingress_error": ""
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "replay-horizontal-scroll",
+              "expected": "Recorded scroll preserves both axes",
+              "actual": {
+                "generated_action": {
+                  "metadata": {
+                    "label": "Scroll"
+                  },
+                  "scroll": {
+                    "selector": "#fixture",
+                    "y": 400
+                  },
+                  "type": "ACTION_TYPE_SCROLL"
+                },
+                "typed_ingress_error": ""
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "replay-blur",
+              "expected": "Blur becomes blur or explicit unsupported failure, never click",
+              "actual": {
+                "generated_action": {
+                  "click": {
+                    "selector": "#fixture"
+                  },
+                  "metadata": {
+                    "label": "blur"
+                  },
+                  "type": "ACTION_TYPE_CLICK"
+                },
+                "typed_ingress_error": ""
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "replay-browser-drag-event",
+              "expected": "Browser-script drag-drop becomes drag/drop or explicit unsupported failure",
+              "actual": {
+                "generated_action": {
+                  "click": {
+                    "selector": "#fixture"
+                  },
+                  "metadata": {
+                    "label": "drag-drop"
+                  },
+                  "type": "ACTION_TYPE_CLICK"
+                },
+                "typed_ingress_error": ""
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "replay-registry-drag-event",
+              "expected": "Registered dragDrop conversion produces valid typed workflow",
+              "actual": {
+                "generated_action": {
+                  "dragDrop": {
+                    "selector": "#fixture"
+                  },
+                  "metadata": {
+                    "label": "Drag and drop"
+                  },
+                  "type": "ACTION_TYPE_UNSPECIFIED"
+                },
+                "typed_ingress_error": "decode workflow definition at ingress: proto: (line 1:45): unknown field \"selector\""
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "replay-target-context",
+              "expected": "Target context is retained or its loss is rejected instead of accepting an untargeted flow",
+              "actual": {
+                "flow": {
+                  "edges": [
+                    {
+                      "id": "edge_1",
+                      "source": "node_1",
+                      "target": "wait_2"
+                    },
+                    {
+                      "id": "edge_2",
+                      "source": "wait_2",
+                      "target": "node_3"
+                    }
+                  ],
+                  "nodes": [
+                    {
+                      "action": {
+                        "click": {
+                          "selector": "#one"
+                        },
+                        "metadata": {
+                          "label": "Click element"
+                        },
+                        "type": "ACTION_TYPE_CLICK"
+                      },
+                      "id": "node_1",
+                      "position": {
+                        "x": 250,
+                        "y": 100
+                      }
+                    },
+                    {
+                      "action": {
+                        "metadata": {
+                          "label": "Wait for element"
+                        },
+                        "type": "ACTION_TYPE_WAIT",
+                        "wait": {
+                          "selector": "#two",
+                          "state": "WAIT_STATE_VISIBLE",
+                          "timeout_ms": 10000
+                        }
+                      },
+                      "id": "wait_2",
+                      "position": {
+                        "x": 250,
+                        "y": 220
+                      }
+                    },
+                    {
+                      "action": {
+                        "click": {
+                          "selector": "#two"
+                        },
+                        "metadata": {
+                          "label": "Click element"
+                        },
+                        "type": "ACTION_TYPE_CLICK"
+                      },
+                      "id": "node_3",
+                      "position": {
+                        "x": 250,
+                        "y": 340
+                      }
+                    }
+                  ]
+                },
+                "typed_ingress_error": ""
+              },
+              "expected_behavior_met": false
+            }
+          ],
+          "scope": "isolated actual profile repository/service/HTTP handlers and workflow generator/typed ingress; synthetic I/O only",
+          "producer_exit": 0
+        }
+      ],
+      "summary": {
+        "passed": 0,
+        "failed": 1,
+        "unavailable": 0
+      }
+    },
+    "after": {
+      "observed_at": "2026-09-22T03:28:52.695052+00:00",
+      "scope": "isolated actual-module regressions; not product or native-platform certification",
+      "cases": [
+        {
+          "case": "profile",
+          "status": "failed",
+          "producer_sha256": "2afe3d53f0d13e95320a306b16193945dee55e9da77c8be5fd76c62b30824cd1",
+          "observations": [
+            {
+              "id": "profile-encryption-roundtrip-control",
+              "expected": "Fresh repository restores synthetic state without putting it in plaintext files",
+              "actual": {
+                "metadata_contains_state": false,
+                "protected_contains_state": false,
+                "read_error": "",
+                "state_restored": true
+              },
+              "expected_behavior_met": true
+            },
+            {
+              "id": "profile-metadata-commit-failure",
+              "expected": "Failed save preserves one coherent previous profile",
+              "actual": {
+                "metadata_name": "old-name",
+                "read_error": "",
+                "save_error": "rename profile: synthetic metadata commit failure",
+                "state_is_new": true
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "profile-interrupted-state-write",
+              "expected": "Interrupted state save leaves previous acknowledged profile readable",
+              "actual": {
+                "prior_state_preserved": false,
+                "save_error": "write protected session state: synthetic interrupted protected-state write",
+                "subsequent_read_error": "open protected session state: protected session payload is truncated"
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "profile-missing-protected-state",
+              "expected": "A profile whose acknowledged protected state is missing reports incomplete recovery",
+              "actual": {
+                "profile_returned": false,
+                "read_error": "read protected session state: file does not exist",
+                "restored_storage_bytes": 0
+              },
+              "expected_behavior_met": true
+            },
+            {
+              "id": "profile-unreadable-list",
+              "expected": "Listing exposes recovery failure rather than an apparently empty profile store",
+              "actual": {
+                "default_created_replacement": false,
+                "default_resolution_error": "failed to list profiles: recover session profile \"synthetic-profile\": open protected session state: cipher: message authentication failed",
+                "direct_read_error": "open protected session state: cipher: message authentication failed",
+                "list_error": "recover session profile \"synthetic-profile\": open protected session state: cipher: message authentication failed",
+                "listed_count": 0
+              },
+              "expected_behavior_met": true
+            },
+            {
+              "id": "profile-concurrent-field-updates",
+              "expected": "Successful tab and storage updates both survive a legal read-modify-save interleaving",
+              "actual": {
+                "new_tab_retained": true,
+                "storage_error": "",
+                "storage_reverted_to_old": true,
+                "tabs_error": ""
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "profile-persist-http-receipt",
+              "expected": "Persist endpoint reports failed durable save",
+              "actual": {
+                "http_status": 500,
+                "response": "{\"code\":\"INTERNAL_SERVER_ERROR\",\"message\":\"An internal server error occurred\",\"details\":{\"error\":\"synthetic profile save failure\"}}"
+              },
+              "expected_behavior_met": true
+            },
+            {
+              "id": "profile-close-save-failure",
+              "expected": "Failed final persistence remains visible and recoverable when closing",
+              "actual": {
+                "driver_closed": false,
+                "http_status": 500,
+                "profile_association_after_close": "synthetic-profile",
+                "response": "{\"code\":\"INTERNAL_SERVER_ERROR\",\"message\":\"Session profile could not be saved; the browser remains open. Retry closing after resolving the save failure.\",\"details\":{\"error\":\"synthetic profile save failure\"}}"
+              },
+              "expected_behavior_met": true
+            },
+            {
+              "id": "profile-missing-key-fail-closed-control",
+              "expected": "Profile creation requires an encryption key",
+              "actual": "BAS_SESSION_STORE_KEY is required for protected session storage",
+              "expected_behavior_met": true
+            },
+            {
+              "id": "replay-simple-click-control",
+              "expected": "Basic click remains a valid typed click",
+              "actual": {
+                "generated_action": {
+                  "click": {
+                    "button": "MOUSE_BUTTON_LEFT",
+                    "selector": "#fixture"
+                  },
+                  "metadata": {
+                    "label": "Click element"
+                  },
+                  "type": "ACTION_TYPE_CLICK"
+                },
+                "typed_ingress_error": ""
+              },
+              "expected_behavior_met": true
+            },
+            {
+              "id": "replay-click-modifiers",
+              "expected": "Recorded Control-click preserves its modifier",
+              "actual": {
+                "generated_action": {
+                  "click": {
+                    "button": "MOUSE_BUTTON_LEFT",
+                    "selector": "#fixture"
+                  },
+                  "metadata": {
+                    "label": "Click element"
+                  },
+                  "type": "ACTION_TYPE_CLICK"
+                },
+                "typed_ingress_error": ""
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "replay-double-click",
+              "expected": "Recorded double-click preserves click count two",
+              "actual": {
+                "generated_action": {
+                  "click": {
+                    "button": "MOUSE_BUTTON_LEFT",
+                    "selector": "#fixture"
+                  },
+                  "metadata": {
+                    "label": "Click element"
+                  },
+                  "type": "ACTION_TYPE_CLICK"
+                },
+                "typed_ingress_error": ""
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "replay-keyboard-modifiers",
+              "expected": "Recorded Control-A preserves its modifier",
+              "actual": {
+                "generated_action": {
+                  "keyboard": {
+                    "key": "a"
+                  },
+                  "metadata": {
+                    "label": "Press a"
+                  },
+                  "type": "ACTION_TYPE_KEYBOARD"
+                },
+                "typed_ingress_error": ""
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "replay-horizontal-scroll",
+              "expected": "Recorded scroll preserves both axes",
+              "actual": {
+                "generated_action": {
+                  "metadata": {
+                    "label": "Scroll"
+                  },
+                  "scroll": {
+                    "selector": "#fixture",
+                    "y": 400
+                  },
+                  "type": "ACTION_TYPE_SCROLL"
+                },
+                "typed_ingress_error": ""
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "replay-blur",
+              "expected": "Blur becomes blur or explicit unsupported failure, never click",
+              "actual": {
+                "generated_action": {
+                  "click": {
+                    "selector": "#fixture"
+                  },
+                  "metadata": {
+                    "label": "blur"
+                  },
+                  "type": "ACTION_TYPE_CLICK"
+                },
+                "typed_ingress_error": ""
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "replay-browser-drag-event",
+              "expected": "Browser-script drag-drop becomes drag/drop or explicit unsupported failure",
+              "actual": {
+                "generated_action": {
+                  "click": {
+                    "selector": "#fixture"
+                  },
+                  "metadata": {
+                    "label": "drag-drop"
+                  },
+                  "type": "ACTION_TYPE_CLICK"
+                },
+                "typed_ingress_error": ""
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "replay-registry-drag-event",
+              "expected": "Registered dragDrop conversion produces valid typed workflow",
+              "actual": {
+                "generated_action": {
+                  "dragDrop": {
+                    "selector": "#fixture"
+                  },
+                  "metadata": {
+                    "label": "Drag and drop"
+                  },
+                  "type": "ACTION_TYPE_UNSPECIFIED"
+                },
+                "typed_ingress_error": "decode workflow definition at ingress: proto: (line 1:45): unknown field \"selector\""
+              },
+              "expected_behavior_met": false
+            },
+            {
+              "id": "replay-target-context",
+              "expected": "Target context is retained or its loss is rejected instead of accepting an untargeted flow",
+              "actual": {
+                "flow": {
+                  "edges": [
+                    {
+                      "id": "edge_1",
+                      "source": "node_1",
+                      "target": "wait_2"
+                    },
+                    {
+                      "id": "edge_2",
+                      "source": "wait_2",
+                      "target": "node_3"
+                    }
+                  ],
+                  "nodes": [
+                    {
+                      "action": {
+                        "click": {
+                          "selector": "#one"
+                        },
+                        "metadata": {
+                          "label": "Click element"
+                        },
+                        "type": "ACTION_TYPE_CLICK"
+                      },
+                      "id": "node_1",
+                      "position": {
+                        "x": 250,
+                        "y": 100
+                      }
+                    },
+                    {
+                      "action": {
+                        "metadata": {
+                          "label": "Wait for element"
+                        },
+                        "type": "ACTION_TYPE_WAIT",
+                        "wait": {
+                          "selector": "#two",
+                          "state": "WAIT_STATE_VISIBLE",
+                          "timeout_ms": 10000
+                        }
+                      },
+                      "id": "wait_2",
+                      "position": {
+                        "x": 250,
+                        "y": 220
+                      }
+                    },
+                    {
+                      "action": {
+                        "click": {
+                          "selector": "#two"
+                        },
+                        "metadata": {
+                          "label": "Click element"
+                        },
+                        "type": "ACTION_TYPE_CLICK"
+                      },
+                      "id": "node_3",
+                      "position": {
+                        "x": 250,
+                        "y": 340
+                      }
+                    }
+                  ]
+                },
+                "typed_ingress_error": ""
+              },
+              "expected_behavior_met": false
+            }
+          ],
+          "scope": "isolated actual profile repository/service/HTTP handlers and workflow generator/typed ingress; synthetic I/O only",
+          "producer_exit": 0
+        }
+      ],
+      "summary": {
+        "passed": 0,
+        "failed": 1,
+        "unavailable": 0
+      }
+    }
+  },
+  "inventory": {
+    "before": {
+      "schema_version": 1,
+      "observed_at": "2026-09-22T03:18:08.625107+00:00",
+      "head": "7d1c7531d057c061c5ad5a67fbecb97ebe2eb194",
+      "source_digest_sha256": "1698c30638c5bec9a9091a161115f02a6d0d922b103a4d2d072d490ee9271b74",
+      "method": {
+        "population": "Git-tracked plus nonignored untracked Go/TS/TSX/JS/MJS/Python files; physical lines include blanks and comments. tracked_source_* keys describe this selected population.",
+        "include_untracked": true,
+        "excluded": [
+          "coverage",
+          "dist",
+          "gen",
+          "generated",
+          "node_modules",
+          "vendor",
+          "filenames containing .generated."
+        ],
+        "runtime": "api/cli Go and ui/driver src, excluding named tests, testutil/testing directories, testutil_* and test-setup* helpers.",
+        "limits": "Not AST complexity, coverage or code-quality score. Runtime recording/testing diagnostics are excluded from main-path count. Ignored generated desktop trees are excluded; untracked source follows include_untracked. Shared worktree can change during scan."
+      },
+      "surfaces": {
+        ".vrooli": {
+          "tracked_source_files": 9,
+          "tracked_source_lines": 2398,
+          "runtime_files": 0,
+          "runtime_lines": 0,
+          "runtime_over_500_lines": 0,
+          "runtime_over_1000_lines": 0
+        },
+        "api": {
+          "tracked_source_files": 634,
+          "tracked_source_lines": 157506,
+          "runtime_files": 422,
+          "runtime_lines": 94165,
+          "runtime_over_500_lines": 44,
+          "runtime_over_1000_lines": 10
+        },
+        "bas": {
+          "tracked_source_files": 2,
+          "tracked_source_lines": 546,
+          "runtime_files": 0,
+          "runtime_lines": 0,
+          "runtime_over_500_lines": 0,
+          "runtime_over_1000_lines": 0
+        },
+        "cli": {
+          "tracked_source_files": 74,
+          "tracked_source_lines": 5382,
+          "runtime_files": 43,
+          "runtime_lines": 3179,
+          "runtime_over_500_lines": 0,
+          "runtime_over_1000_lines": 0
+        },
+        "docs": {
+          "tracked_source_files": 8,
+          "tracked_source_lines": 1189,
+          "runtime_files": 0,
+          "runtime_lines": 0,
+          "runtime_over_500_lines": 0,
+          "runtime_over_1000_lines": 0
+        },
+        "playwright-driver": {
+          "tracked_source_files": 354,
+          "tracked_source_lines": 90527,
+          "runtime_files": 210,
+          "runtime_lines": 55567,
+          "runtime_over_500_lines": 25,
+          "runtime_over_1000_lines": 4
+        },
+        "ui": {
+          "tracked_source_files": 794,
+          "tracked_source_lines": 150708,
+          "runtime_files": 685,
+          "runtime_lines": 131532,
+          "runtime_over_500_lines": 56,
+          "runtime_over_1000_lines": 11
+        }
+      },
+      "source_extensions": {
+        ".py": 13,
+        ".go": 714,
+        ".js": 9,
+        ".ts": 759,
+        ".mjs": 9,
+        ".tsx": 371
+      }
+    },
+    "after": {
+      "schema_version": 1,
+      "observed_at": "2026-09-22T03:29:35.580015+00:00",
+      "head": "7d1c7531d057c061c5ad5a67fbecb97ebe2eb194",
+      "source_digest_sha256": "24b26fab64d2fb0b32a16128335fa108474c1b2c4e5be20921a59f753cbaecb9",
+      "method": {
+        "population": "Git-tracked plus nonignored untracked Go/TS/TSX/JS/MJS/Python files; physical lines include blanks and comments. tracked_source_* keys describe this selected population.",
+        "include_untracked": true,
+        "excluded": [
+          "coverage",
+          "dist",
+          "gen",
+          "generated",
+          "node_modules",
+          "vendor",
+          "filenames containing .generated."
+        ],
+        "runtime": "api/cli Go and ui/driver src, excluding named tests, testutil/testing directories, testutil_* and test-setup* helpers.",
+        "limits": "Not AST complexity, coverage or code-quality score. Runtime recording/testing diagnostics are excluded from main-path count. Ignored generated desktop trees are excluded; untracked source follows include_untracked. Shared worktree can change during scan."
+      },
+      "surfaces": {
+        ".vrooli": {
+          "tracked_source_files": 9,
+          "tracked_source_lines": 2398,
+          "runtime_files": 0,
+          "runtime_lines": 0,
+          "runtime_over_500_lines": 0,
+          "runtime_over_1000_lines": 0
+        },
+        "api": {
+          "tracked_source_files": 634,
+          "tracked_source_lines": 157670,
+          "runtime_files": 422,
+          "runtime_lines": 94101,
+          "runtime_over_500_lines": 44,
+          "runtime_over_1000_lines": 10
+        },
+        "bas": {
+          "tracked_source_files": 2,
+          "tracked_source_lines": 546,
+          "runtime_files": 0,
+          "runtime_lines": 0,
+          "runtime_over_500_lines": 0,
+          "runtime_over_1000_lines": 0
+        },
+        "cli": {
+          "tracked_source_files": 74,
+          "tracked_source_lines": 5382,
+          "runtime_files": 43,
+          "runtime_lines": 3179,
+          "runtime_over_500_lines": 0,
+          "runtime_over_1000_lines": 0
+        },
+        "docs": {
+          "tracked_source_files": 8,
+          "tracked_source_lines": 1201,
+          "runtime_files": 0,
+          "runtime_lines": 0,
+          "runtime_over_500_lines": 0,
+          "runtime_over_1000_lines": 0
+        },
+        "playwright-driver": {
+          "tracked_source_files": 354,
+          "tracked_source_lines": 90527,
+          "runtime_files": 210,
+          "runtime_lines": 55567,
+          "runtime_over_500_lines": 25,
+          "runtime_over_1000_lines": 4
+        },
+        "ui": {
+          "tracked_source_files": 795,
+          "tracked_source_lines": 150787,
+          "runtime_files": 685,
+          "runtime_lines": 131518,
+          "runtime_over_500_lines": 56,
+          "runtime_over_1000_lines": 11
+        }
+      },
+      "source_extensions": {
+        ".py": 13,
+        ".go": 714,
+        ".js": 9,
+        ".ts": 759,
+        ".mjs": 9,
+        ".tsx": 372
+      }
+    }
+  },
+  "complexity": {
+    "handler_functions_before": "41 handlers (*Handler).CreateRecordingSession scenarios/browser-automation-studio/api/handlers/record_mode.go:41:1\n19 handlers (*Handler).GenerateWorkflowFromRecording scenarios/browser-automation-studio/api/handlers/record_mode.go:429:1\n16 handlers (*Handler).CloseRecordingSession scenarios/browser-automation-studio/api/handlers/record_mode.go:247:1\n13 handlers (*Handler).HandleDriverFrameStream scenarios/browser-automation-studio/api/handlers/record_mode.go:541:1\n10 handlers (*Handler).persistSessionProfile scenarios/browser-automation-studio/api/handlers/record_mode_persistence.go:66:1\n9 handlers (*Handler).GetRecordingDebug scenarios/browser-automation-studio/api/handlers/record_mode.go:341:1\n7 handlers (*Handler).UpdateRecordingViewport scenarios/browser-automation-studio/api/handlers/record_mode.go:972:1\n7 handlers (*Handler).GoForwardRecordingSession scenarios/browser-automation-studio/api/handlers/record_mode.go:827:1\n7 handlers (*Handler).GoBackRecordingSession scenarios/browser-automation-studio/api/handlers/record_mode.go:732:1\n7 handlers (*Handler).ReloadRecordingSession scenarios/browser-automation-studio/api/handlers/record_mode.go:651:1\n6 handlers (*Handler).resolveSessionProfile scenarios/browser-automation-studio/api/handlers/record_mode_persistence.go:31:1\n6 handlers (*Handler).CreateInputForwarder scenarios/browser-automation-studio/api/handlers/record_mode.go:1213:1\n6 handlers (*Handler).GetRecordingFrame scenarios/browser-automation-studio/api/handlers/record_mode.go:1141:1\n5 handlers (*Handler).ForwardRecordingInput scenarios/browser-automation-studio/api/handlers/record_mode.go:1097:1\n5 handlers (*Handler).UpdateStreamSettings scenarios/browser-automation-studio/api/handlers/record_mode.go:1034:1\n5 handlers (*Handler).CaptureRecordingScreenshot scenarios/browser-automation-studio/api/handlers/record_mode.go:922:1\n3 handlers (*Handler).PersistRecordingSession scenarios/browser-automation-studio/api/handlers/record_mode_persistence.go:15:1\n3 handlers (*Handler).GetRecordedActions scenarios/browser-automation-studio/api/handlers/record_mode.go:390:1\n2 handlers (*Handler).getActiveSessionProfile scenarios/browser-automation-studio/api/handlers/record_mode_persistence.go:59:1\n2 handlers (*Handler).clearActiveSessionProfile scenarios/browser-automation-studio/api/handlers/record_mode_persistence.go:53:1\n2 handlers (*Handler).setActiveSessionProfile scenarios/browser-automation-studio/api/handlers/record_mode_persistence.go:48:1\n2 handlers (*Handler).generateCorrelationID scenarios/browser-automation-studio/api/handlers/record_mode.go:1268:1\n1 handlers getPlaywrightDriverURL scenarios/browser-automation-studio/api/handlers/record_mode.go:35:1\n",
+    "handler_functions_after": "41 handlers (*Handler).CreateRecordingSession scenarios/browser-automation-studio/api/handlers/record_mode.go:41:1\n19 handlers (*Handler).GenerateWorkflowFromRecording scenarios/browser-automation-studio/api/handlers/record_mode.go:380:1\n13 handlers (*Handler).HandleDriverFrameStream scenarios/browser-automation-studio/api/handlers/record_mode.go:492:1\n9 handlers (*Handler).GetRecordingDebug scenarios/browser-automation-studio/api/handlers/record_mode.go:292:1\n7 handlers (*Handler).UpdateRecordingViewport scenarios/browser-automation-studio/api/handlers/record_mode.go:923:1\n7 handlers (*Handler).GoForwardRecordingSession scenarios/browser-automation-studio/api/handlers/record_mode.go:778:1\n7 handlers (*Handler).GoBackRecordingSession scenarios/browser-automation-studio/api/handlers/record_mode.go:683:1\n7 handlers (*Handler).ReloadRecordingSession scenarios/browser-automation-studio/api/handlers/record_mode.go:602:1\n6 handlers (*Handler).persistSessionProfile scenarios/browser-automation-studio/api/handlers/record_mode_persistence.go:68:1\n6 handlers (*Handler).resolveSessionProfile scenarios/browser-automation-studio/api/handlers/record_mode_persistence.go:31:1\n6 handlers (*Handler).CreateInputForwarder scenarios/browser-automation-studio/api/handlers/record_mode.go:1164:1\n6 handlers (*Handler).GetRecordingFrame scenarios/browser-automation-studio/api/handlers/record_mode.go:1092:1\n6 handlers (*Handler).CloseRecordingSession scenarios/browser-automation-studio/api/handlers/record_mode.go:247:1\n5 handlers (*Handler).ForwardRecordingInput scenarios/browser-automation-studio/api/handlers/record_mode.go:1048:1\n5 handlers (*Handler).UpdateStreamSettings scenarios/browser-automation-studio/api/handlers/record_mode.go:985:1\n5 handlers (*Handler).CaptureRecordingScreenshot scenarios/browser-automation-studio/api/handlers/record_mode.go:873:1\n3 handlers (*Handler).PersistRecordingSession scenarios/browser-automation-studio/api/handlers/record_mode_persistence.go:15:1\n3 handlers (*Handler).GetRecordedActions scenarios/browser-automation-studio/api/handlers/record_mode.go:341:1\n2 handlers (*Handler).getActiveSessionProfile scenarios/browser-automation-studio/api/handlers/record_mode_persistence.go:61:1\n2 handlers (*Handler).clearActiveSessionProfile scenarios/browser-automation-studio/api/handlers/record_mode_persistence.go:54:1\n2 handlers (*Handler).setActiveSessionProfile scenarios/browser-automation-studio/api/handlers/record_mode_persistence.go:48:1\n2 handlers (*Handler).generateCorrelationID scenarios/browser-automation-studio/api/handlers/record_mode.go:1219:1\n1 handlers getPlaywrightDriverURL scenarios/browser-automation-studio/api/handlers/record_mode.go:35:1\n",
+    "repository_functions_before": "10 persistence (*FileRepository).Save scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:140:1\n10 persistence (*FileRepository).Get scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:58:1\n9 persistence (*FileRepository).List scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:83:1\n7 persistence (*FileRepository).Delete scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:191:1\n6 persistence (*FileRepository).loadProtected scenarios/browser-automation-studio/api/services/session-profile/persistence/protected_state.go:71:1\n6 persistence (*FileRepository).encryptionKey scenarios/browser-automation-studio/api/services/session-profile/persistence/protected_state.go:35:1\n6 persistence NewFileRepositoryWithConfig scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:36:1\n5 persistence (*FileRepository).saveProtected scenarios/browser-automation-studio/api/services/session-profile/persistence/protected_state.go:52:1\n5 persistence (*FileRepository).Create scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:118:1\n4 persistence openProtected scenarios/browser-automation-studio/api/services/session-profile/persistence/protected_state.go:114:1\n4 persistence sealProtected scenarios/browser-automation-studio/api/services/session-profile/persistence/protected_state.go:98:1\n1 persistence (*FileRepository).protectedPath scenarios/browser-automation-studio/api/services/session-profile/persistence/protected_state.go:31:1\n1 persistence (*FileRepository).profilePath scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:211:1\n1 persistence NewFileRepository scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:31:1\n",
+    "repository_functions_after": "10 persistence (*FileRepository).Save scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:135:1\n10 persistence (*FileRepository).Get scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:56:1\n8 persistence (*FileRepository).List scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:81:1\n7 persistence (*FileRepository).Delete scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:186:1\n6 persistence (*FileRepository).encryptionKey scenarios/browser-automation-studio/api/services/session-profile/persistence/protected_state.go:35:1\n6 persistence NewFileRepositoryWithConfig scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:35:1\n5 persistence (*FileRepository).loadProtected scenarios/browser-automation-studio/api/services/session-profile/persistence/protected_state.go:71:1\n5 persistence (*FileRepository).saveProtected scenarios/browser-automation-studio/api/services/session-profile/persistence/protected_state.go:52:1\n5 persistence (*FileRepository).Create scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:113:1\n4 persistence openProtected scenarios/browser-automation-studio/api/services/session-profile/persistence/protected_state.go:111:1\n4 persistence sealProtected scenarios/browser-automation-studio/api/services/session-profile/persistence/protected_state.go:95:1\n1 persistence (*FileRepository).protectedPath scenarios/browser-automation-studio/api/services/session-profile/persistence/protected_state.go:31:1\n1 persistence (*FileRepository).profilePath scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:206:1\n1 persistence NewFileRepository scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository.go:30:1\n"
+  },
+  "setpoint_program_ids": [
+    "prog_d6665b51-2d4d-422c-bba7-ab4c6fdbf941",
+    "prog_9d792154-251b-4c9b-956c-abfc733a660f"
+  ],
+  "setpoint_result": {
+    "required": 17,
+    "readable": 0,
+    "pending_telemetry": 17,
+    "product_qualified": false
+  },
+  "pending_test_genie_run": "20260922-032049-4b5c680b",
+  "limitations": [
+    "Shared worktree; hashes do not isolate execution inputs.",
+    "Crash-atomic profile saves and read/modify/write serialization remain failing.",
+    "Latency and whole-domain tidiness qualification pending owner receipt.",
+    "All full browser/native/performance release outcomes remain unqualified."
+  ]
+}

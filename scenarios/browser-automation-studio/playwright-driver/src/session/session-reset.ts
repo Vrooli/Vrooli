@@ -1,36 +1,59 @@
+import type { Route } from 'rebrowser-playwright';
 import type { SessionState } from '../types';
 import { cleanupSession } from '../infra';
-import { logger, metrics, scopedLog, LogContext } from '../utils';
+import { assertRecordingAcknowledged } from '../recording';
 
-const message = (error: unknown): string => error instanceof Error ? error.message : String(error);
-
-/** Reset mutable browser state while retaining the session and its lease. */
+/** Clear managed context state; SessionManager owns admission and phase changes. */
 export async function resetSessionState(session: SessionState): Promise<void> {
-  if (session.externalTarget) {
-    throw new Error('resetting an external Electron target is refused; the target owner controls renderer navigation');
+  if (session.pipelineManager?.isRecording()) await session.pipelineManager.stopRecording();
+  assertRecordingAcknowledged(session.id);
+  const page = session.pages[0] ?? session.page;
+  for (const other of session.context.pages()) {
+    if (other !== page) await other.close();
   }
-  const { id: sessionId } = session;
-  const previousPhase = session.phase;
-  session.phase = 'resetting';
-  logger.info(scopedLog(LogContext.SESSION, 'resetting'), { sessionId, previousPhase, instructionCount: session.instructionCount });
-  await session.page.goto('about:blank');
+  await page.goto('about:blank');
+  if (session.storageOrigins.size) {
+    const cdp = await session.context.newCDPSession(page);
+    try {
+      for (const origin of session.storageOrigins) {
+        await cdp.send('Storage.clearDataForOrigin', { origin, storageTypes: 'all' });
+      }
+    } finally {
+      await cdp.detach();
+    }
+    // Session storage belongs to the retained tab. Empty intercepted documents
+    // expose each origin's namespace without making application requests.
+    const emptyDocument = (route: Route): Promise<void> => route.fulfill({
+      status: 200, contentType: 'text/html', body: '<!doctype html><title>Reset</title>',
+    });
+    await page.route('**/*', emptyDocument);
+    try {
+      for (const origin of session.storageOrigins) {
+        await page.goto(origin);
+        await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
+      }
+      await page.goto('about:blank');
+    } finally {
+      await page.unroute('**/*', emptyDocument);
+    }
+  }
   await session.context.clearCookies();
   await session.context.clearPermissions();
-  await session.page.evaluate(() => { window.localStorage.clear(); window.sessionStorage.clear(); });
-  session.frameStack = [];
-  for (const page of session.pages.slice(1)) {
-    await page.close().catch((error: unknown) => {
-      logger.warn(scopedLog(LogContext.CLEANUP, 'page close failed'), { sessionId, error: message(error) });
-      metrics.cleanupFailures.inc({ operation: 'page_close' });
-    });
-  }
-  session.pages = [session.page];
-  session.currentPageIndex = 0;
+  await page.unroute('**/*');
+  await cleanupSession(session.id);
+  session.storageOrigins.clear();
   session.activeMocks.clear();
-  await session.page.unroute('**/*').catch((error: unknown) => logger.warn(scopedLog(LogContext.CLEANUP, 'unroute failed'), { sessionId, error: message(error) }));
-  await cleanupSession(sessionId);
-  session.executedInstructions?.clear();
+  session.frameStack = [];
+  session.page = page;
+  session.pages = [page];
+  session.currentPageIndex = 0;
+  for (const [id, tracked] of session.pageIdMap) {
+    if (tracked !== page) {
+      session.pageIdMap.delete(id);
+      session.pageToIdMap.delete(tracked);
+    }
+  }
+  // A reset must not authorize repeating an old instruction.
+  session.instructionReceipts?.clear();
   session.lastUsedAt = new Date();
-  session.phase = 'ready';
-  logger.info(scopedLog(LogContext.SESSION, 'reset complete'), { sessionId, phase: 'ready' });
 }

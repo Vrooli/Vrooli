@@ -1,0 +1,149 @@
+{
+  "cycle": "BAS-WORK-026",
+  "date": "2026-09-22",
+  "issues": [
+    "BAS-RF-038"
+  ],
+  "journeys": [
+    "J17"
+  ],
+  "changes": [
+    "GoSession transports the admitted execution and immutable lease on every instruction",
+    "Driver verifies current unreleased lease after body parsing before phase/activity/cache/effect",
+    "Rejected old ownership cannot refresh idle activity; delayed bodies cannot cross ownership handoff",
+    "Engine fixtures now include genuine lease receipt shape; public driver documentation matches typed leased protocol"
+  ],
+  "evidence": {
+    "red": [
+      "/tmp/bas-instruction-lease-go-red-026.txt",
+      "/tmp/bas-instruction-lease-driver-red-026.txt"
+    ],
+    "focused": "39tests2driver/native suites4.322s naturalexit; driver typespass",
+    "go_races": "session1.064/driver1.029/engine1.062/executorcached; /tmp/bas-instruction-lease-go-final-026.txt",
+    "native_oracle": "Independent browser click count remains1 across wrong owner/token/released/old handoff requests; valid current owner raises countto2",
+    "build": "/tmp/bas-build-026.txt pass",
+    "contract": "pass",
+    "board": "prog_f48ebf2a-2772-4686-9c1a-5c904a61e887;17pending/productfalse",
+    "owner": "20260922-110144-e89cb9f0 failed456s;onequietwaitcompleted",
+    "full_unit": "API24.336/CLI0.866/driver351.922/UItypes11.336s passed;driver126suites1523tests351.097s naturalexit,2skipped. UIcoverage28.57/30.34/64.96/28.57 vs85 failed",
+    "retained_probes": "execution-api6/8;execution-driver8/14; currentfixturesupdatedwithoutchangingexpectedbehaviors; syntheticmiddlewarestatusnotnativeproof"
+  },
+  "local_metrics": {
+    "paths": [
+      "api/automation/driver/client.go",
+      "api/automation/session/session.go"
+    ],
+    "before": {
+      "lines": 1569,
+      "functions": 98,
+      "cyclomatic": 286
+    },
+    "current": {
+      "lines": 1574,
+      "functions": 98,
+      "cyclomatic": 288
+    },
+    "driver_lines": {
+      "paths": [
+        "playwright-driver/src/session/manager.ts",
+        "playwright-driver/src/routes/session-run.ts"
+      ],
+      "before": 1444,
+      "current": 1460
+    }
+  },
+  "cumulative_go": {
+    "paths": [
+      "api/automation/compiler/action_definition_builder.go",
+      "api/automation/driver/client.go",
+      "api/automation/events/sink.go",
+      "api/automation/events/ws_sink.go",
+      "api/automation/execution-writer/artifact_config.go",
+      "api/automation/execution-writer/external_artifacts.go",
+      "api/automation/execution-writer/file_writer.go",
+      "api/automation/execution-writer/interface.go",
+      "api/automation/execution-writer/result_manifest.go",
+      "api/automation/executor/flow_executor.go",
+      "api/automation/executor/flow_utils.go",
+      "api/automation/executor/simple_executor.go",
+      "api/automation/session/session.go",
+      "api/handlers/execution_export.go",
+      "api/handlers/handler.go",
+      "api/handlers/record_mode.go",
+      "api/handlers/record_mode_actions.go",
+      "api/handlers/record_mode_pages.go",
+      "api/handlers/record_mode_persistence.go",
+      "api/handlers/recordings/module.go",
+      "api/handlers/recordings/service.go",
+      "api/handlers/testutil_mock_services.go",
+      "api/internal/typeconv/builders.go",
+      "api/internal/typeconv/primitives.go",
+      "api/internal/typeconv/timeline.go",
+      "api/internal/wire/wire.go",
+      "api/main.go",
+      "api/performance/collector.go",
+      "api/performance/types.go",
+      "api/services/archive-ingestion/persistence.go",
+      "api/services/export/source/video_source.go",
+      "api/services/live-capture/action_registry.go",
+      "api/services/live-capture/service.go",
+      "api/services/live-capture/workflow_generator.go",
+      "api/services/recording/persistence/mock_repository.go",
+      "api/services/recording/persistence/repository.go",
+      "api/services/recording/persistence/sqlite.go",
+      "api/services/recording/persistence/types.go",
+      "api/services/recording/recorder.go",
+      "api/services/recording/service.go",
+      "api/services/session-profile/persistence/credentials.go",
+      "api/services/session-profile/persistence/file_repository.go",
+      "api/services/session-profile/persistence/filesystem.go",
+      "api/services/session-profile/persistence/filesystem_mock.go",
+      "api/services/session-profile/persistence/mock_repository.go",
+      "api/services/session-profile/persistence/protected_state.go",
+      "api/services/session-profile/persistence/repository.go",
+      "api/services/session-profile/service.go",
+      "api/services/uxmetrics/collector/collector.go",
+      "api/services/workflow/executions.go",
+      "api/services/workflow/executions_list.go"
+    ],
+    "original": {
+      "lines": 23196,
+      "functions": 806,
+      "cyclomatic": 3911
+    },
+    "current": {
+      "lines": 21436,
+      "functions": 786,
+      "cyclomatic": 3739
+    },
+    "current_files": 50
+  },
+  "shared_owner_009_cyclomatic_delta": 17,
+  "tidiness": {
+    "totalFindings": 1081,
+    "longFiles": 80,
+    "complexity": 379,
+    "duplication": 607,
+    "coupling": 14,
+    "duplicationLineDebt": 33632
+  },
+  "source_inventory_digest": "afed67c3ff367877b593a6f4fade372f9996b20bde9f4d01712c207a653b8cc2",
+  "deployed": true,
+  "limitations": [
+    "RF038 remains open for other mutating routes; no universal lease claim",
+    "RF039 retry/loop invocation identity and lease/payload cache binding still fail",
+    "No throughput/latency gain claimed for new authorization guards",
+    "Legacy unlinked driver adapter and obsolete recording e2e script identified but not changed",
+    "UIcoverage andtidiness failed; all17board outcomes pending; native/productqualification unknown",
+    "Dirty shared tree and observational deployment gate limit applicability"
+  ],
+  "deployment": {
+    "build": "sha256:99b935baabc594de2fbc627c8a6a1509db4d5f8b16c8f5f596f5feeeee68bb2d",
+    "healthy_at": "2026-09-22T11:16:23Z",
+    "gate_rows": 2998,
+    "unchanged_historical_orphans": 5,
+    "driver_sessions": 0,
+    "profile": "oneoriginal;alloriginalfieldsandmetadataequal",
+    "limitation": "observationalgate;sharedtree"
+  }
+}

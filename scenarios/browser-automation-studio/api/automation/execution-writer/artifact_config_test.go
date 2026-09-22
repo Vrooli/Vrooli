@@ -1,8 +1,20 @@
 package executionwriter
 
 import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/storage"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/config"
@@ -82,4 +94,64 @@ func TestSetArtifactConfigForExecutionNilClears(t *testing.T) {
 	if got := writer.artifactConfigForExecution(exec); !got.CollectDOMSnapshots {
 		t.Fatalf("expected writer default (full) after nil clear")
 	}
+}
+
+func TestForgetPreservesDurableAndOtherActiveExecution(t *testing.T) {
+	root := t.TempDir()
+	writer := NewFileWriter(nil, nil, nil, NewStaticRoot(root))
+	completed := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New()}
+	active := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New()}
+	for _, plan := range []contracts.ExecutionPlan{completed, active} {
+		_, err := writer.RecordStepOutcome(context.Background(), plan, contracts.StepOutcome{ExecutionID: plan.ExecutionID, StepIndex: 0, Attempt: 1, NodeID: "first", StepType: "navigate", Success: true})
+		require.NoError(t, err)
+	}
+	completedPath := filepath.Join(root, completed.ExecutionID.String(), resultFileName)
+	before, err := os.ReadFile(completedPath)
+	require.NoError(t, err)
+	writer.ForgetExecution(completed.ExecutionID)
+	writer.ForgetExecution(completed.ExecutionID)
+	_, err = writer.RecordStepOutcome(context.Background(), active, contracts.StepOutcome{ExecutionID: active.ExecutionID, StepIndex: 1, Attempt: 1, NodeID: "second", StepType: "click", Success: true})
+	require.NoError(t, err)
+	after, err := os.ReadFile(completedPath)
+	require.NoError(t, err)
+	require.Equal(t, before, after)
+	activeBytes, err := os.ReadFile(filepath.Join(root, active.ExecutionID.String(), resultFileName))
+	require.NoError(t, err)
+	var timeline bastimeline.ExecutionTimeline
+	require.NoError(t, (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(activeBytes, &timeline))
+	require.Len(t, timeline.Entries, 2)
+	require.Equal(t, "first", timeline.Entries[0].GetNodeId())
+	require.Equal(t, "second", timeline.Entries[1].GetNodeId())
+}
+
+// Retained heap is observational evidence, not a timing-sensitive unit gate.
+// The store is on disk so stored artifacts do not masquerade as writer retention.
+func BenchmarkFinishedExecutionRetainedHeap(b *testing.B) {
+	root := b.TempDir()
+	store, err := storage.NewFileStorage(filepath.Join(root, "objects"), nil)
+	if err != nil {
+		b.Fatal(err)
+	}
+	writer := NewFileWriter(nil, store, nil, NewStaticRoot(root))
+	settings := config.DefaultArtifactSettings()
+	settings.MaxDOMSnapshotBytes = 2 * 1024 * 1024
+	writer.SetArtifactConfig(&settings)
+	runtime.GC()
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New()}
+		html := strings.Repeat(fmt.Sprintf("<div>capture-%d</div>", i), 32768)
+		_, err := writer.RecordStepOutcome(context.Background(), plan, contracts.StepOutcome{ExecutionID: plan.ExecutionID, StepIndex: 0, Attempt: 1, NodeID: "capture", StepType: "navigate", Success: true, DOMSnapshot: &contracts.DOMSnapshot{HTML: html}})
+		if err != nil {
+			b.Fatal(err)
+		}
+		writer.ForgetExecution(plan.ExecutionID)
+	}
+	b.StopTimer()
+	runtime.GC()
+	runtime.ReadMemStats(&after)
+	b.ReportMetric(float64(int64(after.HeapAlloc)-int64(before.HeapAlloc))/float64(b.N), "retained-B/execution")
+	runtime.KeepAlive(writer)
 }

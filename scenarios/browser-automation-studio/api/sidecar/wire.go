@@ -140,7 +140,7 @@ func BuildDependencies(
 
 	// 6. Build checkpoint manager
 	actionSource := func(ctx context.Context, sessionID string) ([]recovery.RecordedAction, string, error) {
-		resp, err := driverClient.GetRecordedActions(ctx, sessionID, false)
+		resp, err := driverClient.GetRecordedActions(ctx, sessionID)
 		if err != nil {
 			return nil, "", err
 		}

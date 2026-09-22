@@ -8,16 +8,28 @@ One canonical reference for configuring the browser-automation-studio scenario (
 - `UI_PORT` – UI server port (20000-24999)
 - `MINIO_PORT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET_NAME`
 - `VROOLI_LIFECYCLE_MANAGED` – must be `true`
-- `BAS_SESSION_STORE_KEY` – base64 raw 32-byte operator-managed key used to encrypt persisted browser session state
 
 ## Protected Session Storage
 
-Session-profile metadata is stored separately from protected browser state.
-Cookies, local storage, proxy passwords, history, and restored-tab state are
-encrypted with `BAS_SESSION_STORE_KEY` and are never returned in profile metadata.
-Changing the key invalidates existing protected session state; operators must
-explicitly retire those profiles and sign in again. BAS performs no implicit
-relocation, backfill, or key-rotation logic.
+Each profile is one versioned, encrypted document containing its metadata and
+browser state. The repository publishes it through the shared atomic-file writer;
+a rejected commit preserves the preceding complete snapshot.
+
+BAS resolves `vrooli/browser-automation-studio:session-profile-keyring` directly
+through Vrooli's credential authority. On first use in an empty store, it generates
+a versioned 256-bit keyring. No environment key or test-binary fallback is used.
+The data directory retains `.keyring-witness` even after profiles are deleted;
+missing credentials with existing data or this witness cause a recovery error,
+never silent replacement. Provider failures and malformed keyrings also fail closed.
+
+The credential contains `active` and `keys` (positive version numbers mapped to
+base64-encoded 32-byte keys). Each encrypted document names its key version.
+Retain historical keys when changing the active version. Restore the original
+credential through Vrooli's credential recovery owner after loss; replacing it
+cannot decrypt existing profiles. See [credential recovery](../../../docs/configuration/secrets.md).
+BAS does not automatically rotate keys, convert old profile formats, or discard
+unreadable profiles. Old plaintext or paired-file profiles require an offline,
+verified conversion with rollback before deploying this format.
 
 ## Optional Overrides
 

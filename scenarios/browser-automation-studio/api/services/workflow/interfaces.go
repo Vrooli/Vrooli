@@ -77,7 +77,7 @@ type ExecutionService interface {
 	ResumeExecution(ctx context.Context, executionID uuid.UUID, parameters map[string]any) (*database.ExecutionIndex, error)
 
 	// Execution queries
-	ListExecutions(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error)
+	ListExecutions(ctx context.Context, query database.ExecutionQuery) ([]*database.ExecutionIndex, int, error)
 	GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error)
 	UpdateExecution(ctx context.Context, execution *database.ExecutionIndex) error
 	GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*basexecution.ExecutionScreenshot, error)

@@ -90,7 +90,10 @@ acquire or bypass the workflow-health isolation lease.
 **Response** (200 OK):
 ```json
 {
-  "session_id": "sess_abc123"
+  "session_id": "sess_abc123",
+  "lease_id": "lease-token",
+  "last_instruction_sequence": 0,
+  "phase": "ready"
 }
 ```
 
@@ -102,18 +105,48 @@ acquire or bypass the workflow-health isolation lease.
 
 ### POST /session/:id/run
 
-Execute an instruction in the session.
+Execute an instruction for the current unreleased execution lease. Missing owner
+or token returns 400; mismatched or released ownership returns 404 before cached
+results, session activity changes or browser effects.
+
+Each lease owns a monotonically increasing positive safe-integer
+`operation_sequence`. Start returns `last_instruction_sequence`; a repeated start
+retains it. Each logical node visit (including each loop iteration) gets a fresh
+`invocation_id`. Declared retries retain that invocation, increment `attempt`, and
+allocate a new operation number. A transport retransmission repeats the original
+number and complete payload. If supplied, `X-Idempotency-Key` must equal
+`lease_id:operation_sequence`; a mismatch returns 400.
+
+One operation may be in flight per session. Busy/unavailable phases return 409.
+An identical retained operation returns the identical serialized outcome without
+another browser effect. Reusing its number with changed payload returns 409
+`INSTRUCTION_OPERATION_CONFLICT`. Object key order is ignored; arrays and wire
+field aliases remain distinct. The last 1000 receipts are retained. An older
+number without a receipt returns 409 `INSTRUCTION_RECEIPT_UNAVAILABLE`, including
+after reset. Reset discards receipts but preserves the highwater; a new lease
+starts at zero. These guarantees last for the in-memory lease, not process restart.
+
+A post-admission exception returns a retained failure with code
+`INSTRUCTION_OUTCOME_UNCERTAIN`. Its effect may already have happened. A missing
+or malformed HTTP outcome also cannot authorize a new declared attempt. Only a
+known returned retryable failure may do that. Receipt eviction or uncertainty
+requires inspecting/reconciling the effect before a new intent; callers must not
+silently allocate a new operation to bypass either condition.
 
 **Request Body**:
 ```json
 {
+  "execution_id": "exec-123",
+  "lease_id": "lease-returned-by-session-start",
+  "operation_sequence": 1,
+  "invocation_id": "one-logical-visit",
+  "attempt": 1,
   "instruction": {
     "index": 0,
     "node_id": "node-123",
-    "type": "click",
-    "params": {
-      "selector": "#submit-button",
-      "timeoutMs": 15000
+    "action": {
+      "type": "ACTION_TYPE_CLICK",
+      "click": { "selector": "#submit-button", "timeoutMs": 15000 }
     },
     "context": {},
     "metadata": {}
@@ -190,17 +223,36 @@ Execute an instruction in the session.
 
 ### POST /session/:id/reset
 
-Reset session state (clear cookies, storage, navigate to about:blank).
+Reset session state and retain the context's primary page at about:blank. Other
+pages close; imported and visited HTTP(S)/file storage, cookies and permissions
+clear. The reset uses intercepted empty documents without requesting application
+pages. The current, unreleased execution lease is required. Rejected credentials cannot alter browser
+state or session activity. Concurrent requests for that lease join the in-flight
+reset; a later request starts another explicit reset. Failed resets retain their
+session in resetting for explicit retry or close. Close joins an admitted reset
+before disposing browser resources.
+
+**Request**:
+```json
+{
+  "execution_id": "execution-uuid",
+  "lease_id": "lease-uuid"
+}
+```
 
 **Response** (200 OK):
 ```json
 {
-  "status": "ok"
+  "success": true,
+  "phase": "ready"
 }
 ```
 
 **Errors**:
-- 404: Session not found
+- 400: Missing execution or lease ID
+- 404: Session not found, ownership mismatch, or released lease
+- 500: Reset failed; success has not been acknowledged
+
 
 ---
 
@@ -297,10 +349,11 @@ See `playwright-driver/src/handlers/` for detailed parameter documentation.
 ### Execute Workflow
 ```javascript
 // 1. Start session
-const { session_id } = await fetch('/session/start', {
+const execution_id = uuid();
+const { session_id, lease_id, last_instruction_sequence } = await fetch('/session/start', {
   method: 'POST',
   body: JSON.stringify({
-    execution_id: uuid(),
+    execution_id,
     workflow_id: uuid(),
     viewport: { width: 1280, height: 720 },
     reuse_mode: 'fresh'
@@ -308,10 +361,11 @@ const { session_id } = await fetch('/session/start', {
 }).then(r => r.json());
 
 // 2. Execute instructions
+let sequence = last_instruction_sequence;
 for (const instruction of instructions) {
   const outcome = await fetch(`/session/${session_id}/run`, {
     method: 'POST',
-    body: JSON.stringify({ instruction })
+    body: JSON.stringify({ execution_id, lease_id, operation_sequence: ++sequence, invocation_id: uuid(), attempt: 1, instruction })
   }).then(r => r.json());
 
   if (!outcome.success) {
@@ -321,7 +375,9 @@ for (const instruction of instructions) {
 }
 
 // 3. Close session
-await fetch(`/session/${session_id}/close`, { method: 'POST' });
+await fetch(`/session/${session_id}/close`, {
+  method: 'POST', body: JSON.stringify({ execution_id, lease_id })
+});
 ```
 
 ### Error Handling

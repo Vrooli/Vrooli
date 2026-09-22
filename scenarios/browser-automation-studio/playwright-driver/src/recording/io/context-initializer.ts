@@ -166,7 +166,7 @@ export interface SanityCheckResult {
  */
 export class RecordingContextInitializer {
   private initialized = false;
-  private eventHandler: ((event: RawBrowserEvent) => void) | null = null;
+  private eventHandler: ((event: RawBrowserEvent) => void | Promise<void>) | null = null;
   private readonly bindingName: string;
   private readonly logger: winston.Logger;
   private readonly diagnosticsEnabled: boolean;
@@ -377,7 +377,7 @@ export class RecordingContextInitializer {
    *
    * @param handler - Function to receive recording events
    */
-  setEventHandler(handler: (event: RawBrowserEvent) => void): void {
+  setEventHandler(handler: (event: RawBrowserEvent) => void | Promise<void>): void {
     this.eventHandler = handler;
     this.logger.debug(scopedLog(LogContext.RECORDING, 'event handler set'));
   }

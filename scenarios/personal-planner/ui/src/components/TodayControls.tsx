@@ -1,22 +1,27 @@
 import { CalendarDays, FilePlus2, FileText, Moon, Play, Sparkles, Sun, SunMoon } from "lucide-react";
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3.1.6";
 import { FormField } from "@vrooli/react-component-library/FormField/1";
 import { Input } from "@vrooli/react-component-library/Input/1";
 import { Popover, PopoverParts } from "@vrooli/react-component-library/Popover/1";
 import { Textarea } from "@vrooli/react-component-library/Textarea/1";
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 
 export type TodayAppearanceChoice = "auto" | "day" | "night";
 export type TodayTimelineView = "day" | "focus";
 export type TodayTimelineItem = { id: string; label: string; detail: string; owner: string; startLabel: string; start: number; width: number; tone: string; end: number; lane: number };
 
+const appearanceOptions: Record<TodayAppearanceChoice, { label: string; icon: ReactNode }> = {
+  auto: { label: "Auto", icon: <SunMoon size={16} aria-hidden="true" /> },
+  day: { label: "Day", icon: <Sun size={16} aria-hidden="true" /> },
+  night: { label: "Night", icon: <Moon size={16} aria-hidden="true" /> },
+};
+const nextAppearance: Record<TodayAppearanceChoice, TodayAppearanceChoice> = { auto: "day", day: "night", night: "auto" };
+
 export function TodayAppearanceControl({ choice, onChange }: { choice: TodayAppearanceChoice; onChange: (choice: TodayAppearanceChoice) => void }) {
-  const options = [
-    { key: "auto" as const, label: "Auto", icon: <SunMoon size={16} aria-hidden="true" /> },
-    { key: "day" as const, label: "Day", icon: <Sun size={16} aria-hidden="true" /> },
-    { key: "night" as const, label: "Night", icon: <Moon size={16} aria-hidden="true" /> },
-  ];
-  return <div className="appearance-toggle" role="group" aria-label="Appearance">{options.map((option) => <Button key={option.key} type="button" variant="ghost" data-appearance={option.key} aria-label={option.key === "day" ? "Day appearance" : option.label} aria-pressed={choice === option.key} title={option.label} className={choice === option.key ? "selected" : ""} icon={option.icon} onClick={() => onChange(option.key)}><span className="appearance-label">{option.label}</span></Button>)}</div>;
+  const current = appearanceOptions[choice];
+  const next = nextAppearance[choice];
+  return <IconButton type="button" className="appearance-toggle" surface="soft" size="lg" morph="auto" swapIdentity="today-appearance" iconKey={choice} aria-label={`Appearance: ${current.label}. Switch to ${appearanceOptions[next].label}`} onClick={() => onChange(next)}>{current.icon}</IconButton>;
 }
 
 export function TodayCaptureLink({ onClick }: { onClick: () => void }) {

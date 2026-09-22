@@ -13,6 +13,7 @@ import (
 
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
@@ -68,10 +69,24 @@ func (s *service) ListExecutions(
 		projectID = &id
 	}
 
-	limit := int(req.Msg.GetLimit())
+	limit := 50
+	if req.Msg.Limit != nil {
+		limit = int(req.Msg.GetLimit())
+	}
 	offset := int(req.Msg.GetOffset())
-
-	executions, err := s.deps.Executor.ListExecutions(ctx, workflowID, projectID, limit, offset)
+	if limit < 1 || limit > 100 || offset < 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("limit must be 1–100 and offset must be nonnegative"))
+	}
+	status := ""
+	if req.Msg.Status != nil {
+		status = enums.ExecutionStatusToString(req.Msg.GetStatus())
+		if status == "unknown" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid execution status"))
+		}
+	}
+	executions, total, err := s.deps.Executor.ListExecutions(ctx, database.ExecutionQuery{
+		WorkflowID: workflowID, ProjectID: projectID, Status: status, Limit: limit, Offset: offset,
+	})
 	if err != nil {
 		s.log().WithError(err).Error("list executions failed")
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -99,8 +114,8 @@ func (s *service) ListExecutions(
 			out.Exportability[execIdx.ID.String()] = computeExportability(execIdx.ResultPath, s.deps.RecordingsRoot, execIdx.ID.String())
 		}
 	}
-	out.Total = int32(len(out.Executions))
-	out.HasMore = limit > 0 && len(out.Executions) >= limit
+	out.Total = int32(total)
+	out.HasMore = offset+len(out.Executions) < total
 	return connect.NewResponse(out), nil
 }
 

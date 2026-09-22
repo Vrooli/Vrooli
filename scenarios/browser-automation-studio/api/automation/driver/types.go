@@ -187,9 +187,10 @@ func CreateSessionRequestFromUUID(executionID, workflowID uuid.UUID) *CreateSess
 
 // CreateSessionResponse is the response from creating a session.
 type CreateSessionResponse struct {
-	SessionID      string          `json:"session_id"`
-	LeaseID        string          `json:"lease_id"`
-	ActualViewport *ActualViewport `json:"actual_viewport,omitempty"`
+	LastInstructionSequence uint64          `json:"last_instruction_sequence"`
+	SessionID               string          `json:"session_id"`
+	LeaseID                 string          `json:"lease_id"`
+	ActualViewport          *ActualViewport `json:"actual_viewport,omitempty"`
 }
 
 // StartRecordingRequest is the request to start recording user actions.
@@ -472,16 +473,6 @@ type GetFrameResponse struct {
 	ContentHash string `json:"content_hash"`
 	PageTitle   string `json:"page_title,omitempty"`
 	PageURL     string `json:"page_url,omitempty"`
-}
-
-// RunInstructionRequest wraps an instruction for execution.
-type RunInstructionRequest struct {
-	Instruction contracts.CompiledInstruction `json:"instruction"`
-}
-
-// RunInstructionsRequest wraps multiple instructions (used for simple ops like navigate).
-type RunInstructionsRequest struct {
-	Instructions []map[string]interface{} `json:"instructions"`
 }
 
 // StepOutcomeResponse extends StepOutcome with driver-specific fields for JSON decoding.

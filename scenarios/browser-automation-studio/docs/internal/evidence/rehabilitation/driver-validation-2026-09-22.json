@@ -1,0 +1,494 @@
+{
+  "schema_version": 1,
+  "record": "BAS-WORK-009",
+  "observed_at": "2026-09-22T05:43:29.755853+00:00",
+  "scope": "Driver surface admission and validation fixture/runtime lifetime repairs",
+  "source_sha256": {
+    "scenarios/code-facts/api/internal/facts/discovery.go": "d98aae4eb30ac0f966534687d808b43bed3d5006e68481aba67b4ac3052545e5",
+    "scenarios/code-facts/api/internal/facts/discovery_polyglot_test.go": "4c432e85df7991e97dd289282935d00adc344d2ddf4ed5e1e64be5a7fe777c50",
+    "scenarios/code-facts/api/internal/facts/cache.go": "255523440565526a6034ae7b57608311c69f1d852a4add0eacc9e2c0b9c6b252",
+    "scenarios/unit-health/api/internal/adapters/workspace.go": "f923b22bf100b7cdec256f2fdb61b24eead78a091af2c94bd278d0543526129b",
+    "scenarios/unit-health/api/internal/adapters/workspace_test.go": "a944735afd1d2245db50f1c4da4cd7ab0cab503b6a6d8b9fa8575c30c564a100",
+    "scenarios/browser-automation-studio/.vrooli/testing.json": "18ecccc171b721153bd92dc1c5e0e67f1a39b81b9282cdfcac9190afb72468d5",
+    "scenarios/browser-automation-studio/playwright-driver/jest.config.js": "c22ccbd5feb3cad6b117b80e9157efcdbbb52755ad99ff1697bd90b4fdc70ec0",
+    "scenarios/browser-automation-studio/playwright-driver/src/ai/vision-client/gateway.ts": "a6cd7c25ed7439c8a76e29359b47513ad3cccbd14271a6bdda4792147cceda14",
+    "scenarios/browser-automation-studio/playwright-driver/tests/unit/ai/vision-client/gateway.test.ts": "e1179b4c86baa82a15eda6686413475fdad9e4a250eec867096bdcf4a7bca94a",
+    "scenarios/browser-automation-studio/playwright-driver/tests/integration/injector-selectors.test.ts": "53c13c5eff946b905d6e84914047a3f34e60b21f36195d403970247cc2ecd0f1",
+    "scenarios/browser-automation-studio/playwright-driver/tests/unit/session/audio-capability.test.ts": "ecc989003c9023bfa796a29451003675409a3072c126359d85dfa8acde8e679f",
+    "scenarios/browser-automation-studio/playwright-driver/tests/integration/synthetic-audio-fidelity.test.ts": "4f8562c5b85b3831c8265e7c2004844f3f11365bc03fa40f42dc679c60b0fd98"
+  },
+  "checks": {
+    "surfaces_red": "--- FAIL: TestDiscoverDeclaredComponentSurfaces (0.00s)\n    --- FAIL: TestDiscoverDeclaredComponentSurfaces/api (0.00s)\n        discovery_polyglot_test.go:45: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/code-facts/api/internal/facts/discovery_polyglot_test.go:45\n            \tError:      \tNot equal: \n            \t            \texpected: \"/home/matthalloran8/.vrooli/tmp/go-work/TestDiscoverDeclaredComponentSurfaces423374955/001/backend\"\n            \t            \tactual  : \"/home/matthalloran8/.vrooli/tmp/go-work/TestDiscoverDeclaredComponentSurfaces423374955/001/api\"\n            \t            \t\n            \t            \tDiff:\n            \t            \t--- Expected\n            \t            \t+++ Actual\n            \t            \t@@ -1 +1 @@\n            \t            \t-/home/matthalloran8/.vrooli/tmp/go-work/TestDiscoverDeclaredComponentSurfaces423374955/001/backend\n            \t            \t+/home/matthalloran8/.vrooli/tmp/go-work/TestDiscoverDeclaredComponentSurfaces423374955/001/api\n            \tTest:       \tTestDiscoverDeclaredComponentSurfaces/api\n    --- FAIL: TestDiscoverDeclaredComponentSurfaces/playwright-driver (0.00s)\n        discovery_polyglot_test.go:44: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/code-facts/api/internal/facts/discovery_polyglot_test.go:44\n            \tError:      \tExpected value not to be nil.\n            \tTest:       \tTestDiscoverDeclaredComponentSurfaces/playwright-driver\n            \tMessages:   \tdeclared components must not disappear from owner validation\n    --- FAIL: TestDiscoverDeclaredComponentSurfaces/queue (0.00s)\n        discovery_polyglot_test.go:44: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/code-facts/api/internal/facts/discovery_polyglot_test.go:44\n            \tError:      \tExpected value not to be nil.\n            \tTest:       \tTestDiscoverDeclaredComponentSurfaces/queue\n            \tMessages:   \tdeclared components must not disappear from owner validation\n    --- FAIL: TestDiscoverDeclaredComponentSurfaces/absent (0.00s)\n        discovery_polyglot_test.go:44: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/code-facts/api/internal/facts/discovery_polyglot_test.go:44\n            \tError:      \tExpected value not to be nil.\n            \tTest:       \tTestDiscoverDeclaredComponentSurfaces/absent\n            \tMessages:   \tdeclared components must not disappear from owner validation\nFAIL\nFAIL\tcode-facts/internal/facts\t0.006s\nFAIL\n",
+    "code_facts_race": "ok  \tcode-facts/internal/facts\t2.082s\n",
+    "node_role_red": "--- FAIL: TestResolveWorkspaceGenericNodeJestIsNotGivenReactFindings (0.00s)\n    --- FAIL: TestResolveWorkspaceGenericNodeJestIsNotGivenReactFindings/typescript/sidecar (0.00s)\n        workspace_test.go:72: resolution={Framework:jest CanonicalFramework:vitest PackageManager:npm TestCommand:npm test CoverageCommand: CoverageRequested:false TestExecutable: TestArgs:[] TypecheckCommand: TypecheckExecutable: TypecheckArgs:[] CoverageExecutable: CoverageArgs:[] TestArtifacts:[] TestPath: Status:degraded DegradedReason:noncanonical test framework (jest)}\n    --- FAIL: TestResolveWorkspaceGenericNodeJestIsNotGivenReactFindings/typescript/worker (0.00s)\n        workspace_test.go:72: resolution={Framework:jest CanonicalFramework:vitest PackageManager:npm TestCommand:npm test CoverageCommand: CoverageRequested:false TestExecutable: TestArgs:[] TypecheckCommand: TypecheckExecutable: TypecheckArgs:[] CoverageExecutable: CoverageArgs:[] TestArtifacts:[] TestPath: Status:degraded DegradedReason:noncanonical test framework (jest)}\n    --- FAIL: TestResolveWorkspaceGenericNodeJestIsNotGivenReactFindings/typescript/api (0.00s)\n        workspace_test.go:72: resolution={Framework:jest CanonicalFramework:vitest PackageManager:npm TestCommand:npm test CoverageCommand: CoverageRequested:false TestExecutable: TestArgs:[] TypecheckCommand: TypecheckExecutable: TypecheckArgs:[] CoverageExecutable: CoverageArgs:[] TestArtifacts:[] TestPath: Status:degraded DegradedReason:noncanonical test framework (jest)}\n    --- FAIL: TestResolveWorkspaceGenericNodeJestIsNotGivenReactFindings/typescript/job (0.00s)\n        workspace_test.go:72: resolution={Framework:jest CanonicalFramework:vitest PackageManager:npm TestCommand:npm test CoverageCommand: CoverageRequested:false TestExecutable: TestArgs:[] TypecheckCommand: TypecheckExecutable: TypecheckArgs:[] CoverageExecutable: CoverageArgs:[] TestArtifacts:[] TestPath: Status:degraded DegradedReason:noncanonical test framework (jest)}\n    --- FAIL: TestResolveWorkspaceGenericNodeJestIsNotGivenReactFindings/typescript/runtime (0.00s)\n        workspace_test.go:72: resolution={Framework:jest CanonicalFramework:vitest PackageManager:npm TestCommand:npm test CoverageCommand: CoverageRequested:false TestExecutable: TestArgs:[] TypecheckCommand: TypecheckExecutable: TypecheckArgs:[] CoverageExecutable: CoverageArgs:[] TestArtifacts:[] TestPath: Status:degraded DegradedReason:noncanonical test framework (jest)}\nFAIL\nFAIL\tunit-health/internal/adapters\t0.006s\nFAIL\n",
+    "unit_health_race": "ok  \tunit-health/internal/adapters\t1.737s\nok  \tunit-health/internal/discovery\t1.034s\nok  \tunit-health/internal/validation\t2.591s\n",
+    "fixed_fixtures": "PASS tests/integration/injector-selectors.test.ts\nPASS tests/unit/session/audio-capability.test.ts\n\nTest Suites: 2 passed, 2 total\nTests:       33 passed, 33 total\nSnapshots:   0 total\nTime:        1.93 s\nRan all test suites matching /tests\\/integration\\/injector-selectors.test.ts|tests\\/unit\\/session\\/audio-capability.test.ts/i.\n",
+    "timer_red": "FAIL tests/unit/ai/vision-client/gateway.test.ts\n  AIGatewayVisionClient\n    \u2713 sends an ordered multimodal conversation to the gateway (12 ms)\n    \u2713 accepts the JPEG screenshots produced by the browser capture path (1 ms)\n    \u2713 maps the envelope completion signal onto a done action when needed (1 ms)\n    \u2715 rejects screenshots whose dimensions cannot be determined (2 ms)\n    \u2713 requires a configured gateway URL (3 ms)\n\n  \u25cf AIGatewayVisionClient \u203a rejects screenshots whose dimensions cannot be determined\n\n    expect(received).toBe(expected) // Object.is equality\n\n    Expected: 0\n    Received: 1\n\n      122 |         .rejects.toMatchObject({ code: 'PARSE_ERROR' });\n      123 |       expect(mockFetch).not.toHaveBeenCalled();\n    > 124 |       expect(jest.getTimerCount()).toBe(0);\n          |                                    ^\n      125 |     } finally {\n      126 |       jest.useRealTimers();\n      127 |     }\n\n      at Object.<anonymous> (tests/unit/ai/vision-client/gateway.test.ts:124:36)\n\nTest Suites: 1 failed, 1 total\nTests:       1 failed, 4 passed, 5 total\nSnapshots:   0 total\nTime:        0.459 s, estimated 1 s\nRan all test suites matching /tests\\/unit\\/ai\\/vision-client\\/gateway.test.ts/i.\n",
+    "timer_green": "PASS tests/unit/ai/vision-client/gateway.test.ts\nPASS tests/unit/ai/vision-agent/agent.test.ts\n\nTest Suites: 2 passed, 2 total\nTests:       43 passed, 43 total\nSnapshots:   0 total\nTime:        3.748 s, estimated 4 s\nRan all test suites matching /tests\\/unit\\/ai\\/vision-client\\/gateway.test.ts|tests\\/unit\\/ai\\/vision-agent\\/agent.test.ts/i.\n"
+  },
+  "live_plan": {
+    "before_workspaces": [
+      "api",
+      "cli",
+      "ui"
+    ],
+    "after_workspaces": [
+      {
+        "id": "api",
+        "adapter_id": "go",
+        "status": "ready"
+      },
+      {
+        "id": "cli",
+        "adapter_id": "go",
+        "status": "ready"
+      },
+      {
+        "id": "playwright-driver",
+        "adapter_id": "node-jest",
+        "status": "ready"
+      },
+      {
+        "id": "ui",
+        "adapter_id": "react-vitest",
+        "status": "ready"
+      }
+    ]
+  },
+  "shared_owner_runs": {
+    "code_facts": "20260922-052102-e449ec3c (unit/structure passed15s; unit L0 misconfiguration limits execution claim)",
+    "unit_health": "20260922-052234-d7bef24a (unit/structure passed15s)"
+  },
+  "owner_first": {
+    "run_id": "20260922-052648-9b24816a",
+    "verdict": "failed",
+    "duration_seconds": 233,
+    "driver_suites_passed": 123,
+    "driver_suites_failed": 2,
+    "driver_tests_passed": 1442,
+    "driver_tests_failed": 26,
+    "driver_tests_skipped": 2,
+    "driver_command_failure": "no output for60s after tests completed, retained request timer",
+    "ui_failure": "coverage below unchanged85%",
+    "tidiness_duplication": 35311,
+    "artifact_catalog": {
+      "schema_version": 1,
+      "digest": "ac:sha256:80848397a0a8345ce9e25c6995660cd850698752d63ddf402086fc4fab41ca42",
+      "artifacts": [
+        {
+          "id": "artifact_096f0db338f00afcf6405f24c2228593",
+          "kind": "command.log",
+          "media_type": "text/plain; charset=utf-8",
+          "label": "tidiness.log",
+          "producing_phase": "tidiness",
+          "size_bytes": "449724",
+          "created_at": "2026-09-22T05:30:41.538294893Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-052648-9b24816a/artifacts/artifact_096f0db338f00afcf6405f24c2228593",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_9e86dd60d1fb52333f91aa008e74102f",
+          "kind": "command.log",
+          "media_type": "text/plain; charset=utf-8",
+          "label": "unit.log",
+          "producing_phase": "unit",
+          "size_bytes": "33266",
+          "created_at": "2026-09-22T05:30:37.067279729Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-052648-9b24816a/artifacts/artifact_9e86dd60d1fb52333f91aa008e74102f",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_069897a118890f57e1b9358071974194",
+          "kind": "findings.report",
+          "media_type": "application/json",
+          "label": "findings.json",
+          "size_bytes": "7925841",
+          "created_at": "2026-09-22T05:30:41.842295925Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-052648-9b24816a/artifacts/artifact_069897a118890f57e1b9358071974194",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_e9c2ff6ff9924ad60150a56092ea0382",
+          "kind": "generic.file",
+          "media_type": "application/json",
+          "label": "evidence-manifest.json",
+          "size_bytes": "96472",
+          "created_at": "2026-09-22T05:30:41.861295989Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-052648-9b24816a/artifacts/artifact_e9c2ff6ff9924ad60150a56092ea0382",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_4323bdcee375ffa491d616c91de02359",
+          "kind": "phase.result",
+          "media_type": "application/json",
+          "label": "tidiness.json",
+          "producing_phase": "tidiness",
+          "size_bytes": "2987",
+          "created_at": "2026-09-22T05:30:41.536294886Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-052648-9b24816a/artifacts/artifact_4323bdcee375ffa491d616c91de02359",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_4dd37029e36ba98e0fd2cfe3528577a0",
+          "kind": "phase.result",
+          "media_type": "application/json",
+          "label": "unit.json",
+          "producing_phase": "unit",
+          "size_bytes": "3038",
+          "created_at": "2026-09-22T05:30:37.067279729Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-052648-9b24816a/artifacts/artifact_4dd37029e36ba98e0fd2cfe3528577a0",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        }
+      ]
+    }
+  },
+  "diagnostic_after_fixture_repair": {
+    "suites_passed": 125,
+    "suites_skipped": 1,
+    "tests_passed": 1468,
+    "tests_skipped": 2,
+    "tests_duration_seconds": 76.433,
+    "process_exit": 124,
+    "open_handle": "AIGatewayVisionClient.analyze allocated timer before invalid screenshot rejected; runtime repair follows this observation"
+  },
+  "scope_delta": {
+    "shared_owner_lines_before": 2391,
+    "shared_owner_lines_after": 2453,
+    "shared_owner_cyclomatic_before": 529,
+    "shared_owner_cyclomatic_after": 546,
+    "gateway_runtime_line_delta": 0,
+    "gateway_branch_delta": 0
+  },
+  "board": {
+    "program": "browser-automation-studio.setpoint-read",
+    "version": "1",
+    "status": "ok",
+    "phase": "report",
+    "inputs": {
+      "window": 100,
+      "evidence_sample": 5,
+      "profile": "rehabilitation"
+    },
+    "signals": {
+      "rows": [
+        {
+          "row": "preservation",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#preservation",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "interactive-feedback",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#interactive-feedback",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "motion",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#motion",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "readiness",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#readiness",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "capture",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#capture",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "passive-fidelity",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#passive-fidelity",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "profile-durability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#profile-durability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "known-flow-reliability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#known-flow-reliability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "cancellation-recovery",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#cancellation-recovery",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "resource-budget",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#resource-budget",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "soak-stability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#soak-stability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "evidence-completeness",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#evidence-completeness",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "desktop-portability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#desktop-portability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "agent-usefulness",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#agent-usefulness",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "structural-debt",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#structural-debt",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "workspace-usability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#workspace-usability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "adversarial-review",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#adversarial-review",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        }
+      ],
+      "readable": 0,
+      "unavailable": 17,
+      "required": 17,
+      "unmet": 17,
+      "product_qualified": false
+    },
+    "errors": [],
+    "evidence": [
+      "scenarios/browser-automation-studio/docs/internal/REFRACTOR_CONTRACT.json"
+    ]
+  },
+  "limitations": [
+    "Synthetic microphone context error seen once; changed setup order and one full diagnostic pass do not establish flake rate",
+    "Native audio/Electron skipped or unqualified",
+    "No aggregate complexity reduction claim across necessary shared owner extension",
+    "BAS live deployment pending drain gate"
+  ],
+  "owner_validation": {
+    "run_id": "20260922-054223-196bad55",
+    "verdict": "failed",
+    "duration_seconds": 167,
+    "commands_passed": [
+      "api",
+      "cli",
+      "playwright-driver",
+      "ui-typecheck"
+    ],
+    "driver_suites_passed": 125,
+    "driver_tests_passed": 1468,
+    "driver_suites_skipped": 1,
+    "driver_tests_skipped": 2,
+    "driver_duration_ms": 71543,
+    "driver_exit": "natural successful exit",
+    "remaining_failures": [
+      "UI coverage below unchanged85% floor",
+      "tidiness duplication35311 exceeds35302 budget"
+    ],
+    "artifact_catalog": {
+      "schema_version": 1,
+      "digest": "ac:sha256:de4cc63c4ddb1770811b9ca6cf355ce1a23598c11eee4f61a1e09c913236ce3c",
+      "artifacts": [
+        {
+          "id": "artifact_3225b7cd5e8bad8adcab567995538004",
+          "kind": "command.log",
+          "media_type": "text/plain; charset=utf-8",
+          "label": "unit.log",
+          "producing_phase": "unit",
+          "size_bytes": "33037",
+          "created_at": "2026-09-22T05:45:06.09527748Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-054223-196bad55/artifacts/artifact_3225b7cd5e8bad8adcab567995538004",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_df871a1045437c4f11f62f4ca03f81d8",
+          "kind": "command.log",
+          "media_type": "text/plain; charset=utf-8",
+          "label": "tidiness.log",
+          "producing_phase": "tidiness",
+          "size_bytes": "449724",
+          "created_at": "2026-09-22T05:45:10.04430071Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-054223-196bad55/artifacts/artifact_df871a1045437c4f11f62f4ca03f81d8",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_f44721bd4fe0883e5cf04da652a44e82",
+          "kind": "findings.report",
+          "media_type": "application/json",
+          "label": "findings.json",
+          "size_bytes": "7868892",
+          "created_at": "2026-09-22T05:45:10.321302337Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-054223-196bad55/artifacts/artifact_f44721bd4fe0883e5cf04da652a44e82",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_019b8a976a43627339acad2e4adea450",
+          "kind": "generic.file",
+          "media_type": "application/json",
+          "label": "evidence-manifest.json",
+          "size_bytes": "95886",
+          "created_at": "2026-09-22T05:45:10.326302367Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-054223-196bad55/artifacts/artifact_019b8a976a43627339acad2e4adea450",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_7b69202b04da3f0169bd05d571da53fc",
+          "kind": "phase.result",
+          "media_type": "application/json",
+          "label": "unit.json",
+          "producing_phase": "unit",
+          "size_bytes": "3038",
+          "created_at": "2026-09-22T05:45:06.094277474Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-054223-196bad55/artifacts/artifact_7b69202b04da3f0169bd05d571da53fc",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_b56d4381dc267bd11d72590c5db47bca",
+          "kind": "phase.result",
+          "media_type": "application/json",
+          "label": "tidiness.json",
+          "producing_phase": "tidiness",
+          "size_bytes": "2987",
+          "created_at": "2026-09-22T05:45:10.043300704Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-054223-196bad55/artifacts/artifact_b56d4381dc267bd11d72590c5db47bca",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        }
+      ]
+    }
+  },
+  "deployed": true,
+  "deployment": {
+    "build_identity": "sha256:3c0e62a11289d56a838a06f72e452c7b9b49e4466c051e29ebf9a9e2ea6de6aa",
+    "health": "healthy",
+    "drain": {
+      "checked_at": "2026-09-22T05:53:44.744049+00:00",
+      "rows": 2813,
+      "states": {
+        "EXECUTION_STATUS_FAILED": 360,
+        "EXECUTION_STATUS_COMPLETED": 2448,
+        "EXECUTION_STATUS_RUNNING": 5
+      },
+      "historical_orphans": [
+        {
+          "executionId": "879c542b-d9cd-481b-82d2-6b6c7c11ebf1",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-16T13:18:42.087757908Z",
+          "createdAt": "2026-09-16T13:18:42Z",
+          "updatedAt": "2026-09-16T13:19:10.005000924Z"
+        },
+        {
+          "executionId": "d19bd80e-2624-4874-ab9f-eab0cda42286",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-09T19:30:12.784163869Z",
+          "createdAt": "2026-09-09T19:30:12Z",
+          "updatedAt": "2026-09-09T19:30:18.302018879Z"
+        },
+        {
+          "executionId": "b74ec692-da21-42f7-a86c-f33d436ecfbb",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-09T06:30:44.282585140Z",
+          "createdAt": "2026-09-09T06:30:44Z",
+          "updatedAt": "2026-09-09T06:30:45.060249200Z"
+        },
+        {
+          "executionId": "e0d33e05-297d-4867-aee0-783d59882fa8",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-07T20:36:44.551353663Z",
+          "createdAt": "2026-09-07T20:36:44Z",
+          "updatedAt": "2026-09-07T20:36:45.625164771Z"
+        },
+        {
+          "executionId": "206d68cf-a72c-4838-872b-f913a6a8def6",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-07T20:36:44.551265983Z",
+          "createdAt": "2026-09-07T20:36:44Z",
+          "updatedAt": "2026-09-07T20:36:45.663485899Z"
+        }
+      ],
+      "driver_sessions": 0,
+      "driver_recordings": 0,
+      "seconds": 0.4065010950434953,
+      "limitation": "Observation before stop, not atomic global admission lock",
+      "decision": "admit stop; preserve orphan history"
+    },
+    "profile_all_fields": "read 1: complete identity preserved; elapsed_ms=1218.35\nread 2: complete identity preserved; elapsed_ms=0.36\nread 3: complete identity preserved; elapsed_ms=0.31\n",
+    "lifecycle": "make stop then make start; both exit0"
+  }
+}

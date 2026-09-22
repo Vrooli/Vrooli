@@ -420,7 +420,7 @@ describe('Record Mode Routes', () => {
       expect(typeof count).toBe('number');
     });
 
-    it('should clear buffer when clear=true', () => {
+    it('rejects destructive reads without an explicit acknowledgement', () => {
       const sessionManager = createMockSessionManager();
 
       const req = createMockRequest({
@@ -431,10 +431,8 @@ describe('Record Mode Routes', () => {
 
       handleRecordActions(req, res, sessionId, sessionManager);
 
-      expect(res._getStatusCode()).toBe(200);
-      const data = parseResponse(res);
-      // Now returns 'entries' (TimelineEntry format) instead of 'actions'
-      expect(data.entries).toEqual([]);
+      expect(res._getStatusCode()).toBeGreaterThanOrEqual(400);
+      expect(JSON.stringify(parseResponse(res))).toContain('entry_ids');
     });
   });
 

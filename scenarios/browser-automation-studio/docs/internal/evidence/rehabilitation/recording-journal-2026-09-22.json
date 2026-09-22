@@ -1,0 +1,942 @@
+{
+  "schema_version": 1,
+  "record": "BAS-WORK-014",
+  "issues": [
+    "BAS-RF-002",
+    "BAS-RF-024"
+  ],
+  "source_sha256": {
+    "api/handlers/record_mode_actions.go": "3ebbc2114018cb505184e5ed5010c5b6ee520aa93672837b9c761b5aa755f1e5",
+    "api/handlers/record_mode.go": "e733ddce4560a659c54a81a94d10bb8c2bc1dedb0ab9130ddfcdd7113dddcb4f",
+    "api/handlers/record_mode_pages.go": "a32ec76e482e68e7aecaea7c54799b58a6dc4839de3121cb28b61be0666d45b5",
+    "api/services/recording/service.go": "ab8c893156638e42f72b2046a439cbffe0637a9fb0582d37ebbb7d6336943382",
+    "api/services/live-capture/service.go": "2bc13b8fc42111d3a4f630603f437b54f6ec4c6fad1819e27548fdc8ab82f740",
+    "api/services/recording/persistence/sqlite.go": "2099085135dad047b6c64e082df6c84ad1a22807a316e9233a36640333e908e6",
+    "api/services/recording/persistence/repository.go": "2756f30b4789673934d70c28abf461c29b1a7fbaaa754a4ff2c9e9543b782c69",
+    "api/services/recording/persistence/mock_repository.go": "8c43e383563f696cb5ffc3bf392585b44c8314393d5859efd99e77968b2c9a81",
+    "api/services/recording/persistence/types.go": "b088c5fc7684cbfafe33b0b9017bf2001896b92c326e798e26320b29c1d343a9"
+  },
+  "removed": [
+    "api/services/recording/recorder.go",
+    "recording hot cache and sequence allocator",
+    "unused Unified writers",
+    "unused batch persistence",
+    "URL/time navigation suppression"
+  ],
+  "checks": {
+    "journal_red": "time=\"2026-09-22T02:51:09-04:00\" level=info msg=\"Created recording session\" session_id=7a90b477-6c45-4d34-9db1-34053ecbfc97\ntime=\"2026-09-22T02:51:09-04:00\" level=warning msg=\"Failed to persist action to database\" error=\"save timeline entry: constraint failed: synthetic disk failure (1811)\"\ntime=\"2026-09-22T02:51:09-04:00\" level=warning msg=\"Failed to persist page event to database\" error=\"save timeline entry: constraint failed: synthetic disk failure (1811)\"\n--- FAIL: TestJournalFailedCommitIsNotAcknowledgedOrPublished (0.41s)\n    service_test.go:1481: failed action commit was acknowledged\n    service_test.go:1484: failed page-event commit was acknowledged\n    service_test.go:1487: published 2 uncommitted entries\n    service_test.go:1491: failed entries leaked into history: &{Entries:[{ID:ba5383e2-d877-4789-83f8-ee02ea19f476 Type:action Timestamp:2026-09-22 00:00:00 +0000 UTC SessionID:7a90b477-6c45-4d34-9db1-34053ecbfc97 PageID:00000000-0000-0000-0000-000000000000 Sequence:1 Action:0x10802f80a0e0 PageEvent:<nil>} {ID:7032662e-069f-4daf-a61b-4a8b912d536b Type:page_event Timestamp:2026-09-22 02:51:09.623257903 -0400 EDT m=+0.417529264 SessionID:7a90b477-6c45-4d34-9db1-34053ecbfc97 PageID:00000000-0000-0000-0000-000000000000 Sequence:2 Action:<nil> PageEvent:0x10802f834d90}] HasMore:false TotalCount:2} <nil>\ntime=\"2026-09-22T02:51:10-04:00\" level=info msg=\"Created recording session\" session_id=265aaa5f-5fed-474a-8986-99dc027b41db\n--- FAIL: TestJournalHistorySurvivesPaginationReopenAndConcurrentWriters (27.65s)\n    service_test.go:1518: page offset0: total501 entries100 start902 moretrue\ntime=\"2026-09-22T02:51:37-04:00\" level=info msg=\"Created recording session\" session_id=67d940b2-661d-480d-831b-04950c149512\n--- FAIL: TestJournalRetryIdentityPreservesDistinctNavigations (0.37s)\n    service_test.go:1580: retry must deduplicate by identity and retain distinct observations: &{Entries:[{ID:51f42536-8ade-4920-ad34-5e8764c33f95 Type:action Timestamp:2026-09-22 00:00:00 +0000 UTC SessionID:67d940b2-661d-480d-831b-04950c149512 PageID:00000000-0000-0000-0000-000000000000 Sequence:1 Action:0x10802f42c000 PageEvent:<nil>}] HasMore:false TotalCount:1}\nFAIL\nFAIL\tgithub.com/vrooli/browser-automation-studio/services/recording\t28.441s\nFAIL\n",
+    "http_red": "--- FAIL: TestReceiveRecordingActionRequiresCommit (0.00s)\n    --- FAIL: TestReceiveRecordingActionRequiresCommit/storage_failure (0.00s)\n        record_mode_integration_test.go:227: status200 want503: {\"status\":\"ok\"}\n        record_mode_integration_test.go:230: broadcasts1 want0\n    --- FAIL: TestReceiveRecordingActionRequiresCommit/unknown_session (0.00s)\n        record_mode_integration_test.go:227: status200 want404: {\"status\":\"ok\"}\n        record_mode_integration_test.go:230: broadcasts1 want0\nFAIL\nFAIL\tgithub.com/vrooli/browser-automation-studio/handlers\t0.009s\nFAIL\n",
+    "initial_race_green": "ok  \tgithub.com/vrooli/browser-automation-studio/services/recording\t41.502s\nok  \tgithub.com/vrooli/browser-automation-studio/services/recording/persistence\t1.187s\nok  \tgithub.com/vrooli/browser-automation-studio/services/live-capture\t1.042s\nok  \tgithub.com/vrooli/browser-automation-studio/handlers\t1.242s\nok  \tgithub.com/vrooli/browser-automation-studio/database\t17.269s\n",
+    "canonical_pool_misconfiguration": "--- FAIL: TestJournalHistorySurvivesPaginationReopenAndConcurrentWriters (36.09s)\n    service_test.go:751: append timeline entry: database is locked (5) (SQLITE_BUSY)\n    service_test.go:763: complete history: total1021 entries21 morefalse\nFAIL\nFAIL\tgithub.com/vrooli/browser-automation-studio/services/recording\t37.777s\nok  \tgithub.com/vrooli/browser-automation-studio/services/recording/persistence\t1.184s\nok  \tgithub.com/vrooli/browser-automation-studio/services/live-capture\t1.046s\nok  \tgithub.com/vrooli/browser-automation-studio/handlers\t1.239s\nok  \tgithub.com/vrooli/browser-automation-studio/database\t16.610s\nFAIL\n",
+    "canonical_pool_race_green": "ok  \tgithub.com/vrooli/browser-automation-studio/services/recording\t2.733s\nok  \tgithub.com/vrooli/browser-automation-studio/services/recording/persistence\t1.180s\n"
+  },
+  "pool_diagnosis": "Explicit DSN bypasses coredb defaults. Raw file DSN temporarily used by fixture caused SQLITE_BUSY; production uses storage.SQLiteDSNAt/SQLiteDSN. Fixture now uses that exact authority with TimeFormat sqlite and canonical WAL/busy timeout. All assertions retained.",
+  "metrics": {
+    "basis": "Pre014 recording owner plus live-capture service and actual HTTP ingress files; includes mock repository used by tests, excludes other constructor/interface callers",
+    "paths": [
+      "api/handlers/record_mode_actions.go",
+      "api/handlers/record_mode.go",
+      "api/handlers/record_mode_pages.go",
+      "api/services/recording/recorder.go",
+      "api/services/recording/service.go",
+      "api/services/live-capture/service.go",
+      "api/services/recording/persistence/sqlite.go",
+      "api/services/recording/persistence/repository.go",
+      "api/services/recording/persistence/mock_repository.go",
+      "api/services/recording/persistence/types.go"
+    ],
+    "before": {
+      "files": 10,
+      "lines": 4600,
+      "functions": 108,
+      "cyclomatic": 560
+    },
+    "after": {
+      "files": 9,
+      "lines": 3778,
+      "functions": 96,
+      "cyclomatic": 505
+    }
+  },
+  "probes": {
+    "observed_at": "2026-09-22T07:02:16.177109+00:00",
+    "scope": "isolated actual-module regressions; not product or native-platform certification",
+    "cases": [
+      {
+        "case": "profile",
+        "status": "passed",
+        "producer_sha256": "cddaa865e271103f1d94a833d215e4f4db99bd8dca8cce7740b2b973a732719c",
+        "observations": [
+          {
+            "id": "profile-encryption-roundtrip-control",
+            "expected": "Fresh repository restores synthetic state without putting it in plaintext files",
+            "actual": {
+              "metadata_contains_state": false,
+              "protected_contains_state": false,
+              "read_error": "",
+              "state_restored": true
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "profile-metadata-commit-failure",
+            "expected": "Failed save preserves one coherent previous profile",
+            "actual": {
+              "metadata_name": "old-name",
+              "read_error": "",
+              "save_error": "commit profile: synthetic metadata commit failure",
+              "state_is_new": false
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "profile-interrupted-state-write",
+            "expected": "Interrupted state save leaves previous acknowledged profile readable",
+            "actual": {
+              "prior_state_preserved": true,
+              "save_error": "commit profile: synthetic interrupted profile staging write",
+              "subsequent_read_error": ""
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "profile-missing-protected-state",
+            "expected": "A profile whose acknowledged protected state is missing reports incomplete recovery",
+            "actual": {
+              "profile_returned": false,
+              "read_error": "unsupported or incomplete profile document; restore or convert the saved profile offline",
+              "restored_storage_bytes": 0
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "profile-unreadable-list",
+            "expected": "Listing exposes recovery failure rather than an apparently empty profile store",
+            "actual": {
+              "default_created_replacement": false,
+              "default_resolution_error": "failed to list profiles: recover session profile \"synthetic-profile\": open protected profile: cipher: message authentication failed",
+              "direct_read_error": "open protected profile: cipher: message authentication failed",
+              "list_error": "recover session profile \"synthetic-profile\": open protected profile: cipher: message authentication failed",
+              "listed_count": 0
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "profile-concurrent-field-updates",
+            "expected": "Successful tab and storage updates both survive a legal read-modify-save interleaving",
+            "actual": {
+              "new_tab_retained": true,
+              "storage_error": "",
+              "storage_reverted_to_old": false,
+              "tabs_error": ""
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "profile-persist-http-receipt",
+            "expected": "Persist endpoint reports failed durable save",
+            "actual": {
+              "http_status": 500,
+              "response": "{\"code\":\"INTERNAL_SERVER_ERROR\",\"message\":\"An internal server error occurred\",\"details\":{\"error\":\"synthetic profile save failure\"}}"
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "profile-close-save-failure",
+            "expected": "Failed final persistence remains visible and recoverable when closing",
+            "actual": {
+              "driver_closed": false,
+              "http_status": 500,
+              "profile_association_after_close": "synthetic-profile",
+              "response": "{\"code\":\"INTERNAL_SERVER_ERROR\",\"message\":\"Session profile could not be saved; the browser remains open. Retry closing after resolving the save failure.\",\"details\":{\"error\":\"synthetic profile save failure\"}}"
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "profile-missing-key-fail-closed-control",
+            "expected": "Profile creation requires an encryption key",
+            "actual": "resolve credential vrooli/browser-automation-studio:session-profile-keyring: credential provider is not implemented on this host: operating-system secure storage is not implemented on this host: synthetic absent provider",
+            "expected_behavior_met": true
+          },
+          {
+            "id": "replay-simple-click-control",
+            "expected": "Basic click remains a valid typed click",
+            "actual": {
+              "generated_action": {
+                "click": {
+                  "button": "MOUSE_BUTTON_LEFT",
+                  "selector": "#fixture"
+                },
+                "metadata": {
+                  "label": "Click element"
+                },
+                "type": "ACTION_TYPE_CLICK"
+              },
+              "typed_ingress_error": ""
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "replay-click-modifiers",
+            "expected": "Recorded Control-click preserves its modifier",
+            "actual": {
+              "generated_action": {
+                "click": {
+                  "button": "MOUSE_BUTTON_LEFT",
+                  "modifiers": [
+                    "KEYBOARD_MODIFIER_CTRL"
+                  ],
+                  "selector": "#fixture"
+                },
+                "metadata": {
+                  "label": "Click element"
+                },
+                "type": "ACTION_TYPE_CLICK"
+              },
+              "typed_ingress_error": ""
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "replay-double-click",
+            "expected": "Recorded double-click preserves click count two",
+            "actual": {
+              "generated_action": {
+                "click": {
+                  "button": "MOUSE_BUTTON_LEFT",
+                  "click_count": 2,
+                  "selector": "#fixture"
+                },
+                "metadata": {
+                  "label": "Click element"
+                },
+                "type": "ACTION_TYPE_CLICK"
+              },
+              "typed_ingress_error": ""
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "replay-keyboard-modifiers",
+            "expected": "Recorded Control-A preserves its modifier",
+            "actual": {
+              "generated_action": {
+                "keyboard": {
+                  "key": "a",
+                  "modifiers": [
+                    "KEYBOARD_MODIFIER_CTRL"
+                  ]
+                },
+                "metadata": {
+                  "label": "Press a"
+                },
+                "type": "ACTION_TYPE_KEYBOARD"
+              },
+              "typed_ingress_error": ""
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "replay-horizontal-scroll",
+            "expected": "Recorded scroll preserves both axes",
+            "actual": {
+              "generated_action": {
+                "metadata": {
+                  "label": "Scroll"
+                },
+                "scroll": {
+                  "selector": "#fixture",
+                  "x": 200,
+                  "y": 400
+                },
+                "type": "ACTION_TYPE_SCROLL"
+              },
+              "typed_ingress_error": ""
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "replay-blur",
+            "expected": "Blur becomes blur or explicit unsupported failure, never click",
+            "actual": {
+              "generated_action": {
+                "blur": {
+                  "selector": "#fixture"
+                },
+                "metadata": {
+                  "label": "Blur element"
+                },
+                "type": "ACTION_TYPE_BLUR"
+              },
+              "typed_ingress_error": ""
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "replay-browser-drag-event",
+            "expected": "Browser-script drag-drop becomes drag/drop or explicit unsupported failure",
+            "actual": {
+              "generated_action": {
+                "drag_drop": {
+                  "source_selector": "#source",
+                  "target_selector": "#target"
+                },
+                "metadata": {
+                  "label": "Drag and drop"
+                },
+                "type": "ACTION_TYPE_DRAG_DROP"
+              },
+              "typed_ingress_error": ""
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "replay-registry-drag-event",
+            "expected": "Registered dragDrop conversion produces valid typed workflow",
+            "actual": {
+              "generated_action": {
+                "drag_drop": {
+                  "source_selector": "#fixture",
+                  "target_selector": "#target"
+                },
+                "metadata": {
+                  "label": "Drag and drop"
+                },
+                "type": "ACTION_TYPE_DRAG_DROP"
+              },
+              "typed_ingress_error": ""
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "replay-target-context",
+            "expected": "Target context is retained or its loss is rejected instead of accepting an untargeted flow",
+            "actual": {
+              "flow": null,
+              "typed_ingress_error": "recorded action 1: frame replay requires a logical frame binding"
+            },
+            "expected_behavior_met": true
+          }
+        ],
+        "scope": "isolated actual profile repository/service/HTTP handlers and workflow generator/typed ingress; synthetic I/O only",
+        "producer_exit": 0
+      },
+      {
+        "case": "recording-api",
+        "status": "failed",
+        "producer_sha256": "97ab6cd6c8ef31f9e4ebbfa429cc4b9f72b81effbc2528364b299cb7c203012e",
+        "observations": [
+          {
+            "id": "merge-input-snapshots",
+            "expected": "The latest full-value snapshot is ab",
+            "actual": "ab",
+            "expected_behavior_met": true
+          },
+          {
+            "id": "merge-page-identity",
+            "expected": "Identical selectors in separate pages retain two actions",
+            "actual": 2,
+            "expected_behavior_met": true
+          },
+          {
+            "id": "merge-frame-identity",
+            "expected": "Identical selectors in separate frames retain two actions",
+            "actual": 2,
+            "expected_behavior_met": true
+          },
+          {
+            "id": "recording-persistence-ack",
+            "expected": "A failed durable write does not report success",
+            "actual": {
+              "broadcasts": 0,
+              "returned_error": true,
+              "save_attempts": 1
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "timeline-cache-pagination",
+            "expected": "A 1001-event durable session reports 1001 and offset changes the page",
+            "actual": {
+              "database_reads": 2,
+              "durable_saves": 1001,
+              "first_page_start_sequence": 1,
+              "offset_page_start_sequence": 101,
+              "reported_total": 1001
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "frame-window-accounting",
+            "expected": "Two retained non-skipped 1000-byte frames average 1000 bytes",
+            "actual": {
+              "average_frame_bytes": 0,
+              "lifetime_frames": 5,
+              "lifetime_skips": 3,
+              "retained_frames": 2
+            },
+            "expected_behavior_met": false
+          },
+          {
+            "id": "wrapped-sink-cleanup",
+            "expected": "Completing 24 wrapped sinks closes their execution queues",
+            "actual": {
+              "hub_close_calls": 24,
+              "remaining_queue_goroutines": 0
+            },
+            "expected_behavior_met": true
+          },
+          {
+            "id": "probe-resource-cleanup",
+            "expected": "Explicitly closing the underlying sinks releases all probe queues",
+            "actual": 0,
+            "expected_behavior_met": true
+          },
+          {
+            "id": "sink-close-drains-terminal-event",
+            "expected": "Closing a queue delivers its already-accepted terminal event",
+            "actual": {
+              "delivered_events": 2,
+              "published_events": 2
+            },
+            "expected_behavior_met": true
+          }
+        ],
+        "scope": "isolated production-module composition and pure-function probes; no live workflows",
+        "producer_exit": 0
+      }
+    ],
+    "summary": {
+      "passed": 1,
+      "failed": 1,
+      "unavailable": 0
+    }
+  },
+  "board": {
+    "program": "browser-automation-studio.setpoint-read",
+    "version": "1",
+    "status": "ok",
+    "phase": "report",
+    "inputs": {
+      "window": 100,
+      "evidence_sample": 5,
+      "profile": "rehabilitation"
+    },
+    "signals": {
+      "rows": [
+        {
+          "row": "preservation",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#preservation",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "interactive-feedback",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#interactive-feedback",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "motion",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#motion",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "readiness",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#readiness",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "capture",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#capture",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "passive-fidelity",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#passive-fidelity",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "profile-durability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#profile-durability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "known-flow-reliability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#known-flow-reliability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "cancellation-recovery",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#cancellation-recovery",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "resource-budget",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#resource-budget",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "soak-stability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#soak-stability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "evidence-completeness",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#evidence-completeness",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "desktop-portability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#desktop-portability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "agent-usefulness",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#agent-usefulness",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "structural-debt",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#structural-debt",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "workspace-usability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#workspace-usability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "adversarial-review",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#adversarial-review",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        }
+      ],
+      "readable": 0,
+      "unavailable": 17,
+      "required": 17,
+      "unmet": 17,
+      "product_qualified": false
+    },
+    "errors": [],
+    "evidence": [
+      "scenarios/browser-automation-studio/docs/internal/REFRACTOR_CONTRACT.json"
+    ]
+  },
+  "build": "make build passed /tmp/bas-build-014.txt",
+  "owner_validation": {
+    "run_id": "20260922-070615-366d3617",
+    "status": "terminal failed",
+    "duration_seconds": 379,
+    "api": "passed14.978s",
+    "cli": "passed0.895s",
+    "driver": "passed126suites1476tests; naturalexit282.782s, command283.766s",
+    "ui": "coverage statements/lines28.57%, functions30.34%, branches64.96% below85%; typecheckpassed12.019s",
+    "tidiness": {
+      "totalFindings": 1077,
+      "longFiles": 80,
+      "complexity": 380,
+      "duplication": 604,
+      "coupling": 12,
+      "duplicationLineDebt": 35064
+    },
+    "budget_failure": "complexity380 vs baseline363",
+    "artifacts": {
+      "schema_version": 1,
+      "digest": "ac:sha256:a58050737344b8abe6e2c8b95e30464ab2461ad76e16d59160fc801b17190afc",
+      "artifacts": [
+        {
+          "id": "artifact_350c2b9e220e0f398f229b90c93294b6",
+          "kind": "command.log",
+          "media_type": "text/plain; charset=utf-8",
+          "label": "unit.log",
+          "producing_phase": "unit",
+          "size_bytes": "29019",
+          "created_at": "2026-09-22T07:12:30.61908565Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_350c2b9e220e0f398f229b90c93294b6",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_8ef7bf70769af424b8336f7b2d20c06f",
+          "kind": "command.log",
+          "media_type": "text/plain; charset=utf-8",
+          "label": "tidiness.log",
+          "producing_phase": "tidiness",
+          "size_bytes": "437902",
+          "created_at": "2026-09-22T07:12:34.787107382Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_8ef7bf70769af424b8336f7b2d20c06f",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_dcbd9020f4097ecbd3981d0a3c2cc8f1",
+          "kind": "findings.report",
+          "media_type": "application/json",
+          "label": "findings.json",
+          "size_bytes": "7662879",
+          "created_at": "2026-09-22T07:12:35.064108826Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_dcbd9020f4097ecbd3981d0a3c2cc8f1",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_6ceb860af91c7639e4fcbb3b3aee4798",
+          "kind": "generic.file",
+          "media_type": "application/json",
+          "label": "evidence-manifest.json",
+          "size_bytes": "92561",
+          "created_at": "2026-09-22T07:12:35.08410893Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_6ceb860af91c7639e4fcbb3b3aee4798",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_17edb8677b8bc316d3346812c6a39f7d",
+          "kind": "phase.result",
+          "media_type": "application/json",
+          "label": "unit.json",
+          "producing_phase": "unit",
+          "size_bytes": "3038",
+          "created_at": "2026-09-22T07:12:30.61908565Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_17edb8677b8bc316d3346812c6a39f7d",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_8c605ed9317675910993c73946fee812",
+          "kind": "phase.result",
+          "media_type": "application/json",
+          "label": "tidiness.json",
+          "producing_phase": "tidiness",
+          "size_bytes": "2987",
+          "created_at": "2026-09-22T07:12:34.786107377Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_8c605ed9317675910993c73946fee812",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        }
+      ]
+    }
+  },
+  "deployed": true,
+  "limitations": [
+    "Real disk SQLite and actual HTTP boundary tests, not complete driver reconnect/recording journey",
+    "Browser effects precede failed recording; HTTP explicitly reports that they occurred",
+    "AI callbacks still report journal errors in logs; callback gap UI not qualified",
+    "Historical duplicate sequences are not rewritten",
+    "WebSocket delivery acknowledgment is independent of durable commit; transport retries can repeat a projection",
+    "Physical power-loss/native platform durability remains unqualified"
+  ],
+  "cumulative_go": {
+    "basis": "Original HEAD vs current affected BAS Go union; includes existing test-helper Go files. Other shared-tree edits are not independently attributed. Shared owner009 separately adds17 cyclomatic.",
+    "paths": [
+      "api/automation/compiler/action_definition_builder.go",
+      "api/automation/events/sink.go",
+      "api/automation/events/ws_sink.go",
+      "api/handlers/execution_export.go",
+      "api/handlers/handler.go",
+      "api/handlers/record_mode.go",
+      "api/handlers/record_mode_actions.go",
+      "api/handlers/record_mode_pages.go",
+      "api/handlers/record_mode_persistence.go",
+      "api/handlers/recordings/module.go",
+      "api/handlers/recordings/service.go",
+      "api/handlers/testutil_mock_services.go",
+      "api/internal/typeconv/builders.go",
+      "api/internal/wire/wire.go",
+      "api/main.go",
+      "api/services/export/source/video_source.go",
+      "api/services/live-capture/action_registry.go",
+      "api/services/live-capture/service.go",
+      "api/services/live-capture/workflow_generator.go",
+      "api/services/recording/persistence/mock_repository.go",
+      "api/services/recording/persistence/repository.go",
+      "api/services/recording/persistence/sqlite.go",
+      "api/services/recording/persistence/types.go",
+      "api/services/recording/recorder.go",
+      "api/services/recording/service.go",
+      "api/services/session-profile/persistence/credentials.go",
+      "api/services/session-profile/persistence/file_repository.go",
+      "api/services/session-profile/persistence/filesystem.go",
+      "api/services/session-profile/persistence/filesystem_mock.go",
+      "api/services/session-profile/persistence/mock_repository.go",
+      "api/services/session-profile/persistence/protected_state.go",
+      "api/services/session-profile/persistence/repository.go",
+      "api/services/session-profile/service.go",
+      "api/services/uxmetrics/collector/collector.go",
+      "api/services/workflow/executions.go",
+      "api/services/workflow/executions_list.go"
+    ],
+    "original": {
+      "files": 35,
+      "lines": 15367,
+      "functions": 526,
+      "cyclomatic": 2371
+    },
+    "current": {
+      "files": 35,
+      "lines": 13910,
+      "functions": 506,
+      "cyclomatic": 2232
+    }
+  },
+  "live_schema_before": {
+    "database": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/browser-automation-studio.db",
+    "tables": {
+      "recording_sessions": 0,
+      "recording_actions": 0,
+      "timeline_entries": null
+    },
+    "disposition": "INVALID AS LIVE EVIDENCE: this is the default-root database; lifecycle running API uses scenario/data/browser-automation-studio.db. Original counts retained as observation of unused file only."
+  },
+  "source_inventory_digest": "455f6410ca6cc20ee09bd07b40156c564d0df61325582de1c0f95506d5206e4a",
+  "final_owner_validation": {
+    "run_id": "20260922-070615-366d3617",
+    "status": "terminal failed",
+    "duration_seconds": 379,
+    "api": "passed14.978s",
+    "cli": "passed0.895s",
+    "driver": "passed126suites1476tests; naturalexit282.782s, command283.766s",
+    "ui": "coverage statements/lines28.57%, functions30.34%, branches64.96% below85%; typecheckpassed12.019s",
+    "tidiness": {
+      "totalFindings": 1077,
+      "longFiles": 80,
+      "complexity": 380,
+      "duplication": 604,
+      "coupling": 12,
+      "duplicationLineDebt": 35064
+    },
+    "budget_failure": "complexity380 vs baseline363",
+    "artifacts": {
+      "schema_version": 1,
+      "digest": "ac:sha256:a58050737344b8abe6e2c8b95e30464ab2461ad76e16d59160fc801b17190afc",
+      "artifacts": [
+        {
+          "id": "artifact_350c2b9e220e0f398f229b90c93294b6",
+          "kind": "command.log",
+          "media_type": "text/plain; charset=utf-8",
+          "label": "unit.log",
+          "producing_phase": "unit",
+          "size_bytes": "29019",
+          "created_at": "2026-09-22T07:12:30.61908565Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_350c2b9e220e0f398f229b90c93294b6",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_8ef7bf70769af424b8336f7b2d20c06f",
+          "kind": "command.log",
+          "media_type": "text/plain; charset=utf-8",
+          "label": "tidiness.log",
+          "producing_phase": "tidiness",
+          "size_bytes": "437902",
+          "created_at": "2026-09-22T07:12:34.787107382Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_8ef7bf70769af424b8336f7b2d20c06f",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_dcbd9020f4097ecbd3981d0a3c2cc8f1",
+          "kind": "findings.report",
+          "media_type": "application/json",
+          "label": "findings.json",
+          "size_bytes": "7662879",
+          "created_at": "2026-09-22T07:12:35.064108826Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_dcbd9020f4097ecbd3981d0a3c2cc8f1",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_6ceb860af91c7639e4fcbb3b3aee4798",
+          "kind": "generic.file",
+          "media_type": "application/json",
+          "label": "evidence-manifest.json",
+          "size_bytes": "92561",
+          "created_at": "2026-09-22T07:12:35.08410893Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_6ceb860af91c7639e4fcbb3b3aee4798",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_17edb8677b8bc316d3346812c6a39f7d",
+          "kind": "phase.result",
+          "media_type": "application/json",
+          "label": "unit.json",
+          "producing_phase": "unit",
+          "size_bytes": "3038",
+          "created_at": "2026-09-22T07:12:30.61908565Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_17edb8677b8bc316d3346812c6a39f7d",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_8c605ed9317675910993c73946fee812",
+          "kind": "phase.result",
+          "media_type": "application/json",
+          "label": "tidiness.json",
+          "producing_phase": "tidiness",
+          "size_bytes": "2987",
+          "created_at": "2026-09-22T07:12:34.786107377Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_8c605ed9317675910993c73946fee812",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        }
+      ]
+    }
+  },
+  "deployment": {
+    "health": {
+      "status": "healthy",
+      "service": "browser-automation-studio-api",
+      "timestamp": "2026-09-22T07:17:18Z",
+      "readiness": true,
+      "version": "1.0.0",
+      "build_identity": "sha256:e55e1a548d5c0f27774977035f8894db9d09e27f02089ebca18c45eab7962992",
+      "uptime_seconds": 27.099904177,
+      "dependencies": {
+        "automation_engine": {
+          "connected": true
+        },
+        "database": {
+          "connected": true,
+          "latency_ms": 0.024
+        },
+        "playwright_driver": {
+          "connected": true,
+          "latency_ms": 1.047
+        },
+        "storage": {
+          "connected": true,
+          "latency_ms": 0.165
+        }
+      },
+      "metrics": {
+        "goroutines": 31,
+        "heap_mb": 5.1823883056640625,
+        "uptime_seconds": 27.099904177
+      }
+    },
+    "drain_gate": {
+      "checked_at": "2026-09-22T07:14:23.538695+00:00",
+      "rows": 2924,
+      "states": {
+        "EXECUTION_STATUS_COMPLETED": 2537,
+        "EXECUTION_STATUS_FAILED": 382,
+        "EXECUTION_STATUS_RUNNING": 5
+      },
+      "historical_orphans": [
+        {
+          "executionId": "879c542b-d9cd-481b-82d2-6b6c7c11ebf1",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-16T13:18:42.087757908Z",
+          "createdAt": "2026-09-16T13:18:42Z",
+          "updatedAt": "2026-09-16T13:19:10.005000924Z"
+        },
+        {
+          "executionId": "d19bd80e-2624-4874-ab9f-eab0cda42286",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-09T19:30:12.784163869Z",
+          "createdAt": "2026-09-09T19:30:12Z",
+          "updatedAt": "2026-09-09T19:30:18.302018879Z"
+        },
+        {
+          "executionId": "b74ec692-da21-42f7-a86c-f33d436ecfbb",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-09T06:30:44.282585140Z",
+          "createdAt": "2026-09-09T06:30:44Z",
+          "updatedAt": "2026-09-09T06:30:45.060249200Z"
+        },
+        {
+          "executionId": "e0d33e05-297d-4867-aee0-783d59882fa8",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-07T20:36:44.551353663Z",
+          "createdAt": "2026-09-07T20:36:44Z",
+          "updatedAt": "2026-09-07T20:36:45.625164771Z"
+        },
+        {
+          "executionId": "206d68cf-a72c-4838-872b-f913a6a8def6",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-07T20:36:44.551265983Z",
+          "createdAt": "2026-09-07T20:36:44Z",
+          "updatedAt": "2026-09-07T20:36:45.663485899Z"
+        }
+      ],
+      "driver_sessions": 0,
+      "driver_recordings": 0,
+      "seconds": 0.41819682205095887,
+      "build_before": "sha256:3c0e62a11289d56a838a06f72e452c7b9b49e4466c051e29ebf9a9e2ea6de6aa",
+      "limitation": "Observation before stop, not atomic global admission lock",
+      "decision": "admit stop; preserve orphan history"
+    },
+    "schema": {
+      "database": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/data/browser-automation-studio.db",
+      "authority": "running API startup log DSN",
+      "tables": {
+        "recording_sessions": 0,
+        "recording_actions": 0,
+        "timeline_entries": 0
+      },
+      "before_state": "Not measured on actual live database. Earlier default-root read was an unused database and must not be attributed to live BAS."
+    },
+    "profile_read_verification": "read 1: complete identity preserved; elapsed_ms=1214.91\nread 2: complete identity preserved; elapsed_ms=0.45\nread 3: complete identity preserved; elapsed_ms=0.41\n",
+    "live_profile_metadata": {
+      "profile_count": 1,
+      "live_identity_and_name_match_original": true,
+      "storage_state_absent_from_metadata": true
+    }
+  }
+}

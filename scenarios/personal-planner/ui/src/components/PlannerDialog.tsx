@@ -1,8 +1,16 @@
-import type { ComponentProps } from "react";
-import { Dialog as SharedDialog } from "@vrooli/react-component-library/Dialog/1.3.8";
+import type { ComponentProps, ReactNode } from "react";
+import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1.3.1";
 
-type PlannerDialogProps = ComponentProps<typeof SharedDialog>;
+type PlannerDialogProps = Omit<ComponentProps<typeof ResponsiveDialog>, "title"> & {
+  title: ReactNode;
+  description?: ReactNode;
+};
 
-export function PlannerDialog(props: PlannerDialogProps) {
-  return <SharedDialog {...props} />;
+export function PlannerDialog({ title, description, ariaLabel, contentPadding = "comfortable", ...props }: PlannerDialogProps) {
+  return <ResponsiveDialog
+    {...props}
+    ariaLabel={ariaLabel ?? (typeof title === "string" ? title : undefined)}
+    contentPadding={contentPadding}
+    title={<span className="planner-dialog-title"><span>{title}</span>{description && <small>{description}</small>}</span>}
+  />;
 }

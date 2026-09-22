@@ -240,7 +240,9 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 					}).Warn("Failed to capture storage state from session")
 				}
 			}
-			closeSessionWithArtifacts(context.Background(), session, req.Plan, req.Recorder)
+			closeCtx, closeCancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+			defer closeCancel()
+			err = errors.Join(err, closeSessionWithArtifacts(closeCtx, session, req.Plan, req.Recorder))
 		}
 	}()
 
@@ -356,6 +358,11 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 			continue
 		}
 
+		if ctx.Err() != nil {
+			_, err := e.recordTerminatedStep(ctx, req, instruction, ctx.Err())
+			return session, err
+		}
+
 		if session == nil {
 			s, err := eng.StartSession(ctx, spec)
 			if err != nil {
@@ -402,13 +409,6 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 			continue
 		}
 
-		if ctx.Err() != nil {
-			if _, cancelErr := e.recordTerminatedStep(ctx, req, instruction, ctx.Err()); cancelErr != nil {
-				return session, cancelErr
-			}
-			return session, ctx.Err()
-		}
-
 		session, err = e.ensureNavigation(ctx, req, execCtx, eng, spec, session, instruction.NodeID, instrStepType)
 		if err != nil {
 			return session, err
@@ -433,43 +433,8 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 
 		normalized := e.normalizeOutcome(req.Plan, instruction, attempt, startedAt, outcome, runErr)
 
-		// Use WithoutCancel to ensure outcomes are persisted even when context is cancelled.
-		// This is critical for debugging and audit trails when executions are cancelled mid-flight.
-		persistCtx := context.WithoutCancel(ctx)
-		recordResult, recordErr := req.Recorder.RecordStepOutcome(persistCtx, req.Plan, normalized)
-		if recordErr != nil {
-			return session, fmt.Errorf("record step outcome: %w", recordErr)
-		}
-
-		// Calculate progress: (completed steps / total steps) * 100
-		totalSteps := len(req.Plan.Instructions)
-		progressPercent := calculateProgress(instruction.Index, totalSteps)
-
-		payload := map[string]any{
-			"outcome":   normalized,
-			"artifacts": recordResult.ArtifactIDs,
-			"progress":  progressPercent,
-		}
-		if recordResult.TimelineArtifactID != nil {
-			payload["timeline_artifact_id"] = *recordResult.TimelineArtifactID
-		}
-
-		eventKind := contracts.EventKindStepCompleted
-		if !normalized.Success {
-			eventKind = contracts.EventKindStepFailed
-		}
-		e.emitEvent(persistCtx, req, eventKind, &instruction.Index, &attempt, payload)
-
-		// Update checkpoint for progress continuity after successful steps
-		if normalized.Success {
-			totalSteps := len(req.Plan.Instructions)
-			if err := req.Recorder.UpdateCheckpoint(persistCtx, req.Plan.ExecutionID, instruction.Index, totalSteps); err != nil {
-				// Log but don't fail the execution - checkpoint is best-effort
-				logrus.WithError(err).WithFields(logrus.Fields{
-					"execution_id": req.Plan.ExecutionID,
-					"step_index":   instruction.Index,
-				}).Warn("Failed to update execution checkpoint")
-			}
+		if recordErr := e.recordOutcome(ctx, req, normalized); recordErr != nil {
+			return session, errors.Join(runErr, recordErr)
 		}
 
 		// Store extracted data to execState if storeResult is specified
@@ -1159,91 +1124,62 @@ type sessionArtifactDownloader interface {
 	DownloadArtifact(ctx context.Context, path string) (*driver.ArtifactDownload, error)
 }
 
-func closeSessionWithArtifacts(ctx context.Context, session engine.EngineSession, plan contracts.ExecutionPlan, recorder executionwriter.ExecutionWriter) {
+// Finalization is part of the execution outcome. Persist available evidence even
+// when another artifact fails, while retaining every failure in the returned error.
+func closeSessionWithArtifacts(ctx context.Context, session engine.EngineSession, plan contracts.ExecutionPlan, recorder executionwriter.ExecutionWriter) error {
 	if session == nil {
-		return
+		return nil
+	}
+	closer, ok := session.(sessionArtifactCloser)
+	if !ok {
+		return session.Close(ctx)
+	}
+	artifacts, closeErr := closer.CloseWithArtifacts(ctx)
+	if artifacts == nil || recorder == nil {
+		return closeErr
 	}
 
-	if closer, ok := session.(sessionArtifactCloser); ok {
-		artifacts, err := closer.CloseWithArtifacts(ctx)
+	candidates := make([]executionwriter.ExternalArtifact, 0, len(artifacts.VideoPaths)+2)
+	for index, path := range artifacts.VideoPaths {
+		candidates = append(candidates, executionwriter.ExternalArtifact{
+			ArtifactType: "video_meta", Label: fmt.Sprintf("video-%d", index+1), Path: path,
+			Payload: map[string]any{"page_index": index},
+		})
+	}
+	candidates = append(candidates,
+		executionwriter.ExternalArtifact{ArtifactType: "trace_meta", Label: "trace", Path: artifacts.TracePath},
+		executionwriter.ExternalArtifact{ArtifactType: "har_meta", Label: "har", Path: artifacts.HARPath})
+	downloader, _ := session.(sessionArtifactDownloader)
+	external := make([]executionwriter.ExternalArtifact, 0, len(candidates))
+	result := closeErr
+	extensions := map[string]string{"video_meta": ".webm", "trace_meta": ".zip", "har_meta": ".har"}
+	for _, artifact := range candidates {
+		source := strings.TrimSpace(artifact.Path)
+		if source == "" {
+			continue
+		}
+		extension := extensions[artifact.ArtifactType]
+		path, contentType, cleanup, err := resolveArtifactPath(ctx, downloader, source, extension)
 		if err != nil {
-			logrus.WithError(err).WithField("execution_id", plan.ExecutionID).Warn("Failed to close session")
-			return
+			result = errors.Join(result, fmt.Errorf("resolve %s artifact %q: %w", artifact.Label, source, err))
+			continue
 		}
-		if recorder == nil || artifacts == nil {
-			return
+		if cleanup != nil {
+			defer cleanup()
 		}
-		downloader, _ := session.(sessionArtifactDownloader)
-		cleanups := make([]func(), 0, len(artifacts.VideoPaths)+2)
-		external := make([]executionwriter.ExternalArtifact, 0, len(artifacts.VideoPaths)+2)
-		for index, videoPath := range artifacts.VideoPaths {
-			trimmedPath := strings.TrimSpace(videoPath)
-			if trimmedPath == "" {
-				continue
-			}
-			pathToStore, contentType, cleanup := resolveArtifactPath(ctx, downloader, trimmedPath, ".webm")
-			if cleanup != nil {
-				cleanups = append(cleanups, cleanup)
-			}
-			external = append(external, executionwriter.ExternalArtifact{
-				ArtifactType: "video_meta",
-				Label:        fmt.Sprintf("video-%d", index+1),
-				Path:         pathToStore,
-				ContentType:  contentType,
-				Payload: map[string]any{
-					"page_index":  index,
-					"source_path": trimmedPath,
-				},
-			})
+		artifact.Path, artifact.ContentType = path, contentType
+		if artifact.Payload == nil {
+			artifact.Payload = make(map[string]any)
 		}
-
-		if tracePath := strings.TrimSpace(artifacts.TracePath); tracePath != "" {
-			pathToStore, contentType, cleanup := resolveArtifactPath(ctx, downloader, tracePath, ".zip")
-			if cleanup != nil {
-				cleanups = append(cleanups, cleanup)
-			}
-			external = append(external, executionwriter.ExternalArtifact{
-				ArtifactType: "trace_meta",
-				Label:        "trace",
-				Path:         pathToStore,
-				ContentType:  contentType,
-				Payload: map[string]any{
-					"source_path": tracePath,
-				},
-			})
-		}
-
-		if harPath := strings.TrimSpace(artifacts.HARPath); harPath != "" {
-			pathToStore, contentType, cleanup := resolveArtifactPath(ctx, downloader, harPath, ".har")
-			if cleanup != nil {
-				cleanups = append(cleanups, cleanup)
-			}
-			external = append(external, executionwriter.ExternalArtifact{
-				ArtifactType: "har_meta",
-				Label:        "har",
-				Path:         pathToStore,
-				ContentType:  contentType,
-				Payload: map[string]any{
-					"source_path": harPath,
-				},
-			})
-		}
-
-		if len(external) == 0 {
-			return
-		}
+		artifact.Payload["source_path"] = source
+		external = append(external, artifact)
+	}
+	if len(external) > 0 {
 		if err := recorder.RecordExecutionArtifacts(ctx, plan, external); err != nil {
-			logrus.WithError(err).WithField("execution_id", plan.ExecutionID).Warn("Failed to persist execution artifacts")
+			result = errors.Join(result, fmt.Errorf("persist execution artifacts: %w", err))
 		}
-		for _, cleanup := range cleanups {
-			cleanup()
-		}
-		return
 	}
-
-	if err := session.Close(ctx); err != nil {
-		logrus.WithError(err).Warn("Failed to close session")
-	}
+	return result
 }
 
 func downloadSessionArtifact(ctx context.Context, downloader sessionArtifactDownloader, sourcePath string, fallbackExt string) (string, string, func(), error) {
@@ -1286,24 +1222,18 @@ func downloadSessionArtifact(ctx context.Context, downloader sessionArtifactDown
 	return tmpFile.Name(), download.ContentType, cleanup, nil
 }
 
-func resolveArtifactPath(ctx context.Context, downloader sessionArtifactDownloader, sourcePath string, fallbackExt string) (string, string, func()) {
-	pathToStore := sourcePath
-	contentType := ""
-	if _, statErr := os.Stat(sourcePath); statErr != nil {
-		if downloader == nil {
-			logrus.WithError(statErr).WithField("path", sourcePath).Warn("Artifact path missing and downloader unavailable")
-			return pathToStore, contentType, nil
+func resolveArtifactPath(ctx context.Context, downloader sessionArtifactDownloader, sourcePath string, fallbackExt string) (string, string, func(), error) {
+	info, statErr := os.Stat(sourcePath)
+	if statErr == nil {
+		if !info.Mode().IsRegular() {
+			return "", "", nil, fmt.Errorf("artifact is not a regular file: %s", sourcePath)
 		}
-		downloadedPath, downloadedType, cleanup, dlErr := downloadSessionArtifact(ctx, downloader, sourcePath, fallbackExt)
-		if dlErr != nil {
-			logrus.WithError(dlErr).WithField("path", sourcePath).Warn("Failed to download remote artifact")
-			return pathToStore, contentType, nil
-		}
-		pathToStore = downloadedPath
-		contentType = downloadedType
-		return pathToStore, contentType, cleanup
+		return sourcePath, "", nil, nil
 	}
-	return pathToStore, contentType, nil
+	if downloader == nil {
+		return "", "", nil, statErr
+	}
+	return downloadSessionArtifact(ctx, downloader, sourcePath, fallbackExt)
 }
 
 func extensionForContentType(contentType string) string {
@@ -1461,6 +1391,7 @@ func (e *SimpleExecutor) telemetryCollector() driver.TelemetryCollector {
 }
 
 func (e *SimpleExecutor) runWithRetries(ctx context.Context, req Request, session engine.EngineSession, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+	instruction.InvocationID = uuid.NewString()
 	cfg := retryConfigFromInstruction(instruction)
 	var lastOutcome contracts.StepOutcome
 	var lastErr error
@@ -1476,6 +1407,7 @@ func (e *SimpleExecutor) runWithRetries(ctx context.Context, req Request, sessio
 	instruction = applyTelemetryDirective(instruction, req.ArtifactConfig)
 
 	for attempt := 1; attempt <= cfg.MaxAttempts; attempt++ {
+		instruction.Attempt = attempt
 		attemptStart := time.Now().UTC()
 
 		attemptCtx := ctx
@@ -1499,26 +1431,6 @@ func (e *SimpleExecutor) runWithRetries(ctx context.Context, req Request, sessio
 
 		outcome.Attempt = attempt
 		outcome = e.normalizeOutcome(req.Plan, instruction, attempt, attemptStart, outcome, err)
-		if shouldIgnoreFailure(instruction, outcome) {
-			message := "screenshot capture failed"
-			code := "SCREENSHOT_FAILED"
-			if outcome.Failure != nil {
-				if strings.TrimSpace(outcome.Failure.Message) != "" {
-					message = outcome.Failure.Message
-				}
-				if strings.TrimSpace(outcome.Failure.Code) != "" {
-					code = outcome.Failure.Code
-				}
-			}
-			outcome.Success = true
-			outcome.Failure = nil
-			if outcome.Notes == nil {
-				outcome.Notes = map[string]string{}
-			}
-			outcome.Notes["non_fatal_failure"] = message
-			outcome.Notes["non_fatal_failure_code"] = code
-			return outcome, nil
-		}
 
 		if req.Recorder != nil && outcome.Failure != nil {
 			_ = req.Recorder.RecordTelemetry(ctx, req.Plan, contracts.StepTelemetry{
@@ -1555,16 +1467,6 @@ func (e *SimpleExecutor) runWithRetries(ctx context.Context, req Request, sessio
 	}
 
 	return lastOutcome, lastErr
-}
-
-func shouldIgnoreFailure(instruction contracts.CompiledInstruction, outcome contracts.StepOutcome) bool {
-	if outcome.Success {
-		return false
-	}
-	if InstructionStepType(instruction) != "screenshot" {
-		return false
-	}
-	return true
 }
 
 type retryConfig struct {
@@ -1760,31 +1662,52 @@ func computeDynamicTimeout(plan contracts.ExecutionPlan) time.Duration {
 	return timeout
 }
 
-// recordTerminatedStep best-effort persists an outcome when execution is cancelled or times out,
-// and emits a failed event with appropriate failure taxonomy.
+// recordOutcome owns the bounded persistence and completion-event boundary for
+// every execution shape. Cancellation stops actions, not their audit trail.
+func (e *SimpleExecutor) recordOutcome(ctx context.Context, req Request, outcome contracts.StepOutcome) error {
+	persistCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+	defer cancel()
+	result, err := req.Recorder.RecordStepOutcome(persistCtx, req.Plan, outcome)
+	if err != nil {
+		return fmt.Errorf("record step outcome: %w", err)
+	}
+
+	totalSteps := len(req.Plan.Instructions)
+	if req.Plan.Graph != nil && len(req.Plan.Graph.Steps) > 0 {
+		totalSteps = len(req.Plan.Graph.Steps)
+	}
+	payload := map[string]any{
+		"outcome":   outcome,
+		"artifacts": result.ArtifactIDs,
+		"progress":  calculateProgress(outcome.StepIndex, totalSteps),
+	}
+	if result.TimelineArtifactID != nil {
+		payload["timeline_artifact_id"] = *result.TimelineArtifactID
+	}
+	kind := contracts.EventKindStepCompleted
+	if !outcome.Success {
+		kind = contracts.EventKindStepFailed
+	}
+	e.emitEvent(persistCtx, req, kind, &outcome.StepIndex, &outcome.Attempt, payload)
+
+	// Graph indices do not describe a resumable linear checkpoint.
+	if req.Plan.Graph == nil && outcome.Success {
+		if err := req.Recorder.UpdateCheckpoint(persistCtx, req.Plan.ExecutionID, outcome.StepIndex, totalSteps); err != nil {
+			logrus.WithError(err).WithFields(logrus.Fields{
+				"execution_id": req.Plan.ExecutionID, "step_index": outcome.StepIndex,
+			}).Warn("Failed to update execution checkpoint")
+		}
+	}
+	return nil
+}
+
+// recordTerminatedStep records an action that was canceled before dispatch.
 func (e *SimpleExecutor) recordTerminatedStep(ctx context.Context, req Request, instruction contracts.CompiledInstruction, cause error) (contracts.StepOutcome, error) {
-	startedAt := time.Now().UTC()
 	if cause == nil {
 		cause = context.Canceled
 	}
-	outcome := e.normalizeOutcome(req.Plan, instruction, 1, startedAt, contracts.StepOutcome{}, cause)
-
-	persistCtx := context.WithoutCancel(ctx)
-	recordResult, recordErr := req.Recorder.RecordStepOutcome(persistCtx, req.Plan, outcome)
-	if recordErr != nil {
-		return outcome, fmt.Errorf("record terminated step outcome: %w", recordErr)
-	}
-
-	payload := map[string]any{
-		"outcome":   outcome,
-		"artifacts": recordResult.ArtifactIDs,
-	}
-	if recordResult.TimelineArtifactID != nil {
-		payload["timeline_artifact_id"] = *recordResult.TimelineArtifactID
-	}
-	e.emitEvent(persistCtx, req, contracts.EventKindStepFailed, &outcome.StepIndex, &outcome.Attempt, payload)
-
-	return outcome, cause
+	outcome := e.normalizeOutcome(req.Plan, instruction, 1, time.Now().UTC(), contracts.StepOutcome{}, cause)
+	return outcome, errors.Join(cause, e.recordOutcome(ctx, req, outcome))
 }
 
 // screenshotEvidenceActions are the steps whose screenshot is diagnostic rather

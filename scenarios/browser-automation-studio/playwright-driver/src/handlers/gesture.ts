@@ -1,6 +1,5 @@
 import type { Page } from 'rebrowser-playwright';
-import type winston from 'winston';
-import { BaseHandler, HandlerContext, HandlerResult } from './base';
+import { BaseHandler, getDocument, type BrowserDocument, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import { getDragDropParams, getGestureParams } from '../types';
 import { normalizeError } from '../utils/errors';
@@ -161,6 +160,7 @@ export class GestureHandler extends BaseHandler {
     const typedParams = instruction.action ? getDragDropParams(instruction.action) : undefined;
     const validated = this.requireTypedParams(typedParams, 'drag-drop', instruction.nodeId);
     const { page, logger } = context;
+    const target = getDocument(context);
 
     // Prefer param timeout, fallback to config, then hard-coded default
     const timeout = validated.timeoutMs || context.config.execution.defaultTimeoutMs || 30000;
@@ -179,10 +179,10 @@ export class GestureHandler extends BaseHandler {
     await applyPreActionDelay(behavior, (b) => b.getClickDelay());
 
     // Capture element context for source element BEFORE the drag (recording-quality telemetry)
-    const sourceElementContext = await captureElementContext(page, validated.sourceSelector, { timeout });
+    const sourceElementContext = await captureElementContext(target, validated.sourceSelector, { timeout });
 
     // Get source element with explicit timeout and wait for visible state
-    const sourceElement = await page.waitForSelector(validated.sourceSelector, {
+    const sourceElement = await target.waitForSelector(validated.sourceSelector, {
       timeout,
       state: 'visible'
     }).catch((error) => {
@@ -232,7 +232,7 @@ export class GestureHandler extends BaseHandler {
     if (validated.targetSelector) {
       // Drag to target element with explicit timeout
       // Target only needs to be attached (not necessarily visible) for drag operations
-      targetElement = await page.waitForSelector(validated.targetSelector, {
+      targetElement = await target.waitForSelector(validated.targetSelector, {
         timeout,
         state: 'attached'
       }).catch((error) => {
@@ -307,7 +307,7 @@ export class GestureHandler extends BaseHandler {
     // DataTransfer-backed event sequence. Mouse-only dragging can leave
     // Chromium in a native drag state and stall the driver request.
     if (targetElement && validated.targetSelector) {
-      const usedHtml5Drag = await page.evaluate(
+      const usedHtml5Drag = await target.evaluate(
         ({ sourceSelector, targetSelector, sourceX, sourceY, targetX, targetY }) => {
           const source = document.querySelector<HTMLElement>(sourceSelector);
           const target = document.querySelector<HTMLElement>(targetSelector);
@@ -484,7 +484,7 @@ export class GestureHandler extends BaseHandler {
       wheelDeltaY: gestureParams.wheelDeltaY,
       ctrlKey: gestureParams.ctrlKey,
     };
-    const { page, logger } = context;
+    const { logger } = context;
 
     logger.debug('Executing gesture', {
       type: validated.type,
@@ -499,10 +499,10 @@ export class GestureHandler extends BaseHandler {
 
     switch (validated.type) {
       case 'swipe':
-        return this.handleSwipe(page, validated, logger, context.config.recording.defaultSwipeDistance, behavior);
+        return this.handleSwipe(context, validated, behavior);
       case 'pinch':
       case 'zoom':
-        return this.handlePinchZoom(page, validated, logger, behavior);
+        return this.handlePinchZoom(context, validated, behavior);
       default:
         return {
           success: false,
@@ -520,13 +520,14 @@ export class GestureHandler extends BaseHandler {
    * Execute swipe gesture with human-like behavior support
    */
   private async handleSwipe(
-    page: Page,
+    context: HandlerContext,
     params: GestureParams,
-    logger: winston.Logger,
-    defaultDistance: number = 300,
-    behavior: HumanBehavior | null = null
+    behavior: HumanBehavior | null
   ): Promise<HandlerResult> {
-    const anchor = await this.resolveGestureAnchor(page, params.selector);
+    const { page, logger } = context;
+    const target = getDocument(context);
+    const defaultDistance = context.config.recording.defaultSwipeDistance;
+    const anchor = await this.resolveGestureAnchor(page, target, params.selector);
     if (!anchor) {
       return {
         success: false,
@@ -580,7 +581,7 @@ export class GestureHandler extends BaseHandler {
 
     // Apply pre-swipe delay if behavior is enabled
     await applyPreActionDelay(behavior, (b) => b.getClickDelay() / 2);
-    await this.markGesture(page, params, 'start');
+    await this.markGesture(target, params, 'start');
 
     // Calculate steps based on behavior scroll speed if available
     const scrollSpeed = behavior ? behavior.getScrollSpeed() : 100;
@@ -624,7 +625,7 @@ export class GestureHandler extends BaseHandler {
     }
 
     await page.mouse.up();
-    await this.markGesture(page, params, 'end');
+    await this.markGesture(target, params, 'end');
 
     // Apply post-swipe micro-pause
     await applyPostActionPause(behavior);
@@ -665,19 +666,20 @@ export class GestureHandler extends BaseHandler {
    * work instead of a synchronous DOM/style mutation.
    */
   private async handlePinchZoom(
-    page: Page,
+    context: HandlerContext,
     params: GestureParams,
-    logger: winston.Logger,
-    behavior: HumanBehavior | null = null
+    behavior: HumanBehavior | null
   ): Promise<HandlerResult> {
+    const { page, logger } = context;
+    const target = getDocument(context);
     const scale = params.scale || (params.type === 'pinch' ? 0.8 : 1.2);
     const selector = params.selector;
 
     // Apply pre-action delay if behavior is enabled
     await applyPreActionDelay(behavior, (b) => b.getClickDelay() / 2);
-    await this.markGesture(page, params, 'start');
+    await this.markGesture(target, params, 'start');
 
-    const anchor = await this.resolveGestureAnchor(page, selector);
+    const anchor = await this.resolveGestureAnchor(page, target, selector);
     if (!anchor) {
       return {
         success: false,
@@ -713,7 +715,7 @@ export class GestureHandler extends BaseHandler {
         await keyboard?.up?.('Control');
       }
     }
-    await this.markGesture(page, params, 'end');
+    await this.markGesture(target, params, 'end');
 
     if (params.idleAfterMs && params.idleAfterMs > 0) {
       await sleep(params.idleAfterMs);
@@ -721,7 +723,7 @@ export class GestureHandler extends BaseHandler {
 
     if (selector) {
       // Capture element context BEFORE the zoom (recording-quality telemetry)
-      const elementContext = await captureElementContext(page, selector);
+      const elementContext = await captureElementContext(target, selector);
 
       // Apply post-action micro-pause
       await applyPostActionPause(behavior);
@@ -791,14 +793,21 @@ export class GestureHandler extends BaseHandler {
     };
   }
 
-  private async resolveGestureAnchor(page: Page, selector?: string): Promise<{ x: number; y: number } | null> {
+  private async resolveGestureAnchor(page: Page, target: BrowserDocument, selector?: string): Promise<{ x: number; y: number } | null> {
     if (selector) {
-      const element = await page.$(selector);
+      const element = await target.$(selector);
       const box = await element?.boundingBox();
       if (!box) {
         return null;
       }
       return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    }
+    if ('frameElement' in target) {
+      const element = await target.frameElement();
+      try {
+        const box = await element.boundingBox();
+        return box ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : null;
+      } finally { await element.dispose(); }
     }
     const viewport = page.viewportSize();
     if (!viewport) {
@@ -807,11 +816,11 @@ export class GestureHandler extends BaseHandler {
     return { x: viewport.width / 2, y: viewport.height / 2 };
   }
 
-  private async markGesture(page: Page, params: GestureParams, phase: 'start' | 'end'): Promise<void> {
+  private async markGesture(target: BrowserDocument, params: GestureParams, phase: 'start' | 'end'): Promise<void> {
     const rawLabel = params.traceLabel || params.type || 'interaction';
     const label = rawLabel.replace(/[^a-zA-Z0-9_.:-]+/g, '-').replace(/^-+|-+$/g, '') || 'interaction';
     const markName = `bas.gesture.${label}.${phase}`;
-    await page.evaluate((name: string) => {
+    await target.evaluate((name: string) => {
       if (typeof performance !== 'undefined' && typeof performance.mark === 'function') {
         performance.mark(name);
       }

@@ -16,7 +16,6 @@ import (
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	autodriver "github.com/vrooli/browser-automation-studio/automation/driver"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
-	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
@@ -524,6 +523,9 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 
 	engineName := autoengine.FromEnv().Resolve("")
 	eventSink := s.newEventSink()
+	if eventSink != nil {
+		defer eventSink.CloseExecution(executionID)
+	}
 
 	// Resolve the artifact config for this execution. Legacy callers
 	// (ExecuteWorkflow with flat params) pass nil; fall back to the operator-
@@ -754,11 +756,6 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 			Timestamp:      now,
 			Payload:        payload,
 		})
-
-		// Close the execution on the event sink to clean up resources
-		if wsSink, ok := eventSink.(*autoevents.WSHubSink); ok {
-			wsSink.CloseExecution(executionID)
-		}
 	}
 }
 

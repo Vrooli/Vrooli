@@ -19,7 +19,7 @@ func TestSeams_OllamaClientMock(t *testing.T) {
 		mockResponse := `[{"text": "Login", "tagName": "BUTTON", "confidence": 0.9, "category": "auth"}]`
 		mockClient := NewMockOllamaClient(mockResponse)
 
-		response, err := mockClient.Query(context.Background(), "chat.small", "test prompt")
+		response, err := mockClient.Query(context.Background(), "chat.small", "test prompt", "")
 
 		require.NoError(t, err)
 		assert.Equal(t, mockResponse, response)
@@ -33,7 +33,7 @@ func TestSeams_OllamaClientMock(t *testing.T) {
 			Err: assert.AnError,
 		}
 
-		_, err := mockClient.Query(context.Background(), "chat.small", "test prompt")
+		_, err := mockClient.Query(context.Background(), "chat.small", "test prompt", "")
 
 		assert.Error(t, err)
 		assert.Equal(t, assert.AnError, err)

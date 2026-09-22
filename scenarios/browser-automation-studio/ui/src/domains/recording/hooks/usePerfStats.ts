@@ -11,85 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useWebSocket } from '@/contexts/WebSocketContext';
 
-/** Possible bottleneck types in the streaming pipeline */
-export type BottleneckType =
-  | 'capture' // Screenshot capture is slow
-  | 'encode' // JPEG encoding is slow (rare with Playwright)
-  | 'network' // Network/WebSocket is slow
-  | 'decode' // Client-side decoding is slow
-  | 'draw' // Canvas rendering is slow
-  | 'none'; // No significant bottleneck detected
-
-/**
- * Aggregated statistics over a window of frames.
- * Computed periodically by the server and sent via WebSocket.
- */
-export interface FrameStatsAggregated {
-  /** Session these stats belong to */
-  session_id: string;
-
-  /** When this stats window started */
-  window_start_time: string;
-
-  /** Duration of the stats window in milliseconds */
-  window_duration_ms: number;
-
-  /** Total frames captured in this window */
-  frame_count: number;
-
-  /** Frames skipped due to unchanged content */
-  skipped_count: number;
-
-  // Capture timing percentiles (milliseconds)
-
-  /** 50th percentile (median) capture time */
-  capture_p50_ms: number;
-
-  /** 90th percentile capture time */
-  capture_p90_ms: number;
-
-  /** 99th percentile capture time */
-  capture_p99_ms: number;
-
-  /** Maximum capture time observed */
-  capture_max_ms: number;
-
-  // End-to-end timing percentiles (driver capture start -> API broadcast complete)
-
-  /** 50th percentile end-to-end time */
-  e2e_p50_ms: number;
-
-  /** 90th percentile end-to-end time */
-  e2e_p90_ms: number;
-
-  /** 99th percentile end-to-end time */
-  e2e_p99_ms: number;
-
-  /** Maximum end-to-end time observed */
-  e2e_max_ms: number;
-
-  // Throughput metrics
-
-  /** Actual frames per second achieved */
-  actual_fps: number;
-
-  /** Target FPS configured for the session */
-  target_fps: number;
-
-  /** Average frame size in bytes */
-  avg_frame_bytes: number;
-
-  /** Bandwidth in bytes per second */
-  bandwidth_bytes_per_sec: number;
-
-  // Bottleneck identification
-
-  /** Primary bottleneck identified */
-  primary_bottleneck: BottleneckType;
-
-  /** Human-readable description of the bottleneck */
-  bottleneck_description: string;
-}
+import type { FrameStatsAggregated, BottleneckType } from '../frame-streaming/types';
 
 /**
  * WebSocket message type for performance stats broadcast.
@@ -183,6 +105,7 @@ export function getBottleneckSeverity(
     case 'capture':
     case 'network':
       return 'critical'; // These are the most impactful bottlenecks
+    case 'processing':
     case 'encode':
     case 'decode':
     case 'draw':

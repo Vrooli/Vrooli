@@ -64,6 +64,17 @@ type WorkflowIndex struct {
 	UpdatedAt  time.Time  `json:"updated_at" db:"updated_at"`
 }
 
+// ExecutionQuery selects execution index rows. A zero Limit means unbounded
+// for internal maintenance; the public API enforces its own bounded contract.
+type ExecutionQuery struct {
+	WorkflowID  *uuid.UUID
+	ProjectID   *uuid.UUID
+	Status      string
+	Limit       int
+	Offset      int
+	OldestFirst bool
+}
+
 // ExecutionIndex is the database index for an execution.
 // Use basexecution.Execution for full execution details.
 type ExecutionIndex struct {

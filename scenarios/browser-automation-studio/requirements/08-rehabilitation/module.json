@@ -1,0 +1,200 @@
+{
+  "_metadata": {
+    "description": "Browser-first rehabilitation preservation obligations; all validation coverage must be earned.",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BAS-RH-J01",
+      "title": "a saved signed-in profile",
+      "description": "Given a saved signed-in profile, when the operator closes/reopens BAS, then supported sign-in state and tabs return without crossing into another profile.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J02",
+      "title": "passive recording",
+      "description": "Given passive recording, when the operator types with pauses, replaces/selects/deletes text, pastes, uses IME, and clears a field, then the selected workflow reproduces the final values.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J03",
+      "title": "equal selectors in two tabs/frames",
+      "description": "Given equal selectors in two tabs/frames, when actions alternate between them and replay in a fresh browser context, then each action retains its logical target identity and order.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J04",
+      "title": "a redirect, SPA route, popup, shadow DOM, or service worker",
+      "description": "Given a redirect, SPA route, popup, shadow DOM, or service worker, when navigation completes, then capture resumes and the timeline reports any unsupported gap.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J05",
+      "title": "a slow/disconnected frame viewer",
+      "description": "Given a slow/disconnected frame viewer, when inputs and capture continue, then compressed queues and active decoding stay bounded, fallback supplies current frames, and old tab/session work cannot paint after a switch or revive a disposed connection.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J06",
+      "title": "a persistence or disk failure",
+      "description": "Given a persistence or disk failure, when recording/profile writes occur, then success is not reported as durable and existing data remains recoverable.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J07",
+      "title": "workflow timeout, cancellation, driver death, API restart or a retried start during a live instruction, then t",
+      "description": "Given an active workflow, when timeout, cancellation, driver death, API restart or a retried start overlaps a live instruction, then terminal state, last evidence, leases and cleanup have one consistent result, with no concurrent owner created by retry.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J08",
+      "title": "required screenshots/logs/network/video/trace",
+      "description": "Given required screenshots/logs/network/video/trace, when supported collection or teardown completes or fails, then manifest completeness and reasons match the returned outcome and unresolved browser resources retain a recovery owner.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J09",
+      "title": "a desktop/Android target issued by its owner",
+      "description": "Given a desktop/Android target issued by its owner, when BAS attaches, acts and detaches, then renderer/isolation/recording identity is preserved and target lifecycle remains owner-controlled.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J10",
+      "title": "a bundled clean-machine install",
+      "description": "Given a bundled clean-machine install, when Node/Chromium are absent from developer PATH/cache, then the package runs from its declared inventory or reports a precise missing capability.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J11",
+      "title": "selected human history",
+      "description": "Given selected human history, when AI proposes a workflow, then original observations are retained, secrets are referenced safely, a typed candidate is validated, and repeat-effect authorization precedes qualification.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J12",
+      "title": "ordinary authorized human browsing",
+      "description": "Given ordinary authorized human browsing, when a site presents an authentication or challenge step, then human control and profile continuity remain available and the state is reported honestly.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J13",
+      "title": "browser shortcuts, modified clicks, double-clicks, blur, drag/drop and horizontal scroll",
+      "description": "Given browser shortcuts, modified clicks, double-clicks, blur, drag/drop and horizontal scroll, when a person performs and derives those actions, then live input and supported replay preserve their meaning; unsupported actions produce explicit errors without replacement clicks.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J14",
+      "title": "a saved encrypted profile",
+      "description": "Given a saved encrypted profile, when tab/history/storage saves overlap, a write fails, or its key/protected bytes become unavailable, then the prior committed identity and state remain recoverable and incomplete recovery is visible.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J15",
+      "title": "a declared session capacity and fresh/clean reuse policy",
+      "description": "Given a declared session capacity and fresh/clean reuse policy, when starts overlap, reset fails, or the active page is not the first tab, then reservations stay bounded, retained pages are open, page maps are coherent and failed reset has an explicit recovery path. Test isolation must cover the declared origin/storage matrix.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J16",
+      "title": "active executions and a per-workflow keep_latest policy",
+      "description": "Given active executions and a per-workflow keep_latest policy, when bounded retention repeats or applies a preview subset, then actual protected evidence survives and eligible older evidence is eventually removed.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J17",
+      "title": "loops, declared safe retries, repeated transport delivery and changed-payload conflicts",
+      "description": "Given loops, declared safe retries, repeated transport delivery and changed-payload conflicts, when workflow execution proceeds, then an independent fixture counter matches intended dynamic invocations; uncertain effects are reconciled before repetition and old leases cannot mutate a new owner.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J18",
+      "title": "a cancelled graph/linear execution or a thrown handler error",
+      "description": "Given a cancelled graph/linear execution or a thrown handler error, when termination completes, then available failure context and terminal step evidence remain queryable, required capture failures affect the verdict, and cleanup failures retain explicit ownership.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J19",
+      "title": "a released session",
+      "description": "Given a released session, when the next owner requests a different profile, proxy, locale, viewport or clean state, then reuse rejects or satisfies the effective configuration; independent signed-in identity cannot disagree with the admission receipt. Compatible continuation, fresh mode and unreleased-owner controls remain correct.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J20",
+      "title": "two executions sharing a compatible browsing context",
+      "description": "Given two executions sharing a compatible browsing context, when evidence requirements or output destinations change, then each capture has a verifiable boundary and its own manifest; required evidence starts before ready, and no returned artifact mixes execution ownership.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J21",
+      "title": "released managed, desktop or Android sessions",
+      "description": "Given released managed, desktop or Android sessions, when a caller requests another target or supplies missing/mismatched validation context, then every admission path validates the exact target and isolation lease and cannot silently substitute the retained renderer.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J22",
+      "title": "pending capture startup, replacement or resize",
+      "description": "Given pending capture startup, replacement or resize, when stop, failure or a page switch overlaps it, then each generation disposes late resources, old cleanup cannot remove the current owner, and stale page frames cannot publish. Every retained handle/socket remains stoppable.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J23",
+      "title": "active CDP or polling capture",
+      "description": "Given active CDP or polling capture, when quality/FPS/header settings change or the transport reconnects on a stable page, then effective settings and measured rates match receipts, unsupported controls are explicit, and the latest valid frame is delivered without another paint.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    },
+    {
+      "id": "BAS-RH-J24",
+      "title": "typed step outcomes and public assertion-validation flags",
+      "description": "Given typed step outcomes and public assertion-validation flags, when a workflow is validated, executed and read through timeline/replay, then enforcement flags reach the server and structured outcome fields survive projection. Client parsing errors and debug strings cannot count as valid evidence.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": []
+    }
+  ]
+}

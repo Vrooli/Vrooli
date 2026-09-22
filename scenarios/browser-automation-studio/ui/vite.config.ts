@@ -392,7 +392,7 @@ export default defineConfig(({ mode }): UserConfig => {
         test: {
           ...PROJECT_BASE_TEST_CONFIG,
           name: 'record-mode',
-          include: ['src/domains/recording/**/*.test.{ts,tsx}'],
+          include: ['src/domains/recording/**/*.test.{ts,tsx}', 'src/views/RecordModeView/**/*.test.{ts,tsx}'],
           pool: 'threads',
           poolOptions: THREADS_TWO,
         },

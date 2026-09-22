@@ -7,20 +7,22 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/google/uuid"
+
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 )
 
 // Session wraps a playwright driver session with mode-aware behavior.
 type Session struct {
-	id             string
-	executionID    string
-	leaseID        string
-	mode           Mode
-	client         *driver.Client
-	mu             sync.RWMutex
-	closed         bool
-	closeArtifacts *driver.CloseSessionResponse
+	id                      string
+	executionID             string
+	leaseID                 string
+	mode                    Mode
+	client                  *driver.Client
+	mu                      sync.RWMutex
+	terminal                *terminalOperation
+	lastInstructionSequence uint64
 	// onTerminal is owned by Manager. It removes this session from the
 	// manager's live index only after a close or lease release succeeds.
 	// Executors hold Session directly, so cleanup cannot rely on callers going
@@ -39,6 +41,14 @@ type Session struct {
 	recording *RecordingCallbacks
 }
 
+// terminalOperation owns one close/release attempt and its shared result.
+// Results are published before done closes and never modified afterward.
+type terminalOperation struct {
+	done      chan struct{}
+	artifacts *driver.CloseSessionResponse
+	err       error
+}
+
 // --- Execution Mode Operations ---
 
 // Run executes a compiled instruction and returns the step outcome.
@@ -47,10 +57,26 @@ func (s *Session) Run(ctx context.Context, instr contracts.CompiledInstruction) 
 	if s.mode == ModeRecording {
 		return contracts.StepOutcome{}, errors.New("cannot run instructions in recording-only mode")
 	}
-	if s.isClosed() {
+	s.mu.Lock()
+	if s.terminal != nil {
+		s.mu.Unlock()
 		return contracts.StepOutcome{}, errors.New("session closed")
 	}
-	return s.client.RunInstruction(ctx, s.id, instr)
+	// The wire number must remain an exact JavaScript integer.
+	if s.lastInstructionSequence >= 1<<53-1 {
+		s.mu.Unlock()
+		return contracts.StepOutcome{}, errors.New("instruction sequence exhausted")
+	}
+	s.lastInstructionSequence++
+	sequence := s.lastInstructionSequence
+	s.mu.Unlock()
+	if instr.InvocationID == "" {
+		instr.InvocationID = uuid.NewString()
+	}
+	if instr.Attempt <= 0 {
+		instr.Attempt = 1
+	}
+	return s.client.RunInstruction(ctx, s.id, s.executionID, s.leaseID, sequence, instr)
 }
 
 // --- Recording Mode Operations ---
@@ -103,11 +129,11 @@ func (s *Session) StopRecording(ctx context.Context) error {
 }
 
 // GetRecordedActions retrieves recorded actions for this session.
-func (s *Session) GetRecordedActions(ctx context.Context, clear bool) ([]driver.RecordedAction, error) {
+func (s *Session) GetRecordedActions(ctx context.Context) ([]driver.RecordedAction, error) {
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
-	resp, err := s.client.GetRecordedActions(ctx, s.id, clear)
+	resp, err := s.client.GetRecordedActions(ctx, s.id)
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +302,7 @@ func (s *Session) Reset(ctx context.Context) error {
 	if s.isClosed() {
 		return errors.New("session closed")
 	}
-	return s.client.ResetSession(ctx, s.id)
+	return s.client.ResetSession(ctx, s.id, s.executionID, s.leaseID)
 }
 
 // Close closes the session.
@@ -289,67 +315,60 @@ func (s *Session) Close(ctx context.Context) error {
 // browser resource open. A released Session is terminal for this owner: only a
 // subsequent execution can acquire a new lease for the resource.
 func (s *Session) Release(ctx context.Context) error {
-	s.mu.Lock()
-	if s.closed {
-		s.mu.Unlock()
-		return nil
-	}
-	s.closed = true
-	s.mu.Unlock()
-
-	if err := s.client.ReleaseSessionLease(ctx, s.id, s.executionID, s.leaseID); err != nil && !isAbsentSessionError(err) {
-		s.mu.Lock()
-		s.closed = false
-		s.mu.Unlock()
-		return err
-	}
-	s.notifyTerminal()
-	return nil
+	_, err := s.finalize(ctx, true)
+	return err
 }
 
-// CloseWithArtifacts closes the session and returns any artifact metadata from the driver.
+// CloseWithArtifacts closes the session and returns its shared finalization result.
 func (s *Session) CloseWithArtifacts(ctx context.Context) (*driver.CloseSessionResponse, error) {
+	return s.finalize(ctx, false)
+}
+
+// finalize serializes close and release. A joining caller can stop waiting, but
+// only the first caller's context controls the driver request.
+func (s *Session) finalize(ctx context.Context, release bool) (*driver.CloseSessionResponse, error) {
 	s.mu.Lock()
-	if s.closed {
-		artifacts := s.closeArtifacts
+	if pending := s.terminal; pending != nil {
 		s.mu.Unlock()
-		return artifacts, nil
+		select {
+		case <-pending.done:
+			return pending.artifacts, pending.err
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
 	}
-	s.closed = true
+	pending := &terminalOperation{done: make(chan struct{})}
+	s.terminal = pending
 	s.mu.Unlock()
 
-	artifacts, err := s.client.CloseSessionWithLease(ctx, s.id, s.executionID, s.leaseID)
-	if err != nil {
-		if isAbsentSessionError(err) {
-			// A 404 is terminal for this leased resource: the driver has already
-			// removed it, so retaining local ownership would leak a manager permit
-			// and permanently block future executions. Treat close as idempotent;
-			// there are simply no teardown artifacts to return.
-			s.notifyTerminal()
-			return nil, nil
-		}
-		// Rollback on failure - session is still open on driver
-		s.mu.Lock()
-		s.closed = false
-		s.mu.Unlock()
-		return nil, err
+	var artifacts *driver.CloseSessionResponse
+	var err error
+	if release {
+		err = s.client.ReleaseSessionLease(ctx, s.id, s.executionID, s.leaseID)
+	} else {
+		artifacts, err = s.client.CloseSessionWithLease(ctx, s.id, s.executionID, s.leaseID)
+	}
+	// Absence ends ownership of this lease; it does not prove capture durability.
+	if isAbsentSessionError(err) {
+		artifacts, err = nil, nil
+	}
+	if err == nil && s.onTerminal != nil {
+		s.onTerminal()
 	}
 	s.mu.Lock()
-	s.closeArtifacts = artifacts
+	pending.artifacts, pending.err = artifacts, err
+	if err != nil {
+		// Existing waiters keep this attempt; a later explicit call may retry.
+		s.terminal = nil
+	}
+	close(pending.done)
 	s.mu.Unlock()
-	s.notifyTerminal()
-	return artifacts, nil
+	return artifacts, err
 }
 
 func isAbsentSessionError(err error) bool {
 	var driverErr *driver.Error
 	return errors.As(err, &driverErr) && driverErr.Status == http.StatusNotFound
-}
-
-func (s *Session) notifyTerminal() {
-	if s.onTerminal != nil {
-		s.onTerminal()
-	}
 }
 
 // --- Accessors ---
@@ -378,7 +397,7 @@ func (s *Session) InitializePageTracking(initialURL string) {
 func (s *Session) isClosed() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.closed
+	return s.terminal != nil
 }
 
 // Recording returns the recording callbacks if configured.

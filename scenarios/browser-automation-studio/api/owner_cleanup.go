@@ -283,7 +283,7 @@ func (s *ownerCleanupService) protectedRecordingIDs(ctx context.Context, wanted 
 		}
 		return protected, nil
 	}
-	entries, err := s.repo.ListExecutions(ctx, nil, nil, 0, 0)
+	entries, _, err := s.repo.ListExecutions(ctx, database.ExecutionQuery{})
 	if err != nil {
 		return nil, fmt.Errorf("list executions for orphan recording protection: %w", err)
 	}
