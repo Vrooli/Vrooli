@@ -1,7 +1,7 @@
 import { createClient } from "@connectrpc/connect";
 import { CalendarService, type ListAllocationsResponse, type ListTodayAllocationsResponse, type Allocation, type Routine, type RoutineOccurrence, type PlacementProposal, type ScheduleProposal } from "@vrooli/proto-types/personal-planner/v1/calendar/calendar_pb";
 
-import { transport } from "./client";
+import { API_BASE, transport } from "./client";
 
 export const calendarClient = createClient(CalendarService, transport);
 export async function fetchTodayAllocations(localDate = ""): Promise<ListTodayAllocationsResponse> { return calendarClient.listTodayAllocations({ localDate }); }
@@ -32,7 +32,12 @@ export async function applyScheduleProposal(input: { proposalId: string; expecte
   const response = await calendarClient.applyScheduleProposal(input);
   return response.allocations;
 }
-export async function carryForwardAllocation(input: { allocationId: string; targetLocalDate: string; startMinutes: number }): Promise<Allocation> {
+export async function carryForwardAllocation(input: { allocationId: string; targetLocalDate: string; startMinutes: number; reasonCode?: "interrupted" | "underestimated" | "blocked" | "deprioritized" | "external" }): Promise<Allocation> {
+  if (input.reasonCode) {
+    const response = await fetch(`${API_BASE}/api/v1/calendar/carry-forward`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ allocation_id: input.allocationId, target_local_date: input.targetLocalDate, start_minutes: input.startMinutes, reason_code: input.reasonCode }) });
+    if (!response.ok) throw new Error("The allocation could not be carried forward");
+    return await response.json() as Allocation;
+  }
   const response = await calendarClient.carryForwardAllocation(input);
   if (!response.allocation) throw new Error("carried allocation was not returned");
   return response.allocation;

@@ -98,6 +98,9 @@ func TestServiceCarryForwardValidatesDateAndStart(t *testing.T) {
 	if _, err := service.CarryForward(context.Background(), CarryForwardInput{AllocationID: "allocation-1", TargetLocalDate: "2026-09-22", StartMinutes: 1440}); err == nil {
 		t.Fatal("expected start validation")
 	}
+	if _, err := service.CarryForward(context.Background(), CarryForwardInput{AllocationID: "allocation-1", TargetLocalDate: "2026-09-22", StartMinutes: 600, ReasonCode: "unknown"}); err == nil {
+		t.Fatal("expected reason validation")
+	}
 	got, err := service.CarryForward(context.Background(), CarryForwardInput{AllocationID: "allocation-1", TargetLocalDate: "2026-09-22", StartMinutes: 600})
 	if err != nil || got.CarriedFromID != "allocation-1" {
 		t.Fatalf("got=%#v err=%v", got, err)

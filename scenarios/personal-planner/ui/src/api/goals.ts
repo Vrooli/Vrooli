@@ -1,7 +1,7 @@
 import { createClient } from "@connectrpc/connect";
 import { GoalsService, type Goal, type Milestone } from "@vrooli/proto-types/personal-planner/v1/goals/goals_pb";
 
-import { transport } from "./client";
+import { API_BASE, transport } from "./client";
 
 const goalsClient = createClient(GoalsService, transport);
 
@@ -20,6 +20,11 @@ export async function updateGoalProgress(goal: Goal, progressBasisPoints: bigint
   const response = await goalsClient.updateGoalProgress({ id: goal.id, progressBasisPoints, expectedRevision: goal.revision });
   if (!response.goal) throw new Error("The server returned no goal");
   return response.goal;
+}
+
+export async function updateGoalTargetDate(input: { id: string; targetDate: string }): Promise<void> {
+	const response = await fetch(`${API_BASE}/api/v1/goals/${encodeURIComponent(input.id)}/target-date`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ target_date: input.targetDate }) });
+	if (!response.ok) throw new Error("The goal target date could not be saved");
 }
 
 export async function fetchMilestones(goalId: string): Promise<Milestone[]> {

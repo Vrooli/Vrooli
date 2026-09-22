@@ -1,4 +1,4 @@
-import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
+import { AdaptivePageHeader } from "../components/AdaptivePageHeader";
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 import { Input } from "@vrooli/react-component-library/Input/1";
 import { Select } from "@vrooli/react-component-library/Select/1";
@@ -14,12 +14,15 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 import { fetchAvailability, fetchPlanningProfile, replaceAvailability, updatePlanningProfile } from "../api/workspace";
+import { fetchReminderPreferences, saveReminderPreferences } from "../api/review";
 import { createFixtureConnection, disconnectConnection, fetchConnections, syncConnection } from "../api/integrations";
 import { create } from "@bufbuild/protobuf";
 import { AvailabilityExceptionSchema, AvailabilityWindowSchema, type AvailabilityException, type AvailabilityWindow } from "@vrooli/proto-types/personal-planner/v1/workspace/workspace_pb";
 import { DEFAULT_TRANSITION_HOURS, OBSERVATORY_DAY_START_KEY, OBSERVATORY_NIGHT_START_KEY, OBSERVATORY_PREFERENCES_EVENT, OBSERVATORY_SCENERY_EVENT } from "../theme/observatoryAppearance";
 import { HealthCard } from "../components/HealthCard";
 import { Settings2 } from "lucide-react";
+import { ObservatoryScene } from "../components/ObservatoryScene";
+import { useBreakpoint } from "../hooks/useBreakpoint";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["auto", "day", "night"];
 // Literal references so the strings lint can see every catalog key in use.
@@ -36,6 +39,7 @@ const THEME_LABEL_KEY: Record<ThemeChoice, (typeof strings.theme.choice)[ThemeCh
  */
 export function SettingsPage() {
   const queryClient = useQueryClient();
+  const { isMobile } = useBreakpoint();
   const { t } = useTranslation();
   const currentLocale = getCurrentLocale();
   const { choice, setTheme } = useTheme();
@@ -47,13 +51,19 @@ export function SettingsPage() {
   const profile = useQuery({ queryKey: ["planning-profile"], queryFn: fetchPlanningProfile });
   const availability = useQuery({ queryKey: ["planning-availability"], queryFn: fetchAvailability });
   const connections = useQuery({ queryKey: ["calendar-connections"], queryFn: fetchConnections });
+  const reminderPreferences = useQuery({ queryKey: ["reminder-preferences"], queryFn: fetchReminderPreferences });
   const [timezone, setTimezone] = useState("");
   const [weekStart, setWeekStart] = useState("monday");
   const [dailyCapacityMinutes, setDailyCapacityMinutes] = useState(480);
   const [reserveMinutes, setReserveMinutes] = useState(60);
   const [focusSessionMinutes, setFocusSessionMinutes] = useState(45);
+  const [remindersEnabled, setRemindersEnabled] = useState(true);
+  const [quietStartMinutes, setQuietStartMinutes] = useState(1320);
+  const [quietEndMinutes, setQuietEndMinutes] = useState(420);
+  const [leadMinutes, setLeadMinutes] = useState(60);
   const [windows, setWindows] = useState<AvailabilityWindow[]>([]);
   const [exception, setException] = useState<AvailabilityException>(() => create(AvailabilityExceptionSchema, { date: "", startMinute: 720, endMinute: 780, kind: "protected", reason: "" }));
+  const [mobileSection, setMobileSection] = useState("preferences");
   useEffect(() => {
     if (!profile.data) return;
     setTimezone(profile.data.timezone);
@@ -63,8 +73,15 @@ export function SettingsPage() {
     setFocusSessionMinutes(profile.data.focusSessionMinutes);
   }, [profile.data]);
   useEffect(() => { if (availability.data) setWindows(availability.data.windows); }, [availability.data]);
+  useEffect(() => {
+    if (!reminderPreferences.data) return;
+    setRemindersEnabled(reminderPreferences.data.enabled);
+    setQuietStartMinutes(reminderPreferences.data.quietStartMinutes);
+    setQuietEndMinutes(reminderPreferences.data.quietEndMinutes);
+    setLeadMinutes(reminderPreferences.data.leadMinutes);
+  }, [reminderPreferences.data]);
   const profileMutation = useMutation({
-    mutationFn: () => updatePlanningProfile(profile.data!, { timezone, weekStart, dailyCapacityMinutes, reserveMinutes, focusSessionMinutes }),
+    mutationFn: () => profile.data ? updatePlanningProfile(profile.data, { timezone, weekStart, dailyCapacityMinutes, reserveMinutes, focusSessionMinutes }) : Promise.reject(new Error("Planning profile is not loaded")),
     onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["planning-profile"] }); },
   });
   const availabilityMutation = useMutation({
@@ -74,13 +91,19 @@ export function SettingsPage() {
   const fixtureMutation = useMutation({ mutationFn: () => createFixtureConnection(), onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["calendar-connections"] }); } });
   const syncMutation = useMutation({ mutationFn: syncConnection, onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["calendar-connections"] }); } });
   const disconnectMutation = useMutation({ mutationFn: disconnectConnection, onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["calendar-connections"] }); } });
+  const reminderMutation = useMutation({
+    mutationFn: () => saveReminderPreferences({ enabled: remindersEnabled, quietStartMinutes, quietEndMinutes, leadMinutes }),
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["reminder-preferences"] }); },
+  });
   const setWindow = (weekday: number, field: "startMinute" | "endMinute", value: number) => setWindows((current) => { const existing = current.find((item) => item.weekday === weekday); const next = existing ? create(AvailabilityWindowSchema, { ...existing, [field]: value }) : create(AvailabilityWindowSchema, { id: `weekday-${weekday}`, weekday, startMinute: 540, endMinute: 1020, timezone: timezone || "UTC", [field]: value }); return [...current.filter((item) => item.weekday !== weekday), next].sort((a, b) => a.weekday - b.weekday); });
 
   return (
-    <section data-testid={selectors.pages.settings} aria-labelledby="settings-heading" className="planner-surface settings-page flex flex-col gap-space-md">
-      <PageHeader className="planner-page-header" headingId="settings-heading" eyebrow="The observatory desk" title={t(strings.pages.settings.title)} description={t(strings.pages.settings.description)} leading={<span className="planner-page-mark" aria-hidden="true"><Settings2 size={21} /></span>} />
+    <ObservatoryScene kind="settings"><section data-testid={selectors.pages.settings} aria-labelledby="settings-heading" className="planner-surface settings-page flex flex-col gap-space-md">
+      <AdaptivePageHeader className="planner-page-header" headingId="settings-heading" eyebrow="The observatory desk" title={t(strings.pages.settings.title)} description={t(strings.pages.settings.description)} leading={<span className="planner-page-mark" aria-hidden="true"><Settings2 size={21} /></span>} />
+      {isMobile && <section className="settings-mobile-intro" aria-label="Mobile settings guidance"><span className="card-kicker">TUNE ONE INSTRUMENT AT A TIME</span><p>Start with the setting that changes today’s plan. The controls below stay grouped by instrument instead of becoming one long form.</p></section>}
+      {isMobile && <div className="settings-mobile-nav" role="navigation" aria-label="Settings sections">{[{ id: "preferences", label: t(strings.pages.settings.preferences) }, { id: "planning", label: t(strings.pages.settings.planningHeading) }, { id: "reminders", label: "Reminders" }, { id: "availability", label: t(strings.pages.settings.availabilityHeading) }, { id: "integrations", label: t(strings.pages.settings.integrationsHeading) }, { id: "health", label: t(strings.health.title) }].map((section) => <Button key={section.id} type="button" variant={mobileSection === section.id ? "primary" : "secondary"} aria-selected={mobileSection === section.id} onClick={() => setMobileSection(section.id)}>{section.label}</Button>)}</div>}
       <SettingsList variant="auto" density="compact" className="settings-list">
-        <SettingsList.Group label={t(strings.pages.settings.preferences)}>
+        <SettingsList.Group className={isMobile && mobileSection !== "preferences" ? "settings-mobile-hidden" : undefined} label={t(strings.pages.settings.preferences)}>
           <SettingsList.Row label={t(strings.pages.settings.themeHeading)} hint={t(strings.pages.settings.themeHint)}>
             <div data-testid={selectors.settingsPage.themeSelect}>
               <RadioGroup
@@ -117,7 +140,7 @@ export function SettingsPage() {
             </div>
           </SettingsList.Row>
         </SettingsList.Group>
-        <SettingsList.Group label={t(strings.pages.settings.planningHeading)}>
+        <SettingsList.Group className={isMobile && mobileSection !== "planning" ? "settings-mobile-hidden" : undefined} label={t(strings.pages.settings.planningHeading)}>
           <SettingsList.Row className="settings-form-row" control="wide" label={t(strings.pages.settings.planningHeading)} hint={t(strings.pages.settings.planningHint)}>
             {profile.isError && <p role="alert">{t(strings.pages.settings.planningUnavailable)}</p>}
             {profile.isLoading && <p role="status">{t(strings.pages.settings.planningLoading)}</p>}
@@ -133,7 +156,23 @@ export function SettingsPage() {
             </form>}
           </SettingsList.Row>
         </SettingsList.Group>
-        <SettingsList.Group label={t(strings.pages.settings.availabilityHeading)}>
+        <SettingsList.Group className={isMobile && mobileSection !== "reminders" ? "settings-mobile-hidden" : undefined} label="Reminders">
+          <SettingsList.Row className="settings-form-row" control="wide" label="Protect your attention" hint="In-app nudges pause during quiet hours and use your chosen lead time.">
+            {reminderPreferences.isLoading && <p role="status">Loading reminder preferences…</p>}
+            {reminderPreferences.data && <form className="settings-profile-form" onSubmit={(event) => { event.preventDefault(); reminderMutation.mutate(); }}>
+              <Switch label="Show reminders" checked={remindersEnabled} onCheckedChange={setRemindersEnabled} />
+              <div className="settings-transition-grid">
+                <FormField label="Quiet hours start" control={<Input type="time" aria-label="Quiet hours start" value={minuteToTime(quietStartMinutes)} onChange={(event) => setQuietStartMinutes(timeToMinute(event.target.value))} />} />
+                <FormField label="Quiet hours end" control={<Input type="time" aria-label="Quiet hours end" value={minuteToTime(quietEndMinutes)} onChange={(event) => setQuietEndMinutes(timeToMinute(event.target.value))} />} />
+              </div>
+              <FormField label="Lead time (minutes)" control={<Input type="number" min="0" max="240" value={leadMinutes} onChange={(event) => setLeadMinutes(Number(event.target.value))} />} />
+              <Button className="secondary-action" variant="secondary" type="submit" disabled={reminderMutation.isPending} pending={reminderMutation.isPending} pendingLabel="Saving reminders…">Save reminder preferences</Button>
+              {reminderMutation.isError && <p role="alert">Reminder preferences could not be saved.</p>}
+              {reminderMutation.isSuccess && <p role="status">Reminder preferences saved.</p>}
+            </form>}
+          </SettingsList.Row>
+        </SettingsList.Group>
+        <SettingsList.Group className={isMobile && mobileSection !== "availability" ? "settings-mobile-hidden" : undefined} label={t(strings.pages.settings.availabilityHeading)}>
           <SettingsList.Row className="settings-form-row" control="wide" label={t(strings.pages.settings.availabilityHeading)} hint={t(strings.pages.settings.availabilityHint)}>
             {availability.isLoading && <p role="status">{t(strings.pages.settings.availabilityLoading)}</p>}
             {availability.data && <form className="settings-availability-form" onSubmit={(event) => { event.preventDefault(); availabilityMutation.mutate(); }}>
@@ -148,7 +187,7 @@ export function SettingsPage() {
             </form>}
           </SettingsList.Row>
         </SettingsList.Group>
-        <SettingsList.Group label={t(strings.pages.settings.integrationsHeading)}>
+        <SettingsList.Group className={isMobile && mobileSection !== "integrations" ? "settings-mobile-hidden" : undefined} label={t(strings.pages.settings.integrationsHeading)}>
           <SettingsList.Row className="settings-form-row" control="wide" label={t(strings.pages.settings.integrationsHeading)} hint={t(strings.pages.settings.integrationsHint)}>
             {connections.isLoading && <p role="status">{t(strings.pages.settings.integrationsLoading)}</p>}
             {connections.isError && <p role="alert">{t(strings.pages.settings.connectionError)}</p>}
@@ -163,7 +202,7 @@ export function SettingsPage() {
             <p className="settings-story-note">{t(strings.pages.settings.integrationBoundary)}</p>
           </SettingsList.Row>
         </SettingsList.Group>
-        <SettingsList.Group label={t(strings.health.title)}>
+        <SettingsList.Group className={isMobile && mobileSection !== "health" ? "settings-mobile-hidden" : undefined} label={t(strings.health.title)}>
           <SettingsList.Row
             className="settings-health-row"
             control="wide"
@@ -187,7 +226,7 @@ export function SettingsPage() {
         </div>
         <p className="settings-story-note">{t(strings.pages.settings.storyNote)}</p>
       </section>
-    </section>
+    </section></ObservatoryScene>
   );
 }
 

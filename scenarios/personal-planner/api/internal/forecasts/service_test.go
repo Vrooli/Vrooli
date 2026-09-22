@@ -5,6 +5,13 @@ import (
 	"time"
 )
 
+func TestNewServiceWithOptionsUsesInjectedIDGenerator(t *testing.T) {
+	service, ok := NewServiceWithOptions(nil, nil, ServiceOptions{IDGenerator: func() string { return "forecast-test-id" }}).(*service)
+	if !ok || service.id() != "forecast-test-id" {
+		t.Fatalf("service did not retain injected ID generator: %#v", service)
+	}
+}
+
 func TestBuildKeepsCentralAndCautiousScenariosExplainable(t *testing.T) {
 	x, err := Build(Snapshot{StartDate: "2026-10-01", Timezone: "UTC", HorizonDays: 10, KnownWork: 600}, time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC))
 	if err != nil {

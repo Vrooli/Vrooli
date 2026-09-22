@@ -106,7 +106,7 @@ func (h *connectHandler) ApplyScheduleProposal(ctx context.Context, req *connect
 }
 
 func (h *connectHandler) CarryForwardAllocation(ctx context.Context, req *connect.Request[v.CarryForwardAllocationRequest]) (*connect.Response[v.CarryForwardAllocationResponse], error) {
-	a, err := h.deps.Service.CarryForward(ctx, d.CarryForwardInput{AllocationID: req.Msg.AllocationId, TargetLocalDate: req.Msg.TargetLocalDate, StartMinutes: int(req.Msg.StartMinutes)})
+	a, err := h.deps.Service.CarryForward(ctx, d.CarryForwardInput{AllocationID: req.Msg.AllocationId, TargetLocalDate: req.Msg.TargetLocalDate, StartMinutes: int(req.Msg.StartMinutes), ReasonCode: d.RescheduleDeprioritized})
 	if err != nil {
 		return nil, d.ToConnectError(err)
 	}

@@ -15,6 +15,23 @@ CREATE INDEX IF NOT EXISTS idx_focus_sessions_state ON focus_sessions(state);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_focus_one_current_session
   ON focus_sessions(state) WHERE state IN ('running', 'paused');
 
+CREATE TABLE IF NOT EXISTS focus_session_notes (
+  session_id TEXT PRIMARY KEY REFERENCES focus_sessions(id),
+  local_date TEXT NOT NULL,
+  note TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_focus_session_notes_date ON focus_session_notes(local_date);
+
+CREATE TABLE IF NOT EXISTS focus_pause_events (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES focus_sessions(id),
+  local_date TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  recorded_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_focus_pause_events_date ON focus_pause_events(local_date, recorded_at DESC);
+
 CREATE TABLE IF NOT EXISTS manual_actuals (
   id TEXT PRIMARY KEY,
   work_item_id TEXT NOT NULL DEFAULT '',
@@ -23,6 +40,7 @@ CREATE TABLE IF NOT EXISTS manual_actuals (
   reported_minutes INTEGER NOT NULL,
   certainty TEXT NOT NULL,
   note TEXT NOT NULL DEFAULT '',
+  allocation_id TEXT NOT NULL DEFAULT '',
   created_at INTEGER NOT NULL,
   revision INTEGER NOT NULL DEFAULT 1
 );

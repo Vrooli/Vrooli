@@ -4,6 +4,7 @@ const client = vi.hoisted(() => ({ listTodayAllocations: vi.fn(), listAllocation
 vi.mock("@connectrpc/connect", () => ({ createClient: () => client }));
 
 import { applyAllocationProposal, applyScheduleProposal, carryForwardAllocation, createAllocation, createRoutine, fetchAllocations, fetchRoutineOccurrences, fetchRoutines, fetchTodayAllocations, previewAllocation, previewSchedule, rescheduleRoutineOccurrence, skipRoutineOccurrence } from "./calendar";
+import { API_BASE } from "./client";
 
 afterEach(() => vi.clearAllMocks());
 
@@ -101,5 +102,11 @@ describe("calendar API transport", () => {
     expect(client.rescheduleRoutineOccurrence).toHaveBeenCalledWith({ routineId: "routine-1", localDate: "2026-09-23", startMinute: 570, expectedRevision: 1n });
     client.rescheduleRoutineOccurrence.mockResolvedValueOnce({ rescheduled: false });
     await expect(rescheduleRoutineOccurrence({ routineId: "routine-1", localDate: "2026-09-23", startMinute: 570, expectedRevision: 1n })).rejects.toThrow("not rescheduled");
+  });
+
+  it("sends an explicit carry-forward reason through the governed REST seam", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: "a-2", carriedFromId: "a-1" }), { status: 200 })));
+    await expect(carryForwardAllocation({ allocationId: "a-1", targetLocalDate: "2026-09-22", startMinutes: 660, reasonCode: "underestimated" })).resolves.toMatchObject({ id: "a-2" });
+    expect(fetch).toHaveBeenCalledWith(`${API_BASE}/api/v1/calendar/carry-forward`, expect.objectContaining({ method: "POST", body: JSON.stringify({ allocation_id: "a-1", target_local_date: "2026-09-22", start_minutes: 660, reason_code: "underestimated" }) }));
   });
 });

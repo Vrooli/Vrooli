@@ -6,13 +6,18 @@ import (
 )
 
 const (
-	StateRunning = "running"
-	StatePaused  = "paused"
-	StateEnded   = "ended"
-	ModeOpen     = "open"
-	ModePomodoro = "pomodoro"
-	ModeTimed    = "timed"
-	ModeUntimed  = "untimed"
+	StateRunning     = "running"
+	StatePaused      = "paused"
+	StateEnded       = "ended"
+	ModeOpen         = "open"
+	ModePomodoro     = "pomodoro"
+	ModeTimed        = "timed"
+	ModeUntimed      = "untimed"
+	PauseInterrupted = "interrupted"
+	PauseBlocked     = "blocked"
+	PauseDistracted  = "distracted"
+	PauseRest        = "rest"
+	PauseOther       = "other"
 )
 
 type Session struct {
@@ -23,10 +28,20 @@ type Session struct {
 	Revision                           int64
 }
 
+type SessionNote struct {
+	SessionID, LocalDate, Note string
+	UpdatedAt                  time.Time
+}
+
+type PauseEvent struct {
+	ID, SessionID, LocalDate, Reason string
+	RecordedAt                       time.Time
+}
+
 type Actual struct {
-	ID, WorkItemID, Title, LocalDate, Certainty, Note string
-	ReportedMinutes, Revision                         int64
-	CreatedAt                                         time.Time
+	ID, WorkItemID, Title, LocalDate, Certainty, Note, AllocationID string
+	ReportedMinutes, Revision                                       int64
+	CreatedAt                                                       time.Time
 }
 
 type Correction struct {
@@ -36,8 +51,8 @@ type Correction struct {
 }
 
 type RecordActualInput struct {
-	WorkItemID, Title, LocalDate, Certainty, Note string
-	ReportedMinutes                               int64
+	WorkItemID, Title, LocalDate, Certainty, Note, AllocationID string
+	ReportedMinutes                                             int64
 }
 
 type CorrectActualInput struct {

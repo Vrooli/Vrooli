@@ -2,18 +2,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { fetchDailyReview, fetchReflection, fetchWeeklyReview, saveReflection } from "../api/review";
+import { fetchDailyReview, fetchReflection, fetchWeeklyReview, fetchWin, saveReflection, saveWin } from "../api/review";
 import { carryForwardAllocation, fetchAllocations, fetchTodayAllocations } from "../api/calendar";
 import { renderWithProviders } from "../test-utils";
 import { ReviewPage } from "./ReviewPage";
 
-vi.mock("../api/review", () => ({ fetchDailyReview: vi.fn(), fetchReflection: vi.fn(), fetchWeeklyReview: vi.fn(), saveReflection: vi.fn() }));
+vi.mock("../api/review", () => ({ fetchDailyReview: vi.fn(), fetchReflection: vi.fn(), fetchWeeklyReview: vi.fn(), fetchWin: vi.fn(), saveReflection: vi.fn(), saveWin: vi.fn() }));
 vi.mock("../api/calendar", () => ({ carryForwardAllocation: vi.fn(), fetchAllocations: vi.fn(), fetchTodayAllocations: vi.fn() }));
+vi.mock("../api/focus", () => ({ fetchSessionNotes: vi.fn().mockResolvedValue([]), fetchPauseReasons: vi.fn().mockResolvedValue([]) }));
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 beforeEach(() => {
   vi.mocked(fetchAllocations).mockResolvedValue({ allocations: [] } as never);
   vi.mocked(fetchTodayAllocations).mockResolvedValue({ availableMinutes: 360n, breathingRoomMinutes: 360n, allocations: [] } as never);
   vi.mocked(fetchReflection).mockResolvedValue({ localDate: "2026-09-19", text: "", updatedAt: "" } as never);
+  vi.mocked(fetchWin).mockResolvedValue({ localDate: "2026-09-19", text: "", updatedAt: "" } as never);
 });
 
 describe("ReviewPage", () => {
@@ -59,7 +61,7 @@ describe("ReviewPage", () => {
     renderWithProviders(<ReviewPage />);
     expect(await screen.findByText("Target capacity preview: 360 min available · 360 min breathing room before this move.")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Carry this" }));
-    expect(carryForwardAllocation).toHaveBeenCalledWith(expect.objectContaining({ allocationId: "allocation-1", targetLocalDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), startMinutes: 600 }));
+    expect(carryForwardAllocation).toHaveBeenCalledWith(expect.objectContaining({ allocationId: "allocation-1", targetLocalDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), startMinutes: 600, reasonCode: "deprioritized" }));
     expect(await screen.findByText(/Carried forward once/)).toBeInTheDocument();
   });
 
@@ -72,5 +74,15 @@ describe("ReviewPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save reflection" }));
     expect(saveReflection).toHaveBeenCalledWith(expect.objectContaining({ text: "Protect the first hour." }));
     expect(await screen.findByText("Reflection saved.")).toBeInTheDocument();
+  });
+
+  it("saves a daily win separately from reflection", async () => {
+    vi.mocked(fetchDailyReview).mockResolvedValue({ localDate: "2026-09-19", plannedMinutes: 0n, recordedActiveMinutes: 0n, focusSessionCount: 0n, activeGoalCount: 0n, unrecordedMinutes: 0n, coverageNote: "Coverage." } as never);
+    vi.mocked(saveWin).mockResolvedValue({ localDate: "2026-09-19", text: "Protected the first hour.", updatedAt: "" } as never);
+    renderWithProviders(<ReviewPage />);
+    await userEvent.type(await screen.findByRole("textbox", { name: "Daily win" }), "Protected the first hour.");
+    await userEvent.click(screen.getByRole("button", { name: "Save win" }));
+    expect(saveWin).toHaveBeenCalledWith(expect.objectContaining({ text: "Protected the first hour." }));
+    expect(await screen.findByText("Win saved.")).toBeInTheDocument();
   });
 });

@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS goals (
   progress_method TEXT NOT NULL,
   progress_basis_points INTEGER NOT NULL DEFAULT 0,
   target_basis_points INTEGER NOT NULL DEFAULT 10000,
+  target_date TEXT,
+  completed_date TEXT,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   revision INTEGER NOT NULL
@@ -17,6 +19,8 @@ CREATE TABLE IF NOT EXISTS milestones (
   title TEXT NOT NULL,
   criteria TEXT NOT NULL DEFAULT '',
   due_date TEXT NOT NULL DEFAULT '',
+  original_due_date TEXT NOT NULL DEFAULT '',
+  completed_date TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,

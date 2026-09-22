@@ -4,6 +4,7 @@ import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { installChunkReloadGuard } from "@vrooli/api-base";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
@@ -20,6 +21,11 @@ if (window.parent !== window) {
 // keyboard/gamepad control flows.
 const spatialNav = initSpatialNav();
 if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
+
+// Code-split routes use lazy(); after a rebuild the old hashed chunks are
+// gone, so a tab opened before the deploy would crash on its next navigation.
+// The shared guard reloads once and prevents a stale chunk loop.
+installChunkReloadGuard();
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {

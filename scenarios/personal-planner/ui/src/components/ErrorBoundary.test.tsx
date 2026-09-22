@@ -67,7 +67,8 @@ describe("ErrorBoundary", () => {
     expect(onError).toHaveBeenCalledTimes(1);
     const call = onError.mock.calls[0];
     expect(call).toBeDefined();
-    const [err, info] = call!;
+    if (!call) throw new Error("error boundary callback should receive arguments");
+    const [err, info] = call;
     expect(err).toBeInstanceOf(Error);
     expect((err as Error).message).toBe("boundary-test");
     expect(info).toHaveProperty("componentStack");

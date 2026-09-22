@@ -5,6 +5,7 @@ import "context"
 type Repository interface {
 	List(context.Context) ([]Goal, error)
 	Create(context.Context, Goal) (Goal, error)
+	SetTargetDate(context.Context, string, string) error
 	UpdateProgress(context.Context, string, int64, int64) (Goal, error)
 	ListMilestones(context.Context, string) ([]Milestone, error)
 	CreateMilestone(context.Context, Milestone) (Milestone, error)

@@ -9,10 +9,11 @@ import { FormField } from "@vrooli/react-component-library/FormField/1";
 import { Slider } from "@vrooli/react-component-library/Slider/1.2.4";
 import type { Goal, Milestone } from "@vrooli/proto-types/personal-planner/v1/goals/goals_pb";
 
-import { completeMilestone, createMilestone, fetchMilestones } from "../api/goals";
+import { completeMilestone, createMilestone, fetchMilestones, updateGoalTargetDate } from "../api/goals";
 import { fetchWorkItems } from "../api/work";
+import type { GoalDrift, GoalVariance } from "../api/review";
 
-export function GoalCard({ goal, progressMutation }: { goal: Goal; progressMutation: { mutate: (value: { goal: Goal; progress: bigint }) => void } }) {
+export function GoalCard({ goal, variance, drift, progressMutation, mobile = false }: { goal: Goal; variance?: GoalVariance; drift?: GoalDrift; progressMutation: { mutate: (value: { goal: Goal; progress: bigint }) => void }; mobile?: boolean }) {
   const queryClient = useQueryClient();
   const milestones = useQuery({ queryKey: ["milestones", goal.id], queryFn: () => fetchMilestones(goal.id) });
   const work = useQuery({ queryKey: ["work-items"], queryFn: fetchWorkItems });
@@ -22,10 +23,17 @@ export function GoalCard({ goal, progressMutation }: { goal: Goal; progressMutat
   const [linkedWorkItemId, setLinkedWorkItemId] = useState("");
   const [prerequisiteMilestoneIds, setPrerequisiteMilestoneIds] = useState<string[]>([]);
   const [progress, setProgress] = useState(() => Number(goal.progressBasisPoints));
+  const [targetDate, setTargetDate] = useState(() => drift?.targetDate ?? "");
   useEffect(() => setProgress(Number(goal.progressBasisPoints)), [goal.progressBasisPoints]);
+  useEffect(() => setTargetDate(drift?.targetDate ?? ""), [drift?.targetDate]);
   const createMutation = useMutation({ mutationFn: createMilestone, onSuccess: async () => { setTitle(""); setCriteria(""); setDueDate(""); setLinkedWorkItemId(""); setPrerequisiteMilestoneIds([]); await queryClient.invalidateQueries({ queryKey: ["milestones", goal.id] }); await queryClient.invalidateQueries({ queryKey: ["goals"] }); } });
   const completeMutation = useMutation({ mutationFn: completeMilestone, onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["milestones", goal.id] }); } });
-  return <article className="goal-card">
+  const targetMutation = useMutation({ mutationFn: () => updateGoalTargetDate({ id: goal.id, targetDate }), onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["goal-drifts"] }); await queryClient.invalidateQueries({ queryKey: ["goal-variances"] }); } });
+  return <article className={`goal-card ${mobile ? "goal-card-mobile" : "goal-card-desktop"}`}>
+    {mobile && <div className="goal-mobile-head"><span className="card-kicker">{goal.status} · {goal.progressMethod}</span><strong>{Math.round(progress / 100)}%</strong></div>}
+    {variance && <p className={`goal-variance ${variance.deltaDays < 0 ? "variance-early" : variance.deltaDays > 0 ? "variance-over" : "variance-on-time"}`} aria-label={`Completed ${variance.label}`}>✦ {variance.label} · planned {variance.targetDate}</p>}
+    {drift && goal.status === "active" && drift.label !== "On pace" && <p className={`goal-variance ${drift.driftBasis < 0 ? "variance-over" : "variance-early"}`} aria-label={`Goal ${drift.label}`}>↗ {drift.label} · {Math.abs(Math.round(drift.driftBasis / 100))}% gap</p>}
+    {goal.status === "active" && <form className="goal-target-form" onSubmit={(event) => { event.preventDefault(); targetMutation.mutate(); }}><FormField label="Target date" control={<Input aria-label={`Target date for ${goal.title}`} type="date" value={targetDate} onChange={(event) => setTargetDate(event.target.value)} />} /><Button type="submit" variant="secondary" disabled={targetMutation.isPending} pending={targetMutation.isPending} pendingLabel="Saving…">Save target</Button></form>}
     <div className="goal-card-main"><div className="goal-card-copy"><div className="goal-card-meta"><span className="card-kicker">{goal.status} · {goal.progressMethod}</span><span>{milestones.data ? `${milestones.data.filter((m) => m.status === "complete").length}/${milestones.data.length} proofs complete` : "Proofs loading"}</span></div><h2>{goal.title}</h2><p>{goal.purpose || "No purpose recorded yet."}</p></div><div className="goal-progress"><FormField label="Progress" control={<Slider aria-label="Progress" min={0} max={10000} step={100} value={progress} onChange={setProgress} onChangeCommit={(value) => progressMutation.mutate({ goal, progress: BigInt(Math.round(value)) })} formatValue={(value) => `${Math.round(value / 100)}% complete`} showValue="none" />} /><output aria-label={`${Math.round(progress / 100)}% complete`}>{Math.round(progress / 100)}%</output><div className="goal-progress-meter" aria-hidden="true"><span style={{ inlineSize: `${Math.max(0, Math.min(100, progress / 100))}%` }} /></div></div></div>
     <section className="milestone-section" aria-labelledby={`milestones-${goal.id}`}>
       <div className="milestone-heading"><div><span className="card-kicker">Next proof</span><h3 id={`milestones-${goal.id}`}>Milestones</h3></div><span className="milestone-count">{milestones.data?.filter((m) => m.status === "complete").length ?? 0}/{milestones.data?.length ?? 0} complete</span></div>

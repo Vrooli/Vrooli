@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const client = vi.hoisted(() => ({ getCurrentSession: vi.fn(), startFocus: vi.fn(), pauseFocus: vi.fn(), resumeFocus: vi.fn(), endFocus: vi.fn(), listActuals: vi.fn(), listActualCorrections: vi.fn(), recordManualActual: vi.fn(), correctActual: vi.fn() }));
 vi.mock("@connectrpc/connect", () => ({ createClient: () => client }));
 
-import { correctActual, endFocus, fetchActualCorrections, fetchActuals, fetchCurrentFocus, pauseFocus, recordManualActual, resumeFocus, startFocus } from "./focus";
+import { correctActual, endFocus, fetchActualCorrections, fetchActuals, fetchCurrentFocus, fetchPauseReasons, fetchSessionNotes, pauseFocus, recordManualActual, recordPauseReason, resumeFocus, saveSessionNote, startFocus } from "./focus";
 
 afterEach(() => vi.clearAllMocks());
 
@@ -40,5 +40,24 @@ describe("focus API transport", () => {
     expect(await correctActual(actual, { reportedMinutes: 30, note: "Interrupted" })).toBe(actual);
     expect(client.recordManualActual).toHaveBeenCalledWith(expect.objectContaining({ reportedMinutes: 45n }));
     expect(client.correctActual).toHaveBeenCalledWith(expect.objectContaining({ id: "a-1", expectedRevision: 1n, reportedMinutes: 30n }));
+  });
+
+  it("persists and reads end-of-session notes through the REST seam", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ session_id: "s-1", local_date: "2026-09-19", note: "Shipped the outline", updated_at: "2026-09-19T10:00:00Z" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ session_id: "s-1", local_date: "2026-09-19", note: "Shipped the outline", updated_at: "2026-09-19T10:00:00Z" }]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(saveSessionNote({ sessionId: "s/1", note: "Shipped the outline" })).resolves.toMatchObject({ sessionId: "s-1", note: "Shipped the outline" });
+    await expect(fetchSessionNotes("2026-09-19")).resolves.toEqual([{ sessionId: "s-1", localDate: "2026-09-19", note: "Shipped the outline", updatedAt: "2026-09-19T10:00:00Z" }]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("persists and reads pause reasons through the REST seam", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: "p-1", session_id: "s-1", local_date: "2026-09-19", reason: "distracted", recorded_at: "2026-09-19T10:00:00Z" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ id: "p-1", session_id: "s-1", local_date: "2026-09-19", reason: "distracted", recorded_at: "2026-09-19T10:00:00Z" }]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(recordPauseReason({ sessionId: "s/1", reason: "distracted" })).resolves.toMatchObject({ sessionId: "s-1", reason: "distracted" });
+    await expect(fetchPauseReasons("2026-09-19")).resolves.toEqual([{ id: "p-1", sessionId: "s-1", localDate: "2026-09-19", reason: "distracted", recordedAt: "2026-09-19T10:00:00Z" }]);
   });
 });

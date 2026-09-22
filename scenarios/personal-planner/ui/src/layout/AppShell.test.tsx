@@ -5,7 +5,7 @@
  * exercised in the per-page tests.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../test-utils";
@@ -33,6 +33,7 @@ describe("AppShell structure (cimode)", () => {
     expect(screen.getByTestId(selectors.layout.navigation)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.layout.tabs)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.layout.main)).toBeInTheDocument();
+    expect(document.querySelector(".planner-route-scroll")).toBeInTheDocument();
     expect(screen.getByTestId(selectors.layout.brand)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.layout.skip)).toHaveAttribute("href", `#${selectors.layout.main}`);
   });
@@ -134,6 +135,21 @@ describe("AppShell structure (cimode)", () => {
     } finally {
       view.unmount();
       Object.defineProperty(HTMLElement.prototype, "scrollTo", { configurable: true, value: originalScrollTo });
+    }
+  });
+
+  it("does not overwrite a user scroll after the route has rendered", () => {
+    vi.useFakeTimers();
+    try {
+      renderShell("/goals");
+      const routeScroller = document.querySelector<HTMLElement>(".planner-route-scroll");
+      expect(routeScroller).not.toBeNull();
+      routeScroller!.scrollTop = 96;
+      act(() => vi.advanceTimersByTime(1_100));
+
+      expect(routeScroller!.scrollTop).toBe(96);
+    } finally {
+      vi.useRealTimers();
     }
   });
 

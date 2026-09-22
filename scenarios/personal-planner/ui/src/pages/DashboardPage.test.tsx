@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { create } from "@bufbuild/protobuf";
@@ -7,25 +7,44 @@ import { WorkItemSchema } from "@vrooli/proto-types/personal-planner/v1/work/wor
 import { renderWithProviders } from "../test-utils";
 import { DashboardPage } from "./DashboardPage";
 import { fetchTodayAllocations } from "../api/calendar";
-import { createWorkItem, fetchWorkItems } from "../api/work";
+import { completeWorkItem, createWorkItem, fetchWorkItems, snoozeWorkItem } from "../api/work";
 import { fetchCurrentFocus, pauseFocus, startFocus } from "../api/focus";
 import { OBSERVATORY_SCENERY_EVENT } from "../theme/observatoryAppearance";
+import { fetchReminders, fetchTodaySignals } from "../api/review";
 
 vi.mock("../api/calendar", () => ({ fetchTodayAllocations: vi.fn() }));
-vi.mock("../api/work", () => ({ fetchWorkItems: vi.fn(), createWorkItem: vi.fn() }));
+vi.mock("../api/work", () => ({ fetchWorkItems: vi.fn(), createWorkItem: vi.fn(), snoozeWorkItem: vi.fn(), completeWorkItem: vi.fn() }));
 vi.mock("../api/focus", () => ({ fetchCurrentFocus: vi.fn(), startFocus: vi.fn(), pauseFocus: vi.fn() }));
+vi.mock("../api/review", () => ({ fetchTodaySignals: vi.fn(), fetchReminders: vi.fn() }));
 
 afterEach(async () => {
   cleanup();
+  vi.unstubAllGlobals();
   document.getElementById("rcl-layer-root")?.replaceChildren();
   await new Promise((resolve) => setTimeout(resolve, 200));
   vi.resetAllMocks();
+});
+
+beforeEach(() => {
+  vi.mocked(fetchTodaySignals).mockResolvedValue({ overdueCount: 1, overdueMinutes: 45, momentumDays: 2, label: "1 overdue" });
+  vi.mocked(fetchReminders).mockResolvedValue([]);
 });
 
 const emptyPlan = { allocations: [], plannedMinutes: 0, availableMinutes: 480, breathingRoomMinutes: 480 };
 const noFocus = null;
 
 describe("Observatory Today", () => {
+  it("uses a thumb-zone next-step bar on mobile", async () => {
+    vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    vi.mocked(fetchWorkItems).mockResolvedValue([create(WorkItemSchema, { id: "w-mobile", title: "Write the brief", remainingMinutes: 30 })]);
+    vi.mocked(fetchTodayAllocations).mockResolvedValue(emptyPlan as never);
+    vi.mocked(fetchCurrentFocus).mockResolvedValue(noFocus);
+    renderWithProviders(<DashboardPage />);
+    expect((await screen.findByTestId("page-today"))).toHaveClass("scene-today");
+    expect(await screen.findByRole("region", { name: "Next step" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Next step" })).toHaveTextContent("Write the brief");
+  });
+
   it("renders the first real work item from the work domain", async () => {
     vi.mocked(fetchWorkItems).mockResolvedValue([create(WorkItemSchema, {
       id: "w-1",
@@ -47,6 +66,7 @@ describe("Observatory Today", () => {
     expect(screen.queryByText("Capture your next useful action")).not.toBeInTheDocument();
     expect(screen.getByText("UP NEXT · ACCEPTED")).toBeInTheDocument();
     expect(screen.getByText("Accepted for 10:00 · 45 minutes")).toBeInTheDocument();
+    expect(await screen.findByText("1 overdue · 45 min")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Day" }));
     await userEvent.click(screen.getByRole("button", { name: "Night" }));
     await userEvent.click(screen.getByRole("button", { name: "Auto" }));
@@ -70,6 +90,28 @@ describe("Observatory Today", () => {
     expect(screen.getByText("FOCUS IN PROGRESS")).toBeInTheDocument();
   });
 
+  it("defers an unscheduled next step until tomorrow", async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchWorkItems).mockResolvedValue([create(WorkItemSchema, { id: "w-1", title: "A useful next step", remainingMinutes: 30 })]);
+    vi.mocked(fetchTodayAllocations).mockResolvedValue(emptyPlan as never);
+    vi.mocked(fetchCurrentFocus).mockResolvedValue(noFocus);
+    vi.mocked(snoozeWorkItem).mockResolvedValue(undefined);
+    renderWithProviders(<DashboardPage />);
+    await user.click(await screen.findByRole("button", { name: "Not now" }));
+    expect(snoozeWorkItem).toHaveBeenCalledWith(expect.objectContaining({ id: "w-1", reason: "not_now" }));
+  });
+
+  it("completes the next work item through the durable completion seam", async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchWorkItems).mockResolvedValue([create(WorkItemSchema, { id: "w-1", title: "A useful next step", remainingMinutes: 30 })]);
+    vi.mocked(fetchTodayAllocations).mockResolvedValue(emptyPlan as never);
+    vi.mocked(fetchCurrentFocus).mockResolvedValue(noFocus);
+    vi.mocked(completeWorkItem).mockResolvedValue(undefined);
+    renderWithProviders(<DashboardPage />);
+    await user.click(await screen.findByRole("button", { name: "Mark complete" }));
+    expect(completeWorkItem).toHaveBeenCalledWith("w-1");
+  });
+
   it("makes the empty state actionable with a persisted capture form", async () => {
     const user = userEvent.setup();
     vi.mocked(fetchWorkItems).mockResolvedValue([]);
@@ -79,7 +121,10 @@ describe("Observatory Today", () => {
     renderWithProviders(<DashboardPage />);
 
     const captureButtons = await screen.findAllByRole("button", { name: "Capture task" });
-    await user.click(captureButtons[0]!);
+    const firstCaptureButton = captureButtons[0];
+    expect(firstCaptureButton).toBeDefined();
+    if (!firstCaptureButton) throw new Error("capture button should be present");
+    await user.click(firstCaptureButton);
     expect(screen.getByRole("dialog", { name: "Capture task" })).toBeInTheDocument();
     await user.type(screen.getByLabelText("Task title"), "Write release note");
     await user.type(screen.getByLabelText(/Why it matters/), "Explain the useful workflow");
@@ -103,7 +148,10 @@ describe("Observatory Today", () => {
     vi.mocked(fetchCurrentFocus).mockResolvedValue(noFocus);
     vi.mocked(createWorkItem).mockRejectedValueOnce(new Error("offline"));
     renderWithProviders(<DashboardPage />);
-    await user.click((await screen.findAllByRole("button", { name: "Capture task" }))[0]!);
+    const firstCaptureButton = (await screen.findAllByRole("button", { name: "Capture task" }))[0];
+    expect(firstCaptureButton).toBeDefined();
+    if (!firstCaptureButton) throw new Error("capture button should be present");
+    await user.click(firstCaptureButton);
     await user.type(screen.getByLabelText("Task title"), "Keep the error visible");
     await user.click(screen.getByRole("button", { name: "Save task" }));
     await waitFor(() => expect(createWorkItem).toHaveBeenCalledWith(expect.objectContaining({ title: "Keep the error visible" })));

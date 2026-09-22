@@ -96,11 +96,87 @@ func (r *sqliteRepository) Transition(ctx context.Context, session Session, expe
 	return session, nil
 }
 
+func (r *sqliteRepository) SaveNote(ctx context.Context, note SessionNote) (SessionNote, error) {
+	_, err := r.db.ExecContext(ctx, `INSERT INTO focus_session_notes(session_id,local_date,note,updated_at) VALUES (?,?,?,?) ON CONFLICT(session_id) DO UPDATE SET local_date=excluded.local_date,note=excluded.note,updated_at=excluded.updated_at`, note.SessionID, note.LocalDate, note.Note, unix(note.UpdatedAt))
+	if err != nil {
+		return SessionNote{}, fmt.Errorf("save focus session note: %w", err)
+	}
+	return note, nil
+}
+
+func (r *sqliteRepository) ListNotes(ctx context.Context, localDate string) ([]SessionNote, error) {
+	query := `SELECT session_id,local_date,note,updated_at FROM focus_session_notes`
+	args := []any{}
+	if localDate != "" {
+		query += ` WHERE local_date=?`
+		args = append(args, localDate)
+	}
+	query += ` ORDER BY updated_at DESC,session_id`
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list focus session notes: %w", err)
+	}
+	defer rows.Close()
+	out := []SessionNote{}
+	for rows.Next() {
+		var note SessionNote
+		var updated int64
+		if err := rows.Scan(&note.SessionID, &note.LocalDate, &note.Note, &updated); err != nil {
+			return nil, err
+		}
+		note.UpdatedAt = time.Unix(updated, 0).UTC()
+		out = append(out, note)
+	}
+	return out, rows.Err()
+}
+
+func (r *sqliteRepository) RecordPauseEvent(ctx context.Context, event PauseEvent) (PauseEvent, error) {
+	if event.ID == "" {
+		event.ID = r.idGenerator()
+	}
+	_, err := r.db.ExecContext(ctx, `INSERT INTO focus_pause_events(id,session_id,local_date,reason,recorded_at) VALUES (?,?,?,?,?)`, event.ID, event.SessionID, event.LocalDate, event.Reason, unix(event.RecordedAt))
+	if err != nil {
+		return PauseEvent{}, fmt.Errorf("record focus pause event: %w", err)
+	}
+	return event, nil
+}
+
+func (r *sqliteRepository) ListPauseEvents(ctx context.Context, localDate string) ([]PauseEvent, error) {
+	query := `SELECT id,session_id,local_date,reason,recorded_at FROM focus_pause_events`
+	args := []any{}
+	if localDate != "" {
+		query += ` WHERE local_date=?`
+		args = append(args, localDate)
+	}
+	query += ` ORDER BY recorded_at DESC,id`
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list focus pause events: %w", err)
+	}
+	defer rows.Close()
+	out := []PauseEvent{}
+	for rows.Next() {
+		var event PauseEvent
+		var recorded int64
+		if err := rows.Scan(&event.ID, &event.SessionID, &event.LocalDate, &event.Reason, &recorded); err != nil {
+			return nil, err
+		}
+		event.RecordedAt = time.Unix(recorded, 0).UTC()
+		out = append(out, event)
+	}
+	return out, rows.Err()
+}
+
 func (r *sqliteRepository) CreateActual(ctx context.Context, actual Actual) (Actual, error) {
 	if actual.ID == "" {
 		actual.ID = r.idGenerator()
 	}
-	_, err := r.db.ExecContext(ctx, `INSERT INTO manual_actuals (id,work_item_id,title,local_date,reported_minutes,certainty,note,created_at,revision) VALUES (?,?,?,?,?,?,?,?,?)`, actual.ID, actual.WorkItemID, actual.Title, actual.LocalDate, actual.ReportedMinutes, actual.Certainty, actual.Note, unix(actual.CreatedAt), actual.Revision)
+	if actual.AllocationID == "" {
+		if err := r.db.QueryRowContext(ctx, `SELECT COALESCE((SELECT id FROM calendar_allocations WHERE work_item_id=? AND local_date=? AND state='accepted' ORDER BY start_minutes LIMIT 1),'')`, actual.WorkItemID, actual.LocalDate).Scan(&actual.AllocationID); err != nil {
+			return Actual{}, fmt.Errorf("resolve plan allocation: %w", err)
+		}
+	}
+	_, err := r.db.ExecContext(ctx, `INSERT INTO manual_actuals (id,work_item_id,title,local_date,reported_minutes,certainty,note,allocation_id,created_at,revision) VALUES (?,?,?,?,?,?,?,COALESCE(NULLIF(?,''),(SELECT id FROM calendar_allocations WHERE work_item_id=? AND local_date=? AND state='accepted' ORDER BY start_minutes LIMIT 1),''),?,?)`, actual.ID, actual.WorkItemID, actual.Title, actual.LocalDate, actual.ReportedMinutes, actual.Certainty, actual.Note, actual.AllocationID, actual.WorkItemID, actual.LocalDate, unix(actual.CreatedAt), actual.Revision)
 	if err != nil {
 		return Actual{}, fmt.Errorf("insert manual actual %q: %w", actual.ID, err)
 	}
@@ -108,7 +184,7 @@ func (r *sqliteRepository) CreateActual(ctx context.Context, actual Actual) (Act
 }
 
 func (r *sqliteRepository) ListActuals(ctx context.Context, localDate string) ([]Actual, error) {
-	query := `SELECT id,work_item_id,title,local_date,reported_minutes,certainty,note,created_at,revision FROM manual_actuals`
+	query := `SELECT id,work_item_id,title,local_date,reported_minutes,certainty,note,allocation_id,created_at,revision FROM manual_actuals`
 	args := []any{}
 	if localDate != "" {
 		query += ` WHERE local_date = ?`
@@ -196,7 +272,7 @@ func (r *sqliteRepository) CorrectActual(ctx context.Context, update Actual, exp
 }
 
 func (r *sqliteRepository) getActual(ctx context.Context, id string) (Actual, error) {
-	actual, err := scanActual(r.db.QueryRowContext(ctx, `SELECT id,work_item_id,title,local_date,reported_minutes,certainty,note,created_at,revision FROM manual_actuals WHERE id = ?`, id))
+	actual, err := scanActual(r.db.QueryRowContext(ctx, `SELECT id,work_item_id,title,local_date,reported_minutes,certainty,note,allocation_id,created_at,revision FROM manual_actuals WHERE id = ?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Actual{}, ErrActualNotFound{id}
 	}
@@ -208,7 +284,7 @@ type actualScanner interface{ Scan(...any) error }
 func scanActual(scanner actualScanner) (Actual, error) {
 	var actual Actual
 	var created int64
-	if err := scanner.Scan(&actual.ID, &actual.WorkItemID, &actual.Title, &actual.LocalDate, &actual.ReportedMinutes, &actual.Certainty, &actual.Note, &created, &actual.Revision); err != nil {
+	if err := scanner.Scan(&actual.ID, &actual.WorkItemID, &actual.Title, &actual.LocalDate, &actual.ReportedMinutes, &actual.Certainty, &actual.Note, &actual.AllocationID, &created, &actual.Revision); err != nil {
 		return Actual{}, err
 	}
 	actual.CreatedAt = time.Unix(created, 0).UTC()

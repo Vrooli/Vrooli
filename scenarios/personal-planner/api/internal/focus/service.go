@@ -14,6 +14,10 @@ type Service interface {
 	Pause(context.Context, string, int64) (Session, error)
 	Resume(context.Context, string, int64) (Session, error)
 	End(context.Context, string, int64) (Session, error)
+	SaveNote(context.Context, string, string) (SessionNote, error)
+	ListNotes(context.Context, string) ([]SessionNote, error)
+	RecordPauseEvent(context.Context, string, string) (PauseEvent, error)
+	ListPauseEvents(context.Context, string) ([]PauseEvent, error)
 	RecordActual(context.Context, RecordActualInput) (Actual, error)
 	ListActuals(context.Context, string) ([]Actual, error)
 	ListCorrections(context.Context, string, string, int) ([]Correction, error)
@@ -64,6 +68,68 @@ func (s *service) End(ctx context.Context, id string, revision int64) (Session, 
 	return s.transition(ctx, id, revision, StateEnded)
 }
 
+func (s *service) SaveNote(ctx context.Context, sessionID, note string) (SessionNote, error) {
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return SessionNote{}, ErrInvalidFocus{"session_id", "required"}
+	}
+	note = strings.TrimSpace(note)
+	if note == "" {
+		return SessionNote{}, ErrInvalidFocus{"note", "required"}
+	}
+	if len([]rune(note)) > 2000 {
+		return SessionNote{}, ErrInvalidFocus{"note", "must be 2000 characters or fewer"}
+	}
+	session, err := s.repo.Get(ctx, sessionID)
+	if err != nil {
+		return SessionNote{}, err
+	}
+	if session.State != StateEnded {
+		return SessionNote{}, ErrInvalidFocus{"session_id", "notes are available after ending the session"}
+	}
+	return s.repo.SaveNote(ctx, SessionNote{SessionID: sessionID, LocalDate: session.StartedAt.In(s.clock.Now().Location()).Format("2006-01-02"), Note: note, UpdatedAt: s.clock.Now().UTC()})
+}
+
+func (s *service) ListNotes(ctx context.Context, localDate string) ([]SessionNote, error) {
+	if localDate != "" {
+		if _, err := time.ParseInLocation("2006-01-02", localDate, s.clock.Now().Location()); err != nil {
+			return nil, ErrInvalidFocus{"local_date", "must be YYYY-MM-DD"}
+		}
+	}
+	return s.repo.ListNotes(ctx, localDate)
+}
+
+func (s *service) RecordPauseEvent(ctx context.Context, sessionID, reason string) (PauseEvent, error) {
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return PauseEvent{}, ErrInvalidFocus{"session_id", "required"}
+	}
+	reason = strings.TrimSpace(reason)
+	switch reason {
+	case PauseInterrupted, PauseBlocked, PauseDistracted, PauseRest, PauseOther:
+	default:
+		return PauseEvent{}, ErrInvalidFocus{"reason", "must be interrupted, blocked, distracted, rest, or other"}
+	}
+	session, err := s.repo.Get(ctx, sessionID)
+	if err != nil {
+		return PauseEvent{}, err
+	}
+	if session.State != StatePaused {
+		return PauseEvent{}, ErrInvalidFocus{"session_id", "pause reason requires a paused session"}
+	}
+	now := s.clock.Now().UTC()
+	return s.repo.RecordPauseEvent(ctx, PauseEvent{SessionID: sessionID, LocalDate: now.In(s.clock.Now().Location()).Format("2006-01-02"), Reason: reason, RecordedAt: now})
+}
+
+func (s *service) ListPauseEvents(ctx context.Context, localDate string) ([]PauseEvent, error) {
+	if localDate != "" {
+		if _, err := time.ParseInLocation("2006-01-02", localDate, s.clock.Now().Location()); err != nil {
+			return nil, ErrInvalidFocus{"local_date", "must be YYYY-MM-DD"}
+		}
+	}
+	return s.repo.ListPauseEvents(ctx, localDate)
+}
+
 func (s *service) RecordActual(ctx context.Context, in RecordActualInput) (Actual, error) {
 	title := strings.TrimSpace(in.Title)
 	if title == "" {
@@ -82,7 +148,7 @@ func (s *service) RecordActual(ctx context.Context, in RecordActualInput) (Actua
 	if _, err := time.ParseInLocation("2006-01-02", in.LocalDate, s.clock.Now().Location()); err != nil {
 		return Actual{}, ErrInvalidFocus{"local_date", "must be YYYY-MM-DD"}
 	}
-	return s.repo.CreateActual(ctx, Actual{WorkItemID: strings.TrimSpace(in.WorkItemID), Title: title, LocalDate: in.LocalDate, ReportedMinutes: in.ReportedMinutes, Certainty: certainty, Note: strings.TrimSpace(in.Note), CreatedAt: s.clock.Now().UTC(), Revision: 1})
+	return s.repo.CreateActual(ctx, Actual{WorkItemID: strings.TrimSpace(in.WorkItemID), Title: title, LocalDate: in.LocalDate, AllocationID: strings.TrimSpace(in.AllocationID), ReportedMinutes: in.ReportedMinutes, Certainty: certainty, Note: strings.TrimSpace(in.Note), CreatedAt: s.clock.Now().UTC(), Revision: 1})
 }
 
 func (s *service) ListActuals(ctx context.Context, localDate string) ([]Actual, error) {

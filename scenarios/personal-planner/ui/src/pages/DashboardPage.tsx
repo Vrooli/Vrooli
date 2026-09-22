@@ -4,13 +4,16 @@ import { BarChart3, CalendarDays, Sun, Target, Waves } from "lucide-react";
 import { selectors } from "../consts/selectors";
 import { fetchRoutineOccurrences, fetchTodayAllocations } from "../api/calendar";
 import { fetchCurrentFocus, pauseFocus, startFocus } from "../api/focus";
-import { createWorkItem, fetchWorkItems } from "../api/work";
+import { fetchReminders, fetchTodaySignals } from "../api/review";
+import { completeWorkItem, createWorkItem, fetchWorkItems, snoozeWorkItem } from "../api/work";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 import { OBSERVATORY_SCENERY_EVENT, readSceneryPreferences, useObservatoryAutoAppearance, useSampledSceneColors } from "../theme/observatoryAppearance";
 import { useChromeContribution } from "@vrooli/react-component-library/ChromeTheme/1";
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { TodayAppearanceControl, TodayCaptureForm, TodayCaptureLink, TodayTaskActions, TodayTimelineBlock, TodayTimelineViewToggle, type TodayTimelineItem } from "../components/TodayControls";
 import { PlannerDialog as Dialog } from "../components/PlannerDialog";
+import { useBreakpoint } from "../hooks/useBreakpoint";
 
 type TimelineItem = TodayTimelineItem;
 
@@ -18,6 +21,7 @@ type TimelineItem = TodayTimelineItem;
 export function DashboardPage() {
   const { choice, setTheme } = useTheme();
   const queryClient = useQueryClient();
+  const { isMobile } = useBreakpoint();
   const [focusStartedOptimistically, setFocusStartedOptimistically] = useState(false);
   const [draftOpen, setDraftOpen] = useState(false);
   const [captureOpen, setCaptureOpen] = useState(false);
@@ -31,6 +35,8 @@ export function DashboardPage() {
   const { data: workItems, isLoading: workLoading, isError: workError } = useQuery({ queryKey: ["work-items"], queryFn: fetchWorkItems });
   const { data: todayPlan, isLoading: planLoading, isError: planError } = useQuery({ queryKey: ["today-allocations"], queryFn: () => fetchTodayAllocations() });
   const todayLocalDate = localDate();
+  const todaySignals = useQuery({ queryKey: ["today-signals", todayLocalDate], queryFn: () => fetchTodaySignals(todayLocalDate) });
+  const reminders = useQuery({ queryKey: ["reminders", todayLocalDate], queryFn: () => fetchReminders(todayLocalDate), refetchInterval: 60_000 });
   const { data: routineOccurrences } = useQuery({ queryKey: ["routine-occurrences", todayLocalDate], queryFn: () => fetchRoutineOccurrences(todayLocalDate, todayLocalDate) });
   const focus = useQuery({ queryKey: ["focus-current"], queryFn: fetchCurrentFocus, refetchInterval: 30_000 });
   const focusMutation = useMutation({
@@ -60,6 +66,14 @@ export function DashboardPage() {
     },
     onError: () => setCaptureOpen(true),
   });
+  const snoozeMutation = useMutation({
+    mutationFn: () => nextWork ? snoozeWorkItem({ id: nextWork.id, until: tomorrowLocalDate(), reason: "not_now" }) : Promise.resolve(),
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["work-items"] }); await queryClient.invalidateQueries({ queryKey: ["today-allocations"] }); },
+  });
+  const completeMutation = useMutation({
+    mutationFn: () => nextWork ? completeWorkItem(nextWork.id) : Promise.resolve(),
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["work-items"] }); await queryClient.invalidateQueries({ queryKey: ["today-allocations"] }); await queryClient.invalidateQueries({ queryKey: ["today-signals", todayLocalDate] }); },
+  });
   const today = new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric" }).format(new Date());
   const nextAllocation = todayPlan?.allocations[0];
   const nextWork = workItems?.find((item) => item.id === nextAllocation?.workItemId) ?? workItems?.[0];
@@ -68,7 +82,7 @@ export function DashboardPage() {
   const autoAppearance = useObservatoryAutoAppearance();
   const sceneColors = useSampledSceneColors();
   const taskTitle = nextAllocation?.title ?? nextWork?.title ?? "Capture your next useful action";
-  const taskDescription = hasAcceptedNext ? `Accepted for ${formatClock(nextAllocation!.startMinutes)} · ${nextAllocation!.durationMinutes} minutes` : nextWork?.description || (workLoading ? "Loading your work…" : workError ? "Work data is unavailable right now." : "Nothing is scheduled yet.");
+  const taskDescription = hasAcceptedNext && nextAllocation ? `Accepted for ${formatClock(nextAllocation.startMinutes)} · ${nextAllocation.durationMinutes} minutes` : nextWork?.description || (workLoading ? "Loading your work…" : workError ? "Work data is unavailable right now." : "Nothing is scheduled yet.");
   const taskSource = nextAllocation?.sourceLabel || nextWork?.sourceLabel || "Personal Planner";
   const taskMinutes = nextAllocation?.durationMinutes ?? nextWork?.remainingMinutes ?? 0;
   const timeline = todayPlan?.allocations.slice().sort((left, right) => left.startMinutes - right.startMinutes || right.durationMinutes - left.durationMinutes).reduce<TimelineItem[]>((items, entry, index) => {
@@ -119,13 +133,23 @@ export function DashboardPage() {
   } as CSSProperties;
   const setAppearance = (next: string) => setTheme(next as ThemeChoice);
   const openTimelineItem = (item: TimelineItem) => setSelectedTimelineItem(item);
+  const signalPrimary = todaySignals.data?.overdueCount
+    ? `${todaySignals.data.overdueCount} overdue · ${todaySignals.data.overdueMinutes} min`
+    : todaySignals.data?.label;
+  const signalSecondary = todaySignals.data?.momentumDays
+    ? `${todaySignals.data.momentumDays}-day momentum`
+    : "Build a calm run by recording one useful step.";
 
   return (
-    <div className={`observatory appearance-${appearance} appearance-choice-${appearanceChoice} ${sceneryClass}`} data-testid={selectors.pages.today} style={sceneStyle}>
+    <div className={`observatory scene-today appearance-${appearance} appearance-choice-${appearanceChoice} ${sceneryClass}`} data-testid={selectors.pages.today} style={sceneStyle}>
       <div className="observatory-sky" aria-hidden="true"><span className="observatory-sky-layer observatory-sky-day" /><span className="observatory-sky-layer observatory-sky-night" /><span className="observatory-sky-stars" /></div>
       <div className="observatory-content">
-        <header className="observatory-header"><div><p className="eyebrow">Observatory · {today}</p><h1>Today</h1><p className="date-line">{today}</p></div><div className="appearance-wrap"><TodayAppearanceControl choice={appearanceChoice} onChange={setAppearance} /><TodayCaptureLink onClick={() => setCaptureOpen(true)} /><span className="sample-label">Live plan · Work items</span></div></header>
-        <section className="today-grid" aria-label="Current plan"><article className="next-card"><div className="card-kicker">{focusStarted ? "FOCUS IN PROGRESS" : hasAcceptedNext ? "UP NEXT · ACCEPTED" : nextWork ? "UP NEXT · READY TO PLACE" : "YOUR NEXT STEP"}<span>{taskMinutes ? `${taskMinutes} MIN` : "NO TIME SET"}</span></div><h2>{taskTitle}</h2><p className="task-source"><span className="source-dot violet" />{taskSource}</p><p className="task-description">{taskDescription}</p><TodayTaskActions focusStarted={focusStarted} pending={focusMutation.isPending || focus.isLoading} hasWork={Boolean(nextWork)} onFocus={() => focusMutation.mutate()} onOpenDraft={() => setDraftOpen(true)} onCapture={() => setCaptureOpen(true)} />{focusMutation.isError && <p role="alert" className="task-error">That focus transition did not save. Nothing was assumed.</p>}{nextWork && <Dialog open={draftOpen} title="Work item details" onClose={() => setDraftOpen(false)} closeLabel="Close draft" contentClassName="today-dialog-copy"><p>{taskDescription}</p><small>{taskMinutes || "No"} minutes remaining · {taskSource}</small></Dialog>}<Dialog open={captureOpen} title="Capture task" description="Capture a useful next step without changing the accepted schedule." onClose={() => setCaptureOpen(false)} closeLabel="Close capture" contentClassName="capture-dialog-body"><TodayCaptureForm title={captureTitle} description={captureDescription} minutes={captureMinutes} source={captureSource} pending={captureMutation.isPending} error={captureMutation.isError} onTitleChange={setCaptureTitle} onDescriptionChange={setCaptureDescription} onMinutesChange={setCaptureMinutes} onSourceChange={setCaptureSource} onSubmit={(event) => { event.preventDefault(); if (captureTitle.trim()) captureMutation.mutate(); }} /></Dialog></article><div className="capacity-card"><p className="card-kicker">TODAY’S CAPACITY</p><div className="capacity-stats"><div><strong>{planLoading ? "…" : plannedHours}</strong><span>planned</span></div><div><strong>{planLoading ? "…" : availableHours}</strong><span>available</span></div><div><strong>{planLoading ? "…" : breathingHours}</strong><span>breathing room</span></div></div>{Number(todayPlan?.externalEventCount ?? 0) > 0 && <p className="external-event-note" aria-label={`${Number(todayPlan?.externalEventCount)} read-only calendar events occupy ${Number(todayPlan?.externalBusyMinutes)} minutes. Accepted work and provider time are unioned, not double-counted.`}>{Number(todayPlan?.externalEventCount)} calendar holds · {Number(todayPlan?.externalBusyMinutes)} min reserved</p>}{routineMinutes > 0 && <p className="external-event-note routine-demand-note" aria-label={`${routineOccurrences?.length ?? 0} routine commitments occupy ${routineMinutes} minutes.`}>{routineOccurrences?.length ?? 0} routine commitments · {routineMinutes} min reserved</p>}<div className="commitment"><p className="card-kicker">PLAN STATUS</p><div><span>{planError ? "Plan data unavailable" : todayPlan?.allocations.length ? `${todayPlan.allocations.length} work items placed` : "No accepted work placed yet"}</span><b aria-hidden="true">→</b><a href="/plan">Open plan&nbsp; →</a></div></div></div></section>
+        {isMobile ? <header className="observatory-header observatory-header-mobile"><div><p className="eyebrow">Path ahead · {today}</p><h1>Today</h1><p className="date-line">{today}</p></div><div className="appearance-wrap"><TodayAppearanceControl choice={appearanceChoice} onChange={setAppearance} /><TodayCaptureLink onClick={() => setCaptureOpen(true)} /></div></header> : <header className="observatory-header observatory-header-desktop"><div><p className="eyebrow">Observatory · {today}</p><h1>Today</h1><p className="date-line">{today}</p></div><div className="appearance-wrap"><TodayAppearanceControl choice={appearanceChoice} onChange={setAppearance} /><TodayCaptureLink onClick={() => setCaptureOpen(true)} /><span className="sample-label">Live plan · Work items</span></div></header>}
+        <section className="today-grid" aria-label="Current plan"><article className="next-card"><div className="card-kicker">{focusStarted ? "FOCUS IN PROGRESS" : hasAcceptedNext ? "UP NEXT · ACCEPTED" : nextWork ? "UP NEXT · READY TO PLACE" : "YOUR NEXT STEP"}<span>{taskMinutes ? `${taskMinutes} MIN` : "NO TIME SET"}</span></div><h2>{taskTitle}</h2><p className="task-source"><span className="source-dot violet" />{taskSource}</p><p className="task-description">{taskDescription}</p><TodayTaskActions focusStarted={focusStarted} pending={focusMutation.isPending || focus.isLoading || snoozeMutation.isPending} hasWork={Boolean(nextWork)} onFocus={() => focusMutation.mutate()} onOpenDraft={() => setDraftOpen(true)} onCapture={() => setCaptureOpen(true)} />{nextWork && !hasAcceptedNext && <Button type="button" className="quiet-action next-step-snooze" variant="ghost" onClick={() => snoozeMutation.mutate()} disabled={snoozeMutation.isPending}>Not now</Button>}{focusMutation.isError && <p role="alert" className="task-error">That focus transition did not save. Nothing was assumed.</p>}{nextWork && <Dialog open={draftOpen} title="Work item details" onClose={() => setDraftOpen(false)} closeLabel="Close draft" contentClassName="today-dialog-copy"><p>{taskDescription}</p><small>{taskMinutes || "No"} minutes remaining · {taskSource}</small></Dialog>}<Dialog open={captureOpen} title="Capture task" description="Capture a useful next step without changing the accepted schedule." onClose={() => setCaptureOpen(false)} closeLabel="Close capture" contentClassName="capture-dialog-body"><TodayCaptureForm title={captureTitle} description={captureDescription} minutes={captureMinutes} source={captureSource} pending={captureMutation.isPending} error={captureMutation.isError} onTitleChange={setCaptureTitle} onDescriptionChange={setCaptureDescription} onMinutesChange={setCaptureMinutes} onSourceChange={setCaptureSource} onSubmit={(event) => { event.preventDefault(); if (captureTitle.trim()) captureMutation.mutate(); }} /></Dialog></article><div className="capacity-card"><p className="card-kicker">TODAY’S CAPACITY</p><div className="capacity-stats"><div><strong>{planLoading ? "…" : plannedHours}</strong><span>planned</span></div><div><strong>{planLoading ? "…" : availableHours}</strong><span>available</span></div><div><strong>{planLoading ? "…" : breathingHours}</strong><span>breathing room</span></div></div>{Number(todayPlan?.externalEventCount ?? 0) > 0 && <p className="external-event-note" aria-label={`${Number(todayPlan?.externalEventCount)} read-only calendar events occupy ${Number(todayPlan?.externalBusyMinutes)} minutes. Accepted work and provider time are unioned, not double-counted.`}>{Number(todayPlan?.externalEventCount)} calendar holds · {Number(todayPlan?.externalBusyMinutes)} min reserved</p>}{routineMinutes > 0 && <p className="external-event-note routine-demand-note" aria-label={`${routineOccurrences?.length ?? 0} routine commitments occupy ${routineMinutes} minutes.`}>{routineOccurrences?.length ?? 0} routine commitments · {routineMinutes} min reserved</p>}<div className="commitment"><p className="card-kicker">PLAN STATUS</p><div><span>{planError ? "Plan data unavailable" : todayPlan?.allocations.length ? `${todayPlan.allocations.length} work items placed` : "No accepted work placed yet"}</span><b aria-hidden="true">→</b><a href="/plan">Open plan&nbsp; →</a></div></div></div></section>
+        {isMobile && <section className="mobile-next-step-bar" aria-label="Next step"><div><span className="card-kicker">{focusStarted ? "FOCUS IN PROGRESS" : hasAcceptedNext ? "UP NEXT · ACCEPTED" : nextWork ? "UP NEXT · READY TO PLACE" : "YOUR NEXT STEP"}</span><strong>{taskTitle}</strong><small>{taskMinutes ? `${taskMinutes} min · ${taskSource}` : "Capture a useful next step"}</small></div><TodayTaskActions focusStarted={focusStarted} pending={focusMutation.isPending || focus.isLoading || snoozeMutation.isPending} hasWork={Boolean(nextWork)} onFocus={() => focusMutation.mutate()} onOpenDraft={() => setDraftOpen(true)} onCapture={() => setCaptureOpen(true)} /></section>}
+        {nextWork && <Button type="button" className="quiet-action complete-next-step" variant="ghost" onClick={() => completeMutation.mutate()} disabled={completeMutation.isPending}>{completeMutation.isPending ? "Completing…" : "Mark complete"}</Button>}
+        <aside className="today-signals" aria-label="Today signals">{todaySignals.data && <><span className="card-kicker">SIGNALS</span><strong>{signalPrimary}</strong>{signalSecondary !== signalPrimary && <span>{signalSecondary}</span>}</>}</aside>
+        {reminders.data && reminders.data.length > 0 && <aside className="today-reminders" aria-label="Reminders"><span className="card-kicker">NUDGES</span>{reminders.data.map((reminder) => <div className={`today-reminder reminder-${reminder.kind}`} key={reminder.id}><strong>{reminder.title}</strong><span>{reminder.body}</span></div>)}</aside>}
         <section className="day-plan" aria-labelledby="day-plan-heading"><div className="day-plan-heading"><div><h2 id="day-plan-heading">Your day</h2><span>{timelineView === "focus" ? `${formatClock(timelineStartHour * 60)}–${formatClock(timelineEndHour * 60)}` : "09:00–19:00"}</span></div><TodayTimelineViewToggle view={timelineView} onChange={setTimelineView} /></div><div className="time-ruler" aria-hidden="true" style={{ gridTemplateColumns: `repeat(${timelineSpan + 1}, minmax(0, 1fr))` }}>{Array.from({ length: timelineSpan + 1 }, (_, index) => <span key={index} className={index === Math.round(((new Date().getHours() + new Date().getMinutes() / 60) - timelineStartHour) * 2) / 2 ? "now-label" : ""}>{`${timelineStartHour + index}:00`}</span>)}</div><div className="timeline" role="list" aria-label={`Timeline from ${formatClock(timelineStartHour * 60)} to ${formatClock(timelineEndHour * 60)}`} style={{ minHeight: `${Math.max(9.5, timelineLanes * 6.2)}rem`, "--timeline-step": `${100 / timelineSpan}%` } as CSSProperties}><div className="now-line" aria-hidden="true" style={{ left: `${Math.max(0, Math.min(100, ((new Date().getHours() + new Date().getMinutes() / 60 - timelineStartHour) / timelineSpan) * 100))}%` }}><span /></div>{timeline.map((item) => <TodayTimelineBlock key={item.id} item={item} startHour={timelineStartHour} span={timelineSpan} open={selectedTimelineItem?.id === item.id} onOpen={() => openTimelineItem(item)} onClose={() => setSelectedTimelineItem(null)} />)}</div>{!planLoading && !planError && timeline.length === 0 && <EmptyState className="timeline-empty-state" title="Nothing placed yet. Capture work to see a truthful day plan." />}</section>
         <footer className="observatory-note"><span aria-hidden="true">—</span><em>A calmer<br />tomorrow lives here.</em><span className="footer-icons" aria-hidden="true"><Sun size={18} /><CalendarDays size={18} /><Target size={18} /><Waves size={18} /><BarChart3 size={18} /></span></footer>
       </div>
@@ -145,6 +169,12 @@ function formatClock(minutes: number): string {
 function localDate(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function tomorrowLocalDate(): string {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
 }
 
 function findTimelineLane(item: { start: number; end: number }, previous: Array<{ start: number; end: number; lane?: number }>): number {

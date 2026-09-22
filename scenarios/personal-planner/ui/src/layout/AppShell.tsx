@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
@@ -12,6 +12,7 @@ import { useTranslation } from "../i18n";
 import { BrandMark } from "./BrandMark";
 import { NAV_ITEMS, isNavItemActive } from "./navItems";
 import { useTheme } from "../theme/ThemeProvider";
+import { GlobalCapture } from "../components/GlobalCapture";
 
 /**
  * The shell is the component library's. This file configures it and plugs in
@@ -44,6 +45,7 @@ export function AppShell() {
   const { resolved } = useTheme();
   const { pathname, search } = useLocation();
   const navigate = useNavigate();
+  const routeScrollerRef = useRef<HTMLDivElement>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("personal-planner.sidebar-collapsed") === "true";
@@ -58,40 +60,25 @@ export function AppShell() {
     if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
       window.history.scrollRestoration = "manual";
     }
-    const main = document.querySelector<HTMLElement>(`[data-testid="${selectors.layout.shell}-main"]`);
-    const sidebar = document.querySelector<HTMLElement>(`[data-testid="${selectors.layout.shell}-sidebar"]`);
-    const reset = () => {
-      // The shell owns the scroll container. Keep route entry deterministic and
-      // prevent browser focus restoration from leaving content controls clipped
-      // at the top of a mobile or direct-route capture.
-      if (main) {
-        main.scrollTop = 0;
-        main.scrollLeft = 0;
-        if (typeof main.scrollTo === "function") main.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    const sidebar = document.querySelector<HTMLElement>("[data-rcl-sidebar-shell]");
+    // Route entry gets one synchronous reset. Delayed retries used to win a
+    // race against the person's first swipe and visibly snap the page upward.
+    const routeScroller = routeScrollerRef.current;
+    if (routeScroller) {
+      routeScroller.scrollTop = 0;
+      routeScroller.scrollLeft = 0;
+      routeScroller.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
+    }
+    if (sidebar) {
+      // A library upgrade may add a nested sidebar scroller. Reset these once
+      // at route commit; unlike page content, the user is not interacting with
+      // the desktop navigation during this layout effect.
+      for (const scrollContainer of [sidebar, ...Array.from(sidebar.querySelectorAll<HTMLElement>("*"))]) {
+        scrollContainer.scrollTop = 0;
+        scrollContainer.scrollLeft = 0;
+        scrollContainer.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
       }
-      if (sidebar) {
-        // The library owns the sidebar structure, and a library upgrade may
-        // introduce an additional scroll container around the navigation
-        // list. Reset the shell and every descendant so route entry cannot
-        // reopen with the top of the navigation hidden.
-        const scrollContainers = [sidebar, ...Array.from(sidebar.querySelectorAll<HTMLElement>("*"))];
-        for (const scrollContainer of scrollContainers) {
-          scrollContainer.scrollTop = 0;
-          scrollContainer.scrollLeft = 0;
-          if (typeof scrollContainer.scrollTo === "function") {
-            scrollContainer.scrollTo({ top: 0, left: 0, behavior: "auto" });
-          }
-        }
-      }
-      window.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
-    };
-    reset();
-    const frame = window.requestAnimationFrame(reset);
-    const deferred = window.setTimeout(reset, 100);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.clearTimeout(deferred);
-    };
+    }
   }, [pathname, search]);
 
   useEffect(() => {
@@ -145,8 +132,11 @@ export function AppShell() {
         sidebarResize={{ adjacentMin: 320, min: 128, max: 280, defaultSize: 144, step: 8, coarseStep: 40 }}
         testId={selectors.layout.shell}
       >
-        <Outlet />
+        <div className="planner-route-scroll" ref={routeScrollerRef}>
+          <Outlet />
+        </div>
       </LibraryAppShell>
+      <GlobalCapture />
       <Button
         type="button"
         className="planner-sidebar-toggle"

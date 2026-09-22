@@ -37,8 +37,10 @@ describe("makeHealthResponse", () => {
     const overrides = { dependencies: { database: { connected: true, database: "original" } } };
     const first = makeHealthResponse(overrides);
     const second = makeHealthResponse(overrides);
-    expect(first.dependencies.database).toBeDefined();
-    first.dependencies.database!.database = "changed";
+    const firstDatabase = first.dependencies.database;
+    expect(firstDatabase).toBeDefined();
+    if (!firstDatabase) throw new Error("database dependency should be present");
+    firstDatabase.database = "changed";
     delete first.dependencies.database;
     expect(second.dependencies.database?.database).toBe("original");
     expect(overrides.dependencies.database.database).toBe("original");
@@ -47,8 +49,10 @@ describe("makeHealthResponse", () => {
   it("copies already-created protobuf dependencies rather than sharing messages", () => {
     const source = makeHealthResponse({ dependencies: { database: { database: "source" } } });
     const copied = makeHealthResponse({ dependencies: source.dependencies });
-    expect(copied.dependencies.database).toBeDefined();
-    copied.dependencies.database!.database = "changed";
+    const copiedDatabase = copied.dependencies.database;
+    expect(copiedDatabase).toBeDefined();
+    if (!copiedDatabase) throw new Error("copied database dependency should be present");
+    copiedDatabase.database = "changed";
     expect(source.dependencies.database?.database).toBe("source");
   });
 

@@ -19,9 +19,23 @@ type SQLExecutor interface {
 type service struct {
 	db    SQLExecutor
 	clock schedule.Clock
+	id    func() string
 }
 
-func NewService(db SQLExecutor, clock schedule.Clock) Service { return &service{db: db, clock: clock} }
+type ServiceOptions struct {
+	IDGenerator func() string
+}
+
+func NewService(db SQLExecutor, clock schedule.Clock) Service {
+	return NewServiceWithOptions(db, clock, ServiceOptions{})
+}
+
+func NewServiceWithOptions(db SQLExecutor, clock schedule.Clock, options ServiceOptions) Service {
+	if options.IDGenerator == nil {
+		options.IDGenerator = uuid.NewString
+	}
+	return &service{db: db, clock: clock, id: options.IDGenerator}
+}
 
 func (s *service) Get(ctx context.Context, localDate, timezone string, horizonDays int) (Forecast, error) {
 	if _, err := time.Parse("2006-01-02", localDate); err != nil {
@@ -118,7 +132,7 @@ func (s *service) persist(ctx context.Context, x Forecast) (Forecast, error) {
 	var previous storedSnapshot
 	previousErr := s.db.QueryRowContext(ctx, `SELECT id,central_finish,cautious_finish,result_state,risk_state FROM forecast_snapshots WHERE subject=? ORDER BY created_at DESC LIMIT 1`, subject).Scan(&previous.ID, &previous.Central, &previous.Cautious, &previous.State, &previous.Risk)
 	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
-	id := uuid.NewString()
+	id := s.id()
 	if _, err := s.db.ExecContext(ctx, `INSERT INTO forecast_snapshots (id,subject,input_fingerprint,generated_at,horizon_start,horizon_end,central_finish,cautious_finish,result_state,risk_state,explanation,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`, id, subject, x.InputFingerprint, x.GeneratedAt, x.HorizonStart, x.HorizonEnd, x.CentralFinish, x.CautiousFinish, x.ResultState, x.RiskState, x.Explanation, now); err != nil {
 		return Forecast{}, fmt.Errorf("store forecast snapshot: %w", err)
 	}
@@ -127,7 +141,7 @@ func (s *service) persist(ctx context.Context, x Forecast) (Forecast, error) {
 		x.PreviousSnapshotID = previous.ID
 		if previous.Central != x.CentralFinish || previous.Cautious != x.CautiousFinish || previous.State != x.ResultState || previous.Risk != x.RiskState {
 			x.ChangeExplanation = fmt.Sprintf("Outlook changed from central %s / cautious %s (%s) to central %s / cautious %s (%s).", value(previous.Central), value(previous.Cautious), previous.Risk, value(x.CentralFinish), value(x.CautiousFinish), x.RiskState)
-			if _, err := s.db.ExecContext(ctx, `INSERT INTO forecast_change_records (id,subject,previous_snapshot_id,snapshot_id,explanation,created_at) VALUES (?,?,?,?,?,?)`, uuid.NewString(), subject, previous.ID, id, x.ChangeExplanation, now); err != nil {
+			if _, err := s.db.ExecContext(ctx, `INSERT INTO forecast_change_records (id,subject,previous_snapshot_id,snapshot_id,explanation,created_at) VALUES (?,?,?,?,?,?)`, s.id(), subject, previous.ID, id, x.ChangeExplanation, now); err != nil {
 				return Forecast{}, fmt.Errorf("store forecast change: %w", err)
 			}
 		}

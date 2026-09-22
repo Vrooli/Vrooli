@@ -87,3 +87,17 @@ endpoints: ## Regenerate .vrooli/endpoints.json from API modules (validated agai
 run: start
 
 dev: start
+
+fmt-ui:
+	cd ui && pnpm run lint:fix && pnpm run strings:check
+
+lint-ui:
+	cd ui && pnpm run lint && pnpm run type-check
+
+lint-go:
+	cd api && GOWORK=off golangci-lint run ./...
+	cd cli && GOWORK=off golangci-lint run ./...
+
+fmt-go:
+	cd api && gofumpt -w .
+	cd cli && gofumpt -w .

@@ -49,20 +49,18 @@ they can be wired into the UI. Final processed scenery lives in `ui/public/publi
   Note desktop biases the mechanism right (dark space left) — inverse of the brief's suggested left
   bias, but fine; the settings list just takes the dark side.
 
-## Processing needed before these are usable
+## Processing record
 
-The green rectangle is a **chroma-key aperture**, not a finished sky. To honor the compositing
-contract (procedural sky through the window so comets/day-night keep working):
+The green rectangle is a **chroma-key aperture**, not a finished sky. The plates were keyed to
+transparent WebP with a green-dominance threshold and wired into the shared layered compositor on
+2026-09-21. The generated assets are:
 
-1. **Key out the green → transparent.** Produce a transparent PNG/WebP where the green becomes alpha.
-   (ChatGPT can't emit reliable transparency; do this in an image tool or a small script.)
-2. **Export to `ui/public/public/scenes/plan/`** as `webp` (match the existing `day/night-panorama.webp`
-   convention), e.g. `plan-desk-day.webp`, `plan-desk-night.webp`.
-3. **Wire via the generalized compositing hook** — Plan is Shape B, so it does NOT use Today's
-   bottom-band sampling. It needs the aperture approach: the interior plate on top, the procedural sky
-   (L0) composited *behind* the transparent window. This is the "generalize compositing to all pages"
-   task in `../../FEATURE_BACKLOG.md` §G — do that first, then Plan is the first consumer.
-4. **Do NOT composite the baked landscape panoramas into the window** — use the procedural sky so
-   comets/parallax/day-night work through the glass.
+1. Plan: `ui/public/public/scenes/plan/desk-{desktop,mobile}-{day,night}.webp`.
+2. Focus: `ui/public/public/scenes/focus/scope-{desktop,mobile}.webp`.
+3. Settings: `ui/public/public/scenes/settings/instrument-{desktop,mobile}.webp`.
+4. Plan’s keyed night landscape: `ui/public/public/scenes/landscape-lake-night.webp`; the day
+   panorama remains opaque and is used as-is.
 
-Until steps 1–3 are done, these stay here as raw source and are not referenced by the app.
+The compositor keeps the generated plate above the procedural sky and the Plan lake layer, so the
+apertures remain live for day/night FX, stars, and comets. The PNGs in this directory remain the
+canonical editable source plates.

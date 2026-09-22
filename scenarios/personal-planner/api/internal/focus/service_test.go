@@ -15,6 +15,8 @@ type fakeRepository struct {
 	created     Session
 	actuals     []Actual
 	corrections []Correction
+	notes       []SessionNote
+	pauses      []PauseEvent
 }
 
 func (r *fakeRepository) CreateActual(_ context.Context, actual Actual) (Actual, error) {
@@ -62,6 +64,9 @@ func (r *fakeRepository) CorrectActual(_ context.Context, update Actual, expecte
 }
 
 func (r *fakeRepository) Create(_ context.Context, session Session) (Session, error) {
+	if session.ID == "" {
+		session.ID = "session-1"
+	}
 	r.created = session
 	r.current = &session
 	return session, nil
@@ -88,6 +93,39 @@ func (r *fakeRepository) Transition(_ context.Context, session Session, revision
 	session.Revision++
 	r.current = &session
 	return session, nil
+}
+
+func (r *fakeRepository) SaveNote(_ context.Context, note SessionNote) (SessionNote, error) {
+	r.notes = append(r.notes, note)
+	return note, nil
+}
+
+func (r *fakeRepository) ListNotes(_ context.Context, localDate string) ([]SessionNote, error) {
+	result := []SessionNote{}
+	for _, note := range r.notes {
+		if localDate == "" || note.LocalDate == localDate {
+			result = append(result, note)
+		}
+	}
+	return result, nil
+}
+
+func (r *fakeRepository) RecordPauseEvent(_ context.Context, event PauseEvent) (PauseEvent, error) {
+	if event.ID == "" {
+		event.ID = "pause-1"
+	}
+	r.pauses = append(r.pauses, event)
+	return event, nil
+}
+
+func (r *fakeRepository) ListPauseEvents(_ context.Context, localDate string) ([]PauseEvent, error) {
+	result := []PauseEvent{}
+	for _, event := range r.pauses {
+		if localDate == "" || event.LocalDate == localDate {
+			result = append(result, event)
+		}
+	}
+	return result, nil
 }
 
 func TestServiceFocusLifecycleSeparatesActiveAndWallTime(t *testing.T) {
@@ -125,6 +163,31 @@ func TestServiceFocusLifecycleSeparatesActiveAndWallTime(t *testing.T) {
 	}
 	if _, ok, err := service.Current(context.Background()); err != nil || ok {
 		t.Fatalf("ended session remained current: ok=%v err=%v", ok, err)
+	}
+	note, err := service.SaveNote(context.Background(), session.ID, "Ship the smallest useful version next.")
+	if err != nil || note.LocalDate != "2026-09-19" {
+		t.Fatalf("unexpected session note: %#v err=%v", note, err)
+	}
+	if got, err := service.ListNotes(context.Background(), "2026-09-19"); err != nil || len(got) != 1 || got[0].Note == "" {
+		t.Fatalf("unexpected notes: %#v err=%v", got, err)
+	}
+}
+
+func TestServiceRecordsPauseReasonAfterPause(t *testing.T) {
+	clock := schedule.NewFake(time.Date(2026, 9, 19, 9, 0, 0, 0, time.UTC))
+	repo := &fakeRepository{}
+	service := NewService(repo, clock)
+	session, err := service.Start(context.Background(), StartInput{Title: "Draft"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	paused, err := service.Pause(context.Background(), session.ID, session.Revision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	event, err := service.RecordPauseEvent(context.Background(), paused.ID, PauseInterrupted)
+	if err != nil || event.Reason != PauseInterrupted || event.LocalDate != "2026-09-19" {
+		t.Fatalf("unexpected pause event: %#v err=%v", event, err)
 	}
 }
 
@@ -180,11 +243,20 @@ func TestSQLiteActualCorrectionRetainsAuditAndEffectiveValue(t *testing.T) {
 	if _, err := db.Exec(Schema()); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := db.Exec(`CREATE TABLE calendar_allocations (id TEXT PRIMARY KEY, work_item_id TEXT, local_date TEXT, start_minutes INTEGER, state TEXT)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO calendar_allocations(id, work_item_id, local_date, start_minutes, state) VALUES ('allocation-1', 'work-1', '2026-09-19', 540, 'accepted')`); err != nil {
+		t.Fatal(err)
+	}
 	clock := schedule.NewFake(time.Date(2026, 9, 19, 9, 0, 0, 0, time.UTC))
 	service := NewService(NewSQLiteRepository(db, clock), clock)
-	actual, err := service.RecordActual(context.Background(), RecordActualInput{Title: "Review launch brief", LocalDate: "2026-09-19", ReportedMinutes: 45})
+	actual, err := service.RecordActual(context.Background(), RecordActualInput{WorkItemID: "work-1", Title: "Review launch brief", LocalDate: "2026-09-19", ReportedMinutes: 45})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if actual.AllocationID != "allocation-1" {
+		t.Fatalf("expected automatic plan link, got %q", actual.AllocationID)
 	}
 	if _, err := service.CorrectActual(context.Background(), CorrectActualInput{ID: actual.ID, ExpectedRevision: actual.Revision, ReportedMinutes: 30, Note: "Removed interruption"}); err != nil {
 		t.Fatal(err)

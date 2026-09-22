@@ -48,8 +48,8 @@ export function TodayCaptureForm({ title, description, minutes, source, pending,
   </form>;
 }
 
-export function TodayTaskActions({ focusStarted, pending, hasWork, onFocus, onOpenDraft, onCapture }: { focusStarted: boolean; pending: boolean; hasWork: boolean; onFocus: () => void; onOpenDraft: () => void; onCapture: () => void }) {
-  return <div className="task-actions"><Button type="button" className="primary-action" icon={<Play size={18} fill="currentColor" />} onClick={onFocus} disabled={pending} pending={pending} pendingLabel="Saving…">{focusStarted ? "Pause focus" : "Start focus"}</Button>{hasWork ? <Button type="button" className="quiet-action" variant="secondary" icon={<FileText size={18} aria-hidden="true" />} onClick={onOpenDraft}>Open draft</Button> : <Button type="button" className="quiet-action" variant="secondary" icon={<FilePlus2 size={18} aria-hidden="true" />} onClick={onCapture}>Capture task</Button>}</div>;
+export function TodayTaskActions({ focusStarted, pending, hasWork, onFocus, onOpenDraft, onCapture, onComplete }: { focusStarted: boolean; pending: boolean; hasWork: boolean; onFocus: () => void; onOpenDraft: () => void; onCapture: () => void; onComplete?: () => void }) {
+  return <div className="task-actions"><Button type="button" className="primary-action" icon={<Play size={18} fill="currentColor" />} onClick={onFocus} disabled={pending} pending={pending} pendingLabel="Saving…">{focusStarted ? "Pause focus" : "Start focus"}</Button>{hasWork ? <><Button type="button" className="quiet-action" variant="secondary" icon={<FileText size={18} aria-hidden="true" />} onClick={onOpenDraft}>Open draft</Button>{onComplete && <Button type="button" className="quiet-action" variant="ghost" onClick={onComplete} disabled={pending}>Mark complete</Button>}</> : <Button type="button" className="quiet-action" variant="secondary" icon={<FilePlus2 size={18} aria-hidden="true" />} onClick={onCapture}>Capture task</Button>}</div>;
 }
 
 function TodayCloseButton({ label, onClick }: { label: string; onClick: () => void }) {

@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const client = vi.hoisted(() => ({ listGoals: vi.fn(), createGoal: vi.fn(), updateGoalProgress: vi.fn(), listMilestones: vi.fn(), createMilestone: vi.fn(), updateMilestoneStatus: vi.fn() }));
 vi.mock("@connectrpc/connect", () => ({ createClient: () => client }));
 
-import { completeMilestone, createGoal, createMilestone, fetchGoals, fetchMilestones, updateGoalProgress } from "./goals";
+import { completeMilestone, createGoal, createMilestone, fetchGoals, fetchMilestones, updateGoalProgress, updateGoalTargetDate } from "./goals";
+import { API_BASE } from "./client";
 
 afterEach(() => vi.clearAllMocks());
 
@@ -32,5 +33,11 @@ describe("goals API transport", () => {
     await expect(createGoal({ title: "Ship", purpose: "Useful", progressMethod: "manual", targetBasisPoints: 10000n })).rejects.toThrow("no goal");
     client.updateGoalProgress.mockResolvedValue({});
     await expect(updateGoalProgress({ id: "g-1", revision: 1n } as never, 2500n)).rejects.toThrow("no goal");
+  });
+
+  it("persists an explicit target date through the REST seam", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
+    await updateGoalTargetDate({ id: "g/1", targetDate: "2026-10-01" });
+    expect(fetch).toHaveBeenCalledWith(`${API_BASE}/api/v1/goals/g%2F1/target-date`, expect.objectContaining({ method: "POST", body: JSON.stringify({ target_date: "2026-10-01" }) }));
   });
 });

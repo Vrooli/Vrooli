@@ -44,6 +44,16 @@ func (f *fakeRepo) UpdateProgress(_ context.Context, id string, progress, revisi
 	f.progress.Revision = revision + 1
 	return f.progress, nil
 }
+func (f *fakeRepo) SetTargetDate(context.Context, string, string) error { return nil }
+
+func TestServiceValidatesTargetDate(t *testing.T) {
+	if err := NewService(&fakeRepo{}).SetTargetDate(context.Background(), "goal-1", "2026-10-01"); err != nil {
+		t.Fatal(err)
+	}
+	if err := NewService(&fakeRepo{}).SetTargetDate(context.Background(), "goal-1", "tomorrow"); err == nil {
+		t.Fatal("expected target date validation")
+	}
+}
 
 func TestServiceCreatePreservesOutcomeSemantics(t *testing.T) {
 	repo := &fakeRepo{}

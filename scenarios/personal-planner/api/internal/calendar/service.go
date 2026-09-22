@@ -226,5 +226,13 @@ func (s *service) CarryForward(ctx context.Context, in CarryForwardInput) (Alloc
 	if in.StartMinutes < 0 || in.StartMinutes >= 1440 {
 		return Allocation{}, ErrInvalidAllocation{"start_minutes", "must be within the day"}
 	}
+	if in.ReasonCode == "" {
+		in.ReasonCode = RescheduleDeprioritized
+	}
+	switch in.ReasonCode {
+	case RescheduleInterrupted, RescheduleUnderestimated, RescheduleBlocked, RescheduleDeprioritized, RescheduleExternal:
+	default:
+		return Allocation{}, ErrInvalidAllocation{"reason_code", "must be interrupted, underestimated, blocked, deprioritized, or external"}
+	}
 	return s.repo.CarryForward(ctx, in)
 }

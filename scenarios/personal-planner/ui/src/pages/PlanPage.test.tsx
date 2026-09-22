@@ -1,22 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { applyAllocationProposal, applyScheduleProposal, createRoutine, fetchAllocations, fetchRoutineOccurrences, fetchRoutines, fetchTodayAllocations, previewAllocation, previewSchedule, rescheduleRoutineOccurrence, skipRoutineOccurrence } from "../api/calendar";
-import { fetchWorkItems } from "../api/work";
+import { fetchWorkItems, updateWorkEstimate } from "../api/work";
 import { createCommitment, fetchCommitments } from "../api/commitments";
 import { fetchForecast, fetchForecastHistory } from "../api/forecasts";
 import { renderWithProviders } from "../test-utils";
 import { PlanPage } from "./PlanPage";
 
 vi.mock("../api/calendar", () => ({ fetchTodayAllocations: vi.fn(), fetchAllocations: vi.fn(), applyAllocationProposal: vi.fn(), applyScheduleProposal: vi.fn(), previewAllocation: vi.fn(), previewSchedule: vi.fn(), fetchRoutines: vi.fn(), createRoutine: vi.fn(), fetchRoutineOccurrences: vi.fn(), rescheduleRoutineOccurrence: vi.fn(), skipRoutineOccurrence: vi.fn() }));
-vi.mock("../api/work", () => ({ fetchWorkItems: vi.fn() }));
+vi.mock("../api/work", () => ({ fetchWorkItems: vi.fn(), updateWorkEstimate: vi.fn() }));
 vi.mock("../api/commitments", () => ({ createCommitment: vi.fn(), fetchCommitments: vi.fn(), updateCommitmentState: vi.fn() }));
 vi.mock("../api/forecasts", () => ({ fetchForecast: vi.fn(), fetchForecastHistory: vi.fn() }));
 
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
 
 beforeEach(() => {
@@ -29,6 +30,74 @@ beforeEach(() => {
 });
 
 describe("PlanPage", () => {
+  it("keeps the mobile plan spine to Day and Week until More is opened", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    vi.mocked(fetchTodayAllocations).mockResolvedValue({ plannedMinutes: 0, availableMinutes: 480, breathingRoomMinutes: 60, allocations: [] } as never);
+    vi.mocked(fetchWorkItems).mockResolvedValue([]);
+    renderWithProviders(<PlanPage />);
+    expect(await screen.findByRole("tab", { name: "Day" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Agenda" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "More" }));
+    expect(screen.getByRole("dialog", { name: "More planning views" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Agenda" }));
+    expect(screen.queryByRole("dialog", { name: "More planning views" })).not.toBeInTheDocument();
+  });
+
+  it("uses the mobile capacity ring instead of the desktop stat strip", async () => {
+    vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    vi.mocked(fetchTodayAllocations).mockResolvedValue({ plannedMinutes: 90, availableMinutes: 270, breathingRoomMinutes: 60, allocations: [] } as never);
+    vi.mocked(fetchWorkItems).mockResolvedValue([]);
+
+    renderWithProviders(<PlanPage />);
+
+    expect(await screen.findByLabelText("90 minutes planned of 360 available minutes")).toBeInTheDocument();
+    expect(screen.getByText("25%")).toBeInTheDocument();
+    expect(screen.queryByText("PLANNED")).not.toBeInTheDocument();
+  });
+
+  it("opens mobile placement as a focused sheet from the thumb-zone action", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    vi.mocked(fetchTodayAllocations).mockResolvedValue({ plannedMinutes: 0, availableMinutes: 480, breathingRoomMinutes: 60, allocations: [] } as never);
+    vi.mocked(fetchWorkItems).mockResolvedValue([{ id: "work-1", title: "Draft", remainingMinutes: 45 }] as never);
+
+    renderWithProviders(<PlanPage />);
+
+    expect(await screen.findByRole("button", { name: "More planning views" })).toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "+ Place work" }));
+    const dialog = screen.getByRole("dialog", { name: "Plot work on today’s chart" });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByTestId("forms.select")).toHaveTextContent("Draft");
+  });
+
+  it("keeps estimate calibration behind the mobile More sheet", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    vi.mocked(fetchTodayAllocations).mockResolvedValue({ plannedMinutes: 0, availableMinutes: 480, breathingRoomMinutes: 60, allocations: [] } as never);
+    vi.mocked(fetchWorkItems).mockResolvedValue([{ id: "work-1", title: "Draft", remainingMinutes: 45 }] as never);
+
+    renderWithProviders(<PlanPage />);
+
+    expect(await screen.findByRole("button", { name: "More planning views" })).toBeInTheDocument();
+    expect(screen.queryByText("Keep the estimate honest")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "More planning views" }));
+    await user.click(screen.getByRole("button", { name: "Update estimate" }));
+    const dialog = screen.getByRole("dialog", { name: "Update the estimate" });
+    expect(within(dialog).getByText("Keep the estimate honest")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Save estimate" })).toBeInTheDocument();
+  });
+
+  it("keeps placement visible in the desktop command chart", async () => {
+    vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    vi.mocked(fetchTodayAllocations).mockResolvedValue({ plannedMinutes: 0, availableMinutes: 480, breathingRoomMinutes: 60, allocations: [] } as never);
+    vi.mocked(fetchWorkItems).mockResolvedValue([{ id: "work-1", title: "Draft", remainingMinutes: 45 }] as never);
+
+    renderWithProviders(<PlanPage />);
+
+    expect(await screen.findByRole("button", { name: "+ Place work" })).toBeInTheDocument();
+  });
+
   it("shows capacity and a positioned accepted allocation", async () => {
     vi.mocked(fetchTodayAllocations).mockResolvedValue({
       plannedMinutes: 45,
@@ -150,6 +219,32 @@ describe("PlanPage", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Accept 13:30" }));
     expect(applyAllocationProposal).toHaveBeenCalledWith({ proposalId: "proposal-1", expectedRevision: 1n, idempotencyKey: "proposal-1:apply" });
     expect(await screen.findByRole("status")).toHaveTextContent("Placed on today’s accepted schedule");
+  });
+
+  it("records a changed remaining estimate and its reason", async () => {
+    vi.mocked(fetchTodayAllocations).mockResolvedValue({ plannedMinutes: 0, availableMinutes: 480, breathingRoomMinutes: 480, allocations: [] } as never);
+    vi.mocked(fetchWorkItems).mockResolvedValue([{ id: "work-1", title: "Draft", remainingMinutes: 45 }] as never);
+    vi.mocked(updateWorkEstimate).mockResolvedValue(undefined);
+    renderWithProviders(<PlanPage />);
+    await userEvent.clear(await screen.findByLabelText("Remaining minutes"));
+    await userEvent.type(screen.getByLabelText("Remaining minutes"), "75");
+    const reasonSelect = screen.getAllByLabelText("Estimate change reason").find((element) => element.tagName === "SELECT");
+    if (!reasonSelect) throw new Error("estimate reason select not found");
+    await userEvent.selectOptions(reasonSelect, "scope_changed");
+    await userEvent.click(screen.getByRole("button", { name: "Save estimate" }));
+    await waitFor(() => expect(updateWorkEstimate).toHaveBeenCalledWith({ id: "work-1", remainingMinutes: 75, reason: "scope_changed" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Estimate updated and remembered");
+  });
+
+  it("suggests a morning window for deep work and lets the planner accept it", async () => {
+    vi.mocked(fetchTodayAllocations).mockResolvedValue({ plannedMinutes: 0, availableMinutes: 480, breathingRoomMinutes: 480, allocations: [] } as never);
+    vi.mocked(fetchWorkItems).mockResolvedValue([{ id: "work-1", title: "Draft the launch story", remainingMinutes: 45 }] as never);
+    renderWithProviders(<PlanPage />);
+    await userEvent.clear(await screen.findByLabelText("Start"));
+    await userEvent.type(screen.getByLabelText("Start"), "13:00");
+    expect(await screen.findByLabelText("Morning energy suggestion")).toHaveTextContent("This looks like deep work.");
+    await userEvent.click(screen.getByRole("button", { name: "Use 09:00" }));
+    expect(screen.getByLabelText("Start")).toHaveValue("09:00");
   });
 
   it("keeps rejected placement explicit", async () => {

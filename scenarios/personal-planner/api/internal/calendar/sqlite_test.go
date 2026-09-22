@@ -339,6 +339,7 @@ func TestSQLiteCarryForwardPreservesHistoryAndIsIdempotent(t *testing.T) {
 		`CREATE TABLE work_items (id TEXT PRIMARY KEY, title TEXT, source_label TEXT)`,
 		`CREATE TABLE calendar_allocations (id TEXT PRIMARY KEY, work_item_id TEXT, local_date TEXT, start_minutes INTEGER, duration_minutes INTEGER, state TEXT, created_at TEXT)`,
 		`CREATE TABLE allocation_carry_forwards (source_allocation_id TEXT PRIMARY KEY, carried_allocation_id TEXT NOT NULL UNIQUE, target_local_date TEXT NOT NULL, created_at TEXT NOT NULL)`,
+		`CREATE TABLE reschedule_history (id TEXT PRIMARY KEY, allocation_id TEXT, from_date TEXT, to_date TEXT, reason_code TEXT, rescheduled_at TEXT)`,
 		`INSERT INTO work_items VALUES ('work-1','Draft','manual')`,
 		`INSERT INTO calendar_allocations VALUES ('allocation-1','work-1','2026-09-19',600,45,'accepted','2026-09-19T09:00:00Z')`,
 	} {

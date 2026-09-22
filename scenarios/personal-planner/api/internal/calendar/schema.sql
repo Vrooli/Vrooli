@@ -65,6 +65,16 @@ CREATE TABLE IF NOT EXISTS allocation_carry_forwards (
 );
 CREATE INDEX IF NOT EXISTS idx_allocation_carry_forwards_target ON allocation_carry_forwards(target_local_date);
 
+CREATE TABLE IF NOT EXISTS reschedule_history (
+  id TEXT PRIMARY KEY,
+  allocation_id TEXT NOT NULL,
+  from_date TEXT NOT NULL,
+  to_date TEXT NOT NULL,
+  reason_code TEXT NOT NULL,
+  rescheduled_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_reschedule_history_allocation ON reschedule_history(allocation_id, rescheduled_at DESC);
+
 CREATE TABLE IF NOT EXISTS routines (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,

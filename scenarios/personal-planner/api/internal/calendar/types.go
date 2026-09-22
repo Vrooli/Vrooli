@@ -56,9 +56,17 @@ type ApplyScheduleProposalInput struct {
 }
 
 type CarryForwardInput struct {
-	AllocationID, TargetLocalDate string
-	StartMinutes                  int
+	AllocationID, TargetLocalDate, ReasonCode string
+	StartMinutes                              int
 }
+
+const (
+	RescheduleInterrupted    = "interrupted"
+	RescheduleUnderestimated = "underestimated"
+	RescheduleBlocked        = "blocked"
+	RescheduleDeprioritized  = "deprioritized"
+	RescheduleExternal       = "external"
+)
 
 type Today struct {
 	Allocations                                                                 []Allocation

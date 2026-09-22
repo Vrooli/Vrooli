@@ -3,6 +3,7 @@ package work
 import (
 	"context"
 	"strings"
+	"time"
 )
 
 type Service interface {
@@ -10,6 +11,9 @@ type Service interface {
 	Get(context.Context, string) (WorkItem, error)
 	List(context.Context, int) ([]WorkItem, error)
 	TodayPlan(context.Context) (TodayPlan, error)
+	Snooze(context.Context, string, string, string) error
+	UpdateEstimate(context.Context, string, int, string) error
+	Complete(context.Context, string) error
 }
 
 type service struct{ repo Repository }
@@ -57,4 +61,35 @@ func (s *service) TodayPlan(ctx context.Context) (TodayPlan, error) {
 		plan.BreathingRoom = 0
 	}
 	return plan, nil
+}
+
+func (s *service) Snooze(ctx context.Context, id, until, reason string) error {
+	if strings.TrimSpace(id) == "" {
+		return ErrInvalidWorkItem{"id", "required"}
+	}
+	if _, err := time.ParseInLocation("2006-01-02", until, time.Local); err != nil {
+		return ErrInvalidWorkItem{"until", "must be YYYY-MM-DD"}
+	}
+	return s.repo.Snooze(ctx, id, until, strings.TrimSpace(reason))
+}
+
+func (s *service) Complete(ctx context.Context, id string) error {
+	if strings.TrimSpace(id) == "" {
+		return ErrInvalidWorkItem{"id", "required"}
+	}
+	return s.repo.Complete(ctx, id)
+}
+
+func (s *service) UpdateEstimate(ctx context.Context, id string, minutes int, reason string) error {
+	if strings.TrimSpace(id) == "" {
+		return ErrInvalidWorkItem{"id", "required"}
+	}
+	if minutes < 0 {
+		return ErrInvalidWorkItem{"remaining_minutes", "must be non-negative"}
+	}
+	reason = strings.TrimSpace(reason)
+	if len([]rune(reason)) > 200 {
+		return ErrInvalidWorkItem{"reason", "must be 200 characters or fewer"}
+	}
+	return s.repo.UpdateEstimate(ctx, id, minutes, reason)
 }

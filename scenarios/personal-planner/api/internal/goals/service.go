@@ -10,6 +10,7 @@ type (
 	Service interface {
 		List(context.Context) ([]Goal, error)
 		Create(context.Context, CreateInput) (Goal, error)
+		SetTargetDate(context.Context, string, string) error
 		UpdateProgress(context.Context, string, int64, int64) (Goal, error)
 		ListMilestones(context.Context, string) ([]Milestone, error)
 		CreateMilestone(context.Context, CreateMilestoneInput) (Milestone, error)
@@ -20,6 +21,19 @@ type (
 
 func NewService(repo Repository) Service                  { return &service{repo: repo} }
 func (s *service) List(c context.Context) ([]Goal, error) { return s.repo.List(c) }
+
+func (s *service) SetTargetDate(c context.Context, id, targetDate string) error {
+	if strings.TrimSpace(id) == "" {
+		return ErrInvalidGoal{"id", "required"}
+	}
+	targetDate = strings.TrimSpace(targetDate)
+	if targetDate != "" {
+		if _, err := time.Parse("2006-01-02", targetDate); err != nil {
+			return ErrInvalidGoal{"target_date", "must be YYYY-MM-DD or empty"}
+		}
+	}
+	return s.repo.SetTargetDate(c, id, targetDate)
+}
 func (s *service) Create(c context.Context, in CreateInput) (Goal, error) {
 	title := strings.TrimSpace(in.Title)
 	if title == "" {

@@ -15,6 +15,12 @@ vi.mock("../api/workspace", () => ({
   replaceAvailability: vi.fn().mockImplementation(async (input) => ({ windows: input.windows, exceptions: input.exceptions, revision: input.expectedRevision + 1n })),
 }));
 
+import { fetchReminderPreferences, saveReminderPreferences } from "../api/review";
+vi.mock("../api/review", () => ({
+  fetchReminderPreferences: vi.fn().mockResolvedValue({ enabled: true, quietStartMinutes: 1320, quietEndMinutes: 420, leadMinutes: 60, updatedAt: "" }),
+  saveReminderPreferences: vi.fn().mockImplementation(async (input) => ({ ...input, updatedAt: "saved" })),
+}));
+
 vi.mock("../api/integrations", () => ({
   fetchConnections: vi.fn().mockResolvedValue([]),
   createFixtureConnection: vi.fn().mockResolvedValue({ id: "fixture-1", provider: "fixture", displayName: "Observatory sample calendar", sourceKind: "fixture", status: "connected", healthMessage: "Synthetic read-only adapter", readOnly: true, calendarCount: 0, importedEventCount: 0, busyMinutes: 0, revision: 1n, lastSyncAt: undefined }),
@@ -25,6 +31,7 @@ vi.mock("../api/integrations", () => ({
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
+  vi.unstubAllGlobals();
 });
 
 describe("SettingsPage", () => {
@@ -36,7 +43,7 @@ describe("SettingsPage", () => {
     renderWithProviders(<SettingsPage />);
 
     expect(screen.getByText("Shape the Observatory around your day—appearance, capacity, availability, and connections.")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "A calm core, kept honest" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Calibrate your instrument." })).toBeInTheDocument();
     expect(screen.getByText(/Nothing essential is hidden behind an upgrade/)).toBeInTheDocument();
     expect(screen.getByText(/No billing is active/)).toBeInTheDocument();
   });
@@ -91,5 +98,32 @@ describe("SettingsPage", () => {
     expect(screen.getByText(/Live provider OAuth and credential storage are not configured/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Add sample calendar" }));
     await waitFor(() => expect(screen.getByText("Sample calendar added.")).toBeInTheDocument());
+  });
+
+  it("saves durable reminder quiet hours and lead time", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SettingsPage />);
+
+    expect(await screen.findByLabelText("Quiet hours start")).toHaveValue("22:00");
+    await user.clear(screen.getByLabelText("Lead time (minutes)"));
+    await user.type(screen.getByLabelText("Lead time (minutes)"), "30");
+    await user.click(screen.getByRole("button", { name: "Save reminder preferences" }));
+
+    await waitFor(() => expect(saveReminderPreferences).toHaveBeenCalledWith({ enabled: true, quietStartMinutes: 1320, quietEndMinutes: 420, leadMinutes: 30 }));
+    expect(await screen.findByText("Reminder preferences saved.")).toBeInTheDocument();
+    expect(fetchReminderPreferences).toHaveBeenCalled();
+  });
+
+  it("uses a mobile settings drill-in instead of a wall of sections", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    renderWithProviders(<SettingsPage />);
+    expect(await screen.findByRole("navigation", { name: "Settings sections" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Planning profile" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("region", { name: "Planning profile" })).toHaveClass("settings-mobile-hidden");
+    await user.click(screen.getByRole("button", { name: "Planning profile" }));
+    expect(await screen.findByLabelText("Timezone")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Planning profile" })).not.toHaveClass("settings-mobile-hidden");
+    expect(screen.getByRole("button", { name: "Planning profile" })).toHaveAttribute("aria-selected", "true");
   });
 });

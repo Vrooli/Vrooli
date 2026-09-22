@@ -57,9 +57,28 @@ func (r *sqliteRepository) Create(ctx context.Context, g Goal) (Goal, error) {
 	return g, nil
 }
 
+func (r *sqliteRepository) SetTargetDate(ctx context.Context, id, targetDate string) error {
+	res, err := r.db.ExecContext(ctx, `UPDATE goals SET target_date=?,updated_at=?,revision=revision+1 WHERE id=?`, targetDate, r.clock.Now().Unix(), id)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return ErrGoalNotFound{id}
+	}
+	return nil
+}
+
 func (r *sqliteRepository) UpdateProgress(ctx context.Context, id string, progress, revision int64) (Goal, error) {
 	now := r.clock.Now().Unix()
-	res, err := r.db.ExecContext(ctx, `UPDATE goals SET progress_basis_points=?,updated_at=?,revision=revision+1 WHERE id=? AND revision=?`, progress, now, id, revision)
+	status := StatusActive
+	if progress == 10000 {
+		status = "complete"
+	}
+	res, err := r.db.ExecContext(ctx, `UPDATE goals SET progress_basis_points=?,status=?,updated_at=?,revision=revision+1 WHERE id=? AND revision=?`, progress, status, now, id, revision)
 	if err != nil {
 		return Goal{}, err
 	}
@@ -69,6 +88,13 @@ func (r *sqliteRepository) UpdateProgress(ctx context.Context, id string, progre
 	}
 	if n != 1 {
 		return Goal{}, ErrRevisionConflict{id}
+	}
+	completedDate := ""
+	if status == "complete" {
+		completedDate = r.clock.Now().Format("2006-01-02")
+	}
+	if _, err := r.db.ExecContext(ctx, `UPDATE goals SET completed_date=? WHERE id=?`, completedDate, id); err != nil {
+		return Goal{}, fmt.Errorf("persist goal completion date: %w", err)
 	}
 	var g Goal
 	err = r.db.QueryRowContext(ctx, `SELECT id,title,purpose,status,progress_method,progress_basis_points,target_basis_points,revision FROM goals WHERE id=?`, id).Scan(&g.ID, &g.Title, &g.Purpose, &g.Status, &g.ProgressMethod, &g.ProgressBasisPoints, &g.TargetBasisPoints, &g.Revision)
@@ -103,9 +129,14 @@ func (r *sqliteRepository) CreateMilestone(ctx context.Context, m Milestone) (Mi
 		m.ID = r.id()
 	}
 	now := r.clock.Now().Unix()
-	_, err := r.db.ExecContext(ctx, `INSERT INTO milestones (id,goal_id,title,criteria,due_date,status,created_at,updated_at,revision) VALUES (?,?,?,?,?,?,?,?,?)`, m.ID, m.GoalID, m.Title, m.Criteria, m.DueDate, m.Status, now, now, m.Revision)
+	_, err := r.db.ExecContext(ctx, `INSERT INTO milestones (id,goal_id,title,criteria,due_date,original_due_date,status,created_at,updated_at,revision) VALUES (?,?,?,?,?,?,?,?,?,?)`, m.ID, m.GoalID, m.Title, m.Criteria, m.DueDate, m.DueDate, m.Status, now, now, m.Revision)
 	if err != nil {
 		return Milestone{}, fmt.Errorf("insert milestone: %w", err)
+	}
+	if m.DueDate != "" {
+		if _, err := r.db.ExecContext(ctx, `UPDATE goals SET target_date=COALESCE(NULLIF(target_date,''),?),updated_at=? WHERE id=?`, m.DueDate, now, m.GoalID); err != nil {
+			return Milestone{}, fmt.Errorf("persist goal target date: %w", err)
+		}
 	}
 	if m.LinkedWorkItemID != "" {
 		if _, err := r.db.ExecContext(ctx, `INSERT INTO milestone_work_links (milestone_id,work_item_id,created_at) VALUES (?,?,?)`, m.ID, m.LinkedWorkItemID, now); err != nil {
@@ -131,7 +162,11 @@ func (r *sqliteRepository) UpdateMilestoneStatus(ctx context.Context, id, status
 			return Milestone{}, ErrPrerequisitesIncomplete{id}
 		}
 	}
-	res, err := r.db.ExecContext(ctx, `UPDATE milestones SET status=?,updated_at=?,revision=revision+1 WHERE id=? AND revision=?`, status, now, id, revision)
+	completedDate := ""
+	if status == MilestoneDone {
+		completedDate = r.clock.Now().Format("2006-01-02")
+	}
+	res, err := r.db.ExecContext(ctx, `UPDATE milestones SET status=?,completed_date=?,updated_at=?,revision=revision+1 WHERE id=? AND revision=?`, status, completedDate, now, id, revision)
 	if err != nil {
 		return Milestone{}, err
 	}

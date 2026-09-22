@@ -779,6 +779,9 @@ func (r *sqliteRepository) CarryForward(ctx context.Context, in CarryForwardInpu
 	if _, err := tx.ExecContext(ctx, `INSERT INTO allocation_carry_forwards (source_allocation_id,carried_allocation_id,target_local_date,created_at) VALUES (?,?,?,?)`, source.ID, carried.ID, carried.LocalDate, carried.CreatedAt.Format(time.RFC3339Nano)); err != nil {
 		return rollback(fmt.Errorf("record carry-forward: %w", err))
 	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO reschedule_history (id,allocation_id,from_date,to_date,reason_code,rescheduled_at) VALUES (?,?,?,?,?,?)`, r.id(), source.ID, source.LocalDate, carried.LocalDate, in.ReasonCode, carried.CreatedAt.Format(time.RFC3339Nano)); err != nil {
+		return rollback(fmt.Errorf("record reschedule history: %w", err))
+	}
 	if err := tx.Commit(); err != nil {
 		return Allocation{}, fmt.Errorf("commit carry-forward: %w", err)
 	}
