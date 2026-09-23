@@ -1,0 +1,123 @@
+{
+  "cycle": "072",
+  "issues": [
+    "BAS-RF-103"
+  ],
+  "recorded_at": "2026-09-23",
+  "status": "qualified_and_deployed",
+  "build_identity": "sha256:9ad04e2414f9cdde4014149f5529b0d3ab0337d252af1362e1b1b5dba8c6f160",
+  "source": {
+    "baseline": "/tmp/bas-before-072/manifest.json",
+    "freeze": "/tmp/bas-frozen-072.json"
+  },
+  "tests": {
+    "red_fixture": {
+      "passed": 4,
+      "failed": 6,
+      "artifact": "/tmp/bas-breaker-availability-red-072.json"
+    },
+    "maintained_red": {
+      "failed_owner_cases": 14,
+      "failed_client_cases": 6,
+      "artifact": "/tmp/bas-breaker-maintained-red-072.txt"
+    },
+    "race_packages": [
+      "internal/resilience",
+      "automation/driver",
+      "storage",
+      "services/live-capture",
+      "services/session-profile"
+    ],
+    "race_log": "/tmp/bas-breaker-races-072.txt",
+    "build": "passed",
+    "green_fixture": {
+      "passed": 10,
+      "artifact": "/tmp/bas-breaker-availability-green-072.json"
+    },
+    "native_client": {
+      "passed": 13,
+      "artifact": "/tmp/bas-breaker-live-072.json",
+      "scope": "compiled production Go Client against live driver; healthy storage and API save/close; no fault injected into API-global instance"
+    },
+    "saved_workflow": {
+      "passed": 12,
+      "failed": 0,
+      "execution_id": "49f61a40-6ad5-4a09-a94a-c43652085214",
+      "artifact_dir": "/tmp/bas-recording-e2e-EQbL3V",
+      "effects": [
+        {
+          "sequence": 1,
+          "context": "fixture_context=8e31ac05-fd53-4f9d-aa71-f9c99504e697",
+          "received_at": "2026-09-23T06:23:48.951Z"
+        },
+        {
+          "sequence": 2,
+          "context": "fixture_context=f5e70043-68d6-4b6d-83a8-f40409ffdc72",
+          "received_at": "2026-09-23T06:23:49.193Z"
+        },
+        {
+          "sequence": 3,
+          "context": "fixture_context=b600984b-d4c1-46d9-bb56-43366941a1ff",
+          "received_at": "2026-09-23T06:23:49.842Z"
+        }
+      ]
+    },
+    "profiles": {
+      "full_identity_reads": 3,
+      "preserved": true,
+      "artifact": "/tmp/bas-profile-final-072.txt",
+      "api_metadata": "/tmp/bas-profile-api-final-072.json"
+    }
+  },
+  "measurement": {
+    "runtime_lines_before": 354,
+    "runtime_lines_after": 350,
+    "go_before": {
+      "functions": 16,
+      "sum": 52
+    },
+    "go_after": {
+      "functions": 16,
+      "sum": 53
+    },
+    "typescript": "unchanged",
+    "tidiness": {
+      "run_id": "20260923-061909-ef387488",
+      "summary": {
+        "totalFindings": 1137,
+        "longFiles": 103,
+        "complexity": 401,
+        "duplication": 612,
+        "coupling": 20,
+        "duplicationLineDebt": 31313
+      },
+      "budget": "failed"
+    }
+  },
+  "review": {
+    "preserved": [
+      "original typed request errors",
+      "HTTP408/server/transport/deadline outage isolation",
+      "cancellation",
+      "429 backpressure",
+      "half-open recovery"
+    ],
+    "removed": [
+      "429-only special case",
+      "redundant deadline branch"
+    ],
+    "remaining": [
+      "original071 initiating frame HTTP error class not established",
+      "broader recovery and soak qualification"
+    ],
+    "complexity": "runtime -4 lines, Go complexity +1, no per-cycle complexity reduction claimed; cumulative affected Go -129"
+  },
+  "qualification_snapshot": {
+    "board": "/tmp/bas-board-result-072.json",
+    "required": 17,
+    "unqualified": 17,
+    "contract": "/tmp/bas-contract-072.txt",
+    "inventory": "/tmp/bas-inventory-072.json"
+  },
+  "pending_operations": {}
+}

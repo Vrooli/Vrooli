@@ -104,6 +104,7 @@ export async function handleSessionStart(
       workflow_id: request.workflow_id,
       viewport: request.viewport,
       reuse_mode: (request.reuse_mode as 'fresh' | 'clean' | 'reuse') || 'fresh',
+      frame_scale: request.frame_streaming?.scale ?? 'css',
       base_url: request.base_url,
       labels: request.labels,
       required_capabilities: request.required_capabilities,
@@ -149,26 +150,32 @@ export async function handleSessionStart(
       };
       void sessionManager.waitForPipelineReady(sessionId, 5000).then((ready) => {
         if (!ready) return;
-        provider.getSession(sessionId);
+        const session = provider.getSession(sessionId);
         startFrameStreaming(sessionId, provider, {
           callbackUrl: frameStreaming.callback_url,
           quality: frameStreaming.quality,
           fps: frameStreaming.fps,
+          scale: session.spec.frame_scale ?? 'css',
         });
       }).catch((error: unknown) => {
         logger.debug('Deferred frame preview did not start', { sessionId, error: String(error) });
       });
     }
 
+    const current = sessionManager.getSessionForLease(sessionId, spec.execution_id, leaseId);
+    const activePageId = current.pageToIdMap.get(current.page);
+    if (!isOperational(current.phase) || !activePageId) throw new SessionNotFoundError(sessionId);
+
     const response: StartSessionResponse = {
       session_id: sessionId,
-      last_instruction_sequence: sessionManager.peekSession(sessionId).lastInstructionSequence,
+      last_instruction_sequence: current.lastInstructionSequence,
+      active_page_id: activePageId,
       lease_id: leaseId,
       phase: 'ready',
       created_at: createdAt.toISOString(),
       reused: reused || undefined, // Only include if true
       actual_viewport: actualViewport, // Report actual Playwright viewport
-      audio_device_evidence: sessionManager.peekSession(sessionId).audioDeviceEvidence,
+      audio_device_evidence: current.audioDeviceEvidence,
     };
 
     sendJson(res, 200, response);

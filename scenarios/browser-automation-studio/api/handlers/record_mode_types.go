@@ -191,6 +191,7 @@ type ReplayPreviewResponse struct {
 
 // NavigateRecordingRequest is the request body for navigating the recording session.
 type NavigateRecordingRequest struct {
+	PageID    string `json:"page_id,omitempty"`
 	URL       string `json:"url"`
 	WaitUntil string `json:"wait_until,omitempty"`
 	TimeoutMs int    `json:"timeout_ms,omitempty"`
@@ -227,24 +228,11 @@ type RecordingScreenshotResponse struct {
 // Frame Streaming Types
 // =============================================================================
 
-// RecordingFrameResponse is the response for lightweight frame previews.
-// Uses WebP format for ~25-30% better compression than JPEG at same quality.
-type RecordingFrameResponse struct {
-	SessionID   string `json:"session_id"`
-	Mime        string `json:"mime"` // "image/webp" or "image/jpeg"
-	Image       string `json:"image"`
-	Width       int    `json:"width"`
-	Height      int    `json:"height"`
-	CapturedAt  string `json:"captured_at"`
-	ContentHash string `json:"content_hash"`         // MD5 hash of raw frame buffer for reliable ETag
-	PageTitle   string `json:"page_title,omitempty"` // Current page title (document.title)
-	PageURL     string `json:"page_url,omitempty"`   // Current page URL
-}
-
 // RecordingViewportRequest updates viewport dimensions.
 type RecordingViewportRequest struct {
-	Width  int `json:"width"`
-	Height int `json:"height"`
+	PageID string `json:"page_id,omitempty"`
+	Width  int    `json:"width"`
+	Height int    `json:"height"`
 }
 
 // UpdateStreamSettingsRequest is the request body for updating stream settings mid-session.

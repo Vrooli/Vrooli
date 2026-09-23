@@ -59,9 +59,7 @@ func (s *stubHub) BroadcastTimelineEntry(sessionID string, entry *bastimeline.Ti
 
 func (s *stubHub) BroadcastBinaryFrame(executionID string, data []byte) {}
 
-func (s *stubHub) BroadcastRecordingFrame(sessionID string, frame *wsHub.RecordingFrame) {}
-
-func (s *stubHub) HasRecordingSubscribers(sessionID string) bool { return false }
+func (s *stubHub) HasRecordingFrameSubscribers(sessionID string) bool { return false }
 
 func (s *stubHub) BroadcastPerfStats(sessionID string, stats any) {}
 
@@ -304,9 +302,7 @@ func (b *blockingHub) BroadcastTimelineEntry(sessionID string, entry *bastimelin
 
 func (b *blockingHub) BroadcastBinaryFrame(executionID string, data []byte) {}
 
-func (b *blockingHub) BroadcastRecordingFrame(sessionID string, frame *wsHub.RecordingFrame) {}
-
-func (b *blockingHub) HasRecordingSubscribers(sessionID string) bool { return false }
+func (b *blockingHub) HasRecordingFrameSubscribers(sessionID string) bool { return false }
 
 func (b *blockingHub) BroadcastPerfStats(sessionID string, stats any) {}
 

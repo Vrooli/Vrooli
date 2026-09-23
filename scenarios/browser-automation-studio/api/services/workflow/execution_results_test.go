@@ -5,7 +5,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,6 +18,8 @@ import (
 	uxcollector "github.com/vrooli/browser-automation-studio/services/uxmetrics/collector"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 )
 
@@ -46,6 +50,231 @@ func (s *lifecycleSink) CloseExecution(id uuid.UUID) {
 type lifecycleExecutor struct{ err error }
 
 func (e lifecycleExecutor) Execute(context.Context, executor.Request) error { return e.err }
+
+type completionRepository struct {
+	database.Repository
+	mu           sync.Mutex
+	index        database.ExecutionIndex
+	workflow     *database.WorkflowIndex
+	project      *database.ProjectIndex
+	reads        int
+	failTerminal bool
+	readErr      error
+}
+
+func (r *completionRepository) GetWorkflow(context.Context, uuid.UUID) (*database.WorkflowIndex, error) {
+	return r.workflow, nil
+}
+
+func (r *completionRepository) GetWorkflowByName(context.Context, string, string) (*database.WorkflowIndex, error) {
+	return r.workflow, nil
+}
+
+func (r *completionRepository) GetProject(context.Context, uuid.UUID) (*database.ProjectIndex, error) {
+	return r.project, nil
+}
+
+func (r *completionRepository) CreateExecution(_ context.Context, index *database.ExecutionIndex) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.index = *index
+	return nil
+}
+
+func (r *completionRepository) GetExecution(context.Context, uuid.UUID) (*database.ExecutionIndex, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.reads++
+	if r.readErr != nil {
+		return nil, r.readErr
+	}
+	copy := r.index
+	return &copy, nil
+}
+
+func (r *completionRepository) UpdateExecutionStatus(_ context.Context, _ uuid.UUID, status string, detail *string, completed *time.Time, updated time.Time) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if completed != nil && r.failTerminal {
+		return errors.New("terminal index write failed")
+	}
+	r.index.Status, r.index.CompletedAt, r.index.UpdatedAt = status, completed, updated
+	if detail != nil {
+		r.index.ErrorMessage = *detail
+	}
+	return nil
+}
+
+type completionExecutor func(context.Context, executor.Request) error
+
+func (f completionExecutor) Execute(ctx context.Context, req executor.Request) error {
+	return f(ctx, req)
+}
+
+type completionResult struct {
+	status    basbase.ExecutionStatus
+	completed bool
+	detail    string
+	err       error
+}
+
+func newCompletionFixture(t *testing.T, mode string, run completionExecutor) (*WorkflowService, *completionRepository, func(context.Context, bool) completionResult) {
+	t.Helper()
+	project := &database.ProjectIndex{ID: uuid.New(), FolderPath: t.TempDir()}
+	id := uuid.New()
+	flow := &basworkflows.WorkflowDefinitionV2{Nodes: []*basworkflows.WorkflowNodeV2{{Id: "navigate", Action: &basactions.ActionDefinition{
+		Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+		Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid"}},
+	}}}}
+	summary := &basapi.WorkflowSummary{Id: id.String(), ProjectId: project.ID.String(), Name: "completion fixture", Version: 1, FlowDefinition: flow}
+	_, relative, err := WriteWorkflowSummaryFile(project, summary, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := &completionRepository{workflow: &database.WorkflowIndex{ID: id, ProjectID: &project.ID, FilePath: relative, Version: 1}, project: project}
+	service := &WorkflowService{repo: repo, executor: run, executionDataRoot: t.TempDir()}
+	invoke := func(ctx context.Context, wait bool) completionResult {
+		if mode == "saved" {
+			response, err := service.ExecuteWorkflowAPI(ctx, &basapi.ExecuteWorkflowRequest{WorkflowId: id.String(), WaitForCompletion: wait})
+			return completionResult{response.GetStatus(), response.GetCompletedAt() != nil, response.GetError(), err}
+		}
+		response, err := service.ExecuteAdhocWorkflowAPI(ctx, &basexecution.ExecuteAdhocRequest{FlowDefinition: flow, WaitForCompletion: wait})
+		return completionResult{response.GetStatus(), response.GetCompletedAt() != nil, response.GetError(), err}
+	}
+	return service, repo, invoke
+}
+
+// [REQ:BAS-RH-J07] Waiting observes the owned runner's completion without a
+// polling delay or repeated reads of an execution that is still running.
+func TestSynchronousExecutionCompletion(t *testing.T) {
+	for _, mode := range []string{"saved", "adhoc"} {
+		for _, tc := range []struct {
+			name   string
+			delay  time.Duration
+			runErr error
+			status basbase.ExecutionStatus
+		}{
+			{"immediate", 0, nil, basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED},
+			{"delayed", 1025 * time.Millisecond, nil, basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED},
+			{"failed", 0, errors.New("action failed"), basbase.ExecutionStatus_EXECUTION_STATUS_FAILED},
+			{"cancelled", 0, context.Canceled, basbase.ExecutionStatus_EXECUTION_STATUS_CANCELLED},
+		} {
+			t.Run(mode+"/"+tc.name, func(t *testing.T) {
+				synctest.Test(t, func(t *testing.T) {
+					_, repo, invoke := newCompletionFixture(t, mode, func(context.Context, executor.Request) error { time.Sleep(tc.delay); return tc.runErr })
+					start := time.Now()
+					got := invoke(context.Background(), true)
+					if got.err != nil || !got.completed || got.status != tc.status {
+						t.Fatalf("completion = %+v, want %s with terminal timestamp", got, tc.status)
+					}
+					wantDetail := ""
+					if tc.runErr != nil {
+						wantDetail = tc.runErr.Error()
+					}
+					if tc.status == basbase.ExecutionStatus_EXECUTION_STATUS_CANCELLED {
+						wantDetail = "execution cancelled"
+					}
+					if got.detail != wantDetail {
+						t.Errorf("execution failure detail = %q, want %q", got.detail, wantDetail)
+					}
+					if elapsed := time.Since(start); elapsed != tc.delay {
+						t.Errorf("completion added %v beyond runner duration", elapsed-tc.delay)
+					}
+					if repo.reads != 2 {
+						t.Errorf("execution reads = %d; want initial runner read and one terminal receipt", repo.reads)
+					}
+				})
+			})
+		}
+	}
+}
+
+func TestSynchronousExecutionRejectsMissingTerminalReceipt(t *testing.T) {
+	for _, mode := range []string{"saved", "adhoc"} {
+		t.Run(mode, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				_, repo, invoke := newCompletionFixture(t, mode, func(context.Context, executor.Request) error { return nil })
+				repo.failTerminal = true
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
+				got := invoke(ctx, true)
+				if got.err == nil || errors.Is(got.err, context.DeadlineExceeded) {
+					t.Fatalf("missing terminal receipt must fail when the runner exits, got %+v", got)
+				}
+			})
+		})
+	}
+}
+
+type delayedCompletionSink struct {
+	*events.MemorySink
+	release <-chan struct{}
+}
+
+func (s *delayedCompletionSink) CloseExecution(id uuid.UUID) {
+	<-s.release
+	s.MemorySink.CloseExecution(id)
+}
+
+func TestSynchronousExecutionWaitsForOwnedTeardown(t *testing.T) {
+	for _, mode := range []string{"saved", "adhoc"} {
+		t.Run(mode, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				service, _, invoke := newCompletionFixture(t, mode, func(context.Context, executor.Request) error { return nil })
+				release := make(chan struct{})
+				sink := &delayedCompletionSink{MemorySink: events.NewMemorySink(contracts.DefaultEventBufferLimits), release: release}
+				service.eventSinkFactory = func() events.Sink { return sink }
+				result := make(chan completionResult, 1)
+				go func() { result <- invoke(context.Background(), true) }()
+				synctest.Wait()
+				time.Sleep(300 * time.Millisecond)
+				synctest.Wait()
+				returned := false
+				select {
+				case got := <-result:
+					returned = true
+					t.Errorf("returned before owned teardown finished: %+v", got)
+				default:
+				}
+				close(release)
+				synctest.Wait()
+				if !returned {
+					got := <-result
+					if got.err != nil || !got.completed || got.status != basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED {
+						t.Errorf("completion after teardown = %+v", got)
+					}
+				}
+			})
+		})
+	}
+}
+
+func TestSynchronousWaitCancellationPreservesDetachedExecution(t *testing.T) {
+	for _, mode := range []string{"saved", "adhoc"} {
+		t.Run(mode, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				release := make(chan struct{})
+				var executionErr error
+				_, repo, invoke := newCompletionFixture(t, mode, func(ctx context.Context, _ executor.Request) error { <-release; executionErr = ctx.Err(); return nil })
+				ctx, cancel := context.WithCancel(context.Background())
+				result := make(chan completionResult, 1)
+				go func() { result <- invoke(ctx, true) }()
+				synctest.Wait()
+				cancel()
+				synctest.Wait()
+				got := <-result
+				if !errors.Is(got.err, context.Canceled) {
+					t.Errorf("cancelled waiter error = %v", got.err)
+				}
+				close(release)
+				synctest.Wait()
+				if executionErr != nil || repo.index.CompletedAt == nil {
+					t.Fatalf("detached execution did not finish: context=%v status=%s", executionErr, repo.index.Status)
+				}
+			})
+		})
+	}
+}
 
 // [REQ:BAS-RH-J07] The workflow owner retires decorated sinks on all exits.
 func TestWorkflowClosesDecoratedSinkOnEveryExit(t *testing.T) {
@@ -166,6 +395,53 @@ func TestExecutionOutcomeDistinguishesCancellationFromFailure(t *testing.T) {
 			if tc.want == "failed" && detail != tc.err.Error() {
 				t.Fatalf("failure detail lost: %q", detail)
 			}
+		})
+	}
+}
+
+func TestSynchronousExecutionReportsEarlyRunnerReadFailure(t *testing.T) {
+	for _, mode := range []string{"saved", "adhoc"} {
+		t.Run(mode, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				called := false
+				_, repo, invoke := newCompletionFixture(t, mode, func(context.Context, executor.Request) error { called = true; return nil })
+				want := errors.New("execution index unavailable")
+				repo.readErr = want
+				start := time.Now()
+				got := invoke(context.Background(), true)
+				if !errors.Is(got.err, want) || called || time.Since(start) != 0 {
+					t.Fatalf("early runner failure = %+v, executor called=%t, elapsed=%s", got, called, time.Since(start))
+				}
+			})
+		})
+	}
+}
+
+func TestAsynchronousExecutionStillReturnsBeforeRunnerFinishes(t *testing.T) {
+	for _, mode := range []string{"saved", "adhoc"} {
+		t.Run(mode, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				release := make(chan struct{})
+				var executionErr error
+				_, repo, invoke := newCompletionFixture(t, mode, func(ctx context.Context, _ executor.Request) error { <-release; executionErr = ctx.Err(); return nil })
+				ctx, cancel := context.WithCancel(context.Background())
+				start := time.Now()
+				got := invoke(ctx, false)
+				cancel()
+				synctest.Wait()
+				wantStatus := basbase.ExecutionStatus_EXECUTION_STATUS_PENDING
+				if mode == "adhoc" {
+					wantStatus = basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING
+				}
+				if got.err != nil || got.completed || got.status != wantStatus || time.Since(start) != 0 {
+					t.Errorf("asynchronous admission = %+v, elapsed=%s", got, time.Since(start))
+				}
+				close(release)
+				synctest.Wait()
+				if executionErr != nil || repo.index.CompletedAt == nil {
+					t.Errorf("asynchronous runner failed: context=%v status=%s", executionErr, repo.index.Status)
+				}
+			})
 		})
 	}
 }

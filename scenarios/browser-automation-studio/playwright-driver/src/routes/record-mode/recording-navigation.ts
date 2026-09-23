@@ -12,16 +12,16 @@
  */
 
 import type { IncomingMessage, ServerResponse } from 'http';
-import { isOperational, type SessionManager } from '../../session';
+import type { SessionManager } from '../../session';
 import type { Page } from 'rebrowser-playwright';
 import { createCDPSession, detachCDPSession } from '../../session/cdp-session';
 import type { Config } from '../../config';
 import { parseJsonBody, sendJson, sendError } from '../../middleware';
 import { logger, SessionNotFoundError } from '../../utils';
-import { recordingOwner } from './recording-lifecycle';
+import { recordingOwner } from './recording-ownership';
 import { verifyScriptInjection } from '../../recording';
 import { clearFrameCache } from './recording-frames';
-import { captureThumbnail, emitHistoryCallback } from './recording-pages';
+import { captureThumbnail, emitHistoryCallback, readFaviconUrl } from './recording-pages';
 import type { NavigateRequest, NavigationResponse, NavigationStateResponse } from './types';
 
 // Every history observation owns a short-lived attachment to the original page.
@@ -61,14 +61,21 @@ function navigationHandler(operation: NavigationOperation) {
       const ownedSession = recordingOwner(body, sessionId, sessionManager);
       const session = ownedSession();
       const page = session.page;
+      const pageId = session.pageToIdMap.get(page);
+      if (!pageId) throw new Error('Active recording page is not registered');
+      const request = body as unknown as NavigateRequest;
+      if (request.expected_page_id !== undefined && request.expected_page_id !== pageId) {
+        sendJson(res, 409, { error: 'PAGE_CHANGED', message: 'The selected recording tab changed before navigation started' });
+        return;
+      }
       const ownedPage = () => {
-        if (ownedSession().page !== page) throw new SessionNotFoundError(sessionId);
+        if (ownedSession().page !== page || session.pageToIdMap.get(page) !== pageId) throw new SessionNotFoundError(sessionId);
       };
       sessionManager.updateActivity(sessionId);
-      const request = body as unknown as NavigateRequest;
       const options = { waitUntil: request.wait_until || 'load', timeout: request.timeout_ms ?? config.execution.navigationTimeoutMs };
       const direction = operation === 'go-back' ? -1 : operation === 'go-forward' ? 1 : 0;
       const before = direction ? await readBrowserHistory(page, ownedPage) : undefined;
+      ownedPage();
       const noHistory = () => sendJson(res, 400, {
         error: direction < 0 ? 'CANNOT_GO_BACK' : 'CANNOT_GO_FORWARD',
         message: direction < 0 ? 'No history to go back to' : 'No forward history to navigate to',
@@ -142,8 +149,7 @@ function navigationHandler(operation: NavigationOperation) {
 
         ownedPage();
       }
-      const url = page.url();
-      const title = await page.title().catch(() => '');
+      const [title, faviconUrl] = await Promise.all([page.title().catch(() => ''), readFaviconUrl(page)]);
       ownedPage();
       let screenshot: string | undefined;
       if (operation === 'navigate' && request.capture) {
@@ -160,7 +166,9 @@ function navigationHandler(operation: NavigationOperation) {
       ownedPage();
 
       const history = await readBrowserHistory(page, ownedPage);
+      ownedPage();
       if (before && history.entries[history.currentIndex]?.id === before.entries[before.currentIndex]?.id) return noHistory();
+      const url = page.url();
       // Publish cache/callback/response only after all awaited work is current.
       clearFrameCache(sessionId);
       if (operation === 'navigate') {
@@ -169,7 +177,7 @@ function navigationHandler(operation: NavigationOperation) {
         });
       }
       const response: NavigationResponse = {
-        session_id: sessionId, url, title,
+        session_id: sessionId, driver_page_id: pageId, url, title, favicon_url: faviconUrl,
         ...navigationAbility(history), screenshot,
       };
       sendJson(res, 200, response);
@@ -184,17 +192,24 @@ export const handleRecordReload = navigationHandler('reload');
 export const handleRecordGoBack = navigationHandler('go-back');
 export const handleRecordGoForward = navigationHandler('go-forward');
 
-// Read handlers bind the selected Session/page, without requiring mutation authority.
+// History observations retain the admitted lease and selected page across CDP work.
 function navigationReadHandler(stack: boolean) {
   return async (
-    _req: IncomingMessage, res: ServerResponse, sessionId: string,
+    req: IncomingMessage, res: ServerResponse, sessionId: string,
     sessionManager: SessionManager, _config: Config
   ): Promise<void> => {
     try {
-      const session = sessionManager.getSession(sessionId);
+      const query = Object.fromEntries(new URL(req.url ?? '', 'http://driver').searchParams);
+      const ownedSession = recordingOwner(query, sessionId, sessionManager);
+      const session = ownedSession();
       const page = session.page;
+      const pageId = session.pageToIdMap.get(page);
+      if (!pageId || query.expected_page_id !== pageId) {
+        sendJson(res, 409, {error: 'PAGE_CHANGED', message: 'The selected recording tab changed before history was read'});
+        return;
+      }
       const assertCurrent = () => {
-        if (sessionManager.peekSession(sessionId) !== session || session.page !== page || !isOperational(session.phase)) {
+        if (ownedSession().page !== page || session.pageToIdMap.get(page) !== pageId) {
           throw new SessionNotFoundError(sessionId);
         }
       };
@@ -202,6 +217,7 @@ function navigationReadHandler(stack: boolean) {
       const title = stack ? '' : await page.title().catch(() => '');
       assertCurrent();
       const history = await readBrowserHistory(page, assertCurrent);
+      assertCurrent();
       if (stack) {
         const entries = history.entries.map(({ url, title }) => ({ url, title }));
         sendJson(res, 200, {

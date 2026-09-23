@@ -70,7 +70,8 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 		UpdatedAt:   autocontracts.TimeToTimestamp(now),
 	})
 
-	s.startExecutionRunner(ctx, getResp.Workflow, exec.ID, parameters)
+	// Manual flat parameters remain in @store/; other execution options use defaults.
+	s.startExecutionRunnerWithOptions(ctx, getResp.Workflow, exec.ID, parameters, nil, nil, nil, nil, nil, nil, "", "", "", false, nil, "", nil)
 	return exec, nil
 }
 
@@ -247,35 +248,23 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 	}
 	_ = s.writeExecutionSnapshot(ctx, exec, snapshot)
 
-	s.startExecutionRunnerWithOptions(ctx, workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
+	completion := s.startExecutionRunnerWithOptions(ctx, workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
 
 	if req.WaitForCompletion {
-		// Poll for completion; execution updates are persisted to the DB index by the runner.
-		ticker := time.NewTicker(250 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-ticker.C:
-				latest, err := s.repo.GetExecution(ctx, exec.ID)
-				if err != nil {
-					return nil, err
-				}
-				if latest.CompletedAt != nil {
-					resp := &basapi.ExecuteWorkflowResponse{
-						ExecutionId: latest.ID.String(),
-						Status:      enums.StringToExecutionStatus(latest.Status),
-						CompletedAt: autocontracts.TimePtrToTimestamp(latest.CompletedAt),
-					}
-					if strings.TrimSpace(latest.ErrorMessage) != "" {
-						msg := latest.ErrorMessage
-						resp.Error = &msg
-					}
-					return resp, nil
-				}
-			}
+		latest, err := s.waitForExecutionCompletion(ctx, exec.ID, completion)
+		if err != nil {
+			return nil, err
 		}
+		resp := &basapi.ExecuteWorkflowResponse{
+			ExecutionId: latest.ID.String(),
+			Status:      enums.StringToExecutionStatus(latest.Status),
+			CompletedAt: autocontracts.TimePtrToTimestamp(latest.CompletedAt),
+		}
+		if strings.TrimSpace(latest.ErrorMessage) != "" {
+			msg := latest.ErrorMessage
+			resp.Error = &msg
+		}
+		return resp, nil
 	}
 
 	return &basapi.ExecuteWorkflowResponse{
@@ -432,18 +421,7 @@ func navigateWaitEventToString(e basactions.NavigateWaitEvent) string {
 	}
 }
 
-func (s *WorkflowService) startExecutionRunner(parent context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, parameters map[string]any) {
-	// Normalize legacy flat parameters into the namespaced model.
-	// All legacy parameters go to @store/ namespace for backward compatibility.
-	// Use default artifact config (full profile) and no projectRoot (legacy callers don't use subflows).
-	s.startExecutionRunnerWithNamespaces(parent, workflow, executionID, parameters, nil, nil, nil, "")
-}
-
-func (s *WorkflowService) startExecutionRunnerWithNamespaces(parent context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, projectRoot string) {
-	s.startExecutionRunnerWithOptions(parent, workflow, executionID, store, params, env, artifactCfg, nil, nil, nil, projectRoot, "", "", false, nil, "", nil)
-}
-
-func (s *WorkflowService) startExecutionRunnerWithOptions(parent context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *sessionprofilepersistence.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, restoreTabs bool, openTabs []sessionprofilepersistence.TabState, navigationWaitUntil string, continueOnError *bool) {
+func (s *WorkflowService) startExecutionRunnerWithOptions(parent context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *sessionprofilepersistence.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, restoreTabs bool, openTabs []sessionprofilepersistence.TabState, navigationWaitUntil string, continueOnError *bool) <-chan struct{} {
 	if coredb.IsTestMode(parent) {
 		browserProfile = withTestModeBrowserHeader(browserProfile)
 	}
@@ -452,7 +430,30 @@ func (s *WorkflowService) startExecutionRunnerWithOptions(parent context.Context
 	// execution attribute instead of retaining the request cancellation chain.
 	ctx, cancel := context.WithCancel(detachedExecutionContext(parent))
 	s.storeExecutionCancel(executionID, cancel)
-	go s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, browserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
+	completion := make(chan struct{})
+	go func() {
+		defer close(completion)
+		s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, browserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
+	}()
+	return completion
+}
+
+// waitForExecutionCompletion joins the owned runner, including deferred cleanup,
+// then checks its persisted receipt. A request ending does not stop execution.
+func (s *WorkflowService) waitForExecutionCompletion(ctx context.Context, executionID uuid.UUID, completion <-chan struct{}) (*database.ExecutionIndex, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-completion:
+	}
+	latest, err := s.repo.GetExecution(ctx, executionID)
+	if err != nil {
+		return nil, err
+	}
+	if latest == nil || latest.CompletedAt == nil {
+		return nil, fmt.Errorf("execution %s runner exited without a persisted terminal result", executionID)
+	}
+	return latest, nil
 }
 
 // withTestModeBrowserHeader clones the optional browser profile before adding

@@ -92,6 +92,7 @@ export {
 export {
   handleRecordNewPage,
   handleRecordActivePage,
+  handleRecordClosePage,
 } from './recording-pages';
 
 // Cleanup utility

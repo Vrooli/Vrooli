@@ -4,7 +4,6 @@ import {
   updateFrameStreamSettings,
   getFrameStreamSettings,
   updateFrameStreamViewport,
-  isViewportUpdatePending,
 } from '../../../src/frame-streaming/manager';
 import type { FrameStreamOptions } from '../../../src/frame-streaming/types';
 
@@ -72,8 +71,10 @@ const flushPromises = async (): Promise<void> => {
   await new Promise((resolve) => setImmediate(resolve));
 };
 
+const fixturePage = {name:'page',isClosed:()=>false};
 const sessionProvider = {
-  getSession: () => ({ page: { name: 'page' } }),
+  getSession: (id:string) => ({id,ownerExecutionId:'execution-a',leaseId:'lease-a',page:fixturePage,
+    pageToIdMap:new WeakMap([[fixturePage,'page-a']])}),
 };
 
 const baseOptions: FrameStreamOptions = {
@@ -103,7 +104,6 @@ describe('frame streaming manager', () => {
       updateTargetFps: jest.fn(),
       updatePerfMode: jest.fn(),
       updateViewport: jest.fn().mockResolvedValue(undefined),
-      isViewportUpdatePending: jest.fn().mockReturnValue(false),
       getFrameCount: jest.fn().mockReturnValue(2),
     });
     mockPollingStrategy.start.mockResolvedValue({
@@ -133,6 +133,20 @@ describe('frame streaming manager', () => {
     expect(settings?.quality).toBe(60);
     expect(settings?.fps).toBe(30);
     expect(settings?.isStreaming).toBe(true);
+  });
+
+  it('binds each source receipt to the captured lease and actual active page [REQ:BAS-RH-J22]',async()=>{
+    const blue={name:'blue',isClosed:()=>false};
+    const owned={...sessionProvider.getSession('session-1')};
+    owned.pageToIdMap.set(blue,'page-b');
+    startFrameStreaming('session-1',{getSession:()=>owned},baseOptions);await flushPromises();
+    const options=mockCdpStrategy.start.mock.calls[0][1];
+    expect(options.sourceForPage(fixturePage)).toEqual({session_id:'session-1',execution_id:'execution-a',lease_id:'lease-a',page_id:'page-a'});
+    owned.page=blue;
+    expect(options.sourceForPage(fixturePage)).toBeNull();
+    expect(options.sourceForPage(blue).page_id).toBe('page-b');
+    owned.leaseId='lease-replaced';
+    expect(options.sourceForPage(blue)).toBeNull();
   });
 
   it('falls back to polling when screencast start fails', async () => {
@@ -240,9 +254,9 @@ describe('frame streaming manager', () => {
     startFrameStreaming('session-1', sessionProvider, baseOptions);
     await flushPromises();
 
-    const result = await updateFrameStreamViewport('session-1', { width: 800, height: 600 });
-    expect(result.success).toBe(true);
-    expect(isViewportUpdatePending('session-1')).toBe(false);
+    await updateFrameStreamViewport('session-1', fixturePage as unknown as import('rebrowser-playwright').Page);
+    const handle = await mockCdpStrategy.start.mock.results[0].value;
+    expect(handle.updateViewport).toHaveBeenCalledWith(fixturePage);
   });
   describe('lifecycle ownership', () => {
     const deferred = <T>() => {

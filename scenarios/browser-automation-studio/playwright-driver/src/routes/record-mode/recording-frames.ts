@@ -1,13 +1,8 @@
 /**
  * Recording Frames
  *
- * Handles frame capture and screenshot operations for recording sessions.
- * Includes caching to avoid redundant screenshot() calls.
- *
- * Frame Cache Optimizations:
- * 1. Server-side cache: Avoids redundant Playwright screenshot() calls within TTL
- * 2. Content hashing: MD5 hash enables reliable ETag comparison in API layer
- * 3. Skip identical frames: If new capture matches cached hash, return cached data
+ * Identical preview reads share pending capture and a short-lived result.
+ * Source, geometry and fidelity bound reuse; content hashes support HTTP ETags.
  */
 
 import { createHash } from 'crypto';
@@ -16,6 +11,7 @@ import type { SessionManager } from '../../session';
 import type { Config } from '../../config';
 import { parseJsonBody, sendJson, sendError } from '../../middleware';
 import { RECORDING_FRAME_CACHE_TTL_MS } from '../../constants';
+import { captureFrameSource, sameFrameSource } from '../../frame-streaming/frame';
 import type { ScreenshotRequest, ScreenshotResponse, FrameResponse } from './types';
 
 // =============================================================================
@@ -24,95 +20,32 @@ import type { ScreenshotRequest, ScreenshotResponse, FrameResponse } from './typ
 
 /**
  * Frame cache entry for avoiding redundant screenshots.
- * Caches both the raw buffer and the computed hash for ETag generation.
+ * Caches the encoded image and hash within one immutable frame source.
  *
  * NOTE: Playwright only supports 'png' and 'jpeg' screenshot formats.
  * WebP is NOT supported despite better compression. Do not attempt to use
  * type: 'webp' - it will fail at runtime with "expected one of (png|jpeg)".
  */
-interface FrameCacheEntry {
-  /** Raw JPEG buffer from Playwright screenshot */
-  buffer: Buffer;
+interface CapturedFrame {
+  key: string;
   /** MD5 hash of the buffer for content comparison */
   hash: string;
-  /** Base64-encoded data URI (computed lazily) */
+  /** Base64-encoded JPEG data URI */
   base64DataUri: string;
   /** Viewport dimensions at capture time */
   width: number;
   height: number;
   /** Timestamp when this frame was captured */
   capturedAt: number;
-  /** Quality setting used for this capture */
-  quality: number;
-  /** Whether this was a full-page capture */
-  fullPage: boolean;
 }
 
-/** Per-session frame cache */
-const frameCache = new Map<string, FrameCacheEntry>();
-
-/**
- * Compute MD5 hash of a buffer.
- * MD5 is fast and sufficient for content comparison (not security).
- */
-function computeFrameHash(buffer: Buffer): string {
-  return createHash('md5').update(buffer).digest('hex');
+interface FrameCacheSlot {
+  frame?: CapturedFrame;
+  pending?: { key: string; result: Promise<CapturedFrame | null> };
 }
 
-/**
- * Get cached frame if still valid, or null if cache miss/expired.
- */
-function getCachedFrame(
-  sessionId: string,
-  quality: number,
-  fullPage: boolean
-): FrameCacheEntry | null {
-  const cached = frameCache.get(sessionId);
-  if (!cached) return null;
-
-  const age = Date.now() - cached.capturedAt;
-
-  // Cache miss if expired (TTL from constants.ts)
-  if (age > RECORDING_FRAME_CACHE_TTL_MS) {
-    return null;
-  }
-
-  // Cache miss if quality/fullPage settings changed
-  if (cached.quality !== quality || cached.fullPage !== fullPage) {
-    return null;
-  }
-
-  return cached;
-}
-
-/**
- * Store frame in cache with computed hash.
- */
-function cacheFrame(
-  sessionId: string,
-  buffer: Buffer,
-  width: number,
-  height: number,
-  quality: number,
-  fullPage: boolean
-): FrameCacheEntry {
-  const hash = computeFrameHash(buffer);
-  const base64DataUri = `data:image/jpeg;base64,${buffer.toString('base64')}`;
-
-  const entry: FrameCacheEntry = {
-    buffer,
-    hash,
-    base64DataUri,
-    width,
-    height,
-    capturedAt: Date.now(),
-    quality,
-    fullPage,
-  };
-
-  frameCache.set(sessionId, entry);
-  return entry;
-}
+/** One cache lifetime per session; deletion also retires pending captures. */
+const frameCache = new Map<string, FrameCacheSlot>();
 
 /**
  * Clear frame cache for a session (call on session close/navigation).
@@ -172,10 +105,7 @@ export async function handleRecordScreenshot(
 /**
  * Get a lightweight frame preview from the active Playwright page.
  *
- * Implements three optimizations:
- * 1. Server-side cache: Avoids redundant Playwright screenshot() calls within TTL
- * 2. Content hashing: MD5 hash enables reliable ETag comparison in API layer
- * 3. Skip identical frames: If new capture matches cached hash, return cached data
+ * Shares identical in-flight reads and caches completed frames within the TTL.
  *
  * GET /session/:id/record/frame
  */
@@ -188,107 +118,69 @@ export async function handleRecordFrame(
 ): Promise<void> {
   try {
     const session = sessionManager.getSession(sessionId);
-    const url = new URL(req.url || '', `http://localhost`);
-
+    const page = session.page;
+    const source = captureFrameSource(session, page);
+    const url = new URL(req.url || '', 'http://localhost');
+    const requestedPage = url.searchParams.get('page_id');
+    const rejectChanged = () => sendJson(res, 409, {error:'FRAME_SOURCE_CHANGED', message:'The preview page or session lease changed'});
+    if (!source || (requestedPage && requestedPage !== source.page_id)) { rejectChanged(); return; }
     const quality = Number(url.searchParams.get('quality')) || 60;
     const fullPage = url.searchParams.get('full_page') === 'true';
-
-    // Check cache first - avoid expensive screenshot if we have a recent frame
-    const cached = getCachedFrame(sessionId, quality, fullPage);
-    if (cached) {
-      // Still fetch current page metadata even for cached frames
-      const cachedPageTitle = await session.page.title().catch(() => '');
-      const cachedPageUrl = session.page.url();
-
-      // Return cached frame without re-capturing
-      const response: FrameResponse = {
-        session_id: sessionId,
-        mime: 'image/jpeg',
-        image: cached.base64DataUri,
-        width: cached.width,
-        height: cached.height,
-        captured_at: new Date(cached.capturedAt).toISOString(),
-        content_hash: cached.hash,
-        page_title: cachedPageTitle,
-        page_url: cachedPageUrl,
-      };
-      sendJson(res, 200, response);
-      return;
-    }
-
-    // Cache miss or expired - capture new frame
-    // NOTE: Playwright only supports 'png' and 'jpeg'. WebP would be ~25% smaller
-    // but is not supported - do not use type: 'webp', it fails at runtime.
-    const viewport = session.page.viewportSize();
-    const width = viewport?.width || 0;
-    const height = viewport?.height || 0;
-
-    // Get page metadata for history/display purposes
-    const pageTitle = await session.page.title().catch(() => '');
-    const pageUrl = session.page.url();
-
-    // Use explicit clip for viewport-only capture to ensure consistent behavior
-    // and reduce bandwidth for pages with scrollable content
-    const screenshotOptions: Parameters<typeof session.page.screenshot>[0] = {
-      type: 'jpeg',
-      quality,
+    const scale = session.spec.frame_scale ?? 'css';
+    const viewport = page.viewportSize();
+    const pageUrl = page.url();
+    const slot: FrameCacheSlot = frameCache.get(sessionId) ?? {};
+    frameCache.set(sessionId, slot);
+    const owns = () => {
+      const currentViewport = page.viewportSize();
+      return frameCache.get(sessionId) === slot && page.url() === pageUrl
+        && currentViewport?.width === viewport?.width && currentViewport?.height === viewport?.height
+        && sameFrameSource(captureFrameSource(sessionManager.getSession(sessionId), page), source);
     };
+    const key = JSON.stringify([source, quality, fullPage, scale, viewport, pageUrl]);
+    const pageTitle = await page.title().catch(() => '');
+    if (!owns()) { rejectChanged(); return; }
 
-    if (fullPage) {
-      screenshotOptions.fullPage = true;
-    } else if (viewport) {
-      // Clip to viewport for consistent, smaller frames
-      screenshotOptions.clip = {
-        x: 0,
-        y: 0,
-        width: viewport.width,
-        height: viewport.height,
-      };
+    let frame = slot.frame;
+    if (!frame || frame.key !== key || Date.now() - frame.capturedAt > RECORDING_FRAME_CACHE_TTL_MS) {
+      let pending = slot.pending;
+      if (!pending || pending.key !== key) {
+        const options: Parameters<typeof page.screenshot>[0] = { type: 'jpeg', quality, scale };
+        if (fullPage) options.fullPage = true;
+        else if (viewport) options.clip = { x: 0, y: 0, width: viewport.width, height: viewport.height };
+        pending = { key, result: Promise.resolve().then(async () => {
+          try {
+            const buffer = await page.screenshot(options);
+            if (!owns()) return null;
+            const captured: CapturedFrame = {
+              key, hash: createHash('md5').update(buffer).digest('hex'),
+              base64DataUri: `data:image/jpeg;base64,${buffer.toString('base64')}`,
+              width: viewport?.width ?? 0, height: viewport?.height ?? 0, capturedAt: Date.now(),
+            };
+            // An older fidelity request may finish, but cannot replace newer work.
+            if (slot.pending === pending) slot.frame = captured;
+            return captured;
+          } finally {
+            if (slot.pending === pending) slot.pending = undefined;
+          }
+        }) };
+        slot.pending = pending;
+      }
+      frame = await pending.result ?? undefined;
     }
-
-    const buffer = await session.page.screenshot(screenshotOptions);
-
-    // Compute hash and check if content actually changed from last cached frame
-    const newHash = computeFrameHash(buffer);
-    const previousCached = frameCache.get(sessionId);
-
-    if (previousCached && previousCached.hash === newHash) {
-      // Content identical to previous frame - update timestamp but reuse cached data
-      // This saves base64 encoding overhead for static pages
-      previousCached.capturedAt = Date.now();
-      previousCached.quality = quality;
-      previousCached.fullPage = fullPage;
-
-      const response: FrameResponse = {
-        session_id: sessionId,
-        mime: 'image/jpeg',
-        image: previousCached.base64DataUri,
-        width: previousCached.width,
-        height: previousCached.height,
-        captured_at: new Date(previousCached.capturedAt).toISOString(),
-        content_hash: newHash,
-        page_title: pageTitle,
-        page_url: pageUrl,
-      };
-      sendJson(res, 200, response);
-      return;
-    }
-
-    // New frame content - cache it
-    const entry = cacheFrame(sessionId, buffer, width, height, quality, fullPage);
-
+    if (!frame || !owns()) { rejectChanged(); return; }
     const response: FrameResponse = {
       session_id: sessionId,
+      source,
       mime: 'image/jpeg',
-      image: entry.base64DataUri,
-      width: entry.width,
-      height: entry.height,
-      captured_at: new Date(entry.capturedAt).toISOString(),
-      content_hash: entry.hash,
+      image: frame.base64DataUri,
+      width: frame.width,
+      height: frame.height,
+      captured_at: new Date(frame.capturedAt).toISOString(),
+      content_hash: frame.hash,
       page_title: pageTitle,
       page_url: pageUrl,
     };
-
     sendJson(res, 200, response);
   } catch (error) {
     sendError(res, error as Error, `/session/${sessionId}/record/frame`);

@@ -7,12 +7,15 @@ package capture
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
+	"buf.build/go/protovalidate"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/connectx"
+	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
 	captureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture/captureconnect"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 
@@ -121,6 +124,10 @@ func Module(d Deps) connectx.ServiceMount {
 	}
 	d.InlineDom = d.InlineDom.withDefaults()
 	d.InlineAccessibility = d.InlineAccessibility.withDefaults()
-	path, handler := captureconnect.NewCaptureServiceHandler(&service{deps: d})
+	validator, err := protovalidate.New(protovalidate.WithMessages(&capturev1.CaptureRequest{}), protovalidate.WithDisableLazy())
+	if err != nil {
+		panic(fmt.Sprintf("initialize capture request validator: %v", err))
+	}
+	path, handler := captureconnect.NewCaptureServiceHandler(&service{deps: d, validator: validator})
 	return connectx.ServiceMount{Path: path, Handler: handler}
 }

@@ -984,7 +984,7 @@ Preserve genuine initialization failure reporting and real application errors.
 Native console observations must cover both passive and active recording, with
 an independent application-error sentinel and unchanged click capture/telemetry.
 
-### Recording navigation ownership (057 target)
+### Recording navigation ownership and browser history (057 deployed boundary)
 
 URL navigation, reload, back and forward carry the Go Session's immutable lease.
 HTTP recording controls, history Connect navigation and first-tab restoration
@@ -1010,3 +1010,515 @@ remain valid. The Go JSON timestamp is optional for compatibility with consumers
 that can supply one; this driver does not synthesize it.
 A browser navigation already admitted while owned may have external effects;
 post-admission interruption/reconciliation remains an explicit RF038 boundary.
+
+### Navigation result page attribution (058 deployed boundary)
+
+Successful driver navigation receipts identify the exact originally selected
+page through its registered driver page ID. The Go transport rejects missing
+page identity. API completion retains the admitted Session and resolves this
+receipt through that Session's PageTracker; it never guesses the later active
+page or rebinds a completed effect to a replacement Session. A later tab switch
+does not erase a valid effect on the original page. Missing/unknown page receipts
+and replaced owners fail explicitly before metadata/journal publication.
+
+Reload/back/forward commit their exact original page action before WebSocket
+publication and recheck Session identity after awaited journal work. If ownership
+changes during commit, retain the successful commit but suppress publication to
+a replacement subscriber stream and report incomplete completion. This is not
+a claim of atomic journal-generation isolation or reversal of external effects.
+URL navigation retains its existing event/capture policy without adding a
+second journal observation. Public recording HTTP response shapes stay stable.
+
+058 necessary page-registration extension: session admission returns its active
+registered driver page ID; the Go Session retains it to initialize its initial
+PageTracker mapping before any navigation or recording callback. New-tab201 is
+a valid endpoint receipt. PageTracker atomically registers each driver page once;
+creation/restoration receipts and later callbacks converge on that existing
+identity. A recording-start initial event describes the active page, not authority
+to relabel the Session's original page. No speculative active-page fallback.
+
+### Saved-tab restoration agreement (059 deployed boundary)
+
+RestoreTabs applies successful browser receipts to the existing PageTracker and
+returns actual restored URLs/titles. Retain the saved selected page across the
+entire creation loop, including the first page. Once pages exist, use the
+existing ActivatePage owner for both browser selection and API active-page state;
+skip a redundant switch when already selected. Do not add another tab map,
+infer selection from the last created page, or use the raw driver switch while
+leaving API state stale. Failed selection must be reported instead of silently
+claiming successful restoration. Additional empty-tab omission remains the existing policy; failed admission
+follows the060transaction below. Full profile durability and page mutation lease
+qualification remain separate requirements.
+
+### Failed tab restoration transaction (060 deployed boundary)
+
+New-page success means the requested navigation completed. A rejected navigation
+closes that command's new page, removes its registry entry through the existing
+page lifecycle owner, preserves the prior active page and returns failure. Do not
+turn network failure into an acknowledged Chromium error URL. Cleanup failure
+must remain visible with the original failure. No alternate registry or retry
+framework. Page callbacks and explicit cleanup converge idempotently.
+
+Restoring saved tabs is an admission transaction: a failed navigation, creation
+or final selection must reach CreateRecordingSession. The handler closes the
+uncommitted session through the existing service, reports failure, and leaves
+the saved profile snapshot/active association unchanged. Touch/associate only
+a successfully admitted session. Users can explicitly choose restore_tabs=false;
+a failed automatic restore must not silently choose that behavior for them.
+Existing profile storage transaction remains authoritative; do not introduce a
+shadow copy or runtime migration. Raw page mutation leases and profile concurrency
+are still separate unqualified boundaries.
+
+### Tab command authority (061 deployed boundary)
+
+Create-page and activate-page are mutations under the same immutable Session
+execution/lease ownership as navigation and input. Go callers must route through
+the retained Session; driver transport cannot infer authority from a session ID.
+Driver admission parses the request then uses the existing recordingOwner lease
+validator. Revalidate the admitted owner after each await and before selection,
+frame-cache mutation or success publication. Newly created pages whose command
+loses ownership must be disposed by that command; never close or mutate a
+replacement Session's page. Commit selected-page state only after awaited page
+metadata and ownership/page-registration checks succeed. Existing recording and
+execution page switching must both carry their own lease.
+
+Live-capture API completion retains the admitted Go Session and rejects replaced
+owners before updating its PageTracker. RestoreTabs retains one owner for the
+whole restoration transaction; repeated creations must not silently re-admit a
+replacement with the same public ID. Share existing page registration policy and
+lease validator without adding another registry, command framework or guessed
+lease. Missing/wrong/expired leases must cause zero newly admitted browser effects.
+Already admitted network effects during a later handoff cannot be undone; report
+incomplete completion and preserve that explicit reconciliation limitation.
+
+061 cleanup extension: internal session admission returns its bound close operation.
+Failure cleanup uses that exact operation, never resolves a potentially replaced
+Session by public ID. Journal-registration failure likewise closes its captured
+Session. This is a narrow internal receipt capability, not another lifecycle
+manager or public protocol field.
+
+### Initial navigation receipt agreement (062 deployed)
+
+Fresh requested initial navigation and saved first-tab restoration share one
+operation in live-capture: retain the admitted Session and its initial-page
+identity, apply the browser's actual URL/title receipt, and reject a replaced
+owner or mismatched page. Session admission with an explicit initial URL succeeds
+only after that operation succeeds. Failed admission closes its captured Session
+under a bounded cleanup context that survives request cancellation; profile usage
+and association are left to the handler after successful admission. A blank
+initial URL remains supported. Delete the separate warn-and-continue policy and
+duplicate receipt validation rather than patching the two callers independently.
+The public InitialURL response field remains scoped to restoration; the page
+registry is the canonical location/title read for every admitted session.
+
+062 admission cleanup uses one deferred failure owner after Session creation.
+Journal-registration and initial-navigation errors both preserve their cause and
+join any bounded cleanup error. A successful admission transfers the bound close
+operation to its result. No second cleanup implementation or fallback lookup.
+
+### Detached page-state reads (063 deployed)
+
+PageTracker owns mutable page records. Registration inputs and every returned
+page must be detached, including optional opener and close-time pointers. API
+page lists and profile tab snapshots obtain their pages and selected ID under
+one read lock; sorting uses private copies after unlocking. Replace the two
+list traversals with one snapshot operation and convert their callers. A session
+with no open pages has no active page. Preserve chronological list ordering,
+driver identity deduplication and the existing public JSON fields. This boundary
+protects serialization from callbacks; it does not establish driver/API event
+reconciliation or a transaction across profile storage and browser state.
+
+### Browser-owned tab closure (064 deployed)
+
+A successful close-tab command must close the actual admitted browser page and
+return the driver's resulting selection. The retained Go Session supplies its
+immutable execution/lease identity; validate completion before updating API state.
+The page registry records browser results rather than pretending that a local
+status change closed a tab. Recording callbacks and explicit commands share
+closure registration and journal identity, preserving retries without duplicate
+close observations. Final-page closure leaves no selected open page and permits
+subsequent new-tab creation in the same browser context. Keep page cleanup and
+selection policy in the existing driver page owner, with focused failure/handoff
+tests and native close-before/while-recording cases.
+
+064 qualification: explicit close commands now satisfy this boundary before and
+during recording, including last-tab close and create-after-close. PageTracker's
+terminal event ID/timestamp is stable across command/callback/retry; existing
+journal idempotency owns commit deduplication. UI close and selection receipts
+synchronize view and store, including no selected page. External callback
+generation authority and arbitrary simultaneous-close reconciliation remain
+unqualified; this receipt does not close those broader RF038 obligations.
+
+### UI page admission and session ownership (065 deployed)
+
+The page registry's detached creation receipt supplies the UI with its canonical
+page and selected ID immediately, including before recording listeners exist.
+Preserve existing driver identity/location fields for current API consumers.
+Live-capture returns the registered Page rather than discarding it and requiring
+a second lookup. The session store owns UI page/selection state; usePages observes
+it and applies authoritative receipts/events without a parallel local page map.
+Consumer callbacks run outside React state updaters, once for a newly observed
+page. A request completing after its session is replaced cannot publish pages,
+selection, errors or callbacks into that replacement. Preserve chronological
+ordering, close retries, popup notifications and saved-tab restoration.
+
+### Live preview frame wire — BAS-WORK-066 (deployed)
+
+The Go driver client shall decode the driver's actual `image` and `mime` fields.
+The HTTP handler shall forward that canonical frame payload and metadata instead
+of translating a second frame DTO. Missing image data, dimensions, timestamp, content hash or
+JPEG media type shall fail before success/ETag admission. Session identity shall
+match the requested browser. The content hash owns conditional caching; remove
+the obsolete timestamp fallback. Preserve the existing
+public frame shape and conditional caching. Native colored-page pixels in the
+real UI qualify the bridge; mocked screenshots alone do not. Transport ownership
+and performance remain separately qualified concerns.
+
+### Live viewer transport and lifetime — BAS-WORK-067 (deployed)
+
+The live viewer shall use the configured, proxy-aware API WebSocket route with an
+explicit recording-session subscription. A viewer-owned socket retains that
+session admission; cleanup closes the socket and rejects every late callback,
+config read, HTTP response and decode. The existing global WebSocket context
+continues to own ordinary workspace events/input. Do not consume anonymous
+binary frames from a shared subscription after changing its session.
+
+One decode/render path serves binary frames and HTTP fallback, with one active
+decode, one newest pending input and one pending bitmap. Monotonic admission
+sequence replaces wall-clock identity. Polling continues until a usable socket
+frame paints and resumes after a stalled/disconnected stream; a socket-open event
+is not proof of rendered content. Cache a polling ETag only after successful paint.
+Tab/session replacement and final-tab closure clear displayed state and dispose
+owned asynchronous work. Remove unused latency-spike metrics, duplicate decode/
+paint policy and the now-unused direct driver frame listener/configuration after
+callers are verified. The API remains the supported web viewer route.
+
+This local owner fencing does not prove source page identity for frames already
+queued by the browser/driver. The current binary wire lacks per-frame canonical
+page/lease identity; retain that RF038/J22 qualification gap explicitly and repair
+it at its producer rather than stamping current page state onto stale bytes.
+
+### Explicit navigation intent — BAS-WORK-068 (deployed)
+
+The browser navigation hook shall distinguish displayed/observed location from
+explicit navigation intent. Page selection, browser navigation notifications,
+restored tab metadata and history responses update display state without sending
+new navigate commands. URL-bar submission, empty-preview submission and an
+explicit launch URL admit navigation. A launch request may wait for session
+creation; each explicit submission retains its own identity even for the same URL.
+
+The request lifetime owns its abort and completion admission across session
+replacement/unmount. Redirect receipts update location without another command.
+Initial recorder/AI readiness follows a successful launch navigation (a failed
+request must remain retryable). RecordingSession wires observations and commands
+to their distinct hook methods and no longer owns a second navigation effect,
+URL-equality suppression or navigation-response parser. Existing browser history
+commands remain authoritative; no URL observation is replayed into that history.
+
+New-page lifecycle admission (068 deployed): register page listeners synchronously
+when the context reports a page. Creation delivery gates publication of its later
+navigation/close callbacks, so the API has canonical identity before consuming
+them. Cleanup invalidates pending admission and disposes listeners. Remove the
+post-callback attachment gap and separate pending-close repair branch; one page
+listener lifetime shall cover creation, navigation and close. This does not
+qualify general callback retry/durability or concurrent navigation ordering.
+
+### Page-bound navigation intent — BAS-WORK-069 (deployed)
+
+URL navigation, reload, back and forward from recording browser chrome shall bind
+to the selected canonical page at user intent. Commands include a page precondition;
+the API resolves it only within the owning session and translates it to the driver
+page identity. The driver checks the precondition against its active registered
+page before effects, preserving the existing post-await lease/page checks.
+This closes both UI-to-API delay and API-to-driver selection races. Programmatic
+callers that intentionally address the active tab may omit the precondition;
+that is an explicit command semantic, not a compatibility migration.
+
+The existing UI navigation hook shall share one request lifetime across URL and
+history operations, aborting pending work and rejecting stale config, response,
+error and history-popup completions on page/session replacement or unmount.
+Initial launch waits for session and page admission. A queued launch binds once;
+a later tab selection is not permission to replay it. Consolidate repeated history
+HTTP handlers when introducing this common request owner; retain explicit repeat
+URL behavior, successful launch readiness and browser-authoritative history.
+
+
+### Passive tab metadata — deployed070, 2026-09-23
+
+The browser runtime reads favicon metadata from the loaded document. Existing
+page lifecycle receipts transport it through the canonical API page registry to
+the workspace tab bar. Tab display must not invoke OpenGraph/document previews.
+A missing metadata value preserves a same-URL icon; a changed URL clears it; an
+explicit empty value removes it. Read metadata after document readiness and reject
+results from a retired listener or replaced URL. Tab image failures apply to that
+image URL so a later page icon can recover. Start-page preview cards retain their
+separate preview capability; no private tab cache or document-fetch policy remains.
+
+The same icon reader supplies initial/navigation/history and new-tab command
+receipts, including restoration and pre-recording admissions. A document change
+while creation metadata waits cannot cancel page registration or its queued
+navigation observations; only the stale metadata is discarded.
+
+
+### WebSocket domain event delivery — deployed071, 2026-09-23
+
+The workspace connection validates the common JSON envelope without stripping
+fields owned by domain consumers, and synchronously delivers every accepted
+message to subscribed handlers. React rendering may batch visual updates but
+must not coalesce lifecycle, action, terminal or selection events. Domain hooks
+subscribe through the shared context and read their latest committed callback;
+unmount removes delivery ownership. Replace all single-lastMessage consumers,
+including recording, execution, AI, schedule, driver and export notifications.
+Remove the unused binary-subscriber facade: the recording viewer owns its separate
+bounded frame socket. Connection callbacks are fenced to the current socket;
+disconnect/unmount must not reconnect or publish from a retired connection.
+
+071 empty-page viewer: canonical `null` selection means there is no page;
+retain it through RecordPreviewPanel and PlaywrightView. The existing frame and
+input owners must stop work for explicit null. An omitted page ID still follows
+the active browser page for FloatingMiniPreview. Retire the old page lifetime,
+abort pending polling, close its socket and reject late decode/paint work before
+a fresh explicit page starts. No parallel empty-workspace polling policy.
+
+### Dependency availability classification — deployed072, RF103
+
+The existing resilience breaker measures dependency availability. Answered HTTP
+400–499 request rejections, except408timeout, remain returned errors but do not
+open the availability breaker. Context cancellation remains caller-owned; actual
+transport errors, timeout and server failures retain failure counting and
+half-open recovery. The driver and storage reuse this one policy; no caller-local
+exemption or bypass. Classify wrapped typed errors without importing the driver
+into the resilience owner.
+
+### Browser tab keyboard interaction — deployed073, RF101
+
+TabBar owns semantic selection and close controls as sibling native buttons,
+with one roving tab entry and a visible focus indicator. Left/Right wrap focus;
+Home/End focus boundary tabs; Enter/Space activate through native button behavior.
+Use manual activation because browser selection awaits a remote operation. Delete
+closes the focused tab without activating another as a side effect of focus.
+After the focused tab disappears, focus its following neighbor, or the preceding
+one at the end, or the empty New Tab control. Failed closure retains focus;
+external focus is never stolen. Existing favicon, selected state, pointer close,
+new-tab and horizontal overflow behavior remain. Close controls are siblings,
+not nested interactive descendants of a tab button. The compact tab bar is a
+scrollable list surface; this repair changes keyboard interaction, not the
+recording route composition or design tokens. Full mobile/visual qualification
+remains open. Reference: https://www.w3.org/WAI/ARIA/apg/patterns/tabs/.
+
+### Recording frame source authority — target074, RF038
+
+Both streamed frames and HTTP previews retain the immutable execution/lease and
+driver page that produced the image. Capture that source before asynchronous
+metadata/screenshot work; never attach the current page to older bytes. A cached
+preview belongs to that source and capture policy, and late work cannot populate
+a replacement page/session cache. Optional performance data does not gate or
+replace required frame identity.
+
+The driver-to-API binary protocol uses one bounded length-prefixed JSON header
+plus JPEG payload, with mandatory version/source/capture identity and optional
+timing fields. Remove anonymous raw/timestamp-only acceptance once all producers
+convert. API validates source against its immutable Session and active PageTracker
+receipt, maps the actual driver page to the canonical page ID, and publishes that
+identity to viewers. Do not expose the driver lease credential to the browser.
+The viewer rejects wrong-session/page frames before decoding; implicit-active
+mini preview remains supported through API validation. HTTP fallback validates
+requested page and returned capture source under the same ownership rule.
+
+The repository has no producer or consumer for the old JSON recording_frame
+HTTP-push route: only its handler/hub facade, mocks, unused UI schema and docs
+remain. Retire that path while preserving the actual binary stream and HTTP GET
+fallback. Update its listed docs. This replaces existing wire variants rather
+than adding a parallel stream. Same-page navigation/capture epoch qualification
+and full source-ordering/soak evidence remain explicit RF038 follow-ups.
+
+
+### Recording subscriber intent — target075, RF007
+
+The recording subscription owns event delivery and explicitly chooses whether
+it also consumes binary frames. `subscribe_recording` retains frame delivery by
+default; `frames: false` selects events only. The timeline requests events only;
+the canvas keeps its frame subscription and independent reconnect/fallback
+lifetime. Hub keeps the choice under the existing subscription lock and gates
+both binary fanout and its frame-subscriber availability query with that choice.
+Page events, timeline entries and performance messages remain available to event
+subscribers. Resubscription replaces the choice; unsubscription clears it.
+Remove the ambiguous subscriber-query name and convert every facade/mock caller.
+
+Proof requires a current frame to reach exactly one actual canvas socket, no
+binary bytes or dropped-frame accounting for the timeline, preserved timeline
+and page events, reconnect/default-frame behavior, and the normal recording
+workflow. The change does not qualify slow-reader queues or a performance band.
+
+
+### Session preview scale authority — target076, RF047
+
+The admitted driver SessionSpec retains the requested CSS/device preview scale
+for its lease. Session startup, recording startup/restart and HTTP preview use
+that same value; a recording transition must not reset it to an implicit CSS
+choice. Session reuse adopts the new admitted spec. Frame streaming remains the
+owner of active transport/quality/FPS operations; do not add a second preferences
+registry or retain disposed transport slots just to remember scale.
+
+HTTP preview keeps `width`/`height` as CSS viewport geometry, matching its existing
+cache contract and input coordinate space. The encoded bitmap follows the chosen
+scale; device-scale image dimensions may differ from viewport dimensions. Make
+this distinction explicit in the frame type, and verify both scales independently.
+Preserve full-page capture, quality, source/lease fencing and conditional caching.
+The prior probe's assumption that every HTTP bitmap must match CSS dimensions
+is not evidence that HiDPI itself is broken. Its CSS-policy mismatch and missing
+scale admission are actionable; initial CDP height/resize timing and repeated
+heading fidelity remain separate investigations.
+
+
+### Renderer geometry and capture ordering — target077, RF047
+
+The SDK Page owns viewport mutation and Screenshotter owns screenshot admission.
+Viewport mutation shall join the same per-page screenshot queue so that an
+in-flight page or element capture cannot restore stale Chromium geometry after
+resize. Keep the existing queue; do not add BAS locks at every capture caller,
+a second screenshot implementation, polling delays, or a runtime SDK monkeypatch.
+Repair the existing canonical Rebrowser dependency patch through SDA and retain
+its current version and context-identity protections.
+
+Chromium viewport application shall finish window sizing before setting the
+compositor visible size. Respect preserveWindowBoundaries and null/external
+viewport paths; preserve mobile, DPR, orientation, browser launch and audio/SW
+configuration. Remove the BAS video-only unawaited metrics override once the SDK
+owner covers its geometry invariant. Keep unrelated video layout behavior until
+it has independent evidence. Initial capture, viewport resize, CSS/device output,
+page/element screenshot ordering, video pixels and failure/close cleanup need
+qualification. Existing frame lease/source fences and profile/workflow behavior
+remain mandatory. This repair does not by itself qualify viewport command leases,
+callback generation, old same-page packets or sustained performance.
+
+
+### Address-bar observation — implemented078, RF099
+
+The validated session store's selected active Page is the browser-location
+observation owner. Feed its URL into navigation display on snapshot admission,
+selection and page metadata changes; an observed URL must not submit navigation.
+Keep explicit navigation intents and their page-lifetime fences. An unchanged
+observation must not reset a pending local value. Validated empty selection clears
+the location; an unvalidated session must not observe a foreign cached page.
+
+Retire the RecordingSession callback-only URL assignments, last-action fallback,
+and separate restored-URL state in hook/store. Their sole consumer is replaced
+by canonical page observation. Remove unused closed/selected/navigated callback
+facades in usePages while retaining creation activity and authoritative store
+updates. BrowserUrlBar keeps its existing local typing draft. Preserve explicit
+launch/navigation, restoration, tab selection/closure and stale-response refusal.
+This target repairs location display; initial Back/Forward history state and
+navigation-stack read attribution still require separate behavioral evidence.
+
+### Navigation-history observations — implemented079, RF099/RF038
+
+The browser remains the history owner. Initial attachment and every selected
+canonical Page observation refresh Back/Forward availability through an owned
+read. Reset capability state on page/session handoff; stale reads cannot publish
+into a new lifetime or overwrite the URL draft. Refresh reads observe capability
+booleans only. Explicit navigation and history commands retain their existing
+intent and response handling.
+
+Both API history reads bind the current immutable Session and selected canonical
+page. Optional public page_id must match selection; omission binds the selected
+page at admission. Translate it to the registered driver identity and transport
+that identity plus the immutable execution/lease through the existing Go Client.
+The driver uses recordingOwner and the selected page identity across title/CDP
+awaits and detach. Revalidate API Session/page before returning. Return conflict
+for a stale selected page; no old direct-driver API bypass or ownerless SDK read
+path remains. A read must not command navigation or extend mutation authority.
+
+### Viewport command ownership — target080, RF038/RF047
+
+The admitted Session/page owns the single SDK viewport mutation. Bind optional
+public page_id to canonical selected-page identity, transport the immutable
+execution/lease and driver page precondition, admit after complete body parsing,
+and retain the captured Page through all awaited work. The API returns actual
+positive dimensions from the canonical flat driver receipt; retire the unused
+alternate ActualViewport response shape instead of layering a fallback over it.
+
+Capture refresh observes the already-applied viewport on that captured Page.
+Retain the existing notification entrypoint with bounded completion and current
+stream/page checks. Retire CDP's second SDK mutation, small-change suppression,
+pending-update dropping, public pending/result facades and polling's no-op
+viewport updater. Existing capture transition generations choose the latest
+refresh; existing SDK screenshot queue remains the viewport/capture serializer.
+Do not introduce another queue, polling timer or parallel viewport authority.
+
+The UI submits selected canonical page identity and bounds the request to its
+session/page lifetime across config and transport. Cancel obsolete work; late
+completions cannot mark another page synchronized. Preserve clamping, debounce,
+bounds equality, resize feedback and explicit force/reset controls. Selecting a
+new page must synchronize retained desired bounds without requiring a new
+container resize. Validate actual receipts; a zero-sized or malformed success
+is not synchronization. Native small/rapid resize and source-preservation checks
+must distinguish effects from capture readiness and retained old frames.
+
+### Preview capture admission — target081, RF007/RF038
+
+The existing per-session HTTP preview cache owns its in-flight capture as well
+as completed bytes. Identical concurrent reads share that promise at unchanged
+quality, scale and full-page policy. Capture identity includes selected source,
+viewport dimensions and URL; a resize must not return the old cached geometry.
+The session cache slot is a lifetime: clear/cleanup retires pending work, which
+cannot publish a response or repopulate a replacement slot. A failed capture
+must leave the current slot retryable, without deleting newer pending work.
+Different fidelity requests retain their own results; only the current request
+may update the retained cache. Keep one slot per session, bounded to one retained
+result and one shareable pending capture, with existing TTL and teardown callers.
+Do not introduce a parallel browser queue, new service, weaker watchdog, lower
+fidelity or per-client persistent cache. This addresses redundant admission;
+browser-wide rendering cost and sustained stream throughput need separate proof.
+
+### Capture device scale — target082, RF016
+
+CaptureRequest dimensions own an explicitly supplied device scale on either
+preset or explicit viewport paths. The capture-to-execution translation carries
+that value through the existing browser-profile fingerprint into SessionSpec;
+it must not silently drop it and use the driver's default. Clone the caller's
+profile before applying this override, retaining its other fingerprint, identity,
+proxy and behavior settings. When dimensions omit device scale, preserve the
+supplied profile/default policy. No parallel driver setting, SDK patch or default
+DPR change. Independently verify requested CSS viewport, renderer DPR and PNG
+bitmap dimensions through both public capture surfaces before measuring latency.
+
+### Capture request admission — target083
+
+CaptureService validates the generated request's existing protobuf constraints
+before URL discovery, execution or artifact export, including dry runs. Reuse
+the repository-approved protovalidate runtime so the protobuf remains the owner
+of numerical limits; do not copy those limits into a second Go policy. Initialize
+the validator once when mounting the service and compile the CaptureRequest
+descriptor before serving. Invalid input returns InvalidArgument; a validator
+configuration failure must not masquerade as a caller error. Existing capture
+normalization rejects unspecified and unrecognized enum numbers before effects.
+The viewport resolver retains paired-dimension and preset-precedence semantics.
+Omitted optional dimensions and browser-profile fields retain their defaults.
+
+### AI suggestion optional text — target084, RF068
+
+The provider schema and parser share one contract. Action, confidence and category
+remain required and validated. Description, element text, selector and reasoning
+are optional text: omitted or explicit null means absent metadata, represented by
+the existing empty string in AISuggestion. Numbers, booleans and objects are not
+text and remain invalid. Accepting absence must not manufacture content, silently
+repair required fields, relax confidence/category constraints or mask a provider
+failure as an empty suggestion list. Keep the existing governed local-provider
+route and external API representation; verify the actual failing search fixture.
+
+### Synchronous execution completion — target085, RF105
+
+The existing per-execution goroutine owns completion. Its starter returns one
+channel, closed after the runner and its deferred artifact/event/cancellation
+cleanup return. Both saved and ad-hoc synchronous APIs wait on that channel or
+their request context, then read the persisted terminal receipt once. Remove both
+250 ms polling loops; do not replace them with shorter polling or a second global
+completion registry. Closing the channel preserves an already-completed result
+without a lost wakeup. A retired runner without a persisted terminal timestamp
+is an explicit error carrying its execution ID, never an unbounded wait or a
+success inferred from goroutine exit. Request cancellation retires only its wait;
+the existing detached execution context and explicit stop ownership remain.
+Asynchronous response shapes and terminal status/error/timestamp projection stay
+unchanged. Qualify delayed teardown, failed terminal publication and cancellation
+in addition to latency; retained artifacts must be available at return.

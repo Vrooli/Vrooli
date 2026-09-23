@@ -185,39 +185,23 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 	}
 
 	// Use the standard async runner so status polling, stop requests, and result indexing work.
-	s.startExecutionRunnerWithOptions(ctx, wf, executionID, store, params, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
+	completion := s.startExecutionRunnerWithOptions(ctx, wf, executionID, store, params, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
 
 	if req.WaitForCompletion {
-		// Mirror executions.go: poll the repo for completion so synchronous
-		// callers (capture handler today; any future single-shot adhoc use
-		// case) get a response only after the executor has produced its
-		// artifacts. Without this branch WaitForCompletion was silently
-		// ignored on the adhoc path.
-		ticker := time.NewTicker(250 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-ticker.C:
-				latest, err := s.repo.GetExecution(ctx, executionID)
-				if err != nil {
-					return nil, err
-				}
-				if latest.CompletedAt != nil {
-					resp := &basexecution.ExecuteAdhocResponse{
-						ExecutionId: latest.ID.String(),
-						Status:      enums.StringToExecutionStatus(latest.Status),
-						CompletedAt: autocontracts.TimePtrToTimestamp(latest.CompletedAt),
-					}
-					if strings.TrimSpace(latest.ErrorMessage) != "" {
-						msg := latest.ErrorMessage
-						resp.Error = &msg
-					}
-					return resp, nil
-				}
-			}
+		latest, err := s.waitForExecutionCompletion(ctx, executionID, completion)
+		if err != nil {
+			return nil, err
 		}
+		resp := &basexecution.ExecuteAdhocResponse{
+			ExecutionId: latest.ID.String(),
+			Status:      enums.StringToExecutionStatus(latest.Status),
+			CompletedAt: autocontracts.TimePtrToTimestamp(latest.CompletedAt),
+		}
+		if strings.TrimSpace(latest.ErrorMessage) != "" {
+			msg := latest.ErrorMessage
+			resp.Error = &msg
+		}
+		return resp, nil
 	}
 
 	// Async return — caller polls the execution ID separately.

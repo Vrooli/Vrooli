@@ -471,8 +471,8 @@ C = later product extension. These letters are not PRD release tiers.
 | BAS-RF-004 | A / isolated reproductions | Full snapshots merge to wrong text; empty input and buffered edit on script stop omitted; page/frame identity lost | BAS recorder and workflow derivation | Independent record-to-replay fixture covers pauses, replace/delete/clear, stop, IME, and same selectors in different targets. |
 | BAS-RF-005 | A / actual manager with synthetic browser dependencies | maxConcurrent=1 admits two concurrent distinct-ID sessions; capacity excludes in-flight creation | BAS session coordinator | Concurrent distinct-ID test admits one; same-ID retries remain coalesced; cancellation/failure releases reservation; real browser cohort. |
 | BAS-RF-006 | A / code + isolated ownership failures | Pool retains distinct keys; failed launch waiters create competing browsers; late launch survives shutdown | BAS browser pool | Distinct-key soak plateaus; concurrent failure/retry/shutdown conserves ownership; all children close. |
-| BAS-RF-007 | A / synthetic-socket and actual-hook reproductions | Frame sends ignore 64 MiB buffered bytes; direct stream depends on relay; 100-frame burst starts 100 unresolved decodes | BAS frame transport/UI | Slow-reader, slow-decoder and relay-outage tests prove bounded queues/decoding, current frames, and ordered input. |
-| BAS-RF-008 | A / synthetic-socket reproduction; network exposure untested | Missing-session subscriber receives frames without class-local auth/origin checks | BAS frame transport/auth | Isolated unauthenticated/wrong/missing-session clients rejected; scoped subscriptions authorized. |
+| BAS-RF-007 | A / viewer ownership and duplicate fanout repaired | Driver/API slow-reader, backpressure and broader performance matrices remain unqualified | BAS frame transport/UI | Slow-reader, slow-decoder and relay-outage tests prove bounded queues/decoding, current frames, and ordered input. |
+| BAS-RF-008 | A / direct listener retired; API access matrix unqualified | Unscoped direct frame subscriber removed with its listener; replacement API authentication/origin qualification remains open | BAS frame transport/auth | Isolated unauthenticated/wrong/missing-session clients rejected; scoped subscriptions authorized. |
 | BAS-RF-009 | A / code, live reads, isolated accounting reproduction | Empty samples become zero; mixed cohorts/p95, mislabeled intervals and lifetime/ring mismatch obscure outcomes | BAS measures/observability | Empty/known/window-eviction fixtures; counts, cohort/window identity, percentile definition, real input-to-paint timing. |
 | BAS-RF-010 | A / observed; exact allocation attribution unknown | API reports 10.48–11.84 GiB allocated Go heap, ~10.3k goroutines and 9.42–9.75 GiB swap while healthy | BAS API/runtime performance | Runtime/source identity, heap/stack/PSS attribution and controlled soak; separate allocated/retained heap and swap. See RF-021/023 without assuming either explains all live memory. |
 | BAS-RF-011 | A / real Chromium capture/restore fixed; matrix incomplete | IndexedDB snapshot omission repaired with two independent identities; browser crash/checkpoint durability remains unknown; repository faults now RF-025–027 | BAS session-profile/runtime | Supported authentication-store and real interruption matrix, profile ownership/version conflict, explicit recovery window. |
@@ -497,12 +497,12 @@ C = later product extension. These letters are not PRD release tiers.
 | BAS-RF-030 | A / generator + typed-ingress reproduction | Unmerged recorded actions lose page/frame context and yield accepted untargeted workflows | BAS journal-to-workflow derivation | Logical tab/frame bindings and lifecycle reconstruction qualify alternating contexts, popups and nested frames in a fresh replay. |
 | BAS-RF-031 | A / actual manager/decisions with seeded executing state | Same-execution start retry changes executing to ready and permits another instruction | BAS session operation/lease coordinator | Delayed live action plus retried start preserves exclusivity; recovery requires fenced cancellation/expiry proof. |
 | BAS-RF-032 | A / actual reset owner with synthetic page/context I/O | Clean reset retains a closed active second tab; reset failure stays resetting and immune to idle cleanup | BAS session isolation/recovery | Correct retained page/maps, explicit failed-reset recovery, all-origin storage isolation matrix and external-target ownership preserved. |
-| BAS-RF-033 | A / actual frame hook with controlled async dependencies | Timestamp collisions permit stale frames; session changes/unmount do not fence pending decode/config work | BAS frame lifecycle/UI | Monotonic sequence and session/page generation at every async boundary; stale work disposed; real-renderer switch/unmount/reconnect corpus. |
-| BAS-RF-034 | A / actual frame hook and CDP strategy with synthetic transport/scheduler | Polling stops before first binary frame; driver pending initial frame is not flushed on transport readiness without another paint | BAS preview transport/fallback | Connected/no-frame, stable-page readiness, failed decode and stream-stall fixtures maintain current preview with bounded polling; real browser receipt. |
+| BAS-RF-033 | A / local viewer ownership repaired | Viewer sequence and pending-work disposal qualified; upstream queued-frame page/lease identity remains RF038 | BAS frame lifecycle/UI | Monotonic sequence and session/page generation at every async boundary; stale work disposed; real-renderer switch/unmount/reconnect corpus. |
+| BAS-RF-034 | A / viewer fallback repaired; broader transport matrix open | Connected/no-frame, failed-decode and stalled-stream fallback repaired; remaining driver/transport and performance matrix unqualified | BAS preview transport/fallback | Connected/no-frame, stable-page readiness, failed decode and stream-stall fixtures maintain current preview with bounded polling; real browser receipt. |
 | BAS-RF-035 | A / actual retention service with in-memory index/filesystem | keep_latest is recalculated inside bounded/preview subsets, repeatedly protecting old evidence and blocking cleanup | BAS evidence retention | Global per-workflow protection survives bounded batches and preview application; repeated sweeps progress; active evidence stays protected. |
 | BAS-RF-036 | A / actual driver close composition and Go executor fault probes | Driver hides close/flush failures and removes ownership; Go executor also returns success when its engine reports a close error | BAS session finalization/evidence | Structured close and artifact outcomes across both owners, bounded recovery ownership, validated references and full-workflow fault qualification. |
 | BAS-RF-037 | A / actual run route and manager phase methods | Instructions execute during initializing/resetting/closing because rejected phase transition is ignored | BAS instruction admission/state coordinator | Atomic phase admission rejects every disallowed state; delayed reset/close races cannot admit browser effects; recording/executing controls preserved. |
-| BAS-RF-038 | A / run/start/stop/input/ACK repaired; navigation057 in progress | Remaining navigation/page/preview controls bypass immutable Session leases; full handoff fencing remains open | BAS operation ownership/protocol | All mutating commands carry and validate lease/generation before caches or effects; delayed old-owner and handoff fixtures pass. |
+| BAS-RF-038 | A / command and frame-source admission repaired | Page/viewport mutations, same-page frame epochs, API completion attribution and full handoff fencing remain open | BAS operation ownership/protocol | All mutating commands carry and validate lease/generation before caches or effects; delayed old-owner and handoff fixtures pass. |
 | BAS-RF-039 | A / repaired public HTTP + native browser oracles; deployed027 | Distinct loop/retry operations, immutable lease/payload receipts and nonretryable uncertain outcomes now preserve effect counts. Restart and effect reconciliation remain unqualified | BAS invocation/retry/idempotency contract | Retain eviction/reset/handoff and post-effect exception controls; qualify broader interruption/reconciliation. Receipt: internal/evidence/rehabilitation/instruction-operation-2026-09-22.json. |
 | BAS-RF-040 | A / public executor with cancelling engine and context-sensitive writer | Graph cancellation persists the step through a cancelled context and loses its terminal outcome; linear control saves it | BAS graph/linear execution finalization | Bounded cancellation-independent persistence for all execution shapes; terminal step evidence and cancellation cause survive real storage faults. |
 | BAS-RF-041 | A / actual instruction pipeline and telemetry collectors | Unexpected handler throw disposes collected console context without failure capture;027 now retains a nonretryable uncertain outcome but still loses diagnostics | BAS instruction failure/evidence pipeline | Preserve available diagnostics and bounded failure captures before disposal; distinguish ordinary returned failure, thrown exception, crash and uncertain effects. |
@@ -1659,3 +1659,690 @@ no actual movement, browser-created and per-tab entries, bounds, short-lived
 attachment cleanup and delayed ownership loss. UI must retain untitled entries
 without invented timestamps. Native oracle and maintained regressions qualify
 the change; a fake null-result test cannot override observed browser behavior.
+
+2026-09-23 RF087 resolved for demonstrated boundary and RF038 navigation
+admission/completion partially repaired/deployed057. Native49 history checks
+prove hash and same-URL/script history traversal, tab-specific bounds, no
+fabricated timestamps, rejected owner effects and cleanup. Six owner checks
+show missing400/stale404 with0fixtureloads and current200 with1load. API48checks
+cover all navigation controls and preserved recording/ACK/journal behavior.
+Basic full saved-workflow fixture12checks passes again. Full driver1742tests/
+124suites (2tests/1suite skipped),460recording UItests, both TypeScript checks,
+five Go race packages and APIbuild pass. Build7794187bd9281a31cf9880df318aa037a38dfee7e0997c4bd9b4105f9d97339b;
+profiles unchanged. Receipt docs/internal/evidence/rehabilitation/recording-navigation-history-2026-09-23.json.
+RF038 remains open for API page/journal attribution after a concurrent handoff,
+other raw interactive mutations and interruption/retry reconciliation.
+
+2026-09-23 RF038 API completion reproduction058: controlled HTTP navigation
+response plus real recording journal proves active-tab switches can overwrite
+the new tab's URL and attribute the old effect to its page ID. Session replacement
+and absent/unknown page receipts also succeed; replacement during journal commit
+still publishes success/events. Maintained TestNavigationCompletionKeepsOriginalOwnership
+has19adverse failures and4stable positive controls before production edits,
+/tmp/bas-navigation-attribution-red-final-058.jsonl. Initial test compared string
+to UUID in three positive controls; corrected the oracle before this final red.
+Retained receipt identity and Session checks are the repair target; no new issue
+register or broad RF038 closure claim.
+
+### BAS-RF-088 — New tabs fail API completion and corrupt initial-page identity
+
+Status: open, native reproduced2026-09-23 on deployed057. API creates a second
+tab through the driver, which returns201 and changes the active native page;
+Go transport rejects201 and API returns503. API page list still contains only
+the original tab. Starting recording then rebinds that initial entry to the
+second tab's URL. /tmp/bas-page-registration-native-red-final-058.json has
+3failed expectations/9passed including independent native active-URL read and
+owned session/profile cleanup. First truncated experiment stopped on201 rejection
+and is preserved separately at /tmp/bas-page-registration-native-red-058.json.
+
+Owners: driver HTTP receipt/status; Go Session admission/PageTracker; live-capture
+page creation/restoration; page callback ingress. Register initial page identity
+from session admission, register creation receipts without waiting for recording
+callbacks, deduplicate callback registration at PageTracker, and never relabel
+the initial page merely because another tab is active when recording starts.
+Preserve unrelated page/lease work under RF038 and qualify real pre-recording
+multi-tab navigation before delivering058.
+
+### BAS-RF-089 — Duration test depends on real scheduler timing
+
+Status: reproduced in058 full driver owner
+uh-20260923-004633-b8372f1c6d8bd91142603c65769f2fc1.
+ai/action/executor.test.ts waits a real50ms timer then requires Date.now elapsed
+>=50ms; owner observed49 and failed1test while1749passed. Real scheduling and
+wall-clock granularity are not a deterministic duration oracle. Preserve the
+>=50assertion and failure result, control the existing test clock/timer, then
+run focused and full qualification. Runtime timing/performance measurements
+remain distinct RF047 scope; this is a test-fixture repair, not a performance
+qualification or tolerance reduction. Failed receipt retained.
+
+### BAS-RF-090 — Saved-tab restoration loses location/active-page agreement
+
+Status: native reproduced2026-09-23 on deployed058. Two temporary profiles save
+three distinct fixture URLs, with either the first or middle tab selected.
+Reopening restores three browser pages but API metadata leaves the initial URL
+empty. Selecting the first tab before save reopens on the last tab; selecting
+the middle tab restores the native browser selection but API still identifies
+the last tab as active. Native /record/navigation-state supplies an independent
+active-URL read. /tmp/bas-restored-tabs-native-red-059.json has4failed/26passed
+expectations, including all scoped session/profile cleanup.
+
+Owner: live-capture RestoreTabs. First-tab navigation records history info without
+updating its PageTracker entry, skips first-tab IsActive retention, and the final
+raw driver switch skips the canonical API ActivatePage update. Repair and test
+original URLs and driver/API selected-page agreement across all active positions,
+blank/failed additional tabs and supported failure handling. Inspect immutable
+Session ownership in these page mutations; do not introduce another tab map or
+claim full profile durability from successful restoration.
+
+2026-09-23 RF088 and RF089 repaired/qualified in058; RF038 page-result attribution
+boundary improved but broader ownership remains open. Native18page-registration,
+49history,6owner,48API and12saved-workflow checks pass on deployed build
+2f4d1767153ac6a2b4f4ca5a521a6b93ab28f5ec36070179a984f68c076bdca5.
+Five Go race packages/APIbuild and driver types pass. Full driver final owner
+uh-20260923-005523-c8d59b592e3b34f354cc4a1dd5f7cdb3 passes1750tests/124suites
+(2tests/1suite skipped),384.876s owner/383.926s Jest after preserving and repairing
+the initial real-timer fixture failure. Runtime source unchanged by timer repair;
+no duration tolerance relaxed. All three complete profile identity reads and
+metadata remain preserved. Receipt docs/internal/evidence/rehabilitation/navigation-page-attribution-2026-09-23.json.
+RF090 is the next independently reproduced saved-tab state defect; it is not
+covered by the page-creation qualification above.
+
+2026-09-23 RF090 state-agreement boundary qualified/deployed059:30native checks
+pass vs4failed/26passed red, including reopened first/middle selected profiles
+and actualURL metadata. Maintained first/middle/last/no-selection/failed-switch
+cases and existing ownership regression pass;3Go racepackages/APIbuild pass.
+Receipt internal/evidence/rehabilitation/saved-tab-restoration-2026-09-23.json.
+Full failed-restore recovery and raw page ownership are explicitly unqualified.
+
+### BAS-RF-091 — Failed tab navigation is acknowledged and persisted as an error page
+
+Confirmed2026-09-23 on deployed059. A reserved localhost socket that refuses
+connections yields public new-tab201 with chrome-error://chromewebdata/ and no
+failure field. Closing and reopening converts that saved entry into about:blank.
+Native corrected producer /tmp/bas-failed-navigation-native-red-final-060.json
+has2failed/8passed, including all scopedcleanup. Initial producer reached same
+201defect but then called nonexistent GetRPC; retained separately, not counted
+as saved-profile evidence. Owner suppresses every new-page goto error under a
+comment claiming about:blank exceptions. RestoreTabs independently logs/skips
+failed effects, and API session creation logs restoration errors then returns200.
+Target:failed requested navigation returns an explicit error and disposes only
+its newly created page; registry cleanup shares the page lifecycle owner. Failed
+profile restoration closes its uncommitted browser session without persisting
+partial tabs/storage or replacing saved profile association. Verify retry after
+site recovery preserves the original saved URLs. Raw page leases remainRF038.
+
+060 RF091 extension evidence: native restore-retry on059 has8failed/22passed
+(first/additional outage):false200,live session remains,profile metadata changes
+and saved URLs are lost after close/retry. Callback maintained test also proves
+a close during awaited created delivery omits the finalclosed event. Repair
+ownedrollback and matching callback settlement together.
+
+2026-09-23 RF038 rawtab authority recheck061 on060:8nativefailures/32passes.
+Bothnew-page andactive-page acceptmissing/wrongexecution/lease and alter the
+independentlyobserved browserURL. ValidAPIcontrol/cleanup pass. Evidence
+/tmp/bas-tab-authority-native-red-061.json. No061sourcechange until060fullowner
+qualification completes.
+
+2026-09-23 RF091 qualified/deployed060: driver1754tests/124suites,95focused/types,
+6Go racepackages/APIbuild pass;native10new-tab/12recording/28outage-retry/30normal
+restore/12saved-workflow checks pass. Browsercleanup/profile preservation verified.
+Receipt internal/evidence/rehabilitation/failed-tab-restoration-2026-09-23.json.
+RF038 rawtab authority remains open with061nativeevidence.
+
+### BAS-RF-092 — Initial session navigation reports stale locations and swallows failure
+
+Confirmednative2026-09-23 on deployed061:4failed/11passed at
+/tmp/bas-initial-navigation-native-red-062.json. HTTPredirect completes inbrowser
+but API initialPage keeps requestedURL/emptytitle. An unavailable localURL still
+yields session200, leavesbrowseractive and touches savedprofilemetadata. Fixture
+cleanup succeeds; originalprofiles remain unchanged. Owner:live-capture.CreateSession
+initialnavigation duplicates a weaker policy than RestoreTabs, initializestracker
+fromrequest and logs navigation errors before returning successful admission.
+Target:one initial-navigation receipt operation appliesactualURL/title toadmitted
+Session'sinitialPage, validatesoriginalowner/page identity, and propagatesfailure.
+Failedinitialnavigation disposesits exactadmission underboundeduncancelledcleanup
+andreturnsfailure withoutprofileassociation. RetainblankinitialURL support and
+allleased/restorebehavior. Do notinfer fulljournalterminalqualification fromthis.
+
+2026-09-23 RF038 tab command/admission-cleanup boundary qualified/deployed061:
+1770driver tests/124suites,141scoped/types,6Go racepackages/APIbuild pass.
+Native40authority/28outage-retry/30normalrestore/12recordingfailure/12saved-workflow
+checks pass. Originalprofiles preserved. Initialfull missedfixture migration
+retainedandcorrectedwithout changing callback deadline or expectedassertions.
+Receipt internal/evidence/rehabilitation/tab-command-authority-2026-09-23.json.
+Viewport/preview/callbackgeneration/retry/interruption boundaries remain open.
+
+2026-09-23 RF092 qualified/deployed062: initial navigation14, outage/retry28,
+ordinary restoration30 and saved-workflow12 native checks pass; profiles preserved.
+Six Go race packages and API build pass; final branch cleanup verified again.
+Unchanged driver reuses061 full qualification. Receipt
+internal/evidence/rehabilitation/initial-navigation-admission-2026-09-23.json.
+
+### BAS-RF-093 — Page reads expose mutable registry state during serialization
+
+Confirmed2026-09-23 by /tmp/bas-page-snapshot-red-063.txt:9failed/1passed
+receipt checks and two race-detector reports between UpdatePageInfo and JSON
+serialization of ListPages. GetPage/GetActivePage/ListPages/ListOpenPages return
+internal pointers after releasing the mutex. AddPage's shallow copy still shares
+OpenerID/ClosedAt pointer values. Callers can mutate registry state and completed
+receipts change after later callbacks. API and profile reads also obtain lists
+and selected IDs in separate lock acquisitions (coherence risk; concurrency
+regression pending). Owner:automation/session.PageTracker, with live-capture
+read callers. Target:deeply detached receipts and one list/selected-ID snapshot;
+remove duplicate traversal policy and convert callers. Validate zero-open-page
+selection and preserve existing sorting, deduplication and public shape.
+
+063 maintained red confirms nested input/output aliases and final-close selection,
+plus API/profile read receipts changing after updates and open snapshots exposing
+closed status during churn. TestPageReadSnapshots did not observe a mismatched
+selected ID in this run; atomic capture removes the inspected split-lock risk.
+29focused tests, six race packages/API build and independent10checks pass after
+repair. Deployment/native qualification pending.
+
+2026-09-23 RF093 qualified/deployed063:29focused cases,6Go racepackages/APIbuild,
+independent10checks and native14navigation/28retry/30restore/12workflow pass.
+Profiles preserved; no observed races in green checks. Receipt
+internal/evidence/rehabilitation/page-state-snapshots-2026-09-23.json.
+
+### BAS-RF-094 — Close-tab success leaves the actual browser tab open and selected
+
+Confirmed native2026-09-23 on deployed063: /tmp/bas-tab-close-native-red-064.json
+has2failed/11passed. Closing the second/active tab returns200 and API selects
+the remaining tab, yet driver navigation-state still returns200 for the supposedly
+closed tab. Handler CloseRecordingPage only changes PageTracker and records an
+event; it never asks the browser owner to close. Target:leased actual browser
+closure with receipt-driven selection, explicit errors and original-owner checks.
+Share page removal/selection and closed-event identity across commands/callbacks;
+prove no duplicate journal closure, last-tab behavior and create-after-close.
+Do not infer full callback-generation authority from this repair.
+
+2026-09-23 RF094 command closure qualified/deployed064:50native checks pass
+(before/during recording, last close/reopen, one journal event across callback/
+retry), plus14initial/28retry/30restore/12workflow. Profiles preserved. EightGo
+racepackages/APIbuild,55focused driver/types,8UIhook tests/types and full1785
+driver tests/124suites pass. Receipt
+internal/evidence/rehabilitation/browser-tab-closure-2026-09-23.json. External
+callback authority/concurrent reconciliation remain RF038; full native UI unknown.
+
+### BAS-RF-095 — UI tab admission and late responses lose session state ownership
+
+Confirmed2026-09-23 on064: maintained usePages tests6failed/7passed at
+/tmp/bas-ui-tab-state-red-065.txt. A successful new-tab receipt does not add/select
+the tab without a WebSocket callback; duplicate page-created messages invoke the
+consumer again; old list/close/switch completions overwrite the new session's
+view or selection. Native /tmp/bas-ui-tab-admission-native-red-065.json has2failed/
+6passed:201 lacks canonical page/selection while the new page exists in GETpages.
+Page listeners are only attached when recording starts. Hook mirrors pages and
+selection in local state plus sessionStore and invokes consumers inside React
+state updaters. StrictMode subcase fails, but first-vs-repeat failure detail is
+still being checked; do not overclaim a StrictMode-only defect.
+Target:complete canonical admission receipt, one UI page-state owner, receipt
+and callback application outside React state updaters, and stale-session completion
+rejection. Preserve tab ordering, URLs/titles, profile restoration and existing
+wire identity fields. Owner:live-capture/page handler and UI usePages/sessionStore.
+
+065 detailed red confirms duplicate-event replay is the failing assertion in both
+StrictMode and ordinary rendering; first delivery invokes the consumer once in
+both. No StrictMode-only failure is claimed. Keep side effects outside React
+updaters as part of eliminating the duplicate page owner.
+
+2026-09-23 RF095 qualified/deployed065: UI479tests/25files/types,6Go racepackages/
+APIbuild and native8admission/50close/14initial/28retry/30restore/12workflow pass.
+Real UI10checks pass after correcting the fixture's assumed recorder state: the
+screen auto-starts recording, so the no-callback test explicitly stops its owned
+recorder first. Original failed fixture retained; assertions not relaxed. Profiles
+preserved. One UI page owner removes210runtime lines; Go complexity+2 is explicit.
+Receipt internal/evidence/rehabilitation/ui-page-admission-2026-09-23.json. Full
+frame delivery, same-session overlap and release qualification remain unknown.
+
+### BAS-RF-096 — Live frame bridge drops the JPEG payload
+
+Confirmed2026-09-23 on065: nativeUI probe/tmp/bas-ui-paint-native-066.json
+leaves the preview canvas hidden/300x150 while recording is active. Driver
+record/frame produces `image` and `mime`; Go GetFrameResponse decodes `data` and
+`media_type`, so the API forwards empty image/type with successful200 and ETag.
+The native isolated producer compares driver/API bytes independently of UI paint.
+Target:one canonical driver frame wire type through the API, preserved JPEG
+payload/metadata, explicit invalid-frame failure, and actual colored UI paint
+before/after tab switches and closure. Existing mock-only handler tests cannot
+prove the driver wire seam. Owner:driver Go client and live frame HTTP handler.
+
+The first probe also observed external new-tab callback metadata/selection
+inconsistency (201Blue title, UIUntitled). Preserve that receipt under RF038/095
+follow-up; isolate frame qualification with tabs admitted before recording.
+No frame-rate/latency/release qualification is implied.
+
+RF096 qualified/deployed066: driver/APIimage agreement and settled coloredUIpaint
+14/14pass; maintainedHTTPbridge/invalidreceipt regressions and4Go racepackages/API
+buildpass. Nativeworkflow12/12,3effects; savedprofileidentity/metadata preserved.
+Receipt internal/evidence/rehabilitation/live-frame-bridge-2026-09-23.json. Removed
+duplicateframeDTO/translation and obsoleteETagfallback;31runtime lines removed,
+Go complexity+6explicit. UIcurrentlypolls; streamdelivery/performance stays RF034/047.
+
+067 revalidation of RF007/RF034 and viewer lifetime gaps: native
+/tmp/bas-ui-stream-native-diagnostic-067.json constructs24486direct URLs while
+managedport24438 is assigned; APIWS delivers2binaryframes andUIremainspolling.
+Confighasnumeric24485, so missingconfig is falsified. Ownedfixturescleanup passes.
+Scoped historical actual-hook probe6fail/1controlpass; first narrowing attempt
+stillinitialized obsolete session mocks and failedproducer, retained separately.
+MaintaineduseFrameStream tests14/14fail on066 (transport, fallback, boundeddecode,
+ordering, lateconfig/decode/socket/HTTP completions, invalidETag admission, final
+tabclear). Logs/tmp/bas-ui-frame-maintained-red-detail-067.txt. Repair viewer
+resource owner and replace directresearchroute with configuredAPIsubscription.
+Source-generation identity and full security/performance remain unqualified.
+
+2026-09-23 cycle067 qualifies the local viewer repair for RF007/033/034 and
+retires RF008's direct listener. Maintained19 viewer cases, UI498 tests, driver71
+focused/1781 full tests, affected Go races/build and types pass. Native HTTP-outage
+15/15 now paints all four selected colors; expanded16/16 also proves exactly one
+selected red-tab effect from a real canvas click. Normal preview14/14 and saved
+workflow12/12 pass; three profile identity reads and API metadata are preserved.
+Receipt:internal/evidence/rehabilitation/viewer-stream-ownership-2026-09-23.json.
+Runtime removal1029 lines; Go complexity-1. One viewer resource lifetime replaces
+parallel decode/render policies, and the unused listener/configuration is removed.
+The old direct-listener probes describe a retired owner, not current qualification.
+Remaining API access/slow-reader matrices, source frame identity, redundant event-
+socket frame fanout and sustained performance are explicitly open.
+
+### BAS-RF-097 — Observed tab URLs command unintended browser navigation
+
+Confirmed 2026-09-23 on deployed067 by
+`/tmp/bas-tab-callback-native-red-068.json`: seven checks pass, four fail. External
+creation returns canonical Blue metadata, but the UI receives an initial blank
+page callback, activates that tab and POSTs navigate with `about:blank`. Actual
+driver location and registry then become blank; this is destructive navigation,
+not merely a stale label. The native producer retains ordered socket events, UI
+requests, creation receipt, driver state and independent colored paint.
+
+Owner: RecordingSession/useBrowserNavigation. Displayed URL observations shall
+not command navigation. Only explicit user/launch intents may do so, including
+repeat requests to the same URL. Redirects and history responses remain
+observations. Session replacement/unmount shall reject late intent completions.
+Remove the component's URL-matching deduplication workaround and duplicate parser
+when the existing navigation hook owns explicit requests. Preserve initial launch,
+profile restoration, history controls and recorder/AI readiness.
+
+Driver lifecycle listeners attach after the created callback; a possible metadata
+gap remains a hypothesis to discriminate after fixing the proven UI feedback loop.
+Do not call a dropped-event or driver fix qualified without independent evidence.
+
+### BAS-RF-098 — New-page lifecycle misses navigation during creation delivery
+
+Native068 intermediate on build82be32cb6d32a0c3ad9cbf1fc032eeb125a9a1b47ddf3c7f0e20cf763b692343
+passes10/11 checks: driver, registry and blue paint are now correct; UI tab remains
+Untitled. Main socket receives created(blank) and page_switch, no navigated event.
+Driver page-events attaches listeners only after async opener/load/title and
+creation callback delivery. Reproduce navigation during those waits in the
+maintained owner test before repair. The callback gap is separate from RF097's
+now-fixed unintended navigation. Owner: driver page-events lifecycle admission.
+
+RF098 maintained reproduction confirms both opener-wait and created-delivery
+windows lose navigation (two failures/13 passes). The driver now observes page
+lifecycle synchronously and gates subsequent callback publication on creation.
+Affected88 tests/types pass; final native and full-driver qualification pending.
+
+RF064 measurement supplement,2026-09-23: existing installed ESLint classic
+complexity measures the affected067 files714->620 and068 files437->443 with
+validated parser/error/suppression controls. See internal/evidence/rehabilitation/
+typescript-complexity-supplement-2026-09-23.json. This improves scoped evidence
+without pretending Tidiness Manager's explicit TS/JS skip is fixed; original
+whole-scenario complexity and authoritative owner coverage remain unqualified.
+
+2026-09-23 RF097/098 qualified and deployed in068, build
+60b7ae38ebda099da7b78080f84f63cf5ff11ddd96aba01b7d01d2192b1e95f1.
+Original native11/11 and expanded navigation22/22 pass; tab label, URL, registry
+and independent blue paint agree. UI511 tests/types, affected driver88 tests/types,
+full driver1784 tests/123 suites, saved workflow12/12 with three independent
+effects and original profile identity/metadata checks pass. Existing two tests/one
+suite skipped. Receipt internal/evidence/rehabilitation/tab-navigation-ownership-
+2026-09-23.json. Runtime39 lines removed; scoped ESLint complexity+6 is explicit.
+Broader callback ordering/retry and active-page command admission remain RF038
+qualification gaps; neither all release outcomes nor global complexity is claimed.
+
+### BAS-RF-099 — Delayed navigation retargets a newly selected tab
+
+Confirmed 2026-09-23 on qualified068: native89762 passes14 checks and fails3.
+The producer intercepts one actual UI navigate request submitted on Red, switches
+to Blue, then releases the request. Blue actually navigates to destination-for-red;
+the URL bar follows it and the fixture observes destination requests. Exactly one UI
+navigate request carried only a URL. Existing driver061 fences apply after server
+admission, so they cannot identify the page on which the user issued the command.
+Artifact `/tmp/bas-navigation-page-native-red-069.json`; all owned cleanup passes.
+
+Repair the intent boundary across UI, API and driver: UI navigation/history
+commands retain canonical page identity and cancel/reject late work after selection
+changes; API resolves that identity from its owning session, and driver checks the
+expected driver page before any browser effect. Deliberate programmatic active-tab
+commands may omit a page precondition. Test both semantics and guard API-to-driver
+selection races; a UI-only abort does not protect already delivered requests.
+
+2026-09-23 RF099 qualified/deployed069, build
+b494c40d57e4c6e88eba6d282de3af41e91c941c12d05673b17132196f00f571.
+Native17/17 plus expanded24/24 and navigation preservation23/23 pass. UI526
+tests/types,driver140 focused/1808 full tests/types,four Go race packages/APIbuild,
+workflow12/12 with three effects and original-profile identity/metadata pass.
+An additional maintained Red->Blue->Red failure was repaired before deployment:
+UI page lifetime identity prevents replay when the same page ID becomes active
+again. Driver precondition rejects all four stale command kinds before effects;
+programmatic implicit-active behavior remains. Receipt internal/evidence/
+rehabilitation/page-bound-navigation-2026-09-23.json. Runtime9 lines removed;
+Go complexity+14 and scoped TypeScript+25 are recorded costs, not reductions.
+Full release qualification and activation-generation protocol remain unqualified.
+
+
+### BAS-RF-100 — Passive tab display repeats document requests outside browser identity
+
+Confirmed 2026-09-23 on qualified069 by `/tmp/bas-passive-requests-red-070.json`:
+9 checks pass,4 fail. Direct Chromium, BAS admission, recording start and recording
+navigation without UI each preserve one document GET. UI attachment and subsequent
+UI navigation each add one LinkPreviewBot GET without the fixture cookie, alongside
+a GetLinkPreview RPC. Fixture records method, User-Agent, destination, phase and
+sequence; bounded2s negative-observation windows are explicit. Browser location,
+custom favicon and owned cleanup pass. No legacy recorder injection route is
+implicated by these results.
+
+Owner: TabBar/useLinkPreview. The tab bar shall use favicon metadata from the
+already loaded browser document through existing page events and page registry.
+It shall not fetch the document again merely to display its tab. Preserve custom
+icons, navigation/clear/failure transitions and legitimate start-page link previews.
+Remove the unused single-preview hook once its only caller is replaced. API and
+UI page owners shall retain icons on same-document updates with absent metadata,
+clear stale icons on URL replacement, and accept explicit empty metadata. Driver
+metadata reads must respect lifecycle disposal and document replacement. The
+existing UI image fetch remains distinct from a recorded-profile authenticated
+image delivery capability; that capability is not newly claimed.
+
+
+2026-09-23 RF100 qualified/deployed070, build
+217b9a2f8bafd6725628aef4202c133fb11d271212a4b916250ce73b95fa7eb7.
+Native13/13 and expanded23/23 prove one document GET per navigation, no tab
+LinkPreviewBot request, preserved custom/base-relative/data icons, failed-icon
+recovery, initial/inactive pre-recording tabs and reload metadata after recording
+stops. UI531/types, driver118focused/1816full(123suites,existing2tests/1suite skipped),
+four Go race packages/build, workflow12/12 and original profile checks pass.
+Receipt internal/evidence/rehabilitation/passive-tab-metadata-2026-09-23.json.
+Runtime38 lines removed, Go complexity+3 and scopedTS+5 explicitly retained.
+
+### BAS-RF-101 — Browser tab selectors cannot receive keyboard focus
+
+Confirmed 2026-09-23 by native071 on qualified070. Both tab selectors have
+`tabIndex=-1`; eight real Shift+Tab transitions from Open new tab visit close
+buttons and other chrome but never a tab selector. Focusing the selected tab
+also fails. Pointer selection changes the actual browser to Red, independently
+confirming the selection operation works. Source TabBar uses click-only role=tab
+divs. `/tmp/bas-tab-keyboard-native-red-071.json` retains focus trace. These three
+keyboard failures are independent of the later last-tab observation failure.
+Empty-workspace keyboard assertions did not run and are unverified. Repair focus
+and key semantics after the newly observed last-tab reliability issue is isolated.
+
+### BAS-RF-102 — Last-tab close leaves a stale viewer and impairs cleanup
+
+Native071 API calls close both owned browser tabs successfully, but the UI keeps
+Red selected, polls its closed frame and never exposes the empty-tab placeholder.
+Independent recovery read shows both canonical pages closed, empty activePageId,
+and driver page_count0 while driver health remains OK. API frame failures open the
+shared driver circuit breaker; runtime log confirms it then refuses storage-state
+and profile-before-close returns500. Producer cleanup deleted only its synthetic
+profile, so the later successful API close is not proof of profile save recovery.
+Original profiles were not involved. Direct driver storage read returns200; after
+cooldown the owned session closes successfully, leaving no owned orphan.
+
+Artifacts: `/tmp/bas-tab-keyboard-native-red-071.json`, screenshot, runtime log
+`/tmp/bas-last-tab-runtime-071.txt`, `/tmp/bas-last-tab-recovery-response-071.json`.
+Native071 totals5pass/5fail:3keyboard,1last-tab wait,1initial cleanup. Hypotheses:
+React lastMessage coalescing loses lifecycle events, websocket disconnect loses
+close observations, or filtering rejects empty selection. Capture wire events,
+connection lifecycle and canonical state at close before selecting a repair.
+Investigate breaker response classification separately; current evidence does not
+yet prove which underlying HTTP failure class first opened it. Improve probe
+cleanup to retain synthetic profile identity until session cleanup succeeds.
+
+
+RF102 discrimination,2026-09-23: instrumented native last-tab control passes9/9
+(`/tmp/bas-last-tab-native-red-071.json`, historical filename does not imply fail),
+including empty placeholder, direct storage and complete synthetic cleanup.
+Raw socket receives close observations and an empty active_page_id. Maintained
+real-provider/usePages test3366 fails2/2 with distinct reasons: spaced close events
+reach the registry but final selection stays Red; the generic Zod envelope strips
+active_page_id. Batched close+selection messages also leave both pages open because
+single React lastMessage state retains only the final message. This proves two UI
+owner defects. Preserve domain envelope fields and replace coalescing delivery for
+all current subscribers. Driver availability-classification remains a separate
+unqualified amplification concern; no breaker code changed in this cycle yet.
+
+
+### BAS-RF-103 — Expected HTTP rejections trip the shared driver availability breaker
+
+Confirmed 2026-09-23 with the real Go driver Client against an owned HTTP fixture.
+Five HTTP400/401/403/404/409/422 responses each preserve their expected request
+errors but open the shared breaker; an independently healthy storage-state route
+then receives zero requests. Six expected-behavior cases fail. Positive controls
+HTTP408/500/503 open the breaker and HTTP429 permits recovery, all four pass.
+Receipt `/tmp/bas-breaker-availability-red-072.json`; producer under
+/tmp/browser-automation-studio/breaker-availability-072.go. These are real HTTP and
+actual resilience-owner effects, not a mocked breaker. Original071 frame failure
+classification remains unproven; this independent defect is sufficient to repair.
+
+Owner: api/internal/resilience response classification. Treat answered HTTP client
+errors as request rejections, excluding HTTP408 timeout, while returning the
+original errors to callers. Preserve transport/server/timeout failure isolation,
+HTTP429 backpressure, cancellation and half-open recovery. Add maintained owner
+and driver-client tests before implementation; do not disable the breaker or turn
+rejected commands into successful command receipts.
+
+RF102071 qualified and deployed: generic codec preserves domain fields, synchronous subscriptions deliver all events to11converted consumers, retired sockets cannot publish/reconnect, unused binary facade removed. Explicit empty page disables frame/input work while implicit-active mini preview remains available. Maintained fullUI1155/79 plus finalrecord-mode541/29/types pass; nativefinal12/12 includes no-frame-polling, address/tab clear and fresh creation; workflow12/12 and original profiles3complete reads preserved. Receipt internal/evidence/rehabilitation/page-event-delivery-2026-09-23.json. RF103 is independently confirmed and under repair; broader reconnect and source-frame qualification remain open.
+
+RF103072 qualified/deployed: one resilience policy excludes answered400–499except408 from availability failures, preserving all returned errors. Maintained red14owner/6client failures now pass;5racepackages/build pass; realHTTPfixture10/10, liveGoClient13/13 including repeated404 thenhealthy storage andprofile save/close. Workflow12/12 and originalprofile3fullreads preserved. Receipt internal/evidence/rehabilitation/driver-availability-2026-09-23.json. Broader recovery/soak and original071initialframeerrorclass remain unqualified.
+
+RF101073 keyboardboundary qualified/deployed: siblingnativebuttons, rovingentry, manualarrow/Home/End focus, Enter/Spaceactivation, Deleteclosure, neighbor/empty/created-tabfocus andoutsidefocuspreservation. Maintained550/29/types, native19/19 actualbrowser effects, passiveicons23/23, workflow12/12 andprofile3complete reads preserved. Receipt internal/evidence/rehabilitation/tab-keyboard-2026-09-23.json. Scope is keyboardinteraction; fullpanelARIA linkage, assistivetechnology andmobile/OS certificationremain unqualified. Runtime+56/scopedTS+37 explicitlyrecorded.
+
+RF038074 source-frame identity confirmed,2026-09-23: native30055 exits1,9pass/1fail. An ownedcallbacksocket establishedwhileRedactive receivesheldactualRedJPEGbytes afterBlue is selectedandpainted. APIforwards them andviewerpaintsRed5times whilecanonical/driverselectionstaysBlue. NormalBlueframes recover afterward; ownedcleanup succeeds. This iscontrolleddelayedproducerboundary injection, not a naturallyobserveddriverqueue race. Sourcewire hasnosourcepage/execution/leaseidentity; APIsession-onlyforwardingandviewerlocalgenerationfencing cannotdistinguishthese frames. Artifact /tmp/bas-frame-identity-red-074.json. Repair immutablecaptureidentity atproducer andvalidate it throughAPI/viewer, includingHTTPfallback and optionalperformance metadata; do notstampcurrentpage identity ontoqueuedbytes. No074sourceedit yet.
+
+
+2026-09-23 RF038074 source boundary repair deployed on build
+6f65b5a0f714c2296ffa9e0ac658e4306b758a9ec4fa49a9b5d836159931c79d.
+Native16/16 rejects held old-page, anonymous, retired-lease and wrong-execution
+frames; valid current source maps to the canonical page without exposing driver
+credentials. HTTP source validation prevents stale response/cache publication.
+Driver/API/viewer now share mandatory source identity independent of optional
+timing. Dead JSON push route/facade removed. Focused checks and saved workflow
+pass; full driver owner qualification still pending in progress074. Broader
+same-page navigation epochs, callback retries and generation ordering remain open.
+
+2026-09-23 RF007075 observed duplicate fanout: the074 native probe sends one
+uniquely timestamped valid frame and the actual single-viewer UI receives two
+copies on distinct WebSockets. Timeline subscription receives binary data with
+no consumer; separate canvas subscription receives the same frame. Preserve
+/tmp/bas-frame-identity-native-074.json counters and qualify a targeted repair.
+Slow-reader/backpressure and aggregate bandwidth bands remain unqualified.
+
+2026-09-23 RF047 visual follow-up:074 final canvas screenshot repeats the fixture's
+single heading across the blue area. Uniform-color identity checks do not prove
+full frame fidelity after resizing. Cause unverified; next discriminator is a
+coordinate-marked fixture compared with direct browser screenshot and received
+JPEG. Preserve /tmp/bas-frame-identity-native-074.png; no new defect root cause or
+resolution claimed from appearance alone.
+
+
+RF038074 final qualification: full driver owner
+uh-20260923-072637-8cca25df81e1eae8a78be0148262c304 passes1826tests/123suites;
+2tests/1suite retain existing skips. Native16/16, saved workflow12/12 with3effects,
+original profiles3complete reads preserved. Receipt
+internal/evidence/rehabilitation/frame-source-2026-09-23.json. Scopedruntime+25,
+Go+30,TS+46; removed obsolete paths do not imply net per-cycle simplification.
+All17release outcomes remain unknown; RF038's broader ownership work stays open.
+
+
+RF007075 qualified/deployed on build7c658283343d9adaca4105a5bb438828f67bf786664f79ab9fa13dc3e4ab5f84.
+Timeline selects events only; locked Hub intent excludes it from binary fanout
+and frame-subscriber presence. No compatibility alias for the renamed query.
+Native17/17: one uniquely timestamped callback arrives once (red2), timeline
+receives0binaryframes/0bytes; source rejection and event/page controls retained.
+Four Go racepackages/UI560/types/build, savedworkflow12/12 and originalprofile
+3reads pass. Driver074 source/qualification unchanged. Receipt
+internal/evidence/rehabilitation/frame-fanout-2026-09-23.json. Runtime+3,Go+2,TS0;
+this removes unused network work, not a net per-cycle code reduction. Slow-reader
+and broader bandwidth/FPS qualification remain open.
+
+
+2026-09-23 RF047 scale admission076 reproduced: explicitdevice session requests
+still produce CSS-sized streams before/after recording starts; explicitCSS HTTP
+preview returns device-sized JPEGs. Native receipts/tmp/bas-frame-scale-css-076/
+receipt.json and/tmp/bas-frame-scale-device-076/receipt.json; allowned cleanup
+passes. Session-start drops scale, SessionSpec discards it, recording-start resets
+it, and HTTP capture uses a different default. Six maintained red route assertions
+confirm these paths; candidate retains scale on SessionSpec and converts allthree
+admissions. Final affected routes58/3/types pass; fullowner/native pending.
+HTTP width/height intentionally describe CSS viewport, not bitmap intrinsic size.
+Coordinate colors pass and the repeatedheading did not reproduce; initial87px
+height shortage is separate unqualified geometry work, with local historical
+video investigation as a lead rather than a newly established root cause.
+
+RF047076 scale propagation repaired/deployed, with native geometry explicitly
+unresolved. Session admission/retry/reuse, recordingrestart and HTTPscale routes
+pass58tests; fullowner1836/123,workflow12/12,profilespreserved. CSSnative56pass/
+7heightfailures; device46pass/17earlyresize/pixel/geometryfailures, laterthree
+stagespass. Receipt internal/evidence/rehabilitation/preview-scale-2026-09-23.json.
+077directChromium observation proves stable87px-shortframes in regularbinary under
+bothheadlessconfigurations; shellcontrols pass. Explicitscreenmetrics restores
+fullheight. Launchflag-onlyrepair rejected; resize/content preservation remains
+under investigation before choosing compositor-owner repair.
+
+RF047077 qualified/deployed: SDKPage viewportmutation joins the existingcapture
+queue; Chromium visiblearea is applied afterwindow sizing. BASvideo-onlyunawaited
+metrics override removed. Fourmaintainedred failures nowpass; full1842/123,
+nativeCSS63/63 anddevice63/63, concurrentresize96samples withzeromismatch and
+55videoframes withnograybottom. Workflow12/12 andprofilespreserved. Receipt
+internal/evidence/rehabilitation/renderer-geometry-2026-09-23.json. Net-36runtime
+lines and-2scopedcomplexity includingSDK; unchangedwide tidinessbudgetfailures.
+Viewportcommandownership/rapidrequests/same-pageepochs andbroaderperformance
+remainopen. Originalrepeatedheading wasnotreproduced bycoordinatefixture.
+
+2026-09-23 RF099/078 UIobservation: attachingandreattachingtoanexistingfixture
+session leavesaddressbar empty foratleast5seconds whilecanonicalactivepage has
+itscorrectURL. Native7pass/2fail,ownedcleanupcomplete; receipt
+/tmp/bas-browser-address-native2-078/receipt.json. Investigate snapshot hydration
+andlocalURLobservation owner; no078repairclaimed.
+
+RF099078 qualified/deployed: URL observation now follows the validated canonical
+selected Page, including initial snapshot admission. Removed callback-only URL
+writes, restored-URL state and last-action fallbacks. Maintained red3 failures now
+pass; UI563/29/types, native9/9 and16/16 attachment/selection/draft/closure/profile
+restoration controls, workflow12/12 and original profiles preserved. Receipt
+internal/evidence/rehabilitation/address-bar-observation-2026-09-23.json. Net-69
+runtime and-25 scopedTS complexity. History availability/read attribution remains
+outside this receipt and is the next investigation; no overall release claim.
+
+2026-09-23 RF099/RF038079: actual UI attachment/reload leaves Back disabled despite
+browser can_go_back=true. API navigation-state and navigation-stack ignore stale
+page_id and return the newly selected tab's history. Native10pass/3fail, owned
+cleanup complete, /tmp/bas-history-native-red-079/receipt.json. Source also omits
+immutable lease from both read transports; repair the complete read ownership
+boundary before using it for initial UI capability observation.
+
+RF099/RF038079 qualified/deployed: history reads now retain selected page and
+immutable lease through API/Session/Client/driver awaits; UI initializes history
+capabilities, clears them on handoff and discards superseded reads. Maintained
+red driver12/API12subcases/UI2+2 now pass; full driver1854/123, UI567/29/types,
+four Go racepackages, live13/13+20/20, workflow12/12 andprofilespreserved. Receipt
+internal/evidence/rehabilitation/history-read-ownership-2026-09-23.json. Runtime+86,
+Go+18,scopedTS+12 explicit; no net cycle reduction claim. Broader viewport ownership,
+frame epochs, recovery and release qualification remain open.
+
+2026-09-23 RF038/RF047080: native viewport discriminator confirms zero-dimension
+success receipts (requested/applied800x600, APIreturns0x0), ignored stale canonical
+page_id (200instead409), and actual resize of the newly selected document
+640x480->1100x750. Receipt /tmp/bas-viewport-native-red3-080/receipt.json,7pass/
+3fail, ownedcleanupcomplete. Source includes a second SDKviewport mutation in
+CDPstream refresh and dropped pending/small updates; stream ordering still needs
+maintained discriminators. No080repair claimed.
+
+### 2026-09-23 — 080 viewport ownership and device-load evidence (RF038/RF047/RF007)
+
+Viewport command now has one admitted Session/page owner, returns actual dimensions,
+and awaits capture refresh. Stale page requests conflict; UI lifetimes and aborted
+mutation compensation are qualified. Duplicate SDK mutation, dropped/small-update
+paths and obsolete facades removed. Receipt:
+[viewport-ownership](internal/evidence/rehabilitation/viewport-ownership-2026-09-23.json).
+RF038 retains broader callback/retry/same-page epoch/completion work; RF047 retains
+broader settings/performance qualification. RF007 now includes an observed device
+stream stall under concurrent workload:20 capture timeouts,10deliveredframes, four
+stale-dimension assertions. HTTP/UI fallback stayedcorrect. Instrumented follow-up
+passes63/63 withouttimeouts, so overload causality and durable fix remainunproven;
+next081 measures duplicate capture admission and queue pressure. Originalfailed
+receipt retained; laterpass doesnot qualify load behavior.
+
+### 2026-09-23 — 081 preview admission (RF007/RF038)
+
+Concurrent identical HTTP previews now share one capture. Existing cache lifetime
+fences resize, URL/source replacement, clear and failed/older completions. Native
+six eight-reader bursts show8->1 captures each,367.6->95.4ms median batch completion,
+5->0 pollingtimeouts; load differs, so these are local observations, not throughput
+certification. Driver1877/123 and native geometry/workflow/profile checks pass.
+Receipt [preview-capture-admission](internal/evidence/rehabilitation/preview-capture-admission-2026-09-23.json).
+RF007 broader load/slow-reader behavior and RF038 same-document epochs remainopen.
+
+### 2026-09-23 — 082 capture device scale (RF016)
+
+Explicit CaptureRequest device scale was dropped before SessionSpec. Both public
+surfaces requestedDPR1 but renderedDPR2; nativebaseline13pass/5fail. Translationnow
+uses a cloned existingprofile;14maintainedscale/profile/preset cases andnative18/18
+pass. Omitteddefault behavior preserved. Local100/100captures at1280x720DPR1 yield
+servicep95=755ms (95%order-statisticinterval754–771ms, IIDassumption), allPNG/tree
+geometryandartifacthash checks pass. Receipt
+[capture-device-scale](internal/evidence/rehabilitation/capture-device-scale-2026-09-23.json).
+The capture release row remainsunqualified without governed/applicablecohortjoins;
+otherplatform/loadcases remainunknown. RF016stillincludesduplicateintermediate
+PNGs (300for100calls). Do not close the wholeissue from the scale repair.
+
+### BAS-RF-104 — Capture ignores declared request bounds before execution
+
+2026-09-23, investigation083: the generated Capture handler installs no runtime
+protobuf constraint validation. Maintained actual Connect-module tests prove
+width/height outside100..4000 and device scale outside0.5..4 (including NaN and
+infinities) reach executor/export; dry runs falsely accept them. Unknown numeric
+capture types also enter execution. Evidence: /tmp/bas-capture-admission-red-083.txt.
+Owner: capture request admission, using existing schema bounds and existing
+capture normalization. Required proof: reject invalid input before effects on
+normal/dry paths, preserve exact bounds and omitted defaults, native loopback
+negative controls, and profile/workflow preservation. Repair in progress.
+
+RF104 qualification,083c: deployed2b8926339eefeabf65ba0d68ae8a2733f803874e24625c40b62a6b531ad0bd2d
+rejects4nativeinvalidcases400withzeroeffects; validcontrolworks. Existingprotobuf
+bounds enforcedbyprotovalidate1.3.0/CEL0.30.0, enum membershipbygeneratedmap.
+Maintainedboundary/omission controls,84APIshortpackages,3racepackages/build,
+DPR18/18,workflow12/12/profiles3originalreads pass. Receipt
+internal/evidence/rehabilitation/capture-request-admission-2026-09-23.json.
+No baselinemodifications orquietacceptanceofinvalidvalues. RF104 localrepair
+qualified; broaderpublicrequestcoverage remains withinongoingadversarialreview.
+
+RF016 follow-up083:100/100capturesstillproduce300PNGs/100trees (5,130,100bytes).
+Servicep95=755ms; CLIp95=978.46ms vs926.20prior (+5.64%). Sharedhostcohortsleave
+causality/relative-regressionunqualified; repeatedcomparabletrials andCLIoverhead
+attribution aretherecheck. Duplicatecapturepolicyremainsopen.
+
+RF068 follow-up083:fullAPIliveOllamaassertionfailsbecauseoptional elementText
+isnullagainststring-onlyschema. Requiredaction/category/confidence remainvalid
+inthisreportedfailure. Fixoptionalabsencecontractwithoutrelaxingrequiredfields;
+retain/tmp/bas-go-all-083.txt. Notanunavailableproviderorpermittedskippedassertion.
+
+RF068 optional-text correction084: null optionalmetadata no longer invalidates
+anotherwisevalidmodelresult; requiredaction/category/confidence constraints stay
+strict, wrong optionaltypes stillfail. Deterministicred/green, twoGo racepackages/
+build,3first-attempt localprovidersearchsmokespass. Deployedbuild
+a00722acc3738c5f583c95a71125c60e75ca34710737bd775fa1631752c840a9; workflow12/12 and
+3originalprofilepreservationreads pass. Receipt internal/evidence/rehabilitation/
+ai-optional-text-2026-09-23.json. WiderAIquality/grounding/replaycorpus unqualified.
+Documentedoptional-AI partialDOMresultbehaviorpreserved; no coercion orretrylayer.
+
+### BAS-RF-105 — Synchronous execution waits poll beyond completion and miss teardown
+
+2026-09-23, investigation085: saved and ad-hoc WaitForCompletion duplicate250ms
+repository polling. Maintained actual-service tests withGo synctest prove225–250ms
+addedwait,6readsfor1025msrunner instead ofinitial+terminal, returnwhileevent
+teardownisblocked, andwaiterdeadline ratherthanexplicitfailurewhenfinalindexwrite
+fails.12negative subcases reproduced; cancelledwaiter/continuedexecutioncontrols
+alreadypass. Red/tmp/bas-execution-wait-red-085.txt. Owner: existingworkflow
+executiongoroutine lifetime plusonepersistedterminalread. Repairinprogress;
+validatepublic saved/adhoc paths, delayedteardown, error/status/timestamp, missing
+terminalresult andlocalnativecapture/workflow/performance beforequalification.

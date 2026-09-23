@@ -696,10 +696,10 @@ BROWSER CLIENT                    API                      PLAYWRIGHT-DRIVER
      |  <------------------------- |                              |
      |  { type: "click", ... }     |                              |
      |                             |                              |
-     |                             |    POST /frame (callback)    |
+     |                             |    WS /frames (callback)    |
      |                             |  <------------------------   |
      |                             |                              |
-     |  binary frame (JPEG)        |                              |
+     |  source envelope + JPEG        |                              |
      |  <------------------------- |                              |
      |                             |                              |
      |  recording_input            |                              |
@@ -727,7 +727,7 @@ BROWSER CLIENT                    API                      PLAYWRIGHT-DRIVER
 
 | Message Type | Purpose |
 |--------------|---------|
-| `subscribe_recording` | Join a recording session |
+| `subscribe_recording` | Join a recording session; `frames: false` selects events only (timeline), omission or `true` also receives binary frames (viewer) |
 | `unsubscribe_recording` | Leave a recording session |
 | `recording_input` | Forward mouse/keyboard input to driver |
 | `subscribe_driver_status` | Subscribe to driver health status |
@@ -737,7 +737,7 @@ BROWSER CLIENT                    API                      PLAYWRIGHT-DRIVER
 | Message Type | Purpose |
 |--------------|---------|
 | `recording_action` | Action captured (click, type, etc.) |
-| `binary frame` | Raw JPEG frame data |
+| `binary frame` | Four-byte big-endian header length, version 1 JSON source header, JPEG bytes |
 | `page_event` | Page lifecycle (created, navigated, closed) |
 | `page_switch` | Active page changed |
 | `perf_stats` | Performance data (debug mode) |
@@ -765,7 +765,7 @@ BROWSER CLIENT                    API                      PLAYWRIGHT-DRIVER
 ┌─────────────────────────────────────────────────────────────────────┐
 │ API HANDLER LAYER                                                   │
 │ - ReceiveRecordingAction: Parse and store action                   │
-│ - ReceiveRecordingFrame: Store/broadcast frame                     │
+│ - GetRecordingFrame: Source-validated preview                     │
 │ - HandleDriverFrameStream: WebSocket binary streaming              │
 │ - ForwardRecordingInput: Forward input to driver                   │
 └──────────────────────┬──────────────────────────────────────────────┘
@@ -783,7 +783,7 @@ BROWSER CLIENT                    API                      PLAYWRIGHT-DRIVER
 ┌─────────────────────────────────────────────────────────────────────┐
 │ WEBSOCKET HUB                                                       │
 │ - Broadcast action to subscribed clients                           │
-│ - Broadcast frames (binary or base64)                              │
+│ - Broadcast source-bearing binary frames                              │
 │ - Broadcast page events                                            │
 │ - Forward input from clients to driver                             │
 └──────────────────────┬──────────────────────────────────────────────┘
@@ -822,3 +822,30 @@ Workflow available for execution
 - [DOC: docs/plans/README.md#historical-source-files] - Original implementation plan
 - [DOC: docs/plans/README.md#historical-source-files] - Multi-tab support
 - [DOC: docs/internal/SEAMS.md#recording-bounded-context] - Recording integration seams
+
+
+### Frame source boundary (2026-09-23)
+
+Both driver streaming strategies send `[uint32 BE header length][JSON][JPEG]`.
+The mandatory version 1 header carries `source` (`session_id`, `execution_id`,
+`lease_id`, driver `page_id`) and `captured_at`. The optional `timing` object
+carries performance telemetry independently. The API accepts a header of at
+most 16 KiB, validates the current session lease and active driver page, and
+publishes a new header with `version`, `session_id`, canonical `page_id`, and
+`captured_at`. Driver credentials never reach viewers. The viewer validates
+identity before image decoding. Anonymous and timestamp-only frames are rejected.
+
+HTTP previews translate the requested canonical page to its driver identity.
+The driver snapshots source before capture and keys its cache by that source;
+the API revalidates the returned source before returning image data or an ETag
+hit. The HTTP response includes canonical `page_id` without the producer source.
+An omitted page ID follows the active page for miniature previews. The unused
+JSON frame-push endpoint and `recording_frame` broadcast facade have been removed.
+Same-page navigation epochs and cross-transport ordering remain separate work.
+
+
+Recording subscriber intent is explicit: the timeline requests `frames: false`
+on its event socket. The canvas retains its separate frame subscription and
+fallback lifetime. Hub gates binary delivery and frame-subscriber presence on
+that choice under the subscription lock. Page/timeline/performance events are
+preserved. Resubscription replaces the choice; unsubscribe clears it.

@@ -1,0 +1,691 @@
+{
+  "cycle": "BAS-WORK-076",
+  "issues": [
+    "BAS-RF-047"
+  ],
+  "recorded_at": "2026-09-23T08:26:04.777734+00:00",
+  "status": "scale_admission_repaired_and_deployed_native_geometry_failures_open",
+  "build_identity": "sha256:9be7afbaea47455b7bfdf28e1884a7234a3868c6ec21c00e15509e66ccfdd688",
+  "source": {
+    "baseline": "/tmp/bas-before-076/manifest.json",
+    "frozen": "/tmp/bas-frozen-076.json",
+    "paths": {
+      "playwright-driver/src/types/session.ts": {
+        "sha256": "a7646abaf95ced3ccd29b13b57c6b9fb4c2fe4cf9bde95d2ab563631d430ed1c",
+        "lines": 562
+      },
+      "playwright-driver/src/routes/session-start.ts": {
+        "sha256": "e1dd6485b35dc72791849c29c03bd25be6dde28903b36bc9dd4d69d69d885d11",
+        "lines": 200
+      },
+      "playwright-driver/src/routes/record-mode/recording-lifecycle.ts": {
+        "sha256": "e27516a5176970b6b52b5cbdc17aed0b11954918018329f14f02fc200612dcf9",
+        "lines": 428
+      },
+      "playwright-driver/src/routes/record-mode/recording-frames.ts": {
+        "sha256": "e576d94b24b05a76f1f0c5669ae97521aac66c4189d9f5943833ece4c976cf91",
+        "lines": 241
+      },
+      "playwright-driver/src/routes/record-mode/types.ts": {
+        "sha256": "0c92c244b12331b65ed0619f82a7a70c13d35a577547330ba50943ee7ae0415a",
+        "lines": 369
+      },
+      "playwright-driver/tests/unit/routes/session-start.test.ts": {
+        "sha256": "a85240c275d6e3605992695c03927fe775f92debe5a44f342abe388b0fb9c669",
+        "lines": 236
+      },
+      "playwright-driver/tests/unit/routes/recording-lifecycle.test.ts": {
+        "sha256": "a0b9b318592e0ff00c7c0a21052ffd7b0c0939ca32a5cd5301a146b1224f9126",
+        "lines": 441
+      },
+      "playwright-driver/tests/unit/routes/record-frames.test.ts": {
+        "sha256": "9321b72d742941dade6705c73cdd3372fc049cdd5e99286c409ddc7743ceb525",
+        "lines": 162
+      },
+      "playwright-driver/tests/integration/pipeline-e2e.test.ts": {
+        "sha256": "a4999a65710ed9a4efa264c5274383414d9ea4e2c70d2fe5a80601d233e3a305",
+        "lines": 1168
+      }
+    },
+    "shared_tree": true
+  },
+  "tests": {
+    "maintained_red": {
+      "failed": 6,
+      "artifact": "/tmp/bas-preview-scale-routes-red2-076.txt"
+    },
+    "focused": {
+      "passed": 58,
+      "suites": 3,
+      "types": "passed"
+    },
+    "owner": {
+      "id": "uh-20260923-081722-ec206378eccf5cc80317fdce4271c193",
+      "status": "passed",
+      "passed": 1836,
+      "suites": 123,
+      "existing_skips": {
+        "tests": 2,
+        "suites": 1
+      },
+      "artifact": "/tmp/bas-driver-owner-076.json"
+    },
+    "native": {
+      "css": {
+        "artifact": "/tmp/bas-preview-scale-native2-css-076/receipt.json",
+        "passed": 56,
+        "failed": 7,
+        "cases": [
+          {
+            "name": "owned_session_admission",
+            "status": "passed"
+          },
+          {
+            "name": "preview_before_recording_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "preview_before_recording_has_complete_viewport_at_selected_scale",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    640,\n+   393\n-   480\n  ]"
+          },
+          {
+            "name": "UI_attaches_to_fixture",
+            "status": "passed"
+          },
+          {
+            "name": "initial_fixture_has_one_heading",
+            "status": "passed"
+          },
+          {
+            "name": "initial_http_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "initial_stream_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "initial_canvas_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "initial_HTTP_metadata_matches_CSS_viewport",
+            "status": "passed"
+          },
+          {
+            "name": "initial_http_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "initial_stream_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "initial_canvas_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "initial_http_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "initial_stream_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "initial_canvas_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_fixture_has_one_heading",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_http_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_stream_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_canvas_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_HTTP_metadata_matches_CSS_viewport",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_http_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_stream_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_canvas_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_http_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_stream_has_complete_viewport_at_selected_scale",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    640,\n+   508\n-   595\n  ]"
+          },
+          {
+            "name": "narrow_canvas_has_complete_viewport_at_selected_scale",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    640,\n+   508\n-   595\n  ]"
+          },
+          {
+            "name": "wide_fixture_has_one_heading",
+            "status": "passed"
+          },
+          {
+            "name": "wide_http_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "wide_stream_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "wide_canvas_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "wide_HTTP_metadata_matches_CSS_viewport",
+            "status": "passed"
+          },
+          {
+            "name": "wide_http_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "wide_stream_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "wide_canvas_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "wide_http_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "wide_stream_has_complete_viewport_at_selected_scale",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    1320,\n+   829\n-   916\n  ]"
+          },
+          {
+            "name": "wide_canvas_has_complete_viewport_at_selected_scale",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    1320,\n+   829\n-   916\n  ]"
+          },
+          {
+            "name": "restored_fixture_has_one_heading",
+            "status": "passed"
+          },
+          {
+            "name": "restored_http_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "restored_stream_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "restored_canvas_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "restored_HTTP_metadata_matches_CSS_viewport",
+            "status": "passed"
+          },
+          {
+            "name": "restored_http_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "restored_stream_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "restored_canvas_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "restored_http_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "restored_stream_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "restored_canvas_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "recording_stop_and_restart",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_fixture_has_one_heading",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_http_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_stream_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_canvas_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_HTTP_metadata_matches_CSS_viewport",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_http_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_stream_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_canvas_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_http_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_stream_has_complete_viewport_at_selected_scale",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    1080,\n+   749\n-   836\n  ]"
+          },
+          {
+            "name": "recording_restarted_canvas_has_complete_viewport_at_selected_scale",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    1080,\n+   749\n-   836\n  ]"
+          },
+          {
+            "name": "no_uncaught_UI_errors",
+            "status": "passed"
+          },
+          {
+            "name": "owned_session_cleanup",
+            "status": "passed"
+          },
+          {
+            "name": "owned_profile_cleanup",
+            "status": "passed"
+          }
+        ],
+        "pending_cleanup": null
+      },
+      "device": {
+        "artifact": "/tmp/bas-preview-scale-native2-device-076/receipt.json",
+        "passed": 46,
+        "failed": 17,
+        "cases": [
+          {
+            "name": "owned_session_admission",
+            "status": "passed"
+          },
+          {
+            "name": "preview_before_recording_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "preview_before_recording_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "UI_attaches_to_fixture",
+            "status": "passed"
+          },
+          {
+            "name": "initial_fixture_has_one_heading",
+            "status": "passed"
+          },
+          {
+            "name": "initial_http_preserves_coordinate_colors",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected ... Lines skipped\n\n+ [\n+   {\n+     rgba: [\n+       20,\n+       180,\n+       70,\n+       255\n+     ],\n+     x: 0.35,\n+     y: 0.15\n+   },\n+   {\n+     rgba: [\n+       255,\n+       255,\n+       255,\n+       255\n+     ],\n+     x: 0.65,\n+     y: 0.15\n+   },\n+   {\n+     rgba: [\n+       255,\n+       255,\n+       255,\n+       255\n+     ],\n+     x: 0.85,\n+     y: 0.15\n+   },\n+   {\n+     rgba: [\n+       20,\n+       60,\n+       210,\n+       255\n+     ],\n+     x: 0.15,\n+     y: 0.35\n+   },\n+   {\n+     rgba: [\n+       230,\n+       185,\n+       21,\n+       255\n+     ],\n+     x: 0.35,\n+     y: 0.35\n...\n- []\n..."
+          },
+          {
+            "name": "initial_stream_preserves_coordinate_colors",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected ... Lines skipped\n\n+ [\n+   {\n+     rgba: [\n+       19,\n+       179,\n+       69,\n+       255\n+     ],\n+     x: 0.35,\n+     y: 0.15\n+   },\n+   {\n+     rgba: [\n+       255,\n+       255,\n+       255,\n+       255\n+     ],\n+     x: 0.65,\n+     y: 0.15\n+   },\n+   {\n+     rgba: [\n+       255,\n+       255,\n+       255,\n+       255\n+     ],\n+     x: 0.85,\n+     y: 0.15\n+   },\n+   {\n+     rgba: [\n+       20,\n+       59,\n+       212,\n+       255\n+     ],\n+     x: 0.15,\n+     y: 0.35\n+   },\n+   {\n+     rgba: [\n+       231,\n+       186,\n+       22,\n+       255\n+     ],\n+     x: 0.35,\n+     y: 0.35\n...\n- []\n..."
+          },
+          {
+            "name": "initial_canvas_preserves_coordinate_colors",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected ... Lines skipped\n\n+ [\n+   {\n+     rgba: [\n+       19,\n+       179,\n+       69,\n+       255\n+     ],\n+     x: 0.35,\n+     y: 0.15\n+   },\n+   {\n+     rgba: [\n+       255,\n+       255,\n+       255,\n+       255\n+     ],\n+     x: 0.65,\n+     y: 0.15\n+   },\n+   {\n+     rgba: [\n+       255,\n+       255,\n+       255,\n+       255\n+     ],\n+     x: 0.85,\n+     y: 0.15\n+   },\n+   {\n+     rgba: [\n+       20,\n+       59,\n+       212,\n+       255\n+     ],\n+     x: 0.15,\n+     y: 0.35\n+   },\n+   {\n+     rgba: [\n+       231,\n+       186,\n+       22,\n+       255\n+     ],\n+     x: 0.35,\n+     y: 0.35\n...\n- []\n..."
+          },
+          {
+            "name": "initial_HTTP_metadata_matches_CSS_viewport",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   1080,\n+   836\n-   640,\n-   480\n  ]"
+          },
+          {
+            "name": "initial_http_honors_selected_scale_width",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n2160 !== 1280\n"
+          },
+          {
+            "name": "initial_stream_honors_selected_scale_width",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n2160 !== 1280\n"
+          },
+          {
+            "name": "initial_canvas_honors_selected_scale_width",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n2160 !== 1280\n"
+          },
+          {
+            "name": "initial_http_has_complete_viewport_at_selected_scale",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   2160,\n+   1672\n-   1280,\n-   960\n  ]"
+          },
+          {
+            "name": "initial_stream_has_complete_viewport_at_selected_scale",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   2160,\n+   1672\n-   1280,\n-   960\n  ]"
+          },
+          {
+            "name": "initial_canvas_has_complete_viewport_at_selected_scale",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   2160,\n+   1672\n-   1280,\n-   960\n  ]"
+          },
+          {
+            "name": "narrow_fixture_has_one_heading",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_http_preserves_coordinate_colors",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   {\n+     rgba: [\n+       255,\n+       255,\n+       255,\n+       255\n+     ],\n+     x: 0.15,\n+     y: 0.85\n+   },\n+   {\n+     rgba: [\n+       255,\n+       255,\n+       255,\n+       255\n+     ],\n+     x: 0.35,\n+     y: 0.85\n+   },\n+   {\n+     rgba: [\n+       255,\n+       255,\n+       255,\n+       255\n+     ],\n+     x: 0.65,\n+     y: 0.85\n+   },\n+   {\n+     rgba: [\n+       255,\n+       255,\n+       255,\n+       255\n+     ],\n+     x: 0.85,\n+     y: 0.85\n+   }\n+ ]\n- []"
+          },
+          {
+            "name": "narrow_stream_preserves_coordinate_colors",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   {\n+     rgba: [\n+       255,\n+       255,\n+       255,\n+       255\n+     ],\n+     x: 0.15,\n+     y: 0.85\n+   },\n+   {\n+     rgba: [\n+       255,\n+       255,\n+       255,\n+       255\n+     ],\n+     x: 0.35,\n+     y: 0.85\n+   },\n+   {\n+     rgba: [\n+       255,\n+       255,\n+       255,\n+       255\n+     ],\n+     x: 0.65,\n+     y: 0.85\n+   },\n+   {\n+     rgba: [\n+       255,\n+       255,\n+       255,\n+       255\n+     ],\n+     x: 0.85,\n+     y: 0.85\n+   }\n+ ]\n- []"
+          },
+          {
+            "name": "narrow_canvas_preserves_coordinate_colors",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   {\n+     rgba: [\n+       255,\n+       255,\n+       255,\n+       255\n+     ],\n+     x: 0.15,\n+     y: 0.85\n+   },\n+   {\n+     rgba: [\n+       255,\n+       255,\n+       255,\n+       255\n+     ],\n+     x: 0.35,\n+     y: 0.85\n+   },\n+   {\n+     rgba: [\n+       255,\n+       255,\n+       255,\n+       255\n+     ],\n+     x: 0.65,\n+     y: 0.85\n+   },\n+   {\n+     rgba: [\n+       255,\n+       255,\n+       255,\n+       255\n+     ],\n+     x: 0.85,\n+     y: 0.85\n+   }\n+ ]\n- []"
+          },
+          {
+            "name": "narrow_HTTP_metadata_matches_CSS_viewport",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    640,\n+   595\n-   480\n  ]"
+          },
+          {
+            "name": "narrow_http_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_stream_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_canvas_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_http_has_complete_viewport_at_selected_scale",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    1280,\n+   1190\n-   960\n  ]"
+          },
+          {
+            "name": "narrow_stream_has_complete_viewport_at_selected_scale",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    1280,\n+   1190\n-   960\n  ]"
+          },
+          {
+            "name": "narrow_canvas_has_complete_viewport_at_selected_scale",
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    1280,\n+   1190\n-   960\n  ]"
+          },
+          {
+            "name": "wide_fixture_has_one_heading",
+            "status": "passed"
+          },
+          {
+            "name": "wide_http_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "wide_stream_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "wide_canvas_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "wide_HTTP_metadata_matches_CSS_viewport",
+            "status": "passed"
+          },
+          {
+            "name": "wide_http_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "wide_stream_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "wide_canvas_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "wide_http_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "wide_stream_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "wide_canvas_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "restored_fixture_has_one_heading",
+            "status": "passed"
+          },
+          {
+            "name": "restored_http_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "restored_stream_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "restored_canvas_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "restored_HTTP_metadata_matches_CSS_viewport",
+            "status": "passed"
+          },
+          {
+            "name": "restored_http_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "restored_stream_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "restored_canvas_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "restored_http_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "restored_stream_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "restored_canvas_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "recording_stop_and_restart",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_fixture_has_one_heading",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_http_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_stream_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_canvas_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_HTTP_metadata_matches_CSS_viewport",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_http_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_stream_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_canvas_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_http_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_stream_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_canvas_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "no_uncaught_UI_errors",
+            "status": "passed"
+          },
+          {
+            "name": "owned_session_cleanup",
+            "status": "passed"
+          },
+          {
+            "name": "owned_profile_cleanup",
+            "status": "passed"
+          }
+        ],
+        "pending_cleanup": null
+      }
+    },
+    "workflow": {
+      "passed": 12,
+      "effects": 3,
+      "execution_id": "fabb2e3f-20a2-42e7-9fd5-5a7b02d608c4",
+      "artifact_dir": "/tmp/bas-recording-e2e-qjF3KN",
+      "cleanup": "complete"
+    },
+    "profiles": {
+      "complete_identity_reads": 3,
+      "original_rollback": "preserved",
+      "api_metadata": "equals075"
+    }
+  },
+  "metrics": {
+    "runtime_paths": [
+      "playwright-driver/src/types/session.ts",
+      "playwright-driver/src/routes/session-start.ts",
+      "playwright-driver/src/routes/record-mode/recording-lifecycle.ts",
+      "playwright-driver/src/routes/record-mode/recording-frames.ts",
+      "playwright-driver/src/routes/record-mode/types.ts"
+    ],
+    "runtime_lines": {
+      "before": 1792,
+      "after": 1800,
+      "delta": 8
+    },
+    "go_complexity_delta": 0,
+    "cumulative_affected_go_delta": -97,
+    "scoped_typescript": {
+      "before": {
+        "code_path_count": 25,
+        "sum": 161
+      },
+      "after": {
+        "code_path_count": 25,
+        "sum": 166
+      },
+      "artifact": "/tmp/bas-frame-complexity-076.json"
+    },
+    "tidiness": {
+      "run_id": "20260923-081726-89c15d22",
+      "status": "failed_budgets",
+      "totalFindings": 1140,
+      "longFiles": 103,
+      "complexity": 405,
+      "duplication": 610,
+      "coupling": 21,
+      "duplicationLineDebt": 31210
+    }
+  },
+  "board": {
+    "required": 17,
+    "unknown": 17
+  },
+  "limitations": [
+    "No image fidelity qualification: CSS stream frames can be 87px shorter than DOM viewport.",
+    "Device capture during resize exposed stale DOM dimensions and white regions; initial and narrow native assertions fail. Later wide, restored and recording-restarted stages pass.",
+    "Selected scale propagation is repaired across API admission and recording restart; this does not qualify complete viewport or resize behavior.",
+    "No release performance, recovery, native platform or soak claim.",
+    "Runtime +8 and scoped TypeScript complexity +5; no per-cycle net complexity reduction."
+  ],
+  "failed_harness_attempts": [
+    {
+      "artifact": "/tmp/bas-preview-scale-routes-red-076.txt",
+      "reason": "wrong package cwd, no test admission"
+    },
+    {
+      "artifact": "/tmp/bas-preview-scale-native-css-076/receipt.json",
+      "reason": "stop probe used wrong API path; original geometry failures retained"
+    }
+  ],
+  "pending_operations": []
+}

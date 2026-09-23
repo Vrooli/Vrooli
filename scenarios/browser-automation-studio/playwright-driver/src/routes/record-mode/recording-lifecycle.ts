@@ -11,10 +11,10 @@
  */
 
 import type { IncomingMessage, ServerResponse } from 'http';
-import { isOperational, type SessionManager } from '../../session';
+import type { SessionManager } from '../../session';
 import type { Config } from '../../config';
 import { parseJsonBody, sendJson, sendError } from '../../middleware';
-import { logger, metrics, scopedLog, LogContext, SessionNotFoundError, InvalidInstructionError } from '../../utils';
+import { logger, metrics, scopedLog, LogContext } from '../../utils';
 import {
   getTimelineEntries,
   getTimelineEntryCount,
@@ -33,23 +33,12 @@ import {
 } from '../../frame-streaming';
 import { streamRecordingEntry } from './callback-streaming';
 import { setupPageLifecycleListeners, pageEventCircuitBreaker } from './page-events';
+import { recordingOwner } from './recording-ownership';
 
 // =============================================================================
 // Recording Lifecycle Handlers
 // =============================================================================
 
-export function recordingOwner(body: Record<string, unknown>, sessionId: string, manager: SessionManager) {
-  const { execution_id: executionId, lease_id: leaseId } = body;
-  if (typeof executionId !== 'string' || !executionId.trim() || typeof leaseId !== 'string' || !leaseId.trim()) {
-    throw new InvalidInstructionError('execution_id and lease_id are required for recording mutations');
-  }
-  const session = manager.getSessionForLease(sessionId, executionId, leaseId);
-  return () => {
-    const current = manager.getSessionForLease(sessionId, executionId, leaseId);
-    if (current !== session || !isOperational(current.phase)) throw new SessionNotFoundError(sessionId);
-    return current;
-  };
-}
 
 /**
  * Start recording endpoint
@@ -186,6 +175,7 @@ export async function handleRecordStart(
         callbackUrl: request.frame_callback_url,
         quality: request.frame_quality,
         fps: request.frame_fps,
+        scale: session.spec.frame_scale ?? 'css',
       });
     }
 

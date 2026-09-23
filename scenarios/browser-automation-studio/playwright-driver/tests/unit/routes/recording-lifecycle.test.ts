@@ -233,7 +233,7 @@ describe('recording start continuation ownership [REQ:BAS-RH-J17]', () => {
       stopRecording: jest.fn(async () => { state.phase = 'ready'; return { recordingId: 'same-public-id', actionCount: 0 }; }),
     };
     const page = { url: () => 'https://fixture.invalid', waitForLoadState: jest.fn().mockResolvedValue(undefined) };
-    const session = { phase: 'ready', lastUsedAt: new Date(0), ownerExecutionId: 'owner-1', leaseId: 'lease-1', leaseReleasedAt: undefined as number | undefined, page, pipelineManager: pipeline,
+    const session = { spec: { execution_id: 'owner-1', workflow_id: 'fixture', reuse_mode: 'fresh', viewport: { width: 640, height: 480 } }, phase: 'ready', lastUsedAt: new Date(0), ownerExecutionId: 'owner-1', leaseId: 'lease-1', leaseReleasedAt: undefined as number | undefined, page, pipelineManager: pipeline,
       pageLifecycleCleanup: undefined as (() => void) | undefined };
     const manager = {
       getSession: jest.fn(() => session),
@@ -309,6 +309,26 @@ describe('recording start continuation ownership [REQ:BAS-RH-J17]', () => {
     expect(cleanup).not.toHaveBeenCalled();
     expect(f.manager.setSessionPhase).not.toHaveBeenCalled();
   });
+
+  it.each([undefined, 'css', 'device'] as const)(
+    'keeps admitted %s scale when recording starts and restarts [REQ:BAS-RH-J23]',
+    async (scale) => {
+      const f = fixture();
+      Object.assign(f.session.spec, { frame_scale: scale });
+      for (let cycle = 0; cycle < 2; cycle++) {
+        const started = f.start();
+        await started.finished;
+        expect(started.response.statusCode).toBe(200);
+        expect(jest.mocked(frameStreaming.startFrameStreaming).mock.calls.at(-1)?.[2])
+          .toMatchObject({ scale: scale ?? 'css' });
+        const stopped = createMockHttpResponse();
+        await handleRecordStop(createMockHttpRequest({ method: 'POST', body: {
+          execution_id: 'owner-1', lease_id: 'lease-1',
+        } }), stopped, 'recording-session', f.manager);
+        expect(stopped.statusCode).toBe(200);
+      }
+    },
+  );
 
   it('starts preview after pipeline readiness without waiting again for DOM load', async () => {
     const f = fixture(); const dom = deferred();

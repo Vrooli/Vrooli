@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useWebSocket } from '@/contexts/WebSocketContext';
+import { useWebSocketMessage } from '@/contexts/WebSocketContext';
 
 import type { FrameStatsAggregated, BottleneckType } from '../frame-streaming/types';
 
@@ -41,7 +41,7 @@ interface PerfStatsMessage {
  */
 export function usePerfStats(sessionId: string | null, enabled: boolean) {
   const [stats, setStats] = useState<FrameStatsAggregated | null>(null);
-  const { lastMessage } = useWebSocket();
+
 
   // Track if we've received any stats (indicates server has perf mode active)
   const hasReceivedStatsRef = useRef(false);
@@ -57,8 +57,8 @@ export function usePerfStats(sessionId: string | null, enabled: boolean) {
   }, [enabled, sessionId]);
 
   // Handle incoming perf_stats messages
-  useEffect(() => {
-    if (!lastMessage || !enabled || !sessionId) return;
+  useWebSocketMessage((lastMessage) => {
+    if (!enabled || !sessionId) return;
 
     const msg = lastMessage as unknown as PerfStatsMessage;
 
@@ -69,7 +69,7 @@ export function usePerfStats(sessionId: string | null, enabled: boolean) {
         setIsReceiving(true);
       }
     }
-  }, [lastMessage, enabled, sessionId]);
+  });
 
   /**
    * Reset stats (e.g., when starting a new recording).

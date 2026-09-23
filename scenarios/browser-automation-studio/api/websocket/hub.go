@@ -28,6 +28,7 @@ type Client struct {
 	Hub                    *Hub
 	ExecutionID            *uuid.UUID // Optional: client can subscribe to specific execution timeline events
 	RecordingSessionID     *string    // Optional: client can subscribe to recording session updates
+	RecordingFrames        bool       // Whether this recording subscription consumes binary frames
 	ExecutionFrameStreamID *string    // Optional: client can subscribe to execution frame streaming
 	DriverStatusSubscribed bool       // Optional: client can subscribe to driver status updates
 	ExportSubscriptionID   *string    // Optional: client can subscribe to export progress updates (export ID or execution ID)
@@ -226,59 +227,14 @@ func (h *Hub) BroadcastTimelineEntry(sessionID string, entry *bastimeline.Timeli
 	return result
 }
 
-// RecordingFrame represents a frame pushed from the playwright-driver.
-type RecordingFrame struct {
-	SessionID   string `json:"session_id"`
-	Mime        string `json:"mime"`  // "image/webp" or "image/jpeg"
-	Image       string `json:"image"` // base64 data URI
-	Width       int    `json:"width"`
-	Height      int    `json:"height"`
-	CapturedAt  string `json:"captured_at"`
-	ContentHash string `json:"content_hash"` // MD5 hash for client-side dedup
-}
-
-// BroadcastRecordingFrame sends a frame to clients subscribed to a specific recording session.
-// This eliminates the need for clients to poll for frames.
-func (h *Hub) BroadcastRecordingFrame(sessionID string, frame *RecordingFrame) {
-	message := map[string]any{
-		"type":         "recording_frame",
-		"session_id":   sessionID,
-		"mime":         frame.Mime,
-		"image":        frame.Image,
-		"width":        frame.Width,
-		"height":       frame.Height,
-		"captured_at":  frame.CapturedAt,
-		"content_hash": frame.ContentHash,
-		"timestamp":    getCurrentTimestamp(),
-	}
-
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-
-	for client := range h.clients {
-		// Only send to clients subscribed to this recording session
-		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
-			select {
-			case client.Send <- message:
-			default:
-				// Client buffer full, skip frame (non-blocking)
-				// This is acceptable - missing a frame is better than blocking
-				h.recordDroppedFrame(sessionID, client.ID)
-			}
-		}
-	}
-}
-
-// BroadcastBinaryFrame sends raw binary frame data (JPEG bytes) to clients subscribed to a recording session.
-// This is more efficient than BroadcastRecordingFrame as it avoids base64 encoding overhead.
-// The binary data is sent directly over WebSocket binary frames.
+// BroadcastBinaryFrame sends a source-bearing frame envelope to recording viewers.
 func (h *Hub) BroadcastBinaryFrame(sessionID string, jpegData []byte) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
 	for client := range h.clients {
 		// Only send to clients subscribed to this recording session
-		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
+		if client.RecordingFrames && client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
 			select {
 			case client.BinarySend <- jpegData:
 			default:
@@ -290,14 +246,14 @@ func (h *Hub) BroadcastBinaryFrame(sessionID string, jpegData []byte) {
 	}
 }
 
-// HasRecordingSubscribers returns true if any clients are subscribed to the given session.
-// Used by the frame push loop to avoid capturing frames when no one is watching.
-func (h *Hub) HasRecordingSubscribers(sessionID string) bool {
+// HasRecordingFrameSubscribers returns true if any clients are subscribed to the given session.
+// The API can skip encoding and broadcasting images for event-only consumers.
+func (h *Hub) HasRecordingFrameSubscribers(sessionID string) bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
 	for client := range h.clients {
-		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
+		if client.RecordingFrames && client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
 			return true
 		}
 	}
@@ -634,6 +590,7 @@ func (c *Client) handleSubscription(msgType string, msg map[string]any) {
 	case "subscribe_recording":
 		if sessionID, ok := msg["session_id"].(string); ok && sessionID != "" {
 			c.RecordingSessionID = &sessionID
+			c.RecordingFrames = msg["frames"] != false
 			c.Hub.log.WithFields(logrus.Fields{
 				"client_id":  c.ID,
 				"session_id": sessionID,
@@ -650,6 +607,7 @@ func (c *Client) handleSubscription(msgType string, msg map[string]any) {
 		}
 	case "unsubscribe_recording":
 		c.RecordingSessionID = nil
+		c.RecordingFrames = false
 		c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from recording updates")
 	case "subscribe_execution_frames":
 		// Subscribe to execution frame streaming (live preview)
@@ -739,7 +697,7 @@ func (c *Client) writePump() {
 				_ = c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-			// Send raw binary frame (JPEG data)
+			// Send the canonical source envelope and JPEG payload
 			if err := c.Conn.WriteMessage(websocket.BinaryMessage, data); err != nil {
 				c.Hub.log.WithError(err).WithField("client_id", c.ID).Error("Failed to write binary WebSocket frame")
 				return

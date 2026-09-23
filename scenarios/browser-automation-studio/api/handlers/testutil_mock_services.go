@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"strings"
 	"sync"
@@ -731,11 +732,9 @@ func (m *MockHub) BroadcastTimelineEntry(sessionID string, entry *bastimeline.Ti
 	}
 }
 
-func (m *MockHub) BroadcastRecordingFrame(sessionID string, frame *wsHub.RecordingFrame) {}
-
 func (m *MockHub) BroadcastBinaryFrame(sessionID string, jpegData []byte) {}
 
-func (m *MockHub) HasRecordingSubscribers(sessionID string) bool {
+func (m *MockHub) HasRecordingFrameSubscribers(sessionID string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.RecordingSubscribers[sessionID]
@@ -960,6 +959,7 @@ type MockDriverClient struct {
 	ReplayPreviewResponse    *driver.ReplayPreviewResponse
 	ScreenshotResponse       *driver.CaptureScreenshotResponse
 	FrameResponse            *driver.GetFrameResponse
+	GetFrameFunc             func(context.Context, string, string) (*driver.GetFrameResponse, error)
 
 	// Call tracking
 
@@ -1030,7 +1030,7 @@ func (m *MockDriverClient) GetRecordedActions(ctx context.Context, sessionID str
 	}, nil
 }
 
-func (m *MockDriverClient) GetNavigationState(ctx context.Context, sessionID string) (*driver.NavigationStateResponse, error) {
+func (m *MockDriverClient) GetNavigationState(ctx context.Context, sessionID, executionID, leaseID, expectedPageID string) (*driver.NavigationStateResponse, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -1048,7 +1048,7 @@ func (m *MockDriverClient) GetNavigationState(ctx context.Context, sessionID str
 	}, nil
 }
 
-func (m *MockDriverClient) GetNavigationStack(ctx context.Context, sessionID string) (*driver.NavigationStackResponse, error) {
+func (m *MockDriverClient) GetNavigationStack(ctx context.Context, sessionID, executionID, leaseID, expectedPageID string) (*driver.NavigationStackResponse, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -1065,7 +1065,7 @@ func (m *MockDriverClient) GetNavigationStack(ctx context.Context, sessionID str
 	}, nil
 }
 
-func (m *MockDriverClient) UpdateViewport(ctx context.Context, sessionID string, req *driver.UpdateViewportRequest) (*driver.UpdateViewportResponse, error) {
+func (m *MockDriverClient) UpdateViewport(ctx context.Context, sessionID, executionID, leaseID string, req *driver.UpdateViewportRequest) (*driver.UpdateViewportResponse, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -1076,9 +1076,10 @@ func (m *MockDriverClient) UpdateViewport(ctx context.Context, sessionID string,
 		return m.UpdateViewportResponse, nil
 	}
 	return &driver.UpdateViewportResponse{
-		SessionID: sessionID,
-		Width:     req.Width,
-		Height:    req.Height,
+		SessionID:    sessionID,
+		DriverPageID: req.ExpectedPageID,
+		Width:        req.Width,
+		Height:       req.Height,
 	}, nil
 }
 
@@ -1165,6 +1166,9 @@ func (m *MockDriverClient) CaptureScreenshot(ctx context.Context, sessionID stri
 }
 
 func (m *MockDriverClient) GetFrame(ctx context.Context, sessionID, queryParams string) (*driver.GetFrameResponse, error) {
+	if m.GetFrameFunc != nil {
+		return m.GetFrameFunc(ctx, sessionID, queryParams)
+	}
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -1175,8 +1179,9 @@ func (m *MockDriverClient) GetFrame(ctx context.Context, sessionID, queryParams 
 		return m.FrameResponse, nil
 	}
 	return &driver.GetFrameResponse{
-		Data:        "base64-frame-data",
-		MediaType:   "image/jpeg",
+		SessionID:   sessionID,
+		Image:       "base64-frame-data",
+		Mime:        "image/jpeg",
 		Width:       1920,
 		Height:      1080,
 		CapturedAt:  time.Now().UTC().Format(time.RFC3339),
@@ -1269,6 +1274,7 @@ func (m *MockRecordModeService) CreateSession(ctx context.Context, cfg *livecapt
 		SessionID: "test-session-" + uuid.NewString()[:8],
 		CreatedAt: time.Now().UTC(),
 	}
+	result.Close = func(ctx context.Context) error { return m.CloseSession(ctx, result.SessionID) }
 	m.Sessions[result.SessionID] = result
 	m.LastSessionID = result.SessionID
 
@@ -1364,6 +1370,22 @@ func (m *MockRecordModeService) GetOpenPages(sessionID string) ([]*domain.Page, 
 	return []*domain.Page{}, uuid.Nil, nil
 }
 
+func (m *MockRecordModeService) ClosePage(ctx context.Context, sessionID string, pageID uuid.UUID) (*livecapture.PageCloseResult, error) {
+	sess, ok := m.GetSession(sessionID)
+	if !ok || sess.Pages() == nil {
+		return nil, fmt.Errorf("session not found: %s", sessionID)
+	}
+	event, err := sess.Pages().ClosePage(pageID)
+	if err != nil {
+		return nil, err
+	}
+	result := &livecapture.PageCloseResult{Event: event}
+	if active := sess.Pages().GetActivePageID(); active != uuid.Nil {
+		result.ActivePageID = active.String()
+	}
+	return result, nil
+}
+
 func (m *MockRecordModeService) ActivatePage(ctx context.Context, sessionID string, pageID uuid.UUID) error {
 	return nil
 }
@@ -1392,8 +1414,9 @@ func (m *MockRecordModeService) UnregisterServiceWorker(ctx context.Context, ses
 
 // Timeline support methods
 
-func (m *MockRecordModeService) CreatePage(ctx context.Context, sessionID string, url string) (*driver.CreatePageResponse, error) {
-	return &driver.CreatePageResponse{
+func (m *MockRecordModeService) CreatePage(ctx context.Context, sessionID string, url string) (*domain.Page, error) {
+	return &domain.Page{
+		ID: uuid.New(), SessionID: sessionID, Status: domain.PageStatusActive, CreatedAt: time.Now(),
 		DriverPageID: "mock-page-id",
 		URL:          url,
 	}, nil

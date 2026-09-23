@@ -144,6 +144,7 @@ func (m *Manager) Create(ctx context.Context, spec Spec) (*Session, error) {
 
 	session := &Session{
 		id:                      resp.SessionID,
+		initialDriverPageID:     resp.ActivePageID,
 		lastInstructionSequence: resp.LastInstructionSequence,
 		executionID:             spec.ExecutionID.String(),
 		leaseID:                 resp.LeaseID,

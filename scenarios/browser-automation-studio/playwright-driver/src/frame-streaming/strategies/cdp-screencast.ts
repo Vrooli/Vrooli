@@ -1,3 +1,4 @@
+import { encodeFrame, sameFrameSource, type FrameSource } from '../frame';
 /**
  * CDP Screencast Strategy
  *
@@ -26,7 +27,6 @@ import type {
   CdpStreamingConfig,
 } from './interface';
 import { DEFAULT_CDP_CONFIG } from './interface';
-import type { DirectFrameServer } from '../websocket';
 
 /** Frame event from CDP */
 interface ScreencastFrameEvent {
@@ -87,7 +87,7 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
     if (config.scale === 'device') throw new Error('CDP screencast does not support device scale; use SDK polling');
     const cdpConfig = resolveCdpConfig(config.cdp);
     const { sessionId } = config;
-    type Capture = { page: Page; cdp: CDPSession; generation: number; listener: (event: ScreencastFrameEvent) => void };
+    type Capture = { started: boolean; page: Page; cdp: CDPSession; generation: number; listener: (event: ScreencastFrameEvent) => void };
     let capture: Capture | undefined;
     let generation = 0;
     let active = true;
@@ -99,8 +99,7 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
     let frameDeadline: ReturnType<typeof setTimeout> | undefined;
     let frameCount = 0;
     let ackFailures = 0;
-    let viewportUpdatePending = false;
-    let pendingFrame: { owner: Capture; data: string } | undefined;
+    let pendingFrame: { owner: Capture; data: string; source: FrameSource; capturedAt: number } | undefined;
     let transition: Promise<void> = Promise.resolve();
     let stopping: Promise<void> | undefined;
     let pageCheckInterval: ReturnType<typeof setInterval> | undefined;
@@ -138,33 +137,22 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
       return stopping;
     };
 
-    const sendFrame = (owner: Capture, data: string, buffered: boolean): boolean => {
-      if (!owns(owner) || pageProvider() !== owner.page) return false;
+    const sendFrame = (pending: NonNullable<typeof pendingFrame>, buffered: boolean): boolean => {
+      const {owner,data,source,capturedAt} = pending;
+      if (!owns(owner) || pageProvider() !== owner.page || !sameFrameSource(config.sourceForPage(owner.page),source)) return false;
       const ws = wsProvider.getWebSocket();
       if (!ws || ws.readyState !== 1) return false;
       const decodeStart = performance.now();
       const buffer = Buffer.from(data, 'base64');
       const decodeMs = performance.now() - decodeStart;
       const sendStart = performance.now();
-      let frame: Buffer;
-      if (config.includePerfHeaders) {
-        const header = Buffer.from(JSON.stringify({
+      const frame = encodeFrame(source,buffer,capturedAt,config.includePerfHeaders ? {
           frame_id: `${sessionId}-${frameCount + 1}`, capture_ms: decodeMs,
           compare_ms: 0, ws_send_ms: 0, frame_bytes: buffer.length,
           sent_at: Date.now(), buffered,
-        }), 'utf8');
-        const length = Buffer.alloc(4);
-        length.writeUInt32BE(header.length, 0);
-        frame = Buffer.concat([length, header, buffer]);
-      } else {
-        const timestamp = Buffer.alloc(8);
-        timestamp.writeBigInt64BE(BigInt(Date.now()), 0);
-        frame = Buffer.concat([timestamp, buffer]);
-      }
+      } : undefined);
       ws.send(frame);
       lastSentAt = performance.now();
-      const direct = (global as { directFrameServer?: DirectFrameServer }).directFrameServer;
-      if (direct?.hasSubscribers(sessionId)) direct.broadcast(buffer, sessionId);
       const sendMs = performance.now() - sendStart;
       frameCount++;
       statsReporter.onFrameSent({ captureMs: decodeMs, compareMs: 0, wsSendMs: sendMs, frameBytes: buffer.length });
@@ -185,7 +173,7 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
         }
         return;
       }
-      if (sendFrame(pendingFrame.owner, pendingFrame.data, buffered)) clearPending();
+      if (sendFrame(pendingFrame, buffered)) clearPending();
     };
 
     const deliverPending = (): void => {
@@ -201,7 +189,9 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
       if (!owns(owner)) return;
       try {
         if (pageProvider() !== owner.page) return;
-        pendingFrame = { owner, data: event.data };
+        const source = config.sourceForPage(owner.page);
+        if (!source) return;
+        pendingFrame = { owner, data: event.data, source, capturedAt: Date.now() };
         if (!wsProvider.isReady()) statsReporter.onFrameSkipped('ws_not_ready');
         else flushPending(false);
       } catch (error) {
@@ -241,9 +231,8 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
         await disposeCapture();
         if (!active || generation !== revision) return false;
         const cdp = await page.context().newCDPSession(page);
-        const owner: Capture = { page, cdp, generation: revision, listener: event => { void handleFrame(owner, event); } };
+        const owner: Capture = { started: false, page, cdp, generation: revision, listener: event => { void handleFrame(owner, event); } };
         capture = owner;
-        let started = false;
         try {
           if (!owns(owner) || pageProvider() !== page) return false;
           cdp.on('Page.screencastFrame', owner.listener);
@@ -254,10 +243,10 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
           });
           if (!owns(owner) || pageProvider() !== page) return false;
           currentViewport = dimensions;
-          started = true;
+          owner.started = true;
           return true;
         } finally {
-          if (!started) await disposeCapture();
+          if (!owner.started) await disposeCapture();
         }
       });
       transition = changed.then(() => {}, () => {});
@@ -286,7 +275,6 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
     return {
       getFrameCount: () => frameCount,
       isActive: () => active,
-      isViewportUpdatePending: () => viewportUpdatePending,
       updateQuality: async (quality: number): Promise<void> => {
         if (!active) throw new Error('Frame capture was stopped');
         const applying = changeCapture(currentPage, undefined, quality);
@@ -308,22 +296,12 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
         frameDeadline = undefined;
         if (pendingFrame) frameDeadline = setTimeout(deliverPending, 0);
       },
-      updateViewport: async (width: number, height: number): Promise<void> => {
-        if (!active) throw new Error('Frame capture was stopped');
-        if (Math.abs(width - currentViewport.width) < 20 && Math.abs(height - currentViewport.height) < 20) return;
-        if (viewportUpdatePending) return;
-        viewportUpdatePending = true;
-        const page = currentPage;
-        const revision = generation;
-        try {
-          await page.setViewportSize({ width, height });
-          if (!active || revision !== generation || pageProvider() !== page ||
-              !(await changeCapture(page, { width, height }))) {
-            throw new Error('Frame capture was stopped or replaced during resize');
-          }
-        } finally {
-          viewportUpdatePending = false;
-        }
+      updateViewport: async (page: Page): Promise<void> => {
+        if (!active || pageProvider() !== page) throw new Error('Frame capture was stopped or its page changed');
+        const viewport = page.viewportSize();
+        if (!viewport) throw new Error('Applied viewport is unavailable');
+        if (capture?.started && owns(capture) && page === currentPage && viewport.width === currentViewport.width && viewport.height === currentViewport.height) return;
+        if (!(await changeCapture(page, viewport))) throw new Error('Frame capture was stopped or replaced during resize');
       },
       stop: stopStreaming,
     };

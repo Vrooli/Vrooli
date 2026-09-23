@@ -1,0 +1,86 @@
+{
+  "cycle": "BAS-WORK-059",
+  "issues": [
+    "BAS-RF-090"
+  ],
+  "recorded_at": "2026-09-23",
+  "status": "qualified_and_deployed",
+  "build_identity": "sha256:5f18d8953ff84a2ca8447679a854b83a45634d3a18078bb5c382bf8221dcc47c",
+  "source": {
+    "api/services/live-capture/service.go": {
+      "before": {
+        "sha256": "bfc4f45f6f903b83e57e3fa3420996bc8764bd38fbccf45f78a430b70f50d02a",
+        "lines": 844
+      },
+      "after": {
+        "sha256": "62eb36b62a4f5f72a941b4c8862bfc0004f840fa73c1244834ec87d5226bc71f",
+        "lines": 793
+      }
+    }
+  },
+  "tests": {
+    "red": "/tmp/bas-restored-tabs-maintained-red-059.jsonl",
+    "green": "/tmp/bas-restored-tabs-maintained-green-059.jsonl",
+    "race_packages": [
+      "automation/session",
+      "services/live-capture",
+      "handlers"
+    ],
+    "race_receipt": "/tmp/bas-restored-tabs-go-final-059.txt",
+    "build_receipt": "/tmp/bas-restored-tabs-build-final-059.txt",
+    "native_red": "/tmp/bas-restored-tabs-native-red-059.json",
+    "native_red_result": {
+      "passed": 26,
+      "failed": 4
+    },
+    "native_green": "/tmp/bas-restored-tabs-native-green-059.json",
+    "native_green_result": {
+      "passed": 30,
+      "failed": 0
+    },
+    "workflow": {
+      "passed": 12,
+      "effects": 3,
+      "execution_id": "ab8d4906-8472-42ed-855b-dcd462f237a9",
+      "artifact_dir": "/tmp/bas-recording-e2e-oMqOaf"
+    },
+    "unchanged_driver": "058 final owner uh-20260923-005523-c8d59b592e3b34f354cc4a1dd5f7cdb3:1750tests/124suites;058 frozen driver/test paths unchanged",
+    "profiles": "/tmp/bas-profile-final-059.txt:3complete reads match original rollback;API metadata equals058"
+  },
+  "measurement": {
+    "runtime_lines": {
+      "before": 844,
+      "after": 793,
+      "delta": -51
+    },
+    "go_functions": 26,
+    "go_complexity": {
+      "before": 112,
+      "after": 117,
+      "delta": 5
+    },
+    "cumulative_affected_go_reduction": 192,
+    "tidiness_run": "20260923-011045-8c6b3b79",
+    "tidiness": {
+      "totalFindings": 1130,
+      "longFiles": 105,
+      "complexity": 395,
+      "duplication": 610,
+      "coupling": 19,
+      "duplicationLineDebt": 31604
+    },
+    "board": "/tmp/bas-board-result-059.json:17pending_telemetry/unqualified"
+  },
+  "review": {
+    "removed": "Raw final driver switch and stale saved metadata publication;first-page selection assumption and repeated logging removed. Existing PageTracker and ActivatePage remain owners.",
+    "cohesion": "RestoreTabs19complexity stays a single bounded restoration transaction in the existing793line service; extracting wrappers would not lower domain complexity. Explicit receipt/tracker and failed-switch checks account for correctness cost.",
+    "limitations": [
+      "Full profile recovery when navigation or selection fails remains unqualified;handler logs returned restoration errors.",
+      "RF038 raw page command leases and concurrent Session replacement remain open.",
+      "No new sustained performance/native-platform qualification.",
+      "Tidiness budgets still fail;TS/JS complexity measurement remains RF064 gap."
+    ],
+    "next": "Adversarial failed-page navigation/profile recovery investigation060"
+  },
+  "pending_operations": []
+}

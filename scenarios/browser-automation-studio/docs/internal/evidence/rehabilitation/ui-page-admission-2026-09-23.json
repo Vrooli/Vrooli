@@ -1,0 +1,161 @@
+{
+  "cycle": "BAS-WORK-065",
+  "issues": [
+    "BAS-RF-095"
+  ],
+  "recorded_at": "2026-09-23",
+  "status": "qualified_and_deployed",
+  "build_identity": "sha256:6b927bd16895ce9533b97953062061ff6abba06e14fe49692679ec6a0371a000",
+  "source": {
+    "ui/src/domains/recording/hooks/usePages.ts": {
+      "before": {
+        "sha256": "08783a4233d0734ab39995cf2bee491b8dcb68ee5d3790fb9b57baada3bb7167",
+        "lines": 586
+      },
+      "after": {
+        "sha256": "e6c45b5baf999d7676aeefcb97f6589c8cc968100a511f1345bcddd1341f6232",
+        "lines": 380
+      }
+    },
+    "api/services/live-capture/service.go": {
+      "before": {
+        "sha256": "50645934a9a68cb9dc387a2add1eab4d20d65c24a10fd3d968d8f4d970fdd22c",
+        "lines": 887
+      },
+      "after": {
+        "sha256": "41497ab1a9734b8a35f721dd428d31db8c77d7c0626582ef16d6407de53b3ca3",
+        "lines": 883
+      }
+    },
+    "api/handlers/record_mode_pages.go": {
+      "before": {
+        "sha256": "aa39029c29474868aeb1761d38fe3024f4900bd2dbfea124f531c8f5d68244b1",
+        "lines": 396
+      },
+      "after": {
+        "sha256": "ff9eda786ba97e014f673d0f57f60034244101f67a236b7d464778da31d45f23",
+        "lines": 397
+      }
+    },
+    "api/handlers/handler.go": {
+      "before": {
+        "sha256": "bc2e030be7a86f1cdc43dbdaf4ff8aaa92a4339d2e05e61c4060099a53705b8e",
+        "lines": 505
+      },
+      "after": {
+        "sha256": "767ba020a9ac9cf739985ee4baa4c288847da42b43604f039842db5f1a3cf68f",
+        "lines": 505
+      }
+    },
+    "ui/src/domains/recording/RecordingSession.tsx": {
+      "before": {
+        "sha256": "99ef04b56539e3cc8253d9351a0445f6476e9fab1cd1f81db961056ba18a49d3",
+        "lines": 1560
+      },
+      "after": {
+        "sha256": "f17d20b62a1f1cb4d06b5b8c11ccb4847e48c476ec4545068e5bcc28b3df0059",
+        "lines": 1559
+      }
+    }
+  },
+  "qualification_snapshot": {
+    "ui/src/domains/recording/hooks/usePages.ts": {
+      "sha256": "e6c45b5baf999d7676aeefcb97f6589c8cc968100a511f1345bcddd1341f6232",
+      "lines": 380
+    },
+    "api/services/live-capture/service.go": {
+      "sha256": "41497ab1a9734b8a35f721dd428d31db8c77d7c0626582ef16d6407de53b3ca3",
+      "lines": 883
+    },
+    "api/handlers/record_mode_pages.go": {
+      "sha256": "ff9eda786ba97e014f673d0f57f60034244101f67a236b7d464778da31d45f23",
+      "lines": 397
+    },
+    "api/handlers/handler.go": {
+      "sha256": "767ba020a9ac9cf739985ee4baa4c288847da42b43604f039842db5f1a3cf68f",
+      "lines": 505
+    },
+    "ui/src/domains/recording/RecordingSession.tsx": {
+      "sha256": "f17d20b62a1f1cb4d06b5b8c11ccb4847e48c476ec4545068e5bcc28b3df0059",
+      "lines": 1559
+    },
+    "api/handlers/testutil_mock_services.go": {
+      "sha256": "94f1f49ce15bb829ac59f4e6dfa585cb72b7332724bd2c94eabdaf57d7921664",
+      "lines": 1466
+    },
+    "api/handlers/record_mode_integration_test.go": {
+      "sha256": "773a060b688688234e85631ed47bfe2eaed941181f554651e49e58601e2a8e8a",
+      "lines": 771
+    },
+    "ui/src/domains/recording/hooks/usePages.test.ts": {
+      "sha256": "c04bdb4dcac3532508a35aa8a8d102822987e2149d2e37430bc12a6ceac2a7ce",
+      "lines": 184
+    }
+  },
+  "tests": {
+    "red": {
+      "ui": "/tmp/bas-ui-tab-state-red-065.txt:6failed/7passed; default-reporter detail confirms repeated-event callback failures in both modes, not StrictMode-only",
+      "native_receipt": "/tmp/bas-ui-tab-admission-native-red-065.json:2failed/6passed",
+      "ordering": "/tmp/bas-ui-tab-receipt-order-red-065.txt:late callback replaced canonical receipt title;1failed/18passed"
+    },
+    "ui": "/tmp/bas-ui-tab-state-final-065.txt:479tests/25files in record-mode project pass, including19hook cases; /tmp/bas-ui-tab-state-types-final-065.txt:typecheck passes",
+    "go": "/tmp/bas-ui-tab-admission-go-final-065.txt:6racepackages pass; /tmp/bas-ui-tab-admission-build-final-065.txt:API build passes",
+    "driver_reused": "uh-20260923-024236-a7894f4177340893a636b805f9145e59:1785tests/124suites; four affected driver paths from064 unchanged",
+    "native": {
+      "admission": 8,
+      "close": 50,
+      "initial_navigation": 14,
+      "outage_retry": 28,
+      "normal_restore": 30,
+      "ui_initial": "/tmp/bas-ui-tabs-native-065.json:4passed/1failed; UI creation/selection worked, but fixture incorrectly expected recorder inactive after screen auto-start",
+      "ui_qualified": "/tmp/bas-ui-tabs-native-qualified-065.json:10checks pass; fixture explicitly stops its own recorder after awaiting UI auto-start; verifies callback-free tab creation, actual close selection, final close/reopen, no uncaught page errors and owned cleanup",
+      "ui_screenshot": "/tmp/bas-ui-tabs-native-qualified-065.png",
+      "workflow": {
+        "passed": 12,
+        "failed": 0,
+        "skipped": 0,
+        "execution_id": "49e2c675-279a-4cb4-ac9f-2c0e8572cded",
+        "artifact_dir": "/tmp/bas-recording-e2e-pfNtl5"
+      },
+      "independent_workflow_effects": 3
+    },
+    "profiles": "3complete reads match original rollback; /tmp/bas-profile-api-final-065.json equals064"
+  },
+  "measurement": {
+    "runtime_lines": {
+      "before": 3934,
+      "after": 3724,
+      "delta": -210
+    },
+    "go_functions": {
+      "before": 57,
+      "after": 57
+    },
+    "go_complexity": {
+      "before": 241,
+      "after": 243,
+      "delta": 2
+    },
+    "cumulative_affected_go_reduction": 152,
+    "tidiness_run": "20260923-030436-062ec727",
+    "tidiness": {
+      "totalFindings": 1134,
+      "longFiles": 104,
+      "complexity": 399,
+      "duplication": 610,
+      "coupling": 20,
+      "duplicationLineDebt": 31605
+    },
+    "board": "/tmp/bas-board-result-065.json:17pending_telemetry/unqualified"
+  },
+  "review": {
+    "owners": "Session store owns UI pages/selection. One admitted request boundary rejects late/unmounted completions. Created page identity joins callbacks and HTTP receipts outside React state updaters. Live-capture returns detached canonical Page and validates retained tracker; handler includes page/activePageId alongside existing driverPageId/url. RecordingSession reads current store state for callbacks.",
+    "removed": "Parallel hook-local page map/selection and double writes; repeated async response completion policy; duplicate creation callbacks; extra selected-page command when creation already selected it; restoration remapping of an already registered page identity.",
+    "limits": [
+      "UI native proves tab controls/state; recorder is deliberately stopped for the callback-free case, so it does not qualify live frame delivery or truthful external-stop status UI.",
+      "Full performance, native-platform, reconnect, same-session concurrent event/response reconciliation and release matrices remain unqualified.",
+      "TS/JS complexity remains RF064; shared-tree tidiness attribution limited. Go complexity increases2 despite210-line runtime reduction."
+    ]
+  },
+  "pending_operations": []
+}

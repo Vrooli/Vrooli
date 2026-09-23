@@ -192,3 +192,32 @@
    }
    _contextCreated(world, context) {
      const data = this._contextData.get(world);
+--- a/lib/server/page.js
++++ b/lib/server/page.js
+@@ -404,8 +404,11 @@
+     };
+   }
+   async setViewportSize(viewportSize) {
+-    this._emulatedSize = { viewport: { ...viewportSize }, screen: { ...viewportSize } };
+-    await this._delegate.updateEmulatedViewportSize();
++    // Chromium capture and viewport changes must not restore competing geometry.
++    return this._screenshotter._queue.postTask(async () => {
++      this._emulatedSize = { viewport: { ...viewportSize }, screen: { ...viewportSize } };
++      await this._delegate.updateEmulatedViewportSize();
++    });
+   }
+   viewportSize() {
+     return this.emulatedSize()?.viewport || null;
+--- a/lib/server/chromium/crPage.js
++++ b/lib/server/chromium/crPage.js
+@@ -831,6 +831,10 @@
+       }));
+     }
+     await Promise.all(promises);
++    // Window sizing can invalidate the compositor area in regular headless Chromium.
++    // Apply visible size last without changing mobile, DPR or screen emulation.
++    if (!preserveWindowBoundaries)
++      await this._client.send("Emulation.setVisibleSize", viewportSize);
+     this._metricsOverride = metricsOverride;
+   }
+   async windowBounds() {

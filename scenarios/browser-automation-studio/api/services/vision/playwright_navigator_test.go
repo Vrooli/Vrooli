@@ -82,9 +82,8 @@ func (m *mockWSHub) ServeWS(_ *websocket.Conn, _ *uuid.UUID) {}
 func (m *mockWSHub) BroadcastTimelineEntry(_ string, _ *bastimeline.TimelineEntry) ws.BroadcastResult {
 	return ws.BroadcastResult{}
 }
-func (m *mockWSHub) BroadcastRecordingFrame(_ string, _ *ws.RecordingFrame) {}
 func (m *mockWSHub) BroadcastBinaryFrame(_ string, _ []byte)                {}
-func (m *mockWSHub) HasRecordingSubscribers(_ string) bool                  { return false }
+func (m *mockWSHub) HasRecordingFrameSubscribers(_ string) bool             { return false }
 func (m *mockWSHub) BroadcastPerfStats(_ string, _ any)                     {}
 func (m *mockWSHub) BroadcastPageEvent(_ string, _ any)                     {}
 func (m *mockWSHub) BroadcastPageSwitch(_, _ string)                        {}

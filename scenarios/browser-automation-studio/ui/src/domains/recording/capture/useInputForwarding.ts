@@ -30,7 +30,7 @@ type PointerAction = 'move' | 'down' | 'up' | 'click';
 
 export interface UseInputForwardingOptions {
   sessionId: string | null;
-  pageId?: string;
+  pageId?: string | null;
   /** Viewport dimensions (what Playwright uses - output coordinate space) */
   viewport?: { width: number; height: number } | null;
   /** Frame dimensions (bitmap size - for display calculation on HiDPI) */
@@ -97,7 +97,7 @@ export function useInputForwarding({
    */
   const sendInput = useCallback(
     async (payload: unknown) => {
-      if (!sessionId) return;
+      if (!sessionId || pageId === null) return;
 
       // Prefer WebSocket for lower latency
       if (isConnected && wsSubscribedRef.current) {

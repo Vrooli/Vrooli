@@ -19,7 +19,6 @@ export {
   updateFrameStreamSettings,
   getFrameStreamSettings,
   updateFrameStreamViewport,
-  isViewportUpdatePending,
 } from './manager';
 
 // Types
@@ -27,8 +26,6 @@ export type {
   FrameStreamOptions,
   FrameStreamUpdateOptions,
   FrameStreamSettings,
-  FrameStreamViewportOptions,
-  FrameStreamViewportResult,
   FrameWebSocket,
   SessionProvider,
 } from './types';

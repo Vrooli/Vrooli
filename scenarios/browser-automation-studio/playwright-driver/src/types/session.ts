@@ -17,6 +17,8 @@ export interface SessionSpec {
     height: number;
   };
   reuse_mode: ReuseMode;
+  /** Preview bitmap scale, retained for this admitted lease. Defaults to CSS pixels. */
+  frame_scale?: 'css' | 'device';
   base_url?: string;
   labels?: Record<string, string>;
   required_capabilities?: {
@@ -470,6 +472,8 @@ export interface ActualViewportResponse {
 }
 
 export interface StartSessionResponse {
+  /** Registered browser page selected at session admission. */
+  active_page_id: string;
   last_instruction_sequence: number;
   session_id: string;
   /** Opaque token required to release or close this execution's lease. */

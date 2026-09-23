@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useMemo } from 'react';
-import { useWebSocket, type WebSocketMessage } from '@/contexts/WebSocketContext';
+import { useWebSocket, type WebSocketMessage, useWebSocketMessage } from '@/contexts/WebSocketContext';
 import { useExecutionStore, type Execution } from '../store';
 import {
   parseStreamMessage,
@@ -22,7 +22,7 @@ import { logger } from '@utils/logger';
  * shared WebSocketContext, following the @vrooli/api-base pattern.
  */
 export function useExecutionEvents(execution?: Pick<Execution, 'id' | 'status'>) {
-  const { lastMessage, isConnected, send } = useWebSocket();
+  const { isConnected, send } = useWebSocket();
 
   // Get store methods (stable references via selector)
   const updateExecutionStatus = useExecutionStore(s => s.updateExecutionStatus);
@@ -132,8 +132,8 @@ export function useExecutionEvents(execution?: Pick<Execution, 'id' | 'status'>)
   }, [execution?.id, execution?.status, refreshTimeline]);
 
   // Process incoming messages for this execution
-  useEffect(() => {
-    if (!lastMessage || !execution?.id) return;
+  useWebSocketMessage((lastMessage) => {
+    if (!execution?.id) return;
 
     // Filter messages that aren't for this execution
     if (lastMessage.execution_id && lastMessage.execution_id !== execution.id) {
@@ -148,7 +148,7 @@ export function useExecutionEvents(execution?: Pick<Execution, 'id' | 'status'>)
         executionId: execution.id,
       }, err);
     }
-  }, [lastMessage, execution?.id, processMessage]);
+  });
 
   return { isConnected };
 }

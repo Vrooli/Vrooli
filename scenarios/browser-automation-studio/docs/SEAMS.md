@@ -997,9 +997,9 @@ type HubInterface interface {
     // Recording-related methods (EventBroadcaster subset)
     BroadcastRecordingAction(sessionID string, action any)
     BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEntry map[string]any)
-    BroadcastRecordingFrame(sessionID string, frame *RecordingFrame)
+    BroadcastBinaryFrame(sessionID string, frame []byte) // canonical source envelope + JPEG
     BroadcastPageEvent(sessionID string, event any)
-    HasRecordingSubscribers(sessionID string) bool
+    HasRecordingFrameSubscribers(sessionID string) bool
     // ... other methods
 }
 ```

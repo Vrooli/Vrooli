@@ -3,16 +3,51 @@ import type { Page } from 'rebrowser-playwright';
 import type { FrameStatsReporter, WebSocketProvider, StreamingStrategyConfig } from '../../../src/frame-streaming/strategies';
 import { PollingStrategy } from '../../../src/frame-streaming/strategies';
 
+const imageBytes = (packet: Buffer) => packet.subarray(4 + packet.readUInt32BE(0));
+
 const createConfig = (overrides?: Partial<StreamingStrategyConfig>): StreamingStrategyConfig => ({
   sessionId: 'session-1',
   quality: 80,
   targetFps: 10,
   scale: 'css' as const,
   includePerfHeaders: false,
+  sourceForPage: () => ({session_id:'session-1',execution_id:'execution-a',lease_id:'lease-a',page_id:'page-a'}),
   ...overrides,
 });
 
 describe('PollingStrategy', () => {
+  it('includes the producing page and lease with performance mode disabled [REQ:BAS-RH-J22]',async()=>{
+    const source={session_id:'session-1',execution_id:'execution-a',lease_id:'lease-a',page_id:'page-a'};
+    const page={viewportSize:()=>({width:640,height:480}),screenshot:jest.fn().mockResolvedValue(Buffer.from('owned-jpeg'))} as unknown as Page;
+    const socket={readyState:1,send:jest.fn()};
+    let delivered!:()=>void;const sent=new Promise<void>(resolve=>{delivered=resolve;});
+    const config={...createConfig(),sourceForPage:()=>source};
+    const handle=await new PollingStrategy().start(()=>page,config,
+      {isReady:()=>true,getWebSocket:()=>socket},{onFrameSent:delivered,onFrameSkipped:jest.fn()});
+    try {
+      await sent;const packet=socket.send.mock.calls[0]?.[0] as Buffer;const length=packet.readUInt32BE(0);
+      expect(length).toBeGreaterThan(0);expect(length).toBeLessThan(packet.length-4);
+      expect(JSON.parse(packet.subarray(4,4+length).toString())).toMatchObject({version:1,source,captured_at:expect.any(String)});
+      expect(packet.subarray(4+length).toString()).toBe('owned-jpeg');
+    } finally {await handle.stop();}
+  });
+  it('discards capture completed under a retired lease even when the page is unchanged',async()=>{
+    jest.useFakeTimers();
+    let source={session_id:'session-1',execution_id:'execution-a',lease_id:'lease-a',page_id:'page-a'};
+    let finish!:(bytes:Buffer)=>void;
+    const screenshot=jest.fn().mockImplementationOnce(()=>new Promise<Buffer>(resolve=>{finish=resolve;})).mockResolvedValue(Buffer.from('new-lease'));
+    const page={viewportSize:()=>({width:640,height:480}),screenshot} as unknown as Page;
+    const socket={readyState:1,send:jest.fn()};
+    const handle=await new PollingStrategy().start(()=>page,createConfig({sourceForPage:()=>source}),
+      {isReady:()=>true,getWebSocket:()=>socket},{onFrameSent:jest.fn(),onFrameSkipped:jest.fn()});
+    try {
+      source={...source,lease_id:'lease-b'};finish(Buffer.from('retired-lease'));
+      await jest.advanceTimersByTimeAsync(0);expect(socket.send).not.toHaveBeenCalled();
+      await jest.advanceTimersByTimeAsync(150);
+      expect(socket.send.mock.calls.map(([packet])=>imageBytes(packet as Buffer).toString())).toEqual(['new-lease']);
+    } finally {await handle.stop();jest.useRealTimers();}
+  });
+
   it('skips frames when WebSocket is not ready', async () => {
     const strategy = new PollingStrategy();
 
@@ -165,7 +200,7 @@ describe('polling capture ownership [REQ:BAS-RH-J22]', () => {
       { isReady: () => true, getWebSocket: () => f.socket }, f.stats);
     try {
       await jest.advanceTimersByTimeAsync(1);
-      expect(f.socket.send).toHaveBeenCalledWith(Buffer.from('pixels'));
+      expect(f.socket.send.mock.calls.map(([packet]) => imageBytes(packet as Buffer).toString())).toContain('pixels');
     } finally { await handle.stop(); }
   });
 
@@ -211,7 +246,7 @@ describe('polling capture ownership [REQ:BAS-RH-J22]', () => {
       currentPage = next.page;
       pending.resolve(Buffer.from('old-page'));
       await jest.advanceTimersByTimeAsync(200);
-      const delivered = old.socket.send.mock.calls.map(([buffer]) => buffer.toString());
+      const delivered = old.socket.send.mock.calls.map(([buffer]) => imageBytes(buffer as Buffer).toString());
       expect(delivered).toContain('new-page');
       expect(delivered).not.toContain('old-page');
     } finally { pending.resolve(Buffer.from('old-page')); await handle.stop(); }
@@ -229,7 +264,7 @@ describe('polling capture ownership [REQ:BAS-RH-J22]', () => {
       viewer = replacement;
       await jest.advanceTimersByTimeAsync(200);
       expect(replacement.send).toHaveBeenCalledTimes(1);
-      expect(replacement.send).toHaveBeenCalledWith(Buffer.from('pixels'));
+      expect(replacement.send.mock.calls.map(([packet]) => imageBytes(packet as Buffer).toString())).toContain('pixels');
     } finally { await handle.stop(); }
   });
 
@@ -247,8 +282,8 @@ describe('polling capture ownership [REQ:BAS-RH-J22]', () => {
       f.screenshot.mockResolvedValue(Buffer.from('fresh-capture'));
       await jest.advanceTimersByTimeAsync(200);
       expect(f.socket.send).not.toHaveBeenCalled();
-      expect(replacement.send).toHaveBeenCalledWith(Buffer.from('fresh-capture'));
-      expect(replacement.send).not.toHaveBeenCalledWith(Buffer.from('old-viewer-capture'));
+      expect(replacement.send.mock.calls.map(([packet]) => imageBytes(packet as Buffer).toString())).toContain('fresh-capture');
+      expect(replacement.send.mock.calls.map(([packet]) => imageBytes(packet as Buffer).toString())).not.toContain('old-viewer-capture');
     } finally { pending.resolve(Buffer.from('old-viewer-capture')); await handle.stop(); }
   });
 
@@ -274,7 +309,7 @@ describe('polling capture ownership [REQ:BAS-RH-J22]', () => {
       expect(f.socket.send).toHaveBeenCalledTimes(2);
       const packet = f.socket.send.mock.calls[1][0] as Buffer;
       const length = packet.readUInt32BE(0);
-      expect(JSON.parse(packet.subarray(4, 4 + length).toString())).toMatchObject({ frame_bytes: 6 });
+      expect(JSON.parse(packet.subarray(4, 4 + length).toString())).toMatchObject({ timing: { frame_bytes: 6 } });
       expect(packet.subarray(4 + length).toString()).toBe('pixels');
     } finally { await handle.stop(); }
   });

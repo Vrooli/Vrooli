@@ -1,0 +1,690 @@
+{
+  "cycle": "BAS-WORK-077",
+  "issues": [
+    "BAS-RF-047"
+  ],
+  "recorded_at": "2026-09-23T08:49:55.588974+00:00",
+  "status": "qualified_and_deployed_with_documented_scope",
+  "build_identity": "sha256:aae1b4d070616993eb8c6e33f0b6b4af887c1fe8006a6a06113e3bf828f64dda",
+  "source": {
+    "baseline": "/tmp/bas-before-077/manifest.json",
+    "sdk_baseline": "/tmp/bas-before-077/sdk-manifest.json",
+    "frozen": "/tmp/bas-frozen-077.json",
+    "paths": {
+      "playwright-driver/patches/rebrowser-playwright-core@1.52.0.patch": {
+        "sha256": "562cef07ec0eda59d38fa3ae8c42a61c1d5c563c534728c887fd14b6ff723eac",
+        "lines": 223
+      },
+      "playwright-driver/pnpm-lock.yaml": {
+        "sha256": "7b96e36f14d2ff92fa7daf9b128d21a924b4352070314c8780ba94c566fe048d",
+        "lines": 4149
+      },
+      "playwright-driver/src/session/context-builder.ts": {
+        "sha256": "9853796517d17e4e81b37b537e27a02fb5de29765e6dc4a587578055677206d5",
+        "lines": 485
+      },
+      "playwright-driver/tests/integration/typed-action-semantics.test.ts": {
+        "sha256": "97d83d7110671d4aa295f82f2d6f11a0e69f92d1dc08428cf5d06b26addc4afc",
+        "lines": 1397
+      },
+      "playwright-driver/tests/integration/pipeline-e2e.test.ts": {
+        "sha256": "2e04f57094bf6b47110aaa31c5a9869ed4fa318bb16528c4ccde34d3874132a6",
+        "lines": 1168
+      },
+      "docs/bugs/VIDEO_BOTTOM_FLICKER.md": {
+        "sha256": "6c6482f6729363eb931bd1410668ac01eca9004f789d81672ae13fd886fc853a",
+        "lines": 119
+      }
+    },
+    "sdk_paths": {
+      "lib/server/page.js": {
+        "sha256": "728a3ebd1d0dd599b2c8a5a6ef741ae4c701f007c32b32b0d5b987b5421dde3b",
+        "lines": 793
+      },
+      "lib/server/chromium/crPage.js": {
+        "sha256": "d0f35287e48143c106107a6646c3e4112213674bdf9c932700d31e895a33ceed",
+        "lines": 1059
+      }
+    },
+    "shared_tree": true
+  },
+  "ownership": {
+    "before": "SDK screenshot queue did not own viewport mutation; Chromium window sizing could invalidate visible area; BAS video code independently overwrote screen/mobile metrics.",
+    "after": "SDK viewport joins its existing screenshot queue; Chromium sets visible compositor size after window operations; BAS video metrics listener removed.",
+    "removed": "Unawaited video-only CDP metrics override, its attached protocol session, duplicate mobile/screen policy.",
+    "preserved": "Same browser launch mode, approved package version, prior context discovery patch, mobile/DPR/orientation configuration, unrelated video layout stabilization."
+  },
+  "tests": {
+    "red": {
+      "failed": 4,
+      "passed": 6,
+      "artifact": "/tmp/bas-sdk-geometry-red-077.txt"
+    },
+    "focused": {
+      "passed": 10,
+      "types": "passed"
+    },
+    "owner": {
+      "id": "uh-20260923-083931-6e0f297c119278874a5642e082af0c0d",
+      "status": "passed",
+      "passed": 1842,
+      "suites": 123,
+      "existing_skips": {
+        "tests": 2,
+        "suites": 1
+      },
+      "duration_ms": 403684,
+      "artifact": "/tmp/bas-driver-owner-077.json"
+    },
+    "native": {
+      "css": {
+        "artifact": "/tmp/bas-preview-geometry-native-css-077/receipt.json",
+        "passed": 63,
+        "failed": 0,
+        "cases": [
+          {
+            "name": "owned_session_admission",
+            "status": "passed"
+          },
+          {
+            "name": "preview_before_recording_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "preview_before_recording_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "UI_attaches_to_fixture",
+            "status": "passed"
+          },
+          {
+            "name": "initial_fixture_has_one_heading",
+            "status": "passed"
+          },
+          {
+            "name": "initial_http_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "initial_stream_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "initial_canvas_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "initial_HTTP_metadata_matches_CSS_viewport",
+            "status": "passed"
+          },
+          {
+            "name": "initial_http_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "initial_stream_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "initial_canvas_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "initial_http_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "initial_stream_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "initial_canvas_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_fixture_has_one_heading",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_http_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_stream_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_canvas_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_HTTP_metadata_matches_CSS_viewport",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_http_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_stream_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_canvas_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_http_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_stream_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_canvas_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "wide_fixture_has_one_heading",
+            "status": "passed"
+          },
+          {
+            "name": "wide_http_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "wide_stream_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "wide_canvas_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "wide_HTTP_metadata_matches_CSS_viewport",
+            "status": "passed"
+          },
+          {
+            "name": "wide_http_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "wide_stream_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "wide_canvas_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "wide_http_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "wide_stream_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "wide_canvas_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "restored_fixture_has_one_heading",
+            "status": "passed"
+          },
+          {
+            "name": "restored_http_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "restored_stream_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "restored_canvas_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "restored_HTTP_metadata_matches_CSS_viewport",
+            "status": "passed"
+          },
+          {
+            "name": "restored_http_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "restored_stream_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "restored_canvas_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "restored_http_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "restored_stream_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "restored_canvas_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "recording_stop_and_restart",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_fixture_has_one_heading",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_http_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_stream_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_canvas_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_HTTP_metadata_matches_CSS_viewport",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_http_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_stream_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_canvas_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_http_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_stream_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_canvas_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "no_uncaught_UI_errors",
+            "status": "passed"
+          },
+          {
+            "name": "owned_session_cleanup",
+            "status": "passed"
+          },
+          {
+            "name": "owned_profile_cleanup",
+            "status": "passed"
+          }
+        ],
+        "pending_cleanup": null
+      },
+      "device": {
+        "artifact": "/tmp/bas-preview-geometry-native-device-077/receipt.json",
+        "passed": 63,
+        "failed": 0,
+        "cases": [
+          {
+            "name": "owned_session_admission",
+            "status": "passed"
+          },
+          {
+            "name": "preview_before_recording_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "preview_before_recording_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "UI_attaches_to_fixture",
+            "status": "passed"
+          },
+          {
+            "name": "initial_fixture_has_one_heading",
+            "status": "passed"
+          },
+          {
+            "name": "initial_http_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "initial_stream_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "initial_canvas_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "initial_HTTP_metadata_matches_CSS_viewport",
+            "status": "passed"
+          },
+          {
+            "name": "initial_http_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "initial_stream_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "initial_canvas_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "initial_http_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "initial_stream_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "initial_canvas_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_fixture_has_one_heading",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_http_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_stream_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_canvas_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_HTTP_metadata_matches_CSS_viewport",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_http_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_stream_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_canvas_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_http_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_stream_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "narrow_canvas_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "wide_fixture_has_one_heading",
+            "status": "passed"
+          },
+          {
+            "name": "wide_http_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "wide_stream_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "wide_canvas_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "wide_HTTP_metadata_matches_CSS_viewport",
+            "status": "passed"
+          },
+          {
+            "name": "wide_http_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "wide_stream_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "wide_canvas_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "wide_http_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "wide_stream_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "wide_canvas_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "restored_fixture_has_one_heading",
+            "status": "passed"
+          },
+          {
+            "name": "restored_http_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "restored_stream_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "restored_canvas_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "restored_HTTP_metadata_matches_CSS_viewport",
+            "status": "passed"
+          },
+          {
+            "name": "restored_http_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "restored_stream_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "restored_canvas_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "restored_http_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "restored_stream_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "restored_canvas_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "recording_stop_and_restart",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_fixture_has_one_heading",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_http_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_stream_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_canvas_preserves_coordinate_colors",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_HTTP_metadata_matches_CSS_viewport",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_http_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_stream_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_canvas_honors_selected_scale_width",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_http_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_stream_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "recording_restarted_canvas_has_complete_viewport_at_selected_scale",
+            "status": "passed"
+          },
+          {
+            "name": "no_uncaught_UI_errors",
+            "status": "passed"
+          },
+          {
+            "name": "owned_session_cleanup",
+            "status": "passed"
+          },
+          {
+            "name": "owned_profile_cleanup",
+            "status": "passed"
+          }
+        ],
+        "pending_cleanup": null
+      }
+    },
+    "concurrent_resize": {
+      "stages": 16,
+      "samples": 96,
+      "mismatches": 0,
+      "artifact": "/tmp/bas-viewport-polling-sdk-077.json"
+    },
+    "video": {
+      "painted_frames": 55,
+      "bad_bottom_frames": 0,
+      "sizes": [
+        "640x480",
+        "900x640"
+      ],
+      "dpr": 2,
+      "artifact": "/tmp/bas-video-geometry-077/receipt.json"
+    },
+    "workflow": {
+      "passed": 12,
+      "effects": 3,
+      "execution_id": "37bb226a-cd84-4227-a357-c6ffb22ac04e",
+      "artifact_dir": "/tmp/bas-recording-e2e-crC1FP",
+      "cleanup": "complete"
+    },
+    "profiles": {
+      "complete_identity_reads": 3,
+      "original_rollback": "preserved",
+      "api_metadata": "equals076"
+    }
+  },
+  "dependency": {
+    "version": "1.52.0",
+    "patch_hash": "562cef07ec0eda59d38fa3ae8c42a61c1d5c563c534728c887fd14b6ff723eac",
+    "install": "SDA approved and installed",
+    "artifact": "/tmp/bas-dependency-patch-install-077.json",
+    "lock_diff": "patch hash only",
+    "governance": "advisory pass,44existingwarnings",
+    "security_status": "owner available/index ready only; not a fresh BAS security scan"
+  },
+  "metrics": {
+    "bas_runtime": {
+      "before": 528,
+      "after": 485
+    },
+    "sdk_runtime": {
+      "before": 1845,
+      "after": 1852
+    },
+    "net_runtime_line_delta": -36,
+    "go_complexity_delta": 0,
+    "cumulative_affected_go_delta": -97,
+    "scoped_complexity": {
+      "before": {
+        "code_path_count": 318,
+        "sum": 744
+      },
+      "after": {
+        "code_path_count": 316,
+        "sum": 742
+      },
+      "artifact": "/tmp/bas-frame-complexity-077.json"
+    },
+    "tidiness": {
+      "run_id": "20260923-084020-f513a66b",
+      "status": "failed_budgets",
+      "totalFindings": 1140,
+      "longFiles": 103,
+      "complexity": 405,
+      "duplication": 610,
+      "coupling": 21,
+      "duplicationLineDebt": 31210
+    }
+  },
+  "board": {
+    "required": 17,
+    "unknown": 17
+  },
+  "rejected": [
+    "Changing only headless setting/channel did not fix regular Chromium geometry.",
+    "Compositor size alone did not solve screenshot/resize race.",
+    "BAS per-caller capture locks would duplicate the existing SDK queue."
+  ],
+  "limitations": [
+    "No release latency/FPS/soak or native-platform certification.",
+    "Viewport command lease/page fencing and rapid overlapping viewport requests remain separate ownership scope.",
+    "Same-page stale frame epochs and callback generations remain open.",
+    "Original repeated-heading screenshot was not reproduced; sampled coordinate grid passes, not exhaustive image fidelity.",
+    "Observed empty address bar on attachment is being investigated as078."
+  ],
+  "pending_operations": []
+}

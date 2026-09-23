@@ -12,10 +12,10 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import type { SessionManager } from '../../session';
 import type { Config } from '../../config';
 import { parseJsonBody, sendJson, sendError } from '../../middleware';
-import { logger } from '../../utils';
+import { SessionNotFoundError } from '../../utils';
 import { updateFrameStreamViewport } from '../../frame-streaming';
 import type { InputRequest, PointerAction, ViewportRequest, ViewportResponse } from './types';
-import { recordingOwner } from './recording-lifecycle';
+import { recordingOwner } from './recording-ownership';
 
 // =============================================================================
 // Input Handlers
@@ -129,54 +129,30 @@ export async function handleRecordViewport(
   config: Config
 ): Promise<void> {
   try {
-    const session = sessionManager.getSession(sessionId);
     const body = await parseJsonBody(req, config);
-    const { width, height } = body as unknown as ViewportRequest;
-
-    if (!width || !height || width <= 0 || height <= 0) {
-      sendJson(res, 400, {
-        error: 'INVALID_VIEWPORT',
-        message: 'width and height must be positive numbers',
-      });
+    const ownedSession = recordingOwner(body, sessionId, sessionManager);
+    const session = ownedSession();
+    const page = session.page;
+    const pageId = session.pageToIdMap.get(page);
+    if (!pageId || body.expected_page_id !== pageId) {
+      sendJson(res, 409, {error: 'PAGE_CHANGED', message: 'The selected recording tab changed before resize'});
       return;
     }
-
-    const roundedWidth = Math.round(width);
-    const roundedHeight = Math.round(height);
-
-    // Update Playwright viewport
-    await session.page.setViewportSize({
-      width: roundedWidth,
-      height: roundedHeight,
-    });
-
-    // Update frame streaming to restart screencast at new dimensions
-    // This is async but we don't need to wait for it - the UI will get updated frames
-    // when the screencast restarts. Fire and forget to keep response fast.
-    updateFrameStreamViewport(sessionId, {
-      width: roundedWidth,
-      height: roundedHeight,
-    }).then((result) => {
-      if (!result.success && !result.skipped) {
-        logger.warn('recording: frame stream viewport update failed', {
-          sessionId,
-          error: result.error,
-          viewport: { width: roundedWidth, height: roundedHeight },
-        });
-      }
-    }).catch((error) => {
-      logger.error('recording: frame stream viewport update error', {
-        sessionId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    });
-
-    const viewport = session.page.viewportSize();
-    const response: ViewportResponse = {
-      session_id: sessionId,
-      width: viewport?.width ?? roundedWidth,
-      height: viewport?.height ?? roundedHeight,
+    const ownedPage = () => {
+      if (ownedSession().page !== page || session.pageToIdMap.get(page) !== pageId) throw new SessionNotFoundError(sessionId);
     };
+    const {width, height} = body as unknown as ViewportRequest;
+    if (typeof width !== 'number' || typeof height !== 'number' || !Number.isFinite(width) || !Number.isFinite(height) || Math.round(width) <= 0 || Math.round(height) <= 0) {
+      sendJson(res, 400, {error: 'INVALID_VIEWPORT', message: 'width and height must be positive finite numbers'});
+      return;
+    }
+    await page.setViewportSize({width: Math.round(width), height: Math.round(height)});
+    ownedPage();
+    await updateFrameStreamViewport(sessionId, page);
+    ownedPage();
+    const viewport = page.viewportSize();
+    if (!viewport) throw new Error('Applied viewport is unavailable');
+    const response: ViewportResponse = {session_id: sessionId, driver_page_id: pageId, ...viewport};
 
     sendJson(res, 200, response);
   } catch (error) {

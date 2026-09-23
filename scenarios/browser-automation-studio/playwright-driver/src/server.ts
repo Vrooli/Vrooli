@@ -7,7 +7,6 @@ import * as observability from './observability';
 import { sendError, sendJson } from './middleware';
 import { createLogger, setLogger, logger, metrics, createMetricsServer } from './utils';
 import { SERVER_DRAIN_TIMEOUT_MS, SERVER_DRAIN_INTERVAL_MS } from './constants';
-import { createDirectFrameServer, type DirectFrameServer } from './frame-streaming/websocket';
 import { FaultController } from './fault-control';
 
 function requireRouteParam(
@@ -123,16 +122,6 @@ async function main(): Promise<void> {
   server.keepAliveTimeout = config.server.requestTimeout + 5000; // Slightly longer than request timeout
   server.headersTimeout = config.server.requestTimeout + 10000; // Slightly longer than keepAlive
 
-  // Direct frame server: lets UI clients stream frames from the driver without
-  // relaying through the API hub. Its port is allocated by the scenario, not
-  // derived from the main port.
-  const directFramePort = config.frameStreaming.directPort;
-  const directFrameServer = createDirectFrameServer(directFramePort, config.server.host);
-  directFrameServer.start();
-
-  // Make direct frame server available globally for frame manager
-  (global as { directFrameServer?: DirectFrameServer }).directFrameServer = directFrameServer;
-
   // Start listening
   server.listen(config.server.port, config.server.host, () => {
     logger.info('server: listening', {
@@ -150,7 +139,6 @@ async function main(): Promise<void> {
       metricsEndpoint: config.metrics.enabled
         ? `http://${config.server.host}:${config.metrics.port}/metrics`
         : 'disabled',
-      directFrameEndpoint: `ws://${config.server.host}:${directFramePort}/frames`,
       browserVerified: !browserError,
     });
   });
@@ -206,9 +194,6 @@ async function main(): Promise<void> {
         logger.info('server: metrics closed');
       });
     }
-
-    // Close direct frame server
-    directFrameServer.stop();
 
     // Wait for in-flight requests to complete (with timeout)
     // Timeouts from constants.ts
@@ -643,6 +628,12 @@ function setupRoutes(
       return;
     }
     await routes.handleRecordActivePage(req, res, sessionId, sessionManager, config);
+  });
+
+  router.post('/session/:id/record/close-page', async (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) return;
+    await routes.handleRecordClosePage(req, res, sessionId, sessionManager, config);
   });
 
   // AI Navigation

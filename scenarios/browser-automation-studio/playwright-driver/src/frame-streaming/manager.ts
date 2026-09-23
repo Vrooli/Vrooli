@@ -1,3 +1,4 @@
+import { captureFrameSource, type FrameSource } from './frame';
 /**
  * Frame Streaming Manager
  *
@@ -30,8 +31,6 @@ import type {
   FrameStreamOptions,
   FrameStreamUpdateOptions,
   FrameStreamSettings,
-  FrameStreamViewportOptions,
-  FrameStreamViewportResult,
   SessionProvider,
 } from './types';
 import type { Page } from 'rebrowser-playwright';
@@ -220,69 +219,12 @@ export function getFrameStreamSettings(sessionId: string): FrameStreamSettings |
   };
 }
 
-/**
- * Update viewport dimensions for an active frame streaming session.
- * This may require restarting the screencast (for CDP strategy).
- *
- * @param sessionId - Session ID
- * @param options - New viewport dimensions
- * @returns Result of the viewport update operation
- */
-export async function updateFrameStreamViewport(
-  sessionId: string,
-  options: FrameStreamViewportOptions
-): Promise<FrameStreamViewportResult> {
-  const session = currentStream(sessionId);
-  if (!session || !session.strategyHandle?.isActive()) {
-    return { success: false, error: 'No active stream for session' };
-  }
-
-  // Check if viewport update is supported by the strategy
-  if (!session.strategyHandle.updateViewport) {
-    return { success: false, error: 'Viewport update not supported by strategy' };
-  }
-
-  // Check if an update is already pending
-  if (session.strategyHandle.isViewportUpdatePending?.()) {
-    return { success: false, skipped: true, error: 'Viewport update already pending' };
-  }
-
-  try {
-    await session.strategyHandle.updateViewport(options.width, options.height);
-
-    logger.info(scopedLog(LogContext.RECORDING, 'frame stream viewport updated'), {
-      sessionId,
-      viewport: options,
-      strategy: session.strategyName,
-    });
-
-    return { success: true };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-
-    logger.error(scopedLog(LogContext.RECORDING, 'frame stream viewport update failed'), {
-      sessionId,
-      viewport: options,
-      error: message,
-    });
-
-    return { success: false, error: message };
-  }
-}
-
-/**
- * Check if a viewport update is currently in progress for a session.
- *
- * @param sessionId - Session ID
- * @returns true if viewport update is pending, false otherwise
- */
-export function isViewportUpdatePending(sessionId: string): boolean {
-  const session = currentStream(sessionId);
-  if (!session || !session.strategyHandle) {
-    return false;
-  }
-
-  return session.strategyHandle.isViewportUpdatePending?.() ?? false;
+/** Refresh capture from the viewport already applied to this exact Page. */
+export async function updateFrameStreamViewport(sessionId: string, page: Page): Promise<void> {
+  const stream = currentStream(sessionId);
+  if (!stream?.strategyHandle?.isActive()) return;
+  await stream.strategyHandle.updateViewport?.(page);
+  if (currentStream(sessionId) !== stream) throw new Error('Frame stream was replaced during resize');
 }
 
 // =============================================================================
@@ -300,13 +242,23 @@ async function startWithStrategy(
   config: ReturnType<typeof loadConfig>,
   isCurrent: () => boolean
 ): Promise<void> {
-  // Create page provider function for multi-tab support
-  // This is called on each frame capture to get the current active page
-  const pageProvider = (): Page => {
+  const admitted = sessionProvider.getSession(sessionId);
+  const executionId = admitted.ownerExecutionId;
+  const leaseId = admitted.leaseId;
+  const currentSession = () => {
     if (!isCurrent()) throw new Error('Frame stream was stopped or replaced');
-    return sessionProvider.getSession(sessionId).page;
+    const current = sessionProvider.getSession(sessionId);
+    if (current.ownerExecutionId !== executionId || current.leaseId !== leaseId || current.leaseReleasedAt) {
+      throw new Error('Frame stream lease was replaced');
+    }
+    return current;
   };
-  const page = pageProvider();
+  const pageProvider = (): Page => currentSession().page;
+  const sourceForPage = (page: Page): FrameSource | null => {
+    try { return captureFrameSource(currentSession(),page); }
+    catch { return null; }
+  };
+  const page = admitted.page;
 
   // Create strategy instances
   const screencastStrategy = createCdpScreencastStrategy();
@@ -365,6 +317,7 @@ async function startWithStrategy(
     session.strategyName = strategy.name;
     try {
       session.strategyHandle = await strategy.start(pageProvider, {
+        sourceForPage,
         sessionId,
         quality: session.quality,
         targetFps: session.targetFps,

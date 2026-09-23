@@ -279,11 +279,6 @@
       "description": "Playwright driver HTTP server port",
       "range": "24400-24499"
     },
-    "playwright_driver_frames": {
-      "env_var": "PLAYWRIGHT_DRIVER_FRAMES_PORT",
-      "description": "Playwright driver direct frame-streaming WebSocket port",
-      "range": "24400-24499"
-    },
     "playwright_driver_metrics": {
       "env_var": "PLAYWRIGHT_DRIVER_METRICS_PORT",
       "description": "Playwright driver Prometheus metrics port",
@@ -707,8 +702,7 @@
         "cwd": "playwright-driver",
         "port": "playwright_driver",
         "env": {
-          "METRICS_PORT": "${PLAYWRIGHT_DRIVER_METRICS_PORT}",
-          "FRAME_STREAM_DIRECT_PORT": "${PLAYWRIGHT_DRIVER_FRAMES_PORT}"
+          "METRICS_PORT": "${PLAYWRIGHT_DRIVER_METRICS_PORT}"
         },
         "supervised_by": "api"
       }

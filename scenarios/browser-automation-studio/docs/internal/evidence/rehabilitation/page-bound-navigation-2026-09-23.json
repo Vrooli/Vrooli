@@ -1,0 +1,206 @@
+{
+  "cycle": "069",
+  "issues": [
+    "BAS-RF-099"
+  ],
+  "recorded_at": "2026-09-23",
+  "status": "qualified_and_deployed",
+  "source": {
+    "baseline": "/tmp/bas-before-069/manifest.json",
+    "initial_freeze": "/tmp/bas-frozen-069.json",
+    "final_freeze": "/tmp/bas-frozen-final-069.json",
+    "paths": [
+      "ui/src/domains/recording/RecordingSession.tsx",
+      "ui/src/domains/recording/hooks/useBrowserNavigation.ts",
+      "ui/src/domains/recording/hooks/useBrowserNavigation.test.ts",
+      "api/automation/driver/types.go",
+      "api/automation/session/session.go",
+      "api/handlers/record_mode_navigation.go",
+      "api/handlers/record_mode.go",
+      "api/handlers/record_mode_types.go",
+      "api/handlers/record_mode_integration_test.go",
+      "playwright-driver/src/routes/record-mode/types.ts",
+      "playwright-driver/src/routes/record-mode/recording-navigation.ts",
+      "playwright-driver/tests/unit/routes/record-mode.test.ts"
+    ]
+  },
+  "tests": {
+    "native_red": {
+      "passed": 14,
+      "failed": 3,
+      "artifact": "/tmp/bas-navigation-page-native-red-069.json"
+    },
+    "ui_final": {
+      "tests": 526,
+      "files": 26,
+      "types": "passed",
+      "artifact": "/tmp/bas-navigation-page-ui-final2-069.txt"
+    },
+    "driver_focused": {
+      "tests": 140,
+      "suites": 3,
+      "types": "passed",
+      "artifact": "/tmp/bas-navigation-page-driver-final-069.txt"
+    },
+    "go": {
+      "race_packages": [
+        "handlers",
+        "automation/driver",
+        "automation/session",
+        "services/live-capture"
+      ],
+      "build": "passed",
+      "artifact": "/tmp/bas-navigation-page-go-final-069.txt"
+    },
+    "return_to_same_tab_red": {
+      "failed": 2,
+      "passed": 28,
+      "artifact": "/tmp/bas-navigation-page-return-red-069.txt"
+    },
+    "driver_full": {
+      "run_id": "uh-20260923-045634-d28f8a4be0ed7348fabd5aa98ae08efb",
+      "status": "passed",
+      "tests": 1808,
+      "suites": 123,
+      "skipped_tests": 2,
+      "skipped_suites": 1,
+      "owner_ms": 355022,
+      "jest_seconds": 353.981,
+      "artifact": "/tmp/bas-driver-owner-final-069.json"
+    },
+    "native_final": [
+      {
+        "cases": 17,
+        "failed": 0,
+        "artifact": "/tmp/bas-navigation-page-native-green-069.json"
+      },
+      {
+        "cases": 24,
+        "failed": 0,
+        "artifact": "/tmp/bas-navigation-page-native-qualified-069.json"
+      },
+      {
+        "cases": 23,
+        "failed": 0,
+        "artifact": "/tmp/bas-navigation-qualified-069.json"
+      }
+    ],
+    "saved_workflow": {
+      "passed": 12,
+      "failed": 0,
+      "effects": 3,
+      "execution_id": "37dbce86-2f27-46a9-a20c-8cec78c7cb27",
+      "artifact_dir": "/tmp/bas-recording-e2e-XPqkQl",
+      "log": "/tmp/bas-recording-workflow-final-069.txt"
+    },
+    "profiles": {
+      "status": "preserved",
+      "complete_identity_reads": 3,
+      "original_rollback": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/session-profiles.rollback-20260922",
+      "log": "/tmp/bas-profile-final-069.txt",
+      "api_metadata": "/tmp/bas-profile-api-final-069.json",
+      "comparison": "equal to068"
+    }
+  },
+  "measurement": {
+    "files": {
+      "ui/src/domains/recording/RecordingSession.tsx": {
+        "before": 1464,
+        "after": 1469
+      },
+      "ui/src/domains/recording/hooks/useBrowserNavigation.ts": {
+        "before": 282,
+        "after": 205
+      },
+      "api/automation/driver/types.go": {
+        "before": 603,
+        "after": 605
+      },
+      "api/automation/session/session.go": {
+        "before": 447,
+        "after": 452
+      },
+      "api/handlers/record_mode_navigation.go": {
+        "before": 90,
+        "after": 129
+      },
+      "api/handlers/record_mode.go": {
+        "before": 961,
+        "after": 970
+      },
+      "api/handlers/record_mode_types.go": {
+        "before": 276,
+        "after": 277
+      },
+      "playwright-driver/src/routes/record-mode/types.ts": {
+        "before": 361,
+        "after": 364
+      },
+      "playwright-driver/src/routes/record-mode/recording-navigation.ts": {
+        "before": 231,
+        "after": 235
+      }
+    },
+    "runtime_lines_before": 4715,
+    "runtime_lines_after": 4706,
+    "go_before": {
+      "functions": 62,
+      "sum": 248
+    },
+    "go_after": {
+      "functions": 65,
+      "sum": 262
+    },
+    "typescript": {
+      "tool": "eslint",
+      "version": "9.39.4",
+      "parser_version": "8.59.4",
+      "before": {
+        "code_path_count": 135,
+        "sum": 443
+      },
+      "after": {
+        "code_path_count": 142,
+        "sum": 468
+      }
+    },
+    "tidiness": {
+      "run_id": "20260923-050256-ad02d3c4",
+      "summary": {
+        "totalFindings": 1136,
+        "longFiles": 103,
+        "complexity": 401,
+        "duplication": 611,
+        "coupling": 20,
+        "duplicationLineDebt": 31391
+      },
+      "budget": "failed"
+    }
+  },
+  "qualification_snapshot": {
+    "board": "/tmp/bas-board-result-069.json",
+    "required": 17,
+    "unqualified": 17,
+    "contract": "/tmp/bas-contract-069.txt",
+    "inventory": "/tmp/bas-inventory-final-069.json"
+  },
+  "review": {
+    "preserved": [
+      "Implicit active-tab commands for programmatic callers",
+      "Explicit repeat URLs and queued launch",
+      "Browser-authoritative history",
+      "Immutable execution lease and post-await page checks"
+    ],
+    "removed": [
+      "Repeated UI history HTTP handlers"
+    ],
+    "limitations": [
+      "UI lifetime identity prevents cancelled intent replay; page-ID precondition alone is not an activation-generation protocol",
+      "General callback/frame source identity and release matrices remain unqualified",
+      "Both Go and scoped TS complexity increase despite fewer lines"
+    ],
+    "visual_inspection": "/tmp/bas-navigation-page-native-qualified-069.png: original red tab/address/pixels agree after return; frame-rate/stream performance not qualified"
+  },
+  "pending_operations": {},
+  "build_identity": "sha256:b494c40d57e4c6e88eba6d282de3af41e91c941c12d05673b17132196f00f571"
+}

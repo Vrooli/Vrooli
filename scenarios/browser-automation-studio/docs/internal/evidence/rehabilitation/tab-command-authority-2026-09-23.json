@@ -1,0 +1,183 @@
+{
+  "cycle": "BAS-WORK-061",
+  "issues": [
+    "BAS-RF-038"
+  ],
+  "recorded_at": "2026-09-23",
+  "status": "qualified_and_deployed",
+  "build_identity": "sha256:072657b2b9bae08735248abd27f96b38bc08f67eba36d81c75bd31fc42364376",
+  "source": {
+    "playwright-driver/src/routes/record-mode/recording-pages.ts": {
+      "before": {
+        "sha256": "279ec3ccee35a65f627c3800f359f5b4e9827eab255da42b234262d29aa25551",
+        "lines": 298
+      },
+      "after": {
+        "sha256": "9aa60f444eba6f3c326ad2110b7a8b46058dc6c1ac304b60f3d43fd9ca31b83e",
+        "lines": 308
+      }
+    },
+    "api/automation/driver/client.go": {
+      "before": {
+        "sha256": "f2d1db80ef224fdc414a25e1a7bedf44ee8c2ca7c217e9e7877fc748f739e444",
+        "lines": 1196
+      },
+      "after": {
+        "sha256": "ba8b9bc31cd31e16a6d047598f13206e3a5a1444951f1d74e90e7cae74c9ea77",
+        "lines": 1191
+      }
+    },
+    "api/automation/session/session.go": {
+      "before": {
+        "sha256": "d981dfc870868a43aaaebacf9436c92bf4f075b65aa0e56cabed9f23f0468021",
+        "lines": 431
+      },
+      "after": {
+        "sha256": "2d56c4eb9893678643ba0365d66285832af3df3d148bcf30dc66e50640850927",
+        "lines": 439
+      }
+    },
+    "api/services/live-capture/service.go": {
+      "before": {
+        "sha256": "e9c3b676347b5d215b845d41407836b26c816f2c2fe59f37ae58db5a1613d778",
+        "lines": 789
+      },
+      "after": {
+        "sha256": "299c197fabd43f79a75f9763fc3a0e88304f4c0033b5fcc0e36fd8382f0c4ec1",
+        "lines": 815
+      }
+    },
+    "api/handlers/record_mode.go": {
+      "before": {
+        "sha256": "097cb75ccf54159ef408fd04a3f228b3275e9ce03860a277702f4779c026ed84",
+        "lines": 983
+      },
+      "after": {
+        "sha256": "159bca4daba39913664f86d18e151b1494d164a1e07d1037a55a387421d31204",
+        "lines": 983
+      }
+    },
+    "playwright-driver/src/routes/record-mode/recording-lifecycle.ts": {
+      "before": {
+        "sha256": "030a694034d867e49e0ce634cc1ee85922625130fbe6b544497a40e5faa7f964",
+        "lines": 438
+      },
+      "after": {
+        "sha256": "7fb7f3ffa9306247a43eb01dc516ef80c7f18f36dc334e69d4b7c92fcdd54367",
+        "lines": 427
+      }
+    },
+    "playwright-driver/src/routes/record-mode/recording-input.ts": {
+      "before": {
+        "sha256": "d85631a0be7881e227197018c60d5444c456626b19666ac2cca806d7085f88bb",
+        "lines": 185
+      },
+      "after": {
+        "sha256": "6a81254fce527b7bc2dd163086d064bc7dc4cb79f2c102f1aff7262ec9faede5",
+        "lines": 185
+      }
+    },
+    "playwright-driver/src/routes/record-mode/recording-navigation.ts": {
+      "before": {
+        "sha256": "2eb923bd10e128ced4555945c846861ccd86471a009034998d5ca8cd98c40fe8",
+        "lines": 231
+      },
+      "after": {
+        "sha256": "b7f56e56c4eb73a1962083b01b94965eed65b5e9b00e21be038e03426f3c4454",
+        "lines": 231
+      }
+    },
+    "playwright-driver/src/routes/record-mode/recording-ownership.ts": {
+      "before": {
+        "sha256": null,
+        "lines": 0
+      },
+      "after": {
+        "sha256": "4131ac042be603939c274066ff841b06bc213267f618aec9f953ee126113ce6e",
+        "lines": 18
+      }
+    }
+  },
+  "tests": {
+    "driver_red": "/tmp/bas-tab-authority-driver-red-valid-061.txt:14failed/14passed",
+    "go_payload_red": "/tmp/bas-tab-authority-go-red-061.jsonl:3failed cases",
+    "go_handoff_red": "/tmp/bas-tab-handoff-go-red-valid-061.jsonl:2failed cases",
+    "admission_cleanup_red": "/tmp/bas-restoration-cleanup-owner-red-061.jsonl:4failed cases",
+    "scoped_driver": "/tmp/bas-tab-authority-driver-scoped-061.txt:141tests/4suites pass;types pass",
+    "go": "/tmp/bas-tab-authority-go-final-061.txt:6racepackages pass,includingexecutor;APIbuild pass",
+    "initial_full_driver": {
+      "run_id": "uh-20260923-014455-c6f6541e8994419eaf9362f171992eb3",
+      "status": "failed",
+      "passed": 1769,
+      "failed": 1,
+      "skipped": 2,
+      "owner_duration_ms": 387954,
+      "jest_seconds": 386.902,
+      "cause": "Nativepipeline fixture omitted newlease and operational phase;callbackwait masked400 rejection. Correctedfixture,assert201beforeawait,same2000msboundandidentity/listenerassertions.",
+      "focused_fix": "/tmp/bas-native-tab-fixture-061.txt:1nativepass/30unrelatedskipped;types pass"
+    },
+    "full_driver": {
+      "status": "passed",
+      "run_id": "uh-20260923-015346-275ef9e7917c16db6c18220f748ec251",
+      "passed_tests": 1770,
+      "passed_suites": 124,
+      "skipped_tests": 2,
+      "skipped_suites": 1,
+      "owner_duration_ms": 383779,
+      "jest_seconds": 382.897,
+      "receipt": "/tmp/bas-driver-owner-qualified-061.json"
+    },
+    "native": {
+      "authority": "/tmp/bas-tab-authority-native-green-061.json:40pass vs8failed/32passed red",
+      "outage_retry": "/tmp/bas-restore-retry-native-green-061.json:28pass",
+      "normal_restore": "/tmp/bas-restored-tabs-native-green-061.json:30pass",
+      "recording_failure": "/tmp/bas-failed-navigation-recording-green-061.json:12pass",
+      "workflow": {
+        "passed": 12,
+        "independent_effects": 3,
+        "execution_id": "ef29d5f2-e2a3-485e-a4c3-c27dde81927e",
+        "artifact_dir": "/tmp/bas-recording-e2e-vFT3MJ"
+      }
+    },
+    "profiles": "/tmp/bas-profile-final-061.txt:3complete identity reads match originalrollback;API metadata equals060 after062probes"
+  },
+  "measurement": {
+    "runtime_lines": {
+      "before": 4551,
+      "after": 4597,
+      "delta": 46
+    },
+    "go_functions": {
+      "before": 142,
+      "after": 145
+    },
+    "go_complexity": {
+      "before": 575,
+      "after": 585,
+      "delta": 10
+    },
+    "cumulative_affected_go_reduction": 181,
+    "tidiness_run": "20260923-015349-bddc7735",
+    "tidiness": {
+      "totalFindings": 1132,
+      "longFiles": 105,
+      "complexity": 396,
+      "duplication": 610,
+      "coupling": 20,
+      "duplicationLineDebt": 31588
+    },
+    "board": "/tmp/bas-board-result-061.json:17pending_telemetry/unqualified"
+  },
+  "review": {
+    "owners": "Session supplies immutablelease forCreatePage/SetActivePage; retainedowner helpers prevent restoration readmission. Driverchecks lease afterbody/awaits and delaysselection untilmetadata settles. Initialadmission carries boundClose callback; failedrestore andjournalregistration cleanup closecapturedSession.",
+    "removed": "Raw unleasedtabtransport/requesttype and ID-basedrestorationcleanup. Relocatedvalidator has no legacyexport or shim.",
+    "coupling": "Newrecording-ownership module reusesexistingvalidator; type-onlySessionManager/directstate/errors imports avoidnewlifecycle->page-events->pages->lifecycle cycle. Thismovement is not claimed as complexityreduction.",
+    "limits": [
+      "RF038 viewport/preview/callbackauthority,postadmission networkeffectreconciliation,requestidempotency andatomicjournalgeneration remain open.",
+      "RF092 initialnavigation native4failed/11passed;nextrepair documented.",
+      "Fullnativeplatform/performance/UX evidence absent;TS/JS complexity measurement remainsRF064gap.",
+      "Sharedtree tidiness attribution limited;no thresholds reduced."
+    ]
+  },
+  "pending_operations": []
+}

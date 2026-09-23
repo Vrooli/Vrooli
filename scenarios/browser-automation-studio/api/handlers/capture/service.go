@@ -12,9 +12,11 @@ import (
 	"strconv"
 	"strings"
 
+	"buf.build/go/protovalidate"
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/vrooli/browser-automation-studio/internal/compat"
 	"github.com/vrooli/browser-automation-studio/services/retention"
@@ -29,7 +31,8 @@ import (
 
 // service implements captureconnect.CaptureServiceHandler.
 type service struct {
-	deps Deps
+	deps      Deps
+	validator protovalidate.Validator
 }
 
 // writeCaptureArtifactSummary makes the response artifact contract durable in
@@ -77,6 +80,13 @@ func (s *service) Capture(
 ) (*connect.Response[capturev1.CaptureResponse], error) {
 	start := s.deps.Now()
 	msg := req.Msg
+	if err := s.validator.Validate(msg); err != nil {
+		var invalid *protovalidate.ValidationError
+		if errors.As(err, &invalid) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("validate capture request: %w", err))
+	}
 
 	resolvedURL, err := s.resolveURL(ctx, msg.GetUrl())
 	if err != nil {
@@ -514,9 +524,9 @@ func normalizeCaptures(in []capturev1.CaptureType) ([]capturev1.CaptureType, err
 		return []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT}, nil
 	}
 	for _, c := range in {
-		if c == capturev1.CaptureType_CAPTURE_TYPE_UNSPECIFIED {
+		if _, known := capturev1.CaptureType_name[int32(c)]; !known || c == capturev1.CaptureType_CAPTURE_TYPE_UNSPECIFIED {
 			return nil, connect.NewError(connect.CodeInvalidArgument,
-				errors.New("capture type CAPTURE_TYPE_UNSPECIFIED is not allowed"))
+				fmt.Errorf("capture type %v is not supported", c))
 		}
 	}
 	return in, nil
@@ -696,6 +706,18 @@ func buildAdhocRequest(
 	startURL := resolvedURL
 	w := width
 	h := height
+	browserProfile := msg.GetBrowserProfile()
+	if dimensions := msg.GetDimensions(); dimensions != nil && dimensions.DeviceScaleFactor != nil {
+		if browserProfile == nil {
+			browserProfile = &basebase.BrowserProfile{}
+		} else {
+			browserProfile = proto.Clone(browserProfile).(*basebase.BrowserProfile)
+		}
+		if browserProfile.Fingerprint == nil {
+			browserProfile.Fingerprint = &basebase.FingerprintSettings{}
+		}
+		browserProfile.Fingerprint.DeviceScaleFactor = proto.Float64(dimensions.GetDeviceScaleFactor())
+	}
 	return &basexecution.ExecuteAdhocRequest{
 		FlowDefinition: flow,
 		Metadata: &basexecution.ExecutionMetadata{
@@ -706,7 +728,7 @@ func buildAdhocRequest(
 			StartUrl:       &startURL,
 			ViewportWidth:  &w,
 			ViewportHeight: &h,
-			BrowserProfile: msg.GetBrowserProfile(),
+			BrowserProfile: browserProfile,
 		},
 		WaitForCompletion: true,
 	}, domNodeID, nil

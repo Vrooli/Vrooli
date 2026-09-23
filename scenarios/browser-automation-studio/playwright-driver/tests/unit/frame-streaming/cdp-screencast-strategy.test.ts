@@ -2,6 +2,15 @@ import type { Page, CDPSession } from 'rebrowser-playwright';
 import type { FrameStatsReporter, WebSocketProvider } from '../../../src/frame-streaming/strategies';
 import { CdpScreencastStrategy } from '../../../src/frame-streaming/strategies';
 
+const sourceForSession = (sessionId: string) => {
+  const pages = new WeakMap<Page,string>(); let count=0;
+  return (page: Page) => {
+    if (!pages.has(page)) pages.set(page,`page-${++count}`);
+    return {session_id:sessionId,execution_id:'execution-a',lease_id:'lease-a',page_id:pages.get(page)!};
+  };
+};
+const imageBytes = (packet: Buffer) => packet.subarray(4 + packet.readUInt32BE(0));
+
 type FrameHandler = (event: {
   data: string;
   metadata: Record<string, number>;
@@ -39,6 +48,41 @@ const createCdpSession = (): {
 };
 
 describe('CdpScreencastStrategy', () => {
+  it.each([false,true])('includes immutable source identity independent of performance mode (%s) [REQ:BAS-RH-J22]',async(includePerfHeaders)=>{
+    const cdp=createCdpSession();
+    const page={context:()=>({newCDPSession:async()=>cdp.session}),viewportSize:()=>({width:640,height:480}),isClosed:()=>false} as unknown as Page;
+    const source={session_id:'source-owner',execution_id:'execution-a',lease_id:'lease-a',page_id:'page-a'};
+    const socket={readyState:1,send:jest.fn()};
+    const config={sessionId:'source-owner',quality:65,targetFps:30,scale:'css' as const,includePerfHeaders,sourceForPage:()=>source};
+    const handle=await new CdpScreencastStrategy().start(()=>page,config,
+      {isReady:()=>true,getWebSocket:()=>socket},{onFrameSent:jest.fn(),onFrameSkipped:jest.fn()});
+    try {
+      cdp.session.emit('Page.screencastFrame',{sessionId:1,metadata:{},data:Buffer.from('owned-jpeg').toString('base64')});
+      const packet=socket.send.mock.calls[0]?.[0] as Buffer;
+      expect(packet).toBeDefined();const length=packet.readUInt32BE(0);
+      expect(length).toBeGreaterThan(0);expect(length).toBeLessThan(packet.length-4);
+      expect(JSON.parse(packet.subarray(4,4+length).toString())).toMatchObject({version:1,source,captured_at:expect.any(String)});
+      expect(packet.subarray(4+length).toString()).toBe('owned-jpeg');
+    } finally {await handle.stop();}
+  });
+  it('discards a buffered frame when its lease changes before reconnection',async()=>{
+    jest.useFakeTimers();
+    const cdp=createCdpSession();
+    const page={context:()=>({newCDPSession:async()=>cdp.session}),viewportSize:()=>({width:640,height:480}),isClosed:()=>false} as unknown as Page;
+    let source={session_id:'session-1',execution_id:'execution-a',lease_id:'lease-a',page_id:'page-a'};
+    let ready=false;const socket={readyState:1,send:jest.fn()};
+    const handle=await new CdpScreencastStrategy().start(()=>page,{sessionId:'session-1',quality:80,targetFps:30,scale:'css',includePerfHeaders:false,sourceForPage:()=>source},
+      {isReady:()=>ready,getWebSocket:()=>socket},{onFrameSent:jest.fn(),onFrameSkipped:jest.fn()});
+    try {
+      cdp.session.emit('Page.screencastFrame',{sessionId:1,data:Buffer.from('retired').toString('base64'),metadata:{}});
+      await jest.advanceTimersByTimeAsync(0);source={...source,lease_id:'lease-b'};ready=true;
+      await jest.advanceTimersByTimeAsync(50);expect(socket.send).not.toHaveBeenCalled();
+      cdp.session.emit('Page.screencastFrame',{sessionId:2,data:Buffer.from('current').toString('base64'),metadata:{}});
+      await jest.advanceTimersByTimeAsync(0);
+      expect(socket.send.mock.calls.map(([packet])=>imageBytes(packet as Buffer).toString())).toEqual(['current']);
+    } finally {await handle.stop();jest.useRealTimers();}
+  });
+
   it('rejects unsupported physical-pixel capture before acquiring resources [REQ:BAS-RH-J23]', async () => {
     const { session: cdpSession } = createCdpSession();
     const newCDPSession = jest.fn().mockResolvedValue(cdpSession);
@@ -50,7 +94,7 @@ describe('CdpScreencastStrategy', () => {
     let handle: Awaited<ReturnType<CdpScreencastStrategy['start']>> | undefined;
     try {
       await expect(new CdpScreencastStrategy().start(() => page, {
-        sessionId: 'device-scale', quality: 65, targetFps: 30, scale: 'device', includePerfHeaders: false,
+        sessionId: 'device-scale', sourceForPage: sourceForSession('device-scale'), quality: 65, targetFps: 30, scale: 'device', includePerfHeaders: false,
       }, { isReady: () => false, getWebSocket: () => null }, {
         onFrameSent: jest.fn(), onFrameSkipped: jest.fn(),
       }).then((started) => { handle = started; return started; })).rejects.toThrow(/device.*scale/i);
@@ -103,7 +147,7 @@ describe('CdpScreencastStrategy', () => {
     const handle = await strategy.start(
       () => page,
       {
-        sessionId: 'session-1',
+        sessionId: 'session-1', sourceForPage: sourceForSession('session-1'),
         quality: 80,
         targetFps: 30,
         scale: 'css',
@@ -170,7 +214,7 @@ describe('CdpScreencastStrategy', () => {
     const handle = await strategy.start(
       () => page,
       {
-        sessionId: 'session-1',
+        sessionId: 'session-1', sourceForPage: sourceForSession('session-1'),
         quality: 80,
         targetFps: 30,
         scale: 'css',
@@ -181,15 +225,16 @@ describe('CdpScreencastStrategy', () => {
       statsReporter
     );
 
-    await handle.updateViewport?.(1290, 735);
+    viewportSize.mockReturnValue({width:1290,height:735});
+    await handle.updateViewport?.(page);
 
     expect(setViewportSize).not.toHaveBeenCalled();
-    expect(handle.isViewportUpdatePending?.()).toBe(false);
+    expect(cdpSession.send).toHaveBeenCalledWith('Page.startScreencast',expect.objectContaining({maxWidth:1290,maxHeight:735}));
 
     await handle.stop();
   });
 
-  it('restarts screencast when viewport updates exceed threshold', async () => {
+  it('restarts screencast from the applied viewport', async () => {
     const strategy = new CdpScreencastStrategy();
     const firstSession = createCdpSession();
     const secondSession = createCdpSession();
@@ -226,7 +271,7 @@ describe('CdpScreencastStrategy', () => {
     const handle = await strategy.start(
       () => page,
       {
-        sessionId: 'session-2',
+        sessionId: 'session-2', sourceForPage: sourceForSession('session-2'),
         quality: 80,
         targetFps: 30,
         scale: 'css',
@@ -237,9 +282,10 @@ describe('CdpScreencastStrategy', () => {
       statsReporter
     );
 
-    await handle.updateViewport?.(1400, 900);
+    viewportSize.mockReturnValue({width:1400,height:900});
+    await handle.updateViewport?.(page);
 
-    expect(setViewportSize).toHaveBeenCalledWith({ width: 1400, height: 900 });
+    expect(setViewportSize).not.toHaveBeenCalled();
     expect(firstSession.send).toHaveBeenCalledWith('Page.stopScreencast');
     expect(secondSession.send).toHaveBeenCalledWith('Page.startScreencast', expect.any(Object));
 
@@ -272,7 +318,7 @@ describe('CdpScreencastStrategy', () => {
       const handle = await strategy.start(
         pageProvider,
         {
-          sessionId: 'closed-session',
+          sessionId: 'closed-session', sourceForPage: sourceForSession('closed-session'),
           quality: 80,
           targetFps: 30,
           scale: 'css',
@@ -306,7 +352,7 @@ describe('CdpScreencastStrategy', () => {
       } as unknown as Page;
       await expect(new CdpScreencastStrategy().start(
         () => page,
-        { sessionId: 'failed-start', quality: 65, targetFps: 30, scale: 'css', includePerfHeaders: false },
+        { sessionId: 'failed-start', sourceForPage: sourceForSession('failed-start'), quality: 65, targetFps: 30, scale: 'css', includePerfHeaders: false },
         { isReady: () => false, getWebSocket: () => null },
         { onFrameSent: jest.fn(), onFrameSkipped: jest.fn() },
       )).rejects.toThrow('start capture failed');
@@ -329,7 +375,7 @@ describe('CdpScreencastStrategy', () => {
       } as unknown as Page;
       const capture = await new CdpScreencastStrategy().start(
         () => page,
-        { sessionId: 'ack-owner', quality: 65, targetFps: 30, scale: 'css', includePerfHeaders: false },
+        { sessionId: 'ack-owner', sourceForPage: sourceForSession('ack-owner'), quality: 65, targetFps: 30, scale: 'css', includePerfHeaders: false },
         { isReady: () => false, getWebSocket: () => null },
         { onFrameSent: jest.fn(), onFrameSkipped: jest.fn() },
       );
@@ -352,7 +398,7 @@ describe('CdpScreencastStrategy', () => {
       return { promise, resolve };
     };
     const options = {
-      sessionId: 'generation-owner', quality: 65, targetFps: 30,
+      sessionId: 'generation-owner', sourceForPage: sourceForSession('generation-owner'), quality: 65, targetFps: 30,
       scale: 'css' as const, includePerfHeaders: false,
       cdp: { pageCheckIntervalMs: 25 },
     };
@@ -367,10 +413,9 @@ describe('CdpScreencastStrategy', () => {
       isClosed: () => false,
     } as unknown as Page);
 
-    it.each(['viewport', 'protocol'] as const)('cannot restart after stop during %s acquisition', async (stage) => {
+    it.each(['queued', 'protocol'] as const)('cannot restart after stop during %s acquisition', async (stage) => {
       const first = createCdpSession();
       const late = createCdpSession();
-      const viewport = deferred<void>();
       const acquired = deferred<CDPSession>();
       const requested = deferred<void>();
       let count = 0;
@@ -378,14 +423,14 @@ describe('CdpScreencastStrategy', () => {
         if (++count === 1) return first.session;
         requested.resolve();
         return acquired.promise;
-      }, () => stage === 'viewport' ? viewport.promise : Promise.resolve());
+      });
       const capture = await new CdpScreencastStrategy().start(
         () => page, options, { isReady: () => false, getWebSocket: () => null }, reporter(),
       );
-      const resize = capture.updateViewport!(900, 700).then(() => 'success', () => 'cancelled');
+      jest.spyOn(page, 'viewportSize').mockReturnValue({width:900,height:700});
+      const resize = capture.updateViewport!(page).then(() => 'success', () => 'cancelled');
       if (stage === 'protocol') await requested.promise;
       const stopped = capture.stop();
-      viewport.resolve();
       acquired.resolve(late.session);
       await stopped;
       expect(await resize).toBe('cancelled');
@@ -413,7 +458,7 @@ describe('CdpScreencastStrategy', () => {
         emit(second, 2, 'new');
         emit(first, 3, 'old-late');
         await jest.advanceTimersByTimeAsync(0);
-        expect(socket.send.mock.calls.map(([frame]) => (frame as Buffer).subarray(8).toString())).toEqual(['new']);
+        expect(socket.send.mock.calls.map(([frame]) => imageBytes(frame as Buffer).toString())).toEqual(['new']);
         expect(second.send).not.toHaveBeenCalledWith('Page.screencastFrameAck', { sessionId: 3 });
       } finally {
         await capture.stop();
@@ -435,7 +480,7 @@ describe('CdpScreencastStrategy', () => {
         await jest.advanceTimersByTimeAsync(0);
         ready = true;
         await jest.advanceTimersByTimeAsync(50);
-        expect(socket.send.mock.calls.map(([frame]) => (frame as Buffer).subarray(8).toString())).toEqual(['stable']);
+        expect(socket.send.mock.calls.map(([frame]) => imageBytes(frame as Buffer).toString())).toEqual(['stable']);
       } finally {
         await capture.stop();
         jest.useRealTimers();
@@ -477,13 +522,13 @@ describe('effective CDP controls [REQ:BAS-RH-J23]', () => {
     } as unknown as Page;
     const socket = { readyState: 1, send: jest.fn() };
     const handle = await new CdpScreencastStrategy().start(() => page,
-      { sessionId: 'effective-controls', quality: 65, targetFps, scale: 'css', includePerfHeaders: false, cdp: { pageCheckIntervalMs: 100000 } },
+      { sessionId: 'effective-controls', sourceForPage: sourceForSession('effective-controls'), quality: 65, targetFps, scale: 'css', includePerfHeaders: false, cdp: { pageCheckIntervalMs: 100000 } },
       { isReady: () => true, getWebSocket: () => socket },
       { onFrameSent: jest.fn(), onFrameSkipped: jest.fn() });
     const emit = (data: string, number = 1) => protocols.at(-1)!.session.emit('Page.screencastFrame', {
       data: Buffer.from(data).toString('base64'), metadata: {}, sessionId: number,
     });
-    return { handle, protocols, socket, emit };
+    return { handle, protocols, socket, emit, page };
   }
 
   it('limits delivery and flushes the newest stable frame without another paint', async () => {
@@ -495,7 +540,7 @@ describe('effective CDP controls [REQ:BAS-RH-J23]', () => {
       expect(f.socket.send).toHaveBeenCalledTimes(1);
       await jest.advanceTimersByTimeAsync(1);
       expect(f.socket.send).toHaveBeenCalledTimes(2);
-      expect((f.socket.send.mock.calls[1][0] as Buffer).subarray(8).toString()).toBe('frame-9');
+      expect(imageBytes(f.socket.send.mock.calls[1][0] as Buffer).toString()).toBe('frame-9');
       expect(f.protocols[0].send.mock.calls.filter(([method]) => method === 'Page.screencastFrameAck')).toHaveLength(10);
     } finally { await f.handle.stop(); }
     jest.runAllTicks();
@@ -523,7 +568,7 @@ describe('effective CDP controls [REQ:BAS-RH-J23]', () => {
       expect(f.socket.send).toHaveBeenCalledTimes(2);
       const packet = f.socket.send.mock.calls[1][0] as Buffer;
       const length = packet.readUInt32BE(0);
-      expect(JSON.parse(packet.subarray(4, 4 + length).toString())).toMatchObject({ frame_bytes: 6 });
+      expect(JSON.parse(packet.subarray(4, 4 + length).toString())).toMatchObject({ timing: { frame_bytes: 6 } });
       expect(packet.subarray(4 + length).toString()).toBe('latest');
     } finally { await f.handle.stop(); }
   });
@@ -549,7 +594,8 @@ describe('effective CDP controls [REQ:BAS-RH-J23]', () => {
       const quality = Promise.resolve(f.handle.updateQuality?.(20));
       void quality.catch(() => {});
       await jest.advanceTimersByTimeAsync(0);
-      const resize = f.handle.updateViewport!(900, 700);
+      jest.spyOn(f.page, 'viewportSize').mockReturnValue({width:900,height:700});
+      const resize = f.handle.updateViewport!(f.page);
       void resize.catch(() => {});
       await jest.advanceTimersByTimeAsync(0);
       release();
@@ -560,4 +606,64 @@ describe('effective CDP controls [REQ:BAS-RH-J23]', () => {
       expect(f.protocols.at(-1)!.send).toHaveBeenCalledWith('Page.startScreencast', expect.objectContaining({ maxWidth: 900 }));
     } finally { release(); await f.handle.stop(); }
   });
+});
+
+
+describe('capture observes applied viewport [REQ:BAS-RH-J05]', () => {
+  it.each([1, 10, 200])('refreshes a %spx resize without changing the browser viewport', async delta => {
+    let viewport = {width: 640, height: 480};
+    const protocols: ReturnType<typeof createCdpSession>[] = [];
+    const setViewportSize = jest.fn().mockResolvedValue(undefined);
+    const page = {viewportSize: () => viewport, setViewportSize, isClosed: () => false,
+      context: () => ({newCDPSession: async () => {const p = createCdpSession();protocols.push(p);return p.session;}})} as unknown as Page;
+    const handle = await new CdpScreencastStrategy().start(() => page,
+      {sessionId: 'viewport-observer',sourceForPage: sourceForSession('viewport-observer'), quality: 65,targetFps:30,scale:'css',includePerfHeaders:false},
+      {isReady:()=>false,getWebSocket:()=>null},{onFrameSent:jest.fn(),onFrameSkipped:jest.fn()});
+    try {
+      viewport={width:640+delta,height:480+delta};
+      await handle.updateViewport!(page);
+      expect(setViewportSize).not.toHaveBeenCalled();
+      expect(protocols.at(-1)!.send).toHaveBeenCalledWith('Page.startScreencast',expect.objectContaining({maxWidth:viewport.width,maxHeight:viewport.height}));
+    } finally {await handle.stop();}
+  });
+  it('does not mutate a page after the active page has changed', async () => {
+    const protocol=createCdpSession();
+    const setViewportSize=jest.fn().mockResolvedValue(undefined);
+    const page={viewportSize:()=>({width:640,height:480}),setViewportSize,isClosed:()=>false,context:()=>({newCDPSession:async()=>protocol.session})} as unknown as Page;
+    let current=page;
+    const handle=await new CdpScreencastStrategy().start(()=>current,
+      {sessionId:'viewport-page',sourceForPage:sourceForSession('viewport-page'),quality:65,targetFps:30,scale:'css',includePerfHeaders:false},
+      {isReady:()=>false,getWebSocket:()=>null},{onFrameSent:jest.fn(),onFrameSkipped:jest.fn()});
+    try {
+      current={...page} as Page;
+      await expect(handle.updateViewport!(page)).rejects.toThrow();
+      expect(setViewportSize).not.toHaveBeenCalled();
+      expect(protocol.send.mock.calls.filter(([method])=>method==='Page.startScreencast')).toHaveLength(1);
+    } finally {await handle.stop();}
+  });
+  it.each(['attach', 'start'])('restores the original dimensions when pending %s is superseded', async stage => {
+    let viewport={width:640,height:480};
+    let release!:()=>void,acquired!:()=>void;
+    const gate=new Promise<void>(done=>{release=done;});
+    const waiting=new Promise<void>(done=>{acquired=done;});
+    const protocols: ReturnType<typeof createCdpSession>[]=[];
+    const page={viewportSize:()=>viewport,isClosed:()=>false,setViewportSize:jest.fn().mockResolvedValue(undefined),context:()=>({newCDPSession:async()=>{
+      const protocol=createCdpSession();protocols.push(protocol);
+      if(protocols.length===2){
+        if(stage==='attach'){acquired();await gate;}
+        else protocol.send.mockImplementation(async(method:string)=>{if(method==='Page.startScreencast'){acquired();await gate;}});
+      }return protocol.session;
+    }})} as unknown as Page;
+    const handle=await new CdpScreencastStrategy().start(()=>page,
+      {sessionId:'latest-viewport',sourceForPage:sourceForSession('latest-viewport'),quality:65,targetFps:30,scale:'css',includePerfHeaders:false},
+      {isReady:()=>false,getWebSocket:()=>null},{onFrameSent:jest.fn(),onFrameSkipped:jest.fn()});
+    try {
+      viewport={width:900,height:700};const first=handle.updateViewport!(page);void first.catch(()=>{});
+      await waiting;viewport={width:640,height:480};const latest=handle.updateViewport!(page);void latest.catch(()=>{});
+      release();const results=await Promise.allSettled([first,latest]);
+      expect(results[0].status).toBe('rejected');expect(results[1].status).toBe('fulfilled');
+      expect(protocols.at(-1)!.send).toHaveBeenCalledWith('Page.startScreencast',expect.objectContaining({maxWidth:640,maxHeight:480}));
+    } finally {release();await handle.stop();}
+  });
+
 });

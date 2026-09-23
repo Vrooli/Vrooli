@@ -36,8 +36,8 @@ export type { PageMetadata, StreamConnectionStatus } from './useFrameStream';
 
 interface PlaywrightViewProps {
   sessionId: string;
-  /** Optional page ID for multi-tab sessions. When provided, frames are received for this specific page. */
-  pageId?: string;
+  /** Selected page; null disables the viewer, omission follows the active page. */
+  pageId?: string | null;
   quality?: number;
   fps?: number;
   onStreamError?: (message: string) => void;

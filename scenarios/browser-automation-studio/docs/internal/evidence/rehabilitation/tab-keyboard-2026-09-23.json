@@ -1,0 +1,138 @@
+{
+  "cycle": "073",
+  "issues": [
+    "BAS-RF-101"
+  ],
+  "recorded_at": "2026-09-23",
+  "status": "qualified_and_deployed",
+  "build_identity": "sha256:9c4f9cc03265d6fb5fee2bb887c512308e99d70347bcc995a46762d12c4025f8",
+  "source": {
+    "baseline": "/tmp/bas-before-073/manifest.json",
+    "freeze": "/tmp/bas-frozen-073.json"
+  },
+  "tests": {
+    "native_red": "/tmp/bas-tab-keyboard-native-intermediate-071.json",
+    "maintained_red": {
+      "failed": 6,
+      "passed": 5,
+      "artifact": "/tmp/bas-tab-keyboard-red-073.txt"
+    },
+    "created_focus_red": {
+      "failed": 1,
+      "passed": 11,
+      "artifact": "/tmp/bas-tab-keyboard-create-red-073.txt"
+    },
+    "record_mode": {
+      "passed": 550,
+      "files": 29,
+      "types": "passed",
+      "artifact": "/tmp/bas-tab-keyboard-ui-073.txt"
+    },
+    "native_final": {
+      "passed": 19,
+      "failed": 0,
+      "artifact": "/tmp/bas-tab-keyboard-native-final-073.json"
+    },
+    "passive_metadata": {
+      "passed": 23,
+      "failed": 0,
+      "artifact": "/tmp/bas-passive-regression-073.json"
+    },
+    "saved_workflow": {
+      "passed": 12,
+      "failed": 0,
+      "execution_id": "fb33d635-1780-468d-94b0-2b0bcaeb983f",
+      "artifact_dir": "/tmp/bas-recording-e2e-E5oiDj",
+      "effects": [
+        {
+          "sequence": 1,
+          "context": "fixture_context=68bbccf3-cdb8-4fea-b540-9d5d7c57df04",
+          "received_at": "2026-09-23T06:35:14.148Z"
+        },
+        {
+          "sequence": 2,
+          "context": "fixture_context=e3ac0afd-943c-4e93-9c22-2add7d9b44a6",
+          "received_at": "2026-09-23T06:35:14.400Z"
+        },
+        {
+          "sequence": 3,
+          "context": "fixture_context=9f94af15-6e6a-409e-8f0e-e15321da3c6e",
+          "received_at": "2026-09-23T06:35:15.065Z"
+        }
+      ]
+    },
+    "profiles": {
+      "preserved": true,
+      "full_identity_reads": 3,
+      "artifact": "/tmp/bas-profile-final-073.txt",
+      "api_metadata": "/tmp/bas-profile-api-final-073.json"
+    },
+    "driver_api": "unchanged from072; no repeated broad suites"
+  },
+  "measurement": {
+    "runtime_lines_before": 267,
+    "runtime_lines_after": 323,
+    "go_delta": 0,
+    "typescript": {
+      "tool": "eslint",
+      "version": "9.39.4",
+      "parser_version": "8.59.4",
+      "before": {
+        "code_path_count": 12,
+        "sum": 38
+      },
+      "after": {
+        "code_path_count": 19,
+        "sum": 75
+      }
+    },
+    "tidiness": {
+      "run_id": "20260923-063055-ba993930",
+      "summary": {
+        "totalFindings": 1137,
+        "longFiles": 103,
+        "complexity": 401,
+        "duplication": 612,
+        "coupling": 20,
+        "duplicationLineDebt": 31313
+      },
+      "budget": "failed"
+    }
+  },
+  "review": {
+    "removed": [
+      "click-only tab and empty-placeholder div controls",
+      "nested interactive close control",
+      "redundant close callback wrapper"
+    ],
+    "preserved": [
+      "pointer selection and close",
+      "browser favicon metadata and recovery",
+      "single native activation per Enter/Space",
+      "failed-close and external focus ownership"
+    ],
+    "added": [
+      "roving keyboard entry",
+      "manual arrow/Home/End focus",
+      "Delete closure",
+      "neighbor/empty/newly-created focus recovery"
+    ],
+    "references": [
+      "https://www.w3.org/WAI/ARIA/apg/patterns/tabs/"
+    ],
+    "limits": [
+      "keyboard functionality qualified; full ARIA panel linkage and full accessibility certification are not claimed",
+      "desktop native capture checked; broad mobile/OS UX qualification remains open",
+      "runtime+56 and scopedTS+37; no per-cycle simplification win claimed"
+    ],
+    "visual_inspection": "/tmp/bas-tab-keyboard-native-final-073.png inspected; native focus ring and sibling close visible; immediate new-tab capture does not qualify frame readiness"
+  },
+  "qualification_snapshot": {
+    "board": "/tmp/bas-board-result-073.json",
+    "required": 17,
+    "unqualified": 17,
+    "contract": "/tmp/bas-contract-073.txt",
+    "inventory": "/tmp/bas-inventory-073.json"
+  },
+  "pending_operations": {}
+}

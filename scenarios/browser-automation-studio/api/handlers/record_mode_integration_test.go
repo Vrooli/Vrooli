@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -19,6 +20,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	autosession "github.com/vrooli/browser-automation-studio/automation/session"
+	"github.com/vrooli/browser-automation-studio/domain"
+	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	"github.com/vrooli/browser-automation-studio/services/recording"
 	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
@@ -32,6 +35,7 @@ type TestRecordingHub struct {
 	broadcastCounts     map[string]int
 	pageBroadcastCounts map[string]int
 	lastEntry           map[string]*bastimeline.TimelineEntry
+	lastPageEvent       map[string]*domain.PageEvent
 	logger              *logrus.Logger
 }
 
@@ -41,6 +45,7 @@ func NewTestRecordingHub(logger *logrus.Logger) *TestRecordingHub {
 		broadcastCounts:     make(map[string]int),
 		pageBroadcastCounts: make(map[string]int),
 		lastEntry:           make(map[string]*bastimeline.TimelineEntry),
+		lastPageEvent:       make(map[string]*domain.PageEvent),
 		logger:              logger,
 	}
 }
@@ -111,9 +116,8 @@ func (h *TestRecordingHub) BroadcastTimelineEntry(sessionID string, entry *basti
 	return result
 }
 
-func (h *TestRecordingHub) BroadcastRecordingFrame(sessionID string, frame *wsHub.RecordingFrame) {}
-func (h *TestRecordingHub) BroadcastBinaryFrame(sessionID string, jpegData []byte)                {}
-func (h *TestRecordingHub) HasRecordingSubscribers(sessionID string) bool {
+func (h *TestRecordingHub) BroadcastBinaryFrame(sessionID string, jpegData []byte) {}
+func (h *TestRecordingHub) HasRecordingFrameSubscribers(sessionID string) bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	_, ok := h.clients[sessionID]
@@ -124,6 +128,9 @@ func (h *TestRecordingHub) BroadcastPageEvent(sessionID string, event any) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.pageBroadcastCounts[sessionID]++
+	if page, ok := event.(*domain.PageEvent); ok {
+		h.lastPageEvent[sessionID] = page
+	}
 }
 func (h *TestRecordingHub) BroadcastPageSwitch(sessionID, activePageID string) {}
 func (h *TestRecordingHub) HasExecutionFrameSubscribers(executionID string) bool {
@@ -253,7 +260,7 @@ func TestReceiveRecordingActionRequiresCommit(t *testing.T) {
 }
 
 // createOwnedNavigationSession exercises driver wire ownership for API controls.
-func createOwnedNavigationSession(t *testing.T, sessionID string, response any, observe func(*http.Request, map[string]any)) *autosession.Session {
+func createOwnedNavigationSession(t *testing.T, sessionID string, response any, observe func(*http.Request, map[string]any), statuses ...int) *autosession.Session {
 	t.Helper()
 	owner := uuid.New()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -261,16 +268,25 @@ func createOwnedNavigationSession(t *testing.T, sessionID string, response any, 
 			_ = json.NewEncoder(w).Encode(map[string]string{"session_id": sessionID, "lease_id": "navigation-lease"})
 			return
 		}
-		var body map[string]any
-		if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body)) {
-			w.WriteHeader(400)
-			return
+		body := map[string]any{}
+		if r.Method == http.MethodGet {
+			for key, values := range r.URL.Query() {
+				body[key] = values[0]
+			}
+		} else {
+			if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body)) {
+				w.WriteHeader(400)
+				return
+			}
+			assert.Equal(t, http.MethodPost, r.Method)
 		}
-		assert.Equal(t, http.MethodPost, r.Method)
 		assert.Equal(t, owner.String(), body["execution_id"])
 		assert.Equal(t, "navigation-lease", body["lease_id"])
 		if observe != nil {
 			observe(r, body)
+		}
+		if len(statuses) > 0 {
+			w.WriteHeader(statuses[0])
 		}
 		_ = json.NewEncoder(w).Encode(response)
 	}))
@@ -288,7 +304,7 @@ func TestHistoryNavigationRequiresRecordedOutcome(t *testing.T) {
 		handle            func(*Handler, http.ResponseWriter, *http.Request)
 		pageNotifications int
 	}{
-		{"reload", (*Handler).ReloadRecordingSession, 0},
+		{"reload", (*Handler).ReloadRecordingSession, 1},
 		{"goBack", (*Handler).GoBackRecordingSession, 1},
 		{"goForward", (*Handler).GoForwardRecordingSession, 1},
 	}
@@ -311,12 +327,13 @@ func TestHistoryNavigationRequiresRecordedOutcome(t *testing.T) {
 				journal := recording.NewService(repo, recording.ServiceConfig{})
 				require.NoError(t, journal.RegisterSession(context.Background(), "session", recording.SessionConfig{}))
 				var calls atomic.Int32
-				sess := createOwnedNavigationSession(t, "session", &driver.HistoryNavigationResponse{URL: "https://after.test", Title: "after", CanGoBack: true}, func(r *http.Request, body map[string]any) {
+				sess := createOwnedNavigationSession(t, "session", &driver.HistoryNavigationResponse{DriverPageID: "initial-driver-page", URL: "https://after.test", Title: "after", CanGoBack: true}, func(r *http.Request, body map[string]any) {
 					calls.Add(1)
 					endpoint := map[string]string{"reload": "reload", "goBack": "go-back", "goForward": "go-forward"}[operation.name]
 					assert.Equal(t, "/session/session/record/"+endpoint, r.URL.Path)
 				})
 				sess.InitializePageTracking("https://before.test")
+				sess.Pages().SetInitialPageDriverID("initial-driver-page")
 				if tc.missing {
 					sess = nil
 				}
@@ -470,6 +487,600 @@ func TestPullRecordingActionsCommitBeforeAcknowledgement(t *testing.T) {
 			timeline, err := journal.GetTimeline(ctx, persistence.TimelineQuery{SessionID: "session"})
 			require.NoError(t, err)
 			require.Len(t, timeline.Entries, 1, "retry must not append a second observation")
+		})
+	}
+}
+
+type navigationCompletionService struct {
+	*journalIngressService
+	current atomic.Pointer[autosession.Session]
+}
+
+func (s *navigationCompletionService) GetSession(string) (*autosession.Session, bool) {
+	current := s.current.Load()
+	return current, current != nil
+}
+
+// [REQ:BAS-RH-J03] [REQ:BAS-RH-J17] A completed browser effect belongs to its original page and Session.
+func TestNavigationCompletionKeepsOriginalOwnership(t *testing.T) {
+	operations := []struct {
+		name    string
+		handle  func(*Handler, http.ResponseWriter, *http.Request)
+		journal bool
+	}{
+		{"navigate", (*Handler).NavigateRecordingSession, false},
+		{"reload", (*Handler).ReloadRecordingSession, true},
+		{"go-back", (*Handler).GoBackRecordingSession, true},
+		{"go-forward", (*Handler).GoForwardRecordingSession, true},
+	}
+	for _, op := range operations {
+		for _, change := range []string{"none", "active tab", "session", "missing page receipt", "unknown page receipt", "session after commit"} {
+			if !op.journal && change == "session after commit" {
+				continue
+			}
+			t.Run(op.name+"/"+change, func(t *testing.T) {
+				repo := persistence.NewMockRepository()
+				journal := recording.NewService(repo, recording.ServiceConfig{})
+				require.NoError(t, journal.RegisterSession(context.Background(), "session", recording.SessionConfig{}))
+				service := &navigationCompletionService{journalIngressService: &journalIngressService{MockRecordModeService: NewMockRecordModeService(), journal: journal}}
+				replacement := &autosession.Session{}
+				replacement.InitializePageTracking("https://replacement.test")
+				replacement.Pages().SetInitialPageDriverID("original-driver-page")
+				receiptID := "original-driver-page"
+				if change == "missing page receipt" {
+					receiptID = ""
+				}
+				if change == "unknown page receipt" {
+					receiptID = "foreign-page"
+				}
+				var original *autosession.Session
+				otherID := uuid.New()
+				original = createOwnedNavigationSession(t, "session", map[string]any{"url": "https://completed.test", "title": "completed", "driver_page_id": receiptID, "favicon_url": "https://completed.test/icon.svg"}, func(r *http.Request, _ map[string]any) {
+					assert.Equal(t, "/session/session/record/"+op.name, r.URL.Path)
+					switch change {
+					case "active tab":
+						assert.NoError(t, original.Pages().SetActivePage(otherID))
+					case "session":
+						service.current.Store(replacement)
+					}
+				})
+				original.InitializePageTracking("https://original.test")
+				original.Pages().SetInitialPageDriverID("original-driver-page")
+				originalID := original.Pages().GetInitialPageID()
+				original.Pages().AddPage(&domain.Page{ID: otherID, URL: "https://other.test", Title: "other", Status: domain.PageStatusActive})
+				service.current.Store(original)
+				if change == "session after commit" {
+					service.afterCommit = func() { service.current.Store(replacement) }
+				}
+				log := logrus.New()
+				hub := NewTestRecordingHub(log)
+				h := &Handler{recordModeService: service, wsHub: hub, log: log}
+				req := httptest.NewRequest(http.MethodPost, "/session/"+op.name, strings.NewReader(`{"url":"https://completed.test"}`))
+				route := chi.NewRouteContext()
+				route.URLParams.Add("sessionId", "session")
+				req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, route))
+				response := httptest.NewRecorder()
+				op.handle(h, response, req)
+				allowed := change == "none" || change == "active tab"
+				status := http.StatusServiceUnavailable
+				if allowed {
+					status = http.StatusOK
+				}
+				require.Equal(t, status, response.Code, response.Body.String())
+				other, ok := original.Pages().GetPage(otherID)
+				require.True(t, ok)
+				assert.Equal(t, "https://other.test", other.URL, "late completion modified the newly selected tab")
+				assert.Equal(t, "https://replacement.test", replacement.Pages().GetActivePage().URL, "late completion modified a replacement Session")
+				timeline, err := journal.GetTimeline(context.Background(), persistence.TimelineQuery{SessionID: "session"})
+				require.NoError(t, err)
+				if op.journal && (allowed || change == "session after commit") {
+					require.Len(t, timeline.Entries, 1)
+					assert.Equal(t, originalID, timeline.Entries[0].Action.PageID)
+				} else {
+					assert.Empty(t, timeline.Entries)
+				}
+				if allowed {
+					originalPage, ok := original.Pages().GetPage(originalID)
+					require.True(t, ok)
+					assert.Equal(t, "https://completed.test", originalPage.URL)
+					assert.Equal(t, "https://completed.test/icon.svg", originalPage.FaviconURL)
+					require.NotNil(t, hub.lastPageEvent["session"])
+					assert.Equal(t, originalID, hub.lastPageEvent["session"].PageID)
+					require.NotNil(t, hub.lastPageEvent["session"].FaviconURL)
+					assert.Equal(t, "https://completed.test/icon.svg", *hub.lastPageEvent["session"].FaviconURL)
+				} else {
+					assert.Zero(t, hub.GetBroadcastCount("session"), "late completion leaked into the replacement subscriber stream")
+					assert.Zero(t, hub.pageBroadcastCounts["session"])
+				}
+			})
+		}
+	}
+}
+
+// [REQ:BAS-RH-J03] Recording activation cannot relabel the initial tab or duplicate a registered page.
+func TestPageCallbacksPreserveRegisteredPageIdentity(t *testing.T) {
+	for _, eventType := range []string{"initial", "created"} {
+		t.Run(eventType, func(t *testing.T) {
+			sess := &autosession.Session{}
+			sess.InitializePageTracking("https://original.test")
+			pages := sess.Pages()
+			pages.SetInitialPageDriverID("initial-driver")
+			initialID := pages.GetInitialPageID()
+			second := pages.AddPage(&domain.Page{DriverPageID: "second-driver", URL: "https://second.test"})
+			service := NewMockRecordModeService()
+			service.OwnedSessions = map[string]*autosession.Session{"session": sess}
+			log := logrus.New()
+			hub := NewTestRecordingHub(log)
+			h := &Handler{recordModeService: service, wsHub: hub, log: log}
+			invoke := func(driverID string) *httptest.ResponseRecorder {
+				body, err := json.Marshal(domain.DriverPageEvent{EventType: eventType, DriverPageID: driverID, URL: "https://second.test", Title: "second"})
+				require.NoError(t, err)
+				req := httptest.NewRequest(http.MethodPost, "/session/page-event", strings.NewReader(string(body)))
+				route := chi.NewRouteContext()
+				route.URLParams.Add("sessionId", "session")
+				req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, route))
+				response := httptest.NewRecorder()
+				h.ReceivePageEvent(response, req)
+				return response
+			}
+			for i := 0; i < 2; i++ {
+				response := invoke("second-driver")
+				require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+			}
+			require.Equal(t, 2, pages.PageCount())
+			require.Equal(t, initialID, *pages.GetPageIDByDriverID("initial-driver"))
+			require.Equal(t, second.ID, *pages.GetPageIDByDriverID("second-driver"))
+			initial, _ := pages.GetPage(initialID)
+			require.Equal(t, "https://original.test", initial.URL)
+			if eventType == "initial" {
+				require.Equal(t, second.ID, pages.GetActivePageID())
+			} else {
+				require.Equal(t, second.ID, hub.lastPageEvent["session"].PageID)
+			}
+			missing := invoke("")
+			require.Equal(t, http.StatusBadRequest, missing.Code)
+			require.Equal(t, 2, pages.PageCount())
+		})
+	}
+}
+
+// [REQ:BAS-RH-J03] Close success reflects the browser, and repeated observations commit once.
+func TestCloseRecordingPageBrowserReceipt(t *testing.T) {
+	for _, fault := range []string{"none", "driver", "wrong receipt", "missing selection", "journal"} {
+		t.Run(fault, func(t *testing.T) {
+			ctx := context.Background()
+			var closeCalls atomic.Int32
+			executionID := uuid.New()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/session/start" {
+					_, _ = w.Write([]byte(`{"session_id":"tab-close","lease_id":"close-lease","active_page_id":"initial"}`))
+					return
+				}
+				assert.Equal(t, "/session/tab-close/record/close-page", r.URL.Path)
+				closeCalls.Add(1)
+				var body map[string]string
+				assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.Equal(t, map[string]string{"execution_id": executionID.String(), "lease_id": "close-lease", "page_id": "target"}, body)
+				if fault == "driver" {
+					w.WriteHeader(503)
+					_, _ = w.Write([]byte(`{"error":"close failed"}`))
+					return
+				}
+				closed := "target"
+				if fault == "wrong receipt" {
+					closed = "unrelated"
+				}
+				selected := "initial"
+				if fault == "missing selection" {
+					selected = ""
+				}
+				_ = json.NewEncoder(w).Encode(map[string]string{"closed_page_id": closed, "active_page_id": selected})
+			}))
+			defer server.Close()
+			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+			require.NoError(t, err)
+			manager := autosession.NewManagerWithClient(client)
+			owner, err := manager.Create(ctx, autosession.Spec{ExecutionID: executionID, Mode: autosession.ModeRecording})
+			require.NoError(t, err)
+			owner.InitializePageTracking("https://initial.test")
+			page := owner.Pages().AddPage(&domain.Page{DriverPageID: "target", URL: "https://target.test"})
+			require.NoError(t, owner.Pages().SetActivePage(page.ID))
+			repo := persistence.NewMockRepository()
+			journal := recording.NewService(repo, recording.ServiceConfig{})
+			require.NoError(t, journal.RegisterSession(ctx, "tab-close", recording.SessionConfig{}))
+			if fault == "journal" {
+				repo.AppendTimelineEntryErr = errors.New("journal unavailable")
+			}
+			hub := NewMockHub()
+			h := &Handler{recordModeService: livecapture.NewServiceWithManager(manager, logrus.New(), journal), wsHub: hub, log: logrus.New()}
+			router := chi.NewRouter()
+			router.Post("/{sessionId}/pages/{pageId}/close", h.CloseRecordingPage)
+			router.Post("/{sessionId}/page-event", h.ReceivePageEvent)
+			closePage := func() *httptest.ResponseRecorder {
+				rr := httptest.NewRecorder()
+				router.ServeHTTP(rr, httptest.NewRequest("POST", "/tab-close/pages/"+page.ID.String()+"/close", nil))
+				return rr
+			}
+			rr := closePage()
+			assert.Equal(t, int32(1), closeCalls.Load(), "browser must receive the owned close")
+			current, _ := owner.Pages().GetPage(page.ID)
+			if fault == "driver" || fault == "wrong receipt" || fault == "missing selection" {
+				assert.Equal(t, 503, rr.Code, rr.Body.String())
+				assert.Equal(t, domain.PageStatusActive, current.Status)
+				assert.Equal(t, page.ID, owner.Pages().GetActivePageID())
+				return
+			}
+			assert.Equal(t, domain.PageStatusClosed, current.Status)
+			if fault == "journal" {
+				assert.Equal(t, 503, rr.Code)
+				repo.AppendTimelineEntryErr = nil
+				rr = closePage()
+			}
+			require.Equal(t, 200, rr.Code, rr.Body.String())
+			var reply map[string]string
+			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &reply))
+			assert.Equal(t, owner.Pages().GetInitialPageID().String(), reply["activePageId"])
+			callback := httptest.NewRecorder()
+			router.ServeHTTP(callback, httptest.NewRequest("POST", "/tab-close/page-event", strings.NewReader(`{"driverPageId":"target","eventType":"closed"}`)))
+			require.Equal(t, 200, callback.Code, callback.Body.String())
+			require.Equal(t, 200, closePage().Code)
+			assert.Equal(t, int32(1), closeCalls.Load(), "a committed closure is not a new browser command")
+			entries, err := journal.GetTimeline(ctx, persistence.TimelineQuery{SessionID: "tab-close"})
+			require.NoError(t, err)
+			require.Len(t, entries.Entries, 1, "callback and retry share one committed closure")
+			assert.Equal(t, page.ID, entries.Entries[0].PageID)
+		})
+	}
+}
+
+// [REQ:BAS-RH-J03] Preview tab creation returns a canonical page before callbacks exist.
+func TestCreateRecordingPageCanonicalReceipt(t *testing.T) {
+	executionID := uuid.New()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/session/start" {
+			_, _ = w.Write([]byte(`{"session_id":"admission","lease_id":"lease","active_page_id":"initial"}`))
+			return
+		}
+		assert.Equal(t, "/session/admission/record/new-page", r.URL.Path)
+		var body map[string]string
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		assert.Equal(t, map[string]string{"execution_id": executionID.String(), "lease_id": "lease", "url": "https://requested.test"}, body)
+		w.WriteHeader(201)
+		_, _ = w.Write([]byte(`{"driver_page_id":"created","url":"https://actual.test","title":"Actual"}`))
+	}))
+	defer server.Close()
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	manager := autosession.NewManagerWithClient(client)
+	owner, err := manager.Create(context.Background(), autosession.Spec{ExecutionID: executionID, Mode: autosession.ModeRecording})
+	require.NoError(t, err)
+	owner.InitializePageTracking("https://original.test")
+	h := &Handler{recordModeService: livecapture.NewServiceWithManager(manager, logrus.New(), nil), log: logrus.New()}
+	router := chi.NewRouter()
+	router.Post("/{sessionId}/pages", h.CreateRecordingPage)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, httptest.NewRequest("POST", "/admission/pages", strings.NewReader(`{"url":"https://requested.test"}`)))
+	require.Equal(t, 201, rr.Code, rr.Body.String())
+	var receipt struct {
+		Page         *domain.Page `json:"page"`
+		ActivePageID string       `json:"activePageId"`
+		DriverPageID string       `json:"driverPageId"`
+		URL          string       `json:"url"`
+	}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &receipt))
+	require.NotNil(t, receipt.Page)
+	assert.Equal(t, owner.Pages().GetActivePageID().String(), receipt.ActivePageID)
+	assert.Equal(t, receipt.ActivePageID, receipt.Page.ID.String())
+	assert.Equal(t, "admission", receipt.Page.SessionID)
+	assert.Equal(t, "https://actual.test", receipt.Page.URL)
+	assert.Equal(t, "Actual", receipt.Page.Title)
+	assert.Equal(t, domain.PageStatusActive, receipt.Page.Status)
+	assert.False(t, receipt.Page.CreatedAt.IsZero())
+	assert.Equal(t, "created", receipt.DriverPageID)
+	assert.Equal(t, receipt.Page.URL, receipt.URL)
+}
+
+// [REQ:BAS-RH-J05] Exercise the actual HTTP driver wire, not a typed mock.
+func TestLiveFrameBridgePreservesDriverPixels(t *testing.T) {
+	executionID := uuid.New()
+	frame := map[string]any{
+		"source":     map[string]string{"session_id": "preview", "execution_id": executionID.String(), "lease_id": "preview-lease", "page_id": "driver-page"},
+		"session_id": "preview", "mime": "image/jpeg", "image": "data:image/jpeg;base64,/9j/2Q==",
+		"width": float64(640), "height": float64(480), "captured_at": "2026-09-23T03:00:00Z",
+		"content_hash": "fixture-hash", "page_title": "Independent fixture", "page_url": "https://fixture.test",
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/session/start" {
+			_ = json.NewEncoder(w).Encode(map[string]string{"session_id": "preview", "lease_id": "preview-lease"})
+			return
+		}
+		assert.Equal(t, "driver-page", r.URL.Query().Get("page_id"))
+		assert.Equal(t, "/session/preview/record/frame", r.URL.Path)
+		assert.Equal(t, "55", r.URL.Query().Get("quality"))
+		_ = json.NewEncoder(w).Encode(frame)
+	}))
+	defer server.Close()
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	manager := autosession.NewManagerWithClient(client)
+	owner, err := manager.Create(context.Background(), autosession.Spec{ExecutionID: executionID, Mode: autosession.ModeRecording})
+	require.NoError(t, err)
+	owner.InitializePageTracking("https://fixture.test")
+	owner.Pages().SetInitialPageDriverID("driver-page")
+	h := &Handler{recordModeService: livecapture.NewServiceWithManager(manager, logrus.New(), nil), log: logrus.New()}
+	router := chi.NewRouter()
+	router.Get("/{sessionId}/frame", h.GetRecordingFrame)
+	for _, etag := range []string{"", `"fixture-hash"`} {
+		rr := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/preview/frame?quality=55", nil)
+		req.Header.Set("If-None-Match", etag)
+		router.ServeHTTP(rr, req)
+		assert.Equal(t, `"fixture-hash"`, rr.Header().Get("ETag"))
+		if etag != "" {
+			assert.Equal(t, http.StatusNotModified, rr.Code)
+			assert.Empty(t, rr.Body.String())
+			continue
+		}
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		var actual map[string]any
+		require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &actual))
+		expected := map[string]any{}
+		for key, value := range frame {
+			if key != "source" {
+				expected[key] = value
+			}
+		}
+		expected["page_id"] = owner.Pages().GetActivePageID().String()
+		assert.Equal(t, expected, actual)
+	}
+}
+
+// [REQ:BAS-RH-J03] UI page intent survives both transport boundaries.
+func TestNavigationPagePrecondition(t *testing.T) {
+	operations := []struct {
+		name   string
+		handle func(*Handler, http.ResponseWriter, *http.Request)
+	}{
+		{"navigate", (*Handler).NavigateRecordingSession},
+		{"reload", (*Handler).ReloadRecordingSession},
+		{"go-back", (*Handler).GoBackRecordingSession},
+		{"go-forward", (*Handler).GoForwardRecordingSession},
+	}
+	for _, op := range operations {
+		for _, change := range []string{"active explicit", "active implicit", "inactive", "unknown", "malformed", "closed", "missing mapping", "driver selection race"} {
+			t.Run(op.name+"/"+change, func(t *testing.T) {
+				repo := persistence.NewMockRepository()
+				journal := recording.NewService(repo, recording.ServiceConfig{})
+				require.NoError(t, journal.RegisterSession(context.Background(), "session", recording.SessionConfig{}))
+				service := &navigationCompletionService{journalIngressService: &journalIngressService{MockRecordModeService: NewMockRecordModeService(), journal: journal}}
+				var calls atomic.Int32
+				driverStatus := http.StatusOK
+				if change == "driver selection race" {
+					driverStatus = http.StatusConflict
+				}
+				owner := createOwnedNavigationSession(t, "session", map[string]any{"driver_page_id": "red-driver-page", "url": "https://destination.test", "title": "Destination"}, func(r *http.Request, body map[string]any) {
+					calls.Add(1)
+					assert.Equal(t, "/session/session/record/"+op.name, r.URL.Path)
+					if change == "active implicit" {
+						assert.NotContains(t, body, "expected_page_id")
+					} else {
+						assert.Equal(t, "red-driver-page", body["expected_page_id"])
+					}
+				}, driverStatus)
+				owner.InitializePageTracking("https://red.test")
+				if change != "missing mapping" {
+					owner.Pages().SetInitialPageDriverID("red-driver-page")
+				}
+				pageID := owner.Pages().GetInitialPageID()
+				requested := pageID.String()
+				blue := owner.Pages().AddPage(&domain.Page{URL: "https://blue.test", Title: "Blue", DriverPageID: "blue-driver-page"})
+				switch change {
+				case "inactive":
+					require.NoError(t, owner.Pages().SetActivePage(blue.ID))
+				case "unknown":
+					requested = uuid.NewString()
+				case "malformed":
+					requested = "not-a-page-id"
+				case "closed":
+					_, err := owner.Pages().ClosePage(pageID)
+					require.NoError(t, err)
+				}
+				service.current.Store(owner)
+				log := logrus.New()
+				h := &Handler{recordModeService: service, wsHub: NewTestRecordingHub(log), log: log}
+				body := map[string]string{"url": "https://destination.test"}
+				if change != "active implicit" {
+					body["page_id"] = requested
+				}
+				encoded, err := json.Marshal(body)
+				require.NoError(t, err)
+				req := httptest.NewRequest(http.MethodPost, "/session/"+op.name, strings.NewReader(string(encoded)))
+				route := chi.NewRouteContext()
+				route.URLParams.Add("sessionId", "session")
+				req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, route))
+				response := httptest.NewRecorder()
+				op.handle(h, response, req)
+				expectedStatus := http.StatusConflict
+				expectedCalls := 0
+				switch change {
+				case "active explicit", "active implicit":
+					expectedStatus = http.StatusOK
+					expectedCalls = 1
+				case "malformed":
+					expectedStatus = http.StatusBadRequest
+				case "missing mapping":
+					expectedStatus = http.StatusServiceUnavailable
+				case "driver selection race":
+					expectedCalls = 1
+				}
+				assert.Equal(t, expectedStatus, response.Code, response.Body.String())
+				assert.Equal(t, int32(expectedCalls), calls.Load(), "rejected intent must not reach the driver")
+				remaining, ok := owner.Pages().GetPage(blue.ID)
+				require.True(t, ok)
+				assert.Equal(t, "https://blue.test", remaining.URL)
+			})
+		}
+	}
+}
+
+// [REQ:BAS-RH-J04] Tab metadata comes from the browser, with explicit absence semantics.
+func TestBrowserPageFaviconMetadata(t *testing.T) {
+	sess := &autosession.Session{}
+	sess.InitializePageTracking("https://fixture.test/one")
+	pages := sess.Pages()
+	pages.SetInitialPageDriverID("driver")
+	service := NewMockRecordModeService()
+	service.OwnedSessions = map[string]*autosession.Session{"session": sess}
+	log := logrus.New()
+	hub := NewTestRecordingHub(log)
+	h := &Handler{recordModeService: service, wsHub: hub, log: log}
+	observe := func(event map[string]any) map[string]any {
+		event["driverPageId"] = "driver"
+		body, err := json.Marshal(event)
+		require.NoError(t, err)
+		req := httptest.NewRequest(http.MethodPost, "/session/page-event", strings.NewReader(string(body)))
+		route := chi.NewRouteContext()
+		route.URLParams.Add("sessionId", "session")
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, route))
+		response := httptest.NewRecorder()
+		h.ReceivePageEvent(response, req)
+		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+		page, ok := pages.GetPage(pages.GetInitialPageID())
+		require.True(t, ok)
+		encoded, err := json.Marshal(page)
+		require.NoError(t, err)
+		var snapshot map[string]any
+		require.NoError(t, json.Unmarshal(encoded, &snapshot))
+		return snapshot
+	}
+	icon := "https://fixture.test/custom.svg"
+	initial := observe(map[string]any{"eventType": "initial", "url": "https://fixture.test/one", "faviconUrl": icon})
+	assert.Equal(t, icon, initial["faviconUrl"])
+	same := observe(map[string]any{"eventType": "navigated", "url": "https://fixture.test/one", "title": "New title"})
+	assert.Equal(t, icon, same["faviconUrl"])
+	changed := observe(map[string]any{"eventType": "navigated", "url": "https://fixture.test/two"})
+	assert.Empty(t, changed["faviconUrl"])
+	updated := observe(map[string]any{"eventType": "navigated", "url": "https://fixture.test/two", "faviconUrl": icon})
+	assert.Equal(t, icon, updated["faviconUrl"])
+	cleared := observe(map[string]any{"eventType": "navigated", "url": "https://fixture.test/two", "faviconUrl": ""})
+	assert.Empty(t, cleared["faviconUrl"])
+	event, err := json.Marshal(hub.lastPageEvent["session"])
+	require.NoError(t, err)
+	assert.Contains(t, string(event), `"faviconUrl":""`)
+}
+
+// [REQ:BAS-RH-J03] History observations must belong to the requested selected page.
+func TestHistoryReadPageOwnership(t *testing.T) {
+	for _, stack := range []bool{false, true} {
+		for _, fault := range []string{"explicit", "implicit", "stale", "missing session", "handoff", "selection during read"} {
+			t.Run(fmt.Sprintf("stack=%t/%s", stack, fault), func(t *testing.T) {
+				service := &navigationCompletionService{journalIngressService: &journalIngressService{MockRecordModeService: NewMockRecordModeService()}}
+				var calls atomic.Int32
+				var owner *autosession.Session
+				var blueID uuid.UUID
+				owner = createOwnedNavigationSession(t, "read-session", map[string]any{"session_id": "read-session", "url": "https://red.test", "can_go_back": true, "back_stack": []any{}}, func(r *http.Request, body map[string]any) {
+					calls.Add(1)
+					assert.Equal(t, http.MethodGet, r.Method)
+					assert.Equal(t, "red-driver", body["expected_page_id"])
+					if fault == "handoff" {
+						service.current.Store(nil)
+					}
+					if fault == "selection during read" {
+						require.NoError(t, owner.Pages().SetActivePage(blueID))
+					}
+				})
+				owner.InitializePageTracking("https://red.test")
+				owner.Pages().SetInitialPageDriverID("red-driver")
+				pageID := owner.Pages().GetActivePageID()
+				blueID = owner.Pages().AddPage(&domain.Page{URL: "https://blue.test", DriverPageID: "blue-driver"}).ID
+				service.current.Store(owner)
+				if fault == "stale" {
+					require.NoError(t, owner.Pages().SetActivePage(blueID))
+				}
+				if fault == "missing session" {
+					service.current.Store(nil)
+				}
+				query := "?page_id=" + pageID.String()
+				if fault == "implicit" {
+					query = ""
+				}
+				req := httptest.NewRequest(http.MethodGet, "/read"+query, nil)
+				route := chi.NewRouteContext()
+				route.URLParams.Add("sessionId", "read-session")
+				req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, route))
+				out := httptest.NewRecorder()
+				h := &Handler{recordModeService: service, log: logrus.New()}
+				if stack {
+					h.GetNavigationStack(out, req)
+				} else {
+					h.GetNavigationState(out, req)
+				}
+				want, wantCalls := http.StatusConflict, int32(1)
+				switch fault {
+				case "explicit", "implicit":
+					want = http.StatusOK
+				case "stale":
+					wantCalls = 0
+				case "missing session":
+					want = http.StatusNotFound
+					wantCalls = 0
+				}
+				assert.Equal(t, want, out.Code, out.Body.String())
+				assert.Equal(t, wantCalls, calls.Load())
+			})
+		}
+	}
+}
+
+// [REQ:BAS-RH-J03] Resize reports actual dimensions without retargeting stale page intent.
+func TestViewportPageOwnershipAndReceipt(t *testing.T) {
+	for _, fault := range []string{"explicit", "implicit", "stale", "handoff"} {
+		t.Run(fault, func(t *testing.T) {
+			service := &navigationCompletionService{journalIngressService: &journalIngressService{MockRecordModeService: NewMockRecordModeService()}}
+			var calls atomic.Int32
+			owner := createOwnedNavigationSession(t, "viewport-session", map[string]any{"session_id": "viewport-session", "driver_page_id": "red-driver", "width": 800, "height": 600}, func(r *http.Request, body map[string]any) {
+				calls.Add(1)
+				assert.Equal(t, "/session/viewport-session/record/viewport", r.URL.Path)
+				assert.Equal(t, "red-driver", body["expected_page_id"])
+				if fault == "handoff" {
+					service.current.Store(nil)
+				}
+			})
+			owner.InitializePageTracking("https://red.test")
+			owner.Pages().SetInitialPageDriverID("red-driver")
+			pageID := owner.Pages().GetActivePageID()
+			blue := owner.Pages().AddPage(&domain.Page{URL: "https://blue.test", DriverPageID: "blue-driver"})
+			if fault == "stale" {
+				require.NoError(t, owner.Pages().SetActivePage(blue.ID))
+			}
+			service.current.Store(owner)
+			body := map[string]any{"width": 800, "height": 600}
+			if fault != "implicit" {
+				body["page_id"] = pageID.String()
+			}
+			encoded, err := json.Marshal(body)
+			require.NoError(t, err)
+			req := httptest.NewRequest(http.MethodPost, "/viewport", strings.NewReader(string(encoded)))
+			route := chi.NewRouteContext()
+			route.URLParams.Add("sessionId", "viewport-session")
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, route))
+			out := httptest.NewRecorder()
+			h := &Handler{recordModeService: service, log: logrus.New()}
+			h.UpdateRecordingViewport(out, req)
+			if fault == "explicit" || fault == "implicit" {
+				require.Equal(t, 200, out.Code, out.Body.String())
+				var got map[string]any
+				require.NoError(t, json.Unmarshal(out.Body.Bytes(), &got))
+				assert.Equal(t, float64(800), got["width"])
+				assert.Equal(t, float64(600), got["height"])
+			} else {
+				assert.Equal(t, 409, out.Code, out.Body.String())
+			}
+			expectedCalls := int32(1)
+			if fault == "stale" {
+				expectedCalls = 0
+			}
+			assert.Equal(t, expectedCalls, calls.Load())
 		})
 	}
 }

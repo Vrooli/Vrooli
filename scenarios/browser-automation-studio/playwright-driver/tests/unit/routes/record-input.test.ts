@@ -1,6 +1,7 @@
 import { handleRecordInput, handleRecordViewport } from '../../../src/routes/record-mode/recording-input';
 import { createMockHttpRequest, createMockHttpResponse, createMockPage, createTestConfig } from '../../helpers';
 import type { SessionManager } from '../../../src/session';
+import { updateFrameStreamViewport } from '../../../src/frame-streaming';
 import { SessionNotFoundError } from '../../../src/utils';
 
 jest.mock('../../../src/frame-streaming', () => ({
@@ -13,6 +14,7 @@ describe('recording input routes', () => {
   let sessionManager: Pick<SessionManager, 'getSession' | 'getSessionForLease' | 'updateActivity'>;
 
   beforeEach(() => {
+    jest.clearAllMocks();
     mockPage = createMockPage({
       mouse: {
         move: jest.fn().mockResolvedValue(undefined),
@@ -28,7 +30,7 @@ describe('recording input routes', () => {
       setViewportSize: jest.fn().mockResolvedValue(undefined),
       viewportSize: jest.fn().mockReturnValue({ width: 800, height: 600 }),
     });
-    const session = { phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease', page: mockPage } as ReturnType<SessionManager['getSession']>;
+    const session = { phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease', page: mockPage, pageToIdMap: new WeakMap([[mockPage, 'selected-page']]) } as ReturnType<SessionManager['getSession']>;
     sessionManager = {
       getSession: () => session,
       getSessionForLease: (id, owner, lease) => {
@@ -169,7 +171,7 @@ describe('recording input routes', () => {
     const req = createMockHttpRequest({
       method: 'POST',
       url: '/session/test/record/viewport',
-      body: { width: 800.4, height: 600.6 },
+      body: { execution_id: 'owner', lease_id: 'lease', expected_page_id: 'selected-page', width: 800.4, height: 600.6 },
     });
     const res = createMockHttpResponse();
 
@@ -177,14 +179,14 @@ describe('recording input routes', () => {
 
     expect(mockPage.setViewportSize).toHaveBeenCalledWith({ width: 800, height: 601 });
     expect(res.statusCode).toBe(200);
-    expect(res.getJSON()).toEqual({ session_id: 'test', width: 800, height: 600 });
+    expect(res.getJSON()).toEqual({ session_id: 'test', driver_page_id: 'selected-page', width: 800, height: 600 });
   });
 
   it('rejects invalid viewport sizes', async () => {
     const req = createMockHttpRequest({
       method: 'POST',
       url: '/session/test/record/viewport',
-      body: { width: 0, height: -10 },
+      body: { execution_id: 'owner', lease_id: 'lease', expected_page_id: 'selected-page', width: 0, height: -10 },
     });
     const res = createMockHttpResponse();
 
@@ -193,4 +195,29 @@ describe('recording input routes', () => {
     expect(res.statusCode).toBe(400);
     expect(res.getJSON().error).toBe('INVALID_VIEWPORT');
   });
+  describe('viewport admission [REQ:BAS-RH-J03]', () => {
+    it.each(['missing lease', 'stale lease', 'closing', 'stale page', 'body handoff'])('rejects %s before changing the page', async kind => {
+      const session = sessionManager.getSession('test');
+      if (kind === 'closing') session.phase = 'closing';
+      const body = {execution_id: kind === 'missing lease' ? undefined : 'owner', lease_id: kind === 'stale lease' ? 'old' : 'lease', expected_page_id: kind === 'stale page' ? 'old-page' : 'selected-page', width: 900, height: 700};
+      const res = createMockHttpResponse();
+      const pending = handleRecordViewport(createMockHttpRequest({method: 'POST', body}), res, 'test', sessionManager as SessionManager, config);
+      if (kind === 'body handoff') session.leaseId = 'replacement';
+      await pending;
+      expect(res.statusCode).toBe(kind === 'missing lease' ? 400 : kind === 'stale page' ? 409 : 404);
+      expect(mockPage.setViewportSize).not.toHaveBeenCalled();
+      expect(updateFrameStreamViewport).not.toHaveBeenCalled();
+    });
+    it.each(['page', 'lease'])('does not acknowledge or refresh capture after a %s handoff', async kind => {
+      const session = sessionManager.getSession('test');
+      jest.mocked(mockPage.setViewportSize).mockImplementationOnce(async () => {
+        if (kind === 'page') session.page = createMockPage();else session.leaseId = 'replacement';
+      });
+      const res = createMockHttpResponse();
+      await handleRecordViewport(createMockHttpRequest({method: 'POST', body: {execution_id: 'owner', lease_id: 'lease', expected_page_id: 'selected-page', width: 900, height: 700}}), res, 'test', sessionManager as SessionManager, config);
+      expect(res.statusCode).toBe(404);
+      expect(updateFrameStreamViewport).not.toHaveBeenCalled();
+    });
+  });
+
 });

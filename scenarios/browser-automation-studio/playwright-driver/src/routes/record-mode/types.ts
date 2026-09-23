@@ -128,6 +128,9 @@ export interface ReplayPreviewResponse {
 
 /** Owned options shared by reload, back, forward and URL navigation. */
 export interface HistoryNavigationRequest {
+
+  /** If present, the command must still address this registered active page. */
+  expected_page_id?: string;
   execution_id: string;
   lease_id: string;
   wait_until?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
@@ -140,12 +143,15 @@ export interface NavigateRequest extends HistoryNavigationRequest {
 }
 
 export interface NavigationResponse {
+  /** The exact registered browser page on which this command completed. */
+  driver_page_id: string;
   session_id: string;
   url: string;
   title: string;
   can_go_back: boolean;
   can_go_forward: boolean;
   screenshot?: string;
+  favicon_url?: string;
 }
 
 /**
@@ -205,10 +211,12 @@ export interface InputRequest {
  * Do not attempt to use type: 'webp' - it fails at runtime.
  */
 export interface FrameResponse {
+  source: import('../../frame-streaming/frame').FrameSource;
   session_id: string;
   /** JPEG format - Playwright only supports png/jpeg, NOT webp */
   mime: 'image/jpeg';
   image: string;
+  /** CSS viewport geometry; device-scale or full-page bitmap dimensions may differ. */
   width: number;
   height: number;
   captured_at: string;
@@ -224,11 +232,13 @@ export interface FrameResponse {
  * POST /session/:id/record/viewport
  */
 export interface ViewportRequest {
+  expected_page_id: string;
   width: number;
   height: number;
 }
 
 export interface ViewportResponse {
+  driver_page_id: string;
   session_id: string;
   width: number;
   height: number;
@@ -309,6 +319,8 @@ export interface DriverPageEvent {
   url: string;
   /** Title of the page */
   title: string;
+  /** Icon observed in the loaded browser document; empty means none. */
+  faviconUrl?: string;
   /** Driver page ID of the opener page (if any) */
   openerDriverPageId?: string;
   /** ISO 8601 timestamp */

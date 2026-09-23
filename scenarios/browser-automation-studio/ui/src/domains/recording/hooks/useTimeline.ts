@@ -7,7 +7,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useWebSocket } from '@/contexts/WebSocketContext';
+import { useWebSocket, useWebSocketMessage } from '@/contexts/WebSocketContext';
 import { recordingApi } from '../api';
 import type {
   TimelineEntry,
@@ -107,7 +107,7 @@ export function useTimeline({
   // This handles the case where prop is stale but store has the current session
   const sessionId = isValidated ? storeSessionId : propSessionId;
 
-  const { lastMessage, send, isConnected } = useWebSocket();
+  const { send, isConnected } = useWebSocket();
   const onEntryReceivedRef = useRef(onEntryReceived);
   onEntryReceivedRef.current = onEntryReceived;
   const subscribedSessionRef = useRef<string | null>(null);
@@ -217,7 +217,7 @@ export function useTimeline({
     // Case 2: We need to subscribe (target exists and we're not subscribed to it)
     if (targetSession && subscribedSessionRef.current !== targetSession) {
       console.log('[useTimeline] Subscribing to session:', targetSession);
-      send({ type: 'subscribe_recording', session_id: targetSession });
+      send({ type: 'subscribe_recording', session_id: targetSession, frames: false });
       subscribedSessionRef.current = targetSession;
     }
 
@@ -235,8 +235,8 @@ export function useTimeline({
   }, [isConnected, sessionId, isValidated, send]);
 
   // Handle WebSocket messages for real-time updates
-  useEffect(() => {
-    if (!lastMessage || !sessionId) return;
+  useWebSocketMessage((lastMessage) => {
+    if (!sessionId) return;
 
     const msg = lastMessage as unknown as WebSocketTimelineMessage | { type: string; session_id?: string; entry?: unknown };
 
@@ -315,7 +315,7 @@ export function useTimeline({
 
       setTotalEntries((prev) => prev + 1);
     }
-  }, [lastMessage, sessionId, isValidated]);
+  });
 
   // Filter entries by page if filter is set
   const filteredEntries = useMemo(() => {

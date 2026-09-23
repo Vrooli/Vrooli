@@ -1,0 +1,218 @@
+{
+  "cycle": "071",
+  "issues": [
+    "BAS-RF-102"
+  ],
+  "recorded_at": "2026-09-23",
+  "status": "qualified_and_deployed",
+  "build_identity": "sha256:e7bba9e85630bd229a4fb45bf139c97b10833a02efaa332fca6324ba156afecb",
+  "source": {
+    "baseline": "/tmp/bas-before-071/manifest.json",
+    "freeze": "/tmp/bas-frozen-final-071.json"
+  },
+  "tests": {
+    "provider_red": {
+      "failed": 2,
+      "artifact": "/tmp/bas-page-delivery-red-071.txt"
+    },
+    "codec_only": {
+      "passed": 1,
+      "failed": 1,
+      "artifact": "/tmp/bas-page-delivery-codec-only-071.txt"
+    },
+    "ui_all": {
+      "passed": 1155,
+      "files": 79,
+      "artifact": "/tmp/bas-page-delivery-ui-full-071.txt",
+      "scope": "event-delivery changes; later viewer change qualified separately"
+    },
+    "empty_viewer_red": {
+      "failed": 4,
+      "passed": 19,
+      "artifact": "/tmp/bas-empty-viewer-red-071.txt"
+    },
+    "record_mode_final": {
+      "passed": 541,
+      "files": 29,
+      "types": "passed",
+      "artifact": "/tmp/bas-empty-viewer-green-071.txt"
+    },
+    "native_intermediate": {
+      "passed": 11,
+      "failed": 1,
+      "artifact": "/tmp/bas-last-tab-native-qualified-071.json"
+    },
+    "native_final": {
+      "passed": 12,
+      "failed": 0,
+      "artifact": "/tmp/bas-last-tab-native-final-071.json"
+    },
+    "passive_metadata": {
+      "passed": 23,
+      "artifact": "/tmp/bas-passive-regression-071.json"
+    },
+    "saved_workflow": {
+      "passed": 12,
+      "failed": 0,
+      "execution_id": "f3d09b97-0fd9-4ce7-9062-6af7cc8b3942",
+      "artifact_dir": "/tmp/bas-recording-e2e-G2vydd",
+      "effects": [
+        {
+          "sequence": 1,
+          "context": "fixture_context=86562cad-aa9c-478f-9390-91ebdbe527a7",
+          "received_at": "2026-09-23T06:15:07.576Z"
+        },
+        {
+          "sequence": 2,
+          "context": "fixture_context=d510e38d-b2d1-4be7-a4d0-de7bd32e31f9",
+          "received_at": "2026-09-23T06:15:07.831Z"
+        },
+        {
+          "sequence": 3,
+          "context": "fixture_context=c4d662dd-ee57-45a8-8dd9-54b36283f125",
+          "received_at": "2026-09-23T06:15:08.499Z"
+        }
+      ]
+    },
+    "profiles": {
+      "full_identity_reads": 3,
+      "preserved": true,
+      "artifact": "/tmp/bas-profile-final-071.txt",
+      "api_metadata": "/tmp/bas-profile-api-final-071.json"
+    },
+    "driver_and_go": "unchanged from qualified070; no duplicate full-driver run"
+  },
+  "measurement": {
+    "files": {
+      "ui/src/contexts/WebSocketContext.tsx": {
+        "before": 43,
+        "after": 47
+      },
+      "ui/src/contexts/WebSocketProvider.tsx": {
+        "before": 227,
+        "after": 209
+      },
+      "ui/src/domains/recording/hooks/usePages.ts": {
+        "before": 385,
+        "after": 385
+      },
+      "ui/src/hooks/useScheduleNotifications.ts": {
+        "before": 102,
+        "after": 101
+      },
+      "ui/src/hooks/useExecutionUpdates.ts": {
+        "before": 117,
+        "after": 116
+      },
+      "ui/src/hooks/useDriverStatus.ts": {
+        "before": 200,
+        "after": 199
+      },
+      "ui/src/domains/executions/export/hooks/useExportProgress.ts": {
+        "before": 165,
+        "after": 165
+      },
+      "ui/src/domains/executions/hooks/useExecutionEvents.ts": {
+        "before": 154,
+        "after": 154
+      },
+      "ui/src/domains/recording/hooks/usePerfStats.ts": {
+        "before": 125,
+        "after": 125
+      },
+      "ui/src/domains/executions/hooks/useExecutionFrameStream.ts": {
+        "before": 213,
+        "after": 213
+      },
+      "ui/src/domains/recording/hooks/useTimeline.ts": {
+        "before": 360,
+        "after": 360
+      },
+      "ui/src/domains/recording/ai-navigation/useAINavigation.ts": {
+        "before": 632,
+        "after": 631
+      },
+      "ui/src/domains/recording/hooks/useUnifiedTimeline.ts": {
+        "before": 416,
+        "after": 412
+      },
+      "ui/src/shared/api/schemas/websocket.schema.ts": {
+        "before": 177,
+        "after": 177
+      },
+      "ui/src/domains/recording/capture/useFrameStream.ts": {
+        "before": 318,
+        "after": 319
+      },
+      "ui/src/domains/recording/capture/PlaywrightView.tsx": {
+        "before": 293,
+        "after": 293
+      },
+      "ui/src/domains/recording/capture/useInputForwarding.ts": {
+        "before": 285,
+        "after": 285
+      },
+      "ui/src/domains/recording/timeline/RecordPreviewPanel.tsx": {
+        "before": 323,
+        "after": 323
+      }
+    },
+    "runtime_lines_before": 4535,
+    "runtime_lines_after": 4514,
+    "go_complexity_delta": 0,
+    "typescript": {
+      "tool": "eslint",
+      "version": "9.39.4",
+      "parser_version": "8.59.4",
+      "before": {
+        "code_path_count": 267,
+        "sum": 1019
+      },
+      "after": {
+        "code_path_count": 271,
+        "sum": 1015
+      }
+    },
+    "tidiness": {
+      "run_id": "20260923-061257-15bc910a",
+      "summary": {
+        "totalFindings": 1137,
+        "longFiles": 103,
+        "complexity": 401,
+        "duplication": 612,
+        "coupling": 20,
+        "duplicationLineDebt": 31319
+      },
+      "budget": "failed"
+    }
+  },
+  "review": {
+    "removed": [
+      "single-message React state and effect fanout",
+      "unused binary subscription facade",
+      "empty page to implicit active-page coercion"
+    ],
+    "preserved": [
+      "all11 domain consumers",
+      "opaque domain event fields",
+      "mini preview implicit active page",
+      "late transport/decode disposal",
+      "throwing subscriber isolation"
+    ],
+    "remaining": [
+      "RF101 keyboard selection and placeholder access",
+      "RF103 independent dependency availability classification",
+      "RF038 frame source page identity",
+      "reconnect replay/durability and performance qualification"
+    ],
+    "visual_inspection": "/tmp/bas-last-tab-native-final-071.png inspected; new about:blank tab and chrome present; no FPS claim"
+  },
+  "qualification_snapshot": {
+    "board": "/tmp/bas-board-result-final-071.json",
+    "required": 17,
+    "unqualified": 17,
+    "contract": "/tmp/bas-contract-final-071.txt",
+    "inventory": "/tmp/bas-inventory-final-071.json"
+  },
+  "pending_operations": {}
+}

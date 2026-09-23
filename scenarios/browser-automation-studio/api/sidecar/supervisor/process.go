@@ -115,11 +115,7 @@ func (p *NodeProcess) Start() error {
 		fmt.Sprintf("PLAYWRIGHT_DRIVER_PORT=%d", p.port),
 		fmt.Sprintf("HISTORY_CALLBACK_URL=%s", historyCallbackURL),
 	}
-	// Lifecycle names these ports with PLAYWRIGHT_DRIVER_*; the Node driver
-	// consumes its own FRAME_STREAM_DIRECT_PORT and METRICS_PORT names.
-	if framesPort := os.Getenv("PLAYWRIGHT_DRIVER_FRAMES_PORT"); framesPort != "" {
-		childEnv = append(childEnv, fmt.Sprintf("FRAME_STREAM_DIRECT_PORT=%s", framesPort))
-	}
+	// Pass the lifecycle-allocated metrics listener to the driver.
 	if metricsPort := os.Getenv("PLAYWRIGHT_DRIVER_METRICS_PORT"); metricsPort != "" {
 		childEnv = append(childEnv, fmt.Sprintf("METRICS_PORT=%s", metricsPort))
 	}

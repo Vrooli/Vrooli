@@ -61,7 +61,7 @@ describe('recording navigation ownership and browser history [REQ:BAS-RH-J17] [R
       title: jest.fn(async () => 'fixture title'),
       screenshot: jest.fn(async () => Buffer.from('fixture screenshot')),
     };
-    const session = { page, phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease', leaseReleasedAt: undefined as Date | undefined };
+    const session = { page, pageToIdMap: new WeakMap([[page, 'original-driver-page']]), phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease', leaseReleasedAt: undefined as Date | undefined };
     const activity = jest.fn();
     const manager = {
       getSession: () => { activity(); return session; }, peekSession: () => session,
@@ -73,9 +73,9 @@ describe('recording navigation ownership and browser history [REQ:BAS-RH-J17] [R
       const pending = handlers[op](createMockHttpRequest({ method: 'POST', body: { execution_id: 'owner', lease_id: 'lease', url: 'https://c.test', ...body } }), response, id, manager, config);
       return { response, pending };
     };
-    const read = async (stack = false) => {
+    const read = async (stack = false, query: Record<string, string> = {}) => {
       const response = createMockHttpResponse();
-      await (stack ? handleRecordNavigationStack : handleRecordNavigationState)(createMockHttpRequest(), response, id, manager, config);
+      await (stack ? handleRecordNavigationStack : handleRecordNavigationState)(createMockHttpRequest({url: `/session/${id}/record/navigation-${stack ? 'stack' : 'state'}?${new URLSearchParams({execution_id: 'owner', lease_id: 'lease', expected_page_id: session.pageToIdMap.get(session.page) ?? '', ...query})}`}), response, id, manager, config);
       return response;
     };
     return { id, page, session, manager, call, read, history, cdp, attach };
@@ -88,6 +88,46 @@ describe('recording navigation ownership and browser history [REQ:BAS-RH-J17] [R
   }
 
   describe.each(operations)('%s', operation => {
+    it('carries the loaded document icon before recording callbacks exist', async () => {
+      const f = fixture(operation);
+      Object.assign(f.page, {evaluate: jest.fn().mockResolvedValue('https://fixture.test/custom.svg')});
+      const call = f.call(operation);
+      await call.pending;
+      expect(call.response.statusCode).toBe(200);
+      expect(call.response.getJSON().favicon_url).toBe('https://fixture.test/custom.svg');
+    });
+
+    it('rejects a tab switch while the command body is being admitted', async () => {
+      const f = fixture(operation);
+      const call = f.call(operation, { expected_page_id: 'original-driver-page' });
+      f.session.page = { ...f.page };
+      f.session.pageToIdMap.set(f.session.page, 'new-driver-page');
+      await call.pending;
+      expect(call.response.statusCode).toBe(409);
+      expect(f.page[methods[operation]]).not.toHaveBeenCalled();
+      expect(f.attach).not.toHaveBeenCalled();
+    });
+
+    it.each(['old-driver-page', '', 123, null])('rejects page precondition %s before any effects', async expectedPage => {
+      const f = fixture(operation), before = structuredClone(f.history);
+      const call = f.call(operation, { expected_page_id: expectedPage });
+      await call.pending;
+      expect(call.response.statusCode).toBe(409);
+      expect(f.page[methods[operation]]).not.toHaveBeenCalled();
+      expect(f.manager.updateActivity).not.toHaveBeenCalled();
+      expect(f.attach).not.toHaveBeenCalled();
+      expect(f.history).toEqual(before);
+    });
+
+    it('preserves an explicit matching page precondition', async () => {
+      const f = fixture(operation);
+      const call = f.call(operation, { expected_page_id: 'original-driver-page' });
+      await call.pending;
+      expect(call.response.statusCode).toBe(200);
+      expect(f.page[methods[operation]]).toHaveBeenCalledTimes(1);
+      expect(call.response.getJSON().driver_page_id).toBe('original-driver-page');
+    });
+
     it.each(['missing', 'stale', 'released', 'closing', 'body handoff'])('rejects %s ownership before browser or history effects', async kind => {
       const f = fixture(operation), before = structuredClone(f.history);
       if (kind === 'released') f.session.leaseReleasedAt = new Date();
@@ -104,7 +144,16 @@ describe('recording navigation ownership and browser history [REQ:BAS-RH-J17] [R
       expect(f.history).toEqual(before);
     });
 
-    it.each(['lease during navigation', 'page during navigation', 'lease during title'])('does not publish completion after %s changes', async kind => {
+    it('rejects an unregistered browser page before effects', async () => {
+      const f = fixture(operation);
+      f.session.pageToIdMap.delete(f.page);
+      const call = f.call(operation); await call.pending;
+      expect(call.response.statusCode).toBe(500);
+      expect(f.page[methods[operation]]).not.toHaveBeenCalled();
+      expect(f.attach).not.toHaveBeenCalled();
+    });
+
+    it.each(['lease during navigation', 'page during navigation', 'page registration during navigation', 'lease during title'])('does not publish completion after %s changes', async kind => {
       const f = fixture(operation), entered = deferred(), proceed = deferred();
       const method = kind.endsWith('title') ? 'title' : methods[operation];
       if (method === 'title') f.page.title.mockImplementationOnce(async () => { entered.resolve(); await proceed.promise; return 'late title'; });
@@ -112,7 +161,8 @@ describe('recording navigation ownership and browser history [REQ:BAS-RH-J17] [R
       try {
         const call = f.call(operation, { capture: true });
         await entered.promise;
-        if (kind.startsWith('page')) f.session.page = { ...f.page };
+        if (kind.startsWith('page registration')) f.session.pageToIdMap.set(f.page, 'replacement-page');
+        else if (kind.startsWith('page')) f.session.page = { ...f.page };
         else f.session.leaseId = 'replacement';
         proceed.resolve(); await call.pending;
         expect(call.response.statusCode).toBe(404);
@@ -145,7 +195,7 @@ describe('recording navigation ownership and browser history [REQ:BAS-RH-J17] [R
       expect(call.response.statusCode).toBe(200);
       const args = operation === 'navigate' ? ['https://c.test', { waitUntil: 'domcontentloaded', timeout: 1234 }] : [{ waitUntil: 'domcontentloaded', timeout: 1234 }];
       expect(f.page[methods[operation]]).toHaveBeenCalledWith(...args);
-      expect(call.response.getJSON()).toMatchObject({ session_id: f.id, url: f.page.url(), title: 'fixture title', can_go_back: operation !== 'go-back', can_go_forward: operation === 'go-back' });
+      expect(call.response.getJSON()).toMatchObject({ session_id: f.id, driver_page_id: 'original-driver-page', url: f.page.url(), title: 'fixture title', can_go_back: operation !== 'go-back', can_go_forward: operation === 'go-back' });
       expect(f.manager.updateActivity).toHaveBeenCalledTimes(1);
       expect(f.cdp.send).toHaveBeenCalledWith('Page.getNavigationHistory');
       expect(f.cdp.detach.mock.calls.length).toBe(f.attach.mock.calls.length);
@@ -187,6 +237,7 @@ describe('recording navigation ownership and browser history [REQ:BAS-RH-J17] [R
     expect((await f.read(true)).getJSON()).toEqual({ session_id: f.id, back_stack: [{ url: 'https://a.test', title: '' }], current: { url: 'https://b.test', title: '' }, forward_stack: [] });
     const tab = fixture('go-forward');
     f.session.page = tab.page;
+    f.session.pageToIdMap.set(tab.page, 'selected-driver-page');
     expect((await f.read()).getJSON()).toMatchObject({ url: 'https://a.test', can_go_back: false, can_go_forward: true });
     expect((await f.read(true)).getJSON()).toMatchObject({ back_stack: [], current: { url: 'https://a.test' }, forward_stack: [{ url: 'https://b.test', title: '' }] });
     expect(f.attach).toHaveBeenCalledTimes(1);
@@ -199,6 +250,31 @@ describe('recording navigation ownership and browser history [REQ:BAS-RH-J17] [R
     const response = await f.read(stack);
     expect(response.statusCode).toBe(404);
     expect(f.cdp.detach).toHaveBeenCalledTimes(1);
+  });
+
+  describe.each([false, true])('history read admission, stack=%s', stack => {
+    it.each(['missing lease', 'stale lease', 'released', 'closing', 'stale page'])('rejects %s before reading browser data', async kind => {
+      const f = fixture();
+      if (kind === 'released') f.session.leaseReleasedAt = new Date();
+      if (kind === 'closing') f.session.phase = 'closing';
+      const query = kind === 'missing lease' ? {execution_id: '', lease_id: ''}
+        : kind === 'stale lease' ? {lease_id: 'old'}
+        : kind === 'stale page' ? {expected_page_id: 'old-page'} : {};
+      const response = await f.read(stack, query);
+      expect(response.statusCode).toBe(kind === 'missing lease' ? 400 : kind === 'stale page' ? 409 : 404);
+      expect(f.page.title).not.toHaveBeenCalled();
+      expect(f.attach).not.toHaveBeenCalled();
+      expect(f.manager.updateActivity).not.toHaveBeenCalled();
+    });
+    it('discards a lease handoff during the CDP read and detaches', async () => {
+      const f = fixture();
+      f.cdp.send.mockImplementationOnce(async () => { f.session.leaseId = 'replacement'; return structuredClone(f.history); });
+      const response = await f.read(stack);
+      expect(response.statusCode).toBe(404);
+      expect(response.getJSON().url).toBeUndefined();
+      expect(response.getJSON().current).toBeUndefined();
+      expect(f.cdp.detach).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('detaches even when the browser history query fails', async () => {
@@ -220,7 +296,7 @@ describe('Record Mode Routes', () => {
 
   it('handles navigate requests without crashing when parsing body', async () => {
     const sessionId = 'session-123';
-    const session = { phase: 'ready', page: mockPage };
+    const session = { phase: 'ready', page: mockPage, pageToIdMap: new WeakMap([[mockPage, 'original-driver-page']]) };
     const manager = { ...mockSessionManager, getSessionForLease: () => session, updateActivity: jest.fn() } as unknown as SessionManager;
 
     const mockReq = createMockHttpRequest({
@@ -240,7 +316,7 @@ describe('Record Mode Routes', () => {
   });
   it('requires an explicit acknowledgement after non-destructive reads', async () => {
     const sessionId = 'pull-actions';
-    const session = { phase: 'ready', page: mockPage };
+    const session = { phase: 'ready', page: mockPage, pageToIdMap: new WeakMap([[mockPage, 'original-driver-page']]) };
     const manager = { ...mockSessionManager, getSessionForLease: jest.fn(() => session), updateActivity: jest.fn() } as unknown as SessionManager;
     const body = { execution_id: 'owner', lease_id: 'lease', entry_ids: ['pending'] };
     initRecordingBuffer(sessionId);

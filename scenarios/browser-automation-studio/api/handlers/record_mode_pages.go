@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -53,17 +54,18 @@ func (h *Handler) CreateRecordingPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The driver will send a page_created event via the callback endpoint,
-	// which will trigger WebSocket broadcast. We just return the driver page ID here.
+	// The canonical page receipt is usable before recording callbacks are attached.
 	h.log.WithFields(map[string]interface{}{
 		"session_id":     sessionID,
 		"driver_page_id": result.DriverPageID,
 		"url":            result.URL,
 	}).Info("New page created by user request")
 
-	h.respondSuccess(w, http.StatusCreated, map[string]string{
+	h.respondSuccess(w, http.StatusCreated, map[string]any{
 		"driverPageId": result.DriverPageID,
 		"url":          result.URL,
+		"page":         result,
+		"activePageId": result.ID.String(),
 	})
 }
 
@@ -163,35 +165,12 @@ func (h *Handler) CloseRecordingPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess, ok := h.recordModeService.GetSession(sessionID)
-	if !ok {
-		h.respondError(w, ErrExecutionNotFound.WithMessage("Session not found"))
+	result, err := h.recordModeService.ClosePage(r.Context(), sessionID, pageID)
+	if err != nil {
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{"error": err.Error()}))
 		return
 	}
-
-	pages := sess.Pages()
-	if pages == nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Page tracking not initialized for session",
-		}))
-		return
-	}
-
-	// Close the page
-	if err := pages.ClosePage(pageID); err != nil {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
-			"error": err.Error(),
-		}))
-		return
-	}
-
-	// Create page event for timeline
-	pageEvent := &domain.PageEvent{
-		ID:        uuid.New(),
-		Type:      domain.PageEventClosed,
-		PageID:    pageID,
-		Timestamp: time.Now(),
-	}
+	pageEvent := result.Event
 
 	// Store in timeline
 	if err := h.recordModeService.AddTimelinePageEvent(r.Context(), sessionID, pageEvent); err != nil {
@@ -202,11 +181,7 @@ func (h *Handler) CloseRecordingPage(w http.ResponseWriter, r *http.Request) {
 	// Broadcast page close via WebSocket
 	h.wsHub.BroadcastPageEvent(sessionID, pageEvent)
 
-	// Broadcast new active page if it changed
-	newActivePageID := pages.GetActivePageID()
-	if newActivePageID.String() != pageIDStr {
-		h.wsHub.BroadcastPageSwitch(sessionID, newActivePageID.String())
-	}
+	h.wsHub.BroadcastPageSwitch(sessionID, result.ActivePageID)
 
 	h.log.WithFields(map[string]interface{}{
 		"session_id": sessionID,
@@ -215,7 +190,7 @@ func (h *Handler) CloseRecordingPage(w http.ResponseWriter, r *http.Request) {
 
 	h.respondSuccess(w, http.StatusOK, map[string]string{
 		"closedPageId": pageIDStr,
-		"activePageId": newActivePageID.String(),
+		"activePageId": result.ActivePageID,
 	})
 }
 
@@ -237,6 +212,10 @@ func (h *Handler) ReceivePageEvent(w http.ResponseWriter, r *http.Request) {
 		}))
 		return
 	}
+	if strings.TrimSpace(event.DriverPageID) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "driverPageId"}))
+		return
+	}
 
 	sess, ok := h.recordModeService.GetSession(sessionID)
 	if !ok {
@@ -255,35 +234,36 @@ func (h *Handler) ReceivePageEvent(w http.ResponseWriter, r *http.Request) {
 	var pageEvent *domain.PageEvent
 
 	switch event.EventType {
-	case "created":
-		pageID := uuid.New()
+	case "created", "initial":
 		var openerID *uuid.UUID
 		if event.OpenerDriverPageID != "" {
 			openerID = pages.GetPageIDByDriverID(event.OpenerDriverPageID)
 		}
 
-		page := &domain.Page{
-			ID:           pageID,
-			SessionID:    sessionID,
-			URL:          event.URL,
-			Title:        event.Title,
-			OpenerID:     openerID,
-			CreatedAt:    time.Now(),
-			IsInitial:    false,
-			Status:       domain.PageStatusActive,
-			DriverPageID: event.DriverPageID,
+		observed := &domain.Page{URL: event.URL, Title: event.Title, OpenerID: openerID, DriverPageID: event.DriverPageID}
+		if event.FaviconURL != nil {
+			observed.FaviconURL = *event.FaviconURL
 		}
-		pages.AddPage(page)
-		pages.MapDriverPageID(event.DriverPageID, pageID)
+		page := pages.AddPage(observed)
+		pageID := page.ID
+		if event.EventType == "initial" {
+			pages.UpdatePageInfo(pageID, event.URL, event.Title, event.FaviconURL)
+			if err := pages.SetActivePage(pageID); err != nil {
+				h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{"error": err.Error()}))
+				return
+			}
+			break
+		}
 
 		pageEvent = &domain.PageEvent{
-			ID:        uuid.New(),
-			Type:      domain.PageEventCreated,
-			PageID:    pageID,
-			URL:       event.URL,
-			Title:     event.Title,
-			OpenerID:  openerID,
-			Timestamp: time.Now(),
+			ID:         uuid.New(),
+			Type:       domain.PageEventCreated,
+			PageID:     pageID,
+			URL:        event.URL,
+			Title:      event.Title,
+			FaviconURL: event.FaviconURL,
+			OpenerID:   openerID,
+			Timestamp:  time.Now(),
 		}
 
 		h.log.WithFields(map[string]interface{}{
@@ -297,15 +277,16 @@ func (h *Handler) ReceivePageEvent(w http.ResponseWriter, r *http.Request) {
 	case "navigated":
 		vrooliPageID := pages.GetPageIDByDriverID(event.DriverPageID)
 		if vrooliPageID != nil {
-			pages.UpdatePageInfo(*vrooliPageID, event.URL, event.Title)
+			pages.UpdatePageInfo(*vrooliPageID, event.URL, event.Title, event.FaviconURL)
 
 			pageEvent = &domain.PageEvent{
-				ID:        uuid.New(),
-				Type:      domain.PageEventNavigated,
-				PageID:    *vrooliPageID,
-				URL:       event.URL,
-				Title:     event.Title,
-				Timestamp: time.Now(),
+				ID:         uuid.New(),
+				Type:       domain.PageEventNavigated,
+				PageID:     *vrooliPageID,
+				URL:        event.URL,
+				Title:      event.Title,
+				FaviconURL: event.FaviconURL,
+				Timestamp:  time.Now(),
 			}
 
 			h.log.WithFields(map[string]interface{}{
@@ -318,15 +299,11 @@ func (h *Handler) ReceivePageEvent(w http.ResponseWriter, r *http.Request) {
 	case "closed":
 		vrooliPageID := pages.GetPageIDByDriverID(event.DriverPageID)
 		if vrooliPageID != nil {
-			if err := pages.ClosePage(*vrooliPageID); err != nil {
-				h.log.WithError(err).Warn("Failed to close page")
-			}
-
-			pageEvent = &domain.PageEvent{
-				ID:        uuid.New(),
-				Type:      domain.PageEventClosed,
-				PageID:    *vrooliPageID,
-				Timestamp: time.Now(),
+			var err error
+			pageEvent, err = pages.ClosePage(*vrooliPageID)
+			if err != nil {
+				h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{"error": err.Error()}))
+				return
 			}
 
 			h.log.WithFields(map[string]interface{}{
@@ -335,18 +312,6 @@ func (h *Handler) ReceivePageEvent(w http.ResponseWriter, r *http.Request) {
 			}).Info("Page closed in recording session")
 		}
 
-	case "initial":
-		// Driver is reporting the initial page's driver ID
-		pages.SetInitialPageDriverID(event.DriverPageID)
-		if event.URL != "" || event.Title != "" {
-			pages.UpdatePageInfo(pages.GetInitialPageID(), event.URL, event.Title)
-		}
-
-		h.log.WithFields(map[string]interface{}{
-			"session_id":     sessionID,
-			"driver_page_id": event.DriverPageID,
-			"url":            event.URL,
-		}).Debug("Initial page registered")
 	}
 
 	if pageEvent != nil {

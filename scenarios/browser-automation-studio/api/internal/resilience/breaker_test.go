@@ -1,7 +1,9 @@
 package resilience
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -115,22 +117,72 @@ func TestDefaultBreakerConfig(t *testing.T) {
 	assert.Equal(t, time.Minute, cfg.Interval)
 }
 
-func TestBreakerTreatsHTTP429AsBackpressure(t *testing.T) {
-	cfg := DefaultBreakerConfig("test-backpressure")
-	cfg.FailureThreshold = 2
-	b := NewBreaker(cfg)
-	backpressure := &httpStatusError{status: 429}
-	for i := 0; i < 5; i++ {
-		_, err := b.Execute(func() (any, error) { return nil, backpressure })
-		require.Error(t, err)
+// [REQ:BAS-RH-J07] Request rejection must not disable a healthy dependency.
+func TestBreakerClassifiesDependencyAvailability(t *testing.T) {
+	for _, status := range []int{0, 399, 400, 401, 403, 404, 405, 408, 409, 410, 412, 413, 415, 422, 425, 429, 499, 500, 503} {
+		t.Run(fmt.Sprint(status), func(t *testing.T) {
+			b := NewBreaker(DefaultBreakerConfig("http-status"))
+			rejection := fmt.Errorf("wrapped response: %w", &httpStatusError{status: status})
+			for i := 0; i < 5; i++ {
+				_, err := b.Execute(func() (any, error) { return nil, rejection })
+				require.ErrorIs(t, err, rejection)
+			}
+			called := false
+			_, err := b.Execute(func() (any, error) { called = true; return "healthy operation", nil })
+			if status >= 400 && status < 500 && status != 408 {
+				require.NoError(t, err)
+				require.True(t, called)
+				require.Equal(t, StateClosed, b.State())
+				require.Zero(t, b.Counts().TotalFailures)
+			} else {
+				require.ErrorIs(t, err, ErrCircuitOpen)
+				require.False(t, called)
+			}
+		})
 	}
-	assert.Equal(t, StateClosed, b.State())
-	assert.Equal(t, uint32(0), b.Counts().TotalFailures)
+}
+
+func TestBreakerPreservesCancellationAndTimeoutClassification(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		err  error
+		open bool
+	}{
+		{"cancelled", fmt.Errorf("caller ended: %w", context.Canceled), false},
+		{"cancelled response", errors.Join(&httpStatusError{status: 500}, context.Canceled), false},
+		{"deadline", fmt.Errorf("driver timeout: %w", context.DeadlineExceeded), true},
+		{"transport", errors.New("connection refused"), true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			b := NewBreaker(DefaultBreakerConfig(test.name))
+			for i := 0; i < 5; i++ {
+				_, err := b.Execute(func() (any, error) { return nil, test.err })
+				require.ErrorIs(t, err, test.err)
+			}
+			require.Equal(t, test.open, b.IsOpen())
+		})
+	}
+}
+
+func TestBreakerHalfOpenRequestRejectionRestoresAvailability(t *testing.T) {
+	cfg := DefaultBreakerConfig("recovery-rejection")
+	cfg.FailureThreshold = 1
+	cfg.Timeout = time.Millisecond
+	b := NewBreaker(cfg)
+	_, err := b.Execute(func() (any, error) { return nil, errors.New("driver down") })
+	require.Error(t, err)
+	time.Sleep(2 * time.Millisecond)
+	rejection := &httpStatusError{status: 409}
+	_, err = b.Execute(func() (any, error) { return nil, rejection })
+	require.ErrorIs(t, err, rejection)
+	require.Equal(t, StateClosed, b.State())
+	_, err = b.Execute(func() (any, error) { return "healthy storage", nil })
+	require.NoError(t, err)
 }
 
 type httpStatusError struct{ status int }
 
-func (e *httpStatusError) Error() string       { return "driver backpressure" }
+func (e *httpStatusError) Error() string       { return "controlled HTTP rejection" }
 func (e *httpStatusError) HTTPStatusCode() int { return e.status }
 
 func TestConfigFromEnv(t *testing.T) {

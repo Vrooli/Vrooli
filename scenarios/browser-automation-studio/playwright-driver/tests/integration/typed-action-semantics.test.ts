@@ -1362,3 +1362,36 @@ describe('SDK context acknowledgement', () => {
     }
   );
 });
+
+
+// [REQ:BAS-RH-J22] SDK mutation must respect the existing capture queue.
+describe('SDK viewport and screenshot ordering', () => {
+  it.each([false, true])('waits for an admitted capture (capture fails=%s) before applying viewport', async (fails) => {
+    const playwrightRoot = dirname(require.resolve('rebrowser-playwright'));
+    const coreRoot = dirname(require.resolve('playwright-core', { paths: [playwrightRoot] }));
+    const { Page: SDKPage } = require(join(coreRoot, 'lib/server/page.js'));
+    const { Screenshotter } = require(join(coreRoot, 'lib/server/screenshotter.js'));
+    let release!: () => void;
+    let entered!: () => void;
+    const held = new Promise<void>(resolve => { release = resolve; });
+    const admitted = new Promise<void>(resolve => { entered = resolve; });
+    const prior = { viewport: { width: 640, height: 480 }, screen: { width: 640, height: 480 } };
+    const page = { _emulatedSize: prior, _delegate: { updateEmulatedViewportSize: jest.fn().mockResolvedValue(undefined) }, _screenshotter: undefined as any };
+    page._screenshotter = new Screenshotter(page);
+    const capture = page._screenshotter._queue.postTask(async () => {
+      entered(); await held;
+      if (fails) throw new Error('controlled screenshot failure');
+    }).catch((error: Error) => error.message);
+    await admitted;
+    const resize = SDKPage.prototype.setViewportSize.call(page, { width: 800, height: 600 });
+    try {
+      await new Promise(resolve => setImmediate(resolve));
+      expect(page._delegate.updateEmulatedViewportSize).not.toHaveBeenCalled();
+      expect(page._emulatedSize).toBe(prior);
+    } finally {
+      release(); await capture; await resize;
+    }
+    expect(page._delegate.updateEmulatedViewportSize).toHaveBeenCalledTimes(1);
+    expect(page._emulatedSize.viewport).toEqual({ width: 800, height: 600 });
+  });
+});

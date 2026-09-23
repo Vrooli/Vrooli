@@ -191,6 +191,13 @@ func TestOllamaSuggestionResponseContract(t *testing.T) {
 	}{
 		{"object", `{"suggestions":[{"action":"Search","confidence":0.9,"category":"data-entry"}]}`, true, 1},
 		{"array", `[{"action":"Search","confidence":0,"category":"actions"}]`, true, 1},
+		{"absent optional text", `{"suggestions":[{"action":"Search","confidence":0.9,"category":"data-entry","description":null,"elementText":null,"selector":null,"reasoning":null}]}`, true, 1},
+		{"null required action", `[{"action":null,"confidence":0.9,"category":"actions"}]`, false, 0},
+		{"null required confidence", `[{"action":"Search","confidence":null,"category":"actions"}]`, false, 0},
+		{"null required category", `[{"action":"Search","confidence":0.9,"category":null}]`, false, 0},
+		{"numeric optional text", `[{"action":"Search","confidence":0.9,"category":"actions","elementText":42}]`, false, 0},
+		{"boolean optional text", `[{"action":"Search","confidence":0.9,"category":"actions","selector":false}]`, false, 0},
+		{"object optional text", `[{"action":"Search","confidence":0.9,"category":"actions","reasoning":{}}]`, false, 0},
 		{"empty", `{"suggestions":[]}`, true, 0},
 		{"malformed", `not JSON`, false, 0},
 		{"missing list", `{}`, false, 0},
@@ -213,6 +220,9 @@ func TestOllamaSuggestionResponseContract(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Len(t, got, tc.count)
+			if tc.name == "absent optional text" {
+				require.Equal(t, AISuggestion{Action: "Search", Confidence: 0.9, Category: "data-entry"}, got[0], "absent metadata must not manufacture text or change required fields")
+			}
 		})
 	}
 }

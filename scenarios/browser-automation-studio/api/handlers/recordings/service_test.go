@@ -663,7 +663,7 @@ func TestNavigateToHistoryURL_HappyPath(t *testing.T) {
 		var body map[string]any
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 		requests <- body
-		_, _ = w.Write([]byte(`{"url":"https://x","title":"X","can_go_back":true}`))
+		_, _ = w.Write([]byte(`{"driver_page_id":"initial-driver-page","url":"https://x","title":"X","can_go_back":true}`))
 	}))
 	defer server.Close()
 	driverClient, err := autodriver.NewClientWithURL(server.URL, autodriver.WithoutCircuitBreaker())

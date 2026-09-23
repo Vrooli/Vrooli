@@ -20,6 +20,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/domain"
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"github.com/vrooli/browser-automation-studio/performance"
+	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
 	"github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
@@ -538,11 +539,13 @@ func TestNavigateRecordingSession_Success(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	sessionID := "test-session-123"
-	owned := createOwnedNavigationSession(t, sessionID, &driver.NavigateResponse{URL: "https://example.com"}, func(r *http.Request, body map[string]any) {
+	owned := createOwnedNavigationSession(t, sessionID, &driver.NavigateResponse{DriverPageID: "initial-driver-page", URL: "https://example.com"}, func(r *http.Request, body map[string]any) {
 		if r.URL.Path != "/session/"+sessionID+"/record/navigate" || body["url"] != "https://example.com" {
 			t.Errorf("wrong navigation request: %s %v", r.URL.Path, body)
 		}
 	})
+	owned.InitializePageTracking("https://before.test")
+	owned.Pages().SetInitialPageDriverID("initial-driver-page")
 	mockService.OwnedSessions = map[string]*autosession.Session{sessionID: owned}
 	body := `{"url": "https://example.com"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/"+sessionID+"/navigate", strings.NewReader(body))
@@ -592,7 +595,7 @@ func TestNavigateRecordingSession_MissingURL(t *testing.T) {
 // UpdateRecordingViewport Tests
 // ============================================================================
 
-func TestUpdateRecordingViewport_Success(t *testing.T) {
+func TestUpdateRecordingViewport_UnknownSession(t *testing.T) {
 	handler, _, tempDir, _ := createTestHandlerWithRecordMode(t)
 	defer os.RemoveAll(tempDir)
 
@@ -607,8 +610,8 @@ func TestUpdateRecordingViewport_Success(t *testing.T) {
 
 	handler.UpdateRecordingViewport(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d: %s", rr.Code, rr.Body.String())
 	}
 }
 
@@ -721,10 +724,10 @@ func TestCaptureRecordingScreenshot_Success(t *testing.T) {
 // ============================================================================
 
 func TestGetRecordingFrame_Success(t *testing.T) {
-	handler, _, tempDir, _ := createTestHandlerWithRecordMode(t)
-	defer os.RemoveAll(tempDir)
+	handler, mockService, _, source, _ := ownedFrameFixture(t)
+	mockService.MockClient().FrameResponse = &driver.GetFrameResponse{SessionID: source["session_id"], ContentHash: "abc123", Source: &driver.FrameSource{SessionID: source["session_id"], ExecutionID: source["execution_id"], LeaseID: source["lease_id"], PageID: source["page_id"]}}
 
-	sessionID := "test-session-123"
+	sessionID := source["session_id"]
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/recordings/live/"+sessionID+"/frame", nil)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("sessionId", sessionID)
@@ -744,19 +747,19 @@ func TestGetRecordingFrame_Success(t *testing.T) {
 }
 
 func TestGetRecordingFrame_NotModified(t *testing.T) {
-	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
-	defer os.RemoveAll(tempDir)
+	handler, mockService, _, source, _ := ownedFrameFixture(t)
 
 	mockService.MockClient().FrameResponse = &driver.GetFrameResponse{
-		Data:        "base64-frame-data",
-		MediaType:   "image/jpeg",
+		SessionID: source["session_id"], Source: &driver.FrameSource{SessionID: source["session_id"], ExecutionID: source["execution_id"], LeaseID: source["lease_id"], PageID: source["page_id"]},
+		Image:       "base64-frame-data",
+		Mime:        "image/jpeg",
 		Width:       1920,
 		Height:      1080,
 		CapturedAt:  "2025-01-01T00:00:00Z",
 		ContentHash: "abc123",
 	}
 
-	sessionID := "test-session-123"
+	sessionID := source["session_id"]
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/recordings/live/"+sessionID+"/frame", nil)
 	req.Header.Set("If-None-Match", `"abc123"`)
 	rctx := chi.NewRouteContext()
@@ -1098,5 +1101,99 @@ func TestWebSocketInputForwarderUsesOwnedServiceAndDeadline(t *testing.T) {
 	}
 	if calls != 1 {
 		t.Error("invalid input reached the session owner")
+	}
+}
+
+type rejectedRestorationDriver struct {
+	*MockRecordModeService
+	cleanupContextErr error
+	handoff           bool
+	closedAdmitted    bool
+	closedReplacement bool
+}
+
+func (d *rejectedRestorationDriver) CreateSession(ctx context.Context, cfg *livecapture.SessionConfig) (*livecapture.SessionResult, error) {
+	result, err := d.MockRecordModeService.CreateSession(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	result.Close = func(ctx context.Context) error {
+		d.closedAdmitted = true
+		d.cleanupContextErr = ctx.Err()
+		if d.handoff {
+			d.CloseSessionCalled = true
+			return nil
+		}
+		return d.MockRecordModeService.CloseSession(ctx, result.SessionID)
+	}
+	return result, nil
+}
+
+func (d *rejectedRestorationDriver) RestoreTabs(context.Context, string, []persistence.TabState) (*livecapture.TabRestorationResult, error) {
+	return &livecapture.TabRestorationResult{InitialURL: "https://partial.invalid"}, errors.New("controlled restoration failure")
+}
+
+func (d *rejectedRestorationDriver) CloseSession(ctx context.Context, id string) error {
+	if d.handoff {
+		d.closedReplacement = true
+	}
+	d.cleanupContextErr = ctx.Err()
+	return d.MockRecordModeService.CloseSession(ctx, id)
+}
+
+// [REQ:BAS-RH-J01] [REQ:BAS-RH-J06] Failed restore must never replace the saved identity.
+func TestFailedRestorationPreservesProfileAndClosesUncommittedSession(t *testing.T) {
+	for _, fault := range []string{"restore", "cleanup", "cancelled request", "owner handoff"} {
+		t.Run(fault, func(t *testing.T) {
+			repo := &profileCommitRecorder{MockRepository: persistence.NewMockRepository()}
+			profile := &persistence.SessionProfile{ID: "saved", Name: "Saved identity", StorageState: json.RawMessage(`{"cookies":[],"origins":[]}`), OpenTabs: []persistence.TabState{{URL: "https://saved.invalid", IsActive: true}}}
+			if err := repo.Create(profile); err != nil {
+				t.Fatal(err)
+			}
+			log := logrus.New()
+			log.SetLevel(logrus.PanicLevel)
+			svc := sessionprofile.NewService(repo, log)
+			drv := &rejectedRestorationDriver{MockRecordModeService: NewMockRecordModeService(), handoff: fault == "owner handoff"}
+			if fault == "cleanup" {
+				drv.CloseSessionError = errors.New("controlled cleanup failure")
+			}
+			h := &Handler{recordModeService: drv, sessionProfileService: svc, log: log}
+			req := httptest.NewRequest(http.MethodPost, "/session", strings.NewReader(`{"session_profile_id":"saved"}`))
+			if fault == "cancelled request" {
+				ctx, cancel := context.WithCancel(req.Context())
+				cancel()
+				req = req.WithContext(ctx)
+			}
+			rr := httptest.NewRecorder()
+			h.CreateRecordingSession(rr, req)
+			if rr.Code < 400 {
+				t.Errorf("failed restore acknowledged: %d %s", rr.Code, rr.Body.String())
+			}
+			if !strings.Contains(rr.Body.String(), "controlled restoration failure") {
+				t.Errorf("missing restore failure: %s", rr.Body.String())
+			}
+			if !drv.CloseSessionCalled {
+				t.Error("uncommitted browser was not closed")
+			}
+			if !drv.closedAdmitted || drv.closedReplacement {
+				t.Errorf("cleanup did not retain admission: original=%v replacement=%v", drv.closedAdmitted, drv.closedReplacement)
+			}
+			if drv.cleanupContextErr != nil {
+				t.Errorf("cleanup inherited cancellation: %v", drv.cleanupContextErr)
+			}
+			if fault == "cleanup" && (!strings.Contains(rr.Body.String(), "controlled cleanup failure") || !strings.Contains(rr.Body.String(), drv.LastSessionID)) {
+				t.Errorf("missing cleanup recovery receipt: %s", rr.Body.String())
+			}
+			if repo.commits != 0 {
+				t.Errorf("failed restore changed profile %d times", repo.commits)
+			}
+			got, err := repo.Get(profile.ID)
+			if err != nil || !reflect.DeepEqual(profile, got) {
+				t.Errorf("saved profile changed: %+v, %v", got, err)
+			}
+			if svc.GetActiveSession(drv.LastSessionID) != "" {
+				t.Error("failed session may overwrite saved profile")
+			}
+		})
 	}
 }

@@ -3,6 +3,8 @@ package capture
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,7 +15,9 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	actionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basebase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
@@ -117,6 +121,65 @@ func TestBuildAdhocRequest_AppliesDirectionAfterReadiness(t *testing.T) {
 	require.Len(t, req.FlowDefinition.Nodes, 2)
 	require.Equal(t, actionsv1.ActionType_ACTION_TYPE_EVALUATE, req.FlowDefinition.Nodes[1].GetAction().GetType())
 	require.Contains(t, req.FlowDefinition.Nodes[1].GetAction().GetEvaluate().GetExpression(), "document.documentElement.dir")
+}
+
+func TestBuildAdhocRequest_CaptureDeviceScale(t *testing.T) {
+	profile := &basebase.BrowserProfile{
+		Preset: proto.String("balanced"),
+		Fingerprint: &basebase.FingerprintSettings{
+			DeviceScaleFactor: proto.Float64(3),
+			Locale:            proto.String("en-GB"),
+		},
+		ExtraHeaders: map[string]string{"X-Fixture": "preserved"},
+	}
+	for _, tc := range []struct {
+		name    string
+		scale   *float64
+		profile *basebase.BrowserProfile
+	}{
+		{"one", proto.Float64(1), nil},
+		{"fractional", proto.Float64(0.5), nil},
+		{"two", proto.Float64(2), nil},
+		{"override-profile", proto.Float64(1), profile},
+		{"profile-without-fingerprint", proto.Float64(2), &basebase.BrowserProfile{Preset: proto.String("balanced")}},
+		{"omitted-preserves-profile", nil, profile},
+		{"omitted-preserves-default", nil, nil},
+	} {
+		for _, preset := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/preset=%t", tc.name, preset), func(t *testing.T) {
+				dimensions := &capturev1.Dimensions{DeviceScaleFactor: tc.scale}
+				if preset {
+					dimensions.Preset = capturev1.DimensionsPreset_DIMENSIONS_PRESET_DESKTOP
+				} else {
+					dimensions.Width, dimensions.Height = proto.Int32(1280), proto.Int32(720)
+				}
+				msg := &capturev1.CaptureRequest{Dimensions: dimensions, BrowserProfile: tc.profile}
+				original := proto.Clone(msg)
+				width, height, err := resolveDimensions(dimensions)
+				require.NoError(t, err)
+				req, _, err := buildAdhocRequest("https://fixture.test", msg, width, height, "document.documentElement.outerHTML")
+				require.NoError(t, err)
+				require.True(t, proto.Equal(original, msg), "capture translation must not mutate the caller's profile")
+				got := req.GetParameters().GetBrowserProfile()
+				if tc.scale == nil {
+					require.True(t, proto.Equal(tc.profile, got), "an omitted scale must retain profile/default policy")
+					return
+				}
+				require.NotNil(t, got.GetFingerprint())
+				require.NotNil(t, got.GetFingerprint().DeviceScaleFactor)
+				require.Equal(t, *tc.scale, got.GetFingerprint().GetDeviceScaleFactor())
+				if tc.profile != nil {
+					expected := proto.Clone(tc.profile).(*basebase.BrowserProfile)
+					if expected.Fingerprint == nil {
+						expected.Fingerprint = &basebase.FingerprintSettings{}
+					}
+					expected.Fingerprint.DeviceScaleFactor = tc.scale
+					require.True(t, proto.Equal(expected, got), "unrelated profile fields must survive the override")
+					require.NotSame(t, tc.profile, got)
+				}
+			})
+		}
+	}
 }
 
 func TestCapture_ReadinessWaitsFollowNavigation(t *testing.T) {
@@ -259,6 +322,80 @@ func TestCapture_DimensionsPreset_Mobile(t *testing.T) {
 	require.NotNil(t, settings)
 	require.EqualValues(t, 390, settings.GetViewportWidth())
 	require.EqualValues(t, 844, settings.GetViewportHeight())
+}
+
+func TestCapture_RejectsInvalidGeometryBeforeEffects(t *testing.T) {
+	cases := []struct {
+		name       string
+		dimensions *capturev1.Dimensions
+	}{
+		{"width below minimum", &capturev1.Dimensions{Width: proto.Int32(99), Height: proto.Int32(720)}},
+		{"width above maximum", &capturev1.Dimensions{Width: proto.Int32(4001), Height: proto.Int32(720)}},
+		{"height below minimum", &capturev1.Dimensions{Width: proto.Int32(1280), Height: proto.Int32(99)}},
+		{"height above maximum", &capturev1.Dimensions{Width: proto.Int32(1280), Height: proto.Int32(4001)}},
+		{"explicit zero", &capturev1.Dimensions{Width: proto.Int32(0), Height: proto.Int32(720)}},
+		{"scale below minimum", &capturev1.Dimensions{DeviceScaleFactor: proto.Float64(0.25)}},
+		{"scale above maximum", &capturev1.Dimensions{DeviceScaleFactor: proto.Float64(4.01)}},
+		{"scale zero", &capturev1.Dimensions{DeviceScaleFactor: proto.Float64(0)}},
+		{"scale NaN", &capturev1.Dimensions{DeviceScaleFactor: proto.Float64(math.NaN())}},
+		{"scale positive infinity", &capturev1.Dimensions{DeviceScaleFactor: proto.Float64(math.Inf(1))}},
+		{"scale negative infinity", &capturev1.Dimensions{DeviceScaleFactor: proto.Float64(math.Inf(-1))}},
+		{"width without height", &capturev1.Dimensions{Width: proto.Int32(1280)}},
+	}
+	for _, tc := range cases {
+		for _, dryRun := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/dry=%t", tc.name, dryRun), func(t *testing.T) {
+				exec := &fakeExecutor{}
+				readiness := &fakeReadinessResolver{}
+				client, _ := newTestServer(t, Deps{Executor: exec, ReadinessResolver: readiness})
+				req := connect.NewRequest(&capturev1.CaptureRequest{Url: "http://127.0.0.1:1/never-navigate", Dimensions: tc.dimensions})
+				if dryRun {
+					req.Header().Set("X-Dry-Run", "true")
+				}
+				_, err := client.Capture(context.Background(), req)
+				assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "error: %v", err)
+				assert.Zero(t, exec.Calls, "invalid input must not execute")
+				assert.Zero(t, exec.ExportCalls, "invalid input must not export")
+				assert.Zero(t, readiness.Calls, "invalid input must not resolve readiness")
+			})
+		}
+	}
+}
+
+func TestCapture_RejectsUnknownCaptureBeforeEffects(t *testing.T) {
+	for _, captureType := range []capturev1.CaptureType{0, -1, 99} {
+		t.Run(fmt.Sprint(captureType), func(t *testing.T) {
+			exec := &fakeExecutor{}
+			client, _ := newTestServer(t, Deps{Executor: exec})
+			_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+				Url: "http://127.0.0.1:1/never-navigate", Captures: []capturev1.CaptureType{captureType},
+			}))
+			assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "error: %v", err)
+			assert.Zero(t, exec.Calls)
+			assert.Zero(t, exec.ExportCalls)
+		})
+	}
+}
+
+func TestCapture_AcceptsGeometryBoundsAndOmission(t *testing.T) {
+	for name, dimensions := range map[string]*capturev1.Dimensions{
+		"omitted":           nil,
+		"empty":             {},
+		"lower bounds":      {Width: proto.Int32(100), Height: proto.Int32(100), DeviceScaleFactor: proto.Float64(0.5)},
+		"upper bounds":      {Width: proto.Int32(4000), Height: proto.Int32(4000), DeviceScaleFactor: proto.Float64(4)},
+		"scale with preset": {Preset: capturev1.DimensionsPreset_DIMENSIONS_PRESET_MOBILE, DeviceScaleFactor: proto.Float64(1)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			exec := &fakeExecutor{}
+			client, _ := newTestServer(t, Deps{Executor: exec})
+			_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+				Url: "http://127.0.0.1:1/fake-executor", Dimensions: dimensions,
+			}))
+			require.NoError(t, err)
+			require.Equal(t, 1, exec.Calls)
+			require.Equal(t, 1, exec.ExportCalls)
+		})
+	}
 }
 
 func TestCapture_DimensionsExplicit_OverridesPreset(t *testing.T) {

@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/automation/telemetry"
 	"github.com/vrooli/browser-automation-studio/domain"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
@@ -96,17 +97,38 @@ func (h *Handler) createTimelineEntry(action *driver.RecordedAction) *bastimelin
 	return telemetry.TelemetryToTimelineEntry(telemetry.RecordedActionToTelemetry(action))
 }
 
+// navigationResultPage resolves a completed effect on its original Session/page.
+// A concurrent tab switch cannot turn this receipt into an active-page guess.
+func (h *Handler) navigationResultPage(owner *autosession.Session, driverPageID string) (*autosession.PageTracker, uuid.UUID, *APIError) {
+	current, ok := h.recordModeService.GetSession(owner.ID())
+	if !ok || current != owner {
+		return nil, uuid.Nil, ErrServiceUnavailable.WithMessage("Browser change occurred but recording ownership changed")
+	}
+	pages := owner.Pages()
+	if pages == nil {
+		return nil, uuid.Nil, ErrServiceUnavailable.WithMessage("Browser change occurred but recording page tracking is unavailable")
+	}
+	pageID := pages.GetPageIDByDriverID(driverPageID)
+	if pageID == nil {
+		return nil, uuid.Nil, ErrServiceUnavailable.WithMessage("Browser change occurred on an unregistered recording page")
+	}
+	if _, ok := pages.GetPage(*pageID); !ok {
+		return nil, uuid.Nil, ErrServiceUnavailable.WithMessage("Browser change occurred on an unavailable recording page")
+	}
+	return pages, *pageID, nil
+}
+
 // recordCompletedNavigation commits the common outcome of reload/back/forward.
 // Page metadata reflects the browser effect even if its journal commit fails.
-func (h *Handler) recordCompletedNavigation(ctx context.Context, sessionID, actionType, url, title string) *APIError {
-	sess, ok := h.recordModeService.GetSession(sessionID)
-	if !ok || sess == nil || sess.Pages() == nil {
-		return ErrServiceUnavailable.WithMessage("Browser change occurred but recording session is unavailable")
+func (h *Handler) recordCompletedNavigation(ctx context.Context, owner *autosession.Session, actionType string, receipt *driver.HistoryNavigationResponse) *APIError {
+	url, title := receipt.URL, receipt.Title
+	pages, pageID, apiErr := h.navigationResultPage(owner, receipt.DriverPageID)
+	if apiErr != nil {
+		return apiErr
 	}
-	pages := sess.Pages()
-	pageID := pages.GetActivePageID()
+	sessionID := owner.ID()
 	now := time.Now()
-	pages.UpdatePageInfo(pageID, url, title)
+	pages.UpdatePageInfo(pageID, url, title, receipt.FaviconURL)
 	action := &driver.RecordedAction{
 		ID: uuid.NewString(), SessionID: sessionID,
 		Timestamp: now.Format(time.RFC3339Nano), ActionType: actionType,
@@ -115,13 +137,15 @@ func (h *Handler) recordCompletedNavigation(ctx context.Context, sessionID, acti
 	if err := h.recordModeService.AddTimelineAction(ctx, sessionID, action, pageID); err != nil {
 		return ErrServiceUnavailable.WithMessage("Browser change occurred but recording was not committed").WithDetails(map[string]string{"error": err.Error()})
 	}
-	broadcast := h.wsHub.BroadcastTimelineEntry(sessionID, h.createTimelineEntry(action))
-	if actionType != "reload" {
-		h.wsHub.BroadcastPageEvent(sessionID, &domain.PageEvent{
-			ID: uuid.New(), Type: domain.PageEventNavigated,
-			PageID: pageID, URL: url, Title: title, Timestamp: now,
-		})
+	current, ok := h.recordModeService.GetSession(sessionID)
+	if !ok || current != owner {
+		return ErrServiceUnavailable.WithMessage("Browser change was committed but recording ownership changed before publication")
 	}
+	broadcast := h.wsHub.BroadcastTimelineEntry(sessionID, h.createTimelineEntry(action))
+	h.wsHub.BroadcastPageEvent(sessionID, &domain.PageEvent{
+		ID: uuid.New(), Type: domain.PageEventNavigated,
+		PageID: pageID, URL: url, Title: title, FaviconURL: receipt.FaviconURL, Timestamp: now,
+	})
 	h.log.WithFields(map[string]interface{}{
 		"correlation_id": h.generateCorrelationID(sessionID),
 		"session_id":     sessionID, "action_type": actionType, "action_id": action.ID,

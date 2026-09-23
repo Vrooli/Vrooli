@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -890,8 +891,12 @@ func TestSession_UpdateViewport_Success(t *testing.T) {
 
 	handler := http.NewServeMux()
 	handler.HandleFunc("/session/vp-session/record/viewport", func(w http.ResponseWriter, r *http.Request) {
-		_ = r.Body.Close()
-		_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
+		var body map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		require.Equal(t, "owner", body["execution_id"])
+		require.Equal(t, "lease", body["lease_id"])
+		require.Equal(t, "page", body["expected_page_id"])
+		_ = json.NewEncoder(w).Encode(map[string]any{"session_id": "vp-session", "driver_page_id": "page", "width": 1920, "height": 1080})
 	})
 
 	srv := httptest.NewServer(handler)
@@ -903,12 +908,13 @@ func TestSession_UpdateViewport_Success(t *testing.T) {
 	}
 
 	sess := &Session{
-		id:     "vp-session",
+		id:          "vp-session",
+		executionID: "owner", leaseID: "lease",
 		mode:   ModeRecording,
 		client: client,
 	}
 
-	err = sess.UpdateViewport(context.Background(), 1920, 1080)
+	_, err = sess.UpdateViewport(context.Background(), 1920, 1080, "page")
 	if err != nil {
 		t.Fatalf("UpdateViewport failed: %v", err)
 	}
@@ -923,7 +929,7 @@ func TestSession_UpdateViewport_RejectsClosedSession(t *testing.T) {
 		terminal: completedTerminal(),
 	}
 
-	err := sess.UpdateViewport(context.Background(), 1920, 1080)
+	_, err := sess.UpdateViewport(context.Background(), 1920, 1080, "page")
 
 	if err == nil {
 		t.Error("expected error when updating viewport of closed session")
@@ -1053,6 +1059,13 @@ func TestSession_SetActivePage_Success(t *testing.T) {
 
 	handler := http.NewServeMux()
 	handler.HandleFunc("/session/page-session/record/active-page", func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]string
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+		}
+		if body["execution_id"] != "page-owner" || body["lease_id"] != "page-lease" || body["page_id"] != "driver-page-123" {
+			t.Errorf("page switch lost immutable authority: %v", body)
+		}
 		_ = r.Body.Close()
 		_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
 	})
@@ -1066,9 +1079,11 @@ func TestSession_SetActivePage_Success(t *testing.T) {
 	}
 
 	sess := &Session{
-		id:     "page-session",
-		mode:   ModeExecution,
-		client: client,
+		id:          "page-session",
+		executionID: "page-owner",
+		leaseID:     "page-lease",
+		mode:        ModeExecution,
+		client:      client,
 	}
 
 	err = sess.SetActivePage(context.Background(), "driver-page-123")
@@ -1468,7 +1483,7 @@ func TestSessionNavigationCarriesImmutableLease(t *testing.T) {
 					expected["capture"] = true
 				}
 				require.Equal(t, expected, body)
-				_, _ = w.Write([]byte(`{"session_id":"owned","url":"https://fixture.test","title":"fixture","can_go_back":true,"can_go_forward":false}`))
+				_, _ = w.Write([]byte(`{"driver_page_id":"initial-driver-page","session_id":"owned","url":"https://fixture.test","title":"fixture","can_go_back":true,"can_go_forward":false}`))
 			}))
 			defer server.Close()
 			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
@@ -1484,6 +1499,78 @@ func TestSessionNavigationCarriesImmutableLease(t *testing.T) {
 			}
 			require.NoError(t, invoke())
 			session.terminal = completedTerminal()
+			require.EqualError(t, invoke(), "session closed")
+			require.Equal(t, int32(1), calls.Load())
+		})
+	}
+}
+
+// [REQ:BAS-RH-J22] A frame cannot outlive a lease or follow another selected page.
+func TestFramePageOwnership(t *testing.T) {
+	owner := &Session{id: "session", executionID: "execution", leaseID: "lease"}
+	owner.InitializePageTracking("https://red.test")
+	owner.Pages().SetInitialPageDriverID("red")
+	valid := driver.FrameSource{SessionID: "session", ExecutionID: "execution", LeaseID: "lease", PageID: "red"}
+	id, ok := owner.FramePage(&valid)
+	require.True(t, ok)
+	require.Equal(t, owner.Pages().GetActivePageID(), id)
+	for _, field := range []string{"nil", "session", "execution", "lease", "page", "empty lease"} {
+		t.Run(field, func(t *testing.T) {
+			source := valid
+			switch field {
+			case "session":
+				source.SessionID = "other"
+			case "execution":
+				source.ExecutionID = "other"
+			case "lease":
+				source.LeaseID = "other"
+			case "page":
+				source.PageID = "other"
+			case "empty lease":
+				source.LeaseID = ""
+			}
+			candidate := &source
+			if field == "nil" {
+				candidate = nil
+			}
+			_, accepted := owner.FramePage(candidate)
+			require.False(t, accepted)
+		})
+	}
+	owner.mu.Lock()
+	owner.terminal = completedTerminal()
+	owner.mu.Unlock()
+	_, ok = owner.FramePage(&valid)
+	require.False(t, ok)
+}
+
+// [REQ:BAS-RH-J03] Browser reads retain the immutable lease and reject terminal Sessions.
+func TestSessionHistoryReadCarriesImmutableLease(t *testing.T) {
+	for _, stack := range []bool{false, true} {
+		t.Run(fmt.Sprint(stack), func(t *testing.T) {
+			var calls atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls.Add(1)
+				require.Equal(t, http.MethodGet, r.Method)
+				require.Equal(t, "owner&value", r.URL.Query().Get("execution_id"))
+				require.Equal(t, "lease&value", r.URL.Query().Get("lease_id"))
+				require.Equal(t, "page&value", r.URL.Query().Get("expected_page_id"))
+				_, _ = w.Write([]byte(`{"session_id":"owned","can_go_back":true,"back_stack":[]}`))
+			}))
+			defer server.Close()
+			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+			require.NoError(t, err)
+			owner := &Session{id: "owned", executionID: "owner&value", leaseID: "lease&value", mode: ModeRecording, client: client}
+			invoke := func() error {
+				if stack {
+					_, err := owner.GetNavigationStack(context.Background(), "page&value")
+					return err
+				}
+				_, err := owner.GetNavigationState(context.Background(), "page&value")
+				return err
+			}
+			require.NoError(t, invoke())
+			owner.terminal = completedTerminal()
 			require.EqualError(t, invoke(), "session closed")
 			require.Equal(t, int32(1), calls.Load())
 		})

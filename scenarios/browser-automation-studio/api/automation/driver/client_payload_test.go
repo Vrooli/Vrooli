@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -176,4 +177,95 @@ func TestNavigationCommandsRejectUnownedOrUnsupportedRequestsBeforeHTTP(t *testi
 	_, err = client.NavigateHistory(context.Background(), "session", "owner", "lease", "../../close", &HistoryNavigationRequest{})
 	require.ErrorContains(t, err, "unsupported history navigation")
 	require.Empty(t, calls)
+}
+
+// [REQ:BAS-RH-J03] Successful navigation needs an explicit browser page receipt.
+func TestNavigationCommandsRequirePageReceipt(t *testing.T) {
+	for _, operation := range []HistoryNavigation{"navigate", HistoryReload, HistoryBack, HistoryForward} {
+		for _, pageID := range []string{"", "  ", "registered-page"} {
+			t.Run(string(operation)+"/"+pageID, func(t *testing.T) {
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					_ = json.NewEncoder(w).Encode(map[string]string{"url": "https://fixture.test", "driver_page_id": pageID})
+				}))
+				defer server.Close()
+				client, err := NewClientWithURL(server.URL, WithoutCircuitBreaker())
+				require.NoError(t, err)
+				var received string
+				if operation == "navigate" {
+					var receipt *NavigateResponse
+					receipt, err = client.Navigate(context.Background(), "session", "owner", "lease", &NavigateRequest{URL: "https://fixture.test"})
+					if receipt != nil {
+						received = receipt.DriverPageID
+					}
+				} else {
+					var receipt *HistoryNavigationResponse
+					receipt, err = client.NavigateHistory(context.Background(), "session", "owner", "lease", operation, &HistoryNavigationRequest{})
+					if receipt != nil {
+						received = receipt.DriverPageID
+					}
+				}
+				if pageID == "registered-page" {
+					require.NoError(t, err)
+					require.Equal(t, pageID, received)
+				} else {
+					require.ErrorContains(t, err, "without a browser page identity")
+				}
+			})
+		}
+	}
+}
+
+func TestCreatePageRequiresCompletedIdentityReceipt(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		status  int
+		pageID  string
+		success bool
+	}{
+		{"created", http.StatusCreated, "created-page", true},
+		{"accepted is incomplete", http.StatusAccepted, "created-page", false},
+		{"missing identity", http.StatusCreated, "", false},
+		{"failed", http.StatusServiceUnavailable, "created-page", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tc.status)
+				_ = json.NewEncoder(w).Encode(map[string]string{"driver_page_id": tc.pageID, "url": "https://fixture.test"})
+			}))
+			defer server.Close()
+			client, err := NewClientWithURL(server.URL, WithoutCircuitBreaker())
+			require.NoError(t, err)
+			receipt, err := client.CreatePage(context.Background(), "session", "owner", "lease", "https://fixture.test")
+			if tc.success {
+				require.NoError(t, err)
+				require.Equal(t, tc.pageID, receipt.DriverPageID)
+			} else {
+				require.Error(t, err)
+				require.Nil(t, receipt)
+			}
+		})
+	}
+}
+
+// [REQ:BAS-RH-J05] A successful HTTP status cannot admit an unusable preview.
+func TestGetFrameRejectsInvalidReceipts(t *testing.T) {
+	for _, tc := range []struct {
+		field string
+		value any
+	}{
+		{"image", ""}, {"mime", ""}, {"mime", "image/png"}, {"width", 0},
+		{"height", -1}, {"captured_at", ""}, {"session_id", "different"}, {"content_hash", ""},
+	} {
+		t.Run(tc.field+"_"+fmt.Sprint(tc.value), func(t *testing.T) {
+			frame := map[string]any{"session_id": "preview", "image": "data:image/jpeg;base64,/9j/2Q==", "mime": "image/jpeg", "width": 640, "height": 480, "captured_at": "2026-09-23T03:00:00Z", "content_hash": "fixture-hash"}
+			frame[tc.field] = tc.value
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _ = json.NewEncoder(w).Encode(frame) }))
+			defer server.Close()
+			client, err := NewClientWithURL(server.URL, WithoutCircuitBreaker())
+			require.NoError(t, err)
+			result, err := client.GetFrame(context.Background(), "preview", "")
+			require.Error(t, err)
+			assert.Nil(t, result)
+		})
+	}
 }

@@ -60,6 +60,8 @@ export interface ViewportProviderProps {
    * Session ID for API calls. When null, viewport won't sync to backend.
    */
   sessionId: string | null;
+  /** Canonical selected page for resize admission. */
+  pageId: string | null;
 
   /**
    * Actual viewport from external source (e.g., session creation response).
@@ -88,6 +90,7 @@ const DIMENSION_TOLERANCE = 5; // pixels
 
 export function ViewportProvider({
   sessionId,
+  pageId,
   actualViewport: externalActualViewport = null,
   debounceMs = 200,
   resizeThresholdMs = 100,
@@ -106,6 +109,7 @@ export function ViewportProvider({
   // Use ViewportSyncManager for debouncing and backend sync
   const syncManager = useViewportSyncManager({
     sessionId,
+    pageId,
     debounceMs,
     resizeThresholdMs,
   });

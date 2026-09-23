@@ -85,6 +85,7 @@ describe('page event routes', () => {
       waitForLoadState: jest.fn().mockResolvedValue(undefined),
       url: jest.fn().mockReturnValue('https://example.com'),
       title: jest.fn().mockResolvedValue('Example'),
+      evaluate: jest.fn().mockResolvedValue('https://example.com/icon.svg'),
       mainFrame: jest.fn().mockReturnValue(mainFrame),
       on: jest.fn((event: string, handler: (arg?: unknown) => void) => {
         pageHandlers[event] = handler;
@@ -155,6 +156,7 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
       goto: jest.fn().mockResolvedValue(undefined),
       url: () => 'https://fixture.invalid/first',
       title: jest.fn().mockResolvedValue('First page'),
+      evaluate: jest.fn().mockResolvedValue('https://fixture.invalid/custom.svg'),
       mainFrame: () => frame,
       isClosed: () => false,
     }) as unknown as Page & EventEmitter;
@@ -167,6 +169,53 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
     const open = () => (context.listeners('page')[0] as (page: Page) => Promise<void>)(page);
     return { context, page, frame, session, setup, open };
   }
+
+  it('publishes the loaded document icon on creation and navigation without a document request', async () => {
+    const f = fixture(); const {cleanup} = f.setup();
+    try {
+      await f.open();
+      await (f.page.listeners('framenavigated')[0] as (frame: unknown) => Promise<void>)(f.frame);
+      const events = fetchMock.mock.calls.map(([, init]) => JSON.parse(init!.body as string));
+      expect(events.map(e => e.faviconUrl)).toEqual(['https://fixture.invalid/custom.svg', 'https://fixture.invalid/custom.svg']);
+      expect(fetchMock.mock.calls.every(([url]) => url === 'http://callback')).toBe(true);
+      expect(f.page.goto).not.toHaveBeenCalled();
+    } finally {cleanup();}
+  });
+
+  it('preserves page admission and queued navigation during a creation metadata read', async () => {
+    const f = fixture(); const icon = deferred<string>();
+    jest.mocked(f.page.evaluate).mockReturnValueOnce(icon.promise);
+    const {cleanup} = f.setup(); const opening = f.open();
+    try {
+      await new Promise(setImmediate);
+      expect(f.page.evaluate).toHaveBeenCalled();
+      f.page.url = () => 'https://fixture.invalid/new-document';
+      f.page.emit('framenavigated', f.frame);
+      icon.resolve('https://fixture.invalid/old.svg');
+      await opening; await new Promise(setImmediate);
+      const events = fetchMock.mock.calls.map(([, init]) => JSON.parse(init!.body as string));
+      expect(events.map(e => e.eventType)).toEqual(['created', 'navigated']);
+      expect(events[1]).toMatchObject({url: 'https://fixture.invalid/new-document', faviconUrl: 'https://fixture.invalid/custom.svg'});
+    } finally {icon.resolve(''); cleanup();}
+  });
+
+  it.each(['cleanup', 'replacement'])('discards icon metadata after %s while the DOM read waits', async kind => {
+    const f = fixture(); const {cleanup} = f.setup();
+    await f.open(); fetchMock.mockClear(); jest.mocked(f.page.evaluate).mockClear();
+    const icon = deferred<string>(); const reading = deferred<void>();
+    jest.mocked(f.page.evaluate).mockImplementation(() => {reading.resolve(); return icon.promise;});
+    const navigation = (f.page.listeners('framenavigated')[0] as (frame: unknown) => Promise<void>)(f.frame);
+    try {
+      // Existing implementation never reads the icon, so fail immediately rather than await a missing signal.
+      await new Promise(setImmediate);
+      expect(f.page.evaluate).toHaveBeenCalled();
+      if (kind === 'cleanup') cleanup();
+      else f.page.url = () => 'https://fixture.invalid/replaced';
+      icon.resolve('https://fixture.invalid/old.svg');
+      await navigation;
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {icon.resolve(''); cleanup();}
+  });
 
   it('removes every page listener and makes cleanup repeatable', async () => {
     const f = fixture(); const { cleanup } = f.setup();
@@ -181,6 +230,48 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
       f.page.emit('close');
       expect(fetchMock).toHaveBeenCalledTimes(1);
     } finally { cleanup(); }
+  });
+
+  it.each(['opener', 'created callback'])('preserves navigation while awaiting %s', async (stage) => {
+    const f = fixture();
+    const opener = deferred<Page | null>();
+    const delivery = deferred<Response>();
+    const sent = deferred<void>();
+    if (stage === 'opener') jest.mocked(f.page.opener).mockReturnValue(opener.promise);
+    else fetchMock.mockImplementationOnce(() => { sent.resolve(); return delivery.promise; });
+    const { cleanup } = f.setup();
+    const opening = f.open();
+    try {
+      if (stage === 'created callback') await sent.promise;
+      f.page.url = () => 'https://fixture.invalid/blue';
+      jest.mocked(f.page.title).mockResolvedValue('Blue page');
+      f.page.emit('framenavigated', f.frame);
+      expect(fetchMock).toHaveBeenCalledTimes(stage === 'opener' ? 0 : 1);
+      opener.resolve(null);
+      delivery.resolve({ ok: true, status: 200, statusText: 'OK' } as Response);
+      await opening;
+      await new Promise(setImmediate);
+      const events = fetchMock.mock.calls.map(([, init]) => JSON.parse(init!.body as string));
+      expect(events.map(event => event.eventType)).toEqual(['created', 'navigated']);
+      expect(events[1]).toMatchObject({
+        driverPageId: events[0].driverPageId, url: 'https://fixture.invalid/blue', title: 'Blue page',
+      });
+    } finally { cleanup(); }
+  });
+
+  it('discards navigation queued behind creation when recording stops', async () => {
+    const f = fixture(); const sent = deferred<void>(); const delivery = deferred<Response>();
+    fetchMock.mockImplementationOnce(() => { sent.resolve(); return delivery.promise; });
+    const { cleanup } = f.setup(); const opening = f.open();
+    await sent.promise;
+    f.page.emit('framenavigated', f.frame);
+    cleanup();
+    delivery.resolve({ ok: true, status: 200, statusText: 'OK' } as Response);
+    await opening;
+    await new Promise(setImmediate);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(f.page.listenerCount('framenavigated')).toBe(0);
+    expect(emitHistoryCallback).not.toHaveBeenCalled();
   });
 
   it('cannot attach or publish a pending popup after cleanup', async () => {
@@ -256,14 +347,38 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
     expect(response.statusCode).toBe(409);
   });
 
+  it.each([false, true])('settles a close during pending creation callback, stopped=%s', async (stopped) => {
+    const f = fixture(); const sent = deferred<void>(); const delivery = deferred<Response>();
+    fetchMock.mockImplementationOnce(() => { sent.resolve(); return delivery.promise; });
+    let closed = false;
+    f.page.isClosed = () => closed;
+    const { cleanup } = f.setup(); const opening = f.open();
+    try {
+      await sent.promise;
+      closed = true; f.page.emit('close');
+      if (stopped) cleanup();
+      delivery.resolve({ ok: true, status: 200, statusText: 'OK' } as Response);
+      await opening;
+      const events = fetchMock.mock.calls.map(([, init]) => JSON.parse(init!.body as string).eventType);
+      expect(events).toEqual(stopped ? ['created'] : ['created', 'closed']);
+      expect(f.page.listenerCount('close')).toBe(0);
+      expect(f.page.listenerCount('framenavigated')).toBe(0);
+      if (!stopped) {
+        expect(f.session.pages).toHaveLength(0);
+        expect(f.session.pageIdMap.size).toBe(0);
+        expect(f.session.pageToIdMap.has(f.page)).toBe(false);
+      }
+    } finally { cleanup(); }
+  });
+
   it('registers an explicitly created tab once and uses the same callback and response identity', async () => {
     const f = fixture(); const { cleanup } = f.setup();
     let discovered: Promise<void> | undefined;
     f.session.context.newPage = jest.fn(async () => { discovered = f.open(); return f.page; });
-    const manager = { getSession: () => f.session } as unknown as SessionManager;
+    const manager = { getSession: () => f.session, getSessionForLease: () => f.session, updateActivity: jest.fn() } as unknown as SessionManager;
     const response = createMockHttpResponse();
     try {
-      await handleRecordNewPage(createMockHttpRequest({ method: 'POST', body: { url: 'https://fixture.invalid/first' } }), response, 'owned-tabs', manager, config);
+      await handleRecordNewPage(createMockHttpRequest({ method: 'POST', body: { execution_id: 'owner', lease_id: 'lease', url: 'https://fixture.invalid/first' } }), response, 'owned-tabs', manager, config);
       await discovered;
       expect(response.statusCode).toBe(201);
       expect(f.session.pages).toEqual([f.page]);

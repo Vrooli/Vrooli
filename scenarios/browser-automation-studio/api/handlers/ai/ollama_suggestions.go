@@ -14,6 +14,8 @@ const defaultOllamaRole = "chat.small"
 
 // The provider and parser enforce the same contract. Array responses are wrapped
 // at the parser boundary to retain the previously supported response shape.
+// Optional text may be absent or null; both decode to the existing empty string.
+// Required fields remain non-null and are never synthesized from invalid output.
 const suggestionResponseSchema = `{
  "type":"object", "required":["suggestions"], "additionalProperties":false,
  "properties":{"suggestions":{"type":"array","items":{
@@ -21,8 +23,8 @@ const suggestionResponseSchema = `{
   "additionalProperties":false,
   "properties":{
    "action":{"type":"string","pattern":"^[\\s\\S]*\\S[\\s\\S]*$"},
-   "description":{"type":"string"}, "elementText":{"type":"string"},
-   "selector":{"type":"string"}, "reasoning":{"type":"string"},
+   "description":{"type":["string","null"]}, "elementText":{"type":["string","null"]},
+   "selector":{"type":["string","null"]}, "reasoning":{"type":["string","null"]},
    "confidence":{"type":"number","minimum":0,"maximum":1},
    "category":{"type":"string","enum":["authentication","navigation","data-entry","actions","content"]}
   }

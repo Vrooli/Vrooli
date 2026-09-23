@@ -64,7 +64,6 @@ interface SessionState {
   sessionId: string | null;
   profileId: string | null;
   actualViewport: ActualViewport | null;
-  initialRestoredUrl: string | null;
   /** Session has been confirmed to exist on the server */
   isValidated: boolean;
 
@@ -105,7 +104,6 @@ interface SessionActions {
     sessionId: string;
     profileId?: string | null;
     actualViewport?: ActualViewport | null;
-    initialRestoredUrl?: string | null;
   }) => void;
   /** Validate that a session exists on the server before subscribing */
   validateSession: (sessionId: string) => Promise<boolean>;
@@ -174,7 +172,6 @@ const initialState: SessionState = {
   sessionId: null,
   profileId: null,
   actualViewport: null,
-  initialRestoredUrl: null,
   isValidated: false,
   isCreating: false,
   isValidating: false,
@@ -216,7 +213,6 @@ export const useSessionStore = create<SessionStore>()(
         sessionId: data.sessionId,
         profileId: data.profileId ?? null,
         actualViewport: data.actualViewport ?? null,
-        initialRestoredUrl: data.initialRestoredUrl ?? null,
         isValidated: true,
         isCreating: false,
         isValidating: false,

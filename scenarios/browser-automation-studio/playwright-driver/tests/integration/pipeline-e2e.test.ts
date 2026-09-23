@@ -312,7 +312,7 @@ describe('Pipeline E2E Tests', () => {
       let received!: () => void;
       const receivedFrame = new Promise<void>((resolve) => { received = resolve; });
       frames.on('connection', (socket) => socket.once('message', () => received()));
-      const session = { id: 'pipeline-e2e-test', page, pipelineManager, phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease' };
+      const session = { id: 'pipeline-e2e-test', spec: { execution_id: 'owner', workflow_id: 'fixture', reuse_mode: 'fresh', viewport: { width: 800, height: 600 } }, page, pipelineManager, phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease', pageToIdMap: new WeakMap([[page, 'initial-page']]) };
       const manager = {
         getSession: () => session,
         updateActivity: jest.fn(),
@@ -875,8 +875,8 @@ describe('native capture page identity', () => {
       const frames: Buffer[] = [];
       capture = await new CdpScreencastStrategy().start(
         () => current,
-        { sessionId: 'native-page-identity', quality: 65, targetFps: 30, scale: 'css', includePerfHeaders: false, cdp: { pageCheckIntervalMs: 25 } },
-        { isReady: () => ready, getWebSocket: () => ({ readyState: 1, send: (bytes: Buffer) => { frames.push(Buffer.from(bytes.subarray(8))); frameSent(); } }) },
+        { sessionId: 'native-page-identity', sourceForPage: page => ({session_id:'native-page-identity',execution_id:'native-owner',lease_id:'native-lease',page_id:page===red?'red':'blue'}), quality: 65, targetFps: 30, scale: 'css', includePerfHeaders: false, cdp: { pageCheckIntervalMs: 25 } },
+        { isReady: () => ready, getWebSocket: () => ({ readyState: 1, send: (bytes: Buffer) => { frames.push(Buffer.from(bytes.subarray(4 + bytes.readUInt32BE(0)))); frameSent(); } }) },
         { onFrameSent: () => {}, onFrameSkipped: () => {} },
       );
       await bounded(redFrame);
@@ -925,7 +925,7 @@ describe('native polling fallback [REQ:BAS-RH-J22]', () => {
       const delivered = new Promise<Buffer>((resolve) => { sent = resolve; });
       const socket = { readyState: 1, send: (frame: Buffer) => sent(Buffer.from(frame)) };
       capture = await new PollingStrategy().start(() => page,
-        { sessionId: `native-polling-${scale}`, quality: 65, targetFps: 10, scale, includePerfHeaders: false },
+        { sessionId: `native-polling-${scale}`, sourceForPage: () => ({session_id:`native-polling-${scale}`,execution_id:'native-owner',lease_id:'native-lease',page_id:'blue'}), quality: 65, targetFps: 10, scale, includePerfHeaders: false },
         { isReady: () => true, getWebSocket: () => socket },
         { onFrameSent: () => {}, onFrameSkipped: () => {} });
       const frame = await Promise.race([delivered, new Promise<never>((_, reject) => {
@@ -943,7 +943,7 @@ describe('native polling fallback [REQ:BAS-RH-J22]', () => {
         const rgb = Array.from(context.getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data);
         bitmap.close();
         return { width: canvas.width, height: canvas.height, rgb };
-      }, frame.toString('base64'));
+      }, frame.subarray(4 + frame.readUInt32BE(0)).toString('base64'));
       expect(observed.width).toBe(scale === 'css' ? 320 : 640);
       expect(observed.height).toBe(scale === 'css' ? 240 : 480);
       expect(observed.rgb[0]).toBeLessThan(40);
@@ -978,7 +978,7 @@ describe('native recording tab ownership [REQ:BAS-RH-J03]', () => {
       }));
       const initial = await context.newPage();
       const session = {
-        id: 'native-tab-owner', context, page: initial, pages: [initial],
+        id: 'native-tab-owner', phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease', context, page: initial, pages: [initial],
         pageIdMap: new Map([['initial-id', initial]]),
         pageToIdMap: new WeakMap([[initial, 'initial-id']]),
         currentPageIndex: 0, frameStack: [],
@@ -989,13 +989,14 @@ describe('native recording tab ownership [REQ:BAS-RH-J03]', () => {
       await pages.ready;
       const response = createMockHttpResponse();
       await handleRecordNewPage(createMockHttpRequest({ method: 'POST', body: {
+        execution_id: 'owner', lease_id: 'lease',
         url: 'data:text/html,<title>Independent second tab</title><body>Tab two</body>',
-      } }), response, 'native-tab-owner', { getSession: () => session } as unknown as SessionManager, config);
+      } }), response, 'native-tab-owner', { getSession: () => session, peekSession: () => session, getSessionForLease: SessionManager.prototype.getSessionForLease, updateActivity: jest.fn() } as unknown as SessionManager, config);
+      expect(response.statusCode).toBe(201);
       const event = await Promise.race([created, new Promise<never>((_, reject) => {
         deadline = setTimeout(() => reject(new Error('Native created callback exceeded2000ms')), 2000);
       })]);
       clearTimeout(deadline);
-      expect(response.statusCode).toBe(201);
       expect(response.getJSON().driver_page_id).toBe(event.driverPageId);
       expect(session.pages).toHaveLength(2);
       expect(session.pageIdMap.size).toBe(2);
@@ -1018,14 +1019,14 @@ describe('native recording tab ownership [REQ:BAS-RH-J03]', () => {
 
 describe('native stream controls [REQ:BAS-RH-J23]', () => {
   it.each([
-    { dpr: 1, scale: 'css' }, { dpr: 1, scale: 'device' },
-    { dpr: 2, scale: 'css' }, { dpr: 2, scale: 'device' },
-  ] as const)('delivers requested pixel dimensions at DPR$dpr scale=$scale', async ({ dpr, scale }) => {
+    { dpr: 1, scale: 'css' as const }, { dpr: 1, scale: 'device' as const },
+    { dpr: 2, scale: 'css' as const }, { dpr: 2, scale: 'device' as const },
+  ].flatMap(value => ['shell', 'regular'].map(mode => ({ ...value, mode }))))('delivers requested pixel dimensions at DPR$dpr scale=$scale mode=$mode', async ({ dpr, scale, mode }) => {
     const configuration = jest.spyOn(driverConfig, 'loadConfig').mockReturnValue(createTestConfig({
       frameStreaming: { useScreencast: true, fallbackToPolling: false },
       performance: { enabled: false, includeTimingHeaders: false },
     }));
-    const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+    const browser = await chromium.launch({ headless: mode === 'shell', args: ['--no-sandbox', ...(mode === 'regular' ? ['--headless=new'] : [])] });
     const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });
     const sessionId = `native-scale-${dpr}-${scale}`;
     let deadline: ReturnType<typeof setTimeout> | undefined;
@@ -1039,7 +1040,7 @@ describe('native stream controls [REQ:BAS-RH-J23]', () => {
       const received = new Promise<Buffer>((resolve) => {
         server.once('connection', (socket) => socket.once('message', (bytes: Buffer) => resolve(Buffer.from(bytes))));
       });
-      startFrameStreaming(sessionId, { getSession: () => ({ page }) }, {
+      startFrameStreaming(sessionId, { getSession: () => ({ id:sessionId,ownerExecutionId:'native-owner',leaseId:'native-lease',page,pageToIdMap:new WeakMap([[page,'native-page']]) }) }, {
         callbackUrl: `http://127.0.0.1:${address.port}/frames`, scale, quality: 65, fps: 30,
       });
       const packet = await Promise.race([received, new Promise<never>((_, reject) => {
@@ -1047,8 +1048,8 @@ describe('native stream controls [REQ:BAS-RH-J23]', () => {
       })]);
       clearTimeout(deadline);
       await stopFrameStreaming(sessionId);
-      // Existing wire formats: SDK sends JPEG; CDP prefixes an 8-byte timestamp.
-      const jpeg = packet[0] === 0xff && packet[1] === 0xd8 ? packet : packet.subarray(8);
+      // Both strategies preserve source identity before the JPEG bytes.
+      const jpeg = packet.subarray(4 + packet.readUInt32BE(0));
       const decoder = await browser.newPage();
       const pixels = await decoder.evaluate(async (encoded) => {
         const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
@@ -1109,7 +1110,7 @@ describe('native stream controls [REQ:BAS-RH-J23]', () => {
         qualityCalls.push(options!.quality!);
         return screenshot(options);
       });
-      const provider = { getSession: () => ({ page }) } as unknown as SessionManager;
+      const provider = { getSession: () => ({ id:sessionId,ownerExecutionId:'native-owner',leaseId:'native-lease',page,pageToIdMap:new WeakMap([[page,'native-page']]) }) } as unknown as SessionManager;
       const observations: { at: number; jpeg: Buffer; header: { frame_bytes: number } }[] = [];
       let observed!: () => void;
       const threeFrames = new Promise<void>((resolve) => { observed = resolve; });
@@ -1120,10 +1121,11 @@ describe('native stream controls [REQ:BAS-RH-J23]', () => {
         if (data.length < 5) return;
         const length = data.readUInt32BE(0);
         if (length > data.length - 4 || data[4] !== 123) return;
-        let header: { frame_bytes: number };
-        try { header = JSON.parse(data.subarray(4, 4 + length).toString()); }
+        let envelope: { timing?: { frame_bytes: number } };
+        try { envelope = JSON.parse(data.subarray(4, 4 + length).toString()); }
         catch { return; }
-        observations.push({ at: performance.now(), jpeg: Buffer.from(data.subarray(4 + length)), header });
+        if (!envelope.timing) return;
+        observations.push({ at: performance.now(), jpeg: Buffer.from(data.subarray(4 + length)), header: envelope.timing });
         if (observations.length === 3) observed();
       });
       // Connection precedes capture readiness. First native frame is the oracle

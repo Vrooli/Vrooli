@@ -897,6 +897,7 @@ func TestBroadcastBinaryFrameDropsWithFullBuffer(t *testing.T) {
 			Send:               make(chan any, 4),
 			BinarySend:         make(chan []byte, 1), // Tiny buffer - only 1 frame
 			Hub:                hub,
+			RecordingFrames:    true,
 			RecordingSessionID: &sessionID,
 		}
 
@@ -932,6 +933,7 @@ func TestBroadcastBinaryFrameToSubscribedClient(t *testing.T) {
 			Send:               make(chan any, 4),
 			BinarySend:         make(chan []byte, 4),
 			Hub:                hub,
+			RecordingFrames:    true,
 			RecordingSessionID: &sessionID,
 		}
 
@@ -966,6 +968,7 @@ func TestBroadcastBinaryFrameFiltersNonSubscribed(t *testing.T) {
 			Send:               make(chan any, 4),
 			BinarySend:         make(chan []byte, 4),
 			Hub:                hub,
+			RecordingFrames:    true,
 			RecordingSessionID: &otherSessionID,
 		}
 
@@ -1139,5 +1142,64 @@ func TestSubscriptionAfterDisconnectDoesNotSendOrResubscribe(t *testing.T) {
 	}
 	if client.ExecutionID != nil || client.RecordingSessionID != nil || client.ExecutionFrameStreamID != nil || client.DriverStatusSubscribed || client.ExportSubscriptionID != nil {
 		t.Fatal("a disconnected client was resubscribed")
+	}
+}
+
+// [REQ:BAS-RH-J05] Event-only consumers do not receive unused image traffic.
+func TestRecordingFrameSubscriptionIntent(t *testing.T) {
+	for _, choice := range []string{"default", "enabled", "events only"} {
+		t.Run(choice, func(t *testing.T) {
+			hub := newTestHub(t)
+			client := &Client{ID: uuid.New(), Hub: hub, Send: make(chan any, 4), BinarySend: make(chan []byte, 1)}
+			hub.register <- client
+			_ = waitForMessage(t, client.Send)
+			msg := map[string]any{"session_id": "recording"}
+			if choice != "default" {
+				msg["frames"] = choice == "enabled"
+			}
+			client.handleSubscription("subscribe_recording", msg)
+			_ = waitForMessage(t, client.Send)
+			wantFrames := choice != "events only"
+			if got := hub.HasRecordingFrameSubscribers("recording"); got != wantFrames {
+				t.Errorf("frame consumers=%v, want %v", got, wantFrames)
+			}
+			for i := 0; i < 3; i++ {
+				hub.BroadcastBinaryFrame("recording", []byte{0xff, 0xd8})
+			}
+			wantQueued, wantDropped := 0, int64(0)
+			if wantFrames {
+				wantQueued = 1
+				wantDropped = 2
+			}
+			if got := len(client.BinarySend); got != wantQueued {
+				t.Errorf("queued images=%d, want %d", got, wantQueued)
+			}
+			if got := hub.GetDroppedFrameCount(); got != wantDropped {
+				t.Errorf("dropped images=%d, want %d", got, wantDropped)
+			}
+			hub.BroadcastPageEvent("recording", map[string]any{"type": "created"})
+			event := waitForMessage(t, client.Send).(map[string]any)
+			if event["type"] != "page_event" {
+				t.Fatalf("page event lost: %v", event)
+			}
+			client.handleSubscription("unsubscribe_recording", nil)
+			if hub.HasRecordingFrameSubscribers("recording") {
+				t.Fatal("unsubscribed client remains a frame consumer")
+			}
+		})
+	}
+}
+
+func TestRecordingFrameSubscriptionChoiceReplacesPreviousChoice(t *testing.T) {
+	hub := newTestHub(t)
+	client := &Client{ID: uuid.New(), Hub: hub, Send: make(chan any, 4), BinarySend: make(chan []byte, 1)}
+	hub.register <- client
+	_ = waitForMessage(t, client.Send)
+	for _, enabled := range []bool{false, true, false} {
+		client.handleSubscription("subscribe_recording", map[string]any{"session_id": "recording", "frames": enabled})
+		_ = waitForMessage(t, client.Send)
+		if got := hub.HasRecordingFrameSubscribers("recording"); got != enabled {
+			t.Errorf("replacement choice=%v, want %v", got, enabled)
+		}
 	}
 }

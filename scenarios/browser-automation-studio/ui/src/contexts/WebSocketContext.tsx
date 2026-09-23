@@ -3,7 +3,7 @@
  * Manages real-time WebSocket connection for execution and workflow updates
  */
 
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useLayoutEffect, useRef } from 'react';
 
 export interface WebSocketMessage {
   type: string;
@@ -16,20 +16,16 @@ export interface WebSocketMessage {
   timestamp?: string;
 }
 
-/** Callback type for binary frame subscribers */
-export type BinaryFrameCallback = (data: ArrayBuffer) => void;
+/** One delivery per accepted JSON message, independent of React render batching. */
+export type WebSocketMessageCallback = (message: WebSocketMessage) => void;
 
 export interface WebSocketContextValue {
   isConnected: boolean;
-  lastMessage: WebSocketMessage | null;
-  /** @deprecated Use subscribeToBinaryFrames instead to avoid React re-renders */
-  lastBinaryFrame: ArrayBuffer | null;
   send: (message: unknown) => void;
   subscribe: (executionId: string) => void;
   unsubscribe: () => void;
   reconnect: () => void;
-  /** Subscribe to binary frames directly without triggering React state updates */
-  subscribeToBinaryFrames: (callback: BinaryFrameCallback) => () => void;
+  subscribeToMessages: (callback: WebSocketMessageCallback) => () => void;
 }
 
 export const WebSocketContext = createContext<WebSocketContextValue | undefined>(undefined);
@@ -40,4 +36,12 @@ export function useWebSocket(): WebSocketContextValue {
     throw new Error('useWebSocket must be used within a WebSocketProvider');
   }
   return context;
+}
+
+/** Domain callbacks observe every message using their latest committed state. */
+export function useWebSocketMessage(callback: WebSocketMessageCallback): void {
+  const {subscribeToMessages} = useWebSocket();
+  const current = useRef(callback);
+  useLayoutEffect(() => {current.current = callback;});
+  useLayoutEffect(() => subscribeToMessages(message => current.current(message)), [subscribeToMessages]);
 }

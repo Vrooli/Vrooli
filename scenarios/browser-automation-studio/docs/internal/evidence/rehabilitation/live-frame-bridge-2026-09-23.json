@@ -1,0 +1,138 @@
+{
+  "cycle": "BAS-WORK-066",
+  "issues": [
+    "BAS-RF-096"
+  ],
+  "recorded_at": "2026-09-23",
+  "status": "qualified_and_deployed",
+  "source": {
+    "api/automation/driver/types.go": {
+      "before": {
+        "path": "api/automation/driver/types.go",
+        "sha256": "0cc11bdd835b1ec1d74f2e5dd6998010a817c9760ac64bd6f381ffa92f5335b1",
+        "lines": 602
+      },
+      "after": {
+        "sha256": "fca4250660178537be20e19b1ffd5424ffa46cc0a8a6e0f766dbe5d8d68989be",
+        "lines": 603
+      }
+    },
+    "api/automation/driver/client.go": {
+      "before": {
+        "path": "api/automation/driver/client.go",
+        "sha256": "73e0355ecd9b0294389d6ed04a7ad17bf8d845961db73cdde9c90561e4c1699f",
+        "lines": 1209
+      },
+      "after": {
+        "sha256": "f673e9610da5de623856c6e80107d9f5c282a0b29fc91be05b8ee1638f7ff454",
+        "lines": 1213
+      }
+    },
+    "api/handlers/record_mode.go": {
+      "before": {
+        "path": "api/handlers/record_mode.go",
+        "sha256": "159bca4daba39913664f86d18e151b1494d164a1e07d1037a55a387421d31204",
+        "lines": 983
+      },
+      "after": {
+        "sha256": "da3f16273332657a67e7088192cbe201122963a71d88e368d8f06a0bb69792fd",
+        "lines": 961
+      }
+    },
+    "api/handlers/record_mode_types.go": {
+      "before": {
+        "path": "api/handlers/record_mode_types.go",
+        "sha256": "6c710d0c38d67692319a8a0e72a52a580917b4c9b981ef0df51ea8baa7375d2f",
+        "lines": 290
+      },
+      "after": {
+        "sha256": "40a096a26ea3980c77337cf3096ff71aebdbd815cb4015e5a620dd3d392f2994",
+        "lines": 276
+      }
+    }
+  },
+  "qualification_snapshot": {
+    "api/automation/driver/types.go": {
+      "sha256": "fca4250660178537be20e19b1ffd5424ffa46cc0a8a6e0f766dbe5d8d68989be",
+      "lines": 603
+    },
+    "api/automation/driver/client.go": {
+      "sha256": "f673e9610da5de623856c6e80107d9f5c282a0b29fc91be05b8ee1638f7ff454",
+      "lines": 1213
+    },
+    "api/handlers/record_mode.go": {
+      "sha256": "da3f16273332657a67e7088192cbe201122963a71d88e368d8f06a0bb69792fd",
+      "lines": 961
+    },
+    "api/handlers/record_mode_types.go": {
+      "sha256": "40a096a26ea3980c77337cf3096ff71aebdbd815cb4015e5a620dd3d392f2994",
+      "lines": 276
+    },
+    "api/handlers/testutil_mock_services.go": {
+      "sha256": "1cc73e40e60b87f69666050b28d443b9e4e561b8b86741f32ae5a56caec54656",
+      "lines": 1467
+    },
+    "api/handlers/record_mode_test.go": {
+      "sha256": "7616396e19936299a8442ec9d3b02b80507487ff830a6640497bea97fa3980a0",
+      "lines": 1198
+    },
+    "api/handlers/record_mode_integration_test.go": {
+      "sha256": "59aa96e5c75e5dd9f9413fef043ebde8605134debb99e5440809c4f1bfd6c867",
+      "lines": 808
+    },
+    "api/automation/driver/client_payload_test.go": {
+      "sha256": "0918dd9f2056c2ce499dfd644b464cdf1ac6a323e171b27e284b8a979a5d653b",
+      "lines": 271
+    }
+  },
+  "tests": {
+    "red": "/tmp/bas-live-frame-bridge-red-066.txt: 1 real HTTP bridge and 7 invalid receipt cases fail",
+    "native_red": "/tmp/bas-ui-paint-isolated-red-066.json:9pass/5fail; driver image18895chars/APIimage0;4UIpaint failures",
+    "green": "/tmp/bas-live-frame-bridge-final-066.txt:4Go racepackages pass; /tmp/bas-live-frame-bridge-build-final-066.txt:APIbuild pass",
+    "initial_build_failure": "/tmp/bas-live-frame-bridge-green-066.txt:overbroad scripted replacement caught by build; restored unrelated sites before final qualification",
+    "native_green": "/tmp/bas-ui-paint-isolated-green-066.json:14pass; /tmp/bas-ui-paint-qualified-066.json:14pass with transition-overlay removal required before screenshot; final screenshot visually inspected",
+    "native_ui_screenshot": "/tmp/bas-ui-paint-qualified-066.png",
+    "workflow": {
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "execution_id": "9d714f60-b38d-4f2b-9aef-c6054641567c",
+      "artifact_dir": "/tmp/bas-recording-e2e-vFbdRs",
+      "independent_effects": 3
+    },
+    "profiles": "3 complete identity reads match original rollback; API profile metadata equals065"
+  },
+  "measurement": {
+    "before": {
+      "lines": 3084,
+      "functions": 80,
+      "complexity": 378
+    },
+    "after": {
+      "lines": 3053,
+      "functions": 80,
+      "complexity": 384
+    },
+    "tidiness_run": "20260923-032518-894126d9",
+    "tidiness": {
+      "totalFindings": 1134,
+      "longFiles": 104,
+      "complexity": 399,
+      "duplication": 610,
+      "coupling": 20,
+      "duplicationLineDebt": 31551
+    },
+    "cumulative_affected_go_reduction": 146,
+    "board": "/tmp/bas-board-result-066.json:17pending_telemetry/unqualified; contract valid"
+  },
+  "review": {
+    "removed": "Duplicate handler frame DTO and field translation; timestamp ETag fallback for obsolete driver payloads. Driver wire frame is authoritative. Validation added for session/image/mime/dimensions/timestamp/contenthash.",
+    "limits": [
+      "Go complexity+6 due receipt validation despite runtime lines-31.",
+      "Native UI qualifies functional colored frame paint and settled tab transition. HTTP polling supplied frames; direct streaming, stale-frame ownership, callback reconciliation and sustained performance remain unqualified.",
+      "Shared-tree attribution limited; TS/JS complexity remains RF064."
+    ]
+  },
+  "pending_operations": [],
+  "build_identity": "sha256:8ed3dbc7171eb0b4286397d338a0cbee0a1400d306e8581abfd2021271676fe6"
+}

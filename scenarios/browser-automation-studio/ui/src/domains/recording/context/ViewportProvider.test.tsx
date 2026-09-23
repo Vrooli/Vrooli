@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act, renderHook } from '@/test-utils';
-import { fetchEmptyResponse, installFetchMock, type FetchMock } from '@/test-utils';
+import { installFetchMock, type FetchMock } from '@/test-utils';
 import { ViewportProvider } from './ViewportProvider';
 import { useViewport, useViewportOptional } from './viewportHooks';
 import type { ReactNode } from 'react';
@@ -25,7 +25,7 @@ describe('ViewportProvider', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     fetchMock = installFetchMock();
-    fetchMock.mockResolvedValue(fetchEmptyResponse());
+    fetchMock.mockImplementation(async (_input, init) => new Response(JSON.stringify(JSON.parse(init!.body as string))));
   });
 
   afterEach(() => {
@@ -36,7 +36,7 @@ describe('ViewportProvider', () => {
   // Helper to create a wrapper with ViewportProvider
   const createWrapper = (sessionId: string | null = 'test-session') => {
     return ({ children }: { children: ReactNode }) => (
-      <ViewportProvider sessionId={sessionId}>{children}</ViewportProvider>
+      <ViewportProvider pageId="test-page" sessionId={sessionId}>{children}</ViewportProvider>
     );
   };
 
@@ -94,7 +94,7 @@ describe('ViewportProvider', () => {
 
     it('should accept initial actual viewport', () => {
       const Wrapper = ({ children }: { children: ReactNode }) => (
-        <ViewportProvider
+        <ViewportProvider pageId="test-page"
           sessionId="test-session"
           actualViewport={{ width: 1920, height: 1080 }}
         >
@@ -196,7 +196,7 @@ describe('ViewportProvider', () => {
         'http://test-api/recordings/live/test-session/viewport',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ width: 1000, height: 800 }),
+          body: JSON.stringify({ width: 1000, height: 800, page_id: 'test-page' }),
         })
       );
     });
@@ -234,7 +234,7 @@ describe('ViewportProvider', () => {
 
     it('should allow clearing actual viewport', () => {
       const Wrapper = ({ children }: { children: ReactNode }) => (
-        <ViewportProvider
+        <ViewportProvider pageId="test-page"
           sessionId="test-session"
           actualViewport={{ width: 1920, height: 1080 }}
         >
@@ -259,7 +259,7 @@ describe('ViewportProvider', () => {
   describe('viewport source attribution', () => {
     it('should accept actualViewport with source and reason', () => {
       const Wrapper = ({ children }: { children: ReactNode }) => (
-        <ViewportProvider
+        <ViewportProvider pageId="test-page"
           sessionId="test-session"
           actualViewport={{
             width: 1920,
@@ -286,7 +286,7 @@ describe('ViewportProvider', () => {
 
     it('should use reason from actualViewport for mismatch explanation', () => {
       const Wrapper = ({ children }: { children: ReactNode }) => (
-        <ViewportProvider
+        <ViewportProvider pageId="test-page"
           sessionId="test-session"
           actualViewport={{
             width: 1920,
@@ -314,7 +314,7 @@ describe('ViewportProvider', () => {
 
     it('should fall back to default mismatch reason when reason not provided', () => {
       const Wrapper = ({ children }: { children: ReactNode }) => (
-        <ViewportProvider
+        <ViewportProvider pageId="test-page"
           sessionId="test-session"
           actualViewport={{ width: 1920, height: 1080 }}
         >
@@ -336,7 +336,7 @@ describe('ViewportProvider', () => {
 
     it('should handle fingerprint_partial source', () => {
       const Wrapper = ({ children }: { children: ReactNode }) => (
-        <ViewportProvider
+        <ViewportProvider pageId="test-page"
           sessionId="test-session"
           actualViewport={{
             width: 1920,
@@ -554,7 +554,7 @@ describe('ViewportProvider', () => {
   describe('component rendering', () => {
     it('should render children', () => {
       render(
-        <ViewportProvider sessionId="test-session">
+        <ViewportProvider pageId="test-page" sessionId="test-session">
           <div data-testid="child">Child content</div>
         </ViewportProvider>
       );
@@ -569,7 +569,7 @@ describe('ViewportProvider', () => {
       };
 
       render(
-        <ViewportProvider sessionId="nested-test">
+        <ViewportProvider pageId="test-page" sessionId="nested-test">
           <div>
             <div>
               <Consumer />

@@ -9,6 +9,7 @@
 
 import type { Page } from 'rebrowser-playwright';
 import type { FrameWebSocket } from '../types';
+import type { FrameSource } from '../frame';
 
 /**
  * CDP-specific configuration options.
@@ -58,6 +59,8 @@ export const DEFAULT_CDP_CONFIG: CdpStreamingConfig = {
  * Configuration for starting a streaming strategy.
  */
 export interface StreamingStrategyConfig {
+  /** Returns the current source only while this stream still owns its lease/page. */
+  sourceForPage(page: Page): FrameSource | null;
   /** Session ID for logging and metrics */
   sessionId: string;
   /** Frame quality 1-100 */
@@ -126,17 +129,8 @@ export interface StreamingHandle {
   updateTargetFps?(fps: number): void;
   /** Change outgoing performance framing before acknowledging the update. */
   updatePerfMode?(enabled: boolean): void;
-  /**
-   * Update viewport dimensions.
-   * For CDP screencast, this requires restarting the screencast.
-   * Returns a promise that resolves when the new viewport is active.
-   */
-  updateViewport?(width: number, height: number): Promise<void>;
-  /**
-   * Check if a viewport update is currently in progress.
-   * UI can use this to show a transition state.
-   */
-  isViewportUpdatePending?(): boolean;
+  /** Refresh capture after the command owner applies this Page's viewport. */
+  updateViewport?(page: Page): Promise<void>;
 }
 
 /**

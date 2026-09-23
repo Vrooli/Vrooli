@@ -12,8 +12,7 @@ import { safeParse } from '../shared/api/safeParse';
 import { LooseWebSocketMessageSchema } from '../shared/api/schemas';
 import {
   WebSocketContext,
-  type BinaryFrameCallback,
-  type WebSocketMessage,
+  type WebSocketMessageCallback,
 } from './WebSocketContext';
 
 const MAX_RECONNECT_ATTEMPTS = 5;
@@ -36,15 +35,13 @@ function buildWebSocketUrl(): string {
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
-  const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const reconnectDelayRef = useRef(INITIAL_RECONNECT_DELAY);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Set of callbacks for binary frame subscribers (avoids React state updates)
-  const binaryFrameCallbacksRef = useRef<Set<BinaryFrameCallback>>(new Set());
+  const messageCallbacksRef = useRef(new Set<WebSocketMessageCallback>());
 
   const connect = useCallback(() => {
     const wsUrl = buildWebSocketUrl();
@@ -58,49 +55,32 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     try {
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
+      const owns = () => wsRef.current === ws;
 
       ws.onopen = () => {
+        if (!owns()) return;
         logger.debug('Connected', { component: 'WebSocketContext', action: 'onopen' });
         setIsConnected(true);
         reconnectAttemptsRef.current = 0;
         reconnectDelayRef.current = INITIAL_RECONNECT_DELAY;
       };
 
-      // Enable binary message handling
-      ws.binaryType = 'arraybuffer';
-
-      ws.onmessage = (event: MessageEvent<string | ArrayBuffer>) => {
-        // Check if this is a binary message (recording frame)
-        if (event.data instanceof ArrayBuffer) {
-          // Notify all subscribers directly without triggering React state
-          // This is much more efficient for high-frequency frame updates
-          const frame = event.data;
-          const callbacks = binaryFrameCallbacksRef.current;
-          if (callbacks.size > 0) {
-            callbacks.forEach((callback) => {
-              try {
-                callback(frame);
-              } catch (err) {
-                logger.warn('Binary frame callback error', { component: 'WebSocketContext', action: 'onmessage' }, err);
-              }
-            });
-          }
-          // Note: Removed setLastBinaryFrame() - it caused React re-renders on every frame
-          // which severely degraded streaming performance. Use subscribeToBinaryFrames() instead.
-          return;
-        }
-
-        if (typeof event.data !== 'string') {
-          logger.warn('Unsupported WebSocket message type', { component: 'WebSocketContext', action: 'onmessage' });
-          return;
-        }
+      ws.onmessage = (event: MessageEvent<unknown>) => {
+        // Frames have a separate viewer-owned transport. This connection owns JSON events.
+        if (!owns() || typeof event.data !== 'string') return;
 
         // Text message (JSON)
         try {
           const rawMessage: unknown = JSON.parse(event.data);
           const parsed = safeParse(LooseWebSocketMessageSchema, rawMessage, 'WebSocketMessage');
           if (parsed.success) {
-            setLastMessage(parsed.data);
+            for (const callback of [...messageCallbacksRef.current]) {
+              try {
+                callback(parsed.data);
+              } catch (error) {
+                logger.warn('WebSocket subscriber failed', {component: 'WebSocketContext'}, error);
+              }
+            }
           } else {
             logger.warn('Invalid WebSocket message', {
               component: 'WebSocketContext',
@@ -118,6 +98,8 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       };
 
       ws.onclose = (event) => {
+        if (!owns()) return;
+        wsRef.current = null;
         logger.debug('Disconnected', {
           component: 'WebSocketContext',
           action: 'onclose',
@@ -140,6 +122,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
           });
 
           reconnectTimeoutRef.current = setTimeout(() => {
+            reconnectTimeoutRef.current = null;
             connect();
           }, delay);
         } else {
@@ -148,6 +131,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       };
 
       ws.onerror = (event) => {
+        if (!owns()) return;
         logger.warn('WebSocket error', { component: 'WebSocketContext', action: 'onerror', event });
       };
     } catch (err) {
@@ -161,10 +145,10 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       reconnectTimeoutRef.current = null;
     }
 
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
+    const socket = wsRef.current;
+    wsRef.current = null;
+    socket?.close();
+    setIsConnected(false);
   }, []);
 
   const send = useCallback((message: unknown) => {
@@ -195,8 +179,8 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     connect();
   }, [connect, disconnect]);
 
-  const subscribeToBinaryFrames = useCallback((callback: BinaryFrameCallback) => {
-    const callbacks = binaryFrameCallbacksRef.current;
+  const subscribeToMessages = useCallback((callback: WebSocketMessageCallback) => {
+    const callbacks = messageCallbacksRef.current;
     callbacks.add(callback);
 
     return () => {
@@ -214,13 +198,11 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
   const value = {
     isConnected,
-    lastMessage,
-    lastBinaryFrame: null,
     send,
     subscribe,
     unsubscribe,
     reconnect,
-    subscribeToBinaryFrames,
+    subscribeToMessages,
   };
 
   return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>;

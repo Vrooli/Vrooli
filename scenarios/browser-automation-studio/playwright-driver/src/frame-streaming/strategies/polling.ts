@@ -15,6 +15,7 @@
  */
 
 import type { Page } from 'rebrowser-playwright';
+import { encodeFrame, sameFrameSource, type FrameSource } from '../frame';
 import { logger, scopedLog, LogContext, metrics } from '../../utils';
 import {
   createFpsController,
@@ -33,7 +34,6 @@ import type {
   FrameStatsReporter,
   PageProvider,
 } from './interface';
-import type { DirectFrameServer } from '../websocket';
 
 /** FPS logging interval (every N frames) */
 const FPS_LOG_INTERVAL = 30;
@@ -77,6 +77,7 @@ export class PollingStrategy implements FrameStreamingStrategy {
     let consecutiveFailures = 0;
     let lastDelivered: {
       page: Page;
+      source: FrameSource;
       socket: ReturnType<WebSocketProvider['getWebSocket']>;
       buffer: Buffer;
     } | undefined;
@@ -108,15 +109,21 @@ export class PollingStrategy implements FrameStreamingStrategy {
           // Get current page (may have changed due to tab switch)
           const page = pageProvider();
           const ws = wsProvider.getWebSocket();
+          const source = config.sourceForPage(page);
+          if (!source) {
+            await sleepUntilNextFrame(loopStart, currentIntervalMs, abortController.signal);
+            continue;
+          }
 
           // Capture frame with timing
+          const capturedAt = Date.now();
           const revision = captureRevision;
           const captureStart = performance.now();
           const buffer = await captureFrameBuffer(page, currentQuality, scale);
           const captureTime = performance.now() - captureStart;
 
           if (!isActive) return;
-          if (revision !== captureRevision || pageProvider() !== page || wsProvider.getWebSocket() !== ws || !wsProvider.isReady()) {
+          if (revision !== captureRevision || pageProvider() !== page || !sameFrameSource(config.sourceForPage(page),source) || wsProvider.getWebSocket() !== ws || !wsProvider.isReady()) {
             await sleepUntilNextFrame(loopStart, currentIntervalMs, abortController.signal);
             continue;
           }
@@ -161,6 +168,7 @@ export class PollingStrategy implements FrameStreamingStrategy {
           // Compare with last frame
           const compareStart = performance.now();
           const isUnchanged = lastDelivered?.page === page && lastDelivered.socket === ws
+            && sameFrameSource(lastDelivered.source,source)
             && buffer.equals(lastDelivered.buffer);
           const compareTime = performance.now() - compareStart;
 
@@ -175,34 +183,16 @@ export class PollingStrategy implements FrameStreamingStrategy {
           if (ws && ws.readyState === 1) {
             const wsSendStart = performance.now();
 
-            // Build frame with optional perf header
-            let frameToSend: Buffer;
-            if (config.includePerfHeaders) {
-              // Header format: [4-byte length BE][JSON header][JPEG data]
-              const header = {
+            const frameToSend = encodeFrame(source,buffer,capturedAt,config.includePerfHeaders ? {
                 frame_id: `${sessionId}-${frameCount + 1}`,
                 capture_ms: captureTime,
                 compare_ms: compareTime,
                 ws_send_ms: 0, // Will be updated by API
                 frame_bytes: buffer.length,
-              };
-              const headerJson = Buffer.from(JSON.stringify(header), 'utf8');
-              const headerLen = Buffer.alloc(4);
-              headerLen.writeUInt32BE(headerJson.length, 0);
-              frameToSend = Buffer.concat([headerLen, headerJson, buffer]);
-            } else {
-              frameToSend = buffer;
-            }
+            } : undefined);
 
             ws.send(frameToSend);
-            lastDelivered = { page, socket: ws, buffer };
-
-            // Also broadcast to direct frame server for latency research spike
-            // DirectFrameServer adds its own timestamp, so we pass raw buffer
-            const directServer = (global as { directFrameServer?: DirectFrameServer }).directFrameServer;
-            if (directServer?.hasSubscribers(sessionId)) {
-              directServer.broadcast(buffer, sessionId);
-            }
+            lastDelivered = { page, source, socket: ws, buffer };
 
             const wsSendTime = performance.now() - wsSendStart;
 
@@ -260,7 +250,6 @@ export class PollingStrategy implements FrameStreamingStrategy {
     const handle: StreamingHandle = {
       getFrameCount: () => frameCount,
       isActive: () => isActive,
-      isViewportUpdatePending: () => false, // Polling doesn't need to restart on viewport change
 
       updateQuality: (quality: number) => {
         currentQuality = Math.min(Math.max(quality, 1), 100);
@@ -282,16 +271,6 @@ export class PollingStrategy implements FrameStreamingStrategy {
           };
           fpsState = { ...fpsState, currentFps: Math.min(fpsState.currentFps, newFps) };
         }
-      },
-
-      // Polling strategy captures whatever the page shows, so no restart needed
-      // The Playwright viewport is updated separately, and the next capture will use it
-      updateViewport: (_width: number, _height: number) => {
-        logger.debug(scopedLog(LogContext.RECORDING, 'polling viewport update (no-op, page handles it)'), {
-          sessionId,
-        });
-        // No-op for polling - the next frame capture will pick up the new viewport
-        return Promise.resolve();
       },
 
       stop: async () => {

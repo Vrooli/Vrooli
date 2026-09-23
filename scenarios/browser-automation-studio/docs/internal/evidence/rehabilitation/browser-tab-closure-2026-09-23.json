@@ -1,0 +1,255 @@
+{
+  "cycle": "BAS-WORK-064",
+  "issues": [
+    "BAS-RF-094",
+    "BAS-RF-038"
+  ],
+  "recorded_at": "2026-09-23",
+  "status": "qualified_and_deployed",
+  "build_identity": "sha256:04ca42929dc109735269daadd26a7787dc07b959110326661e17f8de7ac207d3",
+  "source": {
+    "api/automation/session/pages.go": {
+      "before": {
+        "sha256": "385dfb3a8abfc78a7c6d48912b86b3e6100309d2d05bd46358961f46bbf9868a",
+        "lines": 265
+      },
+      "after": {
+        "sha256": "b5436425e46fcef2934238be75021e268b7fa981ed9c2172e269861fcd7ee0d1",
+        "lines": 270
+      }
+    },
+    "api/automation/session/session.go": {
+      "before": {
+        "sha256": "2d56c4eb9893678643ba0365d66285832af3df3d148bcf30dc66e50640850927",
+        "lines": 439
+      },
+      "after": {
+        "sha256": "eaa2139652b99472448b74fb5f721e28bdfe6ec096af4f8ecda64ec693da313b",
+        "lines": 447
+      }
+    },
+    "api/automation/driver/client.go": {
+      "before": {
+        "sha256": "ba8b9bc31cd31e16a6d047598f13206e3a5a1444951f1d74e90e7cae74c9ea77",
+        "lines": 1191
+      },
+      "after": {
+        "sha256": "73e0355ecd9b0294389d6ed04a7ad17bf8d845961db73cdde9c90561e4c1699f",
+        "lines": 1209
+      }
+    },
+    "api/services/live-capture/service.go": {
+      "before": {
+        "sha256": "433b6502de82836424f60be1aaef30b7ef3f0703185aa1811234ad60e6983d91",
+        "lines": 827
+      },
+      "after": {
+        "sha256": "50645934a9a68cb9dc387a2add1eab4d20d65c24a10fd3d968d8f4d970fdd22c",
+        "lines": 887
+      }
+    },
+    "api/handlers/record_mode_pages.go": {
+      "before": {
+        "sha256": "46fa350bea3ce9e9e9eb0e97ec639c611a5a2bbe67f8ec7ea456771ef95c24f3",
+        "lines": 427
+      },
+      "after": {
+        "sha256": "aa39029c29474868aeb1761d38fe3024f4900bd2dbfea124f531c8f5d68244b1",
+        "lines": 396
+      }
+    },
+    "playwright-driver/src/routes/record-mode/recording-pages.ts": {
+      "before": {
+        "sha256": "9aa60f444eba6f3c326ad2110b7a8b46058dc6c1ac304b60f3d43fd9ca31b83e",
+        "lines": 308
+      },
+      "after": {
+        "sha256": "eb6f2b2bf76804ff50550a8b4d24f99dc3668f4d27ab955235eea611a130e84d",
+        "lines": 335
+      }
+    },
+    "playwright-driver/src/routes/record-mode/index.ts": {
+      "before": {
+        "sha256": "7b6af48361af96b8823008dcfab6dec5532198e3a30a21e76958de375a099e3d",
+        "lines": 107
+      },
+      "after": {
+        "sha256": "31d4370ba8814c4f9222888ff7f7f2baf3028b1d8e8634c6d38dd88d34db5169",
+        "lines": 108
+      }
+    },
+    "playwright-driver/src/server.ts": {
+      "before": {
+        "sha256": "29b563f2acd60e53eb8161e00bf3e2a195794bc1c5f8e984a36e90713231d032",
+        "lines": 692
+      },
+      "after": {
+        "sha256": "c791ddf106ee74c0ff1ab5854d90c81688229fee82feac6f83c0d90cc6133b7a",
+        "lines": 698
+      }
+    },
+    "api/handlers/handler.go": {
+      "before": {
+        "sha256": "8f5eda34589b354466173d0dd3544b812987c39df563090499d06187ac32b37f",
+        "lines": 504
+      },
+      "after": {
+        "sha256": "bc2e030be7a86f1cdc43dbdaf4ff8aaa92a4339d2e05e61c4060099a53705b8e",
+        "lines": 505
+      }
+    },
+    "ui/src/domains/recording/hooks/usePages.ts": {
+      "before": {
+        "sha256": "5522372e58cfbfc0ebd31518d19064950863724a725d87078cdc0541edede3e2",
+        "lines": 596
+      },
+      "after": {
+        "sha256": "08783a4233d0734ab39995cf2bee491b8dcb68ee5d3790fb9b57baada3bb7167",
+        "lines": 586
+      }
+    }
+  },
+  "qualification_snapshot": {
+    "api/automation/session/pages.go": {
+      "sha256": "b5436425e46fcef2934238be75021e268b7fa981ed9c2172e269861fcd7ee0d1",
+      "lines": 270
+    },
+    "api/automation/session/session.go": {
+      "sha256": "eaa2139652b99472448b74fb5f721e28bdfe6ec096af4f8ecda64ec693da313b",
+      "lines": 447
+    },
+    "api/automation/driver/client.go": {
+      "sha256": "73e0355ecd9b0294389d6ed04a7ad17bf8d845961db73cdde9c90561e4c1699f",
+      "lines": 1209
+    },
+    "api/services/live-capture/service.go": {
+      "sha256": "50645934a9a68cb9dc387a2add1eab4d20d65c24a10fd3d968d8f4d970fdd22c",
+      "lines": 887
+    },
+    "api/handlers/record_mode_pages.go": {
+      "sha256": "aa39029c29474868aeb1761d38fe3024f4900bd2dbfea124f531c8f5d68244b1",
+      "lines": 396
+    },
+    "playwright-driver/src/routes/record-mode/recording-pages.ts": {
+      "sha256": "eb6f2b2bf76804ff50550a8b4d24f99dc3668f4d27ab955235eea611a130e84d",
+      "lines": 335
+    },
+    "playwright-driver/src/routes/record-mode/index.ts": {
+      "sha256": "31d4370ba8814c4f9222888ff7f7f2baf3028b1d8e8634c6d38dd88d34db5169",
+      "lines": 108
+    },
+    "playwright-driver/src/server.ts": {
+      "sha256": "c791ddf106ee74c0ff1ab5854d90c81688229fee82feac6f83c0d90cc6133b7a",
+      "lines": 698
+    },
+    "api/handlers/handler.go": {
+      "sha256": "bc2e030be7a86f1cdc43dbdaf4ff8aaa92a4339d2e05e61c4060099a53705b8e",
+      "lines": 505
+    },
+    "ui/src/domains/recording/hooks/usePages.ts": {
+      "sha256": "08783a4233d0734ab39995cf2bee491b8dcb68ee5d3790fb9b57baada3bb7167",
+      "lines": 586
+    },
+    "api/handlers/testutil_mock_services.go": {
+      "sha256": "d35c1782c5985a431c74342b896639edd2f503c2eb1546228746fb0d6eff7e26",
+      "lines": 1465
+    },
+    "api/automation/session/pages_test.go": {
+      "sha256": "4bf5062e5efe2d4a2388d13ee51492bd2d391e93a5288e2f8a794e35f34910ce",
+      "lines": 574
+    },
+    "api/services/live-capture/service_test.go": {
+      "sha256": "d2d6361a020b5afd17921b9767016253cd3e0037ed5a8b610db50a50a7725591",
+      "lines": 821
+    },
+    "api/handlers/record_mode_integration_test.go": {
+      "sha256": "ebad397992b349c0dcaed6750009e95b17ff5498464502bae71f353250618256",
+      "lines": 724
+    },
+    "playwright-driver/tests/unit/routes/recording-pages.test.ts": {
+      "sha256": "50a0b4bcde603865e5fb905380548388d7e7a31a8881211367e4be5c433d2606",
+      "lines": 502
+    },
+    "ui/src/domains/recording/hooks/usePages.test.ts": {
+      "sha256": "8795930ac8b5fb3867e9e140768a7cc4b5065d5e65f902632ef007f944e0341f",
+      "lines": 64
+    }
+  },
+  "tests": {
+    "red": {
+      "native": "/tmp/bas-tab-close-native-red-064.json:2failed/11passed",
+      "driver": "/tmp/bas-tab-close-driver-red-064.txt:3removal/selection failures; narrow red also reports global coverage floor, not a qualification run",
+      "handler": "/tmp/bas-tab-close-go-red-064.jsonl:4cases fail",
+      "selection": "/tmp/bas-tab-close-selection-red-064.jsonl:missing selection rejected only after correction",
+      "ui": "/tmp/bas-tab-close-ui-red-064.txt:3failed/1positive rejection control"
+    },
+    "scoped_driver": "/tmp/bas-tab-close-driver-scoped-064.txt:55tests/2suites pass; TypeScript pass",
+    "go": "/tmp/bas-tab-close-go-final-064.txt:8racepackages pass; /tmp/bas-tab-close-build-final-064.txt:API build pass",
+    "ui": "/tmp/bas-tab-close-ui-final-064.txt:8tests pass; /tmp/bas-tab-close-ui-types-064.txt:TypeScript pass",
+    "full_driver": {
+      "run_id": "uh-20260923-024236-a7894f4177340893a636b805f9145e59",
+      "status": "passed",
+      "passed_tests": 1785,
+      "passed_suites": 124,
+      "skipped_tests": 2,
+      "skipped_suites": 1,
+      "owner_duration_ms": 383406,
+      "jest_seconds": 382.513,
+      "receipt": "/tmp/bas-driver-owner-final-064.json"
+    },
+    "native": {
+      "close": "/tmp/bas-tab-close-native-green-064.json:50checks pass before/during recording, final close/new tab, one journal entry across callback/retry",
+      "initial_navigation": 14,
+      "outage_retry": 28,
+      "normal_restoration": 30,
+      "workflow": {
+        "passed": 12,
+        "failed": 0,
+        "skipped": 0,
+        "execution_id": "0ead156a-36a5-454f-9feb-4181a5be92b1",
+        "artifact_dir": "/tmp/bas-recording-e2e-KPyOmN"
+      },
+      "independent_workflow_effects": 3
+    },
+    "profiles": "/tmp/bas-profile-final-064.txt:3complete identity reads match rollback; /tmp/bas-profile-api-final-064.json equals063"
+  },
+  "measurement": {
+    "runtime_lines": {
+      "before": 5356,
+      "after": 5441,
+      "delta": 85
+    },
+    "go_functions": {
+      "before": 172,
+      "after": 175
+    },
+    "go_complexity": {
+      "before": 584,
+      "after": 605,
+      "delta": 21
+    },
+    "cumulative_affected_go_reduction": 154,
+    "tidiness_run": "20260923-024243-c4dc5295",
+    "tidiness": {
+      "totalFindings": 1135,
+      "longFiles": 105,
+      "complexity": 399,
+      "duplication": 610,
+      "coupling": 20,
+      "duplicationLineDebt": 31605
+    },
+    "board": "/tmp/bas-board-result-064.json:17pending_telemetry/unqualified"
+  },
+  "review": {
+    "owners": "Session carries immutable lease to actual driver close; completion validates original owner and returned IDs. Shared driver page removal selects a remaining page. PageTracker emits stable terminal ID/timestamp, so command/callback/retry use existing journal idempotency. UI applies close/switch receipts to local view and session store, including empty selection.",
+    "removed": "Handler pretending local status change closes browser; duplicate driver new/active selection implementations; duplicate UI selection notification paths; freshly generated IDs for repeated close observations.",
+    "limits": [
+      "Actual close command adds85runtime lines/+21Go complexity; no per-cycle reduction claim.",
+      "Shared-tree duplication debt31605; increased43 since063, below original35603.",
+      "External callback generation authority and arbitrary concurrent-close reconciliation remain RF038. Already admitted close effects during later ownership handoff cannot be undone.",
+      "Full UI browser/platform/performance/release matrices remain unqualified; UI receipt regressions are hook-level.",
+      "Read-only next concern: UI new-tab admission depends on callback before recording; not yet confirmed as RF issue."
+    ]
+  },
+  "pending_operations": []
+}

@@ -1,0 +1,87 @@
+{
+  "cycle": "BAS-WORK-062",
+  "issues": [
+    "BAS-RF-092"
+  ],
+  "recorded_at": "2026-09-23",
+  "status": "qualified_and_deployed",
+  "build_identity": "sha256:d5985857186d057c38fa505e885243d93ecef513afe2e36c05b0daceb07e33a7",
+  "source": {
+    "api/services/live-capture/service.go": {
+      "before": {
+        "sha256": "299c197fabd43f79a75f9763fc3a0e88304f4c0033b5fcc0e36fd8382f0c4ec1",
+        "lines": 815
+      },
+      "after": {
+        "sha256": "9016163a0fc4bafb0ef04a4a85bad8a3d3b88ea5c237f205ffc8381710c4ffa3",
+        "lines": 824
+      }
+    }
+  },
+  "qualification_snapshot": {
+    "api/services/live-capture/service.go": {
+      "sha256": "9016163a0fc4bafb0ef04a4a85bad8a3d3b88ea5c237f205ffc8381710c4ffa3",
+      "lines": 824
+    },
+    "api/services/live-capture/service_test.go": {
+      "sha256": "6148e8990264f4325644e7399e68334053bf938d0a0c83b09e58779de2ac0be1",
+      "lines": 753
+    }
+  },
+  "tests": {
+    "go_red": "/tmp/bas-initial-navigation-go-red-062.jsonl:5 failed cases, blank control passed",
+    "go_green": "/tmp/bas-initial-navigation-go-final-062.txt:6 race packages and API build pass; final service/handler races and API build pass after redundant branch removal in /tmp/bas-initial-navigation-go-qualified-062.txt",
+    "driver_reused": "uh-20260923-015346-275ef9e7917c16db6c18220f748ec251:1770 tests/124 suites; all 8 driver qualification paths unchanged",
+    "native_red": "/tmp/bas-initial-navigation-native-red-062.json:4 failed/11 passed",
+    "native_green": {
+      "initial_navigation": "/tmp/bas-initial-navigation-native-green-062.json:14 passed",
+      "outage_retry": "/tmp/bas-restore-retry-native-green-062.json:28 passed",
+      "restoration": "/tmp/bas-restored-tabs-native-green-062.json:30 passed",
+      "workflow": {
+        "passed": 12,
+        "independent_effects": 3,
+        "execution_id": "0d9faa4c-752d-48a9-a47f-2c02cda9548e",
+        "artifact_dir": "/tmp/bas-recording-e2e-Qs2Tce"
+      }
+    },
+    "profiles": "3 complete reads match original rollback; API metadata equals061; /tmp/bas-profile-final-062.txt and /tmp/bas-profile-api-final-062.json"
+  },
+  "measurement": {
+    "runtime_lines": {
+      "before": 815,
+      "after": 824,
+      "delta": 9
+    },
+    "go_functions": {
+      "before": 28,
+      "after": 29
+    },
+    "go_complexity": {
+      "before": 125,
+      "after": 127,
+      "delta": 2
+    },
+    "cumulative_affected_go_reduction": 179,
+    "tidiness_run": "20260923-020516-92f01203",
+    "tidiness": {
+      "totalFindings": 1133,
+      "longFiles": 105,
+      "complexity": 397,
+      "duplication": 610,
+      "coupling": 20,
+      "duplicationLineDebt": 31588
+    },
+    "board": "/tmp/bas-board-result-062.json:17 pending_telemetry/unqualified"
+  },
+  "review": {
+    "owners": "One initial navigation operation validates captured Session and original page, applies actual receipt metadata. One bounded failure cleanup owner joins admission and cleanup errors.",
+    "removed": "Warn-and-continue navigation, duplicate initial receipt validation/cleanup, two redundant repository-null branches.",
+    "limits": [
+      "Per-cycle complexity increases are correctness costs, not simplification claims.",
+      "PageTracker mutable read references independently reproduced in063; not fixed by062.",
+      "Full journal lifetime, performance, native-platform and release qualification remain open.",
+      "Shared-tree tidiness attribution limited; TS/JS complexity gap RF064."
+    ]
+  },
+  "pending_operations": []
+}

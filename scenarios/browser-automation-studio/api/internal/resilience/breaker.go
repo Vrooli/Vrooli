@@ -163,22 +163,18 @@ func NewBreaker(cfg BreakerConfig) *Breaker {
 		ReadyToTrip:   readyToTrip,
 		OnStateChange: onStateChange,
 		IsSuccessful: func(err error) bool {
-			// HTTP 429 is backpressure from a healthy dependency, not an
-			// availability failure. Keep the breaker closed so capacity can
-			// recover without a self-inflicted outage.
+			if err == nil || errors.Is(err, context.Canceled) {
+				return true
+			}
+			// An answered client rejection proves availability, including
+			// backpressure. HTTP 408 still represents a timeout. Execute
+			// returns the original error regardless of this classification.
 			var statusCoder interface{ HTTPStatusCode() int }
-			if errors.As(err, &statusCoder) && statusCoder.HTTPStatusCode() == 429 {
-				return true
+			if errors.As(err, &statusCoder) {
+				status := statusCoder.HTTPStatusCode()
+				return status >= 400 && status < 500 && status != 408
 			}
-			// Consider context cancellation as success (user cancelled, not service failure)
-			if errors.Is(err, context.Canceled) {
-				return true
-			}
-			// Consider deadline exceeded as failure (timeout = service slow/unavailable)
-			if errors.Is(err, context.DeadlineExceeded) {
-				return false
-			}
-			return err == nil
+			return false
 		},
 	}
 

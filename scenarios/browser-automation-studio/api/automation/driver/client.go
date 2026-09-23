@@ -62,11 +62,11 @@ type ClientInterface interface {
 	GetRecordedActions(ctx context.Context, sessionID string) (*GetActionsResponse, error)
 
 	// Navigation operations
-	GetNavigationState(ctx context.Context, sessionID string) (*NavigationStateResponse, error)
-	GetNavigationStack(ctx context.Context, sessionID string) (*NavigationStackResponse, error)
+	GetNavigationState(ctx context.Context, sessionID, executionID, leaseID, expectedPageID string) (*NavigationStateResponse, error)
+	GetNavigationStack(ctx context.Context, sessionID, executionID, leaseID, expectedPageID string) (*NavigationStackResponse, error)
 
 	// Viewport and stream operations
-	UpdateViewport(ctx context.Context, sessionID string, req *UpdateViewportRequest) (*UpdateViewportResponse, error)
+	UpdateViewport(ctx context.Context, sessionID, executionID, leaseID string, req *UpdateViewportRequest) (*UpdateViewportResponse, error)
 	UpdateStreamSettings(ctx context.Context, sessionID string, req *UpdateStreamSettingsRequest) (*UpdateStreamSettingsResponse, error)
 
 	// Selector and replay operations
@@ -627,6 +627,9 @@ func (c *Client) Navigate(ctx context.Context, sessionID, executionID, leaseID s
 	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/navigate", url.PathEscape(sessionID)), envelope, &resp); err != nil {
 		return nil, err
 	}
+	if strings.TrimSpace(resp.DriverPageID) == "" {
+		return nil, errors.New("navigation completed without a browser page identity")
+	}
 	return &resp, nil
 }
 
@@ -649,32 +652,55 @@ func (c *Client) NavigateHistory(ctx context.Context, sessionID, executionID, le
 	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/%s", url.PathEscape(sessionID), operation), envelope, &resp); err != nil {
 		return nil, err
 	}
+	if strings.TrimSpace(resp.DriverPageID) == "" {
+		return nil, errors.New("navigation completed without a browser page identity")
+	}
 	return &resp, nil
 }
 
+// readNavigation attributes browser observations to the admitted lease and page.
+func (c *Client) readNavigation(ctx context.Context, sessionID, executionID, leaseID, expectedPageID, kind string, response any) error {
+	if strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" || strings.TrimSpace(expectedPageID) == "" {
+		return errors.New("navigation read requires execution ID, lease ID and page ID")
+	}
+	query := url.Values{"execution_id": {executionID}, "lease_id": {leaseID}, "expected_page_id": {expectedPageID}}
+	return c.get(ctx, fmt.Sprintf("/session/%s/record/navigation-%s?%s", url.PathEscape(sessionID), kind, query.Encode()), response)
+}
+
 // GetNavigationState retrieves the current navigation state (recording mode).
-func (c *Client) GetNavigationState(ctx context.Context, sessionID string) (*NavigationStateResponse, error) {
+func (c *Client) GetNavigationState(ctx context.Context, sessionID, executionID, leaseID, expectedPageID string) (*NavigationStateResponse, error) {
 	var resp NavigationStateResponse
-	if err := c.get(ctx, fmt.Sprintf("/session/%s/record/navigation-state", url.PathEscape(sessionID)), &resp); err != nil {
+	if err := c.readNavigation(ctx, sessionID, executionID, leaseID, expectedPageID, "state", &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // GetNavigationStack retrieves the navigation history stack for back/forward popup.
-func (c *Client) GetNavigationStack(ctx context.Context, sessionID string) (*NavigationStackResponse, error) {
+func (c *Client) GetNavigationStack(ctx context.Context, sessionID, executionID, leaseID, expectedPageID string) (*NavigationStackResponse, error) {
 	var resp NavigationStackResponse
-	if err := c.get(ctx, fmt.Sprintf("/session/%s/record/navigation-stack", url.PathEscape(sessionID)), &resp); err != nil {
+	if err := c.readNavigation(ctx, sessionID, executionID, leaseID, expectedPageID, "stack", &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // UpdateViewport updates the viewport dimensions.
-func (c *Client) UpdateViewport(ctx context.Context, sessionID string, req *UpdateViewportRequest) (*UpdateViewportResponse, error) {
+func (c *Client) UpdateViewport(ctx context.Context, sessionID, executionID, leaseID string, req *UpdateViewportRequest) (*UpdateViewportResponse, error) {
+	if req == nil || strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" || strings.TrimSpace(req.ExpectedPageID) == "" {
+		return nil, errors.New("viewport update requires options, execution ID, lease ID and page ID")
+	}
+	body := struct {
+		UpdateViewportRequest
+		ExecutionID string `json:"execution_id"`
+		LeaseID     string `json:"lease_id"`
+	}{*req, executionID, leaseID}
 	var resp UpdateViewportResponse
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/viewport", url.PathEscape(sessionID)), req, &resp); err != nil {
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/viewport", url.PathEscape(sessionID)), body, &resp); err != nil {
 		return nil, err
+	}
+	if resp.DriverPageID != req.ExpectedPageID || resp.Width <= 0 || resp.Height <= 0 {
+		return nil, errors.New("viewport update returned an invalid page or dimensions")
 	}
 	return &resp, nil
 }
@@ -725,6 +751,10 @@ func (c *Client) GetFrame(ctx context.Context, sessionID, queryParams string) (*
 	if err := c.get(ctx, path, &resp); err != nil {
 		return nil, err
 	}
+	if resp.SessionID != sessionID || resp.Image == "" || resp.Mime != "image/jpeg" ||
+		resp.Width <= 0 || resp.Height <= 0 || resp.CapturedAt == "" || resp.ContentHash == "" {
+		return nil, errors.New("driver returned an invalid live frame receipt")
+	}
 	return &resp, nil
 }
 
@@ -745,30 +775,48 @@ func (c *Client) ForwardInput(ctx context.Context, sessionID, executionID, lease
 
 // SetActivePage switches the active page for frame streaming and input forwarding.
 // The driverPageID is the Playwright driver's internal identifier for the page.
-func (c *Client) SetActivePage(ctx context.Context, sessionID, driverPageID string) error {
+func (c *Client) SetActivePage(ctx context.Context, sessionID, executionID, leaseID, driverPageID string) error {
 	req := map[string]string{
-		"page_id": driverPageID,
+		"page_id": driverPageID, "execution_id": executionID, "lease_id": leaseID,
 	}
 	return c.post(ctx, fmt.Sprintf("/session/%s/record/active-page", url.PathEscape(sessionID)), req, nil)
 }
 
-// CreatePageRequest is the request body for creating a new page.
-type CreatePageRequest struct {
-	URL string `json:"url"`
+// ClosePageResponse identifies the closed browser page and resulting selection.
+type ClosePageResponse struct {
+	ClosedPageID string `json:"closed_page_id"`
+	ActivePageID string `json:"active_page_id"`
+}
+
+func (c *Client) ClosePage(ctx context.Context, sessionID, executionID, leaseID, pageID string) (*ClosePageResponse, error) {
+	var response ClosePageResponse
+	req := map[string]string{"page_id": pageID, "execution_id": executionID, "lease_id": leaseID}
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/close-page", url.PathEscape(sessionID)), req, &response); err != nil {
+		return nil, err
+	}
+	if response.ClosedPageID != pageID || response.ActivePageID == pageID {
+		return nil, errors.New("browser close receipt does not match the requested page")
+	}
+	return &response, nil
 }
 
 // CreatePageResponse is the response from creating a new page.
 type CreatePageResponse struct {
-	DriverPageID string `json:"driver_page_id"`
-	URL          string `json:"url"`
+	DriverPageID string  `json:"driver_page_id"`
+	URL          string  `json:"url"`
+	Title        string  `json:"title"`
+	FaviconURL   *string `json:"favicon_url,omitempty"`
 }
 
 // CreatePage creates a new page (tab) in the browser session.
-func (c *Client) CreatePage(ctx context.Context, sessionID string, pageURL string) (*CreatePageResponse, error) {
-	req := CreatePageRequest{URL: pageURL}
+func (c *Client) CreatePage(ctx context.Context, sessionID, executionID, leaseID, pageURL string) (*CreatePageResponse, error) {
+	req := map[string]string{"url": pageURL, "execution_id": executionID, "lease_id": leaseID}
 	var resp CreatePageResponse
 	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/new-page", url.PathEscape(sessionID)), req, &resp); err != nil {
 		return nil, err
+	}
+	if strings.TrimSpace(resp.DriverPageID) == "" {
+		return nil, errors.New("created browser page has no identity")
 	}
 	return &resp, nil
 }
@@ -1146,7 +1194,7 @@ func (c *Client) doRequestInternal(req *http.Request, response interface{}, oper
 
 	body, _ := io.ReadAll(resp.Body)
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent {
 		bodyStr := strings.TrimSpace(string(body))
 		hint := hintForDriverFailure(bodyStr)
 		return &Error{

@@ -6,67 +6,139 @@ file-based continuous goal. Follow [TESTING.md](TESTING.md); use
 phase progression or external execution-log dependency. Maintain this small
 current-state section, then append dated records without erasing prior evidence.
 
-## Current checkpoint — implementation, 2026-09-22 UTC
+## Current checkpoint — implementation, 2026-09-23 UTC
 
-Active unlimited continuous goal BAS-FB-008. File tracking only; no plans or
-external journal. Green checks trigger fresh investigation, never completion.
-Feedback FB012 repeats the overall-status request and says continue; captured
-verbatim and answered. No goal-completion percentage or launch date claimed.
+The unlimited continuous goal (FB008) remains active. File tracking only; green
+checks trigger investigation. FB012 status request resolved, FB010 managed restart
+authority retained. No plans, external journals, subagents or completion claim.
 
-- Deployed056 is healthy: build
-  `f635a2dd3f9c883948b789dacc02729e341e463d1fb6f68d499e0d080f6b73c9`.
-  API17116 / driver24485 / UI21794 all200; managed79365 consumed. Native workflow
-  44358 passes12checks/3independent effects, including invalid ACK rejection,
-  fresh-context replay, saved workflow execution, exact timeline and cleanup.
-  Artifact /tmp/bas-recording-e2e-BPR5bm. Native API41324 passes35checks/2effects,
-  including leased clear after journal commit and identical retained journal.
-  Temporary sessions/profile/project/workflow/execution/artifacts cleaned.
-- Profile74915 consumed: metadata matches055 and three complete reads match the
-  original rollback. Receipt /tmp/bas-profile-final-056.txt. Existing FB010 grants
-  managed restart authority; preserve profiles and verify health afterward.
-  Global session counts may include later traffic; use scoped cleanup evidence.
-- Full driver37095 passes: uh-20260922-233411-e41c7817d38372d572afccbbc5b3eafc,
-  1685tests/124suites,2tests/1suite skipped,377.933s owner/377.130s Jest. Initial
-  full run failed1 obsolete unowned ACK fixture; it was converted, original
-  assertions retained and full rerun passed. Red receipts remain preserved.
-  Focused50driver tests/3suites,16harness contract tests, whole driver types,
-  three affected Go race packages and API build pass. UI unchanged from prior
-  593-test/types qualification. Frozen hashes /tmp/bas-frozen-056.json match.
-- 056 retains the original Go Session through pull/commit/ACK and rejects
-  invalid driver leases before synchronous buffer mutation. Raw unowned ACK
-  interface/mock removed. Runtime+17lines; affectedGo115/445->116/452 functions/
-  complexity (+7), cumulative affectedGo reduction219. No debt-reduction claim
-  for this guard cost. Receipt recording-ack-ownership-2026-09-22.json is
-  qualified_and_deployed. No pending operations.
-- 052 repaired live input leases across HTTP/WS and single-WebSocket order;
-  existing Hub lock now owns membership/subscription/channel lifetime. 053/054
-  repaired false-green harness behavior and qualified one basic saved-workflow
-  case. 055 removed recorder-generated console noise while preserving real
-  errors, readiness and capture. All these changes remain deployed in056.
-- Latest tidiness20260922-232924-3e1f0c18 failed; single quiet wait/artifact decode
-  consumed:1126findings/104long/393complexity/609duplication/19coupling;
-  duplication debt32663 versus expanded original35603. Test fixture complexity
-  and imports are included. Shared-tree deltas are not solely one cycle's work;
-  RF064 TypeScript/JavaScript measurement gaps persist. Ratchets unchanged.
-- Board056:17required/17unqualified/product_qualified=false. Still core reliability
-  work, not production or monetization readiness. Full UI coverage remains
-  28.59/30.34/65.15/28.59 versus85. Security/package warnings, full record/replay,
-  crash/overflow/durability, sustained performance/soak, native platforms and UX
-  evidence remain. RF020 cross-client order/reconnect, RF038 other mutations,
-  RF042 clean-profile reuse, RF043 secondary capture, RF047 scale/performance,
-  and RF055 historical execution orphans remain open.
-- Active057 source repair: immutable Go Session navigation and one driver
-  completion path implemented; five Go race packages/build and focused driver
-  checks pass. Not deployed or fully qualified. New native RF087 proves Back
-  reports failure after successful hash movement and incorrectly disables
-  Forward. Extend to browser-owned per-page history and popup consumer parsing.
-  No current pending operations. Deployed056 remains the last qualified build.
-- Shared Test Genie042 repair remains deployed build25e2b598c0417ea7ac23ab7c501c93f4340e70bf0c0aabef1c5d578cf1029e4f.
-  Scoped tests/races/build passed; full API qualification remains unknown after
-  provider-conformance/CodeFacts timeout, with recheck on owner/runtime changes.
-- Original HEAD7d1c7531d057c061c5ad5a67fbecb97ebe2eb194; original121isolated
-  probes:33met/88failed. Dated receipts and append-only history remain below;
-  historical pending IDs are not current and must not be re-admitted.
+- **072 qualified**, build9ad04e2414f9cdde4014149f5529b0d3ab0337d252af1362e1b1b5dba8c6f160. RF103 dependency availability repaired at canonical resilience owner; original errors, timeouts/server/transport protection, cancellation,429 andhalf-open recovery preserved. Five Go racepackages/build pass; HTTPfixture10/10; liveClient13/13; savedworkflow12/12; originalprofiles3fullreads/APIequals071. No072operationspending. Receipt driver-availability-2026-09-23.json.
+- 072 runtime354->350(-4),Go52->53(+1),16functions unchanged; cumulative affectedGo-129. Baseline3paths /tmp/bas-before-072/manifest.json, frozen /tmp/bas-frozen-072.json. Native scope is compiledactualGoClient againstrealdriver, notfaultinjection intoAPIglobalinstance. Tidiness20260923-061909-ef387488 fullyconsumed1137/103/401/612/20/debt31313,budgetfails. Board/contract/inventoryconsumed; all17release outcomes unqualified.
+- Qualified071 RF102: commoncodec preservesdomainfields, all11eventconsumers use synchronousowned subscriptions, stale socketsfenced, unusedbinaryfacade removed. Explicitnull page stopsframe/inputwork; undefinedpreservesmini-preview. FullUI1155/79, finalrecord-mode541/29/types, native12/12, passiveicons23/23, workflow12/12, profilespreserved. Receipt page-event-delivery-2026-09-23.json; runtime-21,scopedTS-4,Go unchanged. No071pending.
+- **073 qualified**, build9c4f9cc03265d6fb5fee2bb887c512308e99d70347bcc995a46762d12c4025f8. RF101keyboardcontrols repairedwithsiblingnativebuttons, rovingentry, manualactivation, Delete andclosed/createdfocusrepair. Maintained550/29/types; native19/19; passiveicons23/23; workflow12/12; originalprofiles3reads/APIequals072. Receipt tab-keyboard-2026-09-23.json. No073pending. Runtime+56/scopedTS+37 explicit; no per-cycle simplificationclaim. Frozen2paths unchanged. TG20260923-063055-ba993930 fullyconsumed1137/103/401/612/20/debt31313,budgetfails. All17outcomesunknown.
+- **074 qualified**, build6f65b5a0f714c2296ffa9e0ac658e4306b758a9ec4fa49a9b5d836159931c79d.
+  RF038 mandatory source identity spans both driver strategies, API canonical
+  projection, HTTP cache/preview and viewer. Dead JSON push path retired.
+  Driver1826/123 (2tests/1suite existing skips), UI560/29/types, six Go race
+  packages/build, native16/16, workflow12/12 and original profiles3reads pass.
+  Receipt frame-source-2026-09-23.json. All074operations consumed. Runtime+25,
+  affectedGo+30 (cumulative-99), scopedTS+46; no net per-cycle reduction claim.
+  TG20260923-071619-1a170e28:1141/103/405/611/21/debt31221, budgets fail;
+  all17release rows remain unknown. Frozen32paths unchanged after qualification.
+- **075 qualified**, build7c658283343d9adaca4105a5bb438828f67bf786664f79ab9fa13dc3e4ab5f84.
+  RF007 timeline receives events without binary frames. Native17/17 proves one
+  callback copy (red2), zero timeline image bytes and preserved source controls.
+  Four Go racepackages, UI560/29/types/build, workflow12/12 and original profiles
+  3reads pass; driver0741826/123 qualification remains source-identical. Receipt
+  frame-fanout-2026-09-23.json. Runtime+3,Go+2 (cumulative-97),TS unchanged.
+  TG20260923-074214-596bc818 fully consumed1140/103/405/610/21/debt31210,budgetfails;
+  all17release rows unknown. All075operations consumed; frozen12paths unchanged.
+- **076 live; scale propagation repaired, native geometry still failing**, build
+  9be7afbaea47455b7bfdf28e1884a7234a3868c6ec21c00e15509e66ccfdd688. Route58/3,
+  driver1836/123/types, workflow12/12 and originalprofiles3reads/APIequals075 pass.
+  NativeCSS56pass/7height failures; device46pass/17resize/pixel/geometry failures.
+  Later device wide/restored/recording-restarted cases pass. Cleanupcomplete.
+  Receipt preview-scale-2026-09-23.json. All076operations consumed, frozen9paths
+  unchanged. Runtime+8/scopedTS+5, Go unchanged(cumulative-97); no net cycle
+  simplification claim. TG20260923-081726-89c15d22 unchanged1140/103/405/610/21/
+  debt31210, budgets fail; all17release outcomes unknown.
+- **077 live and qualified**, buildaae1b4d070616993eb8c6e33f0b6b4af887c1fe8006a6a06113e3bf828f64dda.
+  SDKviewport joins existingcapturequeue; visiblecompositor applied afterwindow
+  sizing. BASvideooverride removed. Driver1842/123/types, native63/63eachCSS/device,
+  concurrentresize96samples, video55frames, workflow12/12 and originalprofiles3reads
+  pass. Receipt renderer-geometry-2026-09-23.json. Frozen6repo+2SDKpaths unchanged;
+  all077operations consumed. Net runtime-36 includingSDK, scopedcomplexity-2,
+  Go unchanged(cumulative-97). TG20260923-084020-f513a66b unchanged1140/103/405/610/
+  21/debt31210,budgets fail;17releaseunknown. DependencySDAadvisory44warnings;
+  no newsecurity/nativeOS/performance certification.
+- **078 live and qualified**, build98640f86390eacca95a1aadd209d761c32e6c162c05389e6f9576a6fbc97758d.
+  Canonical selected Page owns URL observation; three callback facades and
+  restored/action shadow state removed. UI563/29/types, native9/9 plus16/16
+  controls, workflow12/12 and profiles3complete original reads/APIequals077 pass.
+  Receipt address-bar-observation-2026-09-23.json; all078 operations consumed,
+  seven frozen paths unchanged. Runtime-69, scopedTS-25, Go unchanged(cumulative
+  -97). TG20260923-090156-7d8ffb29 unchanged1140/103/405/610/21/debt31210, budgets
+  fail; all17release outcomes unknown. History availability/attribution separate.
+- **079 live and qualified**, buildde7a18c584f79fc8920dc30b278c525bba832e196b0e15303b33bdac651a4f5f.
+  History reads retain immutable Session/page ownership and UI capabilities
+  initialize/reset with selected Page observations. Full driver1854/123,
+  UI567/29/types, four Go racepackages/build, native13/13 plus20/20, workflow12/12,
+  profiles3original reads/APIequals078 pass. Receipt history-read-ownership-
+  2026-09-23.json; all079 operations consumed,13frozenpaths unchanged. Runtime+86,
+  Go+18(cumulative-79), scopedTS+12; no per-cycle net reduction claim.
+  TG20260923-091701-f76b73b5:1143/103/407/611/21/debt31081, budgets fail;
+  all17release outcomes unknown. First native control's no-history assumption
+  disproved by actual about:blank entry; failed receipt retained.
+- **080 viewport ownership qualified, device streaming under load remains open**,
+  buildbb416759b29cb75a6d32e0ec097b231fb4f49effd2455cc72717fbbe01306e65.
+  Driver1867/123, UI574/29/types, four Go races/build, originalnative10/10,
+  CSS63/63, small/rapid63/63, workflow12/12 and profiles3original reads pass.
+  Initialdevice59pass/4fail retained:20timeout skips,10delivered frames; later
+  instrumented63/63 had no timeouts. RF007 remains actionable, no load-qualified
+  claim. Receipt viewport-ownership-2026-09-23.json. Frozen26paths unchanged,
+  all080operations consumed. Runtime-197,Go+14(cumulative-65),scopedTS+14;
+  no net complexity reduction claim. TG1145/103/408/612/21/debt31065 budgets
+  fail;17release rows unknown. Next081 investigates duplicate capture contention.
+- **081 live and qualified for preview admission**, builde1d69273e302a3e3d684f8bfa3360f90b6bc739603551c2790fb241f09b1c508.
+  One existingcache lifetime shares identicalpendingcaptures and fencesclear,
+  source/viewport/URLchanges andfailurecompletion. Driver1877/123/types,
+  nativeburst24/24, cachegeometry13/13, CSS/device63/63each, workflow12/12 and
+  profiles3originalreads pass. Receipt preview-capture-admission-2026-09-23.json.
+  All081operations consumed, frozen2paths unchanged. Six8-reader bursts:8->1
+  captures each, median367.6->95.4ms, timeoutskips5->0; localobservations only.
+  Runtime-53, scopedTS+6; Go unchanged(cumulative-65), no netcyclomaticreduction
+  claim. TG1145/103/408/612/21/debt31065 budgets fail;17releaseunknown.
+  Next082 investigates the actual capture qualification producer/contract.
+- **084 optional AI text repair qualified**, RF068. Livebuild
+  a00722acc3738c5f583c95a71125c60e75ca34710737bd775fa1631752c840a9;
+  deterministic contract checks and3/3first-attempt local-provider searches pass.
+  AI/AIservice races/build, workflow12/12/3effects and3originalprofile reads pass.
+  Frozen2paths unchanged, no pending operations. Runtime+2commentlines, Go13/5
+  functions unchanged; cumulative affectedGo-57. No simplification claim.
+  TG20260923-110732-83866f3a1147/debt31065stillfails,17releaseunknown.
+  Receipt ai-optional-text-2026-09-23.json. Next085 investigates saved/adhoc
+  completion polling and whether runner-owned completion can safely replace it.
+- **083 capture admission locally qualified**, RF104. Livebuild
+  2b8926339eefeabf65ba0d68ae8a2733f803874e24625c40b62a6b531ad0bd2d;
+  invalidnative requests reject before navigation,5/5 controls, DPR18/18,
+  workflow12/12/3effects andprofiles3originalreads pass.84APIshortpackages and
+  three Go race packages/build pass; full API live AI suggestion assertion remains
+  actionable RF068. Protovalidate1.3.0/CEL0.30.0 verified; failed083b never deployed.
+  100/100captures:servicep95=755ms,CLIp95=978.46ms(+5.64% versus082), shared-host
+  relative regression unqualified.300PNGs still duplicated. Frozen083c unchanged.
+  Security19errors/358warn/401info; CEL advisory removed. Tidiness1147/debt31065
+  fails. Runtime+16,Go+4/cumulative-57, no simplification claim. All17unknown.
+  All083operations consumed. Next RF068 optional-text response handling; capture
+  CLI timing and duplicate artifact policies remain active investigation targets.
+- **082 live, explicit capture scale qualified**, build97d9526edbcc4e3733b2983da733f2916f1179808971fb388452284933a35382.
+  Capture API nowhonors explicitDPR throughcloned existingprofile, preserves
+  omittedpolicy/otherfields. Capturepackage/threeGoraces/build, native18/18,
+  workflow12/12 andprofiles3originalreads pass; driver081/UI080checksretained.
+  Local100/100firstattempt1280x720DPR1captures plus1warmup pass:servicep95=755ms,
+  order-statistic95%interval754–771ms; CLIp95=926.20ms. Localtargetmet; nofull
+  release/sensorqualification. Receipt capture-device-scale-2026-09-23.json.
+  All082operationsconsumed, frozen2paths unchanged. Runtime+13,Go+4(cumulative
+  -61),TSunchanged; no netsimplificationclaim. TG1146/103/409/612/21/debt31065
+  budgets fail;17unknown. RF016duplicateintermediatecapture and publicconstraint
+  enforcement stilloweproof. Nextadversarial angle: captureadmission contracts.
+- Qualified070 passive tabmetadata removesLinkPreviewBotdocumentfetch; driver1816/123 with2tests/1suite skipped remains valid because071/072didnotchange driverTS. Receipt passive-tab-metadata-2026-09-23.json. Noolderpendingoperations.
+- Qualified069: RF099 page-bound navigation/history, stale API commands409/noeffects,
+  UI lifetime cancellation and no Red->Blue->Red replay. Native17/17,24/24,23/23;
+  UI526/types,driver1808/123 with2tests/1suite skipped,four Go races/build;
+  saved workflow12/12 threeeffects execution37dbce86-2f27-46a9-a20c-8cec78c7cb27,
+  artifact/tmp/bas-recording-e2e-XPqkQl. Profiles3complete reads equal rollback.
+  Receipt page-bound-navigation-2026-09-23.json. No older pending operations.
+- Qualified068 observation/command URL separation and creation callback gap;
+  qualified067 viewer API WebSocket/owned bounded decode/paint, obsolete direct
+  listener removed. RF064 overall TS/JS owner measurement remains open despite
+  valid scoped supplement. No overall performance/coverage qualification inferred.
+- Open: RF038 frame source page/lease identity, callback retry/journal generation;
+  RF007 redundant frame fanout/slow readers; input ordering, profile reuse, recovery/
+  durability, evidence, execution orphans, performance, native platform/UX, coverage
+  and security/package warnings. Shared TG042 full API conformance remains unknown
+  after provider/CodeFacts timeout; recheck on owner/runtime change.
+- Original HEAD7d1c7531d057c061c5ad5a67fbecb97ebe2eb194; original33/121probesmet.
+  Preserve unrelated shared-tree changes and original saved-profile rollback.
 
 ## Record format
 
@@ -4226,3 +4298,2062 @@ NavigationStackEntry timestamp becomes optional; UI popup stops requiring it
 or a nonempty title. Add scoped UI hook checks and types plus native browser
 history cases. Architecture updated before extension. Previous final bounds
 94818 consumed0 (46tests/types) is interim evidence, not RF087 qualification.
+
+057 qualification admitted (2026-09-23 UTC): focused driver53397 consumed0,
+63tests/1suite0.807s and whole-driver types. UI59547 consumed0:460/460 record-mode
+tests (2.5s tests/9.4s total), plus UI types. Initial UI project name was invalid;
+corrected to registered record-mode. Initial UI type check caught an optional
+timestamp predicate mismatch; explicit canonical return type fixes it. Five Go
+race packages and API build39721 consumed0 after optional timestamp field update.
+
+The private history map/getter/mutators/cleanup exports are deleted. Driver
+read/mutation paths use per-page native history; CDP attach/query/detach and all
+awaited continuation boundaries retain lease/page fencing. Tests cover browser
+script-created/untitled/same-URL entries, null successful responses, no movement,
+bounds, tab replacement and attachment cleanup/errors. Popup parsing accepts
+missing timestamps and empty titles. Runtime15paths7787->7254 (-533lines);
+/tmp/bas-frozen-057.json freezes24 runtime/test paths. No new dependency.
+
+Full UnitHealth driver99587 pending. Tidiness79983 consumed1: run
+20260923-001802-49f182c4,1128 findings; one quiet wait consumed1, artifact
+extraction pending. Board23483 pending. Managed restart admitted with existing
+FB010 authority; retain source freeze. Prepared native green scripts in
+/tmp/browser-automation-studio for owner rejection, hash/same-URL/script/tab
+history and API navigation/journal checks; red receipts remain untouched.
+
+057 measured review: tidiness native artifact decoded at
+/tmp/bas-tidiness-native-final-057.json:1128 findings/105long/393complexity/
+610duplication/19coupling; duplication line debt31591 (prior32663, -1072;
+expanded original35603, -4012). The finding count rises while repeated line
+debt falls; budgets remain unchanged and verdict remains failed. New long-file
+finding is the existing Go Session test module after adding ownership transport
+regressions; no runtime file newly crosses the long-file threshold. Existing
+live-capture test import count rises to22 but coupling finding count stays19.
+AffectedGo177functions697->700complexity (+3; cumulative reduction216).
+Shared-tree/JS-TS measurement limitations RF064 remain; line count is not a
+substitute for complexity. Policy reduction: one history-navigation transport/
+completion and browser history authority replace three Go copies and private
+session counters. No new compatibility aliases or dependency cycles.
+
+Board23483 consumed0:17 required/17 pending_telemetry/unqualified, product false.
+Contract and include-untracked inventory pass. Managed78926 and full driver99587
+remain pending; sources/tests frozen. Review explicitly leaves API-side page
+notification/journal attribution after a concurrent tab/session handoff and
+post-admission external effects under RF038; this iteration does not claim
+complete end-to-end interruption or retry identity. Recheck these alongside
+remaining raw page/viewport/preview controls after057 native qualification.
+
+057 deployed native verification: managed78926 consumed0; build
+7794187bd9281a31cf9880df318aa037a38dfee7e0997c4bd9b4105f9d97339b,
+API/driver/UI all200. History66091 passes49checks: missing/stale owners rejected
+for all four mutations with identical history/no requests; hash and same-URL
+pushState traversal, script-created entries, independent tabs, untitled history
+and cleanup pass. Owner93028 passes6checks; invalid owners0fixtureloads, current
+owner1load. Native API passes48checks/2click effects, including URL/back/forward/
+reload/stack and existing recording/ACK/journal controls. Native79376 passes
+12checks/3effects with fresh replay and saved-workflow execution/timeline, artifact
+/tmp/bas-recording-e2e-b7kF51; executioncd0bc943-fbc6-4ffb-97a4-29a87c217c92.
+All scoped fixture objects cleaned. Profile9241 consumed0:3fullreads matchoriginal
+rollback; metadata matches056. Frozen hashes match. Receipt
+recording-navigation-history-2026-09-23.json retains the native red/green results,
+source hashes, measurements and limitations. Full driver99587 remains pending;
+no other pending057 operation. RF087 awaits this final qualification receipt.
+
+057 complete as a repair cycle, not the continuous goal: full driver99587
+consumed0, uh-20260923-001758-aab8b8c7e98e4a7a6a981b2264c4c06a,1742tests/
+124suites,2tests/1suite skipped,395.680s owner/394.782s Jest. Native, UI, Go,
+profile and frozen-source qualification above applies to deployed057. RF087
+resolved for this boundary. Receipt status qualified_and_deployed; no pending
+operations. Next058 tests the source-observed API completion attribution gap
+in RF038; do not claim the entire ownership boundary is finished.
+
+### BAS-WORK-058 — RF038 navigation result attribution across handoff
+
+Feedback reread; no new instruction. Recall search59796 consumed0,67hits.
+Relevant results are the already-read progress/architecture and existing BAS
+programs; no program owns this fault-injection repair. Source-ledger memory/
+scopes recall timed out; this limits recalled history, not local repair authority.
+
+Hypothesis: reload/back/forward completion relooks up Session and active page
+after HTTP navigation; URL completion retains Session but reads its later active
+page. A tab switch or reused-session handoff can attach the old result to the
+wrong page/journal. Use maintained HTTP driver fixtures plus real recording
+journal to discriminate. Test all four operations with stable ownership, tab
+switch, Session replacement, and missing/unknown original browser page identity.
+Preserve old-page attribution when a valid completed effect is received; reject
+missing/foreign receipts instead of guessing the currently active page.
+
+Pre-edit runtime baseline /tmp/bas-before-058/manifest.json covers7paths. Existing
+Session/page registry and PageTracker remain owners; no extra map/cache/layer.
+If reproduced, carry the driver's original registered page ID in navigation
+receipts, bind API publication to the retained Session and resolve that exact
+page. Full interruption/atomic journal-generation isolation remains distinct
+RF038 work. No058 production edits yet.
+
+058 red18959 consumed1:19adverse failures/4stable positives against057 source.
+Initial red44781 also contained3UUID/string test-oracle mismatches; corrected
+before final red and before production edits. Browser page ID is already owned
+by session.pageToIdMap; reuse it in receipts. Architecture target updated. Go
+baseline retained at /tmp/bas-go-complexity-before-058.txt.
+
+058 partial implementation: retained original browser page IDs and Go Session
+attribution now pass23handoff cases with race detection (71327). Extended driver
+fixtures pass71tests and types (9117), five Go race packages/APIbuild pass24832.
+No058 full qualification or restart yet. Deployed057 remains unchanged.
+
+Necessary extension before qualification: source review shows initial driver-page
+mapping exists only after recording-start callback. Native API probe then exposes
+RF088: new-page201 is treated as transport failure503 despite an independently
+observed second active browser tab; the API still lists one page and recording
+start overwrites its initial identity with the new tab. Final native red has
+3failures/9passes including cleanup. Extend baseline before edits to seven more
+runtime paths (14total): Session manager/session/PageTracker, live-capture, page
+callback ingress, driver session-start and session types. Repair authoritative
+admission/creation registration and valid201 handling; no callback-only workaround
+or guessing the current page. All previous058 tool operations consumed; no pending
+owner runs. Broader page/viewport leases and journal-generation atomicity remain
+RF038; this extension preserves usable multi-tab behavior for the new receipt
+checks.
+
+058 extended source checkpoint: shared Go transport accepts completed201 and
+CreatePage validates its page identity;202remains rejected. Admission returns
+active_page_id, retained by Go Session to initialize its first mapping before
+recording. PageTracker.AddPage now atomically installs/reuses a driver mapping;
+separate MapDriverPageID method/callers deleted. Creation/restoration use the
+existing live-capture path and register before returning; callback created/initial
+paths reuse that identity and initial means current active page, not authority
+to overwrite the original tab. Missing callback identity rejected.
+
+Focused30908 consumed0:81tests/2suites15.802s and driver types. InitialGo74319
+failed because CreatePageResponse lacked its wire Title field; added it and
+converted fixtures/imports. Final95367 passes5Go race packages and APIbuild.
+Tests include23API attribution cases,12navigation receipt controls,4CreatePage
+status/identity cases, concurrent registration convergence, callback duplicate/
+initial identity and pre-recording creation receipt registration. Frozen23paths
+/tmp/bas-frozen-058.json;14runtime6654->6721(+67lines). Expanded Go baseline
+194functions753->772complexity(+19), cumulative affectedGo reduction197. This
+is correctness cost with atomic registration replacing split map mutations,
+not a claim of per-cycle complexity reduction. No production source over500lines
+is newly introduced. Native green producers prepared with second tab before
+recording and third tab during recording. No058 deployment/full qualification
+yet; admit once on frozen source and retain prior red receipts.
+
+058 frozen qualification admitted: full driver58718 and managed restart31043
+pending. Tidiness72070 consumed1,run20260923-004638-faac4f1c; one quiet wait and
+artifacts command admitted. Board9404 consumed0:17pending_telemetry/unqualified,
+product false. No threshold or requirement relaxed. Profile/native verification
+must follow the managed restart; green scripts prepared under
+/tmp/browser-automation-studio/*-058.py without overwriting red evidence.
+
+Read-only critique while frozen: RestoreTabs still has separate first-tab
+metadata/active-tab restoration paths; inspect them with native saved-tab
+restoration after this build. Existing raw creation/activation/viewport leases,
+callback retry journal identity, PageTracker pointer-read concurrency and full
+record/replay tab qualification remain open. Do not claim RF038 or J03 complete
+from page registration alone.
+
+058 deployed native verification: managed31043 consumed0, build
+2f4d1767153ac6a2b4f4ca5a521a6b93ab28f5ec36070179a984f68c076bdca5;
+API/driver/UI all200 and frozen hashes match. Native81196 passes18tab-registration
+checks: second tab before recording, navigation before recording, stable original
+page after activation, third tab during recording and one registration per page.
+Native84554 passes48API checks/2click effects. Native36162 passes49history and
+6owner checks; both logs explicitly inspected. Saved-workflow65282 passes12checks/
+3effects, /tmp/bas-recording-e2e-zCuByc, executione1450f42-1f19-4123-b752-23d875dcdfbc.
+All scoped fixture objects cleaned. Profile99563 consumed0,3fullreads matchoriginal
+rollback; metadata equals057. Full driver58718 remains pending.
+
+Tidiness one quiet wait/artifact decoding consumed:1130findings/105long/
+394complexity/611dup/19coupling,debt31604(+13 versus057; original35603). New
+complexity finding is the23case API attribution test at17; test imports also rise.
+This coherent matrix tests independent operation/handoff combinations and real
+journal effects; wrapper extraction would not reduce its aggregate policy.
+Production touched functions remain below15 except pre-existing broader handlers/
+restoration owners; no new long production file. No budget changes. Receipt
+navigation-page-attribution-2026-09-23.json retains baseline/native/tests/metrics;
+status awaits full driver result. Only pending operation58718.
+
+058 full driver58718 consumed1:uh-20260923-004633-b8372f1c6d8bd91142603c65769f2fc1,
+1749passed/1failed/2skipped;123passed/1failed/1skipped suites;409.647s owner/
+408.439s Jest. The unrelated AI action error-duration test observed49ms after
+a real50ms timer. Actual assertion retained; replace wall-clock scheduling in
+that existing fixture with controlled Jest timers, then rerun its suite and the
+full owner. RF089 records the cause; old receipt remains at
+/tmp/bas-driver-owner-final-058.json and failure excerpt at
+/tmp/bas-driver-failure-058.txt. No retry without this fixture correction.
+
+Clarification of prior058 complexity review: no newly over-threshold runtime
+Go finding; the new17-complexity finding is the test matrix. RF064 means the
+JavaScript/TypeScript runtime complexity is not fully measured.
+
+058 RF089 focused57954 consumed0:29AI executor tests/1suite1.196s, unchanged
+>=50duration assertion with controlled timers and guaranteed cleanup. Added only
+this existing test to frozen manifest (24paths); deployed runtime source unchanged.
+Full driver3045 pending at /tmp/bas-driver-owner-qualified-058.json; initial
+failed owner remains preserved. Tidiness35281 consumed1, final test snapshot
+run20260923-005527-08b9379c; one quiet wait92054 consumed1 and artifacts44154
+consumed0. Its CLI rebuilt from concurrent shared sources; native extraction
+is pending. Board058 remains17unqualified.
+
+Next059 recall43251 consumed0,60hits; source-ledger memory/scopes timeout remains
+a limited recall gap. Read docs/internal/BAS-PRESERVATION.md result: it concerns
+LPBS marketing payload preservation, not live browser profiles, so no extra
+workflow applies. Existing BAS/architecture/owner skills already loaded.
+Native57694 consumed1:RF090 saved-tab restoration4failures/26passes, all owned
+cleanup succeeds. /tmp/bas-restored-tabs-native-red-059.json retains pre-save
+selection, reopened page list and independent native activeURL. First/middle
+active cases reveal empty initial URL, lost first-tab selection and API/native
+active mismatch after non-last selection. No059 runtime or test edits; keep058
+source frozen until full driver3045 completes, then repair this owner.
+
+059 target documented from native RF090 evidence. No059 source/test changes
+while058 full driver3045 is pending. Proposed bounded owner repair: apply
+first-page receipt metadata, retain first/non-last selection through the loop,
+and call existing ActivatePage so browser/API state converge; remove duplicated
+raw-switch policy and stale assumptions about unknown initial IDs/missing
+CreatePage titles. Required regressions cover all selected positions and
+canonical receipt URLs/titles, with explicit failure behavior. Preserve scope
+limits for raw page leases and full profile durability. Original user-profile
+metadata still equals058 after the temporary profile investigation.
+
+058 final tidiness35281/92054/44154 fully consumed: run
+20260923-005527-08b9379c,1130/105long/394complexity/611dup/19coupling,debt31604,
+unchanged from the pre-timer test snapshot. Artifact
+/tmp/bas-tidiness-qualified-native-058.json. Only pending operation3045.
+
+058 delivered: final full driver3045 consumed0,1750tests/124suites,2tests/1suite
+skipped,384.876s owner/383.926s Jest. Final owner
+uh-20260923-005523-c8d59b592e3b34f354cc4a1dd5f7cdb3. RF088/089 qualified with
+the native/Go/profile receipts above; source/runtime unchanged by controlled
+timer fixture. Final tidiness metrics unchanged after that test edit. No pending
+operations; receipt qualified_and_deployed. Continuous goal advances to native
+RF090 restoration defect, not completion.
+
+### BAS-WORK-059 — RF090 saved-tab location and selection agreement
+
+058 full qualification complete; feedback reread. Native red already retained
+with4failures/26passes and cleanup. Baseline before edits captures existing
+live-capture/service.go only at /tmp/bas-before-059/manifest.json; Go complexity
+/tmp/bas-go-complexity-before-059.txt. Architecture target precedes implementation.
+Use a maintained HTTP driver fixture with independent active-page state to test
+first/middle/last/no saved selection, canonical browser URL/title receipts and
+failed selection. Restore first-page metadata, retain desired page through all
+creations and reuse ActivatePage; keep existing public result shape and avoid
+redundant switching. No driver/UI changes intended for this bounded state repair.
+Full profile failure recovery and raw page-command leases stay explicitly open.
+
+059 maintained red completed before production: all5 restoration table cases fail
+(/tmp/bas-restored-tabs-maintained-red-059.jsonl). Green7test events including
+parent and existing initial-navigation ownership regression pass. Runtime removes
+raw final driver switch, stale saved-title/URL publication and first-page-selection
+assumption; PageTracker receives initial receipt and ActivatePage owns final state.
+Explicit service error retains partial result for failed final switch. Existing
+handler logs restoration failure; comprehensive partial-profile recovery remains
+unqualified. Source/test frozen, Go races/build36915 and managed95198 pending.
+
+059 delivered: managed95198 consumed0; native84863 passes30/30 vs4failed/26passed
+red. API/driver/UI200,build5f18d8953ff84a2ca8447679a854b83a45634d3a18078bb5c382bf8221dcc47c.
+Go36915 passes3racepackages/build; profile74170 passes3originalrollback identity
+reads; API metadata equals058. Workflow8100 passes12checks/3effects,artifact
+/tmp/bas-recording-e2e-oMqOaf,executionab8d4906-8472-42ed-855b-dcd462f237a9.
+Only058 frozen live-capture service/runtime-test changed; full driver1750test
+receipt remains applicable to unchanged driver.059 final hashes match freeze.
+Runtime844->793(-51),Go26functions112->117(+5),cumulativeGo reduction192.
+RestoreTabs19complexity remains cohesive bounded restoration; no wrapper
+extraction or lower thresholds. TG3055 consumed1,run20260923-011045-8c6b3b79;
+onequietwait consumed1/artifact read0.1130findings/105long/395complexity/610dup/
+19coupling,debt31604. Finalboard31238 consumed0:17unqualified. Contract/inventory
+pass. Receipt saved-tab-restoration-2026-09-23.json;RF090 demonstrated state
+agreement resolved, full fault recovery/raw leases retained as open limitations.
+
+060 recall48546 consumed0:63hits/10corpora, existing BAS skills/board reuse;
+source-ledger agent-memory/scopes timed out. No new workflow selected. Static
+inspection found new-page route suppresses all goto errors. Initial nativeprobe
+returns201withchrome-error://chromewebdata/ for reserved/refusing localhostport;
+explicit-failure assertion fails. Probe then used nonexistent profile GetRPC
+(404/nonJSON), so saved-profile follow-up is invalid; owned cleanup still runs.
+Retain /tmp/bas-failed-navigation-native-red-060.json and producer; correct the
+read through documented public reopen/pages flow before claiming durability evidence.
+
+### BAS-WORK-060 — RF091 failed page/restoration admission
+
+059 fully delivered/no pendingoperations; feedback reread. Corrected nativeprobe
+uses public reopen/pages instead of nonexistentGet and completes2failed/8passed.
+Failure201Chromeerror becomes persisted blank on reopen. Target docs/issue
+precedeimplementation. Baseline4runtimepaths /tmp/bas-before-060/manifest.json.
+Hypothesis:new-page blanket catch plus best-effort restoration/APIadmission turn
+failed effects into successful partial profiles. Discriminating tests must reject
+failednavigation, close/remove onlynewpage, preserveoriginal selection, surface
+cleanup errors and reject failedrestore without profilecommit. Native retry after
+fixture recovery must retainoriginalURLs. No leaseownership completionclaim.
+
+060 red evidence complete: native restore-retry58056 consumed1,22passed/8failed
+on059. Both initial/additional outage cases falsely return200, leak an admitted
+session, touch profile metadata and lose saved URLs after close/retry. Corrected
+new-tab native2failed/8passed retained separately. Go44366 consumed1:2service
+restoration failures+3handler admission/cleanup/cancel cases fail; driver94375
+consumed1:3navigation failure cases fail/9pass. Go65523 green allfocused cases.
+Driver9677 shell0 concealed focusedJest3fail/80pass because later types passed;
+inspection caught the failing log:missing logger.error in the test mock after
+realerrorpath became reachable. Addedmockmethod;no assertion weakened.
+Callback20439 red1fail/11pass:close during pendingcreated delivery is lost. Added
+explicit active-lifetime recheck and ordered closed publication/registrycleanup
+after created settles;stopped generation still suppresses follow-up. Shared
+unregisterRecordingPage removes duplicated route/callback registry mutation.
+
+060 focused61909 consumed0:95tests/3suites pass,types pass. Go21077 consumed0:
+6racepackages and wholeAPIbuild pass, both logs inspected. Freeze8paths at
+/tmp/bas-frozen-060.json before fullqualification/managedrestart. Native producers
+copied to newgreen destinations, redartifacts retained.
+
+060 managed63623 consumed0, API/driver/UI200,build
+0e27920d3c75ae3bc3864f35f3ff34266c2c9d5def98125a33170cc361f61700.
+Native63137 consumed0:10failed-navigation checks,28outage/retry checks,30normal
+restoration checks allpass; separate logs inspected. Native redretry had30checks
+because false200required2extraownedcleanup operations; green no false-admitted
+sessions exist. Allsameproductassertions retained. Profile47415 consumed0:
+3completeidentityreads matchrollback. Driverfull75292 remainspending.
+TG64460 consumed1,run20260923-012327-8acc15e0,onequietwait1/artifactread0.
+1131findings/105long/396complexity/609dup/20coupling,debt31604. Addedhandler
+failurematrix16complexity and21testimports; no newproductionlongfile threshold.
+Go44functions261->262(+1);cumulative reduction191. Fourruntime2252->2275(+23).
+No netpercyclecomplexityreductionclaim. Board99098 consumed0:17unknown;contract
+and inventorypass. Initialadditionalrecording-modeprobe used nonexistentstopRPC;
+503failed-navigationreceipt is valid but completeprobe invalid. Corrected via
+existing nativeproducer's /{session}/stop route; retain initialartifact.
+
+060 native recording-mode corrected probe passes12checks; original guessedstop
+route failure retained separately. Workflow23776 consumed0:12checks/3effects,
+executionac9a5fe7-6bd5-4f02-935a-76cfbc0249e6,artifact/tmp/bas-recording-e2e-i51PZz.
+060 frozen8paths unchanged; metadata still equals059 after ownedprobe cleanup.
+Only pending060 operation is full driver75292; do not edit its affected sources.
+
+061 independent nativeinvestigation85764 consumed1:RF038 rawtab control
+8failed/32passed, /tmp/bas-tab-authority-native-red-061.json. Missingandwrong
+leases both allow new-page201 andactive-page200; independent nativecurrentURL
+changes. Eachcase's valid APIcreate/activatepositive controls and scopedcleanup
+pass. No061source/testedit yet. Planned ownerconversion:Session.CreatePage and
+SetActivePage carryimmutable execution/lease,livecaptureservice retainsadmission
+owner,rawdriverclientsrequirelease,drivernew-page/active-page reuse existing
+recordingOwner admission/completion instead of pre-bodyGetSession. Move final
+selection after awaited title and ownership checks. Testhandoff duringbody,
+newPage/goto/title;dispose newlycreatedpage on interrupted completion and leave
+replacementownerstate untouched. Nativepublicrestore/workflow controlsmustremain
+passing. RestoreTabs must retainitsoriginalSession acrossitsmultiplecommands,
+not re-admit a replacement byIDmid-transaction. Preserve underlying rawviewport/
+preview/callback/retryidentity issues as separateRF038 boundaries.
+
+060 delivered: full75292 consumed0,owneruh-20260923-012321-317459b050cdf064f55aaeb9df17f701,
+1754tests/124suites,2tests/1suite skipped,395.498s owner/394.626s Jest. All8frozen
+paths stillmatchqualification. Receipt qualified_and_deployed; no pendingowner
+operations. ContinueRF038tabauthority061; greenchecks do notcompletegoal.
+
+### BAS-WORK-061 — RF038 owned tab creation and selection
+
+060completequalification;feedbackreread. Baseline4runtimepaths retained at
+/tmp/bas-before-061/manifest.json. Native8failures/32passes demonstrate missing/
+wrongleaseadmission. ConvertretainedSession commands and driveradmission/completion
+usingexistingrecordingOwner; noalternateownershipregistry. Testandfixlease
+rejection beforeeffects, ownership changes duringasyncpage operations, and
+originalSessionretention throughrestoration. Keepexecutionpage switching working.
+
+061 maintainedred: driver14fail/14pass at /tmp/bas-tab-authority-driver-red-valid-061.txt;
+initialdriverload failedmissingmocklogger.debug (retained), correctedbeforebehavior
+red. Go3leasepayloadcases fail;2handoffcasesfail. Go21focused and driver16authority
+casesnowpass; all111focuseddrivercases/types pass aftervalidleasefixtureconversion.
+No061deploymentyet. Scopeextension api/handlers/record_mode.go:060failedrestore
+cleanup re-resolvesSessionID andcouldclose a replacement afterownershiploss. Retain
+an admission-bound closeoperation in internalSessionResult; handlerusesit. Existing
+journal-registrationfailure cleanup must also closecapturedSession. Baselineextra
+handlerpath appendedbeforeedits. Add a discriminating handlerhandofffixture; the
+newresultfield/testreceiptis structuralpreparationbeforechangingcleanupdispatch.
+
+061 coupling review found importing recordingOwner from lifecycle into pages
+would add a lifecycle->page-events->pages->lifecycle runtimecycle. Beforefinal
+qualification, relocate the unchanged shared validator to a smallrecording-ownership
+module importing onlypurestate/errors and erasedSessionManager type. Convertall
+fourroutecallers, removetheoldexport withnocompatibilityshim. Baseline includes
+all3additionalexistingmodules andnewmodule; movement is not complexityreduction.
+Existing validation module owns selector/replayhandlers and is not an authority
+module, so mixing ownership there was rejected. Go6racepackages/APIbuild and
+111focuseddriver/tests pass beforethisimport repair;Go unchangedafterit.
+
+061 finalscoped45279 consumed0:141tests/4suites/types pass after sharedvalidator
+relocation. Go94851 consumed0:6racepackages including multipageexecutor and
+wholeAPIbuild pass. Handlercleanup60183 red4cases; boundadmissionclose fixes
+currentByIDcleanup, registrationfailurealsousesretainedSession.Close. Onlytwo
+SessionResultconstructors exist andbothsupplyclosecapability; internalJSONexcludes
+callback. Freeze9runtime/7testpaths /tmp/bas-frozen-061.json beforefullqualification.
+
+061 pendingoperationsadmitted once:full driver40525 (/tmp/bas-driver-owner-final-061.json),
+managedrestart57167,tidiness38420,board/contract/inventory44863. Nine runtimepaths
+4551->4597(+46); Go142functions575->145/585(+10),cumulative reduction181.
+Correctness/ownershipcostexplicit; relocatedvalidatorhasno claimedcomplexitysaving.
+Do notedit061frozen sources/tests untilqualification settles.
+
+061 managed57167 consumed0:API/driver/UI200,build
+072657b2b9bae08735248abd27f96b38bc08f67eba36d81c75bd31fc42364376.
+Native57385 consumed0:40authoritychecks vs8redfailures,28outage-retry,30normal
+restoration,12recording-modefailurechecks allpass;eachloginspected. Profile14978
+consumed0:3identityreadsmatchrollback;API metadata equals060 after062probe.
+TG38420 consumed1,run20260923-014500-9fb4b86a,onequietwait1/artifactread0.
+1132findings/105long/396complexity/610dup/20coupling,debt31588(previous31604,
+original35603). Board44863 consumed0:17unknown,contract/inventorypass.
+Pendingfullowner40525 andnativeworkflow45005;16frozenpathsunchanged.
+
+061 workflow45005 consumed0:12checks/3effects,artifact/tmp/bas-recording-e2e-vFT3MJ,
+executionef29d5f2-e2a3-485e-a4c3-c27dde81927e. Onlypendingowner40525.
+062recall15611 consumed0:72hits/10corpora,source-ledger.agent-memorytimeout;
+existingBASownership/qualification workflow reused. Nativeinitial-navigationprobe
+complete4failed/11passed on061:redirectmetadata stale,failedinitialURL returns200,
+uncommittedbrowserremains,profilemetadata touched. Ownedcleanup complete;no062
+runtime/testedits while061fullqualificationpending. RF092+architecturetarget
+recorded. Share initialnavigationreceipt owner across CreateSession/RestoreTabs;
+fail admission andclose retainedSession if navigation fails. EmptyURL remains
+valid; publicInitialURLfield remainsrestoration-scoped. Nativeprobe didnot overlap
+workflow run during its session-count assertions.
+
+061 full40525 consumed1,owneruh-20260923-014455-c6f6541e8994419eaf9362f171992eb3:
+1769passed/1failed/2skipped;123passed/1failed/1skippedsuites,387.954s owner/
+386.902s Jest. Failure nativepipeline tabfixture stillcalled newpageroute without
+lease andstub onlygetSession, then waited2000ms forcallback instead of checking
+400rejection. This is a missed caller migration, notflake; retainfullfailedreceipt
+and /tmp/bas-driver-failure-061.txt. Convertfixture tocurrentlease/operational
+phase andrealgetSessionForLease prototype; assert201beforewaitingcallback. All
+identity/listener assertions and2000ms boundunchanged. Runtime unchanged/no extra
+restart required. Add testpath tofreeze afterfocusednative passes; rerunfullonce.
+
+061 nativefixture45459 consumed0:1focusednative testpass/30unrelatedskipped,types
+pass,1.566s. Requiredleasefixture andsame2000ms callbackbound pass. Initialfreeze
+retained /tmp/bas-frozen-initial-061.json; final17paths /tmp/bas-frozen-061.json
+adds convertedpipeline integrationtest. Runtime unchanged; admitonefinalfullowner
+and finalscopedtidiness onthis test snapshot.
+
+061 final operations admitted once: full driver73080 and tidiness22680. Current
+checkpoint rewritten to remove stale059/060 pending statements; append-only
+history and all receipts retained. No062 source changes before finalqualification.
+
+061 finaltidiness22680 consumed1,actualrun20260923-015349-bddc7735. An initial
+wait usedanincorrect unissuedID andreturned124; retained at
+/tmp/bas-tidiness-qualified-wait-061.json, nottreatedasrunstate. Correctrunthen
+received its singlequietwait,failedbudgetverdict;artifact retrievalcompleted.
+Onlypendingvalidation remainsfull73080.
+
+061 finaltidinessnative decode complete, source/testfreeze unchanged. Receipt
+tab-command-authority-2026-09-23.json retains failedfull and currentpending73080.
+Prepared six062 initial-navigation regression cases in /tmp/bas-initial-navigation-tests-062.txt
+without editing repositorytests; notyetexecuted. Do not count draftcases asproof.
+
+061 delivered: final73080 consumed0,owneruh-20260923-015346-275ef9e7917c16db6c18220f748ec251,
+1770tests/124suites,2tests/1suite skipped,383.779s owner/382.897s Jest. Final
+17pathfreeze matches. Finaltidiness unchanged1132/105long/396complexity/610dup/
+20coupling,debt31588. Receipt qualified_and_deployed, no pendingoperations.
+ContinueRF092initialnavigation062; goal remains active.
+
+### BAS-WORK-062 — RF092 initial-navigation receipt/admission
+
+061fullqualification complete; feedback reread. Native4failures/11passes retained.
+Baselineone runtimepath /tmp/bas-before-062/manifest.json. Applypreparedsixcase
+regression matrix to existing live-capture service tests and establishmaintained
+red before runtime edits. One initial-navigation operation will own receipt/page/
+Sessionvalidation for bothfreshadmission andrestored firsttab. Propagatefailure,
+closecapturedSession underboundeduncancelledcontext, preserveemptyURL support.
+Driver/UI runtimeunchanged; useGo races/APIbuild andnativequalification.
+
+062 maintainedred completes:5failedcases (redirect/navigation/wrongreceipt/cleanup/
+cancelled) andblankURLpositivecontrolpasses. SharednavigateInitialPage applies
+actualreceipt,validatesretainedSession/tracker andinitialdriverpageidentity;
+CreateSession andRestoreTabs bothcallit. Firstfocusedgreenpassesallinitial/restore/
+legacyjournalfailure/ownershipcases. Beforebroaderqualification, unifyregistration
+andnavigationfailure cleanup in a singledeferredpost-admissionowner, joining
+cleanupfailure without closing a replacementSession. Namedreturnerror makes
+cleanupobserve everyexplicitfailedreturn; successfulreturntransfersclosecapability.
+
+062 broad4847 consumed0:6racepackages/APIbuild pass. Review removes two dead
+unifiedRecordingSvc nil guards after the function already rejectsnil; callbacks
+andjournalregistration are required,notoptional fallback paths. Requalify touched
+service/handlers afterthis branch deletion,thenfreeze/build/deploy.
+
+062 final5616 consumed0:service/handler races andwholeAPIbuild pass after removing
+deadguards. Earlier6racepackages passed4847; no driver/UIruntime changes. Freeze
+2paths /tmp/bas-frozen-062.json, runtime815->824(+9),Go28functions125->29/127(+2),
+cumulative reduction179. Admittedonce:managed36539,tidiness3811,board68587.
+No fullJest rerun needed for unchangeddriver;1770test061receipt retained.
+
+### BAS-WORK-062 — 2026-09-23 UTC — initial navigation admission qualified
+
+BAS-RF-092/J01/J03/J07/J15. Native red4failed/11passed and Go red5failed/blank
+control passed proved stale initial metadata and false successful admission.
+One shared initial navigation receipt owner now validates captured Session/page
+identity and writes actual URL/title. One bounded uncancelled cleanup owner joins
+errors, replacing duplicate failure cleanup. Removed two dead null guards.
+Native14initial/28retry/30restore/12workflow checks pass with three fixture effects;
+profiles preserved. Six Go race packages/API build pass; final service/handler
+races/build pass after branch removal. Driver source unchanged from061 full owner.
+Two-path final hashes verified. Managed36539 completed; tidiness20260923-020516-92f01203
+and board/contract/inventory completed. No pending operations.
+Runtime815→824(+9), Go28→29functions and125→127complexity(+2); cumulative Go
+reduction179. Tidiness1133findings/31588duplication line debt; all17release rows
+unknown. Small increase buys explicit admission semantics; no per-cycle complexity
+claim. Receipt evidence/rehabilitation/initial-navigation-admission-2026-09-23.json.
+Fresh independent063probe exposes mutable page reads:9failed/1passed plus two
+JSON serialization races. RF093/architecture target recorded; next repair owns
+page snapshots without duplicating registries or changing public fields.
+
+### BAS-WORK-063 — 2026-09-23 UTC — detached page snapshots qualified
+
+BAS-RF-093/J01/J03. Independent9failed/1passed and two races; maintained13leaf
+failures plus service receipt/status/final-selection failures confirmed aliasing.
+One detached Snapshot replaces two list traversals and split selected-ID reads;
+registration/read receipts deep-copy pointers. Final close clears selection.
+29focused tests,6Go racepackages/build and independent10cases pass; native
+14navigation/28retry/30restore/12workflow pass. Profiles preserved. Managed32137
+succeeded; frozen4paths unchanged. Tidiness20260923-022346-f81bc017 fullyconsumed;
+board17unknown, contract/inventory valid. Runtime+7, Go complexity+4 (175cumulative
+reduction), duplicate line debt31562. Sorting lock-time improvement unmeasured;
+no performance claim. Receipt evidence/rehabilitation/page-state-snapshots-2026-09-23.json.
+New independentRF094 probe proves API tab closure never reaches browser:2failed/
+11passed with owned cleanup. Next work closes that owner boundary; no pending
+operations or completion claim.
+
+064 implementation decision: driver explicit close returns its selected page after
+actual close; Go applies that receipt under retained Session ownership. Existing
+PageTracker.ClosePage will return a stable close event and preserve first ClosedAt
+on repeated observation. Command handler and callback use that receipt; existing
+journal primary-key idempotency prevents duplicate committed closure. Share driver
+removal/selection rather than another tab registry. External callback generation
+authority and arbitrary simultaneous-close reconciliation remain RF038. Boundary
+within BAS; baseline eight runtime paths /tmp/bas-before-064/manifest.json.
+
+064 boundary extension within BAS: close receipt with no selected page must clear
+UI hook and session-store selection; current truthiness guard retains the closed
+tab and command path omits store updates. Include usePages and maintained hook
+regressions in the same close-command repair. Driver removal3cases red; handler
+4cases red; native2failed/11passed. Initial green compile missed fmt import in
+mock (corrected); no assertion changed. Scoped driver55tests/types and handler
+4cases now pass; broader qualification still pending.
+
+### BAS-WORK-064 — 2026-09-23 UTC — browser tab closure qualified
+
+RF094/RF038,J03/J07/J17. Native2failed/11passed proved the API acknowledged a
+closure it never sent to the browser. Driver removal3cases/handler4cases/UI3cases
+failed before repair; rejected UI close remained a positive control. Additional
+missing-selection red was corrected before qualification. Actual leased close,
+retained owner validation, shared driver removal/selection and stable PageTracker
+close event now replace local false completion. Existing journal idempotency
+handles callback/retry; UI selection/close application updates view and store.
+Native50close/14navigation/28retry/30restore/12workflow checks pass; profiles
+preserved. Go8racepackages/build,55driver/types,8UI/types and full1785driver tests/
+124suites pass. Owneruh-20260923-024236-a7894f4177340893a636b805f9145e59 (383.406s);
+managed71124 succeeded; all16frozen hashes unchanged. Tidiness20260923-024243-c4dc5295
+consumed; board17unknown; contract/inventory valid. Runtime+85/Go+21complexity;
+cumulative Go reduction154, duplicate line debt31605 vs original35603. Per-cycle
+increases are explicit; no threshold change or performance claim. Receipt
+`evidence/rehabilitation/browser-tab-closure-2026-09-23.json`. No pending operations.
+Next read-only UI tab-creation/state-ownership hypotheses are retained for065;
+confirm with tests before introducing another issue or repair. Continuous goal active.
+
+065 UI consumer extension: RecordingSession onPageCreated currently sends a second
+selection command even when admission already selected the tab; its selection
+callback reads the previous render's page map. Use current canonical store state
+for these two decisions while preserving popup auto-selection and activity UI.
+Baseline now includes this existing consumer. Exact red detail shows repeated
+creation event callbacks in both rendering modes, not StrictMode-only duplication.
+
+065 deployed build6b927bd16895ce9533b97953062061ff6abba06e14fe49692679ec6a0371a000
+is healthy; native8canonical-admission/50close/14initial/28retry/30restore pass.
+Three full profile reads match rollback. First real-UI probe verified visible
+creation/selection, then failed its assumed recording=false precondition: this
+screen deliberately auto-starts recording (RecordingSession effect). Retain
+/tmp/bas-ui-tabs-native-065.{json,txt}; it is fixture failure, not passing UI
+qualification. Corrected producer explicitly stops the owned recorder after
+awaiting the UI start receipt, then retains the same callback-free UI assertions.
+No source change or relaxed assertion. Restart31936/TG34281/board23502/native70860/
+profile95261 all consumed. Corrected UI native and saved workflow still owed.
+
+### BAS-WORK-065 — 2026-09-23 UTC — canonical UI tab admission qualified
+
+RF095/J03. Maintained UI6failed/7passed, native receipt2failed/6passed and an
+additional delayed-callback metadata failure confirmed the owner gaps. Canonical
+Page receipt now reaches201 clients; restore uses its existing identity. One
+session-store page owner and one async admission/completion boundary replace local
+mirrors and repeated writes. Callbacks run outside React state updaters and join
+creation by page ID. RecordingSession avoids redundant selection and stale map reads.
+UI479tests/25files/types and6Go racepackages/build pass. Native8admission/50close/
+14initial/28retry/30restore/12workflow pass; profiles preserved. Real UI10checks
+pass after correcting an assumed recording=false precondition: screen auto-starts,
+so fixture explicitly stops its recorder before no-callback checks. Original
+failed producer retained; no source patch or weakened assertion to satisfy it.
+Managed31936 succeeded; all8frozen paths unchanged; no pending operations. Runtime
+-210lines; Go+2complexity (152cumulative reduction); tidiness one fewer long file,
+1134findings/debt31605; board17unknown. Receipt
+`evidence/rehabilitation/ui-page-admission-2026-09-23.json`. Next independent angle:
+real live frame delivery and selected-tab paint with recording active. This differs
+from the intentionally stopped-recorder tab-state UI fixture; do not conflate them.
+
+### BAS-WORK-066 — 2026-09-23 UTC — native live paint investigation
+
+W3 RF096/J05/J22/J23.065 fully consumed. Recall55hits/10corpora; source-ledger
+agent-memory/scopes timed out (/tmp/bas-live-ui-paint-recall-066.txt), other
+results usable. No inference of missing capability. Native probe38148 consumed1:
+4pass/2fail; owned cleanup passed. Initial canvas never painted; subsequent
+external-create callback title/selection was inconsistent. Rawreceipt
+/tmp/bas-ui-paint-native-066.json, producer under/tmp/browser-automation-studio/.
+Driver wire usesimage/mime; client expectsdata/media_type. Isolated native probe
+10270 pending checks actualdriver/APIbytes plus UI paint with both tabs admitted
+before recording. No source change yet; baseline/tmp/bas-before-066/manifest.json.
+Targetdocs updated before implementation. Repair canonical frameDTO/decoder; add
+real HTTP bridge regression and invalidreceipt cases, then nativepaint qualification.
+DirectWS config/port, polling ownership and same-session callback ordering remain
+separate follow-up investigations; no transport/performance claims from thisslice.
+
+066 implementation follow-up: isolatednative10270consumed1 provesdriverimage18895
+characters versusAPI0,9pass/5fail includingfourcanvaspaint failures. GoHTTPbridge
+regression+7invalidreceiptcases fail onoldsource; /tmp/bas-live-frame-bridge-red-066.txt.
+Addedmissingcontenthash rejection while removingold timestampETagfallback.
+Initialglobaltextreplacement touchedfourunrelatedresponsecalls and failedcompile;
+restoredthoseagainstbaseline before qualification, originalfailure retained.
+68652consumed0:4Goracepackages andAPIbuild pass in final066logs. Eightpaths frozen.
+Runtime-31lines,Go+6complexity (validation),80functionsunchanged; cumulativeGo-146.
+Oneframewireowner replacesduplicateDTO/translation. Pendingrestart28847, TG50774
+admission, board88326. Nativegreen/workflow/profilevalidation stillowed.
+
+066 finalqualification:restart28847consumed0/build8ed3dbc7171eb0b4286397d338a0cbee0a1400d306e8581abfd2021271676fe6. Native49874consumed0:14pass/0fail.
+Visualreview saw the immediate screenshot during the normal300ms transition;
+strongerproducer25587consumed0 requiresoverlaydisappearance and also14/14passes.
+Finalimagevisuallyinspected; reds and preliminarygreen retained. Nativeproof is
+functionalpaint only, not latency/FPS. ExistingAPI WebSocketdelivered12binaryframes
+whileUIusedpolling, identifyingnexttransportinvestigation. Workflow40694consumed0:
+12/12,3independenteffects,execution9d714f60-b38d-4f2b-9aef-c6054641567c/artifacts
+/tmp/bas-recording-e2e-vFbdRs. Profiles80748consumed0:3identityreads andAPImetadata
+preserved. Eightfrozenpathsunchanged. TG20260923-032518-894126d9 admission50774
+consumed1(budget),onequietwait/artifactsconsumed;1134/104/399/610/20,debt31551.
+Board88326consumed0:17unknown,contract/inventorypass. No pending066operations.
+No Go complexityreductionclaimed for thisslice (+6); runtime-31,onecanonicalframeDTO.
+Next067:reliableboundedliveframeUItransport/decode ownership, existingRF034/047.
+
+### BAS-WORK-067 — 2026-09-23 UTC — live viewer ownership investigation
+
+RF034/047/J05/J22/J23; baseline deployed066. HypothesisA: driver fails tosend
+frames; falsified by native066existingAPIWS12binaryframes. HypothesisB: UI's
+independentdirectsocket config/port route fails while mainWSframesareignored;
+native96033pendingcapturesactualbrowserconfig,hookconsole and UIstreamstatus.
+HypothesisC: evenafterrouteworks,decoderwork and latecompletionoutliveownership;
+reuse retainedframeProbes withsynthetictransport/scheduler onactualhook, narrowed
+producer/tmp/browser-automation-studio/ui-frame-owner-red-067.cjs. Independent
+expectedoutcomes remainboundeddecode,orderedlatestpaint,nolatepaint/reconnect
+afterunmount/sessionreplacement andpollingbeforefirstusableframe. No067production
+edit yet. Newrecall64571pending(/tmp/bas-ui-stream-recall-067.txt). ExistingAPI
+binaryprotocol lacksperframepage/sessionenvelope atUI; donot simplysubscribea
+sharedcontext and claimhandofffencing withoutaddressingqueueidentity.
+
+067 narrowedownerprobeinitialattempt was unusable becausetop-levelsession mocks
+initialized an evolved dependency; unchangedUI-onlyextractionproduces6fail/1pass
+in/tmp/bas-ui-frame-owner-isolated-red-067.json. Native96033/36950consumed1:8pass/
+1fail each,actualWebSocketconstructorURL24486 vsmanaged24438,existingAPISocket
+2binaryframes. Configpresent/numeric24485; missingconfighypothesisrejected.
+Recall64571consumed0:26hits/10corpora,source-ledger.scopes timeout retained; no
+suitableadditionalprogram. FirstVitestfilter usedui-prefixfromuicwd(no tests);
+corrected51770owner produces14actualfailing regressions,not a runnerblocker.
+Targetdocs updated before productionedits; baseline/tmp/bas-before-067/manifest.json.
+Decision:dedicatedviewer subscription throughconfiguredAPIWS plusoneboundeddecode
+owner; retireunuseddirect researchlistener/config aftercaller audit. No newservice.
+Perframebrowserpage/leaseidentityremainsRF038; donot overclaimlocalgenerationfencing.
+
+067 implementation checkpoint: useFrameStream rewrittenaroundoneeffect-ownedAPI
+recordingsocket,HTTPfallback,monotonicadmission andsharedacross-effectsboundeddecoder.
+15redmaintainedcases nowpass; added4positive/adversecontrols forrawJPEG,successful
+ETag/304,disposed-socketdelivery andlateHTTPfailure. UI37681consumed0:498/26/types.
+Driver64298consumed0:71/5/types. Initial4862had71greenbuttypecheckcaughtstale
+directFrameEndpointlogreference; removedandrerunretained. Go93061consumed0:
+sidecar,supervisor,driver,handlersrace/APIbuild; health/recovery havenoGo tests.
+RemoveddirectFrameServerandits4tests (retiredowner,notassertionrelaxation),global
+producerbroadcasts,driverdirectPortconfig,UIguess/proxy/config,serviceallocatedport,
+sidecarenvforwarder andunusedlatencyLogger. ExistingAPIroutepreserveswebviewing;
+fullnativequalificationpending. Runtime4925→3896(-1029),Go62→61(-1),19functions;
+TS/JScomplexitystillRF064. Fifteenpaths frozenbefore87130fullowner/68669tidiness/
+21389nativeoutage-red. Currentlive066buildunchanged; HTTPoutageprobecapturesanimated
+fixtureandblocksUIpollingonly, requiringactualstreamedpixels. No pendingolderops.
+
+067 full driver qualification: exec87130 consumed0; owner
+`uh-20260923-034848-ed518695d56e926400000046ca3eaf2c` passes1781 tests/123 suites,
+with2 tests/1 suite skipped. Owner command455.602s/Jest454.663s; this runtime is
+longer than064 and is not a controlled product-performance comparison. Four
+retired-listener tests account for1785→1781. Fifteen frozen paths unchanged.
+Managed restart72940 admitted after qualification; native stream/outage and
+profile/workflow validation remain pending.
+
+067 managed restart72940 consumed0; health build `sha256:6a3e59568a71673e45ddbc788e1a6cb4cf6300669a6b36a6d96ddb44c736ec4a`. Lifecycle declares API17116/driver24485/metrics24478/UI21794 and no direct frame port. Native outage-green52422 pending; unchanged15-case red oracle. An additional producer qualifies pointer coordinates against a fixture-owned effect counter; no production source change.
+
+067 final qualification: deployed build6a3e59568a71673e45ddbc788e1a6cb4cf6300669a6b36a6d96ddb44c736ec4a.
+Native outage52422 consumed0:15/15; expanded67850 consumed0:16/16 including exactly
+one independent selected-tab pointer effect. Normal preview14/14 and workflow12/12
+pass in28042; executionc651ad14-9d6a-488a-80cc-7c8b8d74358a, artifact directory
+/tmp/bas-recording-e2e-HKC7I1, three independent effects. Profile/freeze69738
+consumed0:three original identity reads, unchanged API metadata and15 frozen paths.
+Final screenshot visually inspected. No pending operations. RF007/008/033/034
+register entries distinguish repaired/retired owners from remaining wire identity,
+API access/fanout, slow-reader and performance qualification. Next068 investigates
+external new-tab callback/state disagreement from the retained initial066 probe.
+
+### BAS-WORK-068 — 2026-09-23 UTC — external tab callback ownership
+
+Revisit RF038/095's observed external-create disagreement from066 on qualified067.
+Hypotheses: UI drops rapid lifecycle messages; callback metadata arrives stale; or
+UI treats observed page state as a navigation command and undoes the API creation.
+The producer records ordered page_event/page_switch messages (socket labeled, since
+main/viewer both subscribe), UI POST bodies, canonical creation receipt, actual
+driver location, final registry and independent colored paint. Expected: externally
+created Blue tab stays Blue and UI agrees. No source change yet. Recall1811 pending;
+producer/tmp/browser-automation-studio/tab-callback-native-red-068.mjs.
+
+068 native62323 consumed1:7pass/4fail. Main socket emits page_created(blank),
+UI activates canonical new page, then UI POST navigate(blank); driver and registry
+both become blank despite external201 Blue receipt. This proves RF097's feedback
+loop and rejects a label-only explanation. Recall1811 consumed0:22hits/10corpora;
+source-ledger memory/scopes timeouts retained, suitable additional program absent.
+Baseline/tmp/bas-before-068/manifest.json captured before edits. Target architecture
+and sole issue register updated. Repair existing navigation hook/component boundary;
+no new service or dependency. Driver callback attachment gap remains unproven.
+Resume read mistakenly requested nonexistent REFRACTOR_CHECKPOINT.md; recovered
+canonical REFRACTOR_PROGRESS.md immediately; no evidence lost or operation pending.
+
+068 owner red96908 consumed1:9 failed/3 passed; APIs for explicit intent/readiness
+were absent at the previous hook boundary. Initial45859 was unusable as red proof:
+the append used the wrong cwd and only the two old cases ran; corrected by absolute
+paths and retained both receipts. Green20274 consumed0:12 cases and types pass.
+Added StrictMode, observed-location-during-request and late parsed-body controls;
+full UI52864 pending. Three paths frozen in/tmp/bas-frozen-068.json. Component
+removes automatic URL replay, duplicate parser and three URL/completion refs; hook
+owns explicit request identity, abort/admission and launch readiness. Failed launch
+shows the existing error banner and remains retryable. History commands unchanged.
+Runtime1792->1751(-41); no Go change and TS complexity remains RF064. Native
+intermediate producer retains the exact original eleven assertions.
+
+068 full UI52864 consumed0:511 tests/26 files and types pass. Runtime metric
+correction:1792->1746(-46), not1751/-41; retained machine manifest has exact per-file
+counts. Managed restart44764 pending. Tidiness61893 consumed1 with budget finding,
+run20260923-041954-8fb343a8; one wait/artifact read admitted. Board/contract/inventory
+64674 consumed0, all17 outcomes still unknown. No production/test changes since
+freeze. Driver and Go owners unchanged from qualified067.
+
+068 managed44764 consumed0, healthy build82be32cb6d32a0c3ad9cbf1fc032eeb125a9a1b47ddf3c7f0e20cf763b692343.
+Original native58228 consumed1:10pass/1fail. RF097 navigation is fixed; driver,
+registry and blue paint agree, but tab remains Untitled. Main socket has created
+blank + switch and no navigation callback. RF098 tracks the distinct missing
+callback; driver attachment-after-await is the next discriminating hypothesis.
+Extend068 to that existing BAS owner; baseline now includes page-events runtime/test.
+Three UI paths remain frozen. Test Genie068 one wait/artifact retrieval consumed;
+1133/103long/399complexity/610duplication/20coupling, debt31551 unchanged vs067.
+Expanded native launch/URL/repeat/history/redirect producer prepared, not run yet.
+
+068 driver28878 red consumed1:two creation-gap assertions fail,13 cases pass.
+Driver60784 green consumed0:88 affected tests/3 suites and types pass. Listener
+attaches synchronously; creation-admission promise gates later publication and
+cleanup rejects pending events. Removed separate pending-close branch. Final
+five-path freeze/tmp/bas-frozen-068-final.json; UI freeze unchanged. Runtime total
+1997->1958(-39); driver adds7 lines for the admission boundary, UI removes46.
+Full driver qualification and a new tidiness run admitted for the changed driver
+source; earlier068 tidiness only qualifies the intermediate UI-only tree.
+
+068 validation pending: full driver94169; final tidiness91456 consumed1 with
+run20260923-042551-bbfec87d, one wait and artifact retrieval consumed. Final
+1133findings/103long/399complexity/610duplication/20coupling/debt31551, unchanged.
+TS measurement recall65709 consumed0:66hits/10corpora, memory/scopes degraded.
+Existing Tidiness Manager explicitly skips TS/JS; installed ESLint can supply a
+scoped supplement without changing shared owners. Validated classic complexity
+controls and disabled inline lint directives. Initial067 supplement rejected an
+inline reference to an unloaded rule; corrected uniform analyzer configuration,
+not source. Code-path count includes class initializers; do not call it functions.
+068 measured437->443(+6),141->143 code paths.067 unchanged freeze verified and
+measured714->620(-94),247->207 paths. Receipt
+evidence/rehabilitation/typescript-complexity-supplement-2026-09-23.json. RF064
+owner-wide coverage remains open; no original whole-scenario TS baseline claimed.
+
+068 expanded intermediate50711 consumed1:21pass/1fail (known label gap). Real URL
+bar launch/request/repeat, redirects, back preserving forward history, forward,
+reload and independent colored paints all pass. Fixture loads prove one repeated
+request/reload/redirect destination effect; UI request capture proves observations
+do not create additional navigation commands. Full owner94169 still pending.
+
+068 full owner94169 consumed0:uh-20260923-042546-48b777d33f8707b25c35f31a6242f4e4,
+1784tests/123suites passed; existing2tests/1suite skipped. Owner362.458s/Jest361.711s.
+Five frozen paths unchanged. Managed final restart50435 admitted; final native,
+saved-workflow and original-profile checks remain pending. Receipt tab-navigation-
+ownership-2026-09-23.json explicitly remains qualification_in_progress.
+
+068 final managed restart50435 consumed0, healthy build sha256:60b7ae38ebda099da7b78080f84f63cf5ff11ddd96aba01b7d01d2192b1e95f1. Five frozen paths unchanged. Original and expanded native checks79866 pending; workflow/profile checks remain after those finish.
+
+068 final qualification: native79866 consumed0; original11/11 and expanded22/22.
+Screenshot blue tab/address/pixels visually verified. Workflow35078 consumed0:
+12/12,three effects,executioneaac59e2-3b1f-421e-9130-bda0f2dd4964,
+/tmp/bas-recording-e2e-X0fY9B. Profile84211 consumed0:three original identity reads,
+metadata equality to067 and all five frozen paths unchanged. Receipt qualified and
+deployed. No pending068 operations. Next069 probes command intent across active-tab
+change before server admission; no new defect inferred from source alone.
+
+### BAS-WORK-069 — 2026-09-23 UTC — navigation intent before tab admission
+
+Hypotheses: the UI aborts an old-tab navigation on selection change; the server
+binds the intended page from the request; or the request targets whichever tab is
+active when delayed delivery reaches the server. Prior061 checks bind the page
+at server admission and fence subsequent awaits, so they do not alone establish
+the earlier user intent. Recall58603 consumed0,related prior navigation work read;
+no suitable new program, memory/scopes timeouts retained. The owned native fixture
+holds a real UI navigate request before admission, switches Red->Blue, releases
+the request and checks actual Blue location, destination load count and address
+bar. Expected: no effect on Blue and no stale destination load. No source edit.
+
+069 native89762 consumed1:14pass/3fail. A single held UI navigate command issued on
+Red reaches the server after Blue selection, and actually navigates Blue. Address
+bar and fixture destination loads corroborate. Each normal fixture URL was fetched
+twice too; do not interpret two destination GETs as two UI navigation commands.
+RF099 registered; target architecture updated before edits. Baseline13 paths in
+/tmp/bas-before-069/manifest.json. Repair existing UI/API/driver owners; no external
+boundary, dependency change or new service. Common navigation request lifetime
+will replace repeated UI history HTTP code. No069 source/test edits yet.
+
+069 maintained red: UI2647 consumed1 (14fail/13pass); driver49809 consumed1
+(16fail/75pass); API86456 consumed1 (28 failing/4 passing subcases). Canonical
+page IDs now travel in UI URL/history bodies; API resolves only the active page
+of that session and passes expected driver identity. Driver checks it before any
+effect, including a tab change while reading the body. API preserves409 conflicts.
+Programmatic implicit-active semantics remain; positive controls pass. UI common
+request owner replaces repeated history HTTP loops, binds intent at submission,
+waits for launch page admission and rejects late config/JSON/error/history reads.
+Selector requires a validated matching session/page, avoiding a stale store page
+during session replacement. New batched-submit/switch control passes.
+Focused green11649/4178/3861 consumed0 (API32 subcases,driver91,UI27/types). Final
+Go7651 consumed0:four race packages/APIbuild. Driver88926 consumed0:140 tests/3
+suites/types. UI80329 consumed0:524 tests/26 files/types; prior81132 also consumed0
+before final selector strengthening. Twelve changed paths initially frozen in
+/tmp/bas-frozen-069.json (13 baseline paths included one unchanged Session test).
+Runtime4715->4703(-12). Go62->65 functions,248->262(+14); cumulative affected Go
+reduction now133. TS supplemental measurement retained separately; no source edits
+after freeze. Final full-driver owner/tidiness/native deployment still to admit.
+
+069 full driver48192 admitted on frozen source. Tidiness51716 consumed1,
+run20260923-045639-020a47bc; one quiet wait/catalog read consumed. Board/contract/
+inventory78227 consumed0,17 unknown outcomes. Supplemental ESLint443->465(+22),
+135->142 code paths; added guards are explicit complexity cost despite12 fewer
+runtime lines. Prepared unchanged native17-case oracle plus21 API-guard cases and
+23 navigation-preservation cases. Managed restart not yet admitted.
+
+069 additional adversarial UI check77829 consumed1:two failures prove returning
+Red->Blue->Red replays an old intent, including one skipped before first admission.
+Fixed by retaining the opaque UI page lifetime at submission/admission, not only
+its repeated ID. Full driver48192 remains applicable: all driver and Go paths
+match the original freeze; only UI hook/test changed. New snapshot
+/tmp/bas-frozen-final-069.json. UI final2 qualification pending. Initial069
+tidiness fully decoded:1136findings/103long/401complexity/611dup/20coupling,
+duplication debt31391; source predates this last UI correction. No native green
+or managed restart admitted yet.
+
+069 final UI55240 consumed0:526 tests/26 files/types; returning to the original
+tab no longer replays a retired intent. Final frozen runtime4715->4706(-9),
+Go248->262(+14), scoped ESLint443->468(+25). Twelve final paths unchanged.
+Final tidiness77467 admitted after the UI correction; full driver48192 pending
+on unchanged driver inputs. Native17/24/23 producers ready. In-progress receipt
+evidence/rehabilitation/page-bound-navigation-2026-09-23.json records all limits.
+
+069 full driver48192 consumed0:uh-20260923-045634-d28f8a4be0ed7348fabd5aa98ae08efb,
+1808tests/123suites pass,existing2tests/1suite skipped. Owner355.022s/Jest353.981s.
+Final12 paths unchanged. Managed restart59024 admitted. Final tidiness77467
+consumed1,run20260923-050256-ad02d3c4; one quiet wait and catalog/artifact decoding
+consumed. Detailed summary retained in/tmp/bas-tidiness-native-final-069.json.
+No pending validation owners other than managed restart/native work ahead.
+
+069 oracle wording correction: the fixture counted URL requests, not captured
+HTTP methods. Its two destination entries do not establish two GETs or two browser
+navigations; exactly one UI navigate request and actual wrong-tab location are
+independently proven. Later passive-request investigation may distinguish recorder
+interception, preflight and browser behavior; no additional defect declared yet.
+
+069 managed restart59024 consumed0, healthy sha256:b494c40d57e4c6e88eba6d282de3af41e91c941c12d05673b17132196f00f571. Final12 paths unchanged. Native17/24/23 checks42126 admitted. Workflow/profile checks remain after native completion.
+
+069 final qualification: native42126 consumed0 with17/17,24/24,23/23. Screenshot
+original red tab/address/pixels inspected. Workflow86337 consumed0:12/12,three
+effects,execution37dbce86-2f27-46a9-a20c-8cec78c7cb27,/tmp/bas-recording-e2e-XPqkQl.
+Profiles15679 consumed0:three original identity reads, metadata equals068 and12
+frozen paths unchanged. Receipt qualified/deployed; no pending069 operations.
+Next070 compares duplicate fixture URL requests with/without UI and records method
+and UA to distinguish browser, recorder and link-preview traffic before repair.
+
+
+### BAS-WORK-070 — 2026-09-23 UTC — passive document request footprint
+
+RF100/J04/passive-fidelity investigation on qualified069. Recall26583 already
+consumed; feedback reread, no new instruction. Producer9925 consumed1:9pass/4fail,
+`/tmp/bas-passive-requests-red-070.json`, script under/tmp/browser-automation-studio.
+Independent method/UA/phase/cookie-presence log isolates one extra LinkPreviewBot
+GET per newly displayed URL to the tab bar, without recorded browser cookies.
+Direct browser, BAS without UI and recording without UI request each document
+once. Custom icons and cleanup pass. Bounded2s windows test absence; no latency
+or general performance qualification. Legacy route injection is not implicated.
+
+Target architecture and RF100 updated before edits. Baseline17 candidatepaths at
+`/tmp/bas-before-070/manifest.json`, including absent newTabBar test. Implement
+browser-derived favicon metadata across existing driver/API/UI page ownership;
+remove single-preview hook, preserve batch previewcards. Maintain cancellation,
+URL replacement, missing/empty metadata and icon-failure recovery regressions.
+No production edit or pending native run at this checkpoint.
+
+
+070 scope review: initial green24UI/113driver and focusedGo pass. Added creation-
+metadata overlap test reveals candidate drops both created and queued navigation
+(75045:1fail/18pass). Preserve admission while retiring stale icon metadata.
+Preservation review also requires icons on initial navigation/restored tabs and
+new-page receipts before recording callbacks exist. Extend existing driver/API
+receipt owners, not a new endpoint; baseline adds6 untouched paths(23total).
+One browser-document icon reader will serve lifecycle and command receipts.
+Go history publication consumes its typed response instead of six parallel scalar
+arguments. No external scope/authority extension; all paths remain BAS-owned.
+
+
+070 validation checkpoint: focused driver28415 passes118/2 suites/types; UI54069
+passes531/27 files/types. Go29023 passed four race packages/build before reload
+metadata publication change. Reload red31931 proves2 absent-notification failures;
+all committed history commands now publish page metadata. Go7282 completed but
+its test log fails one older reload-notification count assertion; shell exit0 was
+from subsequent successful build, so it is explicitly not a test pass. Updated
+that count for the new desired behavior, preserving journal count and failure
+semantics. Go regression requalification follows, driver source/tests unchanged.
+
+Frozen23paths `/tmp/bas-frozen-070.json`. Full driver95063, managed restart48284,
+tidiness admission63067 and board/contract/inventory99002 pending. Do not re-admit.
+Native070 final producers prepared but not run. Source review fixed creation
+metadata admission loss; new regression covers it. Scoped TS404->409(+5), code
+paths111->110; removal of single-preview hook does not prove a complexity win.
+
+
+070 native/final preservation,2026-09-23: restart48284 consumed0, build217b9a2f8bafd6725628aef4202c133fb11d271212a4b916250ce73b95fa7eb7 healthy. Native92359
+original13/13 and expanded23/23 pass. Fixture logs one full-document request per
+navigation, no LinkPreviewBot or tab-preview RPC; browser-derived custom icons
+persist for initial and inactive pre-recording pages, base-relative/data icons,
+broken-to-valid recovery and reload after recording stopped. Screenshot inspected;
+no frame-rate qualification. Workflow40409 passes12/12 with3effects, execution
+ e830f81d-88f4-4db0-9013-615b28ecae4f,/tmp/bas-recording-e2e-DYRlcp. Profile24186
+threefull reads matchoriginalrollback andAPI metadataequals069. Frozen23paths
+unchanged. Full driver95063 remains pending; no other070 operation pending.
+
+071 recall21743 consumed0:57hits/10corpora; memory/scopes timedout. Read returned
+capture-surface via prepare-operation92203(prog_4d42a42e-32cd-4656-ab82-a0476d4a2080)
+with no changes. Static capture cannot exercise keyboard effects, so reuse native
+owned-browser fixture. Tab selectors' focus and key handling remain hypothesis,
+not a new RF until independently reproduced. No runtime edit while070driver runs.
+
+
+### BAS-WORK-070 final — 2026-09-23 UTC
+
+RF100 qualified/deployed. Full driver95063 consumed0,
+uh-20260923-053319-477e564d56a31fc385a8cc3a752977ec,1816tests/123suites,
+2tests/1suite existing skip,owner381.647s/Jest380.853s. Allfrozen070runtime/driver
+inputs unchanged; Go test notification expectation separately qualified. Receipt
+passive-tab-metadata-2026-09-23.json finalized. Runtime-38,Go+3,TS+5; cumulative
+Go reduction130. Native13/13,23/23,workflow12/12 andprofilespreserved. No070pending.
+
+### BAS-WORK-071 — 2026-09-23 UTC — keyboard and last-tab observations
+
+Native51130 consumed1,5pass/5fail. RF101 keyboardfocus defects independently
+reproduced; pointer control succeeds. Final-tab closure then timesout inUI while
+APIanddriveragreeallpagesclosed, followedbyprofile-save/close500 from openAPIclient
+circuit breaker. RF102 added with rootcausestillhypothesis. The final new-tab
+placeholder assertions neverran. Producer deletedonlysyntheticprofile evenafter
+failedsessioncleanup; this mustbe correctedbefore nextprobe. Retainedrecovery
+session584a55fd-437a-4cfd-bb93-6d847d717745 viaobservability, directstorage200 and
+APIclose200 aftercooldown; do notclaimprofilesaverecovery sincefixtureprofilehad
+alreadybeendeleted. Original userprofilesuntouched. Runtime log stored; no orphan.
+SourceWebSocketProvider uses ReactsinglelastMessage state; usePages consumes an
+Effect. Rawwire/delivery/empty-selection classification needs discrimination.
+No071sourceedit; prioritize RF102beforekeyboardrepair. No pendingoperations.
+
+
+071 discrimination: instrumented native last-tab control completes9/9, including
+cleanup; raw wire contains closed-page events and empty selection. Kept historical
+redfilename withactualpassingcases; noattemptdiscarded. Maintained realProvider+
+usePages probe3366 fails2/2: spaced lifecycle appliesclosures but codecstrips
+active_page_id; burst dropsclosures as ReactsinglelastMessagecoalesces. Rawnative
+control rejects missing-wire/empty-selection-server hypotheses for that run.
+Architecturetargetupdated before071runtimechanges; baselineexpanded to allcurrent
+lastMessageconsumers plus generic codec, at/tmp/bas-before-071/manifest.json.
+Replace lossy transport state with synchronous scoped subscriptions, preserve
+opaque domain fields, retire unused binary subscriber API. Add current-socket and
+unmount checks to prevent stale delivery/reconnect. RF101keyboardremainsopen and
+breakerfailureclassificationremainsunqualified. No071runtimeedityet.
+
+
+071 implementation and qualification in progress: genericwirecodec nowpreserves
+opaque domain fields. The codec-only59784 test has1pass/1fail: spaced passes,
+burststillfails. Added staleconnect/unmount controls53628:3fail/1pass. Replaced
+singlelastMessage with synchronous subscriptions inall11domainconsumers, removed
+unusedbinarysubscriberfacade and unusedonItemsReceived option(no callers), and
+fenced socketcallbacks/retirement. Focused17911 passes30; firsttypes25265 flagged
+the unusedoption, corrected. FullUI38918 passes1155tests/79files(30.30s), finaltypes
+66834pass. New6real-provider casescoverburst,spaced,opaque fields,latestcommitted
+callbacks,throwingpeerisolation,malformedJSON,retiredsocket andunmount. Driver/Go
+runtimeunchangedfromqualified070; do notrepeatfull driverwithoutnewscope.
+
+Frozen17paths `/tmp/bas-frozen-071.json`. Runtime3316->3294(-22),Go unchanged,
+scopedTS720->715(-5),codepaths198->202. Managedrestart5444 pending. Tidiness26819
+andonequietwait/catalogconsumed:20260923-055941-d8b21216; nativefindingsdecoded.
+Board/contract/inventory8879consumed0,17outcomesunqualified. Finalnative producer
+/tmp/browser-automation-studio/last-tab-native-qualified-071.mjs prepared, notrun.
+Also rerun the original keyboard producer with separate output: keyboard failures
+remainexpectedRF101, but last-tab/recoveryassertionsshouldpass. Checkaddressclear,
+framepollstop andfresh-tabcreation explicitly; callbackclosuretiming couldneed
+additionalrepair. No keyboardproductionedit yet.
+
+072 independent availability investigation while071builds: recall69474 consumed0,
+65hits/10corpora,memory/scopesdegraded; BASusageskillalreadyread. RealHTTP/client
+producer exits1 with6failedrequest-rejection cases and4positivecontrols. RF103
+recorded. No072sourceedit/testfile/baselineyet; nextrepairafter071nativequalification
+usesexisting resilienceowner, preservingoriginalerrors andgenuineoutagebehavior.
+
+071 native intermediate: restart5444 consumed0, healthy build2d6342419a28be5733ee0a481c80737b75cda7f19adb4b1df7b508ca87e6c4c5. Native55932 consumed; qualified last-tab11pass/1fail: tabs/address clear and fresh tab works, but empty workspace continues 300ms frame polling without page_id. Keyboard9pass/4fail remainsRF101; passive metadata23/23 preserved. All owned cleanup succeeds. Extend071 baseline to viewer/input/preview null propagation and maintained tests before repair. Explicit null disables transport/input; undefined preserves mini-preview active-page behavior. No driver or Go source changes.
+
+071 empty-viewer qualification: maintained red79071 consumed1,4fail/19pass, then explicit-null propagation and existing owner gates fix both transport and input. Record-mode72542 passes541tests/29files and types35380pass. Final frozen23paths and expanded metrics recorded above. Final native/workflow/profile qualification follows managed rebuild; prior full UI1155 remains valid for unchanged event consumers. No full driver rerun for UI-only change.
+
+071 final native49835 passes12/12: final tabs/address clear, no HTTP frame polling over1200ms, new tab succeeds, original profiles uninvolved and owned cleanup succeeds. Restart44858 consumed0, build e7bba9e85630bd229a4fb45bf139c97b10833a02efaa332fca6324ba156afecb healthy, frozen23paths unchanged. FinalTG6802 admission/wait failed on unchanged budget; catalog and native decoded, exactrun20260923-061257-15bc910a,1137/103/401/612/20/debt31319. Board11115 consumed0, all17unqualified; contract/inventorypass. Workflow qualification now pending.
+
+072 target and3pathbaseline recorded before source change: shared api/internal/resilience owner distinguishes answered client rejections from dependency outage, keeps original errors and408/server/transport protection. Actual Client HTTP fixture6red/4controls retained. Owner tests cover wrapped rejection/cancellation/deadline and half-open recovery; driver client tests cover independent healthy storage route. Storage is the other breaker consumer and included in scoped race checks. No driverTS orUI change planned.
+
+### BAS-WORK-071 final — 2026-09-23 UTC
+
+RF102 qualified/deployed build e7bba9e85630bd229a4fb45bf139c97b10833a02efaa332fca6324ba156afecb; receipt page-event-delivery-2026-09-23.json. Native49835 passes12/12; workflow64476 passes12/12 with3effects, executionf3d09b97-0fd9-4ce7-9062-6af7cc8b3942, /tmp/bas-recording-e2e-G2vydd. Profile75555 consumed0:3complete reads matchrollback, API metadataequals070. Screenshot inspected. All071operationsconsumed. Runtime-21,scopedTS-4,Go unchanged. All17release outcomes unknown; no global production qualification. RF101 andRF103 remain meaningful next repairs.
+
+072 maintained red exits1:13request-status subcases plus half-open recovery fail atresilienceowner;6actualclientcases fail. Controls pass. One canonical classification replaces429-only special case and redundant deadline branch. Go13628 five racepackagespass; build70676pass. NoUI/driverTS changes. Pending independent native-client real-driver check, live deployment and072metrics/board.
+
+072 live68792 restart consumed0, build9ad04e2414f9cdde4014149f5529b0d3ab0337d252af1362e1b1b5dba8c6f160 healthy; frozen3paths unchanged. Standalone realdriverClient native5568 passes13/13, preserving six404errors then healthy storage/save/close and syntheticprofilecleanup. This uses compiledproduction Client againstrealdriver; it does not inject errors into the deployedAPIglobalbreaker. OriginalHTTPfixture10/10pass. TG79406 and onequietwait/catalog consumed;20260923-061909-ef387488,1137/103/401/612/20/debt31313,budgetfails. Board85762 consumed0,17unknown. Runtime354->350(-4),Go52->53(+1),16functions; cumulativeGo-129, no per-cycle complexity win. Profile14061 and savedworkflow pending.
+
+073 recall36690 consumed0,65hits/10corpora,source-ledgermemory/scopes timedout. Existing staticcaptureprogram unsuitable for keyboardeffects; retained native fixture. Loadedexperiential-ui-design, whichroutes pureusability toUX; readUX and itsvisited/knowledge support. File-only goal overrides externalcoverage/journal writes and humanratification gates; no route composition/mockup redesign inthis boundedkeyboardrepair. APGprimarysource read andarchitecturetargetdocumented. Baseline2files beforeedit. Native071 alreadyproves4keyboardfailures, pointercreation/selectionpositivecontrols. Maintained expected keyboard/focus/closure regressions precedeimplementation.
+
+### BAS-WORK-072 final — 2026-09-23 UTC
+
+RF103 qualified/deployed; receipt driver-availability-2026-09-23.json. Workflow50033 consumed0,12/12 with3effects, execution49f61a40-6ad5-4a09-a94a-c43652085214, /tmp/bas-recording-e2e-EQbL3V. Profile14061 consumed0,3complete reads equalrollback, API metadataequals071. No072pending. Go+1complexity/runtime-4explicit; broaderoutcomes remainunknown. Continuous workmoves to073keyboardrepair.
+
+### BAS-WORK-073 implementation — 2026-09-23 UTC
+
+RF101 maintained red6fail/5pass confirms keyboardsemantics, focusmovement andactivation missing. Nativebuttons withseparateclosebuttons replaceclick-onlydivs; keyboard owner handlesfocuswithoutremoteactivationuntilEnter/Space. Close/Deletefocusrepair waits foractualpageremoval; failedclosureskeepfocus andexternalfocusisnotstolen. One additionalcreated-tabfocusred54065 exposedplaceholderreplacementlosingfocus, repairedusing samefocusowner. Final550/29/typespass. Runtime+56/TS+37explicit; removingredundantclosecallbackdoesnotoffset newly requiredkeyboard/focusbehavior. No API/drivercode changes. Nativeeffectfulproducer ready. Pendingmanagedrestart, exactTGadmission/wait, board andlivequalification.
+
+073 exactpending: managedrestart94867, TGadmission17591, board42759. Contract/inventorycompleted0. Sourcefreezeunchanged.074frameidentityrecall admittedindependently whilebuilds; no074sourceedit.
+
+073 live: restart94867 consumed0, healthybuild9c4f9cc03265d6fb5fee2bb887c512308e99d70347bcc995a46762d12c4025f8, frozen2paths unchanged. Native28256 passes19/19 including actualdriverURLselection forEnter/Space, arrowfocus-onlycontrols, Deleteclose/neighbor/emptyfocus, creationfocus andpointercontrols. Screenshotinspected. Passiveiconpreservation nowpending. TG17591 admission/wait/catalogconsumed:20260923-063055-ba993930,1137/103/401/612/20/debt31313,budgetfails. Board42759/contract/inventoryconsumed,17unknown. No073sourcechange afterfreeze.
+
+074 recall28452 consumed0,66hits/10corpora,source-ledgerscopesdegraded. Sourceconfirms APIframecallback/driverstream route broadcasts bytes withoutsourcepage/leaseidentity; existingRF038 explicitlycovers this. Hypothesis: a genuineRedJPEG delayedatdriver-callbackboundary canoverwriteBlue after Blue selectionandpaint havecompleted. Prepareownedproducer /tmp/browser-automation-studio/frame-identity-red-074.mjs: captureactualRedframe, establish callbacksocket, selectandpaintBlue, thendeliverheldRedbytes andindependentlycount visiblecanvasRedpaints. Distinguishsource-driverselectioncontrol, naturalBlue recovery andcleanup. This simulates a delayed producer via documented API socket, not a naturaldriverqueue race. Notrunyet; no074sourceedit/baseline.
+
+073 passive63387 consumed0,23/23: custom/inactive/base/data icons, image-failure recovery and stopped-recording reload preserved aftersemanticbutton replacement. Savedworkflow nowpending; no newsourceedits.
+
+### BAS-WORK-073 final — 2026-09-23 UTC
+
+RF101 qualified/deployed, receipt tab-keyboard-2026-09-23.json. Workflow57902 passes12/12,3effects, executionfb33d635-1780-468d-94b0-2b0bcaeb983f, /tmp/bas-recording-e2e-E5oiDj. Profile50403 consumed0,3complete reads equal originalrollback; APImetadataequals072. Frozen2paths unchanged. Runtime+56/scopedTS+37 supports newly available keyboardfunctionality, not a debt-reduction claim. All073operationsconsumed. Continuousworkproceeds to074existingRF038sourceidentityboundary.
+
+074 native30055 consumed1:9pass/1fail,5RedpaintsoverBlue afterheldactualJPEGdelivery. Canonical/driverBluepositivecontrols andnaturalBluepaintrecoverypass,ownedcleanup complete. Sourceinvestigationfinds sessionownerExecutionId/leaseId andpageToIdMap alreadyavailable atdriver; strategiescurrentlyemitoptionalperfJSONheaderoranonymousraw/eight-bytetimestampJPEG. APIdecodeDriverFrame stripsperfheader andbroadcastsby sessiononly; HTTPcallbackalsolacksidentity. API SessionstoresimmutableexecutionID/leaseID,PageTrackerownsdriver-to-canonicalmapping. Framewire repair mustretainproduceridentity throughtothenewviewer. No074runtimeedit; nooperationpending.
+
+074 target andprospective29pathbaseline /tmp/bas-before-074/manifest.json recordedbeforeedit. Productionpaths notallnecessarilychanged; finalmetrics mustattributeactualchangedruntimepaths. SourceHTTPframe routeignorespage_id, rereads session.page acrossawaitsandcachesonlybysession; heldoldcapture canplausiblypollutecache. Addmaintaineddiscriminatingtestsfirst. Whole-repo TS/JS/Go searchfinds noJSONrecording_framepush producer/consumer beyondhandler/facade/mocks/unusedschema; archiveingestion recordkind is unrelated andpreserved. Designremovesdeadpush path andanonymousbinaryvariants, preservesrealWS/HTTPGET/perf/implicitmini. ImmutableSessionlease exists, driverpageToIdMap exists; APIremainscanonicalmappingowner. No074runtimeedit yet.
+
+074 HTTPmaintainedred32916 consumed1: requestedoldpage isnotrejectedbeforecapture, andcapturefinishingafterpageswitchreturns200. Itsfirstassertionpreventedindependentcachecheck; parameterizedresponse/cacheexpectations nowrunseparately. Scope-only rerun disablescoveragecollection withoutchangingfloors; fullownerqualification followsproductionrepair. No074runtimeedit; focusedcache-redruncompleted1,3fail/4pass. Nooperationpending.
+
+074 cache-red independentresult:3fail/4pass at /tmp/bas-frame-cache-red-074.txt. HeldRedcapturefinishesafterclearFrameCache andBlue selection, repopulates sessioncache; nextBlueframe request nevercallsBlue.screenshot. Confirmscachepoisoningseparatelyfromoldresponse409failure. Baseline/testchanges only; no074runtimeedit orpendingoperation.
+
+074 initialHTTPcandidate: new frame-streaming/frame.ts contains immutableFrameSource/capture/same-source helpers andsinglebinaryencoder (notyetusedbystrategies). record-frames nowchecksrequesteddriverpage beforecapture, snapshotslease/page, fencespost-awaitpublication, keyslookup/reusebysource/policy, avoidsduplicatedhashing/rawbuffercache andthreecopy-pastedresponsebranches. Sevenfocusedtests pass /tmp/bas-frame-http-candidate-074.txt aftervalidownerfieldsaddedtoexistingfixture. NoAPI/binary/UIconversionyet; partialwirechange mustnotbedeployed. Nextconvertstreamproducerswithmaintainedsourceenvelopetests, thenAPIsessionvalidation/canonicalmapping andUIdecoder; retireverifiedunusedJSONpushfacade. Allscopedredrunsconsumed; nooperationpending.
+
+074 streaming red /tmp/bas-frame-stream-source-red-074.txt consumed1,3fail/30pass: bothCDPperformance modes andpolling lackrequiredsourceenvelope. ConvertedCDPpendingframes tosnapshotsource/timeatadmission andpreservesitthroughbufferedflush; polling snapshotsbeforecapture andchecksafterawait/dedup. Bothuse singleencodeFrame withmandatoryversion/source/captured_at andoptionaltiming. ManagerbindssourceForPage toimmutableexecution/lease; SessionProvidercontractextends accordingly. Oldstrategyfixtures/wireassertions subsequentlyconverted; source3cases/typespass. API andUIstillunconverted; do notdeploypartial074.
+
+074 source-only green77862 consumed0,3tests/2suites (30unselected). Initialdriver types65261pass. UpdatedoldCDP/polling assertions toinspectJPEGaftermandatoryheader andtimingnestedunderoptionalfield, preservingeffectcounts/bytes/fallback/ACKtests. Existingstrategyfixturesnowprovideauthoritativesource. Combined4suite framecandidateadmitted; exactIDtoolreceipt. StillnoAPI/UIconversion or074deployment.
+
+074 combineddrivercandidate12459 consumed1,57pass/1fail: oldpollingtestcomparedwholepacket toJPEG; updatedonlypayloadextraction whilepreservingnew/oldframe assertions. Addedmanageractualpage/lease sourcebinding regression andvalidownerfixture. Requalification69819 consumed0,59tests/4suites. Initialdriver types65261pass appliesunchangedruntime since thatrun. Nooperationpending. APIframeSessionbinding/mandatoryheader validation, canonicalpageprojection, UIdecoder andunusedJSONpushremoval are next; no074deployment.
+
+074 APIowned-session sourceadmission testadded inexistingrecord_mode_frames_test.go, usingrealSessionManager admission fixture andrealWebSocket boundary withcollectingHub. Casescurrent/session/execution/lease/page/anonymous/version/retiredsession; validpublicationmustcarrycanonicalpage andomitdriverleasecredential. First go invocationusedscenario rootinstead ofapi module, failedrunnerpath andisnotbehavioralevidence. Correctedapi-cwd rerunpending. Drivercandidate59/4passed; runtimepartial074stillundeployed.
+
+
+### BAS-WORK-074 boundary implementation — 2026-09-23 UTC
+
+RF038: API source-admission red55738 completed with all eight cases failing;
+current frames lose identity and foreign/anonymous/retired sources publish.
+Mandatory versioned source envelopes now span driver, API and viewer. Session
+validates private execution/lease and current driver page; API publishes only
+canonical session/page identity. HTTP preview maps canonical requests to driver
+pages, validates the returned source after capture and before ETag admission.
+Removed unused JSON push route, hub facade, mocks and UI schema; both live
+stream strategies share one encoder. Updated protocol docs. No driver lease is
+sent to the browser. Same-page navigation epochs and cross-transport ordering
+remain unqualified. No deployment yet; live073 remains healthy.
+
+Focused driver9613:62/4 pass, including lease change during polling, buffered
+CDP reconnection and cache reuse. Viewer red76148:19fail/12pass (wire migration,
+anonymous acceptance and wrong-source HTTP admission); candidate53056:31/31
+and types91559 pass. Full record-mode2579:560/29 pass. API candidate76402 passes;
+race22245 found one old integration fixture with no admitted session. Converted
+that real HTTP fixture to proper session/lease admission and canonical source
+projection; race15103 passes all handlers. Other five race packages passed22245.
+API build37756 and driver types88762 pass. All these operations consumed.
+
+31 prospective baseline paths include two protocol docs; final changed paths
+frozen in /tmp/bas-frozen-074.json. Runtime metrics in
+/tmp/bas-frame-metrics-074.json and scoped TS /tmp/bas-frame-complexity-074.json.
+Full driver owner validation admitted (exact tool receipt); native source probe
+/tmp/browser-automation-studio/frame-identity-native-074.mjs prepared with old
+page, retired lease, wrong execution, HTTP and valid-current positive controls.
+The native injection remains a controlled delayed-producer test, not a natural
+queue-frequency claim. Next: consume owner result, deploy through managed
+lifecycle, run native/preservation qualification and Test Genie/board checks.
+
+
+074 broad validation: full driver owner58499 consumed1,
+uh-20260923-071534-624aa5334ad2cfd555ddf6a676e90e16 stopped at60s no-output bound.
+No suite result; do not reuse old1816-pass qualification for changed runtime.
+Recall84913 consumed0 (64hits/10corpora). First ordered Electron suite diagnostic
+completes0 with its existing conditional skip; pipeline localizer58108 remains
+running. Targeted native-fixture66474 completes1: three native pixel tests still
+lack sourceForPage and decode old wire. Preview lifecycle mock also lacks
+pageToIdMap. Baseline extended before correction with pipeline-e2e.test.ts;
+prepared conversion preserves original independent RGB/dimension/lifecycle
+assertions. Apply after in-flight localizer ends; runtime is unchanged.
+
+TG92055 and its one quiet wait/catalog consumed:20260923-071619-1a170e28,
+1141findings/103long/405complexity/611duplication/21coupling/debt31221;
+budgets fail. Board89121 consumed0,17pending_telemetry rows; contract/inventory
+pass. Scoped TS421->467 (+46), Go+30, runtime+25; cumulative affectedGo-99.
+No restart/native074 qualification yet. Pipeline58108 is the only pending
+operation. Next apply native test migration, rerun native cases and owner suite.
+
+074 localizer58108 explicitly terminated (owned Jest PID1107143, command verified)
+after stall; targeted66474 already proved three outdated native fixtures. It is
+an aborted diagnostic, not a product pass. Converted the native test's page map,
+source suppliers and all three old payload parsers while preserving RGB, DPR,
+scale and delayed-DOM assertions. Frozen manifest extended test-only; runtime
+and prior scoped checks remain unchanged. Native targeted rerun now pending.
+
+074 fixture diagnosis:88113/75337 explicitly canceled after stalls, not passes.
+Single native capture60594 passed (one RGB test,30unselected). Bounded controls
+trace97686 timed out30s while CDP continued acknowledging frames; the native
+settings fixture still returned only {page}, so mandatory source admission
+correctly rejected it and its first-frame await never settled. Converted that
+remaining provider and nested optional timing decoder; retained original quality,
+FPS and byte-count assertions. Test-only freeze updated; native scoped rerun
+pending. No runtime changes or deployed074 build. No timeout/floor weakened.
+
+074 native61085 consumed0:10pass/21unselected in4.279s, including pixel identity,
+polling CSS/device dimensions, four DPR/scale cases, CDP+poll quality/FPS/timing
+settings and delayed-DOM startup/stop. All obsolete native fixtures converted;
+no runtime edits since initial freeze. Full owner rerun and managed restart
+admitted concurrently on frozen source (exact IDs in tool receipts). TG receipt
+precedes only these test-fixture changes; runtime scope is unchanged.
+
+074 exact pending: owner31157 and managed restart52120. All earlier diagnostic,
+Test Genie and board operations consumed; original runtime freeze unchanged.
+
+075 independent read while074 qualifies: recall46032 consumed0,63hits/10corpora
+with provider degradation (raw CLI text includes a malformed UTF-8 fragment;
+read with replacement only for display). Existing RF007 source shows useTimeline
+and useFrameStream each subscribe_recording on separate API sockets; Hub sends
+binary frames to both, while the timeline provider has no binary consumer.
+Hypothesis: one visible canvas receives two network copies of each callback
+frame. Added per-socket byte counters and a uniquely timestamped accepted frame
+to the retained074 native producer to observe this independently of source
+rejection. No075 implementation, baseline or product claim yet.074 owner31157
+and restart52120 remain pending, runtime frozen and unchanged.
+
+074 qualification scope note:073 API/driver binaries remained live before the
+managed restart. The UI is served by the development lifecycle and can read
+edited source, so earlier shorthand “live073 unchanged” is not an isolated
+claim about the frontend during implementation. No native074 qualification was
+run against that mixed boundary. Final native checks require the restarted
+API/driver build and frozen UI source.075 recall degradation specifically:
+source-ledger.agent-memory and source-ledger.scopes deadlines.
+
+074 restart52120 consumed0; API/driver/UI healthy, build
+6f65b5a0f714c2296ffa9e0ac658e4306b758a9ec4fa49a9b5d836159931c79d.
+Frozen32paths unchanged. Native70340 consumed0:16/16. Original held Red bytes,
+valid old-page receipt, retired lease and wrong execution cannot paint over Blue;
+current callback reaches actual viewer with canonical ID and no producer secrets.
+HTTP source mapping/rejection, canonical/driver Blue and cleanup controls pass.
+Screenshot inspected. Receipt/tmp/bas-frame-identity-native-074.json. Workflow
+preservation now running; full owner31157 remains pending. No source changes.
+
+075 observation from074 native receipt: one uniquely timestamped accepted frame
+arrives twice on two currently open browser WebSockets for one canvas. One socket
+received9binaryframes/65545bytes, the viewer8/61737bytes (different start times;
+not a statistically controlled bandwidth comparison). useTimeline's text-event
+socket has no binary consumer. This supports the RF007 redundant-fanout
+hypothesis and warrants a focused reproduction/repair after074 qualification.
+
+Adversarial visual note: final074 screenshot shows the fixture's single heading
+repeated across the blue canvas. Source identity/pixel-color checks pass but do
+not establish full image fidelity after viewport resizing. The cause (producer
+capture, rendering or probe artifact) is unverified; retain the screenshot and
+investigate with a coordinate-marked fixture against direct browser capture.
+Do not treat the uniform-color test as image-fidelity or performance certification.
+
+074 saved workflow98619 consumed0:12/12,three independent effects, execution
+92bee69c-73c7-4c8e-b636-77bd39869348, /tmp/bas-recording-e2e-08Lodh. Owned sessions,
+workflow, project and artifacts cleaned. Profile API metadata equals073. Full
+profile oracle28699 and owner31157 exact completion receipts follow. Source
+unchanged since freeze; no075 source edits.
+
+
+### BAS-WORK-074 final — 2026-09-23 UTC
+
+Full owner31157 consumed0:uh-20260923-072637-8cca25df81e1eae8a78be0148262c304,
+1826tests/123suites pass,2tests/1suite existing skips,387580ms. Profile28699
+consumed0:three complete identity reads match original rollback; API metadata
+matches073. All frozen32paths unchanged. Final receipt
+frame-source-2026-09-23.json records native16/16, workflow12/12 with3effects,
+baselines, source identities, failed/aborted diagnostic history and limitations.
+Runtime+25,Go+30,TS+46 are explicit; whole-tree duplication debt31313->31221 is
+an observational shared-tree scan, not exclusively attributable to this cycle.
+No074pending operations. Continuous goal moves to confirmed RF007 duplicate
+binary delivery, with RF047 image-fidelity follow-up retained; no goal completion.
+
+
+### BAS-WORK-075 admission — 2026-09-23 UTC
+
+RF007 / W3 / J05. Feedback reread; recall already consumed, no pending074 work.
+Confirmed native duplicate delivery (two copies of one source-bearing callback)
+plus source identifies the event-only timeline's subscription as the redundant
+recipient. Target documented before implementation. Retain one recording
+subscription contract with an explicit frames:false choice for the timeline;
+default remains frame-capable for existing consumers. Hub owns binary filtering
+and frame-subscriber presence. No shared-UI lifetime rewrite or new transport.
+Prospective12path baseline /tmp/bas-before-075/manifest.json recorded. Add
+maintained event-only/default/opt-in/replacement/queue-accounting controls and
+native exact-copy check before editing runtime. Driver code is unchanged.
+
+075 maintained Go red first attempt had an expected-counter int64/uint64 fixture
+compile mismatch; corrected before behavior evidence. Red2: event-only delivery,
+drop accounting and replacement-choice failures; default/explicit-frame controls
+pass. Native13159 consumed1:16pass/1fail, exactly2copies where1expected, source
+identity controls and owned cleanup retained. Added locked RecordingFrames intent,
+frames:false from timeline, converted frame-subscriber query across all callers
+without an alias. Page/timeline/performance fanout unchanged. Four racepackages
+41194, UI560/29 91731, types23290 and API build3881 all pass. Frozen affected
+paths /tmp/bas-frozen-075.json; metrics /tmp/bas-frame-fanout-metrics-075.json.
+Driver0741826/123 qualification retains identical source. Next managedrestart,
+native exact-copy/timeline preservation, workflow/profile and TG/board.
+
+075 exact pending restart87738. TG53455 admission/one quiet wait/catalog consumed,
+run20260923-074214-596bc818; summary1140findings/103long/405complexity/610duplication/
+21coupling/debt31210, budgets fail. Board76079 consumed0,all17unknown;
+contract/inventorypass. Scoped runtime2200->2203(+3),Go301->303(+2),44functions
+unchanged; scopedTS65->65,28codepaths unchanged. Cumulative affectedGo-97.
+No net per-cycle simplification claim; target removes unused network work.
+Frozen source unchanged.076 independent image-fidelity recall49416 pending;
+no076 source changes. Artifact decode completed; progress append initially used
+api cwd and was corrected here (no product failure or extra test admission).
+
+075 restart87738 consumed0, API/driver/UI healthy; frozen source unchanged.
+076 recall49416 consumed0:67hits/10corpora, source-ledger memory/scopes deadlines.
+No076 runtime edits.075 native exact-copy qualification begins now.
+
+075 native3588 consumed0:17/17. Unique current callback now has1networkcopy
+(red2); timeline socket receives0frames/0bytes, retired viewer2/7616bytes and
+current viewer7/52953bytes. This proves removal of redundant delivery for the
+controlled single-canvas case, not a broad bandwidth/FPS band. Allsource/HTTP/
+canonical selection/cleanup controls pass; noframeerrors. Artifact
+/tmp/bas-frame-fanout-native-075.json. Savedworkflow81770 nowpending; after it,
+runprofilepreservation. Nootherpending075 operation.076 producer preparation
+can proceed independently without runtime edits.
+
+
+### BAS-WORK-075 final — 2026-09-23 UTC
+
+Workflow81770 consumed0:12/12,3effects,executionb1e33987-f1a6-445c-9a51-07f6b3d70a3b,
+/tmp/bas-recording-e2e-MX66dE; owned cleanup complete. Profile71137 consumed0,
+three complete reads equal original rollback; API metadata equals074. Final
+frozen paths unchanged, no pending075 operations. Receipt frame-fanout-2026-09-23.json
+contains before/after exact-copy evidence and honest scope/complexity limits.
+No extra driver owner run because074source is unchanged. Continuous investigation
+moves to RF047 pixel fidelity, using an independent coordinate grid and fixture
+DOM measurements to distinguish capture from viewer/compositor defects.
+
+
+### BAS-WORK-076 initial experiment — 2026-09-23 UTC
+
+Native98526 consumed1:21pass/4fail, all owned cleanup successful, receipt
+/tmp/bas-frame-fidelity-076/receipt.json. All12 coordinate-color checks pass;
+fixture reports one heading and inspected wide screenshot shows one heading.
+Persistent tiling was not reproduced with this grid. Four aggregate dimension
+assertions failed first at HTTP JPEG dimensions (DPR2 device pixels versus CSS
+stream pixels), preventing independent stream/canvas assertions. The narrow
+fixture also has layout width980 without a viewport meta tag, so DOM innerWidth
+is not yet a valid screenshot-width oracle. No product repair or image-fidelity
+qualification inferred from these failures.
+
+Source shows HTTP frame capture omits scale while returning viewport dimensions;
+recording start also starts a new stream without forwarding the existing selected
+scale. Explicit CSS/device session configuration exists. Next discriminator adds
+viewport meta, records HTTP declared versus decoded dimensions separately, and
+observes requested device-scale streaming before and after recording starts.
+Keep CSS/device preservation controls; do not label HiDPI itself a defect or
+infer input-coordinate failure (the input mapper explicitly supports HiDPI).
+No076 runtime/test-baseline edits; only the native producer is being refined.
+
+076 refined producer /tmp/browser-automation-studio/frame-scale-076.mjs now has
+viewport metadata, a small heading animation to make frame receipt observable,
+separate declared/decoded dimension assertions, and a deliberate extra frame
+observer before recording. That observer is an intentional second consumer,
+not a recurrence of075's unused timeline traffic. CSS run94360 pending; device
+variant must run sequentially after owned cleanup. No076 runtime edits/baseline.
+
+076 refined CSS94360 consumed1:27pass/11fail; device15518 consumed1:25pass/13fail,
+all owned cleanup passes. CSS HTTP JPEG is2x while selected stream scale isCSS;
+requested device preview/recording streams remain1x. Native receipts
+/tmp/bas-frame-scale-{css,device}-076/receipt.json. Initial CDP frames can also
+be87pixels shorter than current DOM viewport, requiring separate timing/viewport
+investigation. Source confirms session-start and recording-start omit scale;
+SessionSpec currently discards it. HTTP screenshot omits scale. Frame cache
+explicitly defines width/height as viewport dimensions, and input mapping supports
+HiDPI; reject the earlier ungrounded assumption that device JPEG dimensions must
+always equal that metadata. Clarify the existing coordinate contract, preserve
+CSS/device capability and test the selected bitmap scale separately.
+
+Target written; prospective8path baseline /tmp/bas-before-076/manifest.json.
+Retain immutable preview scale on SessionSpec and use it at all three capture
+admissions, including recording restart. No new preferences registry or transport
+retention. Add maintained route regressions before runtime edit. No076runtime
+changes yet; previous native operations consumed. Current deployed075 remains
+qualified within its documented scope.
+
+076 route-red first invocation used BAS root and failed before runner admission; no product verdict. Corrected driver-cwd run96010 consumed1: six intended scale assertions fail. Extend baseline to existing native pipeline test fixture (ninth path) before adding its required admitted SessionSpec; runtime handlers will use the actual required session contract without fake-only optional chaining. No fixture semantics or timeout changes.
+
+076 final affected routes27749 consumed0:58/3; initial candidate5917 54/3,
+ types55817 pass. Runtime chosen scale has one admitted SessionSpec owner, no
+ new registry or retained disposed stream. All three capture admissions converted.
+ Nine changed paths frozen /tmp/bas-frozen-076.json. Native producer preserves
+ prior failed receipts and distinguishes CSS metadata, selected scale width and
+ full-viewport completeness, including actual recording stop/start. Owner suite,
+ managed restart and scoped tidiness next; no further source edits during runs.
+
+076 managedrestart85934 consumed0; API/driver/UI healthy, build
+9be7afbaea47455b7bfdf28e1884a7234a3868c6ec21c00e15509e66ccfdd688. Frozen9paths
+unchanged. TG66780 admitted20260923-081726-89c15d22; onequietwait/catalog/decoded
+artifact consumed:1140findings,103long,405complexity,610duplication,21coupling,
+31210debt; budgets fail unchanged. Board27192:17unknown, contract/inventorypass.
+Runtime1792->1800(+8),scopedTS161->166(+5),25codepaths; Go unchanged,cumulative-97.
+No net per-cycle complexity-reduction claim. Fullowner14927 pending. NativeCSS
+79655 consumed1:43pass/8fail; allselected-scale widths, HTTPCSS capture andcolors
+pass;7fullheight mismatches retain87px shortage. Stop/start probe usedwrongAPI
+path and failed JSONdecoding; corrected producer preview-scale-native2-076.mjs
+uses existing session-qualifiedstop route. Originalreceipt retained; no product
+failure inferred from this harness error. Cleanupcomplete. Device30559 pending.
+
+077 geometry diagnostic: firstproducer38643 failed at rebrowser setContent
+loadtimeout before observations; contexts/browser closed in finally. Changed
+fixture to dataURL navigation as maintainednative suites use;28942 consumed0,
+/tmp/bas-cdp-geometry-077-v2.json. Compare actualChromium launchmodes, mobile
+true/false, screenshot overlap and explicitCDPscreenmetrics. No077runtimeedits.
+
+### BAS-WORK-076 checkpoint — 2026-09-23 UTC
+
+Owner14927 consumed0:uh-20260923-081722-ec206378eccf5cc80317fdce4271c193,
+1836tests/123suites,2tests/1suite existing skips,370101ms. Native2CSS18055
+consumed1:56pass/7height failures. Device30559 consumed1:46pass/17fail; initial
+and narrow staleDOMdimensions/whitepixelregions are real unresolved observations,
+not discarded as scale-policy successes. Later wide/restored/restarted stages
+pass all pixel and dimension checks. Recordingstop/restart and cleanup pass.
+Workflow4525 consumed0:12/12,3effects,fabb2e3f-20a2-42e7-9fd5-5a7b02d608c4,
+/tmp/bas-recording-e2e-qjF3KN. Profile80267 consumed0:3originalrollback identity
+reads; APIequals075. Allfrozenpaths unchanged. Receipt preview-scale-2026-09-23.json
+qualifies scale propagation only, explicitly retains geometry failures; no
+fullimagefidelity/release claim. All076operations consumed, continuous077 proceeds.
+
+077 direct regularChromium with headless:true/channel:chromium22703 consumed0:
+allinitial/afterscreenshot frames still640x393; explicitscreenmetrics restores
+640x480. Shell control passes without intervention. Reject launchflag change as
+sufficient repair; keep existing service-worker/audio capability route unchanged.
+
+### BAS-WORK-077 admission — 2026-09-23 UTC
+
+Feedback reread;076all operations consumed. Existing076geometry recall reused.
+Direct geometry17692 consumed0: Emulation.setVisibleSize repairs stable87px
+height shortage afterinitial/landscape/portrait viewport updates, mobiletrue/false.
+/tmp/bas-cdp-geometry-077-v4.json. Concurrent screenshot/resize59466 consumed0
+observes staleDOM dimensions and whitepixels underregularChromium, and staleDOM
+underheadlessshell. Same16-stage matrix with screenshotadmission paused and
+in-flightcapturejoined72687 consumed0:everyDOM/image dimension correct and zero
+white samples; /tmp/bas-viewport-polling-serial-077.json. Serial ordering alone
+solvespolling content, compositor command solvesCDPheight; neither alone is
+claimed to solveboth. No geometrysource edits before these discriminators.
+
+Necessary dependency-owner extension: existing canonical patch, same approved
+rebrowser1.52.0, package/lock metadata viaSDA, SDKPage and Chromiumviewport owner,
+BAScontextbuilder videooverride and existing native/SDKtests. Search-hub discovery
+22hits/3corpora retained /tmp/bas-dependency-patch-discovery-077.txt. SDA exact
+install dryrun approved; /tmp/bas-dependency-patch-dryrun-077.json. No rawmanager,
+registryedit, launchmodechange or SDKruntime monkeypatch. Targetdoc written,
+prospective7path baseline /tmp/bas-before-077/manifest.json plusactualtwoSDKsource
+files and hashes in sdk-manifest.json. Buildmaintained red proof before patch.
+
+077 maintainedred93412 consumed1:4fail/6pass. RegularChromiumCSSfirstframes
+320x153instead240atDPR1/2; viewportmutatesduringbothsuccessfulandfailingcapture
+barriers. SDAinstall approvedandinstalled, exactpatchhash
+562cef07ec0eda59d38fa3ae8c42a61c1d5c563c534728c887fd14b6ff723eac; installedtwoSDKfiles
+byte-matchcandidate. Lockdiffonlypatchhash, packageunchanged. Focused24096
+consumed0:10/10. Nativeunchangedconcurrentresizeproducer78114 consumed0:16stages,
+96samples,zeroDOM/image/pixelmismatches; /tmp/bas-viewport-polling-sdk-077.json.
+Video3632 consumed0:55paintedframesacrosstwoDPR2recordings,zeroincorrectbottoms;
+/tmp/bas-video-geometry-077/receipt.json. RemovedBASvideo-onlymetrics listener;
+retainedunrelatedlayoutstabilization. Frozenaffectedpaths /tmp/bas-frozen-077.json;
+fullowner, managedrestart, governance/tidiness/board and livequalification next.
+
+077 types99435 consumed0. Governance advisorypass with44existingwarnings;
+securitydepsstatus shows owner available/indexready but isnot a new BASsecurity
+scan or cleanverdict. TestGenie39225/onequietwait/artifactdecode consumed,
+20260923-084020-f513a66b:1140/103/405/610/21/debt31210, unchangedbudgetfailures.
+Board44580 consumed0:17unknown; contract/inventorypass. MeasuredBAScontext528->485,
+SDK1845->1852,totalnet-36runtime; complexity744->742,codepaths318->316. No debt
+exportedoutsideBAS measurement. SDK `_updateViewport` preserves no-viewport/
+Android/explicitwindow-boundary branches; no nativeplatformqualification implied.
+Managedrestart46814 consumed0; threehealths200/buildaae1b4d070616993eb8c6e33f0b6b4af887c1fe8006a6a06113e3bf828f64dda,
+sixfrozenrepo pathsunchanged. NativeCSS96228pending, fullowner52054pending;
+no others pending. No source changes afterfreeze.
+
+077 nativeCSS96228 anddevice94383 consumed0:63/63each. Everyfixturecolor,
+CSSmetadata, bitmapscale andfullviewport assertion passes before recording,
+initial/narrow/wide/restored and recordingrestart. Ownedcleanup complete;
+/tmp/bas-preview-geometry-native-{css,device}-077/receipt.json. CSSwide screenshot
+inspected:singleheading, correctfourquadrants/fullcanvas. This supersedes076's
+observedgeometry failures within this fixture and workload; rapidcommandordering,
+sourceepochs, broadperformance/nativeOS remain unqualified. Fullowner52054 still
+pending; savedworkflow next. No changes afterfreeze.
+
+077 savedworkflow52198 consumed0:12/12,3effects,execution37bb226a-cd84-4227-a357-c6ffb22ac04e,
+/tmp/bas-recording-e2e-crC1FP,ownedcleanupcomplete. Profile42812 consumed0:three
+complete reads equaloriginalrollback, APIequals076. Onlyfullowner52054pendingfor077.
+
+078 freshUI-state observation during077visualinspection: address bar is empty
+while the selected live tab renders the fixture. Native23809 consumed1:7pass/
+2fail, initialattach and reattachment URLvaluesempty; both canonicalpage snapshots
+and ownedcleanup retained. /tmp/bas-browser-address-native-078/receipt.json.
+Firstcheck reads immediatelyaftertabvisible; refine with bounded5s opportunity
+before declaring persistent productfailure. Repeatedheading remains unreproduced,
+now superseded by fullgeometry fixture qualification, not an exhaustiveimageproof.
+No078runtime/testchanges,077frozenpaths unchanged; separate078recall admitted.
+
+### BAS-WORK-077 final — 2026-09-23 UTC
+
+Fullowner52054 consumed0:uh-20260923-083931-6e0f297c119278874a5642e082af0c0d,
+1842tests/123suites pass,2tests/1suite existing skips,403684ms. Allsixrepofrozen
+paths andtwoinstalledSDKmodule hashes stillmatchqualification. Finalreceipt
+renderer-geometry-2026-09-23.json captures native126checks,96concurrentresize
+samples,55video frames, workflow/profilepreservation andnet-36lines/-2complexity
+includingactualSDKsource. No077pending operations orfullreleaseclaim.
+
+078 boundednative88684 consumed1:7pass/2fail afterallowing5seconds foreachURL
+observation. Addressbarremains emptywhileAPIcanonicalpageURLmatchesfixture;
+cleanupcomplete. Recall97655 consumed0:64hits/10corpora, relevantnavigation and
+captureprograms do not replace a UIhydration oracle. Callback-onlyURLassignment,
+restoration andlast-actionfallbacks appear to omit existing-page snapshotadmission;
+sourcehypothesis requires maintainedregression before repair. No078sourcechanges.
+
+### BAS-WORK-078 admission — 2026-09-23 UTC
+
+Persistent address-bar red confirmed afterbounded5swait onattach/reload; canonical
+pageURLis correct. Owner mismatch: initialsnapshot mutatescanonicalstore butURL
+UIonly follows threeoptionalusePagescallbacks plusrestored/last-actionfallbacks.
+Callbacks' only runtimeconsumer isRecordingSession; restoredURLhas nootherreader.
+Targetwrittenfirst: selectedvalidatedPageURL isobservationowner; preserveexplicit
+intent and page-lifetimefences, removeoldcallback/statefacadescompletely.
+Prospective7pathbaseline /tmp/bas-before-078/manifest.json. No driver/APIchanges;
+077qualificationretained. Addmaintainedobservation/hydration/selection/control
+regressions beforeruntimeedit. Historyreadattribution andinitialbuttonstate are
+notprovenbyanaddress-stringrepair and remain separateinvestigation.
+
+078 maintained red26339 consumed1: three intended location-observation failures.
+Runtime now observes validated canonical selected Page in RecordingSession;
+useBrowserNavigation accepts observedUrl without issuing intent. Removed three
+callback facades, forwarding selection helper, restored-URL hook/store state,
+last-action fallback and stale-action placeholder. Kept creation notifications,
+explicit command/page fences and local URL draft. Focused19472 consumed0:54/2;
+types72166 consumed0. Seven affected paths frozen /tmp/bas-frozen-078.json.
+No driver/API source change; 077 owner qualification remains source-identical.
+Next: record-mode suite, managed build/restart, actual UI hydration/selection/
+restoration controls, workflow/profile preservation and scoped debt measures.
+
+### BAS-WORK-078 final — 2026-09-23 UTC
+
+Managedrestart66619 consumed0; API/driver/UI healthy, build98640f86390eacca95a1aadd209d761c32e6c162c05389e6f9576a6fbc97758d.
+Native32954 consumed0:9/9 original hydration/reload reproduction now passes.
+Controls32644 consumed0:16/16, including draft, switching, external navigation,
+selected/final closure and real saved-profile close/reopen. Reload screenshot
+inspected: correct URL, one heading, complete four-quadrant preview. Workflow60032
+consumed0:12/12, three effects, execution8c80d922-1b39-46e3-adcc-2fe7b819de22,
+/tmp/bas-recording-e2e-UvBA1l. Profile65595 consumed0: three original rollback
+identity reads; API metadata equals077. All owned fixture cleanup complete.
+Seven frozen paths unchanged. Driver/API untouched, retain077 owner qualification.
+Final receipt address-bar-observation-2026-09-23.json. Runtime2914->2845(-69),
+scopedTS740->715(-25), paths267->261. Large RecordingSession still1424 lines;
+this repair removes competing URL policy rather than exporting it to a wrapper.
+Scenario-wide debt remains31210 and budgets fail;17release outcomes unknown.
+No078pending operations. Next adversarial angle: initial history availability and
+page/lease attribution of navigation-state and navigation-stack reads (RF099/RF038).
+
+### BAS-WORK-079 admission — 2026-09-23 UTC
+
+Feedback reread; no new operator feedback. 078 fully qualified. Recall61804
+consumed0,60hits/10corpora. Native85115 consumed1:10pass/3fail; browser confirms
+can_go_back=true but UI Back disabled after5s and reload, and both API history
+reads ignore stale canonical page_id, returning200 instead409. Owned cleanup
+complete; /tmp/bas-history-native-red-079/receipt.json. These are actual failures,
+not unavailable validation. Target written before repair;13path baseline at
+/tmp/bas-before-079/manifest.json. Existing Session/recordingOwner own lifetime;
+no new authority registry or history cache. Internal read caller discovery found
+only canonical Go Client and owned driver routes; migrate all in one boundary.
+Maintained tests must cover lease/page rejection before CDP, mid-read handoff,
+API stale-selection and UI capability refresh without draft replacement.
+
+079 driverred58594 consumed1:12 expected ownership/read failures. UIred29936
+consumed1:2 capability observation failures; initial7866 customreporter marks
+skips failed, so defaultreporter is retained. Go first compile missingfmt fixed;
+red72714 consumed1:12subcases fail, bypass/mock path returns wrong200/no ownedread.
+Firstcandidate driver56131 passes111/1; UI92226 passes35/1; Go65049 pass;
+driver17960 and UI10545 types pass. Newest-read race then reproduced2failures
+with maintained controlled completions; capability read now aborts on newer read
+or command receipt, retains page/session cancellation and does not overwriteURL.
+Added Session transport/closed-state regression.13paths frozen at
+/tmp/bas-frozen-079.json. UI86588, Go36719 and UItypes17263 pending; full driver
+owner, lifecycle and live fixture follow. No source changes afterfreeze.
+
+079 native94757 consumed0:13/13 original reproduction passes on healthyde7a18.
+Controls27130 consumed1:17pass/1fail, an asserted empty history for a newly
+navigated tab. Discriminator56514 consumed0:20/20 and retained browser stack proves
+that tab hasabout:blank inback_stack; Backenabled was correct. A separate new
+about:blank tab has both capability booleansfalse and both UIbuttonsdisabled.
+/tmp/bas-history-controls2-079/receipt.json. This corrects the test oracle, not
+product semantics; first failed receipt remains. UIpopup selectedpage read,
+Back/Forward effects, implicitread binding, malformedpage and stale-page rejection
+pass. Workflow49554 consumed0; profile preservation follows. Fullowner42193
+pending; no source changes after13path freeze.
+
+080 next concern scout, no edits: recall43460 consumed0; raw provider output has
+invalid UTF8 bytes, replacement decoding permits reading and original retained.
+Existing viewport investigation from077 retained. Source has duplicate
+page.setViewportSize in route and stream strategy, fire-and-forget stream
+updates, pending-update dropping, and no Session/page admission on API viewport
+route. API also reads only ActualViewport while the driver emits flat width/
+height, suggesting zero-sized success receipts. Native discriminator must
+confirm semantics before repair.
+
+### BAS-WORK-079 final — 2026-09-23 UTC
+
+Fullowner42193 consumed0:uh-20260923-091656-ac715cd37bc57d8c03137174ca003acd,
+1854tests/123suites,2tests/1suite existing skips,371646ms. Workflow49554 consumed0:
+12/12,threeeffects,execution314b875b-f4f7-4842-889e-d9a4c171af3d,
+/tmp/bas-recording-e2e-huYxqC. Profile68479 consumed0:3complete originalrollback
+reads,APIequals078. Finalreceipt history-read-ownership-2026-09-23.json.
+13frozenpaths unchanged; no079pending operations. Core read admission function
+complexity14; browser observation remains CDP-owned, existing Session/lease owner
+reused; no parallel navigation history map or new authority registry. This adds
+necessary checks (+86runtime,+18Go,+12scopedTS); not a net simplification cycle.
+Scenario-wide debt31081/budgets stillfail and all17release outcomesunknown.
+Next080 native viewport discriminator admitted. Initial producer failed atparse
+withduplicateconstbefore and caused nofixture/browser/profile effects; corrected
+producer pending12608. No080implementation edits.
+
+080 native12608 consumed1:6pass/4fail, including one producer reference error
+from an overbroad local-variable rename; three product assertions independently
+failed and cleanup completed. Corrected producer75964 consumed1:7pass/3fail,
+/tmp/bas-viewport-native-red3-080/receipt.json. APIresize800x600 returns0x0 while
+fixture observes800x600. After selecting a second tab, resize with first canonical
+page_id returns200 instead409 and changes second document640x480->1100x750.
+These are real effects under stale page intent. No080source/test edits yet.
+
+Source ownership review: route capturesSession beforebodyparse, callsSDKviewport,
+then fire-and-forget streamupdate. CDPstrategy callsSDKviewport a second time,
+ignores changesunder20px and drops updateswhilepending. Stream should observe
+already-applied viewport, never mutate it. Candidate repair retains existing
+stream-notification entrypoint as a bounded capture refresh, passes capturedPage,
+awaits/revalidates it and removes pending/status/result facades and polling no-op.
+No new timer, queue, history/viewport cache or per-caller SDKpatch proposed.
+Existing SDKcapturequeue from077 remains viewport/screenshot serialization owner.
+UI desired-size and session/page lifetime must fence delayed config/transport;
+retained bounds must synchronize when selection changes. Existing bounds equality
+anddebounce guards are preservation obligations (May03recall read).
+
+### BAS-WORK-080 admission — 2026-09-23 UTC
+
+Target written in architecture before implementation. Prospective26-path baseline
+/tmp/bas-before-080/manifest.json; no source edits before baseline. Own viewport
+command once at Session/page SDK owner, observe capture sizing through current
+stream generation, remove duplicate setter/obsolete facades, and fence UI sync.
+Maintain API compatibility for callers omitting page_id by binding currentselection
+at admission; explicit stale ID must409 without effects. Existing SDKpatch077 and
+saved profiles/workflows remain preservation boundaries. Red native7pass/3fail
+is retained; add meaningful maintained ownership/receipt/refresh/lifetime tests
+before editing runtime. No dependency change or new service is required.
+
+080 maintained red: driver command7fail (no session, command completed), Go7055
+consumed1 all4 ownership/receipt subcasesfail, UI33197 consumed1 four request
+lifetime/receipt failures. Logs/tmp/bas-viewport-{driver,go,ui}-red-080.txt.
+Added capture-observation regressions inexistingCDP suite:1/10/200px exactcapture
+refresh without browsermutation, stale-page refusal beforeSDKeffects. Run admitted.
+Runtime remains unedited; only4test files changed sofar. Baseline26paths retained;
+no freeze yet. Next:consume capture red, implement command/receipt/stream lifetime
+boundary and migrate obsolete tests/callers without weakening desired semantics.
+
+080 capture red consumed1:four intended failures,0SDKmutation and exact1/10/200px
+refresh/stale-page tests. API/Client/Session and driver viewport runtime candidate
+implemented; Go flat response removes ActualViewport alternate, emits/validates
+internaldriverpage source. recordingSelectedPage helper shares explicit/implicit
+selection binding with079reads. Driver admits afterbodyparse, capturesPage,
+performsSDKmutationonce, awaits captured-page streamrefresh and revalidates.
+Stream candidate removes duplicateSDKsetter, smallresize threshold, publicpending/
+resultfacades and pollingno-op; existingcapturegeneration governslatestrefresh.
+Focused75676 consumed0 (inspect retainedlog forcounts). Added further adverse
+A->B->original-size while CDPacquisitionpending discriminator; orderred admitted.
+IMPORTANT: candidate incomplete and NOT frozen/deployed. UIruntime unchanged;
+old interface/caller tests still need legitimate contract migration, GoSession
+and oldhandler fixtures require owned sessions/newreceipt, types notyet rerun.
+Baseline26paths retained; runtime edits are within it. No dependency changes.
+
+080 initial capture-order regression failsreturn-to-original while attachment
+pending; owns(capture) guard fixes it. Focused41356 consumed0:12/2. UI lifecycle
+candidate nowimplemented;68054 passes4lifetime cases. Initialdriver types25208
+only unusedlogger; import removed. Go33337 passes fourownedviewportcases.
+Migrated existing tests to owned requests, concrete receipt and capture-observer
+interface; APIunknownsession test nowasserts404, positive real-owned cases remain.
+Broader73500 passes81/4; UI22727 passes53/2 (existing act warnings retained);
+UI77153/driver28627 typespass; Go16022 focusedSession/APIpass.
+Additional return-to-original test during Page.startScreencast (notonlyattachment)
+reproduces1fail/1pass; capture now stores its existing started flag ontheowner,
+so an in-progress capture cannot be mistaken for a completed same-size capture.
+Latestdriver suite admitted; UIretainedbounds/newselection tests92412 consumed0.
+No freeze yet; after consumingchecks, reviewdiff/retiredcallers, measure andfreeze
+before fullqualification/build. Current livebuild remains079de7a18; no080restart.
+
+080 final capture-order discriminator failed during pendingPage.startScreencast;
+existingstarted flag movedontoCaptureowner so same-size shortcut requires a fully
+started currentcapture. Finalfocuseddriver suite consumed0:82/4. UIretainedbounds/
+selected-page/no-page cases92412 consumed0:6/6. UIrevert21659 consumed1: aborted
+B mayalreadyapply, whilelastSyncedA skips compensatingA. Invalidate lastSynced
+when an actualrequest is sent; do not treat abort as effectrollback. Maintained
+independent browserWidth oracle verifies this failure. Final UI/Go/types admitted.
+26affectedpaths frozen /tmp/bas-frozen-080.json; no subsequent source edits allowed
+without recordingnewcandidate/requalification. No SDK/dependency changes.
+
+080 final UI20286 consumed0:574/29; four Go racepackages/build8654 consumed0;
+UI72864/driver64343 types consumed0. Retired frameviewport types/pendingfacade/
+polling no-op have no remaining source callers, and frame-streaming contains no
+SDKviewport mutation. Frozen26paths. Runtime7687->7490(-197), Go+14(cumulative-65),
+scopedTS665->679(+14),195->194codepaths. Necessary ownership/cancellation checks
+increase measured branching; do not claim net complexity reduction for080.
+Fullowner52243 and restart43914 pending. TG76563 admission consumed1, exact
+20260923-094617-3a6877a1 onequietwait and artifactfetch consumed; decode follows.
+Board40834 consumed0 all17unknown; contract/inventorypass. Native producers ready
+withseparate080artifact paths; no postfreeze source edits.
+
+080 deployed buildbb416759; restart43914 consumed0, API/driver/UI healthy.
+Fullowner52243 consumed0: uh-20260923-094610-84bf0f09b2bb4a06a734530123e6e849,
+1867passed/123suites,2tests/1suite existing skips,427533ms. Originalnative9295
+consumed0:10/10, actual800x600 receipt, stale-tab409 and selected document unchanged.
+Matrix57858 consumed1: CSS63/63, device59pass/4fail wide/restored stream dimensions
+remain1280x1190 while HTTP/canvas match current viewport. Cleanup complete.
+/tmp/bas-preview-geometry-native-device-080/receipt.json retained; no qualification
+claim. Logs show device uses polling, UI falls back to HTTP; external RCL execution
+traffic concurrently uses BAS. Capture freshness/timeout versus ownership is not
+yet discriminated. Frozen26paths unchanged; no source mutation or blind rerun.
+TG decoded1145/103/408/612/21/debt31065, budgets fail;17releaseunknown.
+
+080 final preservation/diagnostic evidence: instrumenteddevice82277 consumed0,
+63/63, no timeout counter; originalfailed session retains20timeouts/10delivered/
+4unchanged. This supports load sensitivity, not proven causal attribution. No
+quality,timeout,workload or oracle weakened. CSSsmall/rapid9169 consumed0:63/63,
+including1px/10px/rapidreturn and restart. Workflow4534 consumed0:12/12,3effects,
+execution9596b4d4-6703-4333-891e-ecfb10efb4f4, /tmp/bas-recording-e2e-fkecyd.
+Profiles64877 consumed0:3complete original reads/APIequals079. All fixturescleaned.
+Frozen26paths unchanged, receipt viewport-ownership-2026-09-23.json includes
+cohesion review and faileddevice evidence. Ownership slice qualified; RF007 load
+failure remainsopen. No operationspending and no overallreadiness claim.
+081 recall7690 consumed0,60hits/10corpora withproviderdegradation. SingleURL capture
+program doesnot supply concurrent frame contention oracle; reuse maintained route
+and nativefixture producers. Hypothesis: overlapping identicalHTTPpreview misses
+queue duplicateSDKcaptures, starving200ms polling; distinguish from browser-wide
+rendering cost and viewport metadata/caching defects before selecting repair.
+
+## BAS-WORK-081 — 2026-09-23 — preview capture admission investigation
+
+RF007/RF038, J05/J22/J23. Baseline2paths /tmp/bas-before-081/manifest.json.
+080hasno pending operations. Discriminator: overlap eight identical HTTPpreview
+reads while the real route's SDKpromise is held, count capture admissions, then
+release. Controls vary quality/page/lease, simulate resize/cacheclear beforecapture
+completion, and verify errors do not become cached success. Native burstfixture
+will measure comparable completion/timeout/frame freshness at unchanged fidelity.
+No runtime change selected yet; do not infer all20 observedtimeouts were causedby
+HTTPduplicates. Existing200ms watchdog and allquality/workload settings retained.
+
+081 maintainedred76329 consumed1:3fail/11pass. Eight identical reads admit8SDK
+captures; viewport changes withinTTL return1024x768 instead800x600; cacheclear
+allows pendingoldcapture to return200 and repopulate. Targetarchitecture updated
+before runtime edit: retain one session cache lifetime with currentpending/result,
+share identicalreads, includeviewport/URL/config inidentity, fenceclear/replacement,
+keepdifferentfidelity results valid and failuresretryable. Baseline2paths retained.
+Nativeburst92444 pending; no081deployment orfreeze.
+
+081 candidate frozen2paths /tmp/bas-frozen-081.json. Initial27120 consumed0,
+14route tests/typespass; finalcontrols63241 consumed0,35tests/2suites/typespass.
+Tests preserve oldcache/ETag/page/lease/full-page/scale behavior and add failure
+retry, clearall, viewport/URL retirement, fidelity separation, oldfailure/newpending
+ownership. Nativebaseline92444 consumed1:18pass/6fail; each of6eight-reader bursts
+produces8distinct captures,360.4–398.4ms batch completion and5totalpollingtimeouts.
+No cleanup pending. The controlled workload demonstrates redundantcapture pressure;
+it doesnot attribute every080external-load failure. Runtime241->188(-53), scoped
+TS38->44(+6),10->8codepaths, Go unchanged(cumulative-65). No netcyclomaticreduction
+claim. One existingcache owner now coverspendingandcompletedwork; retired three
+cache helpers and duplicate same-hash packaging branch, preserve ETaghash semantics.
+Ownerqualification/build/nativecomparison next; no further sourceedits afterfreeze.
+
+081 pending operations: driverowner1151, managedrestart6186, tidinessadmission96002,
+board/contract/inventory54002. Do not readmit. After admission, onequietTestGenie
+wait onreturnedrunID; fetchretainedartifacts. Afterrestartverifybuildidentity before
+nativebatch, exactgeometrymatrix, workflow andoriginalprofile reads. No source edits.
+
+081 TGadmission96002 consumed1; run20260923-100635-84760e09 onequietwait
+consumed1(testverdict), artifactsfetched and decoded1145/103/408/612/21/debt31065,
+budgets fail. Board54002 consumed0,17unknown; contract/inventorypass. No TestGenie
+work pending. Driverowner1151 and managedrestart6186 remainpending. Cohesion:
+handleRecordFrame complexity20 retains one request/cache/capture boundary in188line
+module; source fence9, capturecompletion8. No wrapperextraction or netsimplification
+claim. Capture sharing removes real duplicatebrowserwork, testedfailureandclear
+ownership; sharedtree tidiness doesnot show a further domain reduction for081.
+
+081 restart6186 consumed0: build e1d69273e302a3e3d684f8bfa3360f90b6bc739603551c2790fb241f09b1c508,
+API/driver/UIhealthy, initialsessions0. Native76493 consumed0:24/24 identical-reader
+bursts and13/13 cachegeometry; original sixburstbaseline18pass/6fail retained.
+Same6x8 device-scale reads at alternating55/60quality:distinctcaptures8->1 each,
+medianbatch367.6->95.4ms, range360.4–398.4->78.5–116.8ms, timeouts5->0. Theseare
+localobservations withdifferentbackgroundload, notconfidence-qualifiedperformance.
+Resize-to-frame107.3ms (withinexistingTTL) returns800x600CSS/1600x1200device image,
+independentcolorscorrect. Fixturesfullycleaned. GeometryCSS/device+workflow11463
+pending; driverowner1151 stillpending. Frozen2paths unchanged; no new runtime edits.
+
+081 geometry/workflow11463 consumed0: CSS63/63, device63/63 withno timeoutcounter;
+workflow12/12,3independenteffects, executiond2609f24-1784-4d33-89c4-1b1ef9a567c2,
+/tmp/bas-recording-e2e-c7ZLiK. Original080loadfailure remainsretained; no full-load
+certification. Profile85180 and driverowner1151 pending. Independentnext-surface
+read5161 consumed0: capture-surface program/owning BASskill combinedread, retained
+/tmp/bas-capture-surface-read-082.txt. This available producer returns screenshot
+and computed snapshot underoneexecution andonlycapturebinding; no learn bindings.
+No082runtimeedit or admittedqualification cohort yet. Investigate qualification
+producer before repeating more local UI repairs; all17 release sensors remainunknown.
+
+081 final driverowner1151 consumed0: uh-20260923-100631-127c3f66289d8180cce99354375a6b4d,
+1877passed/123suites,2tests/1suite existing skips,378512ms. Profile85180 consumed0:
+3complete original reads, APIequals080. Frozen2paths unchanged; no pendingoperations.
+Receipt preview-capture-admission-2026-09-23.json records failedbaseline, allcontrols,
+localtimings withclaimlimits andcohesionreview. Next082 broadens toward capture
+outcome qualification: reuse existingcapture owner, first verify fixedfixture
+screenshot+computed snapshot identity/geometry before100-trialcohort. No sensor
+may turn unknown to passing from manualflags or incomplete/platform-limitedevidence.
+
+## BAS-WORK-082 — 2026-09-23 — public capture qualification investigation
+
+Capture/evidence outcomes, J08/J23; no runtime edits. 081isqualifiedwithnopending
+operations. Read currentreferencecohort: loopback1280x720DPR1, warmbrowser/runtime,
+fixedfixture, actual screenshot pluscomputed snapshot,100trials beforep95claim.
+Capture-surface combinedread5161 and capturequalification discoverybothconsumed0.
+First two ownedfixedfixture captures exercise governedprogram references andCLI
+fullowner receipt. Verify output bytes,geometry,computedtree andindependentDOM
+sentinels beforeadmitting100-trialworkload. Keep DPR2 asseparatefidelitycontrol.
+Ownerartifactstorage/retainedexecutions arequalification evidence, notexternalwork
+logging. No provider,realaccount,paidspend orunrelatedURL work authorized here.
+
+082 firstprobe48719 consumed1: producerJSONparser rejected normal CLI footer after
+successfulprogram capture; originalstdoutretained. Corrected87304 consumed0:
+governedprogram anddirectcaptureCLI bothrequest1280x720DPR1, independentfixture
+observesDPR2 twice; PNG2560x1440, computedsnapshotCSS1280x720. Confirms existing
+RF016. CanonicalbuildAdhocRequest ignoresDimensions.device_scale_factor and passes
+profile unchanged; drivercorrectly honors profiledefaultDPR2. Baseline2paths
+/tmp/bas-before-082/manifest.json. Architectureupdatedbefore runtimeedit: translate
+explicitDPR into clonedexistingprofile; omittedDPR preservesprofile/defaults.
+Three duplicatePNGartifacts remain separateRF016 evidence-policy concern; no
+policy/fidelity reduction to passperformance.100-trialcohort notyet admitted.
+Retainedfixtureexecutions80b2ebee-77a9-4f4d-9ac1-2206106992ca,
+0fa032f6-1c92-4e33-ab0f-239701be5491,e9388afb-8f23-4c8a-8f77-76ac85e28fee;
+localfixture serversclosed, captureexecutions terminal, artifacts retained asproof.
+
+082 maintainedred94306 consumed1 withtestnil-deref beforeproperassertion; retained.
+Correctedred2 consumed1: explicitDPR casesfail whileomittedpolicycontrols pass.
+Candidate nowprojects dimensionsDPR into cloned existingfingerprint, otherfields
+preserved. Entirecapturepackage testsconsumed0. Twoaffectedpaths frozen
+/tmp/bas-frozen-082.json; metrics/tmp/bas-capture-dpr-metrics-082.json. Nativeoldbuild
+DPRmatrix53160 pending; do not restartuntilredfixtureterminates. Next racepackages/
+build andmanagedrestart, exactnativegreen, thenlegitimate100-trialcapturecohort.
+No driver/UI/SDK/proto/dependency change. Duplicatescreenshotpolicy remainsRF016.
+
+082 oldbuildnative53160 consumed1:13pass/5fail, no producererrors. Explicit1 and0.5
+observeDPR2 and2560x1440PNG; explicit2/omitted2 andcomputedsnapshotcontrolspass.
+/tmp/bas-capture-dpr-native-red-082/receipt.json retainsfiveexactexecutionIDs/artifacts.
+No fixture/server/sessioncleanup pending. FirstGo raceadmission usedwrongcwd and
+exitedbeforetests; /tmp/bas-go-races-wrong-cwd-082.txt retained. CorrectAPIcwd40924
+admitted racecapture/workflow/executor thenbuild; awaitcompletionbeforequalification.
+Runtime858->871(+13),Go164->168(+4), cumulativeaffectedGo-61, TSunchanged.
+No netcomplexity reduction claimed; missingrequestfieldnowhonoredthroughexistingowner.
+
+082 threeGo racepackages/build40924 consumed0; sourcefrozen2paths. Driver0811877/123
+and UI080574/29 remain source-identical. Pendingmanagedrestart62678,
+TGadmission6138, board/contract/inventory18275. Performance skill loaded; file-only
+operatorauthority overrides its visited-tracker/externalnotes prescriptions.
+Inspect performance-health ownerforapplicablecapturecohortmeasurement; genericUI/
+Lighthouse/build budgets cannot certify correlated capture or DPR perTESTING.md.
+
+082 restart62678 consumed0: build97d9526edbcc4e3733b2983da733f2916f1179808971fb388452284933a35382,
+API/driver/UIhealthy,0sessions. Nativegreen35453 consumed0:18/18, requested1/2/0.5
+rendererDPRandPNGdimensions correct; omitteddefault2retained; computedtree/retained
+artifactbytescorrect. TG6138 admissionconsumed1 run20260923-102317-5bc97adc,onequiet
+wait/artifacts/decodeconsumed:1146/103/409/612/21/debt31065,budgets fail. Board18275
+consumed0all17unknown;contract/inventorypass. Performance-health availablecommands
+coverUIaudit/build/startup/budget; they do not substitute thiscaptureRPC+DPRoracle.
+File-onlyauthority suppressesvisited-trackerwrites; requiredskillreadcompleted.
+Admit BAS-owned qualification investigation: one declaredwarmupplus100firstattempt
+CLIcaptures, fixed1280x720DPR1fixture/selector,concurrency1,freshcontexts,warmruntime,
+no retries. Preserveeveryfirstattempt,serviceandCLIlatency,independentDOM/PNG/tree
+checks,artifacthashes,hardware/runtime/build/source/contract/fixtureidentity. Local
+cohort producer /tmp/browser-automation-studio/capture-cohort-082.mjs; no public
+release/sensorqualificationclaim from a standalone localreceipt. Allartifactdata
+retained by captureowner; no unrelatedretentiondeletion.
+
+082 cohort46758 consumed0:100/100firstattempts pass plus1declaredretainedwarmup,
+no retries. Servicep50=753,p95=755,p99=755,max771ms; CLIp95=926.20ms. 300PNGs,
+100computedtrees,total5,104,900artifactbytes; everyviewport/DPR/tree/retainedhash
+check passes. Raw /tmp/bas-capture-cohort-082/receipt.json andmetadata/statistics
+retained. Localcapturetarget observedmet; no governed/global/platformqualification
+claim. ThreePNGs percall remainsknownRF016duplicate-evidence concern. Nativegreen
+DPR1 primaryimage visuallychecked:completefour-quadrantviewport andinput preserved.
+Nextfinalworkflow/profilepreservation, thenrecord082receipt andchoose meaningful
+nextinvestigation. No runtime/source changes duringcohort.
+
+082 finalworkflow74371 consumed0:12/12,3effects, executione10fc5e5-d0d2-4c16-aff4-0051795bbf82,
+/tmp/bas-recording-e2e-rv53HE. Profile72948 consumed0:3completeoriginalreads/APIequals081.
+Frozen2paths unchanged, no pendingoperations. Durablecapture-device-scale receipt
+includes101ownerexecution/artifact references andhashes, statistics/metadata andall
+failedproducer/reproductionreceipts. p95 interval754–771ms assumesIID; sharedhost
+limits retained. No overallgoalcompletion orreleasequalification. Sourceinspection
+also identifies duplicated250ms statuspoll loops and no obvious Connect validation
+interceptor onCapture module; theseareinvestigation hypotheses, notyetnewfindings.
+
+## BAS-WORK-083 — 2026-09-23 — capture request admission investigation
+
+082qualified; no pending operations. Feedbackreread unchanged. Hypothesis: Connect
+Capture module doesnotinstall descriptor-constraint validation, so out-of-range
+DPR/dimensions andinvalidcapture enums reach executor effects. Existingprotobuf
+annotations alone are not known to enforceatserver. Beforepickingrepair, exercise
+actualConnectmodule withcounted executor: invalidrequestedranges mustreturn
+InvalidArgumentandzeroexecution/exportcalls; validbounds/omission remainaccepted.
+Baseline3paths /tmp/bas-before-083/manifest.json. No runtimechange selected.
+Recall40628pending; inspectexistingrepo validationowners before addingdependencies
+or duplicatingnumericpolicy. NativeAPI negativecontroluseslocalfixture only.
+
+083 recall40628 consumed0; repo owners use buf.build/go/protovalidate v1.1.0,
+no shared Connect validator exists. Maintained Connect regression exits1 and
+proves out-of-range/NaN/infinite geometry enters execution/export; unknown capture
+enums enter execution. Paired-dimension and valid-boundary controls retained.
+Red /tmp/bas-capture-admission-red-083.txt. SDA preview consumed0: dependency
+already approved. Extend boundary to api/go.mod/go.sum via governed install;
+no approved-registry hand edits, no new shared framework or copied numerical
+limits. Architecture target recorded before runtime edits. Baseline now5paths.
+Native small invalid-DPR/viewport/enum fixture will retain navigation effects
+and exact error responses; no oversized native browser allocation.
+
+083 native oldbuild88040 consumed1:1pass/4fail, no producererrors. DPR0.25 and
+width99 returned200 and navigated; unknownenum99 navigated then returned500;
+NaN dryrun returned200. Exact requests/results/fixtureeffects retained in
+/tmp/bas-capture-admission-native-red-083/receipt.json. Validcontrol navigates once.
+SDA install68996 consumed0, approved protovalidate1.1.0 plus6 new module requirements
+and normal Go graph upgrades ofexisting transitives; no registrymanualedit.
+Runtime applies precompiled/read-only schema validation before URL resolution;
+unknown enums rejected by generated enum membership. Entirecapture package87351
+consumed0 including red regressions/valid controls. Installedvalidator documents
+concurrent safety and WithDisableLazy removes lazy mutation. Governance command
+consumed0 with historical advisorywarnings; security deps status is inventory,
+not a fresh vulnerability scan. Dependency changes broaden API verification.
+
+083 focusedGo races/build25874 consumed0. Governed reconcile consumed0 after
+sourceimports, synchronizing directdependency classification and sums; no source
+mutation. Frozen5paths /tmp/bas-frozen-083.json nowdefines qualificationcandidate.
+Earlier races were pre-freeze checks; broadAPI tests/build next applyfinalmanifest.
+
+083 broadAPI10458 consumed1: only handlers/ai TestGenerateAISuggestions_Integration
+fails because local Ollama returns null elementText againstrequiredstring schema.
+This is actual product/provider-contract evidence, linked existingRF068; retain
+/tmp/bas-go-all-083.txt and repair asnext focusedcycle aftercurrentcapturequalification.
+No paidprovider chosen; integrationuseslocalresource-ollama. Dependentbuildskipped
+byset-e; standalonebuildadmitted. TG28070consumed0(runadmission), exactrun
+20260923-104650-a834e2fe; singlequietwaitconsumed1, both tidiness/securityfailed.
+FirstartifactreadwrongCLIarguments rejectedbeforeeffects; correctedcatalogrequested.
+Board65997consumed0:17pending_telemetryunknown, contract/inventorypass. No candidate
+sourcechanges; nativegreen/restart andsecurityfindingsinspection stillpending.
+
+083 security verdict:19errors/358warnings/403info; tidiness1147/103/409/612/22,
+duplicationdebt31065. NewCEL0.26.1 dependency has advisoryGO-2026-6094; official
+https://pkg.go.dev/vuln/GO-2026-6094 confirmsfixed0.30.0. NativeTypes/ParseStructTag
+reachability isnotestablished; do not equate advisorywithprovenBASexposure. Repair
+introduceddependency regardless. SDApreview0.30.0 refused out-of-range (not an
+automaticapprovalreview); existingapproval pins0.26.1. Necessaryownerextension:
+SDA-governed .vrooli/dependencies/approved-dependencies.json CELrecordonly, add
+exact0.30.0 whilepreserving0.26.1forunrelatedconsumers; no broadmajorlineallowance.
+Goalgrants necessaryownerrepairs; no humanapproval gate. Preview concretegovernance
+diff beforeapply; retain original083freeze/qualification, thennew083b candidate
+and checks afterdependencychange. Managedrestart83943 stillpendingoriginalcandidate;
+do not mutate dependenciesduringitsbuild. No083nativegreen qualification yet.
+
+083 CEL governance preview approve commandwoulddrop historicalmetadata, so didnot
+applyit. SDA batchpreview thenapply preservedallmetadata andadded exact0.30.0;
+verifiedonly ('go','github.com/google/cel-go') recordchanged. Original0.26.1 remains
+approvedforunrelatedconsumers, no fleetinstall. ThreeexpandedAPIracepackagesand
+standalonebuild62011passed; fullAPI83packagespass/24notests/oneAIintegrationfail.
+Restart83943 stillbuilding; awaitbeforeCELinstall. Read-onlynextAIrecall63073pending.
+Both083TGphases fullyconsumed; canonicalfindingsretained /tmp/bas-tg-findings-083.json.
+Security19errorfindingspointtorehabilitationreceipts, possibleephemeralleasetoken
+orfield-name detections; nottriaged, notassumedrealcredentialexposureorfalsepositive.
+Existinggrpc/oteladvisories remain; newCELadvisory repairselected.
+
+083a restart83943 consumed0: API/driver/UI healthy, build905cffcf1d8fe854908d2adb1a1fafe916b7594102dc15116b084efa8bf16ca6.
+No finalnativequalificationclaimedon supersededcandidate. CEL0.30.0 governedinstall
+andscopedreconcileconsumed0. Final083bfreeze /tmp/bas-frozen-083b.json(5BASpaths),
+CELrecord /tmp/bas-frozen-083b-governance.json; wholeinitialregistrybackup retained
+forattributionbutunrelatedfuturemetadataisnotsourceidentity. Neednewbuild/races,
+fullAPIshortunitpass(no claimonretainedfailingliveAIassertion), securityrecheck,
+managedrestart/native/profiles/workflow. AIrecall63073 consumed0,64hits10corpora
+withdegradation; relevantownerinspectionshowsresource-ollamagatewayforwards schema.
+
+083b race75093 consumed1: upgradingCELalonebreaks protovalidate1.1.0 runtime
+fieldselection, capturetestsreturnInternal onvalidURL. Candidate083bNOTdeployed;
+original083a livehealthy. Preserve /tmp/bas-go-races-083b.txt. Ownerreleases inspected:
+https://raw.githubusercontent.com/bufbuild/protovalidate-go/v1.3.0/go.mod explicitly
+pairsprotovalidate1.3.0 withCEL0.30.0 andexistingGo1.25/protobuf1.36.11; latest1.4
+wouldraiseGo/protobuf floorsunnecessarily. Selectmatched1.3.0pair, extendSDArecord
+byexactversion whilepreservinghistoricalmetadata/approvals. This is revised083c,
+notbypassedregression. Security6736admission0, exact20260923-105423-364811aa,
+singlequietwaitconsumed1; fetchartifactsbeforefinalsourcechecks.
+
+083c protovalidate1.3.0 already falls withinexistingapproved '*' record, so no
+secondregistrymutationneeded. Install/reconcile58971consumed0. 083bsecuritycatalog
+consumed:19errors/358warn/401info, noCELadvisory. Final083cfreeze
+/tmp/bas-frozen-083c.json retains5BASpaths; CELgovernancerecordunchangedfrom083b.
+Sourceserviceandtests unchanged since083a; onlypaireddependencieschanged. Pending
+newrace/allshort/build qualification beforemanagedrestart. Do notdeployfailed083b.
+
+083c race/allAPIshort/build18121 consumed0: capture/workflow/executor racepass;
+shorttestscoverAPIpackagesbutexplicitlydonotresolvepreviousliveAIassertion.
+Security72780admission1 exact20260923-105638-1cbfa4cd; onequietwait1 andartifacts
+consumed, noCEL/protovalidate advisory. Managedrestart083c nowadmitted; no further
+sourceedits. Nextnativeadmissionnegative/positivecontrols, scalegeometrycontrols,
+same100capturecohort tocheckperformance afternewvalidation, workflow/profiles.
+Runtime+16,affectedGocyclomatic+4(cumulative-57),sourceTSunchanged; newlibrary
+coupling acknowledged, no simplificationclaimforthisrequiredcontractrepair.
+
+083c managedrestart26167 consumed0: healthy API/driver/UI,0sessions, frozen5paths
+unchanged. Build2b8926339eefeabf65ba0d68ae8a2733f803874e24625c40b62a6b531ad0bd2d.
+Nativeadmission+scale53427,workflow67761,profiles72010pending. Additionalread-only
+securitytriage:19gitleaksfindingsare64-hexstringskeyedbysourcepaths;6independently
+matchretainedsourcebackupSHA256 bytes. Fullhistoricalhashprooffor13notyetlocated;
+notephemeralcredentialexposureclaim. No historicalevidenceorscannerpolicyedited.
+
+083 finalnative53427 consumed0: admission5/5 (4invalidcases400/zeroeffects, valid
+controlnavigatesonce), DPR18/18. Workflow67761 consumed0:12/12,3effects,execution
+653b90a2-c1e9-457f-b1f8-28c657c2d1d2, /tmp/bas-recording-e2e-Oh0y4w. Profiles72010
+consumed0:3fulloriginalreads/APIequals082. Comparable100capturecohort22852pending,
+/tmp/browser-automation-studio/capture-cohort-083.mjs copies082producerwithonly
+output/label/source-identitychanges, samefixturegeometry/fidelity/checks/no retries.
+Newsourcefreezeincludes5paths plusseparateCELgovernanceproof. No productsource
+editsduringcohort. AlltemporaryfixtureServersclosed afternativechecks; ownercapture
+artifactsretained asevidence, workflowfixturecleaneditsownproject/execution.
+
+083cohort22852 consumed0:100/100firstattempts+1warmup, no retries, servicep50=754/
+p95=755/p99=756,max756ms; CLImedian931.93/p95=978.46ms. Servicep95unchanged;
+CLI+5.64% observed, causal/regressionqualificationunknownduetoshared-hostcohorts.
+No equal-performanceclaim. Statsand101compactownerreferencesretainedindurable
+capture-request-admissionreceipt; rawhash649650c8a90c40768715c277657dabc613558feaca799fed48b8edeb688518d8.
+All5frozen083cpathsunchanged. No pendingoperations. Receiptupdatedwithnative
+5/5,DPR18/18,workflow12/12,3originalprofilechecks, metrics/dependencysecurityproof
+andfailedcandidates. Greenchecks leadtonextactualRF068liveassertion, notgoalstop.
+
+## BAS-WORK-084 — 2026-09-23 — optional AI suggestion text
+
+083qualifiedlocallywithCLIrelativeperformancelimitretained; no pendingoperations.
+Feedbackrereadunchanged. Recall63073 consumed0; sourceinspectionconfirmsBAS passes
+oneJSONschema throughgovernedresource-ollamagateway andnativeensureclient, without
+droppingformat. Reproducedlocalproviderfailure: optional elementText:null rejected,
+althoughomissionproducessameemptyGo/APItextandrequiredfieldsarepresent. Hypothesis:
+optionaldescriptivetextshouldaccept explicitabsence(null)aswellasomission; required
+action/category/confidence mustremainstrict, andnontextnumbers/objects/booleansmust
+stillfail. Discriminator: existingactualgenerator+mock-provider contracttable with
+nulloptionalmetadata, nullrequiredfields andwrongoptionaltypes; thenlocalprovider
+searchfixture smoke withoutweakenedassertion. Baseline2paths/tmp/bas-before-084.
+No retry/coercion layer, synthetic replacementcontent, paidprovider orpublicAPI
+shapechange. Capturecohortfinishedbeforeany084sourceedit.
+
+084 maintainedred76201 consumed1: nulloptionalmetadata rejected; allrequired/
+wrong-typecontrolsremainpassing. /tmp/bas-ai-null-red-084.txt. Changeonlyexisting
+sharedproviderschema'sfouroptionaltexttypes to string|null; jsondecodernatively
+representsnullasemptystring, no normalizerornewbranches. EntireAIshortsuitepass
+/tmp/bas-ai-null-green-084.txt. Freeze2paths/tmp/bas-frozen-084.json beforelocal
+providerqualification/races/build. Runtime+2commentlines, executablepolicybranches
+unchanged; Go13->13/5functions, cumulative-57. No dependency/driver/UIchange.
+
+084 liveprovider16323 consumed0: sameoriginalsearchfixture passes3/3firstattempts
+throughgovernedlocalOllama, no retries. /tmp/bas-ai-null-live-084.txt. AI+AIservice
+short race/build58568consumed0. TG18252admission1, captureexactrun/onequietwaitnext.
+Board/contract/inventory37802consumed0,17pending_telemetryunknown. Managedrestart
+084admittedafterfreeze; existing083capture/driver/UIqualificationretained unchanged.
+
+084 TG20260923-110732-83866f3a singlequietwait/artifacts/decodeconsumed1/0:
+1147/103/409/612/22/debt31065, budgets failunchanged. Currentcheckpointupdated.
+Next085read-onlyrecall31330 consumed0; existing saved/adhoc execution methods
+bothpollstatus every250ms. No performance repairadmitted; inspectrunner's existing
+completion ownership before selectingreplacement. Restart084stillpending.
+
+084 boundaryreview: AIService.AnalyzeElements protobuf explicitly makes model
+suggestionsoptional atopDOMextraction. Its existingfallbackpreserves extraction
+whenmodelunavailable; do notconvertthatpublicpartial-resultbehaviorintowholeRPC
+failureaspartofthisoptionaltextfix. Generator itselfstillreturnserror forinvalid
+requiredoutput. Explicitpublicpartial-resultdiagnostics andtesthelper'sliveprovider
+usagearefuturetestability/UXquestions, notclosedby084 ornewlyimplementedhere.
+No extension/sourcechange after084freeze. 085runnerinspection showsoneasync
+goroutineentryandtwo250mspollcopies; completionnotificationmayremovebothifterminal
+publication/teardown andcancelledwaitersemanticscanbeproved.
+
+084 restart59453consumed0:healthy0sessions,buildsha256:a00722acc3738c5f583c95a71125c60e75ca34710737bd775fa1631752c840a9.
+Workflow8098consumed0:12/12,3effects,execution3c644e92-0f0d-4416-a3cc-b3c7b2678985,
+/tmp/bas-recording-e2e-Bpmkm0. Profiles82587consumed0:3fulloriginalreads/APIequals083.
+Frozen2pathsunchanged; alloperationsconsumed. DurableAIoptionaltextreceiptupdated.
+No overallcompletionclaim; next meaningfulcandidate is250mssynchronouswaitpolling
+andduplicatedcompletionlogic. ProvidersemanticpreservationnotglobalAIqualification.
+
+## BAS-WORK-085 — 2026-09-23 — synchronous execution completion ownership
+
+084qualified; no pendingoperations. Feedbackreread unchanged; recall31330consumed0.
+Hypothesis: saved/adhoc API callerswaitonduplicated250msrepositorypolling evenwhen
+their ownasync runneralreadyfinished, addingunnecessarylatency/readload and leaving
+early-runnerexitwithoutterminalpublication waitingindefinitely. Candidateowner:
+existingstartExecutionRunnerWithOptions goroutinelifetime. Prove baselinebefore
+choosingrepair: immediatecompletedrunner, delayedcompletion/teardown, caller
+cancellationwithoutcancellingdetachedexecution, failed/cancelledterminalreceipt,
+andmissingterminal/persistencefailure. Nativecapturesalreadyhave100trialbaseline,
+butdonotattributeCLIp95changeorstair-steptimingtopollingwithoutdiscriminator.
+No085sourceedit orqualificationadmittedyet. Preserveasync/publicresponse semantics,
+artifact readiness andexistingdetachedroutedtestcontext. No newexecutionregistry,
+shorterpollinterval, lostwakeupfallbackorresumed-executionsemanticchange intended.
+
+085 baseline3paths /tmp/bas-before-085/manifest.json. Maintained actualsaved/adhoc
+APIred82419 consumed1:12fail/2cancelcontrols pass; zero-wall-timeGo synctest clocks
+prove250msimmediate/225msdelayed excess,6readsversus2, earlyreturnbeforeevent
+CloseExecution anddeadlineafterfailedterminalwrite. No externalbrowser/provider
+inregression. RF105registered, architecturetargetupdatedbeforeproductionedit.
+Repair existingrunnerstarterreturnslifetimechannel, closedafterallrunnerdefers;
+sharedwaitreadsonepersistedresult, rejects missingterminaltimestamp; botholdpoll
+loopsremoved. No globalregistry/newworker/shorterinterval/contextdetachmentchange.
+
+085 firstcandidate4821 consumed1: original12bugassertions nowpass; newlyadded
+cancel-detailpreservationcheckexpected'context canceled'butcanonicalexisting
+executionOutcome emits'execution cancelled'. Correctedtestexpectationtopreserve
+existingpubliccancellationdetail; retained/tmp/bas-execution-wait-green-085.txt.
+No runtimechangeforthistestproducererror. Addedearlyrunnerreadfailure andexplicit
+asyncresponse/detached-executioncontrols beforefinalfreeze. Packagescommandwas
+skippedbyset-eafterfocusedtestfailure; donotclaimpackagepassyet.
+
+085 focusedgreen2/packages47636 consumed0. Independentreviewfoundtwo private
+runnerforwardingwrappers withone manualExecuteWorkflowcaller; directthatcaller
+totheexistingcanonicalstarteranddeletebothobsoleteforwarders, preservingflat
+parametersin@store/ andmanualasyncstatus. Addexplicitmanualasync/parametercontrol.
+No newpolicy, no publicmanual APIremoval. Stillbeforefinalsourcefreeze.

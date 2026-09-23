@@ -63,6 +63,9 @@ describe('Session Start Route', () => {
     expect(json.session_id).toBeDefined();
     expect(typeof json.session_id).toBe('string');
     expect(typeof json.lease_id).toBe('string');
+    const created = sessionManager.peekSession(json.session_id);
+    expect(json.active_page_id).toBe(created.pageToIdMap.get(created.page));
+    expect(typeof json.active_page_id).toBe('string');
     expect(json.last_instruction_sequence).toBe(0);
     // New response fields from signal improvements
     expect(json.phase).toBe('ready');
@@ -82,6 +85,7 @@ describe('Session Start Route', () => {
     expect(repeated.statusCode).toBe(200);
     expect(repeated.getJSON().last_instruction_sequence).toBe(27);
     expect(repeated.getJSON().lease_id).toBe(first.getJSON().lease_id);
+    expect(repeated.getJSON().active_page_id).toBe(first.getJSON().active_page_id);
   });
 
   describe('deferred preview ownership', () => {
@@ -99,6 +103,54 @@ describe('Session Start Route', () => {
     afterEach(() => {
       startPreview.mockRestore();
       readiness.mockRestore();
+    });
+
+    it.each([undefined, 'css', 'device'] as const)(
+      'retains the admitted %s scale for deferred preview and later recording [REQ:BAS-RH-J23]',
+      async (scale) => {
+        const body = {
+          execution_id: `scale-${scale}`, workflow_id: 'preview',
+          viewport: { width: 640, height: 480 }, reuse_mode: 'fresh',
+          frame_streaming: { callback_url: 'http://127.0.0.1:65534/frames', scale },
+        };
+        const response = createMockHttpResponse();
+        await handleSessionStart(createMockHttpRequest({ body }), response, sessionManager, config);
+        expect(response.statusCode).toBe(200);
+        completeReadiness(true);
+        await new Promise(resolve => setImmediate(resolve));
+        const id = response.getJSON().session_id;
+        expect(sessionManager.peekSession(id).spec.frame_scale).toBe(scale ?? 'css');
+        expect(startPreview.mock.calls[0]?.[2]).toMatchObject({ scale: scale ?? 'css' });
+      },
+    );
+
+    it('keeps scale on an admission retry and replaces it for a new lease [REQ:BAS-RH-J23]', async () => {
+      const body = {
+        execution_id: 'scale-owner', workflow_id: 'preview', labels: { pool: 'scale' },
+        viewport: { width: 640, height: 480 }, reuse_mode: 'reuse',
+        frame_streaming: { callback_url: 'http://127.0.0.1:65534/frames', scale: 'device' },
+      };
+      const first = createMockHttpResponse();
+      await handleSessionStart(createMockHttpRequest({ body }), first, sessionManager, config);
+      expect(first.statusCode).toBe(200);
+      completeReadiness(true);
+      await new Promise(resolve => setImmediate(resolve));
+      const changed = { ...body, frame_streaming: { ...body.frame_streaming, scale: 'css' } };
+      const retry = createMockHttpResponse();
+      await handleSessionStart(createMockHttpRequest({ body: changed }), retry, sessionManager, config);
+      await new Promise(resolve => setImmediate(resolve));
+      expect(retry.statusCode).toBe(200);
+      expect(retry.getJSON().lease_id).toBe(first.getJSON().lease_id);
+      expect(startPreview.mock.calls.at(-1)?.[2]).toMatchObject({ scale: 'device' });
+      const id = first.getJSON().session_id;
+      expect(sessionManager.releaseExecutionLease(id, body.execution_id, first.getJSON().lease_id)).toBe(true);
+      const next = createMockHttpResponse();
+      await handleSessionStart(createMockHttpRequest({ body: { ...changed, execution_id: 'next-scale-owner' } }), next, sessionManager, config);
+      await new Promise(resolve => setImmediate(resolve));
+      expect(next.statusCode).toBe(200);
+      expect(next.getJSON().session_id).toBe(id);
+      expect(next.getJSON().lease_id).not.toBe(first.getJSON().lease_id);
+      expect(startPreview.mock.calls.at(-1)?.[2]).toMatchObject({ scale: 'css' });
     });
 
     it.each(['not-ready', 'closed', 'released', 'reassigned', 'closing', 'ready'] as const)(

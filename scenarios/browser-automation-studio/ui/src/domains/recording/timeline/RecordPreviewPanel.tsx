@@ -108,7 +108,7 @@ export const RecordPreviewPanel = memo(function RecordPreviewPanel({
       {sessionId ? (
         <PlaywrightView
           sessionId={sessionId}
-          pageId={activePageId ?? undefined}
+          pageId={activePageId}
           refreshToken={refreshToken}
           viewport={viewportForPlaywright}
           quality={streamSettings.quality}

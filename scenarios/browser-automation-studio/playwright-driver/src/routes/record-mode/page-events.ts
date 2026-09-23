@@ -15,7 +15,7 @@ import type { Config } from '../../config';
 import { createCircuitBreaker, type CircuitBreaker } from '../../infra';
 import { logger, scopedLog, LogContext } from '../../utils';
 import type { DriverPageEvent } from './types';
-import { captureThumbnail, emitHistoryCallback, registerRecordingPage } from './recording-pages';
+import { captureThumbnail, emitHistoryCallback, readFaviconUrl, registerRecordingPage, unregisterRecordingPage } from './recording-pages';
 
 // =============================================================================
 // Circuit Breaker for Page Events
@@ -120,20 +120,23 @@ export function setupPageLifecycleListeners(
       sessionId, error: error instanceof Error ? error.message : String(error),
     });
   };
-  const event = (pageId: string, eventType: DriverPageEvent['eventType'], url = '', title = ''): DriverPageEvent => ({
-    sessionId, driverPageId: pageId, vrooliPageId: '', eventType, url, title,
+  const event = (pageId: string, eventType: DriverPageEvent['eventType'], url = '', title = '', faviconUrl?: string): DriverPageEvent => ({
+    sessionId, driverPageId: pageId, vrooliPageId: '', eventType, url, title, faviconUrl,
     timestamp: new Date().toISOString(),
   });
 
-  const attach = (page: Page, pageId: string): void => {
+  const attach = (page: Page, pageId: string, admitted = Promise.resolve(true)): (() => void) | undefined => {
     if (!active || page.isClosed() || listeners.has(page)) return;
     const owns = () => active && listeners.get(page) === detach;
     const navigate = async (frame: Frame): Promise<void> => {
       if (!owns() || frame !== page.mainFrame()) return;
       const url = page.url();
-      const title = await page.title().catch(() => '');
-      if (!owns()) return;
-      await sendPageEvent(sessionId, pageCallbackUrl, event(pageId, 'navigated', url, title));
+      if (!await admitted || !owns()) return;
+      await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
+      if (!owns() || page.url() !== url) return;
+      const [title, faviconUrl] = await Promise.all([page.title().catch(() => ''), readFaviconUrl(page)]);
+      if (!owns() || page.url() !== url) return;
+      await sendPageEvent(sessionId, pageCallbackUrl, event(pageId, 'navigated', url, title, faviconUrl));
       if (!owns()) return;
       const thumbnail = config.history.thumbnailEnabled
         ? await captureThumbnail(page, config.history.thumbnailQuality)
@@ -143,10 +146,8 @@ export function setupPageLifecycleListeners(
     const close = async (): Promise<void> => {
       if (!owns()) return;
       detach();
-      session.pageIdMap.delete(pageId);
-      session.pageToIdMap.delete(page);
-      const index = session.pages.indexOf(page);
-      if (index !== -1) session.pages.splice(index, 1);
+      unregisterRecordingPage(session, page);
+      if (!await admitted || !active) return;
       await sendPageEvent(sessionId, pageCallbackUrl, event(pageId, 'closed'));
     };
     const onNavigate = (frame: Frame) => navigate(frame).catch(reportError);
@@ -159,23 +160,34 @@ export function setupPageLifecycleListeners(
     listeners.set(page, detach);
     page.on('framenavigated', onNavigate);
     page.on('close', onClose);
+    return detach;
   };
 
   const newPage = async (page: Page): Promise<void> => {
     if (!active) return;
     const pageId = registerRecordingPage(session, page);
-    const opener = await page.opener();
-    if (!active) return;
-    await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
-    if (!active || page.isClosed()) return;
-    const url = page.url();
-    const title = await page.title().catch(() => '');
-    if (!active || page.isClosed()) return;
-    await sendPageEvent(sessionId, pageCallbackUrl, {
-      ...event(pageId, 'created', url, title),
-      openerDriverPageId: opener ? session.pageToIdMap.get(opener) : undefined,
-    });
-    attach(page, pageId);
+    let settle!: (published: boolean) => void;
+    const admitted = new Promise<boolean>((resolve) => { settle = resolve; });
+    // Observe immediately, but publish later events only after creation.
+    const detach = attach(page, pageId, admitted);
+    let published = false;
+    try {
+      const opener = await page.opener();
+      if (!active) return;
+      await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
+      if (!active || page.isClosed()) return;
+      const url = page.url();
+      const [title, faviconUrl] = await Promise.all([page.title().catch(() => ''), readFaviconUrl(page)]);
+      if (!active || page.isClosed()) return;
+      await sendPageEvent(sessionId, pageCallbackUrl, {
+        ...event(pageId, 'created', url, title, page.url() === url ? faviconUrl : undefined),
+        openerDriverPageId: opener ? session.pageToIdMap.get(opener) : undefined,
+      });
+      published = true;
+    } finally {
+      if (!published) detach?.();
+      settle(published);
+    }
   };
   const onNewPage = (page: Page) => newPage(page).catch(reportError);
   context.on('page', onNewPage);
@@ -186,9 +198,9 @@ export function setupPageLifecycleListeners(
   const ready = (async () => {
     if (!initialId) return;
     const url = initialPage.url();
-    const title = await initialPage.title().catch(() => '');
-    if (active && listeners.has(initialPage)) {
-      await sendPageEvent(sessionId, pageCallbackUrl, event(initialId, 'initial', url, title));
+    const [title, faviconUrl] = await Promise.all([initialPage.title().catch(() => ''), readFaviconUrl(initialPage)]);
+    if (active && listeners.has(initialPage) && initialPage.url() === url) {
+      await sendPageEvent(sessionId, pageCallbackUrl, event(initialId, 'initial', url, title, faviconUrl));
     }
   })();
   void ready.catch(reportError);

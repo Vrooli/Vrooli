@@ -187,6 +187,7 @@ func CreateSessionRequestFromUUID(executionID, workflowID uuid.UUID) *CreateSess
 
 // CreateSessionResponse is the response from creating a session.
 type CreateSessionResponse struct {
+	ActivePageID            string          `json:"active_page_id"`
 	LastInstructionSequence uint64          `json:"last_instruction_sequence"`
 	SessionID               string          `json:"session_id"`
 	LeaseID                 string          `json:"lease_id"`
@@ -288,20 +289,23 @@ type GetActionsResponse struct {
 
 // NavigateRequest is the request to navigate the session.
 type NavigateRequest struct {
-	URL       string `json:"url"`
-	WaitUntil string `json:"wait_until,omitempty"`
-	TimeoutMs int    `json:"timeout_ms,omitempty"`
-	Capture   bool   `json:"capture,omitempty"`
+	ExpectedPageID string `json:"expected_page_id,omitempty"`
+	URL            string `json:"url"`
+	WaitUntil      string `json:"wait_until,omitempty"`
+	TimeoutMs      int    `json:"timeout_ms,omitempty"`
+	Capture        bool   `json:"capture,omitempty"`
 }
 
 // NavigateResponse is the response from navigation.
 type NavigateResponse struct {
-	URL          string `json:"url"`
-	Title        string `json:"title"`
-	CanGoBack    bool   `json:"can_go_back"`
-	CanGoForward bool   `json:"can_go_forward"`
-	StatusCode   int    `json:"status_code,omitempty"`
-	Screenshot   string `json:"screenshot,omitempty"`
+	DriverPageID string  `json:"driver_page_id"`
+	URL          string  `json:"url"`
+	Title        string  `json:"title"`
+	CanGoBack    bool    `json:"can_go_back"`
+	CanGoForward bool    `json:"can_go_forward"`
+	StatusCode   int     `json:"status_code,omitempty"`
+	Screenshot   string  `json:"screenshot,omitempty"`
+	FaviconURL   *string `json:"favicon_url,omitempty"`
 }
 
 // HistoryNavigation identifies a supported browser history operation.
@@ -315,17 +319,20 @@ const (
 
 // HistoryNavigationRequest carries options shared by reload, back and forward.
 type HistoryNavigationRequest struct {
-	WaitUntil string `json:"wait_until,omitempty"`
-	TimeoutMs int    `json:"timeout_ms,omitempty"`
+	ExpectedPageID string `json:"expected_page_id,omitempty"`
+	WaitUntil      string `json:"wait_until,omitempty"`
+	TimeoutMs      int    `json:"timeout_ms,omitempty"`
 }
 
 // HistoryNavigationResponse is the resulting browser location and history state.
 type HistoryNavigationResponse struct {
-	SessionID    string `json:"session_id"`
-	URL          string `json:"url"`
-	Title        string `json:"title"`
-	CanGoBack    bool   `json:"can_go_back"`
-	CanGoForward bool   `json:"can_go_forward"`
+	DriverPageID string  `json:"driver_page_id"`
+	SessionID    string  `json:"session_id"`
+	URL          string  `json:"url"`
+	Title        string  `json:"title"`
+	CanGoBack    bool    `json:"can_go_back"`
+	CanGoForward bool    `json:"can_go_forward"`
+	FaviconURL   *string `json:"favicon_url,omitempty"`
 }
 
 // NavigationStateResponse is the response containing current navigation state.
@@ -354,18 +361,17 @@ type NavigationStackResponse struct {
 
 // UpdateViewportRequest is the request to update viewport.
 type UpdateViewportRequest struct {
-	Width  int `json:"width"`
-	Height int `json:"height"`
+	ExpectedPageID string `json:"expected_page_id"`
+	Width          int    `json:"width"`
+	Height         int    `json:"height"`
 }
 
 // UpdateViewportResponse is the response from updating viewport.
 type UpdateViewportResponse struct {
-	SessionID      string          `json:"session_id"`
-	ActualViewport *ActualViewport `json:"actual_viewport,omitempty"`
-	// Deprecated: Use ActualViewport.Width instead
-	Width int `json:"width"`
-	// Deprecated: Use ActualViewport.Height instead
-	Height int `json:"height"`
+	SessionID    string `json:"session_id"`
+	DriverPageID string `json:"driver_page_id"`
+	Width        int    `json:"width"`
+	Height       int    `json:"height"`
 }
 
 // ValidateSelectorRequest is the request to validate a selector.
@@ -443,16 +449,28 @@ type CaptureScreenshotResponse struct {
 	CapturedAt string `json:"captured_at"`
 }
 
+// FrameSource is the immutable driver ownership receipt captured with a frame.
+// LeaseID is private to the driver/API boundary and must not reach viewers.
+type FrameSource struct {
+	SessionID   string `json:"session_id"`
+	ExecutionID string `json:"execution_id"`
+	LeaseID     string `json:"lease_id"`
+	PageID      string `json:"page_id"`
+}
+
 // GetFrameResponse is the response from getting a frame.
 type GetFrameResponse struct {
-	Data        string `json:"data"`
-	MediaType   string `json:"media_type"`
-	Width       int    `json:"width"`
-	Height      int    `json:"height"`
-	CapturedAt  string `json:"captured_at"`
-	ContentHash string `json:"content_hash"`
-	PageTitle   string `json:"page_title,omitempty"`
-	PageURL     string `json:"page_url,omitempty"`
+	Source      *FrameSource `json:"source,omitempty"`
+	PageID      string       `json:"page_id,omitempty"`
+	SessionID   string       `json:"session_id"`
+	Image       string       `json:"image"`
+	Mime        string       `json:"mime"`
+	Width       int          `json:"width"`
+	Height      int          `json:"height"`
+	CapturedAt  string       `json:"captured_at"`
+	ContentHash string       `json:"content_hash"`
+	PageTitle   string       `json:"page_title,omitempty"`
+	PageURL     string       `json:"page_url,omitempty"`
 }
 
 // StepOutcomeResponse extends StepOutcome with driver-specific fields for JSON decoding.

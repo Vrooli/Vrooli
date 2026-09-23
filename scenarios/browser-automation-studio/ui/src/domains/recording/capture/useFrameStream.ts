@@ -1,87 +1,28 @@
-/**
- * useFrameStream Hook
- *
- * Handles live frame streaming from Playwright sessions via direct WebSocket
- * to playwright-driver, with polling fallback.
- *
- * Features:
- * - Direct WebSocket connection to playwright-driver (bypasses API Hub for 67% latency reduction)
- * - Polling fallback when WebSocket unavailable (10-15 FPS)
- * - Double-buffered canvas rendering to prevent white flash
- * - Frame statistics tracking
- * - Page metadata extraction
- * - Automatic reconnection with exponential backoff
- */
-
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+/** A session-owned API stream and HTTP fallback share one bounded decoder. */
+import { useEffect, useRef, useState } from 'react';
 import { getConfig } from '@/config';
-import { useWebSocket } from '@/contexts/WebSocketContext';
 import { useFrameStats, type FrameStats } from '../hooks/useFrameStats';
-import { LatencyLogger, type LatencyStats } from '@utils/latencyLogger';
 import { useSessionStore } from '../stores';
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
-
-const parseFramePayload = (value: unknown): FramePayload | null => {
-  if (!isRecord(value)) return null;
-  if (typeof value.image !== 'string') return null;
-  if (typeof value.width !== 'number' || typeof value.height !== 'number') return null;
-  if (typeof value.captured_at !== 'string') return null;
-
-  const payload: FramePayload = {
-    image: value.image,
-    width: value.width,
-    height: value.height,
-    captured_at: value.captured_at,
-  };
-
-  if (typeof value.content_hash === 'string') {
-    payload.content_hash = value.content_hash;
-  }
-  if (typeof value.page_title === 'string') {
-    payload.page_title = value.page_title;
-  }
-  if (typeof value.page_url === 'string') {
-    payload.page_url = value.page_url;
-  }
-
-  return payload;
-};
-
-/** Frame dimensions stored in ref to avoid re-renders */
-interface FrameDimensions {
-  width: number;
-  height: number;
-  capturedAt: string;
-}
-
-interface FramePayload {
+interface FrameDimensions { width: number; height: number; capturedAt: string }
+interface FrameIdentity { session_id: string; page_id: string; captured_at: string }
+interface FramePayload extends FrameIdentity {
   image: string;
   width: number;
   height: number;
-  captured_at: string;
-  content_hash?: string;
   page_title?: string;
   page_url?: string;
 }
-
-/** Page metadata extracted from frames */
-export interface PageMetadata {
-  title: string;
-  url: string;
-}
-
-/** Connection status for the live preview stream */
+export interface PageMetadata { title: string; url: string }
 export interface StreamConnectionStatus {
   isConnected: boolean;
   isWebSocket: boolean;
   lastFrameTime?: string;
 }
-
 export interface UseFrameStreamOptions {
   sessionId: string | null;
-  pageId?: string;
+  /** Null is an empty workspace; omission follows the active browser page. */
+  pageId?: string | null;
   quality?: number;
   fps?: number;
   useWebSocketFrames?: boolean;
@@ -90,780 +31,300 @@ export interface UseFrameStreamOptions {
   onStatsUpdate?: (stats: FrameStats) => void;
   onPageMetadataChange?: (metadata: PageMetadata) => void;
   onConnectionStatusChange?: (status: StreamConnectionStatus) => void;
-  /** Keep frame timestamp in React state. Disable when no timestamp UI is rendered. */
   enableTimestampState?: boolean;
 }
-
-export interface UseFrameStreamResult {
-  /** Canvas ref to render frames to */
-  canvasRef: React.RefObject<HTMLCanvasElement>;
-  /** Whether at least one frame has been received */
+interface ViewState {
   hasFrame: boolean;
-  /** Current display dimensions */
-  displayDimensions: { width: number; height: number } | null;
-  /** Timestamp of last displayed frame */
+  displayDimensions: {width: number; height: number} | null;
   displayedTimestamp: string | null;
-  /** Current error message if any */
   error: string | null;
-  /** Whether currently fetching (polling mode) */
   isFetching: boolean;
-  /** Whether WebSocket frames are active */
   isWsFrameActive: boolean;
-  /** Whether page is switching (tab change) */
   isPageSwitching: boolean;
-  /** Frame stats */
-  frameStats: FrameStats;
-  /** Ref to frame dimensions (for coordinate mapping) */
+}
+export interface UseFrameStreamResult extends ViewState {
+  canvasRef: React.RefObject<HTMLCanvasElement>;
   frameDimensionsRef: React.RefObject<FrameDimensions | null>;
-  /** Latency stats for A/B testing (research spike) */
-  latencyStats: LatencyStats | null;
-  /** Log latency stats to console */
-  logLatencyStats: () => void;
+  frameStats: FrameStats;
+}
+const EMPTY_VIEW: ViewState = {
+  hasFrame: false, displayDimensions: null, displayedTimestamp: null, error: null,
+  isFetching: false, isWsFrameActive: false, isPageSwitching: false,
+};
+const STREAM_STALE_MS = 1000;
+
+interface FrameJob {
+  id: number;
+  blob: Blob;
+  timestamp: string;
+  socket: boolean;
+  etag?: string | null;
+  metadata?: PageMetadata;
+  owns: () => boolean;
+  deliver: (frame: FrameJob, bitmap: ImageBitmap) => void;
+  fail: (message: string) => void;
+}
+interface Decoder { active: boolean; pending: FrameJob | null }
+
+// This decoder survives effect replacement, so a slow old-session decode cannot
+// multiply active work as the user switches tabs. Only the newest input waits.
+async function decodeLatest(decoder: Decoder): Promise<void> {
+  if (decoder.active) return;
+  decoder.active = true;
+  try {
+    while (decoder.pending) {
+      const frame = decoder.pending;
+      decoder.pending = null;
+      if (!frame.owns()) continue;
+      try {
+        const bitmap = await createImageBitmap(frame.blob);
+        if (frame.owns()) frame.deliver(frame, bitmap);
+        else bitmap.close();
+      } catch {
+        if (frame.owns()) frame.fail('Failed to decode live frame');
+      }
+    }
+  } finally {
+    decoder.active = false;
+  }
 }
 
-export function useFrameStream({
-  sessionId: propSessionId,
-  pageId,
-  quality = 65,
-  fps = 30,
-  useWebSocketFrames = true,
-  refreshToken,
-  onStreamError,
-  onStatsUpdate,
-  onPageMetadataChange,
-  onConnectionStatusChange,
-  enableTimestampState = true,
-}: UseFrameStreamOptions): UseFrameStreamResult {
+function parseIdentity(value: unknown): FrameIdentity {
+  if (!value || typeof value !== 'object') throw new Error('Invalid frame identity');
+  const identity = value as Partial<FrameIdentity>;
+  if (typeof identity.session_id !== 'string' || !identity.session_id ||
+      typeof identity.page_id !== 'string' || !identity.page_id ||
+      typeof identity.captured_at !== 'string' || !Number.isFinite(Date.parse(identity.captured_at))) {
+    throw new Error('Invalid frame identity');
+  }
+  return identity as FrameIdentity;
+}
+
+function parseFrame(value: unknown): FramePayload {
+  parseIdentity(value);
+  const frame = value as Partial<FramePayload>;
+  if (typeof frame.image !== 'string' || !frame.image || typeof frame.width !== 'number' ||
+      frame.width <= 0 || typeof frame.height !== 'number' || frame.height <= 0) throw new Error('Invalid frame payload');
+  return frame as FramePayload;
+}
+
+function frameBlob(image: string): Blob {
+  const encoded = image.includes(',') ? image.slice(image.indexOf(',') + 1) : image;
+  const bytes = Uint8Array.from(atob(encoded), character => character.charCodeAt(0));
+  return new Blob([bytes], {type: 'image/jpeg'});
+}
+
+// The API publishes canonical identity; producer lease credentials stay server-side.
+function binaryFrame(data: ArrayBuffer): FrameIdentity & {blob: Blob; timestamp: string} {
+  if (data.byteLength < 4) throw new Error('Invalid binary frame');
+  const length = new DataView(data).getUint32(0);
+  if (!length || length > 16 * 1024 || length > data.byteLength - 6) throw new Error('Invalid binary frame');
+  const header: unknown = JSON.parse(new TextDecoder().decode(new Uint8Array(data, 4, length)));
+  const identity = parseIdentity(header);
+  if ((header as {version?: unknown}).version !== 1) throw new Error('Invalid frame version');
+  const jpeg = new Uint8Array(data, 4 + length);
+  if (jpeg[0] !== 255 || jpeg[1] !== 216) throw new Error('Invalid JPEG frame');
+  return {...identity, blob: new Blob([jpeg], {type:'image/jpeg'}), timestamp: identity.captured_at};
+}
+
+export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamResult {
+  const {sessionId: suppliedSessionId, pageId, quality = 65, fps = 30,
+    useWebSocketFrames = true, refreshToken} = options;
+  const storedSessionId = useSessionStore(state => state.sessionId);
+  const validated = useSessionStore(state => state.isValidated);
+  const sessionId = validated ? storedSessionId : suppliedSessionId;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const backBufferRef = useRef<HTMLCanvasElement | null>(null);
   const frameDimensionsRef = useRef<FrameDimensions | null>(null);
+  const decoder = useRef<Decoder>({active:false,pending:null});
+  const callbacks = useRef(options);
+  callbacks.current = options;
+  const previousPage = useRef(pageId);
+  const [view, setView] = useState<ViewState>(EMPTY_VIEW);
+  const {stats: frameStats, recordFrame, reset: resetStats} = useFrameStats();
 
-  // Read session validation state from store
-  const storeSessionId = useSessionStore((s) => s.sessionId);
-  const isValidated = useSessionStore((s) => s.isValidated);
-
-  // Use store session ID if validated, otherwise fall back to prop
-  const sessionId = isValidated ? storeSessionId : propSessionId;
-
-  // Get store actions for syncing dimensions
-  const storeSetFrameDimensions = useSessionStore((s) => s.setFrameDimensions);
-  const storeSetDisplayDimensions = useSessionStore((s) => s.setDisplayDimensions);
-
-  const [hasFrame, setHasFrame] = useState(false);
-  const hasFrameRef = useRef(false);
-  const [displayDimensions, setDisplayDimensions] = useState<{ width: number; height: number } | null>(null);
-  const [isFetching, setIsFetching] = useState(false);
-  const isFetchingRef = useRef(false);
-  const [error, setError] = useState<string | null>(null);
-  const errorRef = useRef<string | null>(null); // Track error in ref for guarded updates
-  const [isTabVisible, setIsTabVisible] = useState(!document.hidden);
-  const [isWsFrameActive, setIsWsFrameActive] = useState(false);
-  const [isPageSwitching, setIsPageSwitching] = useState(false);
-
-  // Frame tracking refs
-  const frameCountRef = useRef(0);
-  const droppedFramesRef = useRef(0);
-  const [displayedTimestamp, setDisplayedTimestamp] = useState<string | null>(null);
-  const displayedTimestampRef = useRef<string | null>(null);
-  const lastTimestampStateUpdateRef = useRef(0);
-
-  // Latency tracking for research spike
-  const latencyLoggerRef = useRef(new LatencyLogger('API Relay', 200));
-  const latencyStatsRef = useRef<LatencyStats | null>(null);
-
-  const inFlightRef = useRef(false);
-  const lastSessionRef = useRef<string | null>(null);
-  const lastETagRef = useRef<string | null>(null);
-  const lastContentHashRef = useRef<string | null>(null);
-  const lastPageIdRef = useRef<string | undefined>(pageId);
-  const lastConnectionStatusRef = useRef<string | null>(null);
-
-  // WebSocket context no longer needed for frame streaming (direct connection to playwright-driver)
-  // Keeping the import in case other parts of the app need it, but not using it here
-  useWebSocket(); // Keep context active but don't destructure unused values
-
-  // Frame statistics
-  const { stats: frameStats, recordFrame, reset: resetStats } = useFrameStats();
-  const onStatsUpdateRef = useRef(onStatsUpdate);
-  onStatsUpdateRef.current = onStatsUpdate;
-
-  // Page metadata
-  const onPageMetadataChangeRef = useRef(onPageMetadataChange);
-  onPageMetadataChangeRef.current = onPageMetadataChange;
-  const lastPageMetadataRef = useRef<PageMetadata | null>(null);
-
-  // Connection status
-  const onConnectionStatusChangeRef = useRef(onConnectionStatusChange);
-  onConnectionStatusChangeRef.current = onConnectionStatusChange;
-
-  const pollInterval = useMemo(() => Math.max(300, Math.floor(1000 / fps)), [fps]);
-  const pollIntervalRef = useRef(pollInterval);
-  pollIntervalRef.current = pollInterval;
-  const enableTimestampStateRef = useRef(enableTimestampState);
-  enableTimestampStateRef.current = enableTimestampState;
-
-  const setFetchingState = useCallback((next: boolean) => {
-    if (isFetchingRef.current === next) return;
-    isFetchingRef.current = next;
-    setIsFetching(next);
-  }, []);
-
-  const publishFrameTimestamp = useCallback((timestamp: string, force = false) => {
-    displayedTimestampRef.current = timestamp;
-    if (!enableTimestampStateRef.current) {
-      return;
-    }
-    const now = performance.now();
-    if (!force && now - lastTimestampStateUpdateRef.current < 1000) {
-      return;
-    }
-    lastTimestampStateUpdateRef.current = now;
-    setDisplayedTimestamp(timestamp);
-  }, []);
-
-  // Track tab visibility
+  useEffect(() => {callbacks.current.onStatsUpdate?.(frameStats);}, [frameStats]);
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      setIsTabVisible(!document.hidden);
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
+    callbacks.current.onConnectionStatusChange?.({isConnected:view.hasFrame,
+      isWebSocket:view.isWsFrameActive,lastFrameTime:view.displayedTimestamp ?? undefined});
+  }, [view.hasFrame, view.isWsFrameActive, view.displayedTimestamp]);
 
-  // Handle page switching transitions
-  // IMPORTANT: Only reset hasFrame when switching between two REAL page IDs.
-  // When pageId goes from undefined → real ID, that's just the initial page ID
-  // being resolved (from the /pages API), not an actual tab switch.
-  // Resetting hasFrame in that case causes flickering during initial navigation.
   useEffect(() => {
-    if (lastPageIdRef.current !== pageId) {
-      const isRealTabSwitch = lastPageIdRef.current && pageId;
-
-      if (isRealTabSwitch) {
-        // Actual tab switch - reset frame state and show transition
-        setIsPageSwitching(true);
-        frameDimensionsRef.current = null;
-        hasFrameRef.current = false;
-        setHasFrame(false);
-
-        const timer = setTimeout(() => {
-          setIsPageSwitching(false);
-        }, 300);
-
-        lastPageIdRef.current = pageId;
-        return () => clearTimeout(timer);
-      } else {
-        // Initial page ID being set or cleared - just update ref, don't reset frame
-        lastPageIdRef.current = pageId;
-      }
-    }
-  }, [pageId]);
-
-  // Push frame stats to parent
-  useEffect(() => {
-    if (onStatsUpdateRef.current) {
-      onStatsUpdateRef.current(frameStats);
-    }
-  }, [frameStats]);
-
-  // Push connection status to parent
-  useEffect(() => {
-    if (onConnectionStatusChangeRef.current) {
-      const status: StreamConnectionStatus = {
-        isConnected: hasFrame,
-        isWebSocket: isWsFrameActive,
-        lastFrameTime: displayedTimestamp ?? undefined,
-      };
-      const key = `${status.isConnected}:${status.isWebSocket}:${status.lastFrameTime ?? ''}`;
-      if (lastConnectionStatusRef.current === key) {
-        return;
-      }
-      lastConnectionStatusRef.current = key;
-      onConnectionStatusChangeRef.current(status);
-    }
-  }, [hasFrame, isWsFrameActive, displayedTimestamp]);
-
-  /**
-   * Draw a bitmap directly to canvas, using double-buffering only for significant changes.
-   *
-   * Double-buffering prevents white flash when resizing, but adds ~1-2ms latency per frame.
-   * We only use it for significant dimension changes (>50px) to balance visual quality
-   * with streaming performance.
-   */
-  const drawFrameToCanvas = useCallback((bitmap: ImageBitmap) => {
+    let disposed = false;
+    let socket: WebSocket | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+    let request: AbortController | null = null;
+    let raf: number | null = null;
+    let pendingPaint: {frame: FrameJob; bitmap: ImageBitmap} | null = null;
+    let sequence = 0;
+    let newestAdmission = 0;
+    let lastPainted = 0;
+    let lastSocketPaint = -Infinity;
+    let reconnectAttempts = 0;
+    let etag: string | null = null;
+    let lastMetadata: PageMetadata | undefined;
+    let lastTimestampUpdate = -Infinity;
+    let painted = false;
+    let currentView = {...EMPTY_VIEW, isPageSwitching: Boolean(previousPage.current && pageId && previousPage.current !== pageId)};
+    previousPage.current = pageId;
+    setView(currentView);
+    frameDimensionsRef.current = null;
+    useSessionStore.getState().setFrameDimensions(null);
+    useSessionStore.getState().setDisplayDimensions(null);
+    resetStats();
     const canvas = canvasRef.current;
-    if (!canvas) return false;
-
-    const ctx = canvas.getContext('2d', { alpha: false });
-    if (!ctx) return false;
-
-    const widthDiff = Math.abs(canvas.width - bitmap.width);
-    const heightDiff = Math.abs(canvas.height - bitmap.height);
-    const isSignificantChange = widthDiff > 50 || heightDiff > 50;
-    const dimensionsChanging = canvas.width !== bitmap.width || canvas.height !== bitmap.height;
-
-    // Only use double-buffering for significant changes to prevent white flash
-    // Minor changes (< 50px) draw directly for lower latency
-    if (dimensionsChanging && isSignificantChange) {
-      if (!backBufferRef.current) {
-        backBufferRef.current = document.createElement('canvas');
-      }
-      const backBuffer = backBufferRef.current;
-      const backCtx = backBuffer.getContext('2d', { alpha: false });
-      if (!backCtx) return false;
-
-      backBuffer.width = bitmap.width;
-      backBuffer.height = bitmap.height;
-      backCtx.drawImage(bitmap, 0, 0);
-
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-      ctx.drawImage(backBuffer, 0, 0);
-    } else {
-      // Direct draw for same dimensions or minor changes
-      if (dimensionsChanging) {
-        canvas.width = bitmap.width;
-        canvas.height = bitmap.height;
-      }
-      ctx.drawImage(bitmap, 0, 0);
-    }
-
-    return true;
-  }, []);
-
-  // Binary frame processing refs
-  // Optimization: We decode bitmaps immediately when frames arrive (async but parallel),
-  // then RAF just draws the latest decoded bitmap. This reduces latency by ~2-5ms
-  // since decoding happens during the RAF wait, not after RAF fires.
-  const pendingBitmapRef = useRef<ImageBitmap | null>(null);
-  const pendingFrameSizeRef = useRef<number>(0);
-  const pendingFrameTimestampRef = useRef<string | null>(null);
-  const latestFrameIdRef = useRef<number>(0);
-  const rafIdRef = useRef<number | null>(null);
-  const isWsFrameActiveRef = useRef(isWsFrameActive);
-  isWsFrameActiveRef.current = isWsFrameActive;
-
-  /**
-   * Draw pending bitmap - called from requestAnimationFrame.
-   * The bitmap is already decoded, so this is fast (~1ms).
-   */
-  const drawPendingFrame = useCallback(() => {
-    rafIdRef.current = null;
-
-    const bitmap = pendingBitmapRef.current;
-    const frameSize = pendingFrameSizeRef.current;
-    const frameTimestamp = pendingFrameTimestampRef.current;
-    if (!bitmap) return;
-
-    pendingBitmapRef.current = null;
-    pendingFrameTimestampRef.current = null;
-
-    const drawn = drawFrameToCanvas(bitmap);
-    if (!drawn) {
-      bitmap.close();
-      return;
-    }
-
-    const newDimensions: FrameDimensions = {
-      width: bitmap.width,
-      height: bitmap.height,
-      capturedAt: new Date().toISOString(),
+    canvas?.getContext('2d')?.clearRect(0,0,canvas.width,canvas.height);
+    const owns = () => !disposed;
+    const update = (change: Partial<ViewState>) => {
+      if (disposed || Object.entries(change).every(([key,value]) => currentView[key as keyof ViewState] === value)) return;
+      currentView = {...currentView,...change};
+      setView(currentView);
     };
-
-    const prevDims = frameDimensionsRef.current;
-    const dimensionsChanged = !prevDims ||
-      prevDims.width !== bitmap.width ||
-      prevDims.height !== bitmap.height;
-
-    frameDimensionsRef.current = newDimensions;
-    bitmap.close();
-
-    if (!hasFrameRef.current) {
-      hasFrameRef.current = true;
-      setHasFrame(true);
-    }
-    if (dimensionsChanged) {
-      setDisplayDimensions({ width: newDimensions.width, height: newDimensions.height });
-      // Sync to store
-      storeSetFrameDimensions({ width: newDimensions.width, height: newDimensions.height });
-      storeSetDisplayDimensions({ width: newDimensions.width, height: newDimensions.height });
-    }
-
-    // Guard setError(null) to avoid unnecessary React reconciliation
-    if (errorRef.current !== null) {
-      errorRef.current = null;
-      setError(null);
-    }
-
-    // Track successful frame processing
-    frameCountRef.current++;
-    publishFrameTimestamp(frameTimestamp ?? newDimensions.capturedAt);
-    recordFrame(frameSize);
-  }, [drawFrameToCanvas, publishFrameTimestamp, recordFrame, storeSetFrameDimensions, storeSetDisplayDimensions]);
-
-  /**
-   * Decode a blob and queue it for drawing.
-   * Decoding happens immediately (in parallel with RAF wait), not after RAF fires.
-   */
-  const decodeAndQueueFrame = useCallback(async (blob: Blob, frameId: number, frameSize: number, capturedAt: string) => {
-    try {
-      const bitmap = await createImageBitmap(blob);
-
-      // Check if a newer frame arrived while we were decoding
-      if (latestFrameIdRef.current > frameId) {
-        bitmap.close();
-        return;
-      }
-
-      // Close any existing pending bitmap that wasn't drawn yet
-      const oldBitmap = pendingBitmapRef.current;
-      if (oldBitmap) {
-        oldBitmap.close();
-      }
-
-      pendingBitmapRef.current = bitmap;
-      pendingFrameSizeRef.current = frameSize;
-      pendingFrameTimestampRef.current = capturedAt;
-
-      // Schedule RAF if not already scheduled
-      if (rafIdRef.current === null) {
-        rafIdRef.current = requestAnimationFrame(drawPendingFrame);
-      }
-    } catch {
-      if (latestFrameIdRef.current === frameId) {
-        errorRef.current = 'Failed to decode binary frame';
-        setError('Failed to decode binary frame');
-      }
-    }
-  }, [drawPendingFrame]);
-
-  // Direct WebSocket connection to playwright-driver for frame streaming
-  // This bypasses the API Hub for ~67% latency reduction (9ms → 3ms median)
-  const directWsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reconnectAttemptRef = useRef(0);
-  const maxReconnectAttempts = 10;
-  // Start with a short initial delay for fast recovery from brief disconnects
-  // Exponential backoff kicks in for persistent issues
-  const baseReconnectDelay = 250; // 250ms initial (was 1s)
-  const maxReconnectDelay = 15000; // 15 seconds (was 30s)
-
-  useEffect(() => {
-    if (!useWebSocketFrames || !sessionId) {
-      // Clean up existing connection
-      if (directWsRef.current) {
-        directWsRef.current.close();
-        directWsRef.current = null;
-      }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
-      }
-      isWsFrameActiveRef.current = false;
-      setIsWsFrameActive(false);
-      return;
-    }
-
-    const handleBinaryFrame = (data: ArrayBuffer) => {
-      if (!isWsFrameActiveRef.current) {
-        droppedFramesRef.current++;
-        return;
-      }
-
-      // Frame format from DirectFrameServer: [8-byte timestamp BigInt64BE][JPEG data]
-      let jpegData: ArrayBuffer = data;
-      let sentTimestamp: number | null = null;
-
-      if (data.byteLength > 8) {
-        const view = new DataView(data);
-        try {
-          sentTimestamp = Number(view.getBigInt64(0));
-          // Validate it looks like a reasonable timestamp (within last hour)
-          const now = Date.now();
-          if (sentTimestamp > now - 3600000 && sentTimestamp <= now + 1000) {
-            jpegData = data.slice(8);
-          } else {
-            sentTimestamp = null; // Not a valid timestamp, use full data
-            jpegData = data;
-          }
-        } catch {
-          sentTimestamp = null;
-        }
-      }
-
-      // Record latency for performance monitoring
-      if (sentTimestamp !== null) {
-        const latency = Date.now() - sentTimestamp;
-        if (latency >= 0 && latency < 10000) { // Sanity check: 0-10 seconds
-          latencyLoggerRef.current.record(latency);
-          // Update stats every 10 frames to reduce state updates
-          if (latencyLoggerRef.current.getSampleCount() % 10 === 0) {
-            latencyStatsRef.current = latencyLoggerRef.current.getStats();
-          }
-        }
-      }
-
-      const blob = new Blob([jpegData], { type: 'image/jpeg' });
-      const frameId = Date.now();
-      const frameSize = jpegData.byteLength;
-
-      // Mark that WebSocket has successfully delivered a frame
-      // This allows polling to stop (see polling effect guard)
-      hasReceivedWsFrameRef.current = true;
-
-      // Update frame ID immediately (used for stale frame detection)
-      latestFrameIdRef.current = frameId;
-
-      // Start decoding immediately - this happens in parallel with RAF wait
-      // The decoded bitmap will be ready when RAF fires, reducing latency by ~2-5ms
-      void decodeAndQueueFrame(blob, frameId, frameSize, sentTimestamp !== null ? new Date(sentTimestamp).toISOString() : new Date().toISOString());
+    const fail = (message: string) => {
+      if (disposed) return;
+      update({error:message});
+      callbacks.current.onStreamError?.(message);
     };
-
-    const connect = async () => {
-      // Fetch config to get the playwright driver port for direct connection
-      let driverPort: number | undefined;
+    const draw = () => {
+      raf = null;
+      const ready = pendingPaint;
+      pendingPaint = null;
+      if (!ready) return;
+      const {frame,bitmap} = ready;
       try {
-        const response = await fetch('/config');
-        if (response.ok) {
-          const config: unknown = await response.json();
-          if (isRecord(config) && typeof config.playwrightDriverPort === 'number') {
-            driverPort = config.playwrightDriverPort;
-          }
+        if (disposed || frame.id <= lastPainted) return;
+        const target = canvasRef.current;
+        const context = target?.getContext('2d', {alpha:false});
+        if (!target || !context) return;
+        // Resize and draw in one synchronous animation callback, before paint.
+        if (target.width !== bitmap.width) target.width = bitmap.width;
+        if (target.height !== bitmap.height) target.height = bitmap.height;
+        context.drawImage(bitmap,0,0);
+        const dimensions = {width:bitmap.width,height:bitmap.height};
+        const previous = frameDimensionsRef.current;
+        frameDimensionsRef.current = {...dimensions,capturedAt:frame.timestamp};
+        const change: Partial<ViewState> = {hasFrame:true,isFetching:false,isPageSwitching:false,error:null,isWsFrameActive:frame.socket};
+        if (!previous || previous.width !== bitmap.width || previous.height !== bitmap.height) {
+          change.displayDimensions = dimensions;
+          useSessionStore.getState().setFrameDimensions(dimensions);
+          useSessionStore.getState().setDisplayDimensions(dimensions);
+        }
+        if (callbacks.current.enableTimestampState !== false && performance.now() - lastTimestampUpdate >= 1000) {
+          change.displayedTimestamp = frame.timestamp;
+          lastTimestampUpdate = performance.now();
+        }
+        lastPainted = frame.id;
+        painted = true;
+        if (frame.socket) lastSocketPaint = performance.now();
+        else if (frame.etag) etag = frame.etag;
+        update(change);
+        recordFrame(frame.blob.size);
+        if (frame.metadata && (frame.metadata.url !== lastMetadata?.url || frame.metadata.title !== lastMetadata?.title)) {
+          lastMetadata = frame.metadata;
+          callbacks.current.onPageMetadataChange?.(frame.metadata);
         }
       } catch {
-        // Config fetch failed, will fall back to polling
-      }
-
-      if (!driverPort) {
-        // No driver port available - direct connection not possible
-        // Polling fallback will handle frame streaming
-        console.warn('[useFrameStream] No playwright driver port in config, falling back to polling');
-        return;
-      }
-
-      // Build WebSocket URL for direct connection to playwright-driver
-      // DirectFrameServer runs on driver port + 1
-      const directFramePort = driverPort + 1;
-      let wsUrl = `ws://localhost:${directFramePort}/frames?session_id=${encodeURIComponent(sessionId)}`;
-      if (pageId) {
-        wsUrl += `&page_id=${encodeURIComponent(pageId)}`;
-      }
-
-      const ws = new WebSocket(wsUrl);
-      ws.binaryType = 'arraybuffer';
-      directWsRef.current = ws;
-
-      ws.onopen = () => {
-        reconnectAttemptRef.current = 0; // Reset on successful connection
-        isWsFrameActiveRef.current = true;
-        setIsWsFrameActive(true);
-      };
-
-      ws.onmessage = (event) => {
-        // Handle text messages (subscription confirmation, etc.)
-        if (typeof event.data === 'string') {
-          // Ignore text messages - frames are binary
-          return;
-        }
-
-        // Handle binary frame data
-        if (event.data instanceof ArrayBuffer) {
-          handleBinaryFrame(event.data);
-          return;
-        }
-        if (event.data instanceof Blob) {
-          void event.data.arrayBuffer().then(handleBinaryFrame).catch(() => {
-            // Ignore malformed frame payloads
-          });
-        }
-      };
-
-      ws.onerror = () => {
-        // Error will be followed by onclose, handle reconnection there
-      };
-
-      ws.onclose = () => {
-        directWsRef.current = null;
-        isWsFrameActiveRef.current = false;
-        setIsWsFrameActive(false);
-
-        // Attempt reconnection with exponential backoff
-        if (reconnectAttemptRef.current < maxReconnectAttempts) {
-          const delay = Math.min(
-            baseReconnectDelay * Math.pow(2, reconnectAttemptRef.current),
-            maxReconnectDelay
-          );
-          reconnectAttemptRef.current++;
-
-          reconnectTimeoutRef.current = setTimeout(() => {
-            if (sessionId && useWebSocketFrames) {
-              connect();
-            }
-          }, delay);
-        }
-        // After max attempts, polling fallback will take over
-      };
-    };
-
-    connect();
-
-    return () => {
-      if (directWsRef.current) {
-        directWsRef.current.close();
-        directWsRef.current = null;
-      }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
-      }
-    };
-  }, [useWebSocketFrames, sessionId, pageId, decodeAndQueueFrame]);
-
-  // Cleanup RAF and pending bitmap on unmount
-  useEffect(() => {
-    return () => {
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current);
-      }
-      // Clean up any pending bitmap to prevent memory leaks
-      const bitmap = pendingBitmapRef.current;
-      if (bitmap) {
+        fail('Failed to render live frame');
+      } finally {
         bitmap.close();
-        pendingBitmapRef.current = null;
       }
     };
-  }, []);
-
-  // Polling fetch function
-  const fetchFrame = useCallback(async () => {
-    if (inFlightRef.current || !sessionId) return;
-    inFlightRef.current = true;
-    setFetchingState(!hasFrameRef.current);
-    const started = performance.now();
-
-    try {
+    const deliver = (frame: FrameJob, bitmap: ImageBitmap) => {
+      pendingPaint?.bitmap.close();
+      pendingPaint = {frame,bitmap};
+      if (raf === null) raf = requestAnimationFrame(draw);
+    };
+    const enqueue = (frame: Omit<FrameJob,'owns'|'deliver'|'fail'>) => {
+      if (disposed || document.hidden || frame.id < newestAdmission) return;
+      newestAdmission = frame.id;
+      decoder.current.pending = {...frame,owns,deliver,fail};
+      void decodeLatest(decoder.current);
+    };
+    const matchesSource = (frame: FrameIdentity) => frame.session_id === sessionId &&
+      (pageId === undefined || frame.page_id === pageId);
+    const pollInterval = Math.max(300,Math.floor(1000 / Math.max(1,fps)));
+    const start = async () => {
       const config = await getConfig();
-      let endpoint = `${config.API_URL}/recordings/live/${sessionId}/frame?quality=${quality}`;
-      if (pageId) {
-        endpoint += `&page_id=${encodeURIComponent(pageId)}`;
-      }
-      const headers: HeadersInit = {};
-      if (lastETagRef.current) {
-        headers['If-None-Match'] = lastETagRef.current;
-      }
-      const res = await fetch(endpoint, { headers });
-
-      if (res.status === 304) {
-        if (errorRef.current !== null) {
-          errorRef.current = null;
-          setError(null);
+      if (disposed || !sessionId) return;
+      const poll = async () => {
+        if (disposed) return;
+        if (performance.now() - lastSocketPaint >= STREAM_STALE_MS) {
+          update({isWsFrameActive:false});
+          if (!document.hidden && !request) {
+            const id = ++sequence;
+            request = new AbortController();
+            const timeout = setTimeout(() => request?.abort(),10000);
+            update({isFetching:!painted});
+            try {
+              const query = new URLSearchParams({quality:String(quality)});
+              if (pageId) query.set('page_id',pageId);
+              const response = await fetch(`${config.API_URL}/recordings/live/${sessionId}/frame?${query}`, {
+                signal:request.signal, headers:etag ? {'If-None-Match':etag} : {},
+              });
+              if (disposed || id < newestAdmission || response.status === 304) return;
+              if (!response.ok) throw new Error(`Frame fetch failed (${response.status})`);
+              const frame = parseFrame(await response.json());
+              if (disposed || id < newestAdmission || !matchesSource(frame)) return;
+              enqueue({id,blob:frameBlob(frame.image),timestamp:frame.captured_at,socket:false,etag:response.headers.get('ETag'),
+                metadata: {title:frame.page_title ?? '',url:frame.page_url ?? ''}});
+            } catch (error) {
+              if (!disposed && id >= newestAdmission) fail(error instanceof Error ? error.message : 'Failed to fetch live frame');
+            } finally {
+              clearTimeout(timeout);
+              request = null;
+              update({isFetching:false});
+              if (!disposed) pollTimer = setTimeout(() => {void poll();},pollInterval);
+            }
+            return;
+          }
         }
-        return;
-      }
-
-      if (!res.ok) {
-        throw new Error(`Frame fetch failed (${res.status})`);
-      }
-
-      const etag = res.headers.get('ETag');
-      if (etag) {
-        lastETagRef.current = etag;
-      }
-
-      const rawData: unknown = await res.json();
-      const data = parseFramePayload(rawData);
-      if (!data) {
-        throw new Error('Invalid frame payload');
-      }
-
-      // Handle page metadata
-      if (data.page_title !== undefined || data.page_url !== undefined) {
-        const newMetadata: PageMetadata = {
-          title: data.page_title || '',
-          url: data.page_url || '',
+        pollTimer = setTimeout(() => {void poll();},pollInterval);
+      };
+      const connect = () => {
+        if (disposed || !useWebSocketFrames) return;
+        const connection = new WebSocket(config.WS_URL);
+        socket = connection;
+        connection.binaryType = 'arraybuffer';
+        connection.onopen = () => {
+          if (disposed || socket !== connection) return;
+          reconnectAttempts = 0;
+          connection.send(JSON.stringify({type:'subscribe_recording',session_id:sessionId}));
         };
-        const lastMetadata = lastPageMetadataRef.current;
-        if (!lastMetadata || lastMetadata.title !== newMetadata.title || lastMetadata.url !== newMetadata.url) {
-          lastPageMetadataRef.current = newMetadata;
-          if (onPageMetadataChangeRef.current) {
-            onPageMetadataChangeRef.current(newMetadata);
+        connection.onmessage = event => {
+          if (disposed || socket !== connection || !(event.data instanceof ArrayBuffer)) return;
+          try {
+            const frame = binaryFrame(event.data);
+            if (matchesSource(frame)) enqueue({...frame,id:++sequence,socket:true});
           }
-        }
-      }
-
-      // Draw to canvas using createImageBitmap (more efficient than Image())
-      // Convert base64 data URI to blob
-      const splitImage = data.image.split(',');
-      const base64Data = splitImage[1] ?? splitImage[0] ?? '';
-      const binaryString = atob(base64Data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      const blob = new Blob([bytes], { type: 'image/jpeg' });
-
-      try {
-        const bitmap = await createImageBitmap(blob);
-        const drawn = drawFrameToCanvas(bitmap);
-
-        if (drawn) {
-          const newDimensions: FrameDimensions = {
-            width: bitmap.width,
-            height: bitmap.height,
-            capturedAt: data.captured_at,
-          };
-
-          const prevDims = frameDimensionsRef.current;
-          const dimensionsChanged = !prevDims ||
-            prevDims.width !== bitmap.width ||
-            prevDims.height !== bitmap.height;
-
-          frameDimensionsRef.current = newDimensions;
-
-          if (!hasFrameRef.current) {
-            hasFrameRef.current = true;
-            setHasFrame(true);
+          catch {fail('Invalid binary frame');}
+        };
+        connection.onerror = () => { /* onclose owns retry and fallback. */ };
+        connection.onclose = () => {
+          if (disposed || socket !== connection) return;
+          socket = null;
+          lastSocketPaint = -Infinity;
+          update({isWsFrameActive:false});
+          if (reconnectAttempts < 10) {
+            const delay = Math.min(250 * 2 ** reconnectAttempts++,15000);
+            reconnectTimer = setTimeout(connect,delay);
           }
-          if (dimensionsChanged) {
-            setDisplayDimensions({ width: newDimensions.width, height: newDimensions.height });
-            // Sync to store
-            storeSetFrameDimensions({ width: newDimensions.width, height: newDimensions.height });
-            storeSetDisplayDimensions({ width: newDimensions.width, height: newDimensions.height });
-          }
-          publishFrameTimestamp(data.captured_at);
-          if (errorRef.current !== null) {
-            errorRef.current = null;
-            setError(null);
-          }
-          recordFrame(bytes.byteLength);
-        }
-
-        bitmap.close();
-      } catch {
-        errorRef.current = 'Failed to decode live frame';
-        setError('Failed to decode live frame');
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch live frame';
-      errorRef.current = message;
-      setError(message);
-      if (onStreamError) {
-        onStreamError(message);
-      }
-    } finally {
-      setFetchingState(false);
-      inFlightRef.current = false;
-      const elapsed = performance.now() - started;
-      if (elapsed > pollInterval) {
-        const dampenedFps = Math.max(1, Math.round(1000 / Math.min(elapsed, 1500)));
-        const nextInterval = Math.max(400, Math.floor(1000 / dampenedFps));
-        pollIntervalRef.current = nextInterval;
-      }
-    }
-  }, [onStreamError, quality, sessionId, pageId, pollInterval, drawFrameToCanvas, publishFrameTimestamp, recordFrame, setFetchingState, storeSetFrameDimensions, storeSetDisplayDimensions]);
-
-  // Track if we've received at least one WebSocket frame
-  const hasReceivedWsFrameRef = useRef(false);
-
-  // Polling - runs as fallback when WebSocket hasn't delivered a frame yet
-  // CRITICAL: Don't stop polling just because WebSocket connected!
-  // Only stop when WebSocket has PROVEN it works by delivering a frame.
-  // This fixes white screen when CDP screencast doesn't send frames immediately
-  // (e.g., page is static after navigation).
-  useEffect(() => {
-    if (isWsFrameActive && hasReceivedWsFrameRef.current) {
-      return;
-    }
-
-    let cancelled = false;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-    const tick = async () => {
-      if (cancelled || isWsFrameActive) return;
-      if (isTabVisible) {
-        await fetchFrame();
-      }
-      if (cancelled || isWsFrameActive) return;
-      const nextInterval = pollIntervalRef.current;
-      timeoutId = setTimeout(tick, nextInterval);
+        };
+      };
+      void poll();
+      connect();
     };
-
-    tick();
-
+    if (sessionId && pageId !== null) void start().catch(error => fail(error instanceof Error ? error.message : 'Failed to connect live viewer'));
     return () => {
-      cancelled = true;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      disposed = true;
+      socket?.close();
+      request?.abort();
+      if (reconnectTimer !== null) clearTimeout(reconnectTimer);
+      if (pollTimer !== null) clearTimeout(pollTimer);
+      if (raf !== null) cancelAnimationFrame(raf);
+      pendingPaint?.bitmap.close();
+      if (decoder.current.pending?.owns === owns) decoder.current.pending = null;
     };
-  }, [fetchFrame, pollInterval, refreshToken, isTabVisible, isWsFrameActive]);
+  }, [sessionId,pageId,quality,fps,useWebSocketFrames,refreshToken,recordFrame,resetStats]);
 
-  // Reset state when session changes
-  // IMPORTANT: Only do a full reset (clear canvas, set hasFrame=false) when switching
-  // between two REAL sessions. When sessionId goes from null → real ID, that's the
-  // initial session being established, not a session switch. Resetting hasFrame in
-  // that case causes flickering if a frame has already arrived via polling.
-  useEffect(() => {
-    if (lastSessionRef.current !== sessionId) {
-      const isRealSessionSwitch = lastSessionRef.current && sessionId;
-
-      if (isRealSessionSwitch) {
-        // Actual session switch - full reset
-        frameDimensionsRef.current = null;
-        hasFrameRef.current = false;
-        setHasFrame(false);
-        setDisplayDimensions(null);
-        displayedTimestampRef.current = null;
-        setDisplayedTimestamp(null);
-        // Clear store dimensions
-        storeSetFrameDimensions(null);
-        storeSetDisplayDimensions(null);
-        const canvas = canvasRef.current;
-        if (canvas) {
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-          }
-        }
-      }
-
-      // Always reset these tracking refs for new/changed session
-      lastSessionRef.current = sessionId;
-      lastETagRef.current = null;
-      lastContentHashRef.current = null;
-      errorRef.current = null;
-      setError(null);
-      // CRITICAL: Update ref BEFORE state
-      isWsFrameActiveRef.current = false;
-      setIsWsFrameActive(false);
-      reconnectAttemptRef.current = 0; // Reset reconnect counter for new session
-      hasReceivedWsFrameRef.current = false; // Reset WS frame tracking for new session
-      resetStats();
-      // Reset diagnostic counters
-      frameCountRef.current = 0;
-      droppedFramesRef.current = 0;
-    }
-  }, [sessionId, resetStats, storeSetFrameDimensions, storeSetDisplayDimensions]);
-
-  // Callback to log latency stats to console
-  const logLatencyStats = useCallback(() => {
-    latencyLoggerRef.current.logStats();
-  }, []);
-
-  return {
-    canvasRef,
-    hasFrame,
-    displayDimensions,
-    displayedTimestamp,
-    error,
-    isFetching,
-    isWsFrameActive,
-    isPageSwitching,
-    frameStats,
-    frameDimensionsRef,
-    latencyStats: latencyStatsRef.current,
-    logLatencyStats,
-  };
+  return {...view,canvasRef,frameDimensionsRef,frameStats};
 }

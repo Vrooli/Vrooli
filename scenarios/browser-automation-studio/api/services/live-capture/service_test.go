@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -15,8 +16,10 @@ import (
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/browser-automation-studio/automation/compiler"
+	"github.com/vrooli/browser-automation-studio/domain"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
@@ -411,7 +414,7 @@ func TestRestoreTabsInitialNavigationCarriesOwnership(t *testing.T) {
 	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/session/start" {
-			_, _ = w.Write([]byte(`{"session_id":"restored","lease_id":"saved-tab-lease"}`))
+			_, _ = w.Write([]byte(`{"session_id":"restored","lease_id":"saved-tab-lease","active_page_id":"initial-driver-page"}`))
 			return
 		}
 		calls.Add(1)
@@ -419,14 +422,15 @@ func TestRestoreTabsInitialNavigationCarriesOwnership(t *testing.T) {
 		var body map[string]any
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 		require.Equal(t, map[string]any{"execution_id": owner.String(), "lease_id": "saved-tab-lease", "url": "https://saved.test"}, body)
-		_, _ = w.Write([]byte(`{"url":"https://saved.test","title":"saved tab"}`))
+		_, _ = w.Write([]byte(`{"driver_page_id":"initial-driver-page","url":"https://saved.test","title":"saved tab"}`))
 	}))
 	defer server.Close()
 	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 	require.NoError(t, err)
 	manager := autosession.NewManagerWithClient(client)
-	_, err = manager.Create(context.Background(), autosession.Spec{ExecutionID: owner, Mode: autosession.ModeRecording})
+	restoredSession, err := manager.Create(context.Background(), autosession.Spec{ExecutionID: owner, Mode: autosession.ModeRecording})
 	require.NoError(t, err)
+	restoredSession.InitializePageTracking("about:blank")
 	service := NewServiceWithManager(manager, logrus.New(), nil)
 	tabs := []sessionprofilepersistence.TabState{{URL: "https://saved.test", IsActive: true}}
 	restored, err := service.RestoreTabs(context.Background(), "restored", tabs)
@@ -438,4 +442,387 @@ func TestRestoreTabsInitialNavigationCarriesOwnership(t *testing.T) {
 	_, err = service.RestoreTabs(context.Background(), "restored", []sessionprofilepersistence.TabState{{URL: "about:blank"}})
 	require.NoError(t, err)
 	require.Equal(t, int32(1), calls.Load())
+}
+
+// [REQ:BAS-RH-J03] Tab receipts establish identity before recording callbacks exist.
+func TestCreatePageRegistersReceiptBeforeRecording(t *testing.T) {
+	for _, callbackFirst := range []bool{false, true} {
+		t.Run(fmt.Sprint(callbackFirst), func(t *testing.T) {
+			executionID := uuid.New()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/session/start" {
+					_, _ = w.Write([]byte(`{"session_id":"tabs","lease_id":"lease","active_page_id":"initial-driver"}`))
+					return
+				}
+				require.Equal(t, "/session/tabs/record/new-page", r.URL.Path)
+				var body map[string]string
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.Equal(t, map[string]string{"url": "https://second.test", "execution_id": executionID.String(), "lease_id": "lease"}, body)
+				w.WriteHeader(http.StatusCreated)
+				_, _ = w.Write([]byte(`{"driver_page_id":"second-driver","url":"https://second.test","title":"second","favicon_url":"https://second.test/custom.svg"}`))
+			}))
+			defer server.Close()
+			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+			require.NoError(t, err)
+			manager := autosession.NewManagerWithClient(client)
+			owner, err := manager.Create(context.Background(), autosession.Spec{ExecutionID: executionID, Mode: autosession.ModeRecording})
+			require.NoError(t, err)
+			owner.InitializePageTracking("https://original.test")
+			pages := owner.Pages()
+			initial := pages.GetInitialPageID()
+			require.Equal(t, "initial-driver", pages.GetDriverPageID(initial))
+			var callbackID uuid.UUID
+			if callbackFirst {
+				callbackID = pages.AddPage(&domain.Page{DriverPageID: "second-driver", URL: "about:blank"}).ID
+			}
+			service := NewServiceWithManager(manager, logrus.New(), nil)
+			receipt, err := service.CreatePage(context.Background(), owner.ID(), "https://second.test")
+			require.NoError(t, err)
+			require.Equal(t, "second-driver", receipt.DriverPageID)
+			require.Equal(t, "https://second.test/custom.svg", receipt.FaviconURL)
+			require.Equal(t, 2, pages.PageCount())
+			second := pages.GetPageIDByDriverID("second-driver")
+			require.NotNil(t, second)
+			require.Equal(t, *second, pages.GetActivePageID())
+			if callbackFirst {
+				require.Equal(t, callbackID, *second)
+			}
+			original, ok := pages.GetPage(initial)
+			require.True(t, ok)
+			require.Equal(t, "https://original.test", original.URL)
+			require.Equal(t, "https://second.test", pages.GetActivePage().URL)
+		})
+	}
+}
+
+// [REQ:BAS-RH-J01] [REQ:BAS-RH-J03] Browser and API agree on restored locations and selected tab.
+func TestRestoreTabsPreservesLocationsAndSelection(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		active         int
+		failSwitch     bool
+		failNavigation string
+	}{
+		{name: "first", active: 0},
+		{name: "middle", active: 1},
+		{name: "last", active: 2},
+		{name: "no saved selection", active: -1},
+		{name: "failed switch", active: 0, failSwitch: true},
+		{name: "failed initial navigation", failNavigation: "initial"},
+		{name: "failed additional navigation", failNavigation: "additional"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			actualURLs := []string{"https://restored.test/one", "https://restored.test/two", "https://restored.test/three"}
+			titles := []string{"current one", "current two", "current three"}
+			var active atomic.Value
+			active.Store("page-0")
+			var created, switches atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/session/start":
+					_ = json.NewEncoder(w).Encode(map[string]string{"session_id": "restore", "lease_id": "lease", "active_page_id": "page-0"})
+				case "/session/restore/record/navigate":
+					if tc.failNavigation == "initial" {
+						http.Error(w, "controlled initial failure", 503)
+						return
+					}
+					_ = json.NewEncoder(w).Encode(map[string]string{"driver_page_id": "page-0", "url": actualURLs[0], "title": titles[0]})
+				case "/session/restore/record/new-page":
+					i := int(created.Add(1))
+					if tc.failNavigation == "additional" {
+						http.Error(w, "controlled additional failure", 503)
+						return
+					}
+					id := fmt.Sprintf("page-%d", i)
+					active.Store(id)
+					w.WriteHeader(http.StatusCreated)
+					_ = json.NewEncoder(w).Encode(map[string]string{"driver_page_id": id, "url": actualURLs[i], "title": titles[i]})
+				case "/session/restore/record/active-page":
+					switches.Add(1)
+					if tc.failSwitch {
+						http.Error(w, "controlled switch failure", http.StatusServiceUnavailable)
+						return
+					}
+					var body map[string]string
+					require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+					active.Store(body["page_id"])
+					_, _ = w.Write([]byte(`{}`))
+				default:
+					t.Errorf("unexpected request %s", r.URL.Path)
+					w.WriteHeader(404)
+				}
+			}))
+			defer server.Close()
+			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+			require.NoError(t, err)
+			manager := autosession.NewManagerWithClient(client)
+			owner, err := manager.Create(context.Background(), autosession.Spec{ExecutionID: uuid.New(), Mode: autosession.ModeRecording})
+			require.NoError(t, err)
+			owner.InitializePageTracking("about:blank")
+			service := NewServiceWithManager(manager, logrus.New(), nil)
+			saved := make([]sessionprofilepersistence.TabState, 3)
+			for i := range saved {
+				saved[i] = sessionprofilepersistence.TabState{URL: fmt.Sprintf("https://saved.test/%d", i), Title: "stale saved title", IsActive: i == tc.active, Order: i}
+			}
+			restored, err := service.RestoreTabs(context.Background(), owner.ID(), saved)
+			if tc.failNavigation != "" {
+				require.ErrorContains(t, err, "restore")
+				require.NotNil(t, restored)
+				require.Equal(t, 1, owner.Pages().PageCount())
+				require.Zero(t, switches.Load())
+				if tc.failNavigation == "initial" {
+					require.Zero(t, created.Load())
+				} else {
+					require.Equal(t, int32(1), created.Load())
+				}
+				return
+			}
+			if tc.failSwitch {
+				require.ErrorContains(t, err, "switch")
+				require.NotNil(t, restored)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, 3, owner.Pages().PageCount())
+			for i := range saved {
+				pageID := owner.Pages().GetPageIDByDriverID(fmt.Sprintf("page-%d", i))
+				require.NotNil(t, pageID)
+				page, ok := owner.Pages().GetPage(*pageID)
+				require.True(t, ok)
+				assert.Equal(t, actualURLs[i], page.URL)
+				assert.Equal(t, titles[i], page.Title)
+				assert.Equal(t, HistoryEntryInfo{URL: actualURLs[i], Title: titles[i]}, restored.HistoryEntries[i])
+			}
+			expected := tc.active
+			if expected < 0 || tc.failSwitch {
+				expected = 2
+			}
+			require.Equal(t, fmt.Sprintf("page-%d", expected), active.Load())
+			require.Equal(t, fmt.Sprintf("page-%d", expected), owner.Pages().GetDriverPageID(owner.Pages().GetActivePageID()))
+			if tc.active == 2 || tc.active < 0 {
+				require.Zero(t, switches.Load(), "already selected page needs no browser command")
+			}
+			require.Equal(t, actualURLs[0], restored.InitialURL)
+			require.Equal(t, titles[0], restored.InitialTitle)
+			require.Len(t, restored.Tabs, 2)
+			for i, tab := range restored.Tabs {
+				assert.Equal(t, actualURLs[i+1], tab.URL)
+				assert.Equal(t, titles[i+1], tab.Title)
+			}
+		})
+	}
+}
+
+// [REQ:BAS-RH-J03] [REQ:BAS-RH-J17] Completion cannot rebind a tab transaction to a replacement Session.
+func TestTabTransactionKeepsAdmittedSession(t *testing.T) {
+	for _, operation := range []string{"activate", "restore", "close"} {
+		t.Run(operation, func(t *testing.T) {
+			var manager *autosession.Manager
+			var starts, additional atomic.Int32
+			var replacement atomic.Pointer[autosession.Session]
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/session/start" {
+					n := starts.Add(1)
+					_ = json.NewEncoder(w).Encode(map[string]string{"session_id": "same", "lease_id": fmt.Sprintf("lease-%d", n), "active_page_id": fmt.Sprintf("page-%d", n)})
+					return
+				}
+				if r.URL.Path == "/session/same/record/new-page" {
+					additional.Add(1)
+					w.WriteHeader(http.StatusCreated)
+					_, _ = w.Write([]byte(`{"driver_page_id":"late-page","url":"https://late.test"}`))
+					return
+				}
+				if replacement.Load() == nil {
+					fresh, err := manager.Create(context.Background(), autosession.Spec{ExecutionID: uuid.New(), Mode: autosession.ModeRecording})
+					require.NoError(t, err)
+					fresh.InitializePageTracking("https://replacement.test")
+					replacement.Store(fresh)
+				}
+				if r.URL.Path == "/session/same/record/navigate" {
+					_, _ = w.Write([]byte(`{"driver_page_id":"page-1","url":"https://restored.test","title":"Restored"}`))
+				} else if r.URL.Path == "/session/same/record/close-page" {
+					_, _ = w.Write([]byte(`{"closed_page_id":"page-1","active_page_id":""}`))
+				} else {
+					_, _ = w.Write([]byte(`{}`))
+				}
+			}))
+			defer server.Close()
+			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+			require.NoError(t, err)
+			manager = autosession.NewManagerWithClient(client)
+			owner, err := manager.Create(context.Background(), autosession.Spec{ExecutionID: uuid.New(), Mode: autosession.ModeRecording})
+			require.NoError(t, err)
+			owner.InitializePageTracking("https://original.test")
+			initial := owner.Pages().GetInitialPageID()
+			service := NewServiceWithManager(manager, logrus.New(), nil)
+			if operation == "activate" {
+				target := owner.Pages().AddPage(&domain.Page{DriverPageID: "target", URL: "https://target.test"})
+				err = service.ActivatePage(context.Background(), owner.ID(), target.ID)
+			} else if operation == "close" {
+				_, err = service.ClosePage(context.Background(), owner.ID(), initial)
+			} else {
+				_, err = service.RestoreTabs(context.Background(), owner.ID(), []sessionprofilepersistence.TabState{{URL: "https://saved.test", IsActive: true}, {URL: "https://another.test"}})
+			}
+			assert.ErrorContains(t, err, "ownership changed")
+			assert.Zero(t, additional.Load(), "restoration must not create pages under the replacement owner")
+			assert.Equal(t, initial, owner.Pages().GetActivePageID())
+			assert.Equal(t, "https://original.test", owner.Pages().GetActivePage().URL)
+			fresh := replacement.Load()
+			require.NotNil(t, fresh)
+			assert.Equal(t, 1, fresh.Pages().PageCount())
+			assert.Equal(t, "https://replacement.test", fresh.Pages().GetActivePage().URL)
+		})
+	}
+}
+
+// [REQ:BAS-RH-J01] [REQ:BAS-RH-J03] Admission reflects actual navigation or preserves recoverable failure.
+func TestCreateSessionInitialNavigationReceipt(t *testing.T) {
+	for _, fault := range []string{"redirect", "blank", "navigation", "wrong receipt", "cleanup", "cancelled"} {
+		t.Run(fault, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			var closed, navigated atomic.Int32
+			var execution atomic.Value
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/session/start":
+					var body map[string]any
+					require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+					execution.Store(body["execution_id"].(string))
+					_, _ = w.Write([]byte(`{"session_id":"initial-session","lease_id":"initial-lease","active_page_id":"initial-page"}`))
+				case "/session/initial-session/record/navigate":
+					navigated.Add(1)
+					if fault == "cancelled" {
+						cancel()
+					}
+					if fault == "navigation" || fault == "cleanup" || fault == "cancelled" {
+						http.Error(w, "controlled navigation failure", http.StatusServiceUnavailable)
+						return
+					}
+					pageID := "initial-page"
+					if fault == "wrong receipt" {
+						pageID = "unregistered-page"
+					}
+					_ = json.NewEncoder(w).Encode(map[string]string{"driver_page_id": pageID, "url": "https://actual.test/final", "title": "Actual title", "favicon_url": "https://actual.test/icon.svg"})
+				case "/session/initial-session/close":
+					closed.Add(1)
+					var body map[string]any
+					require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+					assert.Equal(t, execution.Load(), body["execution_id"])
+					assert.Equal(t, "initial-lease", body["lease_id"])
+					if fault == "cleanup" {
+						http.Error(w, "controlled cleanup failure", 503)
+						return
+					}
+					_, _ = w.Write([]byte(`{"success":true}`))
+				default:
+					t.Errorf("unexpected driver request %s", r.URL.Path)
+					w.WriteHeader(404)
+				}
+			}))
+			defer server.Close()
+			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+			require.NoError(t, err)
+			manager := autosession.NewManagerWithClient(client)
+			repo := persistence.NewMockRepository()
+			service := NewServiceWithManager(manager, logrus.New(), recording.NewService(repo, recording.ServiceConfig{}))
+			cfg := &SessionConfig{InitialURL: "https://requested.test/redirect"}
+			if fault == "blank" {
+				cfg.InitialURL = ""
+			}
+			result, err := service.CreateSession(ctx, cfg)
+			if fault == "redirect" || fault == "blank" {
+				require.NoError(t, err)
+				require.NotNil(t, result)
+				require.NotNil(t, result.Close)
+				assert.Zero(t, closed.Load())
+				if fault == "blank" {
+					assert.Zero(t, navigated.Load())
+					return
+				}
+				owner, ok := manager.Get(result.SessionID)
+				require.True(t, ok)
+				assert.Equal(t, "https://actual.test/final", owner.Pages().GetActivePage().URL)
+				assert.Equal(t, "Actual title", owner.Pages().GetActivePage().Title)
+				assert.Equal(t, "https://actual.test/icon.svg", owner.Pages().GetActivePage().FaviconURL)
+				assert.Equal(t, &HistoryEntryInfo{URL: "https://actual.test/final", Title: "Actual title"}, result.InitialNavigation)
+				return
+			}
+			assert.ErrorContains(t, err, "initial")
+			assert.Nil(t, result)
+			assert.Equal(t, int32(1), closed.Load())
+			if fault == "cleanup" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "controlled navigation failure")
+				assert.Contains(t, err.Error(), "controlled cleanup failure")
+				assert.Equal(t, 1, manager.ActiveCount(), "failed cleanup retains retry ownership")
+			} else {
+				assert.Zero(t, manager.ActiveCount())
+			}
+		})
+	}
+}
+
+// [REQ:BAS-RH-J01] Profile and API reads capture detached pages and selection together.
+func TestPageReadSnapshots(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/session/start", r.URL.Path)
+		_, _ = w.Write([]byte(`{"session_id":"snapshot","lease_id":"lease","active_page_id":"initial-driver"}`))
+	}))
+	defer server.Close()
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	manager := autosession.NewManagerWithClient(client)
+	owner, err := manager.Create(context.Background(), autosession.Spec{ExecutionID: uuid.New(), Mode: autosession.ModeRecording})
+	require.NoError(t, err)
+	owner.InitializePageTracking("https://before.test")
+	svc := NewServiceWithManager(manager, logrus.New(), nil)
+	tracker := owner.Pages()
+	initial := tracker.GetInitialPageID()
+	apiReceipt, err := svc.GetPages("snapshot")
+	require.NoError(t, err)
+	profileReceipt, selected, err := svc.GetOpenPages("snapshot")
+	require.NoError(t, err)
+	assert.Equal(t, initial, selected)
+	tracker.UpdatePageInfo(initial, "https://after.test", "After", nil)
+	assert.Equal(t, "https://before.test", apiReceipt.Pages[0].URL)
+	assert.Equal(t, "https://before.test", profileReceipt[0].URL)
+
+	// Every writer transition retains at least one selected open page. A read
+	// spanning two transitions must not combine the list and selection from each.
+	start, done := make(chan struct{}), make(chan struct{})
+	go func() {
+		defer close(done)
+		<-start
+		previous := initial
+		for i := 0; i < 300; i++ {
+			next := tracker.AddPage(&domain.Page{DriverPageID: fmt.Sprintf("page-%d", i)})
+			assert.NoError(t, tracker.SetActivePage(next.ID))
+			_, closeErr := tracker.ClosePage(previous)
+			assert.NoError(t, closeErr)
+			previous = next.ID
+		}
+	}()
+	close(start)
+	for i := 0; i < 300; i++ {
+		pages, active, err := svc.GetOpenPages("snapshot")
+		require.NoError(t, err)
+		matched := false
+		for _, page := range pages {
+			assert.Equal(t, domain.PageStatusActive, page.Status)
+			matched = matched || page.ID == active
+		}
+		assert.True(t, matched, "selected page must belong to the same open-page snapshot")
+	}
+	<-done
+	_, closeErr := tracker.ClosePage(tracker.GetActivePageID())
+	require.NoError(t, closeErr)
+	pages, active, err := svc.GetOpenPages("snapshot")
+	require.NoError(t, err)
+	assert.Empty(t, pages)
+	assert.Equal(t, uuid.Nil, active)
+	apiReceipt, err = svc.GetPages("snapshot")
+	require.NoError(t, err)
+	assert.Len(t, apiReceipt.Pages, 301)
+	assert.Empty(t, apiReceipt.ActivePageID)
 }

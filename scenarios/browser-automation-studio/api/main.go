@@ -1040,7 +1040,6 @@ func main() {
 		r.Get("/recordings/live/{sessionId}/actions", handler.GetRecordedActions)
 		r.Get("/recordings/live/{sessionId}/debug", handler.GetRecordingDebug)
 		r.Post("/recordings/live/{sessionId}/action", handler.ReceiveRecordingAction) // Callback for driver action streaming
-		r.Post("/recordings/live/{sessionId}/frame", handler.ReceiveRecordingFrame)   // Callback for driver frame streaming
 		r.Post("/recordings/live/{sessionId}/navigate", handler.NavigateRecordingSession)
 		r.Post("/recordings/live/{sessionId}/reload", handler.ReloadRecordingSession)
 		r.Post("/recordings/live/{sessionId}/go-back", handler.GoBackRecordingSession)

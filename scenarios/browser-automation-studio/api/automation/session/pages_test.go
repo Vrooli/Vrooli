@@ -1,10 +1,15 @@
 package session
 
 import (
+	"encoding/json"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/vrooli/browser-automation-studio/domain"
 )
 
@@ -115,7 +120,7 @@ func TestPageTracker_SetActivePage_Errors(t *testing.T) {
 		CreatedAt: time.Now(),
 		Status:    domain.PageStatusActive,
 	})
-	_ = pt.ClosePage(closedPageID)
+	_, _ = pt.ClosePage(closedPageID)
 
 	err = pt.SetActivePage(closedPageID)
 	if err == nil {
@@ -140,7 +145,7 @@ func TestPageTracker_ClosePage(t *testing.T) {
 	_ = pt.SetActivePage(newPageID)
 
 	// Close the active page
-	err := pt.ClosePage(newPageID)
+	_, err := pt.ClosePage(newPageID)
 	if err != nil {
 		t.Fatalf("ClosePage failed: %v", err)
 	}
@@ -160,7 +165,7 @@ func TestPageTracker_ClosePage(t *testing.T) {
 	}
 }
 
-func TestPageTracker_ListPages(t *testing.T) {
+func TestPageTracker_SnapshotAll(t *testing.T) {
 	t.Parallel()
 
 	pt := NewPageTracker("session-123", "https://example.com")
@@ -177,7 +182,7 @@ func TestPageTracker_ListPages(t *testing.T) {
 		})
 	}
 
-	pages := pt.ListPages()
+	pages, _ := pt.Snapshot(false)
 	if len(pages) != 4 {
 		t.Errorf("expected 4 pages, got %d", len(pages))
 	}
@@ -190,7 +195,7 @@ func TestPageTracker_ListPages(t *testing.T) {
 	}
 }
 
-func TestPageTracker_ListOpenPages(t *testing.T) {
+func TestPageTracker_SnapshotOpen(t *testing.T) {
 	t.Parallel()
 
 	pt := NewPageTracker("session-123", "https://example.com")
@@ -204,7 +209,7 @@ func TestPageTracker_ListOpenPages(t *testing.T) {
 		CreatedAt: time.Now(),
 		Status:    domain.PageStatusActive,
 	})
-	_ = pt.ClosePage(closedPageID)
+	_, _ = pt.ClosePage(closedPageID)
 
 	// Add an open page
 	pt.AddPage(&domain.Page{
@@ -215,7 +220,7 @@ func TestPageTracker_ListOpenPages(t *testing.T) {
 		Status:    domain.PageStatusActive,
 	})
 
-	openPages := pt.ListOpenPages()
+	openPages, _ := pt.Snapshot(true)
 	if len(openPages) != 2 { // initial + one open
 		t.Errorf("expected 2 open pages, got %d", len(openPages))
 	}
@@ -254,21 +259,20 @@ func TestPageTracker_DriverPageMapping(t *testing.T) {
 	}
 }
 
-func TestPageTracker_MapDriverPageID(t *testing.T) {
+func TestPageTracker_AddPageMapsDriverIdentity(t *testing.T) {
 	t.Parallel()
 
 	pt := NewPageTracker("session-123", "https://example.com")
 
 	newPageID := uuid.New()
 	pt.AddPage(&domain.Page{
-		ID:        newPageID,
-		SessionID: "session-123",
-		URL:       "https://example.com/new",
-		CreatedAt: time.Now(),
-		Status:    domain.PageStatusActive,
+		ID:           newPageID,
+		DriverPageID: "driver-page-2",
+		SessionID:    "session-123",
+		URL:          "https://example.com/new",
+		CreatedAt:    time.Now(),
+		Status:       domain.PageStatusActive,
 	})
-
-	pt.MapDriverPageID("driver-page-2", newPageID)
 
 	// Verify bidirectional mapping
 	retrievedVrooliID := pt.GetPageIDByDriverID("driver-page-2")
@@ -288,7 +292,7 @@ func TestPageTracker_UpdatePageInfo(t *testing.T) {
 	pt := NewPageTracker("session-123", "https://example.com")
 	initialID := pt.GetInitialPageID()
 
-	pt.UpdatePageInfo(initialID, "https://example.com/updated", "Updated Title")
+	pt.UpdatePageInfo(initialID, "https://example.com/updated", "Updated Title", nil)
 
 	page := pt.GetActivePage()
 	if page.URL != "https://example.com/updated" {
@@ -351,7 +355,7 @@ func TestPageTracker_OpenPageCount(t *testing.T) {
 	}
 
 	// Close the page
-	_ = pt.ClosePage(newPageID)
+	_, _ = pt.ClosePage(newPageID)
 
 	if pt.OpenPageCount() != 1 {
 		t.Errorf("expected 1 open page after close, got %d", pt.OpenPageCount())
@@ -375,7 +379,7 @@ func TestPageTracker_Concurrent(t *testing.T) {
 		go func() {
 			for j := 0; j < 100; j++ {
 				_ = pt.GetActivePage()
-				_ = pt.ListPages()
+				_, _ = pt.Snapshot(false)
 				_ = pt.PageCount()
 			}
 			done <- true
@@ -388,13 +392,13 @@ func TestPageTracker_Concurrent(t *testing.T) {
 			for j := 0; j < 50; j++ {
 				newID := uuid.New()
 				pt.AddPage(&domain.Page{
-					ID:        newID,
-					SessionID: "session-123",
-					URL:       "https://example.com/concurrent",
-					CreatedAt: time.Now(),
-					Status:    domain.PageStatusActive,
+					ID:           newID,
+					DriverPageID: "driver-" + newID.String(),
+					SessionID:    "session-123",
+					URL:          "https://example.com/concurrent",
+					CreatedAt:    time.Now(),
+					Status:       domain.PageStatusActive,
 				})
-				pt.MapDriverPageID("driver-"+newID.String(), newID)
 			}
 			done <- true
 		}()
@@ -404,4 +408,167 @@ func TestPageTracker_Concurrent(t *testing.T) {
 	for i := 0; i < 15; i++ {
 		<-done
 	}
+}
+
+// [REQ:BAS-RH-J03] Concurrent receipt/callback registration cannot duplicate or relabel tabs.
+func TestPageTrackerConcurrentDriverRegistration(t *testing.T) {
+	pt := NewPageTracker("session", "https://original.test")
+	pt.SetInitialPageDriverID("initial-driver")
+	initial := pt.GetInitialPageID()
+	ids := make(chan uuid.UUID, 16)
+	for i := 0; i < cap(ids); i++ {
+		go func() {
+			page := pt.AddPage(&domain.Page{DriverPageID: "second-driver", URL: "https://second.test"})
+			ids <- page.ID
+		}()
+	}
+	var second uuid.UUID
+	for i := 0; i < cap(ids); i++ {
+		id := <-ids
+		if i == 0 {
+			second = id
+		}
+		if id != second {
+			t.Fatalf("duplicate page identities: %s and %s", second, id)
+		}
+	}
+	if pt.PageCount() != 2 {
+		t.Fatalf("expected exactly two registered pages, got %d", pt.PageCount())
+	}
+	if got := pt.GetPageIDByDriverID("initial-driver"); got == nil || *got != initial {
+		t.Fatal("initial mapping was overwritten")
+	}
+	if pt.GetDriverPageID(second) != "second-driver" {
+		t.Fatal("missing reverse mapping")
+	}
+	snapshot := pt.AddPage(&domain.Page{DriverPageID: "second-driver", URL: "https://stale-callback.test"})
+	snapshot.URL = "https://caller-mutation.test"
+	stored, _ := pt.GetPage(second)
+	if stored.URL != "https://second.test" {
+		t.Fatalf("registration/caller changed established page: %s", stored.URL)
+	}
+}
+
+// [REQ:BAS-RH-J03] Page receipts remain stable and cannot mutate the registry.
+func TestPageTrackerDetachedReceipts(t *testing.T) {
+	for _, kind := range []string{"page", "active", "all", "open", "registration", "duplicate registration"} {
+		t.Run(kind, func(t *testing.T) {
+			pt := NewPageTracker("snapshot", "https://initial.test")
+			opener := pt.GetInitialPageID()
+			receipt := pt.AddPage(&domain.Page{DriverPageID: "target", URL: "https://before.test", Title: "Before", OpenerID: &opener})
+			id := receipt.ID
+			require.NoError(t, pt.SetActivePage(id))
+			switch kind {
+			case "page":
+				receipt, _ = pt.GetPage(id)
+			case "active":
+				receipt = pt.GetActivePage()
+			case "all", "open":
+				pages, _ := pt.Snapshot(false)
+				if kind == "open" {
+					pages, _ = pt.Snapshot(true)
+				}
+				for _, p := range pages {
+					if p.ID == id {
+						receipt = p
+					}
+				}
+			case "duplicate registration":
+				receipt = pt.AddPage(&domain.Page{DriverPageID: "target"})
+			}
+			pt.UpdatePageInfo(id, "https://updated.test", "Updated", nil)
+			assert.Equal(t, "https://before.test", receipt.URL)
+			assert.Equal(t, "Before", receipt.Title)
+			receipt.URL = "https://caller.test"
+			receipt.DriverPageID = "wrong"
+			*receipt.OpenerID = uuid.New()
+			stored, ok := pt.GetPage(id)
+			require.True(t, ok)
+			assert.Equal(t, "https://updated.test", stored.URL)
+			assert.Equal(t, "Updated", stored.Title)
+			assert.Equal(t, "target", stored.DriverPageID)
+			assert.Equal(t, pt.GetInitialPageID(), *stored.OpenerID)
+			assert.Equal(t, "target", pt.GetDriverPageID(id))
+		})
+	}
+}
+
+// [REQ:BAS-RH-J03] Both registration directions and closed-page reads own nested values.
+func TestPageTrackerNestedValuesDetached(t *testing.T) {
+	for _, kind := range []string{"input", "registration", "duplicate registration", "page", "all"} {
+		t.Run(kind, func(t *testing.T) {
+			pt := NewPageTracker("snapshot", "https://initial.test")
+			opener, closed := pt.GetInitialPageID(), time.Unix(100, 0)
+			input := &domain.Page{DriverPageID: "closed", OpenerID: &opener, ClosedAt: &closed, Status: domain.PageStatusClosed}
+			receipt := pt.AddPage(input)
+			id := receipt.ID
+			switch kind {
+			case "input":
+				receipt = input
+			case "duplicate registration":
+				receipt = pt.AddPage(&domain.Page{DriverPageID: "closed"})
+			case "page":
+				receipt, _ = pt.GetPage(id)
+			case "all":
+				pages, _ := pt.Snapshot(false)
+				for _, p := range pages {
+					if p.ID == id {
+						receipt = p
+					}
+				}
+			}
+			*receipt.OpenerID = uuid.New()
+			*receipt.ClosedAt = time.Unix(200, 0)
+			stored, ok := pt.GetPage(id)
+			require.True(t, ok)
+			assert.Equal(t, pt.GetInitialPageID(), *stored.OpenerID)
+			assert.Equal(t, time.Unix(100, 0), *stored.ClosedAt)
+		})
+	}
+}
+
+// [REQ:BAS-RH-J03] Serialization after the read returns is safe during callbacks.
+func TestPageTrackerConcurrentSerialization(t *testing.T) {
+	pt := NewPageTracker("snapshot", "https://initial.test")
+	id := pt.GetInitialPageID()
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		<-start
+		for i := 0; i < 500; i++ {
+			pt.UpdatePageInfo(id, fmt.Sprintf("https://changed.test/%d", i), "changed", nil)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		<-start
+		for i := 0; i < 500; i++ {
+			pages, active := pt.Snapshot(false)
+			_, err := json.Marshal(domain.PagesResponse{Pages: pages, ActivePageID: active.String()})
+			assert.NoError(t, err)
+		}
+	}()
+	close(start)
+	wg.Wait()
+}
+
+// [REQ:BAS-RH-J03] A closed final page cannot remain the selected open page.
+func TestPageTrackerCloseFinalPageClearsSelection(t *testing.T) {
+	pt := NewPageTracker("snapshot", "https://initial.test")
+	_, err := pt.ClosePage(pt.GetInitialPageID())
+	require.NoError(t, err)
+	assert.Equal(t, uuid.Nil, pt.GetActivePageID())
+	assert.Nil(t, pt.GetActivePage())
+	pages, active := pt.Snapshot(true)
+	assert.Empty(t, pages)
+	assert.Equal(t, uuid.Nil, active)
+	page, exists := pt.GetPage(pt.GetInitialPageID())
+	require.True(t, exists)
+	assert.Equal(t, domain.PageStatusClosed, page.Status)
+	require.Error(t, pt.SetActivePage(page.ID))
+	missing, exists := pt.GetPage(uuid.New())
+	assert.False(t, exists)
+	assert.Nil(t, missing)
 }

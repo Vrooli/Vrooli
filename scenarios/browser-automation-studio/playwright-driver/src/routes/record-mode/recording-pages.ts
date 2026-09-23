@@ -14,9 +14,23 @@ import type { Page } from 'rebrowser-playwright';
 import type { SessionManager } from '../../session';
 import type { Config } from '../../config';
 import { parseJsonBody, sendJson, sendError } from '../../middleware';
-import { logger } from '../../utils';
+import { logger, SessionNotFoundError } from '../../utils';
+import { recordingOwner } from './recording-ownership';
 import type { ActivePageRequest, ActivePageResponse, HistoryEntryCallback } from './types';
 import { clearFrameCache } from './recording-frames';
+
+/** Read the existing document; tab chrome must never refetch its HTML. */
+export async function readFaviconUrl(page: Page): Promise<string> {
+  try {
+    return await page.evaluate(() => {
+      const icon = document.querySelector<HTMLLinkElement>('link[rel~="icon" i][href]');
+      const url = new URL(icon?.href || '/favicon.ico', document.baseURI);
+      return ['http:', 'https:'].includes(url.protocol) || url.href.startsWith('data:image/') ? url.href : '';
+    });
+  } catch {
+    return '';
+  }
+}
 
 // =============================================================================
 // History Callback Support
@@ -122,6 +136,58 @@ export function registerRecordingPage(
   return id;
 }
 
+// Explicit rollback and recording close callbacks converge on the same registry cleanup.
+export function unregisterRecordingPage(session: ReturnType<SessionManager['getSession']>, page: Page): void {
+  const id = session.pageToIdMap.get(page);
+  if (id) session.pageIdMap.delete(id);
+  session.pageToIdMap.delete(page);
+  const index = session.pages.indexOf(page);
+  if (index !== -1) session.pages.splice(index, 1);
+  if (session.page === page) {
+    session.frameStack.length = 0;
+    const next = session.pages.find(candidate => !candidate.isClosed());
+    if (next) session.page = next;
+    clearFrameCache(session.id);
+  }
+  session.currentPageIndex = session.pages.indexOf(session.page);
+}
+
+function selectRecordingPage(session: ReturnType<SessionManager['getSession']>, page: Page): void {
+  if (session.page !== page) session.frameStack.length = 0;
+  session.page = page;
+  session.currentPageIndex = session.pages.indexOf(page);
+  clearFrameCache(session.id);
+}
+
+/** Close the admitted browser page and return the resulting browser selection. */
+export async function handleRecordClosePage(
+  req: IncomingMessage, res: ServerResponse, sessionId: string,
+  sessionManager: SessionManager, config: Config
+): Promise<void> {
+  try {
+    const body = await parseJsonBody(req, config);
+    const ownedSession = recordingOwner(body, sessionId, sessionManager);
+    const session = ownedSession();
+    const { page_id: pageId } = body as unknown as ActivePageRequest;
+    if (!pageId) {
+      sendJson(res, 400, { error: 'MISSING_PAGE_ID', message: 'page_id field is required' });
+      return;
+    }
+    const page = session.pageIdMap.get(pageId);
+    if (!page) {
+      sendJson(res, 404, { error: 'PAGE_NOT_FOUND', message: `Page ${pageId} not found` });
+      return;
+    }
+    sessionManager.updateActivity(sessionId);
+    await page.close();
+    ownedSession();
+    unregisterRecordingPage(session, page);
+    sendJson(res, 200, { closed_page_id: pageId, active_page_id: session.pageToIdMap.get(session.page) ?? '' });
+  } catch (error) {
+    sendError(res, error as Error, `/session/${sessionId}/record/close-page`);
+  }
+}
+
 /**
  * Create a new page (tab) in the recording session.
  *
@@ -138,8 +204,10 @@ export async function handleRecordNewPage(
   config: Config
 ): Promise<void> {
   try {
-    const session = sessionManager.getSession(sessionId);
     const body = await parseJsonBody(req, config);
+    const ownedSession = recordingOwner(body, sessionId, sessionManager);
+    const session = ownedSession();
+    sessionManager.updateActivity(sessionId);
     const request = body as { url?: string };
 
     // Default to about:blank if no URL provided
@@ -148,23 +216,29 @@ export async function handleRecordNewPage(
     // Create a new page in the browser context
     const newPage = await session.context.newPage();
 
-    const pageId = registerRecordingPage(session, newPage);
-
-    // Navigate to the URL
-    await newPage.goto(url, { waitUntil: 'domcontentloaded' }).catch(() => {
-      // Ignore navigation errors for about:blank
-    });
+    let pageId: string;
+    let title: string;
+    let faviconUrl: string;
+    try {
+      ownedSession();
+      pageId = registerRecordingPage(session, newPage);
+      await newPage.goto(url, { waitUntil: 'domcontentloaded', timeout: config.execution.navigationTimeoutMs });
+      ownedSession();
+      [title, faviconUrl] = await Promise.all([newPage.title().catch(() => ''), readFaviconUrl(newPage)]);
+      ownedSession();
+      if (newPage.isClosed() || session.pageIdMap.get(pageId) !== newPage) throw new SessionNotFoundError(sessionId);
+    } catch (error) {
+      try {
+        await newPage.close();
+        unregisterRecordingPage(session, newPage);
+      } catch (cleanupError) {
+        throw new Error(`New tab command failed: ${String(error)}; page cleanup failed: ${String(cleanupError)}`);
+      }
+      throw error;
+    }
 
     // Switch to the new page
-    session.currentPageIndex = session.pages.indexOf(newPage);
-    session.frameStack.length = 0;
-    session.page = newPage;
-
-    // Clear frame cache for this session
-    clearFrameCache(sessionId);
-
-    // Get page info
-    const title = await newPage.title().catch(() => '');
+    selectRecordingPage(session, newPage);
 
     logger.info('recording: new page created by user request', {
       sessionId,
@@ -178,6 +252,7 @@ export async function handleRecordNewPage(
       driver_page_id: pageId,
       url: newPage.url(),
       title,
+      favicon_url: faviconUrl,
     });
   } catch (error) {
     sendError(res, error as Error, `/session/${sessionId}/record/new-page`);
@@ -203,8 +278,9 @@ export async function handleRecordActivePage(
   config: Config
 ): Promise<void> {
   try {
-    const session = sessionManager.getSession(sessionId);
     const body = await parseJsonBody(req, config);
+    const ownedSession = recordingOwner(body, sessionId, sessionManager);
+    const session = ownedSession();
     const request = body as unknown as ActivePageRequest;
 
     if (!request.page_id) {
@@ -238,31 +314,24 @@ export async function handleRecordActivePage(
       return;
     }
 
+    sessionManager.updateActivity(sessionId);
+    const title = await targetPage.title().catch(() => '');
+    ownedSession();
+    if (targetPage.isClosed() || session.pageIdMap.get(request.page_id) !== targetPage) throw new SessionNotFoundError(sessionId);
+
     // Get the previous page ID for logging
     const previousPageId = session.pageToIdMap.get(session.page) || 'unknown';
 
-    // Find the index of the target page in the pages array
-    const pageIndex = session.pages.indexOf(targetPage);
-    if (pageIndex !== -1) {
-      session.currentPageIndex = pageIndex;
-    }
-
-    // Update session.page to point to the active page
-    if (session.page !== targetPage) session.frameStack.length = 0;
-    session.page = targetPage;
-
-    // Clear frame cache for this session to ensure fresh frames after switch
-    clearFrameCache(sessionId);
+    selectRecordingPage(session, targetPage);
 
     // Get page info for response
     const url = targetPage.url();
-    const title = await targetPage.title().catch(() => '');
 
     logger.info('recording: active page switched', {
       sessionId,
       previousPageId,
       newPageId: request.page_id,
-      pageIndex,
+      pageIndex: session.currentPageIndex,
       url,
       title,
     });
