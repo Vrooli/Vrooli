@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
@@ -70,6 +71,58 @@ func firstStep(graph *contracts.PlanGraph) *contracts.PlanStep {
 	return first
 }
 
+// resumeStart resolves a scalar checkpoint only where it identifies one exact
+// continuation. Branches, loops and subflows need a persisted execution cursor.
+func resumeStart(plan contracts.ExecutionPlan, checkpoint int) (int, *contracts.PlanStep, error) {
+	missing := fmt.Errorf("resume checkpoint step %d is not in the executable path", checkpoint)
+	if checkpoint < 0 {
+		return 0, nil, missing
+	}
+	if plan.Graph == nil || len(plan.Graph.Steps) == 0 {
+		offset := -1
+		for position, instruction := range plan.Instructions {
+			if instruction.Index == checkpoint {
+				if offset >= 0 {
+					return 0, nil, fmt.Errorf("resume checkpoint step %d is ambiguous", checkpoint)
+				}
+				offset = position + 1
+			}
+		}
+		if offset >= 0 {
+			return offset, nil, nil
+		}
+		return 0, nil, missing
+	}
+	index := indexGraph(plan.Graph)
+	visited := make(map[string]bool)
+	var continuation *contracts.PlanStep
+	found := false
+	for current := firstStep(plan.Graph); current != nil; {
+		if visited[current.NodeID] || len(current.Outgoing) > 1 || current.Loop != nil || isSubflowPlanStep(*current) || IsPlanStepActionType(*current, basactions.ActionType_ACTION_TYPE_LOOP) {
+			return 0, nil, fmt.Errorf("resume checkpoint requires a persisted control-flow cursor at node %s; scalar step recovery cannot safely continue", current.NodeID)
+		}
+		visited[current.NodeID] = true
+		var next *contracts.PlanStep
+		if len(current.Outgoing) == 1 {
+			next = index[current.Outgoing[0].Target]
+			if next == nil {
+				return 0, nil, fmt.Errorf("resume path references missing node %s", current.Outgoing[0].Target)
+			}
+		}
+		if current.Index == checkpoint {
+			if found {
+				return 0, nil, fmt.Errorf("resume checkpoint step %d is ambiguous", checkpoint)
+			}
+			found, continuation = true, next
+		}
+		current = next
+	}
+	if !found {
+		return 0, nil, missing
+	}
+	return 0, continuation, nil
+}
+
 func maxGraphIndex(graph *contracts.PlanGraph) int {
 	if graph == nil {
 		return -1
@@ -115,9 +168,12 @@ func (e *SimpleExecutor) nextNodeID(step contracts.PlanStep, outcome contracts.S
 		return ""
 	}
 
-	// Precedence: conditional outcome -> explicit failure path -> explicit success path -> first edge fallback.
-	if next := conditionalBranchTarget(step, outcome); next != "" {
-		return next
+	// Conditionals never substitute an opposite branch or invent truth after an error.
+	if IsPlanStepActionType(step, basactions.ActionType_ACTION_TYPE_CONDITIONAL) {
+		if !outcome.Success {
+			return failureBranchTarget(step, outcome)
+		}
+		return conditionalBranchTarget(step, outcome)
 	}
 	if next := failureBranchTarget(step, outcome); next != "" {
 		return next
@@ -136,9 +192,9 @@ func conditionalBranchTarget(step contracts.PlanStep, outcome contracts.StepOutc
 	}
 
 	if outcome.Condition.Outcome {
-		return findEdgeTarget(step.Outgoing, []string{"true", "yes", "success", "ok", "pass"})
+		return findEdgeTarget(step.Outgoing, []string{"true", "if true", "if_true", "yes", "success", "ok", "pass"})
 	}
-	return findEdgeTarget(step.Outgoing, []string{"false", "no", "fail", "failure"})
+	return findEdgeTarget(step.Outgoing, []string{"false", "if false", "if_false", "no", "fail", "failure"})
 }
 
 func failureBranchTarget(step contracts.PlanStep, outcome contracts.StepOutcome) string {
@@ -343,11 +399,24 @@ func actionPrimarySelector(action *basactions.ActionDefinition) string {
 	return strings.TrimSpace(selector)
 }
 
-func actionStoreResult(action *basactions.ActionDefinition) string {
-	if action == nil || action.GetExtract() == nil {
-		return ""
+// storeActionResult applies the typed action's result contract once for graph
+// and flat execution. Evaluate returns the script value inside a result envelope;
+// extract retains its structured payload.
+func storeActionResult(action *basactions.ActionDefinition, data map[string]any, execState *state.ExecutionState) {
+	if action == nil || data == nil {
+		return
 	}
-	return strings.TrimSpace(action.GetExtract().GetStoreAs())
+	var name string
+	var value any = data
+	if extract := action.GetExtract(); extract != nil {
+		name = extract.GetStoreAs()
+	} else if evaluate := action.GetEvaluate(); evaluate != nil {
+		name = evaluate.GetStoreResult()
+		value = data["result"]
+	}
+	if name = strings.TrimSpace(name); name != "" {
+		execState.Set(name, value)
+	}
 }
 
 func actionTimeoutMs(action *basactions.ActionDefinition) int {

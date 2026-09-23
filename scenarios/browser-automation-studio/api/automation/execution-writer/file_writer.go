@@ -267,7 +267,8 @@ func (r *FileWriter) writeReadmeFile(ctx context.Context, executionID uuid.UUID)
 This folder contains artifacts captured during a single workflow execution.
 
 ## Top-level files
-- execution.proto.json: execution metadata snapshot (status, timestamps, workflow ID).
+- execution.proto.json: immutable admission metadata (workflow/version, trigger, input parameters and initial status/timestamps). Read the execution API for current lifecycle status.
+- checkpoint.json: private completed cursor and mutable workflow store; independent of artifact policy.
 - result.json: normalized execution timeline (proto-aligned JSON).
 - timeline.proto.json: raw timeline protobuf JSON.
 - evidence.proto.json: versioned, storage-independent replay package and evidence manifest.
@@ -787,6 +788,19 @@ func (r *FileWriter) appendProtoTimelineEntry(
 
 	timeline.mu.Lock()
 	timeline.pb.Entries = append(timeline.pb.Entries, entry)
+	totalSteps := len(plan.Instructions)
+	if plan.Graph != nil && len(plan.Graph.Steps) > 0 {
+		totalSteps = len(plan.Graph.Steps)
+	}
+	if totalSteps > 0 {
+		completed := 0
+		for _, step := range timeline.pb.Entries {
+			if step != nil && step.GetContext().GetSuccess() {
+				completed++
+			}
+		}
+		timeline.pb.Progress = int32(min(100, completed*100/totalSteps))
+	}
 	timeline.mu.Unlock()
 
 	// Timeline persistence is part of the same request-scoped execution write as
@@ -796,7 +810,6 @@ func (r *FileWriter) appendProtoTimelineEntry(
 }
 
 func artifactDataToProto(a *ArtifactData) (*bastimeline.TimelineArtifact, error) {
-
 	contentType := strings.TrimSpace(a.ContentType)
 	if contentType == "" {
 		contentType = "application/json"
@@ -865,7 +878,8 @@ func stepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.
 	stepIndex := int32(outcome.StepIndex)
 	success := outcome.Success
 	ctx := &basbase.EventContext{
-		Success: &success,
+		Success:   &success,
+		Condition: typeconv.ConditionOutcomeToProto(outcome.Condition),
 	}
 	if outcome.Failure != nil && strings.TrimSpace(outcome.Failure.Message) != "" {
 		msg := outcome.Failure.Message
@@ -947,111 +961,6 @@ func extractCursorPoints(trail []contracts.CursorPosition) []*basbase.Point {
 		}
 	}
 	return points
-}
-
-// MarkCrash records a crash event and updates the execution index.
-func (r *FileWriter) MarkCrash(ctx context.Context, executionID uuid.UUID, failure contracts.StepFailure) error {
-	if r == nil {
-		return nil
-	}
-
-	// Create a minimal plan for result lookup
-	plan := contracts.ExecutionPlan{ExecutionID: executionID}
-	result := r.getOrCreateResult(plan)
-	timeline := r.getOrCreateTimeline(plan)
-
-	now := time.Now().UTC()
-	crashStep := StepResultData{
-		StepID:      uuid.New().String(),
-		StepIndex:   -1,
-		NodeID:      "crash",
-		StepType:    "crash",
-		Status:      "failed",
-		StartedAt:   now,
-		CompletedAt: &now,
-		Error:       failure.Message,
-		Metadata: map[string]any{
-			"failure": failure,
-			"partial": true,
-		},
-	}
-
-	result.mu.Lock()
-	result.Steps = append(result.Steps, crashStep)
-	result.Summary.FailedSteps++
-	result.mu.Unlock()
-
-	if err := r.writeResultFile(ctx, executionID, result, timeline); err != nil {
-		if r.log != nil {
-			r.log.WithError(err).Warn("Failed to write crash to result file")
-		}
-	}
-	if timeline != nil {
-		timeline.mu.Lock()
-		timeline.pb.Logs = append(timeline.pb.Logs, &bastimeline.TimelineLog{
-			Id:        fmt.Sprintf("crash-%d", time.Now().UTC().UnixNano()),
-			Level:     basbase.LogLevel_LOG_LEVEL_ERROR,
-			Message:   failure.Message,
-			Timestamp: timestamppb.New(time.Now().UTC()),
-		})
-		timeline.mu.Unlock()
-		_ = r.writeProtoTimelineFile(ctx, executionID, timeline)
-	}
-
-	// Update database index to mark as failed
-	if r.repo != nil {
-		now := time.Now().UTC()
-		msg := strings.TrimSpace(failure.Message)
-		var errMsg *string
-		if msg != "" {
-			errMsg = &msg
-		}
-		if err := r.repo.UpdateExecutionStatus(ctx, executionID, database.ExecutionStatusFailed, errMsg, &now, now); err != nil {
-			return fmt.Errorf("update execution index: %w", err)
-		}
-	}
-
-	return nil
-}
-
-// UpdateCheckpoint persists the current execution progress to the database index.
-func (r *FileWriter) UpdateCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, totalSteps int) error {
-	if r == nil || r.repo == nil {
-		return nil
-	}
-
-	execution, err := r.repo.GetExecution(ctx, executionID)
-	if err != nil {
-		return fmt.Errorf("get execution: %w", err)
-	}
-
-	// Calculate progress as percentage (0-100)
-	progress := 0
-	if totalSteps > 0 && stepIndex >= 0 {
-		progress = ((stepIndex + 1) * 100) / totalSteps
-		if progress > 100 {
-			progress = 100
-		}
-	}
-
-	// The ExecutionIndex doesn't have Progress/CurrentStep fields anymore
-	// We store progress in the result file instead
-	plan := contracts.ExecutionPlan{ExecutionID: executionID, WorkflowID: execution.WorkflowID}
-	result := r.getOrCreateResult(plan)
-	timeline := r.getOrCreateTimeline(plan)
-
-	result.mu.Lock()
-	result.Summary.CompletedSteps = stepIndex + 1
-	result.mu.Unlock()
-
-	if timeline != nil {
-		timeline.mu.Lock()
-		timeline.pb.Progress = int32(progress)
-		timeline.mu.Unlock()
-		_ = r.writeProtoTimelineFile(ctx, executionID, timeline)
-	}
-
-	return r.writeResultFile(ctx, executionID, result, timeline)
 }
 
 // updateExecutionIndex updates the database index with the result path.

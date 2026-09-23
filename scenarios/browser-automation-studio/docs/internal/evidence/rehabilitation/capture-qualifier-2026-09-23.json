@@ -1,0 +1,153 @@
+{
+  "record": "BAS-WORK-090",
+  "status": "maintained producer verified; owner integration in progress; no release qualification",
+  "candidate": {
+    "build_identity": "sha256:3cca76b109ecb96b1a2fdd875ec4a2f1b124543a2642d6f990a37b00f4aa7203",
+    "driver_version": "2.0.0",
+    "browser_version": "136.0.7103.25",
+    "driver_sessions": 0
+  },
+  "source_identity": {
+    "producer_digest": "62456dbce61bba14f9feb78efc1e806448fc482e734c2e8a18bf2938b6ed4a52",
+    "contract_digest": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+    "fixture_revision": "dcabe2e264925a3c8264eef9ecd37b0b7b16ee11ce3c57bb1310a80ede1e3367",
+    "frozen_paths": {
+      "api/cmd/capture-cohort/main.go": "6ffa5557c0e21d7dfc0bde82f6bc34b0b61f45eb07b5f49d70043171e94a2aa5",
+      "api/internal/capturequalification/fixture.go": "213abc88ee770deaf1509e799f80fe3f47b3ef214243d6c808236c60d98604ae",
+      "api/internal/capturequalification/oracle.go": "9aac77f751602f0fb6d3cde1b2c68151957194d13f84efef8ed602877009d6fb",
+      "api/internal/capturequalification/run.go": "106bdea0b39aa452b6d18573d6ad80adb515232ac6e5697f1cda20625a01c901",
+      "api/internal/capturequalification/run_test.go": "77bfe7cbcf144ed791b29957b1d82dc3a2dd5960b648cb8505970ef517ec783c"
+    }
+  },
+  "checks": {
+    "controlled": "/tmp/bas-capture-qualifier-tests-090.txt",
+    "race": "/tmp/bas-capture-qualifier-race-090.txt",
+    "native": "/tmp/bas-maintained-cohort-090.txt"
+  },
+  "cohort": {
+    "sample_count": 100,
+    "verified": 100,
+    "warmups": 1,
+    "retries": 0,
+    "operation_id": "bc746f37b960c718ad67425d58d2bae2",
+    "started_at": "2026-09-23T13:31:35.672668692Z",
+    "finished_at": "2026-09-23T13:32:46.995152913Z",
+    "stats": {
+      "owner_duration_ms": {
+        "p50": 505,
+        "p95": 550,
+        "max": 602
+      },
+      "wall_ms": {
+        "p50": 658.824813,
+        "p95": 737.785015,
+        "max": 829.840181
+      }
+    },
+    "raw_receipt": "/tmp/bas-maintained-cohort-090/receipt.json",
+    "raw_sha256": "492af33b3c8fd0130c66118cd7db3e1f545f723282d24892a83746410e361bc3",
+    "retained_attempts": 101,
+    "pngs": 300,
+    "trees": 100
+  },
+  "limitations": [
+    "Linux local fixture on deployed089. New producer did not modify production capture behavior.",
+    "Paint sentinel changes this fixture; numbers are not a causal comparison with earlier cohorts.",
+    "No cycle net complexity/debt reduction: required measurement capability adds source."
+  ],
+  "owner_integration": {
+    "status": "live owner, governed read and retained Test Genie performance gate verified",
+    "performance_health_build": "sha256:e6c2f84c14664ddf62d10f63936c3f0a73117dbdfe5ff25e8e8e5f1ced302f5a",
+    "reading": {
+      "scenario": "browser-automation-studio",
+      "workload": "capture",
+      "operation_id": "1203c9afc9bad95b1c9d52f2e02185b3",
+      "outcome": "WORKLOAD_OUTCOME_MEASURED",
+      "within_budget": true,
+      "p95_ms": 607,
+      "wall_p95_ms": 811.459737,
+      "budget_ms": 2000,
+      "sample_count": 100,
+      "attempt_count": 101,
+      "declared_warmups": 1,
+      "captured_at": "2026-09-23T14:11:33.549125732Z",
+      "build_identity": "sha256:3cca76b109ecb96b1a2fdd875ec4a2f1b124543a2642d6f990a37b00f4aa7203",
+      "producer_digest": "62456dbce61bba14f9feb78efc1e806448fc482e734c2e8a18bf2938b6ed4a52",
+      "contract_digest": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+      "configuration_digest": "1a2776b5338b0074036293f43952bd03d3be2ef1ccabfef38787e06d4a63b167",
+      "fixture_revision": "dcabe2e264925a3c8264eef9ecd37b0b7b16ee11ce3c57bb1310a80ede1e3367",
+      "receipt_path": "/home/matthalloran8/.vrooli/test-runs/performance-health/workloads/1203c9afc9bad95b1c9d52f2e02185b3/producer/receipt.json",
+      "receipt_sha256": "dd6b06e316687cb511d8b22ae0fc32f58a54e370f2695e44e81d648fe6c1ac49"
+    },
+    "test_genie_run_id": "20260923-141347-f1225438",
+    "board_receipt": "/tmp/bas-board-owned-090.txt",
+    "outcomes": {
+      "readable": 1,
+      "in_band": 1,
+      "unknown": 16,
+      "product_qualified": false
+    },
+    "owner_metrics": {
+      "before": {
+        "runtime_lines": 1178,
+        "functions": 40,
+        "go_complexity": 155
+      },
+      "after": {
+        "runtime_lines": 2683,
+        "functions": 95,
+        "go_complexity": 517
+      },
+      "scope": [
+        "scenarios/performance-health/api/internal/workload/config.go",
+        "scenarios/performance-health/api/internal/workload/receipt.go",
+        "scenarios/performance-health/api/internal/workload/service.go",
+        "scenarios/performance-health/api/internal/workload/store.go",
+        "scenarios/performance-health/api/handlers/sweep/workload.go",
+        "scenarios/performance-health/api/handlers/sweep/module.go",
+        "scenarios/performance-health/api/handlers/sweep/handler.go",
+        "scenarios/performance-health/api/handlers/validation/handler.go",
+        "scenarios/performance-health/api/handlers/validation/module.go",
+        "scenarios/performance-health/api/main.go",
+        "scenarios/performance-health/cli/domains/sweep/register.go",
+        "scenarios/performance-health/cli/domains/sweep/handlers.go",
+        "scenarios/performance-health/api/internal/workload/command.go",
+        "scenarios/browser-automation-studio/api/cmd/capture-cohort/main.go",
+        "scenarios/browser-automation-studio/api/internal/capturequalification/fixture.go",
+        "scenarios/browser-automation-studio/api/internal/capturequalification/oracle.go",
+        "scenarios/browser-automation-studio/api/internal/capturequalification/run.go"
+      ],
+      "generated_excluded": true,
+      "delta": {
+        "runtime_lines": 1505,
+        "functions": 55,
+        "go_complexity": 362
+      }
+    },
+    "frozen_manifest": "/tmp/bas-frozen-owner-090.json",
+    "limits": [
+      "New measurement capability adds1505authored runtime lines and362affectedGo complexity; no net debt reduction claimed.",
+      "Linux local reference cohort only.",
+      "The service is a synchronous bounded producer owner; a server crash leaves its admitted attempt unknown, never a recovered success.",
+      "PH UI has existing advisory dependency-range mismatches; security index availability is not a clean vulnerability scan."
+    ],
+    "test_genie": {
+      "run_id": "20260923-141347-f1225438",
+      "verdict": "FAIL",
+      "performance": "passed",
+      "tidiness": "failed",
+      "tidiness_summary": {
+        "totalFindings": 1155,
+        "longFiles": 103,
+        "complexity": 420,
+        "duplication": 608,
+        "coupling": 23,
+        "duplicationLineDebt": 34399
+      },
+      "performance_native_receipt_verified": true,
+      "frozen_paths_unchanged": 103,
+      "artifacts_catalog": "/tmp/bas-tg-artifacts-090.json",
+      "findings": "/tmp/bas-tg-090-findings.json"
+    }
+  }
+}

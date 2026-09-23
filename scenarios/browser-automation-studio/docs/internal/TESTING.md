@@ -153,6 +153,27 @@ failures; exit 2 means unusable producer evidence. Their synthetic I/O scope doe
 not qualify full-browser or native-platform journeys. Convert these probes into
 maintained owner tests during implementation; preserve the expected semantics.
 
+The maintained capture workload is `api/cmd/capture-cohort`, backed by
+`api/internal/capturequalification`. From `api/`, run it against managed services:
+
+```bash
+go run ./cmd/capture-cohort --api-url "$BAS_API_URL" --driver-url "$BAS_DRIVER_URL" --output "$BAS_COHORT_OUTPUT"
+```
+
+The output directory must not exist. The workload retains 100 first attempts and
+one declared warmup, including failures and unattempted positions after
+cancellation. It checks decoded PNG pixels, a unique paint marker per attempt,
+viewport/DPR, computed snapshot, stored artifacts and an independent fixture
+observation. Raw CLI output, errors, artifact hashes, producer/fixture/contract
+identities and before/after managed build identities remain in the receipt.
+It neither restarts services nor cleans retained evidence. Its controlled oracle
+checks run with `go test ./internal/capturequalification ./cmd/capture-cohort`.
+Standalone observations do not certify a rehabilitation row. Performance Health
+owns invocation, applicability, retention and the governed reading through
+`sweep workload-run browser-automation-studio capture --json` and `sweep workload-get`;
+Test Genie retains the performance gate result. The dated090 evidence records
+the first qualified local capture reading; fresh candidates need fresh receipts.
+
 The first command validates preparation and returns no product verdict. The
 second reads required outcomes. The third measures source size, not complexity.
 Use only the file responsibilities above. Test Genie and platform owners retain

@@ -1,73 +1,67 @@
 # Conditional Node
 
-Implements `[REQ:BAS-NODE-CONDITIONAL]` by branching the workflow before the next node executes. Conditions can be evaluated with JavaScript, DOM selectors, or variable comparisons, and branches are wired with the `if_true` / `if_false` handles surfaced in the Workflow Builder.
+`[REQ:BAS-NODE-CONDITIONAL]` selects a branch using a page expression, element
+presence or a workflow variable. Both true and false are successful evaluations.
+An evaluation error remains a failed step and cannot select a normal truth branch.
 
-## Configuration
+## Typed configuration
 
-| Field | Description | Required | Notes |
-| --- | --- | --- | --- |
-| **Condition type** | `expression`, `selector`, or `variable` | No (defaults to `expression`) | Maps to `conditionType` in the compiled instruction. |
-| **Expression** | JavaScript that returns truthy/falsey | For `expression` mode | Runs inside the active frame; you can reference globals such as `document`. |
-| **Selector** | CSS selector to probe for presence | For `selector` mode | The runtime polls until the element exists or the timeout elapses. |
-| **Variable** | Workflow variable name | For `variable` mode | Compared using the configured operator/value. |
-| **Operator** | `equals`, `not_equals`, `contains`, `starts_with`, `ends_with`, `greater_than`, `less_than` | Optional | Defaults to `equals` and is only used for variable comparisons. |
-| **Comparison value** | Value to compare variables against | Optional | Can be string, number, boolean, or JSON. |
-| **Negate result** | Invert the evaluated outcome | Optional | Useful for “if not present” flows without adding a second branch. |
-| **Timeout (ms)** | Max wait for the condition | Optional | Clamped between 500 ms and 120 000 ms. Defaults to 10 000 ms. |
-| **Poll interval (ms)** | How often selector/variable checks run | Optional | Clamped between 100 ms and 5 000 ms. |
+Use `ACTION_TYPE_CONDITIONAL` and its `conditional` parameters.
 
-## Behavior
+| Field | Meaning |
+| --- | --- |
+| `conditionType` | Required: `CONDITIONAL_TYPE_EXPRESSION`, `ELEMENT` or `VARIABLE`, each with the `CONDITIONAL_TYPE_` prefix. |
+| `expression` | Page JavaScript expression or function body with `return`. Promise results are awaited. Runs in the selected frame. |
+| `selector` | CSS selector for element presence. Hidden elements count as present. |
+| `variable` | Name in the actual workflow execution store, for example a previous Set Variable or stored Evaluate result. Missing variables are errors. |
+| `operator` | Variable comparison: `CONDITIONAL_OPERATOR_EQUALS` (default), `NOT_EQUALS`, `CONTAINS`, `STARTS_WITH`, `ENDS_WITH`, `GT`, `GTE`, `LT` or `LTE`, each with the `CONDITIONAL_OPERATOR_` prefix. |
+| `value` | Typed `JsonValue` for the variable comparison. Numeric operators accept finite numbers or numeric strings. Other comparisons use the shared workflow value representation. |
+| `negate` | Invert a completed evaluation; never an evaluation error. |
+| `timeoutMs` | Element-presence wait, default10000 ms, range0–120000. Zero observes immediately. |
+| `pollIntervalMs` | Element polling interval, default250 ms, range1–5000. |
 
-1. The compiler records the node’s branch handles so only the `if_true` or `if_false` edge is followed in `api/automation/executor/plan_builder.go`.
-2. The automation compiler/executor preserves the condition payload (mode, poll/timeout, operator defaults, negation flag) in the contract instruction; validation and clamping live in the workflow validator.
-3. The Playwright driver evaluates the condition inside the active frame/session and captures a `ConditionResult` so telemetry and artifacts show which branch fired.
-4. The automation executor updates the step metadata with the result, making it visible in Execution Viewer and JSON artifacts for later debugging.
+Expressions and variables observe once. Use Wait before checking a value that
+changes asynchronously. Element checks poll until present or their timeout;
+a genuine timeout means absence. Invalid selectors and closed pages remain errors.
+Expressions use the ordinary execution deadline and cancellation policy. A script
+that throws after making an effect is not automatically executed again.
 
-## Examples
+## Branches and evidence
 
-### Branch on JavaScript expression
+Connect edges with labels `true` and `false`. The builder's `IF TRUE` and
+`IF FALSE` labels have the same meaning. Only the selected edge executes; an
+unwired result ends the path. Evaluator errors can follow an explicitly labeled
+`error` or `failure` edge when ordinary `executionSettings.continueOnError`
+permits continuation. They never fall through to the first true/false edge.
+
+Condition evidence retains its type, outcome, negation, selector/expression or
+variable/operator, and observed/expected values. Browser predicates belong to
+the driver; workflow-variable predicates belong to the executor's store.
 
 ```json
 {
-  "type": "conditional",
-  "data": {
-    "conditionType": "expression",
-    "expression": "document.querySelector('[data-role=beta-banner]') !== null",
-    "timeoutMs": 8000
+  "id": "check-banner",
+  "action": {
+    "type": "ACTION_TYPE_CONDITIONAL",
+    "conditional": {
+      "conditionType": "CONDITIONAL_TYPE_EXPRESSION",
+      "expression": "return document.querySelector('#beta-banner') !== null;"
+    }
   }
 }
 ```
 
-Use the `if_true` handle when the beta banner is visible and `if_false` to skip feature-gate steps.
-
-### Compare workflow variables
-
 ```json
 {
-  "type": "conditional",
-  "data": {
-    "conditionType": "variable",
-    "variable": "auth.role",
-    "operator": "equals",
-    "value": "admin",
-    "negate": false,
-    "timeoutMs": 2000,
-    "pollIntervalMs": 250
+  "id": "check-role",
+  "action": {
+    "type": "ACTION_TYPE_CONDITIONAL",
+    "conditional": {
+      "conditionType": "CONDITIONAL_TYPE_VARIABLE",
+      "variable": "role",
+      "operator": "CONDITIONAL_OPERATOR_EQUALS",
+      "value": { "stringValue": "admin" }
+    }
   }
 }
 ```
-
-Routes to the true branch for administrators while the false branch handles standard users.
-
-## Limitations & Tips
-
-- Selector conditions only check for existence, not visibility. Pair with `Wait` if you need computed style checks.
-- Expression mode runs in the page context; wrap risky logic in `try/catch` to avoid unhandled errors.
-- Variable values are read from the execution context snapshot; update variables via Set/Use Variable nodes before branching to avoid stale data.
-- Always connect both `if_true` and `if_false` handles—even if one path just leads to an `End` node—to avoid dangling executions.
-
-## Related Nodes
-
-- **Loop** – Use inside loop bodies for per-item branching.
-- **Wait** – Gate the conditional with explicit waits when polling dynamic content.
-- **Set/Use Variable** – Prepare the variables you later branch on.

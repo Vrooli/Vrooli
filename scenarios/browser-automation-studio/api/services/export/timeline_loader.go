@@ -229,6 +229,7 @@ func timelineEntryToFrame(entry *bastimeline.TimelineEntry) TimelineFrame {
 		}
 	}
 	if entry.Context != nil {
+		frame.Condition = typeconv.ProtoToConditionOutcome(entry.Context.Condition)
 		if entry.Context.Success != nil {
 			frame.Success = *entry.Context.Success
 		}

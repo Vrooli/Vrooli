@@ -28,7 +28,7 @@ func TestInlineDOMDataAttributes(t *testing.T) {
 func writeTimelineForDomNode(t *testing.T, f *fakeExecutor, outputDir, domHTML string) {
 	t.Helper()
 	nodes := f.LastReq.GetFlowDefinition().GetNodes()
-	require.Len(t, nodes, 2, "inline_dom flow must be navigate+evaluate")
+	require.NotNil(t, nodes[1].GetAction().GetEvaluate(), "inline DOM reads must follow navigation")
 	domNodeID := nodes[1].GetId()
 
 	timeline := map[string]any{
@@ -102,8 +102,11 @@ func TestCapture_InlineDom_Disabled_NoEvaluateNode(t *testing.T) {
 	}))
 	require.NoError(t, err)
 	require.Empty(t, resp.Msg.DomHtml)
-	require.Len(t, exec.LastReq.GetFlowDefinition().GetNodes(), 1)
-	require.Empty(t, exec.LastReq.GetFlowDefinition().GetEdges())
+	require.Len(t, exec.LastReq.GetFlowDefinition().GetNodes(), 2)
+	require.Len(t, exec.LastReq.GetFlowDefinition().GetEdges(), 1)
+	for _, node := range exec.LastReq.GetFlowDefinition().GetNodes() {
+		require.Nil(t, node.GetAction().GetEvaluate())
+	}
 }
 
 func TestCapture_InlineDom_MissingTimelineResult_DegradesToEmpty(t *testing.T) {

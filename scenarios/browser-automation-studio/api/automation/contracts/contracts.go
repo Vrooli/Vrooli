@@ -114,7 +114,7 @@ type (
 	ProtoCursorPosition = basexecution.CursorPosition
 
 	// ProtoConditionOutcome is the proto-generated condition outcome.
-	ProtoConditionOutcome = basexecution.ConditionOutcome
+	ProtoConditionOutcome = basbase.ConditionOutcome
 
 	// ProtoAssertionOutcome is the proto-generated assertion outcome.
 	ProtoAssertionOutcome = basexecution.AssertionOutcome

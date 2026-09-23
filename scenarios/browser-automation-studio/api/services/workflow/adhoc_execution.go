@@ -180,7 +180,11 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
-	if err := s.repo.CreateExecution(ctx, execIndex); err != nil {
+	if err := s.createExecution(ctx, execIndex, &basexecution.Execution{
+		WorkflowVersion: wf.Version,
+		TriggerType:     basbase.TriggerType_TRIGGER_TYPE_API,
+		Parameters:      req.Parameters,
+	}); err != nil {
 		return nil, fmt.Errorf("create execution: %w", err)
 	}
 

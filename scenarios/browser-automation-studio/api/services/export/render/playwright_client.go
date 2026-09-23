@@ -288,11 +288,7 @@ func (r *inMemoryCaptureRecorder) RecordTelemetry(_ context.Context, _ autocontr
 	return nil
 }
 
-func (r *inMemoryCaptureRecorder) MarkCrash(_ context.Context, _ uuid.UUID, _ autocontracts.StepFailure) error {
-	return nil
-}
-
-func (r *inMemoryCaptureRecorder) UpdateCheckpoint(_ context.Context, _ uuid.UUID, _ int, _ int) error {
+func (r *inMemoryCaptureRecorder) RecordCheckpoint(context.Context, executionwriter.Checkpoint) error {
 	return nil // In-memory recorder doesn't persist checkpoints
 }
 

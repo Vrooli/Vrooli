@@ -26,9 +26,8 @@ const (
 	defaultLoopIndexVar = "loop.index"
 )
 
-func (e *SimpleExecutor) executeGraph(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, execState *state.ExecutionState, reuseMode engine.SessionReuseMode) (engine.EngineSession, error) {
+func (e *SimpleExecutor) executeGraph(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, execState *state.ExecutionState, reuseMode engine.SessionReuseMode, current *contracts.PlanStep) (engine.EngineSession, error) {
 	stepMap := indexGraph(req.Plan.Graph)
-	current := firstStep(req.Plan.Graph)
 	visited := 0
 	maxVisited := len(stepMap) * 10
 	var lastFailure error
@@ -122,8 +121,8 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 	}
 
 	// Built-in variable mutation node used to support while/forEach flows without engine involvement.
-	if isSetVariablePlanStep(step) {
-		outcome, err := e.applySetVariable(ctx, req, step.Index, step.NodeID, step.Action.GetSetVariable(), execState)
+	if isWorkflowStateAction(step.Action) {
+		outcome, err := e.executeWorkflowStateAction(ctx, req, planStepToInstruction(step), execState)
 		return outcome, session, err
 	}
 
@@ -183,17 +182,12 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 		logrus.WithFields(fields).Warn("Step failed")
 	}
 
-	if recordErr := e.recordOutcome(ctx, req, normalized); recordErr != nil {
-		return normalized, session, errors.Join(runErr, recordErr)
+	if normalized.Success {
+		storeActionResult(instruction.Action, normalized.ExtractedData, execState)
 	}
 
-	// Store extracted data to execState if storeResult is specified
-	if normalized.Success && normalized.ExtractedData != nil {
-		if storeKey := actionStoreResult(instruction.Action); storeKey != "" {
-			// Store the raw ExtractedData directly - it's not wrapped at this point
-			// (wrapping only happens when creating database artifacts in db_recorder)
-			execState.Set(storeKey, normalized.ExtractedData)
-		}
+	if recordErr := e.recordOutcome(ctx, req, normalized, execState); recordErr != nil {
+		return normalized, session, errors.Join(runErr, recordErr)
 	}
 
 	if normalized.Success && isNavigateInstruction(instruction) {
@@ -288,7 +282,7 @@ func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, execCtx e
 	}
 
 	loopOutcome = e.normalizeOutcome(req.Plan, planStepToInstruction(step), 1, startedAt, loopOutcome, runErr)
-	return loopOutcome, session, errors.Join(runErr, e.recordOutcome(ctx, req, loopOutcome))
+	return loopOutcome, session, errors.Join(runErr, e.recordOutcome(ctx, req, loopOutcome, execState))
 }
 
 // NOTE: Loop handlers (runRepeatLoop, runForEachLoop, runWhileLoop) have been
@@ -330,7 +324,7 @@ func (e *SimpleExecutor) executeSubflow(ctx context.Context, req Request, execCt
 
 	normalized := e.normalizeOutcome(req.Plan, planStepToInstruction(step), attempt, startedAt, outcome, runErr)
 
-	return normalized, updatedSession, errors.Join(runErr, e.recordOutcome(ctx, req, normalized))
+	return normalized, updatedSession, errors.Join(runErr, e.recordOutcome(ctx, req, normalized, execState))
 }
 
 func (e *SimpleExecutor) runSubflow(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, execState *state.ExecutionState, reuseMode engine.SessionReuseMode) (engine.EngineSession, error) {
@@ -540,16 +534,11 @@ func (e *SimpleExecutor) executeGraphIteration(ctx context.Context, req Request,
 	return loopControl{LastOutcome: last}, session, nil
 }
 
-// isSetVariableInstruction checks if an instruction is a set_variable action.
-// Prefers Action.Type over the deprecated Type field.
-func isSetVariableInstruction(instr contracts.CompiledInstruction) bool {
-	return IsActionType(instr, basactions.ActionType_ACTION_TYPE_SET_VARIABLE)
-}
-
-// isSetVariablePlanStep checks if a plan step is a set_variable action.
-// Prefers Action.Type over the deprecated Type field.
-func isSetVariablePlanStep(step contracts.PlanStep) bool {
-	return IsPlanStepActionType(step, basactions.ActionType_ACTION_TYPE_SET_VARIABLE)
+// Workflow variables are owned by the executor, not the browser session.
+func isWorkflowStateAction(action *basactions.ActionDefinition) bool {
+	return action.GetType() == basactions.ActionType_ACTION_TYPE_SET_VARIABLE ||
+		(action.GetType() == basactions.ActionType_ACTION_TYPE_CONDITIONAL &&
+			action.GetConditional().GetConditionType() == basactions.ConditionalType_CONDITIONAL_TYPE_VARIABLE)
 }
 
 // isSubflowInstruction checks if an instruction is a subflow action.
@@ -564,34 +553,64 @@ func isSubflowPlanStep(step contracts.PlanStep) bool {
 	return IsPlanStepActionType(step, basactions.ActionType_ACTION_TYPE_SUBFLOW)
 }
 
-// applySetVariable handles executor-scoped variable mutations without invoking an engine.
-func (e *SimpleExecutor) applySetVariable(ctx context.Context, req Request, stepIndex int, nodeID string, params *basactions.SetVariableParams, execState *state.ExecutionState) (contracts.StepOutcome, error) {
-	if params == nil {
-		return contracts.StepOutcome{}, fmt.Errorf("set_variable node %s missing typed parameters", nodeID)
+// executeWorkflowStateAction shares ordinary outcome/event/checkpoint ownership
+// for mutations and predicates over the same execution store.
+func (e *SimpleExecutor) executeWorkflowStateAction(ctx context.Context, req Request, instruction contracts.CompiledInstruction, execState *state.ExecutionState) (contracts.StepOutcome, error) {
+	startedAt := time.Now().UTC()
+	attempt := 1
+	outcome := contracts.StepOutcome{Success: true}
+	var runErr error
+	if IsActionType(instruction, basactions.ActionType_ACTION_TYPE_SET_VARIABLE) {
+		params := instruction.Action.GetSetVariable()
+		name := strings.TrimSpace(params.GetName())
+		if name == "" {
+			runErr = fmt.Errorf("set_variable node %s requires a name", instruction.NodeID)
+		} else {
+			valueType := strings.TrimPrefix(strings.ToLower(params.GetValueType().String()), "set_variable_value_type_")
+			execState.Set(name, state.NormalizeVariableValue(typeconv.JsonValueToAny(params.GetValue()), valueType))
+		}
+	} else {
+		outcome.Condition, runErr = evaluateVariableCondition(instruction.Action.GetConditional(), execState)
 	}
-	name := strings.TrimSpace(params.GetName())
-	if name == "" {
-		return contracts.StepOutcome{}, fmt.Errorf("set_variable node %s missing name", nodeID)
+	if runErr != nil {
+		outcome.Failure = &contracts.StepFailure{Kind: contracts.FailureKindOrchestration, Code: "INVALID_WORKFLOW_STATE_ACTION", Message: runErr.Error(), Retryable: false}
 	}
-	value := typeconv.JsonValueToAny(params.GetValue())
-	valueType := strings.TrimPrefix(strings.ToLower(params.GetValueType().String()), "set_variable_value_type_")
-	execState.Set(name, state.NormalizeVariableValue(value, valueType))
+	outcome = e.normalizeOutcome(req.Plan, instruction, attempt, startedAt, outcome, runErr)
+	if err := e.recordOutcome(ctx, req, outcome, execState); err != nil {
+		return outcome, errors.Join(runErr, err)
+	}
+	if shouldContinueOnError(instruction, req.ContinueOnError) {
+		runErr = nil
+	}
+	return outcome, runErr
+}
 
-	outcome := contracts.StepOutcome{
-		SchemaVersion:  contracts.StepOutcomeSchemaVersion,
-		PayloadVersion: contracts.PayloadVersion,
-		ExecutionID:    req.Plan.ExecutionID,
-		StepIndex:      stepIndex,
-		Attempt:        1,
-		NodeID:         nodeID,
-		StepType:       actionTypeToString(basactions.ActionType_ACTION_TYPE_SET_VARIABLE),
-		Success:        true,
-		StartedAt:      time.Now().UTC(),
+func evaluateVariableCondition(params *basactions.ConditionalParams, execState *state.ExecutionState) (*contracts.ConditionOutcome, error) {
+	name := strings.TrimSpace(params.GetVariable())
+	actual, found := execState.Get(name)
+	if name == "" || !found {
+		return nil, fmt.Errorf("conditional variable %q is not defined", name)
 	}
-	end := outcome.StartedAt
-	outcome.CompletedAt = &end
-
-	return outcome, e.recordOutcome(ctx, req, outcome)
+	operator := params.GetOperator()
+	if params.Operator == nil {
+		operator = basactions.ConditionalOperator_CONDITIONAL_OPERATOR_EQUALS
+	}
+	if operator < basactions.ConditionalOperator_CONDITIONAL_OPERATOR_EQUALS || operator > basactions.ConditionalOperator_CONDITIONAL_OPERATOR_LTE {
+		return nil, fmt.Errorf("unsupported conditional operator %d", operator)
+	}
+	expected := typeconv.JsonValueToAny(params.GetValue())
+	if operator >= basactions.ConditionalOperator_CONDITIONAL_OPERATOR_GT {
+		_, actualNumeric := state.ToFloat(actual)
+		_, expectedNumeric := state.ToFloat(expected)
+		if !actualNumeric || !expectedNumeric {
+			return nil, fmt.Errorf("conditional numeric comparison requires numeric values")
+		}
+	}
+	op := strings.ToLower(strings.TrimPrefix(operator.String(), "CONDITIONAL_OPERATOR_"))
+	return &contracts.ConditionOutcome{
+		Type: "variable", Variable: name, Operator: op, Actual: actual, Expected: expected,
+		Negated: params.GetNegate(), Outcome: state.CompareValues(actual, expected, op) != params.GetNegate(),
+	}, nil
 }
 
 type subflowSpec struct {

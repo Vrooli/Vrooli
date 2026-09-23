@@ -1522,3 +1522,286 @@ the existing detached execution context and explicit stop ownership remain.
 Asynchronous response shapes and terminal status/error/timestamp projection stay
 unchanged. Qualify delayed teardown, failed terminal publication and cancellation
 in addition to latency; retained artifacts must be available at return.
+
+### Execution admission metadata — target086, RF106
+
+The workflow service commits one immutable admission snapshot before publishing
+the new database execution index or starting a runner. The snapshot owns resolved
+workflow version, trigger and the actual input namespaces; manual flat inputs are
+stored under InitialStore. Saved, manual, ad-hoc and resumed admissions use the
+same commit boundary. Resolve omitted workflow versions to the actual selected
+workflow version. Existing DB lifecycle fields remain authoritative in public
+hydration; remove running/terminal snapshot replacements rather than merging two
+mutable status stores. The artifact README must identify snapshot status as the
+admission state and direct current-status consumers to the execution API.
+
+Use the existing api-core atomic file writer for complete-file publication and
+file fsync; this alone does not qualify parent-directory/power-loss durability.
+Failure to commit metadata rejects admission before a browser effect or index
+publication. If index creation fails after the file commit, return an error with
+the attempt ID and retain its metadata: a database error can have an uncertain
+commit outcome, so deleting the only recovery receipt would be unsafe. Do not
+retry effects or invent a cross-store transaction framework. Historical lost
+metadata cannot be reconstructed from this repair and remains explicitly absent.
+
+Qualify parameters/version/trigger during running and terminal states, unchanged
+snapshot bytes, resume version rejection, all admission callers, real filesystem
+failure, index failure with retained metadata, and preserved existing lifecycle
+and native workflows. Resume context propagation and terminal DB/event faults
+remain separate concerns unless evidence requires extending this intervention.
+
+### Resume continuation — target087, RF107
+
+A completed step at index0 is a real checkpoint. Represent checkpoint presence
+explicitly in the executor request; fresh execution has no checkpoint, and resume
+continues after the identified step. Retire the ambiguous default-zero/-1 scalar
+convention and convert all callers without a runtime compatibility branch.
+Resolve continuation before tab restoration, entrypoint navigation or action
+execution. Flat plans use their actual instruction order, not numeric less-than
+filtering. For a graph whose reachable path is one acyclic chain without loops
+or subflows, follow its edges and start at the checkpoint's successor. Preserve
+original node identities, indices and full plan evidence; do not renumber steps.
+A checkpoint at the end has no remaining effects.
+
+A scalar step index cannot encode branch decisions, loop iterations or a subflow
+call stack. If the graph requires those, or the checkpoint is absent/ambiguous,
+return an explicit recovery error before browser effects. Never pretend to resume
+by starting at the root or by skipping arbitrary lower static indices. Rich
+control-flow recovery remains an open capability until a durable cursor and
+state receipt are implemented; this safety boundary is not full resume
+qualification. Fresh branch/loop/subflow execution stays supported.
+
+Prove the ordinary compiled two-step workflow resumes after step0 with exactly
+one original fixture effect, plus flat/graph/fresh/end/invalid/ambiguous controls.
+Keep the independently observed routed-context, lineage and richer recovery-state
+problems visible. Historical missing version/input data must not be invented.
+
+### One execution admission and runner for resume — implemented088, RF108
+
+Resume prepares an ordinary version-pinned execution request with recovered store,
+parameter overrides and the original full execution settings. It then uses the
+same saved-workflow admission and runner as a fresh execution, carrying explicit
+resume checkpoint and original execution identity as execution options. Preserve
+resumed trigger/lineage in the index and public hydration. Detach request
+cancellation once while retaining routed storage metadata and the browser routing
+header; explicit StopExecution still owns runner cancellation and terminal writes
+retain their routing. Delete the private resumed starter and executor lifecycle.
+
+Recovery must retain original browser, artifact and other execution settings,
+with an explicit resume URL overriding the saved start URL. Missing original
+workflow revision is an explicit non-resumable condition, not permission to guess
+at the latest workflow. Preserve original snapshots and input parameters. Remove
+Request.InitialVariables: its sole caller already supplies the same store via
+InitialStore. Initialize state once with plan variables overridden by InitialStore,
+plus the existing params/env namespaces; preserve both actual input sources.
+
+Verify public ResumeExecution routing/header, detached caller cancellation,
+explicit stop/terminal status, initial settings and lineage, original data,
+missing-version rejection and the087 repeated-effect fixture. This does not add
+a branch/loop/subflow recovery cursor or repair historical erased metadata.
+
+
+### Checkpoint cursor and store share one persistence owner — implemented089, RF109
+
+The executor owns the actual mutable store. After each successful step's store
+mutation and outcome publication, persist its cursor and complete store together
+through the execution writer. Store recovery data as a private, atomically
+replaced, owner-readable execution file, independent of screenshot/extracted-data
+collection policy and excluded from timeline/events. Do not reconstruct mutable
+state from presentation previews or recompute prior actions during recovery.
+
+The checkpoint reader must validate format, execution identity and agreement
+with durable successful outcome evidence before admitting resume. Missing,
+malformed or disagreeing state is explicitly non-resumable; never substitute
+initial values for unknown completed mutations. Preserve immutable admission
+metadata and original files. Historical records without this evidence cannot be
+silently upgraded. Convert the existing checkpoint interface and all callers;
+remove the timeline-preview accumulator and duplicate progress-only checkpoint
+implementation instead of adding a parallel recovery path.
+
+Qualify static set_variable, named storeResult, plan defaults, nested values and
+collection-disabled cases with expected browser/engine inputs. Faults must not
+publish a usable mismatched checkpoint or leak store values through public step
+payloads. Keep branch/loop/subflow cursor recovery and atomic coordination with
+external effects explicitly outside this bounded guarantee; crash-window
+qualification remains required.
+
+089 adjacent typed result contract (RF110): the existing action result-key owner
+must recognize Extract.store_as and Evaluate.store_result. Apply that named store
+mutation before committing the same outcome's recovery state; do not flatten raw
+extracted keys into the store. Fresh execution and resume use the same semantics.
+
+### Capture qualification through its measurement owner — target090
+
+The rehabilitation capture outcome needs a maintained producer and an authoritative
+read, not a hand-entered board value. Promote the independent 100-capture fixture
+from dated experiments into BAS-owned source. Retain its first-attempt denominator,
+one declared warmup, screenshot+computed snapshot fidelity, exact viewport/DPR,
+independent observations, all failures and artifacts, candidate identity and raw
+samples. The <=2s p95 band stays unchanged.
+
+Performance Health owns running and evaluating declared performance workloads;
+Test Genie remains the admission/evidence owner for the performance phase. Prefer
+a small declared-workload adapter to a BAS-specific exception or a second BAS job
+system. A maintained scenario-owned producer command may implement the fixture;
+its executable/configuration digest and actual invocation belong to the owner
+receipt. No API accepts a caller's pass flag or an arbitrary uploaded historical
+receipt as qualification. Missing, stale, malformed, incomplete or mismatched
+producer evidence must remain unknown or fail, never default to zero/success.
+
+The governed setpoint read may consume a current, owner-produced workload receipt
+only after candidate applicability and contract identity are established. Existing
+mixed execution statistics and unrelated build/Lighthouse success cannot satisfy
+capture. Other sixteen outcomes remain unknown until their own evidence exists.
+Retain raw receipts with the producer and bounded source references in BAS progress.
+
+### Requested capture frames — target091, RF016
+
+CaptureService owns the requested final screenshot: append one explicit screenshot
+ after readiness, direction, interaction and inline snapshot work when the request
+ asks for screenshots (including the default). Preserve an explicit element selector
+ and explicit screenshots inside the interaction flow. Non-image captures need no
+ final screenshot unless a selector explicitly requests one.
+
+Use the existing artifact policy and telemetry pipeline with a named capture
+ profile: retain explicit image actions and failed-step diagnostics, without passive
+ successful-step images. Validation's navigation/assertion checkpoints remain a
+ separate setting of the validation profile. Product/replay profiles still retain
+ every step. Other capture evidence remains available through its existing owner.
+ Do not deduplicate exported files after browser work, weaken pixel fidelity, drop
+ requested evidence, or turn an explicit screenshot failure into successful capture.
+
+### Capture interaction boundaries — target092, RF111
+
+Capture composes the interaction by graph boundaries, not node-array positions.
+ The compiler owns interpretation of workflow topology, including loop bodies.
+ Its boundary query must identify one outer entry and the outer terminal nodes
+ without resolving target URLs/selectors or executing actions. A malformed or
+ disconnected interaction fails before admission. Capture connects readiness to
+ the identified entry and every applicable terminal to its requested postlude;
+ branch/loop edges remain unchanged and loop-body terminals do not gain exits
+ to the capture postlude. A single-node flow remains supported.
+
+Reuse the compiler's planner and loop-body extraction. Avoid a second graph
+ algorithm in the handler, a synthetic one-iteration loop or private runner,
+ temporary saved workflow files, and a duplicate full compile with different
+ target options. Preserve exact action/edge definitions and error semantics.
+
+RF114 amendment to target092: WorkflowEdgeV2.label is the declared branch
+ condition. Compiler topology projection shall preserve it in PlanEdge.Condition.
+ Remove the unreachable V1 data.condition reader and internal camel/snake handle
+ fallback: proto inputs are normalized once and emitted with canonical proto field
+ names. External accepted protojson spellings still decode through the protobuf
+ owner. No migration or secondary branch representation is needed.
+
+### Typed assertion semantics — target093, RF113
+
+The existing driver assertion handler owns all eight typed AssertParams modes.
+Negation changes the expected predicate, never the meaning of an evaluator error.
+Presence and visibility use Playwright's locator state waits for the requested
+polarity; only a genuine browser timeout becomes an unsatisfied predicate. Invalid
+selectors, closed pages and other evaluation failures remain errors. Explicit
+timeout zero requests an immediate observation, not an unbounded browser wait.
+Text and attribute comparisons retain the observed value, honor case_sensitive
+(default true), and negate only after a successful read. They wait for the target
+with the declared timeout; a separate Wait node governs delayed value changes.
+A missing attribute differs from an empty attribute. Custom failure_message applies
+to a logical mismatch, without concealing engine errors. Assertion evidence keeps
+mode, expected/actual, negated, caseSensitive, success and message through the
+existing typed outcome pipeline. Frame targeting remains getDocument's policy.
+
+Remove unreachable string aliases and regex/expression paths: the supported
+AssertParams enum has eight DOM modes and no regex or JavaScript expression mode.
+Do not invent new wire variants or another predicate runtime. Conditional action
+support (RF112) remains a separate follow-up with page-JavaScript and workflow
+variable ownership preserved. Existing compiler topology cohesion debt is retained
+for review; do not split fixtures merely to evade a file-length threshold.
+
+### Typed conditional execution — target094, RF112
+
+Conditional actions have three typed modes. Page JavaScript and element presence
+belong to the existing driver and selected-frame owner; workflow-variable reads
+belong to Go's execution store. A successfully evaluated false predicate is a
+successful step carrying ConditionOutcome.outcome=false. An evaluation error is
+a failed step with no condition truth value. Negation applies only to a completed
+evaluation. A failed conditional can take an explicitly wired error/failure edge
+under ordinary continuation policy, but never fall through to the first true/false
+edge. An absent selected edge terminates that path rather than running its opposite.
+
+Driver outcomes use the existing typed ConditionOutcome field through the existing
+StepOutcome builder and wire decoder, including actual/expected scalar or JSON
+values. Do not add another extracted-data condition convention. Go variable
+conditions use the same value-comparison policy as loop conditions, the actual
+execution store, and the existing outcome/event/checkpoint owner. Unknown variables
+or operators are evaluation errors. False results do not fail execution.
+
+Page expressions support expression syntax and the function-body syntax emitted
+by the builder. Parse before executing; a runtime exception must not cause the
+script to execute again under a syntax fallback. Preserve Promise results, frame
+context, and the ordinary execution deadline/cancellation owner. Arbitrary scripts
+are not automatically retryable after an error. Element mode means presence, as
+in the node contract, and polls up to its declared timeout; a genuine timeout
+means absent, while invalid selectors or closed pages remain errors. Zero timeout
+means an immediate observation. Variable and script conditions observe once; a
+Wait node governs delayed values. No duplicate browser/session or generic runtime.
+
+Qualification includes both branch truths, both negations, variable operators and
+missing variables, expression versus body syntax, exception-after-effect exactly
+once, malformed selectors/closed-page errors, delayed presence, zero timeout,
+selected frames, typed evidence round-trips and unsupported operators. Keep
+explicit failure edges distinct from false edges and retain native action logs.
+
+094 native amendments (RF115/RF116): iframe capability means automation inside
+frames, independent of viewer transport. The managed Playwright engine must
+admit its implemented frame actions. Condition evidence belongs in shared event
+context as well as driver outcomes. Move the existing ConditionOutcome definition
+from execution/driver.proto to base/shared.proto (same fully qualified protobuf
+message and wire fields), then reference it from EventContext at new optional
+tag26. Update all workspace SDK import sites; no duplicate schema or compatibility
+wrapper. Move the existing condition conversions from protoconv to lower typeconv (which
+does not import driver/export); reuse them at wire, telemetry, FileWriter and
+export boundaries. The persistence regression must exercise the actual writer,
+disk reload and export, since live telemetry conversion is a separate caller. Remove the narrower intermediate copy that loses Expression.
+Generated Go/TS/Python and BAS manifest remain owned by scoped protogen generation.
+
+### Execution status authority — target095
+
+WorkflowService owns the pending→running→terminal index and its terminal
+notifications. The running transition must persist before executor/browser
+effects. Every terminal path (including compilation and target admission errors)
+uses one finalization policy. Terminal notifications require successful terminal
+persistence; a failed write remains an explicit error rather than a completed
+receipt. Cancellation-independent persistence keeps routed context metadata and
+sink retirement follows finalization. The writer owns artifacts and result-path
+updates only. Remove its unused MarkCrash/status-mutation path and all no-op
+implementations; this does not replace the executor's real step-failure evidence.
+
+Validate with fault-injected running/terminal writes, independent executor effect
+counts and captured lifecycle notifications, plus existing synchronous completion,
+compile/target failure, cancellation, routed-storage and cleanup regressions.
+
+### Profile snapshot ownership — target096
+
+Before adding periodic profile checkpoints, make the existing capture-and-commit
+path safe across detach/replacement. Session-profile service owns an opaque active
+binding identity and serializes captures for that binding. Browser I/O remains
+with the recording adapter. A complete storage/tab snapshot may commit only
+while its original binding is still current; clear or replacement, including
+same-profile reattachment, invalidates an older in-flight capture. Cancellation
+while waiting or capturing must not acknowledge a save. Keep existing multiple
+session associations and manual close/retry behavior; no new admission restriction.
+Manual and future periodic callers use the same fenced aggregate transaction.
+Do not introduce a timer that bypasses this owner. RF011's periodic capture and
+crash recovery remain required subsequent work, not satisfied by fencing alone.
+
+096 checkpoint extension: API lifecycle owns one joined checkpoint loop, stopped
+before the driver. Every two seconds, eligible active bindings capture through
+the same fenced transaction with a two-second browser-I/O deadline. Health reports
+a stale (>5 seconds) or failed checkpoint. A profile shared by multiple active
+browsers has no unique automatic writer: preserve existing manual behavior, skip
+automatic replacement and report degraded checkpoint health rather than silently
+selecting one browser's identity. Full shared-profile recovery remains an explicit
+RF011 gap requiring a separately justified state-ownership design. Separate profiles
+checkpoint concurrently; a slow browser must not hold another profile's capture.
+Do not add per-session timer services, change saved profile format, merge opaque
+storage, or claim crash qualification from an interval test.

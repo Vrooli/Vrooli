@@ -89,7 +89,7 @@ func (e *PlaywrightEngine) Capabilities(ctx context.Context) (contracts.EngineCa
 		AllowsParallelTabs:    true,
 		SupportsHAR:           true,
 		SupportsVideo:         true,
-		SupportsIframes:       false, // WebSocket streaming to Playwright is used instead of iframes
+		SupportsIframes:       true, // Frame automation is independent of viewer transport.
 		SupportsFileUploads:   true,
 		SupportsDownloads:     true,
 		SupportsTracing:       true,

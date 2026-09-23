@@ -34,6 +34,8 @@ type ArtifactCollectionSettings struct {
 	// shipped over HTTP — so a run that only needs pass/fail evidence can skip
 	// it on steps that carry no visual meaning.
 	ScreenshotPolicy basexecution.ScreenshotCapturePolicy
+	// Validation retains navigation/assertion checkpoints even on successful steps.
+	CaptureValidationCheckpoints bool
 
 	// Size limits (in bytes)
 	MaxScreenshotBytes     int
@@ -78,6 +80,8 @@ const (
 	ProfileValidation = "validation"
 	// ProfileCheckpoints retains explicit screenshot actions without automatic frames.
 	ProfileCheckpoints = "checkpoints"
+	// ProfileCapture retains requested images and failed-step diagnostics.
+	ProfileCapture = "capture"
 )
 
 // artifactProfiles defines the preset configurations.
@@ -86,6 +90,22 @@ var artifactProfiles = map[string]ArtifactCollectionSettings{
 	ProfileFull: {
 		// Collect everything - backward compatible default
 		ScreenshotPolicy:       basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ALWAYS,
+		CollectScreenshots:     true,
+		CollectDOMSnapshots:    true,
+		CollectConsoleLogs:     true,
+		CollectNetworkEvents:   true,
+		CollectExtractedData:   true,
+		CollectAssertions:      true,
+		CollectCursorTrails:    true,
+		CollectTelemetry:       true,
+		MaxScreenshotBytes:     DefaultMaxScreenshotBytes,
+		MaxDOMSnapshotBytes:    DefaultMaxDOMSnapshotBytes,
+		MaxConsoleEntryBytes:   DefaultMaxConsoleEntryBytes,
+		MaxNetworkPreviewBytes: DefaultMaxNetworkPreviewBytes,
+	},
+	ProfileCapture: {
+		// Keep all requested evidence; successful passive steps need no image.
+		ScreenshotPolicy:       basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ON_FAILURE,
 		CollectScreenshots:     true,
 		CollectDOMSnapshots:    true,
 		CollectConsoleLogs:     true,
@@ -151,19 +171,20 @@ var artifactProfiles = map[string]ArtifactCollectionSettings{
 		// Automated suites: keep the artifacts that ARE the result, drop the
 		// per-step imagery nobody reads. Screenshots still persist when they
 		// happen, so failure frames survive for debugging.
-		ScreenshotPolicy:       basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ON_FAILURE,
-		CollectScreenshots:     true,
-		CollectDOMSnapshots:    false,
-		CollectConsoleLogs:     false,
-		CollectNetworkEvents:   false,
-		CollectExtractedData:   true,
-		CollectAssertions:      true,
-		CollectCursorTrails:    false,
-		CollectTelemetry:       true,
-		MaxScreenshotBytes:     DefaultMaxScreenshotBytes,
-		MaxDOMSnapshotBytes:    DefaultMaxDOMSnapshotBytes,
-		MaxConsoleEntryBytes:   DefaultMaxConsoleEntryBytes,
-		MaxNetworkPreviewBytes: DefaultMaxNetworkPreviewBytes,
+		ScreenshotPolicy:             basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ON_FAILURE,
+		CaptureValidationCheckpoints: true,
+		CollectScreenshots:           true,
+		CollectDOMSnapshots:          false,
+		CollectConsoleLogs:           false,
+		CollectNetworkEvents:         false,
+		CollectExtractedData:         true,
+		CollectAssertions:            true,
+		CollectCursorTrails:          false,
+		CollectTelemetry:             true,
+		MaxScreenshotBytes:           DefaultMaxScreenshotBytes,
+		MaxDOMSnapshotBytes:          DefaultMaxDOMSnapshotBytes,
+		MaxConsoleEntryBytes:         DefaultMaxConsoleEntryBytes,
+		MaxNetworkPreviewBytes:       DefaultMaxNetworkPreviewBytes,
 	},
 	ProfileCheckpoints: {
 		// Capture only explicit screenshot actions; retain their returned bytes.
@@ -226,6 +247,11 @@ func GetArtifactProfiles() []ArtifactProfile {
 			Name:        ProfileValidation,
 			Description: "Assertions and extracted data, screenshots only on failure (automated suites)",
 			Settings:    artifactProfiles[ProfileValidation],
+		},
+		{
+			Name:        ProfileCapture,
+			Description: "Requested screenshot actions and failure images, with console, network and extracted evidence",
+			Settings:    artifactProfiles[ProfileCapture],
 		},
 		{
 			Name:        ProfileCheckpoints,

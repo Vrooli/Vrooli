@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -262,6 +264,13 @@ func TestCompileWorkflowLoopExtractsBody(t *testing.T) {
 			},
 		},
 	)
+
+	before := proto.Clone(workflow.FlowDefinition)
+	entry, exits, boundaryErr := WorkflowBoundaries(workflow.FlowDefinition)
+	require.NoError(t, boundaryErr)
+	require.Equal(t, "loop-1", entry)
+	require.Equal(t, []string{"loop-1"}, exits)
+	require.True(t, proto.Equal(before, workflow.FlowDefinition))
 
 	plan, err := CompileWorkflow(workflow)
 	require.NoError(t, err)
@@ -886,10 +895,19 @@ func TestCompileWorkflow_MissingPosition(t *testing.T) {
 // =============================================================================
 
 func TestCompileWorkflow_EdgeConditions(t *testing.T) {
-	// Note: V2 edges don't have a "data.condition" field in the same way V1 did.
-	// Edge conditions in V2 are handled via edge type or label.
-	// Skip this test until V2 edge conditions are properly defined.
-	t.Skip("V2 edge conditions require different structure - skip until implemented")
+	for _, label := range []string{"success", "failure", "true", "false", "  error  ", ""} {
+		t.Run(label, func(t *testing.T) {
+			workflow := makeTestWorkflow(uuid.New(), "edge-condition", []*basworkflows.WorkflowNodeV2{
+				{Id: "first", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_EVALUATE, Params: &basactions.ActionDefinition_Evaluate{Evaluate: &basactions.EvaluateParams{Expression: "true"}}}},
+				{Id: "last", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_EVALUATE, Params: &basactions.ActionDefinition_Evaluate{Evaluate: &basactions.EvaluateParams{Expression: "true"}}}},
+			}, []*basworkflows.WorkflowEdgeV2{{Id: "edge", Source: "first", Target: "last", Label: ptr(label)}})
+			plan, err := CompileWorkflow(workflow)
+			require.NoError(t, err)
+			require.Equal(t, strings.TrimSpace(label), plan.Steps[0].OutgoingEdges[0].Condition)
+			graph := toContractsGraph(plan)
+			require.Equal(t, strings.TrimSpace(label), graph.Steps[0].Outgoing[0].Condition)
+		})
+	}
 }
 
 // =============================================================================
@@ -1338,4 +1356,39 @@ func TestCompileWorkflowToContractsPreservesNodeExecutionSettings(t *testing.T) 
 	require.Len(t, plan.Graph.Steps, 1)
 	assert.Equal(t, true, instructions[0].Context["continueOnError"])
 	assert.Equal(t, true, plan.Graph.Steps[0].Context["continueOnError"])
+}
+
+func TestWorkflowBoundariesRejectMalformedGraphs(t *testing.T) {
+	node := func(id string) *basworkflows.WorkflowNodeV2 {
+		return &basworkflows.WorkflowNodeV2{Id: id, Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_EVALUATE, Params: &basactions.ActionDefinition_Evaluate{Evaluate: &basactions.EvaluateParams{Expression: "true"}}}}
+	}
+	for name, flow := range map[string]*basworkflows.WorkflowDefinitionV2{
+		"nil": nil, "empty": {}, "empty ID": {Nodes: []*basworkflows.WorkflowNodeV2{node("")}},
+		"duplicate ID":   {Nodes: []*basworkflows.WorkflowNodeV2{node("a"), node("a")}},
+		"missing action": {Nodes: []*basworkflows.WorkflowNodeV2{{Id: "a"}}},
+		"missing target": {Nodes: []*basworkflows.WorkflowNodeV2{node("a")}, Edges: []*basworkflows.WorkflowEdgeV2{{Source: "a", Target: "missing"}}},
+		"missing source": {Nodes: []*basworkflows.WorkflowNodeV2{node("a")}, Edges: []*basworkflows.WorkflowEdgeV2{{Source: "missing", Target: "a"}}},
+		"cycle":          {Nodes: []*basworkflows.WorkflowNodeV2{node("a")}, Edges: []*basworkflows.WorkflowEdgeV2{{Source: "a", Target: "a"}}},
+		"disconnected":   {Nodes: []*basworkflows.WorkflowNodeV2{node("a"), node("b")}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			entry, exits, err := WorkflowBoundaries(flow)
+			require.Error(t, err)
+			require.Empty(t, entry)
+			require.Nil(t, exits)
+		})
+	}
+}
+
+func TestWorkflowBoundariesUsesTopologyWithoutResolvingTargets(t *testing.T) {
+	flow := &basworkflows.WorkflowDefinitionV2{Nodes: []*basworkflows.WorkflowNodeV2{
+		{Id: "click", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_CLICK, Params: &basactions.ActionDefinition_Click{Click: &basactions.ClickParams{Selector: "@selector/not-resolved-by-topology"}}}},
+		{Id: "navigate", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{DestinationType: ptr(basactions.NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_SCENARIO), Scenario: ptr("not-resolved-by-topology")}}}},
+	}, Edges: []*basworkflows.WorkflowEdgeV2{{Source: "navigate", Target: "click"}}}
+	before := proto.Clone(flow)
+	entry, exits, err := WorkflowBoundaries(flow)
+	require.NoError(t, err)
+	require.Equal(t, "navigate", entry)
+	require.Equal(t, []string{"click"}, exits)
+	require.True(t, proto.Equal(before, flow), "topology queries must preserve caller action and edge definitions")
 }

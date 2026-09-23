@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,6 +14,31 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
+
+// [REQ:BAS-RH-J24] Typed condition values survive the driver wire boundary.
+func TestDecodeStepOutcomeConditionValues(t *testing.T) {
+	for _, tc := range []struct {
+		name, wire string
+		actual     any
+	}{
+		{"false", `{"boolValue":false}`, false},
+		{"integer", `{"intValue":"7"}`, int64(7)},
+		{"string", `{"stringValue":"ready"}`, "ready"},
+		{"object", `{"objectValue":{"fields":{"ready":{"boolValue":true}}}}`, map[string]any{"ready": true}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			out, err := decodeStepOutcome(strings.NewReader(`{"success":true,"condition":{"type":"expression","outcome":false,"negated":true,"actual":` + tc.wire + `,"expected":{"boolValue":true}}}`))
+			require.NoError(t, err)
+			require.NotNil(t, out.Condition)
+			assert.False(t, out.Condition.Outcome)
+			assert.True(t, out.Condition.Negated)
+			assert.Equal(t, tc.actual, out.Condition.Actual)
+			assert.Equal(t, true, out.Condition.Expected)
+		})
+	}
+	_, err := decodeStepOutcome(strings.NewReader(`{"success":true,"condition":{"actual":{"unsupported":true}}}`))
+	require.Error(t, err, "malformed typed condition evidence must not become a successful outcome")
+}
 
 func TestBuildInstructionPayloadRejectsMissingTypedAction(t *testing.T) {
 	_, err := buildInstructionPayload(contracts.CompiledInstruction{NodeID: "missing-action"})

@@ -101,33 +101,10 @@ func CompileWorkflowWithOptions(workflow *basapi.WorkflowSummary, opts *CompileO
 	}
 	workflowName := workflow.GetName()
 
-	flowDef := workflow.GetFlowDefinition()
-	if flowDef == nil {
-		return nil, errors.New("workflow has no flow_definition")
-	}
-	logrus.WithField("workflow_id", workflow.GetId()).Debug("CompileWorkflow: got flow_definition")
-
-	// Convert proto flow definition to internal flowDefinition struct
-	// We use protojson.Marshal to properly serialize proto messages to JSON
-	var raw flowDefinition
-	logrus.WithField("workflow_id", workflow.GetId()).Debug("CompileWorkflow: about to marshal")
-	data, err := (protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: false}).Marshal(flowDef)
+	raw, err := flowDefinitionFromProto(workflow.GetFlowDefinition())
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal workflow definition: %w", err)
+		return nil, err
 	}
-	logrus.WithFields(logrus.Fields{
-		"workflow_id": workflow.GetId(),
-		"data_len":    len(data),
-	}).Debug("CompileWorkflow: marshaled")
-
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("invalid workflow definition: %w", err)
-	}
-	attachTypedActions(&raw, flowDef)
-	logrus.WithFields(logrus.Fields{
-		"workflow_id": workflow.GetId(),
-		"node_count":  len(raw.Nodes),
-	}).Debug("CompileWorkflow: unmarshaled")
 
 	if len(raw.Nodes) == 0 {
 		logrus.WithField("workflow_id", workflow.GetId()).Debug("CompileWorkflow: empty workflow")
@@ -184,6 +161,71 @@ func CompileWorkflowWithOptions(workflow *basapi.WorkflowSummary, opts *CompileO
 	plan.Metadata = metadata
 
 	return plan, nil
+}
+
+// flowDefinitionFromProto keeps compiler and composition queries on one typed
+// conversion without resolving selectors, scenario URLs, or executing actions.
+func flowDefinitionFromProto(flow *basworkflows.WorkflowDefinitionV2) (flowDefinition, error) {
+	if flow == nil {
+		return flowDefinition{}, errors.New("workflow has no flow_definition")
+	}
+	data, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(flow)
+	if err != nil {
+		return flowDefinition{}, fmt.Errorf("failed to marshal workflow definition: %w", err)
+	}
+	var raw flowDefinition
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return raw, fmt.Errorf("invalid workflow definition: %w", err)
+	}
+	attachTypedActions(&raw, flow)
+	return raw, nil
+}
+
+// WorkflowBoundaries returns the unique outer entry and all outer terminal nodes.
+// Loop body nodes belong to their loop's nested plan, never the caller's postlude.
+// Disconnected or malformed graphs cannot be composed without dropping actions.
+func WorkflowBoundaries(flow *basworkflows.WorkflowDefinitionV2) (string, []string, error) {
+	raw, err := flowDefinitionFromProto(flow)
+	if err != nil {
+		return "", nil, err
+	}
+	p := newPlanner(raw, nil)
+	if len(raw.Nodes) == 0 || len(p.nodesByID) != len(raw.Nodes) {
+		return "", nil, errors.New("workflow must have nonempty, unique nodes")
+	}
+	for _, node := range raw.Nodes {
+		if strings.TrimSpace(node.ID) == "" {
+			return "", nil, errors.New("workflow node ID is empty")
+		}
+	}
+	for _, edge := range raw.Edges {
+		_, sourceExists := p.nodesByID[edge.Source]
+		_, targetExists := p.nodesByID[edge.Target]
+		if !sourceExists || !targetExists {
+			return "", nil, fmt.Errorf("workflow edge %s references an unknown node", edge.ID)
+		}
+	}
+	if _, err := p.extractLoopBodies(); err != nil {
+		return "", nil, err
+	}
+	order := p.topologicalOrder()
+	if len(order) != len(p.definition.Nodes) {
+		return "", nil, errors.New("workflow contains a cycle")
+	}
+	var entry string
+	var terminals []string
+	for _, id := range order {
+		if p.incomingCount[id] == 0 {
+			if entry != "" {
+				return "", nil, errors.New("workflow has multiple disconnected entry nodes")
+			}
+			entry = id
+		}
+		if len(p.outgoing[id]) == 0 {
+			terminals = append(terminals, id)
+		}
+	}
+	return entry, terminals, nil
 }
 
 func compileFlow(fragment flowFragment, workflowID uuid.UUID, workflowName string, opts *CompileOptions) (*ExecutionPlan, error) {
@@ -327,33 +369,15 @@ func (n rawNode) actionType() (basactions.ActionType, error) {
 	return n.TypedAction.GetType(), nil
 }
 
+// rawEdge mirrors the canonical protojson emitted by flowDefinitionFromProto.
 type rawEdge struct {
-	ID             string         `json:"id"`
-	Source         string         `json:"source"`
-	Target         string         `json:"target"`
-	SourceHandle   string         `json:"sourceHandle,omitempty"`  // camelCase (json_name)
-	TargetHandle   string         `json:"targetHandle,omitempty"`  // camelCase (json_name)
-	SourceHandleV2 string         `json:"source_handle,omitempty"` // snake_case (proto_name)
-	TargetHandleV2 string         `json:"target_handle,omitempty"` // snake_case (proto_name)
-	Data           map[string]any `json:"data,omitempty"`
-	Type           string         `json:"type,omitempty"`
-	Label          string         `json:"label,omitempty"`
-}
-
-// getSourceHandle returns the source handle, preferring camelCase over snake_case.
-func (e rawEdge) getSourceHandle() string {
-	if e.SourceHandle != "" {
-		return e.SourceHandle
-	}
-	return e.SourceHandleV2
-}
-
-// getTargetHandle returns the target handle, preferring camelCase over snake_case.
-func (e rawEdge) getTargetHandle() string {
-	if e.TargetHandle != "" {
-		return e.TargetHandle
-	}
-	return e.TargetHandleV2
+	ID           string `json:"id"`
+	Source       string `json:"source"`
+	Target       string `json:"target"`
+	SourceHandle string `json:"source_handle,omitempty"`
+	TargetHandle string `json:"target_handle,omitempty"`
+	Type         string `json:"type,omitempty"`
+	Label        string `json:"label,omitempty"`
 }
 
 func toPositiveInt(value any) int {
@@ -848,9 +872,9 @@ func (p *planner) buildSteps() ([]ExecutionStep, error) {
 			step.OutgoingEdges = append(step.OutgoingEdges, EdgeRef{
 				ID:         edge.ID,
 				TargetNode: edge.Target,
-				Condition:  strings.TrimSpace(edgeCondition(edge)),
-				SourcePort: strings.TrimSpace(edge.getSourceHandle()),
-				TargetPort: strings.TrimSpace(edge.getTargetHandle()),
+				Condition:  strings.TrimSpace(edge.Label),
+				SourcePort: strings.TrimSpace(edge.SourceHandle),
+				TargetPort: strings.TrimSpace(edge.TargetHandle),
 			})
 		}
 		steps = append(steps, step)
@@ -984,12 +1008,12 @@ func rawNodeMapToSlice(m map[string]rawNode) []rawNode {
 }
 
 func isLoopBodyEdge(edge rawEdge) bool {
-	return strings.EqualFold(strings.TrimSpace(edge.getSourceHandle()), loopHandleBody) ||
-		strings.EqualFold(strings.TrimSpace(edge.getTargetHandle()), loopConditionBody)
+	return strings.EqualFold(strings.TrimSpace(edge.SourceHandle), loopHandleBody) ||
+		strings.EqualFold(strings.TrimSpace(edge.TargetHandle), loopConditionBody)
 }
 
 func loopDirectiveFromEdge(edge rawEdge) (EdgeRef, bool) {
-	handle := strings.ToLower(strings.TrimSpace(edge.getTargetHandle()))
+	handle := strings.ToLower(strings.TrimSpace(edge.TargetHandle))
 	switch handle {
 	case loopHandleContinue, loopConditionContinue:
 		return EdgeRef{ID: edge.ID, TargetNode: LoopContinueTarget, Condition: loopConditionContinue}, true
@@ -1000,18 +1024,6 @@ func loopDirectiveFromEdge(edge rawEdge) (EdgeRef, bool) {
 	default:
 		return EdgeRef{}, false
 	}
-}
-
-func edgeCondition(edge rawEdge) string {
-	if edge.Data == nil {
-		return ""
-	}
-	if cond, ok := edge.Data["condition"]; ok {
-		if s, ok := cond.(string); ok {
-			return s
-		}
-	}
-	return ""
 }
 
 // resolveNavigateURL resolves a typed navigate action whose destination is a scenario.

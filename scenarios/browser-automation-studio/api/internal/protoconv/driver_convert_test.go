@@ -307,7 +307,7 @@ func TestProtoToStepOutcome(t *testing.T) {
 			Negated:       false,
 			CaseSensitive: true,
 		},
-		Condition: &basexecution.ConditionOutcome{
+		Condition: &basbase.ConditionOutcome{
 			Type:    strPtr("element_visible"),
 			Outcome: true,
 			Negated: false,

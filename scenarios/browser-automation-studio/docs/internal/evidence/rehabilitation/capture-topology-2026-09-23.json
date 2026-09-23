@@ -1,0 +1,105 @@
+{
+  "cycle": "BAS-WORK-092",
+  "issues": [
+    "BAS-RF-111",
+    "BAS-RF-114"
+  ],
+  "build_identity": "sha256:5c5bb1fcf2135dd2fadd7a23770b6cf28a521cfc24d7f51d722be424d76bb5a4",
+  "frozen": {
+    "path": "/tmp/bas-frozen-owner-092.json",
+    "count": 112,
+    "changed": []
+  },
+  "owner_reading": {
+    "scenario": "browser-automation-studio",
+    "workload": "capture",
+    "operation_id": "dfccaeaf88c701f9482f38d55894a4a8",
+    "outcome": "WORKLOAD_OUTCOME_MEASURED",
+    "within_budget": true,
+    "p95_ms": 414,
+    "wall_p95_ms": 602.637287,
+    "budget_ms": 2000,
+    "sample_count": 100,
+    "attempt_count": 101,
+    "declared_warmups": 1,
+    "captured_at": "2026-09-23T15:09:22.910043488Z",
+    "build_identity": "sha256:5c5bb1fcf2135dd2fadd7a23770b6cf28a521cfc24d7f51d722be424d76bb5a4",
+    "producer_digest": "62456dbce61bba14f9feb78efc1e806448fc482e734c2e8a18bf2938b6ed4a52",
+    "contract_digest": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+    "configuration_digest": "1a2776b5338b0074036293f43952bd03d3be2ef1ccabfef38787e06d4a63b167",
+    "fixture_revision": "dcabe2e264925a3c8264eef9ecd37b0b7b16ee11ce3c57bb1310a80ede1e3367",
+    "receipt_path": "/home/matthalloran8/.vrooli/test-runs/performance-health/workloads/dfccaeaf88c701f9482f38d55894a4a8/producer/receipt.json",
+    "receipt_sha256": "c4555fe67282adf0bdc9df744efe52eafcb2044389795225af958971c9a70c7b"
+  },
+  "cohort": {
+    "samples": 100,
+    "verified": 100,
+    "pngs": 100,
+    "png_bytes": 1603694,
+    "trees": 100
+  },
+  "metrics": {
+    "before": {
+      "runtime_lines": 2219,
+      "functions": 62,
+      "go_complexity": 499
+    },
+    "after": {
+      "runtime_lines": 2223,
+      "functions": 61,
+      "go_complexity": 509
+    },
+    "delta": {
+      "runtime_lines": 4,
+      "functions": -1,
+      "go_complexity": 10
+    },
+    "scope": [
+      "scenarios/browser-automation-studio/api/automation/compiler/compiler.go",
+      "scenarios/browser-automation-studio/api/handlers/capture/service.go"
+    ]
+  },
+  "checks": {
+    "red_boundary": "/tmp/bas-capture-splice-red-092.txt",
+    "red_labels": "/tmp/bas-edge-condition-red-092.txt",
+    "race_pass": "/tmp/bas-capture-splice-race-final2-092.txt",
+    "build_pass": "/tmp/bas-capture-splice-api-build-final-092.txt",
+    "native_linear": "/tmp/bas-capture-splice-native-qualified-092/receipt.json",
+    "native_labeled_paths_and_loop": "/tmp/bas-capture-labeled-paths-native-qualified-092/receipt.json",
+    "profile_preservation": "/tmp/bas-profile-preservation-092.txt"
+  },
+  "board": {
+    "path": "/tmp/bas-board-owned-092.txt",
+    "readable": 1,
+    "unknown": 16,
+    "product_qualified": false
+  },
+  "test_genie": {
+    "run_id": "20260923-151101-55ba59d3",
+    "status": "terminal",
+    "phases": [
+      "performance",
+      "tidiness"
+    ],
+    "verdict": "FAIL",
+    "performance": "passed",
+    "tidiness": "failed",
+    "native_workload_verified": true,
+    "tidiness_summary": {
+      "totalFindings": 1157,
+      "longFiles": 104,
+      "complexity": 421,
+      "duplication": 608,
+      "coupling": 23,
+      "duplicationLineDebt": 34644
+    },
+    "findings": "/tmp/bas-tg-092-findings.json"
+  },
+  "limits": [
+    "RF112 conditional dispatch and RF113 negated assertions remain open, independently reproduced.",
+    "Full091API/CLI/driver receipts are dated; current four affected Go packages pass race, plus native public captures. Unchanged driver/UI broad coverage run not repeated.",
+    "UI85percent coverage floor and renderer policy remain failing; structural debt remains failing.",
+    "092 adds4runtime lines and10Go complexity, removes1function; cumulative scopedGo+319.",
+    "Sixteen readiness outcomes remain unknown."
+  ]
+}

@@ -112,19 +112,33 @@
           "coverage": {
             "minimum_percent": 30,
             "mode": "total",
-            "reporters": ["text", "json-summary", "lcov"]
+            "reporters": [
+              "text",
+              "json-summary",
+              "lcov"
+            ]
           },
           "test_utils": {
-            "required_roots": ["playwright-driver/tests/helpers"],
+            "required_roots": [
+              "playwright-driver/tests/helpers"
+            ],
             "production_import_ban": true
           },
           "projection": {
-            "required_files": ["playwright-driver/jest.config.js"],
-            "required_scripts": ["test", "test:coverage"]
+            "required_files": [
+              "playwright-driver/jest.config.js"
+            ],
+            "required_scripts": [
+              "test",
+              "test:coverage"
+            ]
           },
           "runner_profile": "default",
           "test_kind": "unit",
-          "adapter": {"id": "node-jest", "version": "1.0.0"},
+          "adapter": {
+            "id": "node-jest",
+            "version": "1.0.0"
+          },
           "hermetic": {
             "network": "allow",
             "filesystem": "workspace",
@@ -196,7 +210,7 @@
         },
         "react_vite_ui": {
           "language": "typescript",
-            "framework": "vitest",
+          "framework": "vitest",
           "package_manager": "pnpm",
           "coverage": {
             "minimum_percent": 85,
@@ -318,6 +332,40 @@
     },
     "options": {
       "continue_on_failure": true
+    },
+    "workloads": {
+      "capture": {
+        "command": [
+          "go",
+          "run",
+          "./cmd/capture-cohort",
+          "--output",
+          "{output}",
+          "--api-url",
+          "{api_url}",
+          "--driver-url",
+          "{driver_url}"
+        ],
+        "directory": "api",
+        "sources": [
+          "api/cmd/capture-cohort/main.go",
+          "api/internal/capturequalification/fixture.go",
+          "api/internal/capturequalification/oracle.go",
+          "api/internal/capturequalification/run.go"
+        ],
+        "contract": "docs/internal/REFRACTOR_CONTRACT.json",
+        "endpoints": {
+          "api_url": "API_PORT",
+          "driver_url": "PLAYWRIGHT_DRIVER_PORT"
+        },
+        "samples": 100,
+        "warmups": 1,
+        "p95_max_ms": 2000,
+        "timeout_seconds": 480,
+        "max_age_seconds": 86400,
+        "min_cpu_cores": 4,
+        "min_memory_bytes": 17179869184
+      }
     }
   }
 }

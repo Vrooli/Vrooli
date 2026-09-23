@@ -8,137 +8,62 @@ current-state section, then append dated records without erasing prior evidence.
 
 ## Current checkpoint — implementation, 2026-09-23 UTC
 
-The unlimited continuous goal (FB008) remains active. File tracking only; green
-checks trigger investigation. FB012 status request resolved, FB010 managed restart
-authority retained. No plans, external journals, subagents or completion claim.
+Continuous goal FB008 remains active. FB013's overall status request is resolved;
+FB010 authorizes managed restarts. File tracking only: no plans, external journals,
+subagents, completion or blocked claim.
 
-- **072 qualified**, build9ad04e2414f9cdde4014149f5529b0d3ab0337d252af1362e1b1b5dba8c6f160. RF103 dependency availability repaired at canonical resilience owner; original errors, timeouts/server/transport protection, cancellation,429 andhalf-open recovery preserved. Five Go racepackages/build pass; HTTPfixture10/10; liveClient13/13; savedworkflow12/12; originalprofiles3fullreads/APIequals071. No072operationspending. Receipt driver-availability-2026-09-23.json.
-- 072 runtime354->350(-4),Go52->53(+1),16functions unchanged; cumulative affectedGo-129. Baseline3paths /tmp/bas-before-072/manifest.json, frozen /tmp/bas-frozen-072.json. Native scope is compiledactualGoClient againstrealdriver, notfaultinjection intoAPIglobalinstance. Tidiness20260923-061909-ef387488 fullyconsumed1137/103/401/612/20/debt31313,budgetfails. Board/contract/inventoryconsumed; all17release outcomes unqualified.
-- Qualified071 RF102: commoncodec preservesdomainfields, all11eventconsumers use synchronousowned subscriptions, stale socketsfenced, unusedbinaryfacade removed. Explicitnull page stopsframe/inputwork; undefinedpreservesmini-preview. FullUI1155/79, finalrecord-mode541/29/types, native12/12, passiveicons23/23, workflow12/12, profilespreserved. Receipt page-event-delivery-2026-09-23.json; runtime-21,scopedTS-4,Go unchanged. No071pending.
-- **073 qualified**, build9c4f9cc03265d6fb5fee2bb887c512308e99d70347bcc995a46762d12c4025f8. RF101keyboardcontrols repairedwithsiblingnativebuttons, rovingentry, manualactivation, Delete andclosed/createdfocusrepair. Maintained550/29/types; native19/19; passiveicons23/23; workflow12/12; originalprofiles3reads/APIequals072. Receipt tab-keyboard-2026-09-23.json. No073pending. Runtime+56/scopedTS+37 explicit; no per-cycle simplificationclaim. Frozen2paths unchanged. TG20260923-063055-ba993930 fullyconsumed1137/103/401/612/20/debt31313,budgetfails. All17outcomesunknown.
-- **074 qualified**, build6f65b5a0f714c2296ffa9e0ac658e4306b758a9ec4fa49a9b5d836159931c79d.
-  RF038 mandatory source identity spans both driver strategies, API canonical
-  projection, HTTP cache/preview and viewer. Dead JSON push path retired.
-  Driver1826/123 (2tests/1suite existing skips), UI560/29/types, six Go race
-  packages/build, native16/16, workflow12/12 and original profiles3reads pass.
-  Receipt frame-source-2026-09-23.json. All074operations consumed. Runtime+25,
-  affectedGo+30 (cumulative-99), scopedTS+46; no net per-cycle reduction claim.
-  TG20260923-071619-1a170e28:1141/103/405/611/21/debt31221, budgets fail;
-  all17release rows remain unknown. Frozen32paths unchanged after qualification.
-- **075 qualified**, build7c658283343d9adaca4105a5bb438828f67bf786664f79ab9fa13dc3e4ab5f84.
-  RF007 timeline receives events without binary frames. Native17/17 proves one
-  callback copy (red2), zero timeline image bytes and preserved source controls.
-  Four Go racepackages, UI560/29/types/build, workflow12/12 and original profiles
-  3reads pass; driver0741826/123 qualification remains source-identical. Receipt
-  frame-fanout-2026-09-23.json. Runtime+3,Go+2 (cumulative-97),TS unchanged.
-  TG20260923-074214-596bc818 fully consumed1140/103/405/610/21/debt31210,budgetfails;
-  all17release rows unknown. All075operations consumed; frozen12paths unchanged.
-- **076 live; scale propagation repaired, native geometry still failing**, build
-  9be7afbaea47455b7bfdf28e1884a7234a3868c6ec21c00e15509e66ccfdd688. Route58/3,
-  driver1836/123/types, workflow12/12 and originalprofiles3reads/APIequals075 pass.
-  NativeCSS56pass/7height failures; device46pass/17resize/pixel/geometry failures.
-  Later device wide/restored/recording-restarted cases pass. Cleanupcomplete.
-  Receipt preview-scale-2026-09-23.json. All076operations consumed, frozen9paths
-  unchanged. Runtime+8/scopedTS+5, Go unchanged(cumulative-97); no net cycle
-  simplification claim. TG20260923-081726-89c15d22 unchanged1140/103/405/610/21/
-  debt31210, budgets fail; all17release outcomes unknown.
-- **077 live and qualified**, buildaae1b4d070616993eb8c6e33f0b6b4af887c1fe8006a6a06113e3bf828f64dda.
-  SDKviewport joins existingcapturequeue; visiblecompositor applied afterwindow
-  sizing. BASvideooverride removed. Driver1842/123/types, native63/63eachCSS/device,
-  concurrentresize96samples, video55frames, workflow12/12 and originalprofiles3reads
-  pass. Receipt renderer-geometry-2026-09-23.json. Frozen6repo+2SDKpaths unchanged;
-  all077operations consumed. Net runtime-36 includingSDK, scopedcomplexity-2,
-  Go unchanged(cumulative-97). TG20260923-084020-f513a66b unchanged1140/103/405/610/
-  21/debt31210,budgets fail;17releaseunknown. DependencySDAadvisory44warnings;
-  no newsecurity/nativeOS/performance certification.
-- **078 live and qualified**, build98640f86390eacca95a1aadd209d761c32e6c162c05389e6f9576a6fbc97758d.
-  Canonical selected Page owns URL observation; three callback facades and
-  restored/action shadow state removed. UI563/29/types, native9/9 plus16/16
-  controls, workflow12/12 and profiles3complete original reads/APIequals077 pass.
-  Receipt address-bar-observation-2026-09-23.json; all078 operations consumed,
-  seven frozen paths unchanged. Runtime-69, scopedTS-25, Go unchanged(cumulative
-  -97). TG20260923-090156-7d8ffb29 unchanged1140/103/405/610/21/debt31210, budgets
-  fail; all17release outcomes unknown. History availability/attribution separate.
-- **079 live and qualified**, buildde7a18c584f79fc8920dc30b278c525bba832e196b0e15303b33bdac651a4f5f.
-  History reads retain immutable Session/page ownership and UI capabilities
-  initialize/reset with selected Page observations. Full driver1854/123,
-  UI567/29/types, four Go racepackages/build, native13/13 plus20/20, workflow12/12,
-  profiles3original reads/APIequals078 pass. Receipt history-read-ownership-
-  2026-09-23.json; all079 operations consumed,13frozenpaths unchanged. Runtime+86,
-  Go+18(cumulative-79), scopedTS+12; no per-cycle net reduction claim.
-  TG20260923-091701-f76b73b5:1143/103/407/611/21/debt31081, budgets fail;
-  all17release outcomes unknown. First native control's no-history assumption
-  disproved by actual about:blank entry; failed receipt retained.
-- **080 viewport ownership qualified, device streaming under load remains open**,
-  buildbb416759b29cb75a6d32e0ec097b231fb4f49effd2455cc72717fbbe01306e65.
-  Driver1867/123, UI574/29/types, four Go races/build, originalnative10/10,
-  CSS63/63, small/rapid63/63, workflow12/12 and profiles3original reads pass.
-  Initialdevice59pass/4fail retained:20timeout skips,10delivered frames; later
-  instrumented63/63 had no timeouts. RF007 remains actionable, no load-qualified
-  claim. Receipt viewport-ownership-2026-09-23.json. Frozen26paths unchanged,
-  all080operations consumed. Runtime-197,Go+14(cumulative-65),scopedTS+14;
-  no net complexity reduction claim. TG1145/103/408/612/21/debt31065 budgets
-  fail;17release rows unknown. Next081 investigates duplicate capture contention.
-- **081 live and qualified for preview admission**, builde1d69273e302a3e3d684f8bfa3360f90b6bc739603551c2790fb241f09b1c508.
-  One existingcache lifetime shares identicalpendingcaptures and fencesclear,
-  source/viewport/URLchanges andfailurecompletion. Driver1877/123/types,
-  nativeburst24/24, cachegeometry13/13, CSS/device63/63each, workflow12/12 and
-  profiles3originalreads pass. Receipt preview-capture-admission-2026-09-23.json.
-  All081operations consumed, frozen2paths unchanged. Six8-reader bursts:8->1
-  captures each, median367.6->95.4ms, timeoutskips5->0; localobservations only.
-  Runtime-53, scopedTS+6; Go unchanged(cumulative-65), no netcyclomaticreduction
-  claim. TG1145/103/408/612/21/debt31065 budgets fail;17releaseunknown.
-  Next082 investigates the actual capture qualification producer/contract.
-- **084 optional AI text repair qualified**, RF068. Livebuild
-  a00722acc3738c5f583c95a71125c60e75ca34710737bd775fa1631752c840a9;
-  deterministic contract checks and3/3first-attempt local-provider searches pass.
-  AI/AIservice races/build, workflow12/12/3effects and3originalprofile reads pass.
-  Frozen2paths unchanged, no pending operations. Runtime+2commentlines, Go13/5
-  functions unchanged; cumulative affectedGo-57. No simplification claim.
-  TG20260923-110732-83866f3a1147/debt31065stillfails,17releaseunknown.
-  Receipt ai-optional-text-2026-09-23.json. Next085 investigates saved/adhoc
-  completion polling and whether runner-owned completion can safely replace it.
-- **083 capture admission locally qualified**, RF104. Livebuild
-  2b8926339eefeabf65ba0d68ae8a2733f803874e24625c40b62a6b531ad0bd2d;
-  invalidnative requests reject before navigation,5/5 controls, DPR18/18,
-  workflow12/12/3effects andprofiles3originalreads pass.84APIshortpackages and
-  three Go race packages/build pass; full API live AI suggestion assertion remains
-  actionable RF068. Protovalidate1.3.0/CEL0.30.0 verified; failed083b never deployed.
-  100/100captures:servicep95=755ms,CLIp95=978.46ms(+5.64% versus082), shared-host
-  relative regression unqualified.300PNGs still duplicated. Frozen083c unchanged.
-  Security19errors/358warn/401info; CEL advisory removed. Tidiness1147/debt31065
-  fails. Runtime+16,Go+4/cumulative-57, no simplification claim. All17unknown.
-  All083operations consumed. Next RF068 optional-text response handling; capture
-  CLI timing and duplicate artifact policies remain active investigation targets.
-- **082 live, explicit capture scale qualified**, build97d9526edbcc4e3733b2983da733f2916f1179808971fb388452284933a35382.
-  Capture API nowhonors explicitDPR throughcloned existingprofile, preserves
-  omittedpolicy/otherfields. Capturepackage/threeGoraces/build, native18/18,
-  workflow12/12 andprofiles3originalreads pass; driver081/UI080checksretained.
-  Local100/100firstattempt1280x720DPR1captures plus1warmup pass:servicep95=755ms,
-  order-statistic95%interval754–771ms; CLIp95=926.20ms. Localtargetmet; nofull
-  release/sensorqualification. Receipt capture-device-scale-2026-09-23.json.
-  All082operationsconsumed, frozen2paths unchanged. Runtime+13,Go+4(cumulative
-  -61),TSunchanged; no netsimplificationclaim. TG1146/103/409/612/21/debt31065
-  budgets fail;17unknown. RF016duplicateintermediatecapture and publicconstraint
-  enforcement stilloweproof. Nextadversarial angle: captureadmission contracts.
-- Qualified070 passive tabmetadata removesLinkPreviewBotdocumentfetch; driver1816/123 with2tests/1suite skipped remains valid because071/072didnotchange driverTS. Receipt passive-tab-metadata-2026-09-23.json. Noolderpendingoperations.
-- Qualified069: RF099 page-bound navigation/history, stale API commands409/noeffects,
-  UI lifetime cancellation and no Red->Blue->Red replay. Native17/17,24/24,23/23;
-  UI526/types,driver1808/123 with2tests/1suite skipped,four Go races/build;
-  saved workflow12/12 threeeffects execution37dbce86-2f27-46a9-a20c-8cec78c7cb27,
-  artifact/tmp/bas-recording-e2e-XPqkQl. Profiles3complete reads equal rollback.
-  Receipt page-bound-navigation-2026-09-23.json. No older pending operations.
-- Qualified068 observation/command URL separation and creation callback gap;
-  qualified067 viewer API WebSocket/owned bounded decode/paint, obsolete direct
-  listener removed. RF064 overall TS/JS owner measurement remains open despite
-  valid scoped supplement. No overall performance/coverage qualification inferred.
-- Open: RF038 frame source page/lease identity, callback retry/journal generation;
-  RF007 redundant frame fanout/slow readers; input ordering, profile reuse, recovery/
-  durability, evidence, execution orphans, performance, native platform/UX, coverage
-  and security/package warnings. Shared TG042 full API conformance remains unknown
-  after provider/CodeFacts timeout; recheck on owner/runtime change.
-- Original HEAD7d1c7531d057c061c5ad5a67fbecb97ebe2eb194; original33/121probesmet.
-  Preserve unrelated shared-tree changes and original saved-profile rollback.
+- **Overall:** materially improved, not production ready. The current board has
+  one qualified outcome (capture) and 16 unknown outcomes. Recovery, durability,
+  concurrency/soak, complete journeys, platform qualification, UI and debt remain open.
+- **094 conditional repair qualified locally:** healthy managedbuild52b39732df53c8c3bb7c8a246a666ca97a11f837defda13545923389cb5851dd. RF112/115/116 repaired: typed browser/variable conditions, matching-only branch routing, frame admission and retained/exported condition results. Native17572 passes53/53;175driver tests, driver/UItypechecks,10-package and final5-package Go races/APIbuild pass. Original protected profile28445 equal3reads. Initial and second7/53failed receipts retained. Durable evidence: internal/evidence/rehabilitation/conditional-semantics-2026-09-23.json.
+- **094 qualification:** PHb1e6f95ba344b94458ee19f1a4c8b2c2 passes100/100+1warmup,427msservice/610.723788mswallp95. Board1qualifiedcapture/16unknown/productfalse. TG20260923-163006-94c734ad terminalFAIL: performancepassesexactPH,tidinessfails1157findings (104long/422complexity/607dup/23coupling/debt34644).332frozenpaths unchanged through terminal. All operations consumed; no pending owner run.
+- **094 cost:** affectedruntime12554->12662(+108),GoCC1794->1810(+16),functions296unchanged,max50unchanged; scopedTSCC241->267(+26),functions110->115,max31->32. CumulativeGo+335. Capability/evidence repair does not claim net debt reduction. Existing worst hotspots remain open.
+- **095 status authority repair:** RF117 faultmatrix reproduced effects after failed runningwrite and false completion after failedterminalwrite; fixed by one WorkflowService finalization owner and durable running admission. Removed unusedMarkCrash and writer status/read repository methods plus no-op implementations. Scopedruntime-76,GoCC-4,functions-2; cumulativeGo+331. Five-package race76433, finalworkflowrace51810 andAPIbuild31165 pass. Panic propagates afterfailedreceipt andcleanup; compilefailure gets committedfailednotification.
+- **095 live verification:** healthyb92db9cfbf434a85d6c9d7f69ed2c29624723c4afaec9a01ba3ea4912ed85953 afterrestart75581. Native67312 passes12/12 maintained recording/savedworkflow/cleanup cases; profile32808 equal3reads.339frozenpaths unchanged. PH1d722c86882de4f527ffe518028892a2 passes100/100+1warmup,499msservice/756.742401mswallp95; board1qualified/16unknown. Initialwallp95+23.9%versus094 needs repeatedquiescentcohort before attribution.
+- **095 terminal qualification:** TG20260923-164451-777d257b performancepassed/tidinessfailed1159(104long/424complexity/607dup/23coupling/debt34644). RepeatedPH4011fc450443324647b1e5a1dec1fe89 passes100/100,469msservice/681.528072mswallp95,latestboard83132 still1qualified/16unknown. All095operations consumed;339paths unchanged. Relative slowdown versus094 remains RF016 unresolved; no causal/regression clearance. Mostextra time lies outside individualactions; nextdiscriminator is correlated admission/session/finalization/CLI timing, not anotheridenticalcohort.
+- **096 profile checkpoint candidate:** RF118 stale/cancelled captures now fenced by active binding identity; periodic snapshots use the same service transaction. Five affected packages pass race (56066); confirmed API build64700 passes. Automatic capture runs every2s with2s browser-I/O deadline, joined shutdown and freshness health; ambiguous shared-profile writers explicitly degrade. Freeze /tmp/bas-frozen-owner-096.json has 344 paths. Managed restart and native checkpoint/restart recovery checks are next; no096 owner qualification yet. RF011 hard-crash/shared-profile recovery remains open.
+
+- **Deployed assertion repair 093:** BAS API/UI build
+  `553bc332c8acced00a3ff95cdcf1035047b910e8ed918b05fa350a70c9e9373d`;
+  API/UI/driver healthy after managed restart3717 (exit0). RF113's eight assertion
+  modes now honor negation, case sensitivity and custom mismatch messages while
+  preserving evaluator errors. Removed obsolete aliases/regex paths and duplicate
+  state/comparison methods. Canonical enum fixtures replace six false-positive tests.
+- **093 proof:** 93/93 focused tests, typecheck95071, native81086's 58/58 public
+  capture cases and independent branch effects pass. Timeline preserves assertion
+  fields. Original protected profile60996 compares equal to rollback in all three
+  reads. One original profile, not three profiles.115 frozen paths unchanged at
+  native qualification: `/tmp/bas-frozen-owner-093.json`.
+- **093 capture:** PH41914 completed, operation
+  `93ba0c644d6f91e5cbe53d47de3a35af`;100/100 first attempts plus one warmup,
+ 447ms service/650.217134ms wall p95, within2000ms. Producer/config/contract/fixture
+ identities unchanged. Board63711 completed: capture in band,16 unknown, product
+ readiness false. The 7.9% wall increase over092 is one shared-host observation;
+ it does not establish a relative regression or improvement. Recheck with repeated
+ comparable quiescent trials when attributing performance.
+- **093 qualification terminal:** Test Genie `20260923-153329-f6718ff3`
+  failed overall: performance passed with the exact current PH receipt; tidiness
+  failed with unchanged totals. Admission29795 and sole wait74692 consumed.
+  All115 frozen paths unchanged through093 terminal; its operations are consumed.
+  Durable evidence: `evidence/rehabilitation/assertion-semantics-2026-09-23.json`.
+- **Debt:** assertion owner runtime net-269 lines; scoped installed ESLint
+  complexity58→44, functions10→4, maximum27→22. This is a narrow reduction;
+  domain-wide TS metric RF064 remains unknown. Cumulative scoped Go delta+319,
+  including the new090 qualification capability.092 tidiness still fails:
+ 1157 findings/104 long files/421 complexity/608 duplication/23 coupling and
+ 34644 duplicated-line debt. New compiler test length and topology complexity
+ findings remain open; no threshold changes or fixture relocation.
+- **Retained dated checks:**092 graph boundaries/loop postludes and V2 edge labels
+  pass focused race/native checks.091 full API/CLI/driver tests and UI typecheck
+  passed; UI coverage failed its85% floor (30.42/33.57/67.16/30.42), with existing
+  TabBar projection drift,79 low-coverage and two injectable-seam findings.
+  These are dated results, not a fresh complete093 suite.
+- **Next:** RF112 conditional actions remain unsupported. Read-only tracing confirms
+  page-JavaScript/element predicates belong in the driver; variable comparisons
+  belong to the Go execution store. Existing typed condition evidence is not wired
+  across the driver boundary. Preserve exceptions as failures, actual frame/store
+  ownership, exact branch selection and ordinary evidence/checkpoint paths.
+  Recall60134 is already retained.094 implementation is in progress; see latest history.
 
 ## Record format
 
@@ -6357,3 +6282,1198 @@ runnerforwardingwrappers withone manualExecuteWorkflowcaller; directthatcaller
 totheexistingcanonicalstarteranddeletebothobsoleteforwarders, preservingflat
 parametersin@store/ andmanualasyncstatus. Addexplicitmanualasync/parametercontrol.
 No newpolicy, no publicmanual APIremoval. Stillbeforefinalsourcefreeze.
+
+FB013 capturedverbatim andoverallstatusanswered; userreaffirmscontinuation.
+085 source manualcallerconversion/deletedforwarders applied; followingtestpatch
+failedcontextmatchingbeforeanytestmutation, so finalpackagecommandwasnotadmitted.
+Resume exacttestedit againstcurrentone-lineclosure, thenfocusedchecks/freeze.
+No owneroperationspending;085notyetdeployed.
+
+085 final focused/package77443 consumed0, includingmanualasyncandflatparameterpreservation. Frozen3paths /tmp/bas-frozen-085.json beforequalification. Runtime-15,affectedGo-4(cumulative-61),functions-1. Both250mspollcopiesandtwoobsoleteprivateforwardersdeleted; no newregistry/worker/dependency. Existing800line/higharityrunner remainscohesiondebt; do notclaimbroadarchitecturecompletion. NextthreeGo racepackages/build,managedrestart,nativeworkflow/captureandcomparable100trialcohort.
+
+085 race/build69786 consumed0: workflow, capture and executor race packages pass,
+Go build succeeds. Tidiness44880 admission1, exact20260923-113433-a7dc6121;
+one quiet wait admitted. Board/contract/inventory15333 consumed0; 17 outcomes
+remain pending_telemetry. Managed restart83123 admitted; no source edits after
+freeze. Next native workflow, preserved profiles and capture controls/cohort.
+
+Read-only next-boundary recall22377 consumed0 (69hits/10corpora; providers degraded).
+Execution snapshot writes and index updates are currently ignored by the runner.
+HydrateExecutionProto explicitly makes the DB index authoritative for lifecycle
+fields, so a stale optional snapshot alone does NOT prove a stale API status.
+Inspect required versus optional persistence and terminal event publication before
+selecting a repair; no086 product source changes while085 is qualifying.
+
+085 Test Genie run20260923-113433-a7dc6121 is fully consumed: one quiet wait1,
+artifact catalog/fetch/decode0. Tidiness1149 findings/103long/411complexity/
+612duplication/22coupling/debt31060; budgets still fail. This is a shared-tree
+reading, not all attributed to085. Scoped runtime complexity190->186 and
+15lines removed are separately measured. No board row qualified.
+
+086 read-only discovery found a more concrete durability hypothesis: fresh
+runner replaces the admission snapshot twice with lifecycle-only protos, while
+ExtractCheckpointState depends on its WorkflowVersion and Parameters. That
+would erase resume inputs and bypass the workflow-version check. DB lifecycle
+fields already override snapshots in HydrateExecutionProto. Reproduce through
+the actual public saved execution and checkpoint reader after085 native/cohort
+finishes; do not build a new merge/compatibility layer without checking single
+ownership. Resumed execution also drops parent routed context (separate gap).
+
+085 restart83123 consumed0; API/UI healthy with build
+0e25ce034a87510303b5aff6c083118380fb3e9b0f825d8a707113e004cec1db,
+driver healthy/0sessions. Three frozen paths unchanged. Native workflow12412,
+profiles40256, admission/DPR controls10500 admitted; wait for these before the
+sequential100capture performance cohort. Durable execution-completion receipt
+created with current pending IDs; no086 edits yet.
+
+085 native workflow12412 consumed0:12/12 checks,3effects, execution
+ d0a7835c-ee13-4da5-ad8a-7e22b75bf577, /tmp/bas-recording-e2e-HXgCYx.
+Profiles40256 consumed0:3fulloriginalreads/APIequals084. Capture controls10500
+consumed0: admission5/5 andDPR18/18. Cohort56114 now owns100 first attempts plus
+one declared warmup; no other native browser workload admitted by this agent.
+
+085 cohort56114 consumed0:100/100 first attempts plus one declared warmup, no
+retries. Servicep50=537/p95=577/p99=584/max590ms; CLIp95=780.92ms. Relative to083,
+servicep95 is23.58% lower and CLIp95 is20.19% lower; shared-host applicability
+limits retained. Success exact95% interval[0.9637833,1]; conservative p95 interval
+[572,590]ms assumes IID. Raw receipt SHA256
+36b0d593ba38249113914e44cfdaf125c9d2b2d8e637da289bed9c5b4024ad78.
+300PNGs/100trees/4,840,400bytes retained, geometry/DOM/artifact checks unchanged.
+Durable execution-completion receipt holds compact references for all101trials.
+All frozen085 paths unchanged; all owner operations consumed. RF105 locally
+qualified; no release row qualified or overall completion claim.
+
+## BAS-WORK-086 — 2026-09-23 — execution admission metadata
+
+Feedback reread;085 has no pending operations. Recall22377 already consumed.
+Hypothesis: lifecycle-only writes erase immutable admission parameters/trigger/
+workflow version, breaking resume and its version guard. Manual and ad-hoc paths
+also omit admitted parameters. Separate admission fault hypothesis: ignored
+snapshot-write errors allow browser effects with no recoverable input receipt.
+Discriminator: actual saved/manual/ad-hoc methods with blocked executor, disk
+snapshot and public hydration/checkpoint reads during/after execution; real
+filesystem failure must reject before runner effects. Resume is a preservation
+control. Baseline six paths /tmp/bas-before-086/manifest.json. No runtime edit yet.
+Possible owner repair: one admission metadata commit, DB index alone owns changing
+lifecycle fields; remove destructive repeated snapshots rather than add merge
+rules. Confirm observed failures and consumers before selecting implementation.
+
+086 red6859 consumed1: six saved/manual/ad-hoc metadata cases fail during running
+and terminal states, plus three actual filesystem-failure admissions start the
+runner. RF106 registered; architecture target written before runtime edit.
+Selected owner repair is one immutable admission commit shared by all four
+callers, with lifecycle-only replacements removed. Existing api-core atomic
+writer supplies fsync/rename without a new dependency or private writer. Keep
+metadata after index errors because commit outcome may be uncertain; no unsafe
+rollback or effect retry. Resume context/terminal publication are separate limits.
+
+086 first green command failed only unused imports after deleting lifecycle
+snapshot writes; fixed imports, retained /tmp/bas-execution-metadata-green-086.txt.
+Green2 and four packages40940 consumed0. Added immutable-byte, actual resume/version
+rejection and index-error preservation controls; final workflow suite consumed0.
+Baseline runtime overlay with current tests proves additional version-guard and
+index-failure assertions fail on the retained old source (extra-red receipt).
+All four admission callers now use createExecution; no direct index-create or
+snapshot-update bypass remains in workflow services. Existing atomic writer used,
+inputs0600, no new dependencies. Frozen six paths /tmp/bas-frozen-086.json.
+Runtime2892->2825(-67), Go540->530(-10),65functions unchanged; cumulative affected
+Go-71. Snapshot commit complexity17->8; large runner still55. New shared storage
+import replaces local manual temp/rename implementation, not debt export.
+Next four Go race packages/build, managed restart, native recovery metadata,
+workflow/profile/capture controls and same100capture cohort to check file-sync cost.
+
+086 four race packages/build66120 consumed0. TG88791 admission1 exact
+20260923-114840-ca7d52ce; one quiet wait1/catalog/fetch/decode0 fully consumed.
+Board/contract/inventory74993 consumed0;17outcomes pending_telemetry. Tidiness
+{"totalFindings": 1152, "longFiles": 103, "complexity": 413, "duplication": 612, "coupling": 23, "duplicationLineDebt": 31060}; budgets still fail. Native old085 producer20124 consumed1:
+12controls pass, metadata check fails (resolved version absent). Execution
+4f51597f-819e-4dd4-84b5-50493b75af82, /tmp/bas-recording-e2e-XbU0YU; exact fixture
+resources cleaned, producer/receipts retained. Managed086restart now admitted
+only after native baseline cleanup. Six frozen paths unchanged. No further edits.
+
+086 restart48766 pending; no product changes after freeze. Durable execution-
+admission-metadata receipt includes exact source and all current evidence/IDs.
+Read-only087 recall94483 consumed0. Resumed starter and persistence context both
+use Background, unlike the canonical fresh runner; test isolation metadata may
+be lost. Executor also uses StartFromStepIndex>0, potentially repeating completed
+step0. These are hypotheses requiring actual request/executor tests; no087 edits.
+
+087 temporary overlay probe22791 consumed1 due to missing required event sink;
+producer error, not product evidence. Added the ordinary MemorySink to the probe
+and reran only this discriminator; no tracked source changed. Candidate086
+remains frozen. Retain both /tmp/bas-resume-checkpoint-red[-2]-087 receipts.
+
+087 corrected temporary overlay consumed1 with genuine assertions: three fail
+(linear/after_zero,graph/after_zero,graph/after_one), three fresh/flat controls pass.
+Actual public executor and independent fake-engine invocation log, no browser.
+RF107 registered. Compiler always supplies graph for ordinary V2 workflows, so
+repairing only the >0 flat check would leave the main public behavior broken.
+Need recoverable graph cursor/continuation semantics; do not merely skip all lower
+static indices across branches/loops. No087 source change or qualification yet.
+
+086 restart48766 consumed0, healthy API/UI/driver,0sessions, build
+6bda665924ee0f708d0a7afbdddf5c1e2823ac5449451765b69b7748bd64ff46.
+Native68445 consumed0:13/13 checks,3effects, preserved inputs/version/trigger;
+execution b37d2a5b-74ea-44b7-9ebf-fb1d56974ead, /tmp/bas-recording-e2e-vCLNhC.
+Profiles10811 consumed0:3original full reads/APIequals085. Capture controls63489
+consumed0: admission5/5,DPR18/18. Same100capture cohort22660 now pending after
+all other native workload finished; producer source/fidelity unchanged except
+cycle/output/frozen identity. No087 product edits while this candidate qualifies.
+
+086 cohort22660 consumed0:100/100 first attempts plus one warmup, no retries;
+servicep50=541/p95=586/p99=594/max595ms; CLIp95=787.58ms. Versus085 servicep95
++1.56%, CLIp95+0.85%; shared-host sequential comparison does not qualify causal
+performance. Conservative p95 interval[582,595]ms assumes IID;100success exact
+95% interval[0.9637833,1]. Raw receipt SHA256
+5888f20d21ea5f4678ab9fc55bb0fbb0045fff3c991f17e5de06ea93b275e066.
+300PNGs/100trees/4,885,800bytes; same geometry/DOM/artifact checks. Durable receipt
+holds all101compact owner references. Six frozen paths unchanged. No pending
+operations. RF106 locally repaired, not full recovery certification: RF107 repeat
+risk, missing resume context/lineage, historical erased inputs, uncertain DB
+commit reconciliation and power-loss durability remain explicit.
+
+## BAS-WORK-087 — 2026-09-23 — checkpoint continuation without repeated effects
+
+086 fully consumed, feedback reread. Native87122 consumed1 on086: five controls
+pass, resume reports COMPLETED but repeats the independently logged effect2times
+(expected1). /tmp/bas-resume-effects-087-kId0BY, executions
+79681996-c5a2-4088-8757-9722d7845f4d and41bfa826-9142-4725-8137-df5128e9a175;
+exact fixture data cleaned. Native producer /tmp/browser-automation-studio/
+resume-effects-native-087.mjs. Confirms actual public V2 graph path, not only a
+synthetic flat instruction route. Baseline nine paths /tmp/bas-before-087.
+Architecture target written before repair: explicit optional checkpoint, resolve
+flat order or deterministic graph successor before setup effects; reject a scalar
+checkpoint when branch/loop/subflow cursor is required. Do not silently replay or
+pretend all recovery is solved. Rich cursor/state, context and lineage remain open.
+
+087 candidate: explicit ResumeAfterStep pointer replaces every StartFromStepIndex
+caller; no compatibility branch remains. runPlan resolves an ordered continuation
+before tab/entrypoint setup. Graph execution receives that exact starting node;
+full plan identities/evidence retained. Missing/ambiguous/cyclic/branched/loop/
+subflow scalar recovery fails explicitly before effects, while fresh branching
+still runs. This leaves rich cursor recovery open instead of replaying from root.
+
+First green command found one accidentally added argument in an unrelated test
+call; fixed before testing. Focused/package11893 consumed0. Extended controls
+found duplicate flat checkpoint IDs still admitted; fixed with explicit ambiguity
+rejection. Final controls/packages9533 consumed0. Retained failed producer/build
+and intermediate behavioral receipts; no source hidden. Eighteen new controls:
+six zero/end/fresh, two actual-order, nine invalid/ambiguous, one fresh branching.
+
+Frozen nine paths /tmp/bas-frozen-087.json. Runtime4043->4092(+49), scopedGo777->
+799(+22),118->119functions; cumulative affectedGo-49. No per-cycle simplification
+claim. resumeStart complexity19 is one bounded deterministic-path qualification
+algorithm (format choice, identity uniqueness, edge validity and cursor need),
+not a general state engine; splitting it merely to lower a metric was rejected.
+runPlan34->37 and remaining>500line modules retain structural debt. Exact tests
+and explicit errors are necessary but do not satisfy the overall debt goal.
+Next four Go race packages/build, managed restart, exact native repeated-effect
+probe, metadata/workflow/profile/capture controls. No dependency/driver/UI change.
+
+087 four Go race packages/build36196 consumed0. TG38730 admission1 exact
+20260923-121205-0249b134, one quiet wait and artifact catalog consumed1/0;
+fetch/decode still owed. Board/contract/inventory54910 consumed0. Managed restart
+admitted after freeze. No087 new capture cohort: fresh execution path is preserved
+and focused native controls cover it; retain086 performance scope without claiming
+new load certification. Exact repeated-effect native producer is the release
+check for this intervention, along with metadata/workflow/profile controls.
+
+087 Test Genie fully consumed:1153findings/103long/414complexity/612duplication/
+23coupling/debt34310, budgets fail. The +3250 debt is attributable to one existing
+clone group changing structural->high-leverage:65->66locations, reported block
+length9->25, with58exact location spans shared. Touched test-call sites belong to
+that group. This is not evidence of3250new source lines; it is the owner's current
+classification/debt result and is retained without suppression. Attribution report
+/tmp/bas-tidiness-duplication-attribution-087.json. Need inspect measurement policy
+before deciding whether the threshold/representative-span behavior is a defect.
+
+088 read-only temporary overlay confirms resumed-context loss: actual
+ResumeExecution admits a record, then runner reads outside the routed test
+context, never invokes executor and leaves CompletedAt absent. One wrong read,
+/tmp/bas-resume-context-red-088.txt. Existing recall94483 covers this investigation.
+No088 tracked source edits. Candidate087 restart28200 remains pending; all
+qualification and native follow-ups must use the frozen087 source.
+
+087 restart28200 consumed0, healthy API/UI/driver and zero sessions before probes.
+Build0c05266d1bc33ba6c0b0fe53bdc56f2b32fcfd755f51fb1d559e76fae17e836d.
+Native resume28324 consumed0:6/6, exactlyoneeffect (oldtwo), execution IDs
+84f658c7-ffaa-42ba-9726-c3475a001734 /51b2995d-e3ed-4dc8-a86f-56c24e95b781,
+/tmp/bas-resume-effects-087-aLKrWN. Workflow metadata69079 consumed0:13/13,
+3effects, execution6361e0dd-20f2-487c-a30a-ff494c2960ec,
+/tmp/bas-recording-e2e-Eo9vem. Profiles79493 consumed0:3full original reads and
+APIequals086. Capture34579 consumed0: admission5/5,DPR18/18. Exact fixture
+resources cleaned; receipts retained. All nine frozen paths unchanged, no pending
+operations. Rich control-flow resume remains explicitly unsupported by a scalar
+checkpoint; full recovery and all17 release outcomes remain unqualified.
+
+## BAS-WORK-088 — 2026-09-23 — one execution owner for resumed work
+
+087 fully consumed, feedback unchanged. Reuse recall94483. RF108 actual-service
+red /tmp/bas-resume-context-red-088.txt proves the private resumed runner loses
+routing and leaves its index pending. Select complete owner replacement: resume
+prepares the canonical saved execution request with original settings, recovered
+store and parameter overrides; options carry checkpoint/origin. Delete private
+resumed starter/runner, preserve canonical context/header/stop/artifact ownership.
+Source inspection also proves InitialVariables is written only by that retired
+caller and duplicates InitialStore; remove the extra request state layer while
+preserving plan-variable defaults and params/env. Missing workflow revision must
+not silently resolve current code. Architecture target written; baseline eight
+paths /tmp/bas-before-088. No088 runtime edit yet; live remains087.
+
+088 candidate uses saved-workflow admission and its canonical runner for resume;
+private resumed starter/runner deleted. Full original settings are cloned before
+namespace/URL overrides; public hydration exposes lineage. Missing workflow
+revision rejects before admission. InitialVariables removed: its sole retired
+caller duplicated InitialStore; one state seed retains plan defaults overridden
+by explicit store, with unchanged params/env. NewFromStore previously called
+New(seed,nil,nil), confirming identical semantics for absent namespaces.
+
+Maintained original context regression fails on087 and passes on088. Extended
+baseline overlay /tmp/bas-resume-preservation-baseline-red-088.txt demonstrates
+lost settings/lineage, both routed completion/stop failures and guessed missing
+revision. Green /tmp/bas-resume-preservation-green-088.txt. One intermediate test
+mistakenly expected reserved resume_url in workflow params; corrected the oracle
+and retained failed receipt. The prior package run32091 is consumed: five packages
+pass; no process remains. Canonical four cleanup outcomes retained once instead
+of duplicated private-runner cases; actual ResumeExecution has independent checks.
+
+Frozen eight paths /tmp/bas-frozen-088.json: runtime3370->3243(-127), Go616->603
+(-13),85->83functions; testlines693->804(+111), cumulative affectedGo-62.
+SimpleExecutor.Execute37->26 eliminates duplicate state policy. Canonical runner
+55->56/admission25->27 retain existing complex ownership; no wrapper extraction
+or broad maintainability claim. Both >500line modules still owe simplification.
+Five Go race packages/build51456 pending. Test Genie tidiness and board/contract/
+inventory admitted after freeze; exact IDs must be recovered before any new run.
+Live remains087; no088 native claim yet.
+
+088 five Go race packages/build51456 consumed0; board/contract/inventory58797
+consumed0,17rowsunknown. TG89589 admission1, exact20260923-123257-96956a92,
+one quiet wait terminalFAIL and artifact fetch/decode consumed. Current findings
+1151/103long/414complexity/610duplication/23coupling/debt34310; two fewer clone
+findings, unchanged measured debt. Existing budgets fail without suppression.
+Managed restart85660 pending. Planned native088 adds original browser-header,
+artifact settings and lineage assertions to087 independent repeated-effect check.
+No new100capture cohort: retain086 dated performance, no new load claim.
+
+088 native qualification complete on build55d6245c38055cff076175a7901e6aaa56bef97e03a2cd2a14ab5845ad06f630.
+Resume55764 consumed0:7/7, exactlyoneeffect, browser header observed independently
+on resumed request, artifact settings/parameters/lineage retained. IDs
+c52b436c-e21e-4b25-aa26-562ff757d03b/e423697e-e25c-4dfc-92b5-8b61f6736304,
+/tmp/bas-resume-effects-088-h0ape2. Metadata/workflow43883 consumed0:13/13,
+3effects, executionf4dfae57-364e-49df-9c99-a3f23e0ca791,
+/tmp/bas-recording-e2e-bPMkwA. Profiles/health36312 consumed0:3original full reads,
+APIequals087, API/UI/driver healthy. Capture49741 consumed0:5/5admission and
+18/18DPR. Fixture-owned resources cleaned exactly, evidence retained. Eightfrozen
+paths unchanged; no088 operations pending. Durable receipt resume-owner-2026-09-23.json.
+Next089 independent store-mutation reproduction admitted only after088 native
+qualification; source remainsfrozen088 until its conclusion.
+
+
+## BAS-WORK-089 — 2026-09-23 — recover actual completed store state
+
+Feedback unchanged,088 fully qualified/consumed. Recall42869 consumed0,
+/tmp/bas-checkpoint-state-recall-089.txt; discovery yields existing architecture,
+BAS skills and programs, no replacement state owner. Native87624 consumed1 on088:
+/tmp/bas-resume-state-native-red-089.txt, /tmp/bas-resume-state-089-dp2fS2. Original
+request token=updated; resumed token=original despite COMPLETED and exactlyone
+external effect. NewRF109. Existing recovery reconstructs a presentation preview
+and ignores set_variable/named-store semantics and disabled extraction. Target
+architecture written before runtime changes; explicit durable cursor+store via
+existing execution writer, strict readback, no historical guessing. No089 source
+edit yet; preserve frozen088 qualification. Crash-window/external-effect atomicity
+and rich control flow remain outside the bounded claim, not marked passed.
+
+089 baseline13paths /tmp/bas-before-089 (new private checkpoint owner file absent
+before). Extended boundary includes flow_utils.go: maintained expected-value test
+proves typed Evaluate.store_result is ignored, RF110. Initial producer used Edges
+instead of actual Outgoing and a slash instead of nested dot path; retain those
+build/oracle errors, then corrected baseline overlay11340 consumes1 with8genuine
+failures:4extract missing checkpoint and4evaluate missing next-step input.
+Architecture includes both typed result-key sources. Current checkpoint writes
+and reader replacement are in progress, not frozen/deployed. A partial edit
+script stopped before executor conversion; retained build failure, then completed
+conversion. No live changes since088. Full failure/identity/cursor tests and
+qualification remain owed.
+
+089 focused88182 and six-package90147 consumed0. Owner review catches an
+important RF110 contract distinction before freeze: driver evaluate returns an
+envelope {result: scriptValue}; the declared stored value is scriptValue, while
+extract keeps its structured payload. Converted the duplicated flat/graph store
+assignment to one typed policy, including scalar/null/nested controls, and removed
+actionStoreResult. Baseline extends to14paths including flow_utils_test.go.
+Native evaluate fixture prepared alongside the original set-variable fixture.
+
+089 contract94905 consumed0: executor/writer/workflow and AI seams. Native RF110
+producer43406 consumes1 before effects: ExecuteWorkflow HTTP500/context deadline,
+not the RF110 expected-value assertion. Retained /tmp/bas-resume-evaluate-089-UnF9P2.
+Follow-up health reports9active sessions; runtime logs show a separate ongoing RCL
+preview capture workload (workflow99f8ccb9-46ff-405c-ab7d-a41f85cf74e4),10-session
+resource limit and repeated30s waits. Do not call this a valid behavioral red or
+infer our fixtures leaked. Need recover this timed-out fixture's admission and
+cleanup receipt if any; its project/workflow were already removed by producer.
+Discovering isolated managed validation to avoid contaminating shared workload.
+No repeated native admission or restart yet; original set-variable native red and
+maintained eight-case baseline remain valid.
+
+089 frozen14paths /tmp/bas-frozen-089.json. Runtime5338->5339(+1), test2382->
+2591(+209), scopedGo1023->1029(+6),167->168functions, cumulativeaffectedGo-56.
+No cycle-level net debt claim. Private checkpoint owner replaces preview guesses
+and progress-only rewriting; flat/graph assignment share one typed owner. Existing
+large writer remains complex (appendProtoTimelineEntry44->50 due restored progress
+ownership); checkpoint reader19 is one admission/evidence join, not a new engine.
+Six race packages/build39078 pending; first five pass, render pending. AI seam
+race included afterward. TG57818 admission1 exact20260923-125351-c28e8362;
+one quiet wait/artifact retrieval admitted. Board84642 consumed0,17unknown.
+
+Managed validation discovery /tmp/bas-isolated-validation-discovery-089.txt and
+control-plane help expose named instances. api-core storage/database explicitly
+isolate directories/SQLite/Postgres per variant. Select browser-automation-studio@
+rehab089 for candidate qualification while shared live088 serves RCL traffic.
+This adds no private lifecycle implementation or dependency. Do not claim live089
+deployment from the isolated candidate. Preserve actual live profiles and the
+inconclusive RF110 native timeout. Exact timed-out admission cleanup still owed.
+
+089 race/build39078 consumed0: six full race packages, AI seam races and APIbuild.
+Test Genie wait/artifact decode fully consumed:1149/103/414/608/23/debt34399,
+budgets fail. +89debt attributable to existing clone group+100 (66->68locations)
+and removed11-line clone; shifted IDs otherwise cancel. Attribution retained at
+/tmp/bas-tidiness-debt-attribution-089.json. No suppression or net debt claim.
+
+Isolated start89069 consumed1: control plane refuses rebuild while another variant
+serves shared build outputs. No private launch or overwrite attempted. Read-only
+reconciliation across five execution pages reached the failed probe's time window
+and found no non-RCL admission. Because workflow cleanup may cascade index rows,
+this does not prove no orphan file; no matching artifact/ID authority established
+and no broad cleanup performed. The probe recorded no external effects.
+
+Subsequent driver observation reports0sessions/0recordings after the RCL workload
+ended. Use existing FB010 authority for managed live restart; no additional approval
+or isolated-source workaround. Candidate remains frozen14paths. Native recovery,
+evaluate, ordinary workflow/profile/capture checks and comparable100capture cohort
+remain owed; new per-step private writes justify the performance recheck.
+
+089 restart26074 consumed0; live API/UI build
+3cca76b109ecb96b1a2fdd875ec4a2f1b124543a2642d6f990a37b00f4aa7203,driverhealthy.
+Native92880 consumed0: set-variable6/6 (/tmp/bas-resume-state-089-IT8vm5,
+73914986-eaf7-4f3c-bb66-2dca10e5908b/51b273e2-2a2e-46a7-97f8-dcc25ab48eec),
+evaluate6/6 (/tmp/bas-resume-evaluate-089-EdsXxK,
+b118b09d-1089-4b3c-87da-5a71b598d066/25410c4d-ab67-40c2-abfa-5844043e9182),
+settings/lineage7/7 (/tmp/bas-resume-effects-088-MSuo3p,
+d3069edd-dd8b-483d-8934-c8bb4d28ae9c/50906b2b-098a-4d8a-8c0d-19f98e75035b).
+Each fixture has exactlyoneeffect and preserves updated resume inputs; own resources
+cleaned. Profile/health87884 consumed0:3original reads/APIequals088. Metadata/
+workflow and capture controls73518 pending;100cohort prepared but not admitted.
+No source edits after freeze. RF110 old native timeout remains inconclusive;
+maintained baseline four evaluate failures provide its valid red evidence.
+
+
+089 metadata/workflow/capture73518 consumed0:13/13workflow,3effects,
+execution6d2662b5-f192-4440-bd89-77877b96a0d0,/tmp/bas-recording-e2e-iSxqpS;
+admission5/5,DPR18/18. Cohort35602 consumed0:100/100firstattempts+1warmup,
+no retries; servicep50=553/p95=593/p99=625/max633ms,CLIp95=777.933ms.
+Versus086servicep95+1.19%,CLI-1.22% observed, not causal qualification.
+Conservative servicep95interval[587,633]ms,CLI[754.37,864.13]ms assumingIID;
+success exact95%interval[0.9637833,1]. RawSHA
+7e12602e725f047fc88eddffb7d2de9d2176ef5de76f61accfb3ae4f7953b387.
+Same300PNGs/100trees, fidelity unchanged, no other driver sessions at start.
+All14frozenpaths unchanged. Durable checkpoint-state-2026-09-23.json includes101
+compact owner references, allfailed/intermediate evidence and scope limits. No
+pending089 operations. Original profile data preserved; no broad release claim.
+
+Next090 read-only qualification investigation: current capture workload meets
+its <=2s numerical band, but all17 board rows remain hardcoded pending_telemetry
+because owner qualification/governed reads have not been implemented. Recall33247
+consumed0, /tmp/bas-capture-qualification-recall-090.txt. The existing Performance
+phase owns build/Lighthouse/budget gates, deliberately excludes in-gate interaction
+capture, and reads flow audit samples. Investigate promoting the proven native
+cohort into a maintained owner producer and a provenance-checked governed sensor;
+do not turn a file or caller-supplied pass flag into release certification. This
+is the contract's existing measurement obligation, not a newly invented defect.
+No090 source changes yet.
+
+## BAS-WORK-090 — 2026-09-23 — capture qualification owner investigation
+
+089 fully consumed; feedback unchanged. Test Genie skill read and root testing/
+tunable-levers protocol consulted. Recall33247 and /tmp/bas-drill-qualification-
+discovery-090.txt consumed0. Existing BAS drills are failure-recovery only; do not
+repurpose them. Current setpoint-read.py emits17literal pending rows. PH TrendSample
+explicitly reserves old p95_ms because no honest producer existed; do not overload
+LCP/build fields or unreserve that tag. Performance ExecutionOrchestrator owns
+benchmark/Lighthouse producers, a fresh sample and budget gating; interaction
+capture is deliberately outside the gate. No declared custom workload hook found
+in inspected owner configuration. These are inspected boundaries, not a claim that
+no ecosystem capability can exist.
+
+Architecture target written: maintained BAS fixed-fixture producer, a bounded
+Performance Health declared-workload runner/receipt, Test Genie performance
+admission, and governed current-evidence read. Preserve band and denominator,
+reject incomplete/stale/malformed evidence; do not certify historical files or
+accept pass flags. Necessary measurement-owner extension is authorized under this
+goal: potential paths scenarios/performance-health/api/** and docs/**, its proto
+schema/generated projections, BAS producer/config/program files, and Test Genie
+orchestrator only if existing descriptor plumbing actually needs a repair.
+No090 runtime edit or external plan/log created. First inspect the PH module,
+repository/descriptor and proto-generation owners before selecting exact changed
+paths and retaining a baseline. Prefer existing execution orchestration and one
+workload owner; avoid a new BAS job system or special-cased Test Genie path.
+
+Current live089 remains qualified; no pending operations. The next action is
+measurement-owner design/implementation, with fail-closed producer-contract tests,
+not another unchanged100capture repetition. All17release readings remain unknown.
+
+090 implementation boundary refined: first promote the native capture fixture
+into a maintained BAS producer with an adversarially tested oracle. Selected
+api/internal/capturequalification/{fixture,oracle,run,run_test}.go and
+api/cmd/capture-cohort/main.go; baseline /tmp/bas-before-090/manifest.json.
+Use Go standard-library PNG decoding to verify actual pixels as well as PNG
+geometry, computed tree and independent fixture observations; no new dependency
+or private browser is needed. A per-attempt paint sentinel rejects stale images.
+The producer keeps all 100 first attempts plus one warmup, raw responses and
+artifact hashes, stable fixture/source/contract identity, before/after deployed
+build identity and failures. It produces observations, never a release pass flag.
+PH integration remains the next owner boundary; browser capture stays out of the
+synchronous performance gate, whose job is checking fresh retained evidence.
+No PH schema or API edit yet. Existing17 board readings remain unknown.
+
+090 maintained producer implemented (five new files; 556 runtime lines plus
+controlled tests). Initial package tests42031 consumed0, 6.988s; receipt
+/tmp/bas-capture-qualifier-tests-090.txt. Cases reject blank/stale/corrupt/scaled
+PNGs, missing or mismatched artifacts, invalid snapshots, wrong observations,
+duplicate IDs, cancellation denominator loss and changing provenance. Native
+browser proof is still pending. Race run28591 is active; wait for its terminal
+output before another qualification. /tmp/bas-frozen-producer-090.json freezes
+five producer paths; existing BAS product runtime remains089, untouched.
+Added bounded subprocess output and tested io.Copy fast paths, avoiding embedded
+bytes.Buffer.ReadFrom bypass. No new dependencies, private browser, retry flag,
+pass-input or reduced sample-count switch. Documentation adds the maintained
+entry point and explicitly keeps17readiness outcomes unknown. No cycle net debt
+reduction claimed: this adds the missing measurement capability.
+
+PH design narrowed after inspecting its modules and decisions: extend the
+existing out-of-band SweepService with declared-workload run/read operations,
+backed by one workload measurement domain; reuse the existing validation handler
+for the cheap retained-evidence gate. Do not add a new job service or execute
+browser capture inside Test Genie. Preserve reserved historical p95 field tags.
+Exact PH source/proto/CLI paths and baseline still need capture before editing.
+
+Producer race28591 consumed0 (192.148s), all controlled cases passed. Driver
+preflight0sessions/0recordings and API still089. New maintained native100cohort
+admitted (capture command session ID follows in checkpoint), output
+/tmp/bas-maintained-cohort-090 and /tmp/bas-maintained-cohort-090.txt. This validates
+the new pixel/sentinel verifier against unchanged production089; it does not
+requalify a deployed090product or a release row. PH target documentation now
+specifies extending SweepService, current-evidence gating, and no historical
+fallback after a newer failed run. No PH runtime source edited yet.
+
+PH extension baseline retained at /tmp/bas-owner-before-090/manifest.json
+(including generated PH projections). Selected workload domain config/receipt/
+service/store/schema/tests, existing sweep handler/module plus workload methods,
+existing validation handler/module/provider tests, API composition root, existing
+sweep CLI handlers/register/manifest/endpoints and sweep.proto. No new RPC service
+or Test Genie special case. Owner receipt tests must prove incomplete/malformed/
+failed/stale/mismatched data never passes, last failure is not replaced by an older
+success, and p95 uses all100firstattempts. CLI/schema parity and owner package
+tests precede live admission. Native maintained producer run78807 remains pending.
+
+Native maintained78807 consumed0:100/100firstattempts+1warmup, pixel/sentinel/
+snapshot observations allverified. Servicep95=550ms,CLIp95=737.785015ms, on089.
+Raw SHA492af33b3c8fd0130c66118cd7db3e1f545f723282d24892a83746410e361bc3;
+/tmp/bas-maintained-cohort-stats-090.json. Changed fixture sentinel means this is
+not a causal performance comparison with089's prior workload. PH sweep.proto
+now adds bounded Workload run/read types and corrects outdated baseline-diff
+comments; generation1213 consumed0. No shared proto projections changed.
+
+Workload command timeout needs process-tree cancellation (go run has a child);
+do not copy a private OS-specific implementation. Existing platform-go supplies
+ConfigureCommand/AssignProcessContainment/SignalProcessGroup. Discover query
+/tmp/bas-workload-containment-discovery-090.txt completed, no suitable command
+program among returned results. PH has the local replacement but no direct
+requirement. Extend scope to its api/go.mod/go.sum through SDA only; captured
+baseline before invoking install. Native platform process-control proof remains
+limited to actual tested hosts, no Windows/macOS claim.
+
+090 maintained producer proof durably summarized in evidence/rehabilitation/
+capture-qualifier-2026-09-23.json; five frozen paths unchanged. All original user
+profiles untouched (only synthetic fixture captures added). 100samples retain
+300PNGs/100trees, so RF016duplicate capture remains. Native78807, generation1213
+and approvedSDA64818 all consumed0. SDA adds only platform-go v0.0.0 via existing
+local replacement; governance/security checks still pending. PH workload config,
+receipt evaluator/retention and append-only store/schema now exist; initial
+package compile admitted, exactexecID follows. Service, command tree cancellation,
+owner tests, sweep handler/CLI wiring, validation gate, BAS declaration and
+governed binding are unfinished. No managed runtime restart for090 yet.
+
+090 PH service and command implementation now compile (initial and service
+compile exited0; no tests yet, no live PH admission). Added internal/workload/
+command.go within the recorded owner extension. Bounded command invocation uses
+platform-go containment, graceful cancellation plus owned-tree force cleanup,
+1MiB stdout/stderr limits and a declared deadline. Owner latest-reading checks
+configuration/producer/contract/build identity, expiry, raw receipt and retained
+artifacts, and rederives p95 over the full declared denominator. Dedicated table
+(schema next to its store) is new, with no runtime migration. These are unverified
+implementations pending adversarial tests and integration; do not report as a
+working gate. No pending tool operations.
+
+PH workload test54895 consumed1: arithmetic, denominator, provenance, retention
+and no-fallback controls passed; immediate child-liveness assertion failed just
+after forced group termination. Exact PID3143982 was absent on subsequent read.
+Cause is asynchronous signal delivery; replace instantaneous process-state
+assertion with an independent bounded1s exit observation (10msinterval), preserving
+the invariant that the stubborn owned child dies. No production assertion was
+weakened to allow a surviving process, and no source workaround was added. Full
+owner race validation is now pending. Include readiness.proto field10 in the
+owner boundary (baseline captured) so Test Genie's native_detail retains actual
+workload readings/receipt references instead of a verdict without evidence.
+
+PH owner race6221 and proto generation85415 consumed0; initial owner integration
+5055 and40464 tests exposed test-setup errors around optional maturity metadata,
+not native capture regressions. Shared validation requires a valid assessment;
+without it native status isERROR. Correct controls assert neverPASSED without
+metadata, then use a valid maturity fixture for exact shared gate statuses and
+native-detail receipt preservation. Build passed; package retest pending.
+
+BAS testing/program files baseline captured. Necessary config-schema extension:
+scenarios/test-genie/schemas/testing.schema.json documents the new owner-owned
+performance.workloads declaration (the existing schema already allows unknown
+performance properties). No Test Genie execution special case or new orchestrator
+policy is needed. Capture declaration keeps100+1,2000ms and fixed viewport/DPR;
+owner gate uses retained evidence. Program binding will read only that owner.
+
+PH owner tests3/4 and full CLI tests passed; governance validation passed with
+two existing advisories. Schema generation initially failed because existing
+DescribeProvider/ValidateTarget RPCs lacked CLI bindings or omission declarations.
+Declare both as shared Test Genie surfaces in the existing CLI omitted list,
+consistent with the native readiness CLI policy; do not weaken parity checks.
+Native shared gate controls now assert PASSED only for applicable measured data,
+FAILED for breach/producer failure, DEGRADED for absent/stale/read-error evidence,
+and retain workload readings in native_detail. Missing maturity metadata remains
+ERROR/FAILED, neverPASSED. Workload store ordering now uses integer nanoseconds
+instead of lexicographic RFC3339Nano, avoiding fractional-prefix ordering errors.
+BAS declaration and governed board consumer authored, but not live-qualified yet.
+All17current release outcomes remain unknown until the owner invocation is run.
+
+090 candidate frozen103paths at /tmp/bas-frozen-owner-090.json; unchanged check
+passed. Owner races77990 consumed0, finalbuild70151 consumed0, full CLI tests and
+configuration JSON-schema check pass. Endpoints generation succeeds after explicit
+shared RPC omissions. Contract preparation remainsvalid, no product verdict.
+SDA governance passed with pre-existing UI postcss/vite range advisories; security
+indexstatus available, not a clean vulnerability scan. No new third-party version
+was added: platform-go is the existing approved local module.
+
+Managed PH restart82275 consumed0; PH now serves
+e6c2f84c14664ddf62d10f63936c3f0a73117dbdfe5ff25e8e8e5f1ced302f5a.
+BAS core remains the qualified089build3cca76b1; its production capture behavior
+was not edited. Qualification candidate is that deployedBAS plus frozen090
+producer and measurement owner. Baseline workload-get correctly returns
+UNAVAILABLE/no owner receipt. Governed board run98854 is pending; first authoritative
+PH workload-run now admitted (exactexecID below). Do not re-admit either run.
+
+Scope metrics /tmp/bas-owner-metrics-090.json: authored affected runtime1178->2683
+(+1505),Go155->517(+362),functions40->95(+55), generated projections excluded.
+This is the cost of adding the missing qualification capability, not a net debt
+reduction. Cumulative affectedGo across prior cycles would be+306 after this
+extension; preserve that regression explicitly. Complete owner qualification,
+then review repeated protocol/validation ownership for substantive simplification.
+Do not relabel moved or generated code as a debt improvement.
+
+Pending owner invocation090 is exec86671 (/tmp/bas-ph-workload-owned-090.json);
+this is the sole admitted authoritative cohort. No duplicate admission.
+
+Governed board98854 consumed0:17unavailable; capture explicitly says no owner
+workload receipt. This proves the new binding resolves and does not fabricate a
+pass before evidence. PH workload86671 remains pending.
+
+Authoritative PH invocation86671 consumed0, owner operation
+1203c9afc9bad95b1c9d52f2e02185b3:100/100firstattempts+1warmup verified;
+servicep95=607ms,CLIp95=811.459737ms, both<=2000ms. Receipt at
+/home/matthalloran8/.vrooli/test-runs/performance-health/workloads/
+1203c9afc9bad95b1c9d52f2e02185b3/producer/receipt.json,
+SHAdd6b06e316687cb511d8b22ae0fc32f58a54e370f2695e44e81d648fe6c1ac49.
+Before/afterBAS089identity and producer/config/contract identity match. Host
+inventory retained by its control-plane owner in invocation.json; declared
+reference floor4cores/16GiB satisfied. No caller pass flag or imported historical
+receipt used. Fresh Test Genie performance+tidiness run and governed board read
+now admitted; recover their exactIDs before any re-admission.
+
+090 Test Genie exactID20260923-141347-f1225438 (performance,tidiness), admission
+exec57227; one quiet wait nowattached, /tmp/bas-tg-wait-090.json. Do not poll or
+re-admit. Governed board10820 consumed0: capture is nowreadable/inband,100samples,
+607ms/811.459737ms and owner1203c9af... withBAS089build. Remaining16unknown and
+product_qualified=false. This is an owner-backed measured reading, not a full
+performance-phase or release verdict; that Test Genie run remains pending.
+Direct workload-get verifies the retained artifacts and matches the same reading.
+
+### BAS-WORK-090 qualification closure — 2026-09-23 UTC
+
+Consumed the sole Test Genie wait31900: overallFAIL, performancepassed and
+ tidinessfailed. Owner artifacts retained in /tmp/bas-tg-artifacts-090.json;
+ findings /tmp/bas-tg-090-findings.json. Decoded performance native_detail carries
+ the exact PH workload identity,100samples+1warmup,607ms service/811.459737ms wall
+ p95 and owned receipt SHA; no generic performance pass substituted for capture.
+ Tidiness has1155findings,103long,420complexity,608duplication,23coupling and34399
+ duplication-line debt. Compared089: +6complexity findings; other listed counts
+ unchanged. Budget failure names103long versus81recordedbaseline. All103frozen
+ owner/producer paths hash-identical at final verification. No pending operations.
+
+The090 capability is qualified for the localcapture row only. Sixteen other
+ readings remain unknown, fullproduct readinessfalse, and addedmeasurement code
+ remains explicit debt (+1505authoredruntime lines/+362Go complexity). RF016
+ still causes300PNGs with100uniquePNGhashes for100captures; nextinvestigation
+ follows the existing capture service and telemetry owner, preserving explicit
+ screenshot actions and failure evidence. No091production changes yet.
+
+### BAS-WORK-091 — 2026-09-23 UTC — requested capture frames (investigation)
+
+Feedback reread; RF016 / capture / J08,J20. Recall091 found prior screenshot
+ policy work and existing capture-surface program, with provider degradation;
+ saved /tmp/bas-capture-duplication-recall-091.txt. Reuse policy owners, no new
+ workflow framework. W3 implementation defect: existing contract already requires
+ selected artifact policy and evidence preservation. Target documented first in
+ ARCHITECTURE.md. Baseline six files in /tmp/bas-before-091/manifest.json.
+
+H1: CaptureService defaults to passive ALWAYS images; three steps cause three
+ distinct productions. H2: exporter duplicates one original image. Owned090
+ artifact names identify navigate, wait and evaluate as separate source steps;
+ builder has no explicit ordinary screenshot or artifact profile, and executor
+ defaults ALWAYS. H1 supported, H2 cannot explain distinct step artifacts. A
+ maintained request-boundary regression plus actual screenshot policy checks
+ must fail before repair. Afterward the full unchanged100capture fixture must
+ preserve pixels/tree/independent oracle while producing100PNGs instead of300.
+
+Repair boundary: BAS capture builder, existing config profile owner, executor
+ telemetry policy and their regressions. Add a capture profile retaining failure
+ diagnostics and explicit screenshots. Keep validation navigation/assert frames
+ through an explicit setting, not a global ON_FAILURE promotion. No new proto,
+ driver implementation, dependency, service or suppression. Native selector,
+ requested non-image artifacts, interaction screenshot and failed-step evidence
+ must also be checked. Metrics include all affected authored source; no source
+ shrink claimed in advance.090source stays frozen;091needs a new build/cohort.
+
+091controlled qualification: red regression82561 failed on missing final image,
+ empty artifact profile and unconditional navigation image; log
+ /tmp/bas-capture-policy-red-091.txt. Fixed three runtime owners. Existing tests
+ now expect explicit final screenshot nodes; inline DOM helper verifies evaluate
+ semantics instead of an obsolete total node count. No assertion contract weakened.
+ Follow-up34835 exposed those stale test assumptions, then fivepackage race33256
+ passed (capture/config/executor/execution-writer/workflow). All original policies
+ have their existing controls; new capture policy preserves ON_FAILURE diagnostics.
+ Explicit final image pins FullPage=false to retain viewport fidelity.
+
+Affected runtime3046->3074lines (+28),Go554->557 (+3),functions84unchanged;
+ /tmp/bas-capture-policy-metrics-091.json. No net debt improvement. Named capture
+ policy adds no protocol/service/driver implementation; validation checkpoint
+ promotion is now explicit in that profile. Sixteen-line profile table repeats
+ full evidence toggles and is a remaining config simplification opportunity.
+ Frozen110paths in /tmp/bas-frozen-owner-091.json (before live build/qualification).
+
+091cohesion review: buildAdhocRequest complexity14->16 exceeds15; it still owns
+ one translation from CaptureRequest to an ordered workflow and preserves existing
+ readiness/interaction/browser-profile semantics. Added predicates express whether
+ the final image was requested; extracting that boolean would only relocate debt.
+ Module service.go remains a known large owner, no cohesion waiver or cleanupclaim.
+ Executor policy5->6 remains the sole screenshot directive owner. No new cycles;
+ capture gains config and standard-library slices imports. Managed restart53874
+ active; build10066 consumed0. Native probe prepared at
+ /tmp/browser-automation-studio/capture-policy-native-091.mjs, not yet run.
+
+091managed restart53874 consumed0. API/UI healthy on
+ sha256:2457de8b3078a237d146cec0e6bb7fa7ea7129849735ffea985ab05b52dea9f0;
+ driverhealthy. All110frozenpaths unchanged. Profilepreservation28275 consumed0.
+ Correction to earlier shorthand: rollback contains ONE profile checked THREE
+ times, not three originalprofiles. All complete protected state compares equal;
+ /tmp/bas-profile-preservation-091.txt. No saved profile modified.
+
+Nativeprobe33742:4pass/2invalidtestexpectations. Network fixture initially marked
+ ready before its fetch completed; failureoracle expected one image despite
+ existing continue-on-error admitting the requested final image after the failed
+ evaluate. Originalreceipt retained /tmp/bas-capture-policy-native-091/receipt.json.
+ Correctedindependent oracle waits for fetchcompletion and verifies failedframe
+ screenshot plusfinalexplicitimage; no productionchange or request weakening.
+ Qualified87901:6/6 (viewport640x480 on1400px-tallpage,element200x120,DOM-only0PNG,
+ requestedconsole/networksentinels,interaction2distinctimages,failedcapture error
+ with failed-step+finalimages). /tmp/bas-capture-policy-native-qualified-091/receipt.json.
+ Owner100capturecohort now admitted; retain operation/sessionbefore furtherwork.
+
+091live cohort and board:100/100verified on unchangedproducer/fixture/contract.
+ Owner10467terminal0, operationdb72786edda2dc7cbd0281b470eeab97,rawreceiptSHA
+ e15de1ba96cbe3f334300c93aba70939456f793a6197eba717f725207c518219.
+ Pendingboard36364showed17unknown (correctly noolderpassfallback); terminalboard
+81890showed1inband/16unknown. PNGbytes4510698->1528027 (-66.12%);
+ stepPNGartifacts300->100,uniquehashes100both,computedtrees100both.
+ Primary screenshot.png alias remains a copy; allphysicalcopies not claimedgone.
+ NativeDPR87418consumed0,18/18. TestGenie091admission80652consumed0,run
+20260923-144032-15388892; solequietwait78010active. No further qualificationrun.
+
+### BAS-WORK-092 — 2026-09-23 UTC — interaction graph composition (read-only)
+
+Recall83374consumed0: /tmp/bas-capture-splice-recall-092.txt,64hits withprovider
+ degradation; savedoutput includes malformedUTF8, readwithreplacement for diagnosis.
+ Related captureprogram/prior policy work found; no established boundary repair.
+ W3 RF111 / preservation,J08,J17,J20. H1: capture's first/lastarraynodes disregard
+ explicit graph topology. H2: compiler/driver ignores explicit edges independently
+ of wrapper composition. Orderednativecontrol and reversedarray share first->last
+ edges; publiccaptureorderedpasses, reversedfails before either expected effect.
+ Source shows navigate->firstdeclared and postlude<-lastdeclared; confirmedH1.
+ Native37341consumed1, /tmp/bas-capture-splice-native-092/receipt.json; no product
+ sourcechange. Compiler control and maintained tests will distinguish H2 further.
+
+Architecture target recorded. Intendedrepair uses existing compiler planner's
+ loop-body extraction/topology to expose outerboundaries; capture keeps existing
+ nodes/edges and attaches prelude/postlude at actualboundaries. No handler-private
+ graphsort, syntheticloop wrapper, full duplicatecompile, newdependency or runtime
+ migration. Test reversedlinear, branchterminals, loop-body exclusions, single
+ node, malformed/disconnectedgraphs and callerimmutability. Preserve091freeze
+ until TestGenie run20260923-144032-15388892 finishes; solewait78010stillactive.
+
+091terminalclosure: solewait78010consumed1; TestGenieoverallFAIL. Performance
+ retainscurrentPHoperationdb72786edda2dc7cbd0281b470eeab97,428/622.8881ms,
+100samples+1warmup. Tidinessunchanged1155/103/420/608/23/debt34399. Full API
+ coveragecommandPASSED47.284s,CLI PASSED2.485s,drivercoveragePASSED397.772s;
+ UIcoveragecommandFAILED57.022s at85%floor (30.42statements/33.57functions/
+67.16branches/30.42lines),UItypecheckPASSED10.271s. Unitnativeuh-20260923-144033-
+b5a82a2a9010d611e551e5107cbdc796 also reports TabBar direct-renderprojection drift,
+79lowcoveragefindings,2injectableseamfindings andanexisting skip. These are real
+ opencoverage/policy obligations, not an unavailable current Go runner. Prior042
+ CodeFacts/no-output limitations no longer describe091's successfulAPI execution.
+ Fullnative /tmp/bas-tg-091-unit-native.json; all110frozenpaths unchanged atclosure.
+
+092implementation: baseline4files /tmp/bas-before-092/manifest.json. Maintained
+ boundaryregression35962fails all three compositioncases and firstinvalidadmission;
+ /tmp/bas-capture-splice-red-092.txt. Added compiler WorkflowBoundaries using
+ existingplanner/loopbodyextraction/topologicalorder, with malformed/disconnected
+ graph rejection. Shared typedconversion preservesexistingcompile semantics;
+ captureconnectsactualentryandallterminals through one local append-node closure.
+ Removed four duplicated edge-append paths and first/last declaration assumptions.
+ No second graphsort/runner, savedtemporaryworkflow or dependency. Existing tests
+ pass44621; fourpackage race83888 passes. Newcompiler tests cover malformedgraph,
+ pureboundaryquery without URL/selector resolution, inputimmutability and loop
+ outerterminal; handler tests cover reversedlinear/branches/loop plus pre-effect
+ rejection. OrdinaryBuildAdhoc semantics preserved through existingtests.
+
+Metrics2219->2253runtime lines (+34),functions62->64,Go499->517 (+18), cumulative
+ scopedGo+327. No net debt reduction. Newboundaryquerycomplexity15; builder16->17
+ due terminaljoin loop, compilerentry22->20 from sharedconversion. Cohesion is
+ graphownership and one requesttranslation; functionshuffling would not reduce
+ algorithmicdebt. Capture gains compiler dependency with no cycle. Frozen112paths
+ /tmp/bas-frozen-owner-092.json. APIbuild28865passed; earlier9219 accidentally ran
+ atrepo root andfailed on out-of-module probe imports, not a BASbuildfailure;
+ no dependency changes made. Native091stilldeployed,092awaitsmanagedrestart.
+
+Additionalnative092branchmatrix58665: typedconditional bothfailunknowninstruction
+ (RF112); loop executesbodytwice+lastbutreturns2images and a stale pre-last
+ snapshot (RF111incorrectsuccess). Originalproof retained. Assert success/failure
+ branches are being used as additional nativegraph controls, not substitutes for
+ RF112's unresolvedtypedconditionalcases. No092ownercohort/TGadmission yet.
+
+092 additionalnative59171 (091deployed): successassertbranchpasses; negatedvisible
+ assertion incorrectlytakes successedge (RF113), loopstillreturnspre-terminal
+ snapshot. Originalreceiptretained. Nativegraphcontrols now also exercise a real
+ missingselectorfailure path with explicitcontinue-on-error; that is additional
+ coverage, not replacing RF113negation or RF112conditional failures. Both are
+ recordedactualdefects for nexttypedaction repair. No extra092productionchanges.
+
+092boundary extension within currentcompiler: nativeassert-path78333 exposes
+ missing failurebranchselection. Handle-only probes were insufficient; corrected
+ labelededges16333stilltake successpath. RF114confirmed: edgeCondition onlyreads
+ obsoleteData.condition although input is typedV2 withlabel. Existingcompiler
+ edge-condition test is skipped. Activate it, replace oldreader withtypedLabel,
+ remove internal handle spelling fallback (all rawflows derive from one
+ UseProtoNames marshal), and preserve externalprotojson decoding. Necessary for
+ honestnativebranchqualification; no newowner/dependency. Earlier112/113 remain
+ separateconfirmedbugs; negatedasserttimeline explicitlyrecords successfulassert.
+ This changes the frozen092candidate beforedeployment; supersede itsmanifest and
+ re-run affectedchecks. No092ownercohort orTestGenieadmission exists.
+
+092RF114 red: previouslyskipped edgeconditiontest now runs6cases; fiveexplicit
+ labels fail beforefix (success/failure/true/false/trimmederror), emptylabelcontrol
+ passes. /tmp/bas-edge-condition-red-092.txt. Compiler nowreadsLabeldirectly;
+ deletedobsoleteData.condition field/reader and privatecamelhandlefallback/getters.
+ Normalizedproto input remainsauthoritative. Finalfourpackage races93063pass;
+ /tmp/bas-capture-splice-race-final2-092.txt. Earlierfinaltest invocationusedwrong
+ cwd andfailedsetup only; preserved /tmp/bas-capture-splice-race-final-092.txt,
+ no productfailure inferred. APIbuild8086pass. Refrozen112paths in
+ /tmp/bas-frozen-owner-092.json; priorprefreeze retained-pre-label.json.
+
+Final092delta (supersedes pre-labelcomparison): runtime2219->2223 (+4),functions
+62->61 (-1),Go499->509 (+10), cumulativescopedGo+319. Nativebranches withdeclared
+ labels must be retried onnewbuild; no unsupportedconditional/negatedassertpass
+ claimed. Currentoperation managedrestart092; nativequalifiedprobe variants retain
+ before/afterhealthidentities. No092cohort/TGadmission yet.
+
+092native qualification: managedrestart1987terminal0,healthyAPI/UI
+5c5bb1fcf2135dd2fadd7a23770b6cf28a521cfc24d7f51d722be424d76bb5a4,driverhealthy.
+112frozenpathsunchanged. Native13311ordered/reversed2/2;77639labeledbranches+loop
+3/3. Independentfixture effects matchexactorder/branch; requestedfinalsnapshots
+ matchpostinteractionstate. Loop2pre-terminalimages->1finalimage; failedassertion
+ branchretainsdiagnostic+final2imagesandfollowsrightedge. RF112/113remainopen and
+ are not relabeledpassing. Owner100capturecohortnowadmitted; noTG092runyet.
+
+093read-onlyorientation while092qualificationruns: recall60134finished,67hits
+ withproviderdegradation; retained /tmp/bas-typed-condition-recall-093.txt.
+ Docs/nodes/assert.md is staleV1 prose; authoritative typedparams/ConditionalNode
+ definepageJSexpressions,elementvisibility andworkflowvariable conditions. Driver
+ getAssertParams already retainsnegated/caseSensitive buthandler ignoresboth;
+ failureMessage is absentfromextractor. Handler result/outcome conditionbridge
+ stillneedsinspection beforechoosing112ownerrepair. No093sourcechange.
+
+092ownercohort71505terminal0: operationdfccaeaf88c701f9482f38d55894a4a8,rawSHA
+c4555fe67282adf0bdc9df744efe52eafcb2044389795225af958971c9a70c7b;
+100/100verified+1warmup,414msservice/602.637287mswallp95,100PNGs1603694bytes,
+100computedtrees. Sameproducer/fixture/contract, no repeatedlatencyclaim. Board
+50572confirmscaptureknown/inbandand16unknown. Profile87208checksoneoriginal
+ profilethree times,allsemanticallyequal.112frozenpathsunchanged. TestGenie
+20260923-151101-55ba59d3admitted66770; solequietwait23187active. Selected
+ performance+tidinessplusdirectaffectedGo races/nativecaptures; repeatofunchanged
+ driver/UIcoverage wouldnotaddproof.091fullAPI/CLI/driver andUItypecheck remain
+ datedreceipts; UIcoverage/policy andstructuraldebt remain realopenobligations.
+
+092terminalclosure: TestGenie20260923-151101-55ba59d3 overallFAIL; performance
+ passeswithexactPHoperationdfccaeaf88c701f9482f38d55894a4a8 and414/602.637287ms,
+100samples. Tidinessremainsfailed; summary {"totalFindings": 1157, "longFiles": 104, "complexity": 421, "duplication": 608, "coupling": 23, "duplicationLineDebt": 34644}.
+ Solewait23187consumed1, artifacts/native_detailretained /tmp/bas-tg-092-*.
+112frozenpathsunchangedatclosure; no pendingops. Allprogressis scopedqualification,
+ notoverallproductionreadiness. NextRF112/113requireswholetypedcondition/assertion
+ owner, meaningfulbrowser/variable/errorcases and simplification; nofakebranch
+ results, threshold changes or deletionoffailedhistoricalprobes.
+
+### BAS-WORK-093 — 2026-09-23 UTC — typed assertion truth and failures (in progress)
+
+RF113/J24, within existing driver assertion/typed params/outcome owners. Recall
+60134 retained in /tmp/bas-typed-condition-recall-093.txt; no repeat discovery.
+Baseline /tmp/bas-before-093/manifest.json retains runtime/test/doc bytes.
+Hypothesis: missing negation/case/message projection and broad exception catches
+allow incorrect branches and can turn evaluator failure into apparent truth.
+Discriminating checks: all eight modes with positive/negative truth, timed state
+transitions, invalid selector/closed-page failures, absent vs empty attributes,
+case handling and custom messages through public capture's typed timeline.
+Target documented in ARCHITECTURE.md before implementation. Consolidate existing
+handler, remove unreachable legacy aliases/regex paths, preserve frame owner.
+RF112 conditional support remains next; no new dependency or private browser.
+092 owner runs are terminal. Its test-file length/complexity/duplication increase
+remains a failure; prioritize actual shared predicate simplification over moving
+tests solely to clear budgets. No093 implementation or validation receipt yet.
+
+093 local results: maintained assertion matrix red2 fails54/75 before repair,
+then green2 passes93/93 including immediate zero-timeout observations, browser
+errors, invalid typed modes and actual typed versions of old text/visible tests.
+Those six old helper calls encoded string modes as Number(NaN) and silently
+exercised exists; replaced them with canonical enum inputs without weakening
+expectations. Initial red command97185 used a wrong source-relative patch path
+and captured a nested-test setup error; retained but not product evidence.
+Typecheck95071 passes after fixing InvalidInstructionError's details argument.
+Scoped installed ESLint complexity58->44 (-14), functions10->4 (-6), max27->22.
+Runtime assertion396->125 plus params+2lines: net-269. No domain-wideTS metric
+claim; RF064 remains open and cumulativeGo unchanged+319. New executeCC22 is
+cohesive request validation/dispatch/evidence/error assembly; splitting wrappers
+would not lower aggregate complexity. Removed four duplicate state implementations
+and unreachable wire modes; no thresholds changed. Metrics/tmp/bas-assertion-metrics-093.json.
+Frozen115paths /tmp/bas-frozen-owner-093.json. Managedrestart3717 still pending;
+native fixture /tmp/browser-automation-studio/assertion-native-093.mjs prepared,
+not yet run. No TestGenie093 admitted until deployed candidate verified.
+
+093 deployed/native results: restart3717 consumed0; native81086 consumed0,
+/tmp/bas-assertion-native-093/receipt.json,58/58. All eight modes xtruth xnegation,
+missing visible/hidden targets, case sensitivity, absent/empty attributes, invalid
+selectors/missing text evaluator errors, immediate zero timeout and delayed
+attach/detach/show/hide verified. Independent fixture effects prove only the
+expected success/failure branch; timeline preserves negation, case flag and
+custom failure text. No baseline expectation relaxed. Protectedprofile60996
+compares complete original state equal three times.115frozenpaths unchanged.
+BAS build553bc332c8acced00a3ff95cdcf1035047b910e8ed918b05fa350a70c9e9373d.
+PH capture owner run now pending; TestGenie awaits its retained result.
+
+093 PH owner41914 consumed0,operation93ba0c644d6f91e5cbe53d47de3a35af.
+100/100firstattempts+1warmup;447msservice/650.217134mswall p95 under2000msbudget.
+Raw receiptSHA1942a1727aff24aac784287d34f55b114cb47ad4ee2e956ba27e50ed5c5d8df5;
+producer/config/contract/fixture identities unchanged. Single093wallp95 is7.9%
+higher than092's602.6ms; these isolated shared-host cohorts do not distinguish
+noise from a5%relative regression. No latency-improvement claim; recheck with
+repeated comparable quiescent trials when performance attribution is selected.
+TestGenie performance/tidiness admitted once; board read pending.
+
+093 terminal qualification: TestGenie20260923-153329-f6718ff3 overallFAIL,
+performancepassed with exact PHoperation93ba0c644d6f91e5cbe53d47de3a35af,
+tidinessfailed1157/104long/421complexity/608dup/23coupling/debt34644.
+Admission29795consumed0; solewait74692consumed1. Native details retained
+/tmp/bas-tg-093-{performance,tidiness}-native.json and artifactcatalog.
+Unchanged tidiness totals do not measure the driver reduction: RF064 excludes
+driver JS duplication/TS AST complexity. The separate installed ESLint metric
+is a narrow owner comparison.115frozenpaths unchanged through terminal.
+Board63711consumed0: capture1qualified/16unknown/productfalse. No pendingops.
+Continue RF112 typed conditional ownership and error/branch evidence;093 is a
+dated repair, not a readiness or goal-completion claim.
+
+### BAS-WORK-094 — 2026-09-23 UTC — typed conditional execution (in progress)
+
+RF112/J24.093 terminal consumed before this candidate starts. Read-only tracing
+confirms unsupported driver dispatch, absent HandlerResult condition projection,
+and normal-first-edge fallback even when a conditional has no successful result.
+Typed ConditionOutcome already exists; reuse it rather than an extracted-data
+adapter. Variables belong to Go's store; page JS and element presence to the
+selected browser frame. Target094 in ARCHITECTURE.md precedes implementation.
+Expected false remains step success; evaluator failure has no truth result and
+never executes the normal first branch. Parse expression/body before execution
+to avoid repeating side effects after a runtime throw. Reuse loop comparison and
+ordinary event/outcome/checkpoint owners for local variable predicates.
+No new dependency, shared-owner extension or external effect. Existing local
+recall60134 and native092 failures supply the baseline. No094 source edits yet.
+
+094 implementation checkpoint (not deployed): baseline18paths retained in
+/tmp/bas-before-094/manifest.json. Driver now dispatches ConditionalHandler,
+builds the existing typed ConditionOutcome, and Go decodes its JsonValue fields
+through protojson. Browser expression/body compilation precedes execution;
+runtime SyntaxError is not a syntax fallback. Element wait honors timeout/poll;
+only genuine timeout becomes absent. Variables use the actual Go store and
+shared CompareValues (including declared string operators and numeric strings).
+Both graph/linear local-state callers share executeWorkflowStateAction, replacing
+applySetVariable plus duplicate detection helpers. Ordinary terminal outcome and
+checkpoint behavior preserved. Initial extra StepStarted event broke existing
+synthetic-outcome cancellation tests; removed the unnecessary event, not tests.
+Conditional routing no longer falls back to first/opposite branch after errors or
+an unwired truth. Current builder labelsIF TRUE/IF FALSE are supported alongside
+existing truth labels in the same V2label policy; no alternate edge-data reader.
+UI element label now saysPresence, matching the canonical predicate contract.
+
+Discriminating reds: /tmp/bas-conditional-routing-red-094.txt has3behavioral
+failures; /tmp/bas-conditional-wire-red-094.txt fails typed scalar/object recovery
+and malformed-value rejection; /tmp/bas-conditional-outcome-red-094.txt fails2
+condition cases with2existingcontrols passing. Boundary75923 thenpassed.
+Driver91887 passes121tests across condition/assertion/outcome; typecheck23989
+passes. Go initial16460 failed2event-count expectations; after removing added
+start events,6package race44261passes, then finalrace5850passes after UIlabel
+routing and finite-numeric validation. APIbuild45083 pending.
+Source updates after093 invalidate its applicability to this candidate; managed
+live build remains093 until restart. No094 freeze/native/PH/TestGenie admission
+yet. Next: native CSP/frame/variable/error-after-effect matrix, measure cost,
+freeze final source, managed restart, profile preservation and owner qualification.
+
+094 pre-native freeze131paths /tmp/bas-frozen-owner-094.json. APIbuild45083
+consumed0. Managedrestart48237 pending; native fixture prepared at
+/tmp/browser-automation-studio/conditional-native-094.mjs, not yet run.
+Native matrix includes selected frame, CSP, body/expression/Promise syntax,
+shared-store comparisons, Evaluate.store_result, bothnegations, delayedpresence,
+expliciterrorbranch and SyntaxError-after-effect withmax_attempts3.
+Current scoped runtime7668->7815(+147), GoCC1029->1052(+23), Go functions186
+unchanged; maximum35->34. TS ESLint measurement returned parser errors and is
+being corrected before interpreting it. No netdebt reduction claimed for adding
+previously missing conditional capability. Existing originals and093 receipts
+remain untouched. No PH/TestGenie094 run admitted before native verification.
+
+094 measurement correction: initial ESLint exit1 came from existing inline
+no-var-requires directives without their plugin loaded, not parse failures. Loaded
+the installed @typescript-eslint plugin for the same explicit complexity rule;
+49125consumed0. TS scopedCC241->267(+26), functions110->115(+5), max31->32;
+/tmp/bas-conditional-eslint-{before,after}-094.json. Go cumulative delta now+342
+if candidate qualifies. Actual conditional capability adds147runtime lines; not
+a claimed debt reduction. Native fixture now also tests numericNaN rejection and
+element presence in selected frames.131frozenpaths unchanged, restart48237 still
+pending, APIbuild45083consumed0.
+
+094 managedrestart48237consumed0; API/UI/driver healthy on
+976eb5a37d02744dc5c5d46cbfb0303f5be86451677d64bd3438e90c88bf8edc.
+Native12974 running /tmp/bas-conditional-native-094.txt; profile17991 pending
+/tmp/bas-profile-preservation-094.txt. Do not admit PH until native proof reviewed.
+
+094 native12974consumed1:7/53pass,42normal-condition evidence failures and4frame
+admission failures. Non-frame independent branch effects all match, including
+CSP and effect-before-SyntaxError exactlyonce despite max_attempts3. The failure
+expectations remain unchanged. New RF115/116 register the precise owners above.
+Profile17991consumed0, original complete state preserved all3reads. No pending
+operations, no PH/TG094 admitted. Originalcandidate/freeze retained unchanged.
+
+Necessary094 boundary extension within authorized BAS/proto roots recorded before
+edits: engine capability; shared ConditionOutcome proto owner and EventContext;
+telemetry/retained-entry/export; existing protoconv conversions; generated BAS
+Go/TS/Python/manifest plus TS re-export. Extension baseline at
+/tmp/bas-before-094-extension/manifest.json. Schema FQN/wire fields stay stable;
+SDK module imports move and every discovered workspace caller is converted.
+Discovery /tmp/bas-proto-discovery-094.txt, owner packages/proto/README.md+Makefile
+define scoped make generate SCENARIO=browser-automation-studio. No dependency
+install, profile migration or parallel evidence field. Validate native original
+53case matrix, engine/telemetry/export/protoconv races and typed consumer builds.
+
+094 extension validation: proto generations60135/20074 bothconsumed0; final
+comments correctly follow their messages. Scoped breakingcheck exits0: wire0,
+JSON0, unreconciledconsumers0 againstmerge-base7b17b3985faa; owner fell back from
+incomplete historical baselinebas-artifact-retention-standard-profile. This is
+a merge-base comparison, not a repaired immutable-baseline certificate.
+Initial extendedrace62193failed due newly introduced package cycles: protoconv
+also imports driver/export/workflow. Moved its two existing condition converters
+into the lower existing typeconv/contracts.go owner, updated all callers and
+removed originals; no forwarding wrappers. New decode uses that owner too.
+This fixes the cycle and removes duplicate field mapping; the movement itself
+is not a debt reduction. Extendedrace12376 nowpasses10packages.
+
+Driver consolidated17137 failed (stale copied file-dependency exports); UI
+typecheck5618 passed. Generated source has ConditionOutcome in shared_pb but
+driver node_modules still points to an old pnpmfile copy. No raw package manager
+used. Read packages/proto/README.md, package-governance.md and lifecycle handler:
+scoped `vrooli package refresh proto browser-automation-studio --restart --json`
+is now pending. FB010 already authorizes BAS managed restart; this refresh is
+the documented consumer setup owner and uses scoped generation, not fleet edits.
+Receipt /tmp/bas-proto-consumer-refresh-094.json. Re-run driver checks after
+refresh, then freeze revised candidate and re-run the original53native cases.
+All initial094 native receipts remain failed and preserved. NoPH/TG094admission.
+
+094 refresh40614consumed0 but reportsrunning_setup_deferred, not adopted.
+Proto package manifest restart_running_consumers=false defers automatic setup
+while active even with explicitrestart. Following documented stopped-consumer
+path under existing FB010 authority: managed make stop now pending, then scoped
+package refresh --no-restart, then managed start. Do not modify package policy,
+copy node_modules by hand or run a raw package manager. Original profiles preserved.
+Frame focused suite is tests/integration/typed-action-semantics.test.ts and
+unit/idempotency/frame-idempotency.test.ts; the earlier guessed frame.test.ts
+matched no suite and must not be counted as frame-test evidence.
+
+094 managed stop completed0. Stopped-consumer refresh43117 is pending; BAS must
+be restarted after owner setup and generated-type verification. No native or
+owner qualification active. Next maintain driver frame checks at actual paths
+unit/idempotency/frame-idempotency.test.ts andintegration/typed-action-semantics.test.ts.
+
+094 consumer refresh43117 completed0 with finalJSONsuccess=true/setup_only;
+driver generated exports now current. Driver typecheck60985passes,6driver
+suites37597 pass175tests including realbrowser typed-action-semantics and
+session-owned frame-idempotency. UI finaltypecheck6360passes; APIbuild44195passes.
+Final scoped metrics /tmp/bas-conditional-metrics-final-094.json: runtime
+11073->11181(+108), GoCC1496->1512(+16), Go functions263unchanged, max35->34;
+TSCC241->267(+26), functions110->115, max31->32. FinalGo cumulative+335.
+Removed duplicate condition mapping and narrower telemetry type while moving
+existing conversions to lower typeconv; moved paths remain in the comparison.
+This capability addition is not a netdebt reduction. NewhandlerCC16 coherently
+owns two browser modes, syntax validation, truthful outcome and error conversion;
+existing outcome-builderCC32 remains field assembly and a follow-up hotspot.
+
+Final331paths frozen /tmp/bas-frozen-owner-094.json, unchanged after managed
+start59458consumed0. Originalinitial131freeze retained separately. Qualified
+native helper differs only in output directory; all53expectations unchanged.
+Native and profile preservation now pending; no PH/TestGenie094 admitted yet.
+
+094 secondnative20134 consumed1:7/53pass. All46normal conditions select expected independent effects; frame capability repair works. All46lose truth/negated evidence (32alsoactual). Telemetry-only conversion tests missed FileWriter's direct timeline builder. Scope extension to that existing writer captured in /tmp/bas-before-094-extension/manifest.json before repair. Profile52677 consumed0: original complete state equal3reads. No pending operations or PH/TG094admission. Corrected current checkpoint to remove stale refresh/start pending state.
+
+094 writer regression red2 fails actual disk evidence with nil condition. Added the shared typeconv converter to FileWriter context (one runtime line); upgraded existing export test from telemetry-only conversion to actual durable write/reload. Five-package race81082 and APIbuild2839 bothpass. Revised332-path freeze retained in /tmp/bas-frozen-owner-094.json; preceding331freeze saved as -second.json. Next managed restart, unchanged native matrix in final output directory, thenPH/TG only if native passes.
+
+094 managedrestart2692 consumed0, finalwriterbuild52b39732df53c8c3bb7c8a246a666ca97a11f837defda13545923389cb5851dd healthy.332frozenpaths unchanged. Native17572/profile28445 pending. Finalaffected runtime12554->12662(+108); GoCC1794->1810(+16),functions296unchanged,max50unchanged after including entireFileWriter on bothsides. TSmetrics unchanged. No debt-reduction claim.
+
+094 native17572 consumed0:53/53unchanged expectations pass on52b39732df53c8c3bb7c8a246a666ca97a11f837defda13545923389cb5851dd before/after. Saved/exported condition retains truth, negation and actual; independent true/false/error effects match, including frames/CSP and single effect before runtimeSyntaxError. Profile28445 consumed0: original saved profile equalall3reads. Proceed to ownercapture performance and tidiness qualification on frozen candidate.
+
+094 PH35047 consumed0, operationb1e6f95ba344b94458ee19f1a4c8b2c2:100/100firstattempts plus1warmup, servicep95427ms/wall610.723788ms under2000ms. ReceiptSHA6edbd377b8a1eea3df17fb7bb2a18466c8a781bf146d4c7b317bdc2d1df063a8, same producer/contract/config/fixture as093 and current52b397...build. Wallp95~6.1%below093singlecohort; no significance or speedup claim. Board2257pending; TestGenieperformance,tidinessadmissionpending.332frozenpaths unchanged.
+
+094 Board2257 consumed0:1qualifiedcapture,16unknown,productreadyfalse. TestGenieadmission80923 consumed0, run20260923-163006-94c734ad; sole quietwait admitted, /tmp/bas-tg-wait-094.json. Do not poll or re-admit this run. Finalsourcefreeze unchanged; no source mutations during qualification.
+
+094 terminal: solewait64085 consumed1; performancepassedexactPHb1e6f95ba344b94458ee19f1a4c8b2c2,tidinessfailed1157/104long/422complexity/607dup/23coupling/debt34644. Compared093sameoverall/debt,complexity+1/dup-1; do not claim whole-system improvement from count reshuffle.332frozenpaths unchanged; originalprofilepreserved; alljobsconsumed. Full evidence conditional-semantics-2026-09-23.json. Next read-onlyinvestigation finds discarded index-write errors and unused MarkCrash; establish desired admission/notification failures before source repair.
+
+### BAS-WORK-095 — 2026-09-23 UTC — execution status authority investigation
+
+Related085 rejects a missing terminal receipt for synchronous callers; its tests
+do not cover effect admission or broadcasts. Recall24179 returned61hits with
+provider degradation; existing085source/tests are directly relevant prior work.
+Hypothesis1: ignored running write admits effects and ignored terminal write
+emits a persisted-status notification. Hypothesis2: executor/stream ownership
+already gates those paths, so service's ignored error is harmless. Discriminator:
+inject each repository failure, count executor invocations and capture terminal
+events independently of database status. Source also shows zero MarkCrash callers
+across Go workspace: an unused second status owner plus4no-op implementations.
+Architecture target updated before edits; baseline10paths /tmp/bas-before-095/manifest.json.
+Scope remains BAS; preserve saved data and existing cancellation/failure behavior.
+094 qualification is terminal; no owner operation pending.
+
+095 red85413 consumed1 confirmsH1: saved/adhoc runningfailures each executeoneeffect and publishcompleted; terminalfailures eachpublishcompleted despite failed indexwrite. Healthycontrols pass; H2rejected. Finalization now owned byWorkflowService for allreturns, runningpersist precedes effects, committedterminal precedes notification. Errors remainreturned/logged; panicunwind has explicitfailed sentinel and is not swallowed. Removed unusedMarkCrash production method,3API no-op methods plusprobe no-op, writerGetExecution/UpdateStatus requirements, andupdatedseamdocs. Five-package race76433passes. Added actualpanic/compileterminalnotification controls; initialpaniccheck had wrong GetWorkflowAPI argument, corrected; finalworkflowrace andAPIbuild pending. Comparable scopedruntime2910->2834(-76),GoCC520->516(-4),functions85->83(-2),max56->53; movementalone not counted, removed unused authority/methods give the net reduction.
+
+095 finalworkflowrace51810 andAPIbuild31165 consumed0. Panic regression verifies
+failedterminal and sink retirement without swallowing the originalpanic; compile
+failure nowpublishes its committedfailedstatus too. Finalsourcefreeze at
+/tmp/bas-frozen-owner-095.json. Prior-art reference corrected to085 (084wasAI
+textnormalization). Proceed managedrestart and maintained native recording→saved
+workflow replay, plus originalprofile preservation and ownerperformance/tidiness.
+No live fault injection into the user database; injected failures use isolated
+repository fixtures.
+
+095 managedrestart75581 pending (/tmp/bas-restart-095.txt).339frozenpaths.
+Finalworkflowrace validates faultmatrix, panic, synchronous wait/teardown and
+routed resume/control behavior. Native execution will use maintained
+playwright-driver/tests/e2e/record-mode-e2e.mjs with managed API/driver ports; its fixture creates
+and cleans only its own resources and retains an independent effect log.
+
+095 managedrestart75581 consumed0 onhealthy b92db9cfbf434a85d6c9d7f69ed2c29624723c4afaec9a01ba3ea4912ed85953. Native67312 consumed0:12/12 maintained recording→typedfreshcontextreplay→savedworkflowAPI→timeline→ownedcleanup checks pass; /tmp/bas-recording-e2e-A3Qn1P/result.json. Profile32808 consumed0: originalcompleteprofileequal3reads.339frozenpathsunchanged. PHcaptureadmitted /tmp/bas-ph-workload-095.json; noTestGenie095yet.
+
+095 PH27565 consumed0:operation1d722c86882de4f527ffe518028892a2,100/100+1warmup,
+499msservice/756.742401mswallp95 (<2000ms), receiptSHAd4a5e7e480916311b1b72ec2bfc455196f0a6555e91f1d67a2504696737d54e6.
+Singlecohortwall+23.9%versus094; do not dismiss asnoise orattributetosource yet.
+AfterTGfinishes, run another quiescent ownercohort to check repeatability.
+Board42518 consumed0:1qualified/16unknown/productfalse. TGadmission69220 consumed0:
+20260923-164451-777d257b,solequietwait pending /tmp/bas-tg-wait-095.json; no polling.
+
+095 solewait35466 consumed1; TG20260923-164451-777d257b performancepasses exactPH1d722c86882de4f527ffe518028892a2,tidinessfails1159findings/104long/424complexity/607dup/23coupling/debt34644.339frozenpaths unchangedthroughterminal. InitialPHbandpass is not a relative-regression clearance. No testsactive; repeatPH45760 nowpending /tmp/bas-ph-workload-repeat-095.json to investigate+23.9%wallp95.
+
+095 repeatPH45760 consumed0:4011fc450443324647b1e5a1dec1fe89 passes100/100+1warmup,469msservice/681.528072mswallp95,SHAd92ca786d5ed4c4967c6243de0fc6dee65a9c23beff85f883f0cfcf0a183b637.
+Absolutebandpass; relativechange+11.6%versus094 remainsunresolved afterinitial
++23.9%. No sourceattribution ornoise dismissal. Retainedperstepanalysis shows
+meanswithin3ms/action andextraoutsideactions; exploratorybootstrap assumesIID,
+invalidforstrongcausalclaims onserialsharedhost. RecordRF016rechecktrigger:
+correlatedadmission/session/finalization/CLIspawn timing orcontrolledpairedbaseline.
+No thirdidenticalcohort. Newlatestboardreadpending /tmp/bas-setpoint-repeat-095.json.
+Technicaldebtadds2testcomplexityfindings (newfaultmatrixCC14, existingcleanup
+test10→11),whileproductionCC-4/runtime-76; reportboth, no suppressedthresholds.
+Next higher-impactindependent question isRF011profilecheckpoint recoverywindow:
+sourceonlypersists atmanual/stop/close/generation, with no periodicownerfound.
+Recall37243 complete70hits/providersdegraded; the existingRF011 repair proves
+IndexedDBcapture/restore but explicitly leaves crash/checkpointunknown.
+
+### BAS-WORK-096 — 2026-09-23 UTC — profile checkpoint boundary investigation
+
+RF011/J01/J06/J14/profile-durability, no source edits yet. Hypothesis: active
+profile identity has no periodiccheckpoint and therefore exceeds the<=5s
+recoverywindow. Alternative: an existingowner capturesstate outside searched
+handlers. Native discriminator: newprofile and independent cookie/localStorage/
+IndexedDBfixture; after5.5s readhasStorageState, thenexplicitpersist/close/reopen
+positivecontrols. Only fixtureprofile/sessions arecreatedandcleaned; existing
+protectedprofile remainsuntouched. This firstprobe establishescheckpointbehavior,
+not a processkill recoverycertificate.
+
+096 native39473 consumed1:4/5checks pass; checkpointabsent at5507.68ms, manualsave
+andLS/IndexedDBreopenpass. Allownedresourcescleaned. Native onlyprovescookie
+write, notcookierestore (fixture resetsSet-Cookie). Existingmultipleassociations
+are supported byregistrytests; do not silentlyreject duplicateprofile sessions
+or add a last-writer owner policy. Before periodicwrites, repair confirmedsource
+race: capturegetsprofile beforeI/O andcommits afterbinding mayclear/rebind.
+Architecture target096 updated;4filebaseline /tmp/bas-before-096/manifest.json.
+Maintainedpublicpersist regressions will replacebinding inside the capture seam
+and require old/newprotectedstates unchanged plus non-success acknowledgement.
+No096sourcequalification admitted;095build remainshealthy.
+
+096 bindingred72274 consumed1:clear/same-profileABA/other-profile/cancel all
+acknowledge200 andoverwriteoriginal. RF118 registered. Service now owns opaque
+associationidentity and capture serialization; adapter captures complete state,
+commit requires samebinding and livecontext. Conflict isHTTP409; no profile
+association remains existingexplicitno-op behavior. Removed unused StartSession/
+EndSession APIs (no productioncallers); ported their state/tab/touch assertions
+toactualTouch/SetActive/Persist/Clear owners. Firstgreen99290 failed because
+a test-edit replacement malformedtwoifstatements; correctedgreen2 passes both
+packages. Added deterministic serial/cancel/unrelatedprofile regression.
+Five-package race andAPIbuild nowpending. Metrics saved
+/tmp/bas-profile-binding-metrics-096.json; no096freeze/restartyet.
+RF011periodic checkpoint remains missing; this ownership repair alone doesnot
+qualify crash recovery or five-secondwindow.
+
+096 fence checks12053 andAPIbuild77183 consumed0. Fivepackages passrace.
+Currentfencecostruntime735->750(+15),Go121->122(+1),functions45->44,max7->8.
+Continue within096 to periodiccheckpoint on the now-fencedtransaction before
+deployment. Extendbaseline toapi/main.go for lifecycleworker andhealthwiring.
+One2stick,2s capturedeadline,<=5shealthfreshness; cancellationjoinedbefore
+driverstop. Shared-profile multipleactivebindings are keptfullysupported for
+manualoperations; auto checkpoint must reportexplicitdegradation andskip rather
+than chooseoneidentity orchangeadmissionsemantics. This limitremainsRF011open.
+No newdataformat/migration/secondstorageengine; originalprofilespreserved.
+
+096 periodic source implemented: oneAPI-ownedjoinedloop viaexisting schedule.Clock
+ticker, per-bindingbrowserdeadlines, concurrentindependentcaptures, existing
+fencedaggregatewriter. Only uniqueprofilewriters automaticallysave; ambiguity
+checked beforecapture andagainatomicallyatcommit, degradedhealthreported while
+manualcapability remains. APIprofile_checkpointshealthobserves errors/staleness;
+shutdown cancels/joinsbeforeSidecarstop. No newprofileformat/data conversion.
+Focusedperiodicfirst run found a testfaultinjector race (rawMockRepository.SaveErr
+writtenoutside synchronization); replaced only thetestfault flag withatomicBool.
+Focused88583 passesrace,APIbuild94414passes; full5packageperiodicracepending.
+No sourcefreeze/deployment yet; originalnativecheckpointfailure retained.
+
+096 full periodic race56066 passed all5packages; confirmed finalAPIbuild64700 exit0. Earlier build output session ID was lost in tool truncation; verified no build remained before this explicit finalbuild. Candidate source frozen in /tmp/bas-frozen-owner-096.json (344paths). Managed restart now admitted; native5case and independent restart recovery probes next. Runtime1976->2107(+131),GoCC265->296(+31),functions50->54; cumulativeGo+362. New durability capability is not a net debt reduction claim.

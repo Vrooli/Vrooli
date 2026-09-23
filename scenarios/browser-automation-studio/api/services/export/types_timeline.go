@@ -47,6 +47,7 @@ type TimelineFrame struct {
 	Screenshot           *TimelineScreenshot              `json:"screenshot,omitempty"`
 	Artifacts            []TimelineArtifact               `json:"artifacts,omitempty"`
 	Assertion            *autocontracts.AssertionOutcome  `json:"assertion,omitempty"`
+	Condition            *autocontracts.ConditionOutcome  `json:"condition,omitempty"`
 	RetryAttempt         int                              `json:"retry_attempt,omitempty"`
 	RetryMaxAttempts     int                              `json:"retry_max_attempts,omitempty"`
 	RetryConfigured      int                              `json:"retry_configured,omitempty"`

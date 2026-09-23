@@ -1,0 +1,2779 @@
+{
+  "cycle": "085",
+  "issue": "BAS-RF-105",
+  "status": "completion ownership repaired and locally qualified; release outcomes remain unqualified",
+  "source": {
+    "before": {
+      "api/services/workflow/executions.go": {
+        "sha256": "6807b5e3a08ca651b680ac10689c19deefb19b4034a9af9224f9d0636eda9217",
+        "lines": 800
+      },
+      "api/services/workflow/adhoc_execution.go": {
+        "sha256": "cf24aeeb60a39c8f666a758c88e4e23e5683b08b36551a21a9f9afa619d24ecf",
+        "lines": 229
+      },
+      "api/services/workflow/execution_results_test.go": {
+        "sha256": "c7a76495e13949bf2e96c46950b71023598b4469988937fe6b077297d08a78b5",
+        "lines": 171
+      }
+    },
+    "frozen": {
+      "api/services/workflow/executions.go": {
+        "sha256": "854c6b6551d6ccb82d5e3f793bd33402108f591d70896598b02073161a3e6ecd",
+        "lines": 801
+      },
+      "api/services/workflow/adhoc_execution.go": {
+        "sha256": "9d2ccd1ad6f8ee2ac0defc32c9cdaf96a55fd74882c60236bc064eadfa7198b2",
+        "lines": 213
+      },
+      "api/services/workflow/execution_results_test.go": {
+        "sha256": "84a8b70e279502c28c0ff568fb5f8953efdf1d91c0ac15e9b5dfea6b8219b047",
+        "lines": 464
+      }
+    }
+  },
+  "build_identity": "sha256:0e25ce034a87510303b5aff6c083118380fb3e9b0f825d8a707113e004cec1db",
+  "change": "Saved and ad-hoc synchronous execution join the existing runner lifetime, including cleanup, and read one terminal receipt. Both polling copies and two obsolete forwarding wrappers removed. Manual flat parameters and detached cancellation semantics preserved.",
+  "evidence": {
+    "red": "/tmp/bas-execution-wait-red-085.txt",
+    "corrected_test_expectation": "/tmp/bas-execution-wait-green-085.txt",
+    "focused": "/tmp/bas-execution-wait-final-085.txt",
+    "packages": "/tmp/bas-execution-wait-packages-final-085.txt",
+    "race": "/tmp/bas-execution-wait-races-085.txt",
+    "build": "/tmp/bas-go-build-085.txt",
+    "tidiness_run": "20260923-113433-a7dc6121",
+    "tidiness": {
+      "totalFindings": 1149,
+      "longFiles": 103,
+      "complexity": 411,
+      "duplication": 612,
+      "coupling": 22,
+      "duplicationLineDebt": 31060
+    },
+    "board": "/tmp/bas-setpoint-085.txt",
+    "workflow": {
+      "cases": [
+        {
+          "name": "driver prerequisite",
+          "status": "passed"
+        },
+        {
+          "name": "owned recording captures the independent fixture click",
+          "status": "passed"
+        },
+        {
+          "name": "API persists and reads the generated workflow",
+          "status": "passed"
+        },
+        {
+          "name": "invalid owners leave recorded entries available",
+          "status": "passed"
+        },
+        {
+          "name": "committed entries receive an exact acknowledgement",
+          "status": "passed"
+        },
+        {
+          "name": "captured typed actions replay in a fresh browser context",
+          "status": "passed"
+        },
+        {
+          "name": "saved workflow executes through the API owner",
+          "status": "passed"
+        },
+        {
+          "name": "close owned session d52fb6e0-6934-42d7-ae56-24a84e4504b5",
+          "status": "passed"
+        },
+        {
+          "name": "close owned session dc1608f2-d9b0-4276-a523-63e3cd6a0f10",
+          "status": "passed"
+        },
+        {
+          "name": "remove only this fixture execution and artifacts",
+          "status": "passed"
+        },
+        {
+          "name": "delete fixture workflow",
+          "status": "passed"
+        },
+        {
+          "name": "delete fixture project and files",
+          "status": "passed"
+        }
+      ],
+      "effects": [
+        {
+          "sequence": 1,
+          "context": "fixture_context=a995d494-da60-46d4-8343-3ad4c7f182d3",
+          "received_at": "2026-09-23T11:37:59.896Z"
+        },
+        {
+          "sequence": 2,
+          "context": "fixture_context=18b2f451-623c-408c-b32f-0e4e270fc350",
+          "received_at": "2026-09-23T11:38:00.141Z"
+        },
+        {
+          "sequence": 3,
+          "context": "fixture_context=91a6b3db-9a02-4336-b290-19606c884b0a",
+          "received_at": "2026-09-23T11:38:00.938Z"
+        }
+      ],
+      "execution_id": "d0a7835c-ee13-4da5-ad8a-7e22b75bf577",
+      "artifact_dir": "/tmp/bas-recording-e2e-HXgCYx",
+      "api_selected": true,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0
+    },
+    "profiles": {
+      "original_full_reads": 3,
+      "api_equals": "084",
+      "receipt": "/tmp/bas-profile-final-085.txt"
+    },
+    "capture_controls": {
+      "admission": {
+        "cases": [
+          {
+            "name": "DPR below minimum",
+            "status": "passed",
+            "request": {
+              "url": "http://127.0.0.1:39071/fixture?case=DPR%20below%20minimum",
+              "dimensions": {
+                "width": 640,
+                "height": 480,
+                "device_scale_factor": 0.25
+              },
+              "captures": [
+                1
+              ],
+              "wait_for": {
+                "selector": "#ready"
+              },
+              "label": "rehabilitation-admission-083"
+            },
+            "dry_run": false,
+            "http_status": 400,
+            "result": {
+              "code": "invalid_argument",
+              "message": "validation error: dimensions.device_scale_factor: must be greater than or equal to 0.5 and less than or equal to 4"
+            },
+            "navigation_effects": [],
+            "elapsed_ms": 2.968012999999999
+          },
+          {
+            "name": "width below minimum",
+            "status": "passed",
+            "request": {
+              "url": "http://127.0.0.1:39071/fixture?case=width%20below%20minimum",
+              "dimensions": {
+                "width": 99,
+                "height": 480,
+                "device_scale_factor": 1
+              },
+              "captures": [
+                1
+              ],
+              "wait_for": {
+                "selector": "#ready"
+              },
+              "label": "rehabilitation-admission-083"
+            },
+            "dry_run": false,
+            "http_status": 400,
+            "result": {
+              "code": "invalid_argument",
+              "message": "validation error: dimensions.width: must be greater than or equal to 100 and less than or equal to 4000"
+            },
+            "navigation_effects": [],
+            "elapsed_ms": 1.3092109999999977
+          },
+          {
+            "name": "unknown capture",
+            "status": "passed",
+            "request": {
+              "url": "http://127.0.0.1:39071/fixture?case=unknown%20capture",
+              "dimensions": {
+                "width": 640,
+                "height": 480,
+                "device_scale_factor": 1
+              },
+              "captures": [
+                99
+              ],
+              "wait_for": {
+                "selector": "#ready"
+              },
+              "label": "rehabilitation-admission-083"
+            },
+            "dry_run": false,
+            "http_status": 400,
+            "result": {
+              "code": "invalid_argument",
+              "message": "capture type 99 is not supported"
+            },
+            "navigation_effects": [],
+            "elapsed_ms": 0.9820810000000009
+          },
+          {
+            "name": "NaN dry run",
+            "status": "passed",
+            "request": {
+              "url": "http://127.0.0.1:39071/fixture?case=NaN%20dry%20run",
+              "dimensions": {
+                "device_scale_factor": "NaN"
+              },
+              "captures": [
+                1
+              ],
+              "wait_for": {
+                "selector": "#ready"
+              },
+              "label": "rehabilitation-admission-083"
+            },
+            "dry_run": true,
+            "http_status": 400,
+            "result": {
+              "code": "invalid_argument",
+              "message": "validation error: dimensions.device_scale_factor: must be greater than or equal to 0.5 and less than or equal to 4"
+            },
+            "navigation_effects": [],
+            "elapsed_ms": 1.0299410000000009
+          },
+          {
+            "name": "valid control",
+            "status": "passed",
+            "request": {
+              "url": "http://127.0.0.1:39071/fixture?case=valid%20control",
+              "dimensions": {
+                "width": 640,
+                "height": 480,
+                "device_scale_factor": 1
+              },
+              "captures": [
+                1
+              ],
+              "wait_for": {
+                "selector": "#ready"
+              },
+              "label": "rehabilitation-admission-083"
+            },
+            "dry_run": false,
+            "http_status": 200,
+            "result": {
+              "executionId": "c089a5ac-2852-4712-87a7-6145a6060833",
+              "outDir": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/f92d390c-45cd-4044-b4cb-953283ac5205/c089a5ac-2852-4712-87a7-6145a6060833",
+              "artifacts": [
+                {
+                  "type": "CAPTURE_TYPE_SCREENSHOT",
+                  "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/f92d390c-45cd-4044-b4cb-953283ac5205/c089a5ac-2852-4712-87a7-6145a6060833/screenshots/step-01-e735c672-acab-441c-8333-574b85ed9055.png",
+                  "sizeBytes": "7842",
+                  "metadata": {
+                    "content_type": "image/png",
+                    "filename": "step-01-e735c672-acab-441c-8333-574b85ed9055.png",
+                    "view_url": "/api/v1/artifacts/artifacts/c089a5ac-2852-4712-87a7-6145a6060833/capture-screenshot-4a8d31a9-7d88-45f8-879c-e31fca2213ac.png"
+                  },
+                  "reference": "bas-capture://c089a5ac-2852-4712-87a7-6145a6060833/screenshot"
+                },
+                {
+                  "type": "CAPTURE_TYPE_SCREENSHOT",
+                  "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/f92d390c-45cd-4044-b4cb-953283ac5205/c089a5ac-2852-4712-87a7-6145a6060833/screenshots/step-02-636f8aef-ac56-437b-b2bb-ff03f841c198.png",
+                  "sizeBytes": "7842",
+                  "metadata": {
+                    "content_type": "image/png",
+                    "filename": "step-02-636f8aef-ac56-437b-b2bb-ff03f841c198.png",
+                    "view_url": "/api/v1/artifacts/artifacts/c089a5ac-2852-4712-87a7-6145a6060833/capture-screenshot-6a293c90-6532-4321-8c30-57bcbcaa9968.png"
+                  },
+                  "primary": true,
+                  "reference": "bas-capture://c089a5ac-2852-4712-87a7-6145a6060833/screenshot"
+                }
+              ],
+              "durationMs": "447",
+              "readiness": {
+                "requestedStrategy": "explicit-selector",
+                "selectedStrategy": "explicit-selector",
+                "outcome": "ready",
+                "durationMs": "447",
+                "navigationDurationMs": "120",
+                "readinessWaitDurationMs": "114"
+              }
+            },
+            "navigation_effects": [
+              {
+                "url": "/fixture?case=valid%20control",
+                "at": 1790163480183
+              }
+            ],
+            "elapsed_ms": 451.349927
+          }
+        ],
+        "receipt": "/tmp/bas-capture-admission-native-green-085/receipt.json"
+      },
+      "dpr": {
+        "cases": [
+          {
+            "name": "program_1_renderer_geometry",
+            "status": "passed"
+          },
+          {
+            "name": "program_1_governed_references",
+            "status": "passed"
+          },
+          {
+            "name": "cli_1_renderer_geometry",
+            "status": "passed"
+          },
+          {
+            "name": "cli_1_PNG_dimensions",
+            "status": "passed"
+          },
+          {
+            "name": "cli_1_computed_snapshot",
+            "status": "passed"
+          },
+          {
+            "name": "cli_1_retained_snapshot_matches_inline",
+            "status": "passed"
+          },
+          {
+            "name": "cli_2_renderer_geometry",
+            "status": "passed"
+          },
+          {
+            "name": "cli_2_PNG_dimensions",
+            "status": "passed"
+          },
+          {
+            "name": "cli_2_computed_snapshot",
+            "status": "passed"
+          },
+          {
+            "name": "cli_2_retained_snapshot_matches_inline",
+            "status": "passed"
+          },
+          {
+            "name": "cli_0.5_renderer_geometry",
+            "status": "passed"
+          },
+          {
+            "name": "cli_0.5_PNG_dimensions",
+            "status": "passed"
+          },
+          {
+            "name": "cli_0.5_computed_snapshot",
+            "status": "passed"
+          },
+          {
+            "name": "cli_0.5_retained_snapshot_matches_inline",
+            "status": "passed"
+          },
+          {
+            "name": "cli_omitted_renderer_geometry",
+            "status": "passed"
+          },
+          {
+            "name": "cli_omitted_PNG_dimensions",
+            "status": "passed"
+          },
+          {
+            "name": "cli_omitted_computed_snapshot",
+            "status": "passed"
+          },
+          {
+            "name": "cli_omitted_retained_snapshot_matches_inline",
+            "status": "passed"
+          }
+        ],
+        "receipt": "/tmp/bas-capture-dpr-native-green-085/receipt.json"
+      }
+    },
+    "capture_cohort": {
+      "metadata": {
+        "owner": "BAS CaptureService through public CLI; independent fixed-fixture qualifier",
+        "build_identity": "sha256:0e25ce034a87510303b5aff6c083118380fb3e9b0f825d8a707113e004cec1db",
+        "source_digest": "fc7813c457c72be70632bce3d058acafd8d607b386dbafe1196e30235853cae6",
+        "source_scope": [
+          "api/services/workflow/executions.go",
+          "api/services/workflow/adhoc_execution.go",
+          "api/services/workflow/execution_results_test.go"
+        ],
+        "contract_digest": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+        "fixture_revision": "0a7e16ac279dcd082a41f089a7563bf6896f0bbd6e52bead49ccae88d445d52a",
+        "sample_count": 100,
+        "declared_warmups": 1,
+        "hardware": {
+          "cpu": "AMD Ryzen 9 7950X 16-Core Processor",
+          "logical_cpus": 32,
+          "available_parallelism": 32,
+          "ram_bytes": 65432162304,
+          "load_average": [
+            6.21,
+            6.7,
+            6.88
+          ]
+        },
+        "os_arch": {
+          "platform": "linux",
+          "arch": "x64",
+          "release": "7.0.0-30-generic"
+        },
+        "runtime_versions": {
+          "node": "v20.19.4",
+          "driver": "2.0.0",
+          "browser": "136.0.7103.25"
+        },
+        "concurrency": 1,
+        "other_driver_sessions_at_start": 0,
+        "capture_policy": {
+          "viewport": [
+            1280,
+            720
+          ],
+          "dpr": 1,
+          "types": [
+            "screenshot",
+            "dom-tree"
+          ],
+          "readiness": "#ready",
+          "retries": 0
+        },
+        "network": "loopback fixture; no external resources",
+        "cache_state": "warm API/driver/browser process; fresh context and navigation per call; cache-control no-store",
+        "limitations": [
+          "Linux local cohort only; shared host background load is observed, not isolated.",
+          "Source digest covers the three frozen085 paths; full managed build identity and earlier qualification receipts describe the candidate.",
+          "No governed rehabilitation sensor joins this receipt yet; does not qualify a release row."
+        ]
+      },
+      "statistics": {
+        "attempts": 100,
+        "passed": 100,
+        "warmups_retained": 1,
+        "retries": 0,
+        "owner_ms": {
+          "p50": 537,
+          "p95": 577,
+          "p99": 584,
+          "max": 590,
+          "mean": 536.06
+        },
+        "cli_ms": {
+          "p50": 711.5204750000048,
+          "p95": 780.9176560000014,
+          "p99": 832.7373740000039,
+          "max": 838.6926989999993,
+          "mean": 713.0283671200002
+        },
+        "p95_95_percent_order_statistic_interval_ms": [
+          572,
+          590
+        ],
+        "cli_95_percent_order_statistic_interval_ms": [
+          755.0471849999994,
+          838.6926989999993
+        ],
+        "interval_order_indices": [
+          90,
+          100
+        ],
+        "interval_claim_limit": "Order-statistic intervals assume IID trials; sequential cohorts on a shared host are not isolated causal performance qualification.",
+        "observed_success_95_percent_exact_interval": [
+          0.9637833073548235,
+          1
+        ],
+        "raw_receipt_sha256": "36b0d593ba38249113914e44cfdaf125c9d2b2d8e637da289bed9c5b4024ad78",
+        "artifact_bytes": 4840400,
+        "png_count": 300,
+        "snapshot_count": 100,
+        "local_owner_p95_target_ms": 2000,
+        "local_observed_target_met": true,
+        "release_row_qualified": false,
+        "comparison_cycle": "083",
+        "prior_owner_p95_ms": 755,
+        "prior_cli_p95_ms": 978.4574360000042,
+        "owner_p95_relative_change": -0.23576158940397351,
+        "cli_p95_relative_change": -0.20188898641064845
+      },
+      "receipt": "/tmp/bas-capture-cohort-085/receipt.json",
+      "producer": "/tmp/browser-automation-studio/capture-cohort-085.mjs",
+      "owner_artifacts": [
+        {
+          "index": -1,
+          "warmup": true,
+          "execution_id": "aa716f2f-df11-49da-9853-6108485842f7",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://aa716f2f-df11-49da-9853-6108485842f7/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/7e910037-bde5-48fc-a765-b9af4f02b79a/aa716f2f-df11-49da-9853-6108485842f7/screenshots/step-03-ad215aa9-2d6a-4506-a5fb-608beaf5424f.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://aa716f2f-df11-49da-9853-6108485842f7/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/7e910037-bde5-48fc-a765-b9af4f02b79a/aa716f2f-df11-49da-9853-6108485842f7/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 0,
+          "warmup": false,
+          "execution_id": "8f8eee1e-38c6-4cd3-af90-b8c9a1a592fe",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://8f8eee1e-38c6-4cd3-af90-b8c9a1a592fe/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/dd02f610-add2-45d9-bd18-f636c4543cb0/8f8eee1e-38c6-4cd3-af90-b8c9a1a592fe/screenshots/step-03-d85a7c18-acab-4a1f-8ad9-812f69907e62.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://8f8eee1e-38c6-4cd3-af90-b8c9a1a592fe/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/dd02f610-add2-45d9-bd18-f636c4543cb0/8f8eee1e-38c6-4cd3-af90-b8c9a1a592fe/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 1,
+          "warmup": false,
+          "execution_id": "b1ba54f4-2091-4265-b767-6017564771f7",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://b1ba54f4-2091-4265-b767-6017564771f7/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/5ab293a2-f6c1-4038-ae7f-1b44a9cbf561/b1ba54f4-2091-4265-b767-6017564771f7/screenshots/step-03-723a9074-a09c-4923-9526-e6b6f453df73.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://b1ba54f4-2091-4265-b767-6017564771f7/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/5ab293a2-f6c1-4038-ae7f-1b44a9cbf561/b1ba54f4-2091-4265-b767-6017564771f7/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "warmup": false,
+          "execution_id": "58b632a4-7461-4b5b-93ec-9035952b7898",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://58b632a4-7461-4b5b-93ec-9035952b7898/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/dbe6fd6b-8e98-4d60-a9d2-e2979b979513/58b632a4-7461-4b5b-93ec-9035952b7898/screenshots/step-03-d90282b9-2c10-4acf-8ffd-0f39cd651296.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://58b632a4-7461-4b5b-93ec-9035952b7898/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/dbe6fd6b-8e98-4d60-a9d2-e2979b979513/58b632a4-7461-4b5b-93ec-9035952b7898/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 3,
+          "warmup": false,
+          "execution_id": "549f1cfb-ea96-47dc-86ae-2de39f3c95d8",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://549f1cfb-ea96-47dc-86ae-2de39f3c95d8/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/09c406e8-2a9a-473d-abdb-16c7503d8b05/549f1cfb-ea96-47dc-86ae-2de39f3c95d8/screenshots/step-03-f2864c35-8eb2-40ed-86d5-be216a2afdff.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://549f1cfb-ea96-47dc-86ae-2de39f3c95d8/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/09c406e8-2a9a-473d-abdb-16c7503d8b05/549f1cfb-ea96-47dc-86ae-2de39f3c95d8/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 4,
+          "warmup": false,
+          "execution_id": "daee09d0-30e5-4709-86e7-8c656b3c5567",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://daee09d0-30e5-4709-86e7-8c656b3c5567/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/2e1973fa-ed0d-4184-aa77-82403d227c26/daee09d0-30e5-4709-86e7-8c656b3c5567/screenshots/step-03-0f3b4cd5-8a96-437e-99ec-4761d9dc5ab4.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://daee09d0-30e5-4709-86e7-8c656b3c5567/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/2e1973fa-ed0d-4184-aa77-82403d227c26/daee09d0-30e5-4709-86e7-8c656b3c5567/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 5,
+          "warmup": false,
+          "execution_id": "f238693d-2e67-4331-9dbd-7163f5f9fae5",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://f238693d-2e67-4331-9dbd-7163f5f9fae5/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/681da5d5-0d5a-4b87-aa3e-98a1b0d241d5/f238693d-2e67-4331-9dbd-7163f5f9fae5/screenshots/step-03-b8e66b7c-7d8a-4087-9f65-67d65a6fb124.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://f238693d-2e67-4331-9dbd-7163f5f9fae5/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/681da5d5-0d5a-4b87-aa3e-98a1b0d241d5/f238693d-2e67-4331-9dbd-7163f5f9fae5/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 6,
+          "warmup": false,
+          "execution_id": "f0af4c0c-171a-476f-b6db-4bf05d174ecd",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://f0af4c0c-171a-476f-b6db-4bf05d174ecd/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/d7c3822d-d544-4769-a656-ac48e1bd7f71/f0af4c0c-171a-476f-b6db-4bf05d174ecd/screenshots/step-03-c2b1feec-c31f-44f1-99e4-d4d051d135fd.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://f0af4c0c-171a-476f-b6db-4bf05d174ecd/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/d7c3822d-d544-4769-a656-ac48e1bd7f71/f0af4c0c-171a-476f-b6db-4bf05d174ecd/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 7,
+          "warmup": false,
+          "execution_id": "7ab36a26-5f3c-415d-bdde-7df3345182fa",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://7ab36a26-5f3c-415d-bdde-7df3345182fa/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/612a0c3b-3de4-42be-8771-f9262823955e/7ab36a26-5f3c-415d-bdde-7df3345182fa/screenshots/step-03-2ef44fd3-6ddd-4eb5-bcba-8df0591b1cca.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://7ab36a26-5f3c-415d-bdde-7df3345182fa/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/612a0c3b-3de4-42be-8771-f9262823955e/7ab36a26-5f3c-415d-bdde-7df3345182fa/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 8,
+          "warmup": false,
+          "execution_id": "39c70089-f732-4870-85f3-1b14baf8bdb9",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://39c70089-f732-4870-85f3-1b14baf8bdb9/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/197e0f58-a9a1-45fd-886a-ca4b7d0ce84d/39c70089-f732-4870-85f3-1b14baf8bdb9/screenshots/step-03-84b4868b-95bb-48c8-bf8e-c17a5a397700.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://39c70089-f732-4870-85f3-1b14baf8bdb9/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/197e0f58-a9a1-45fd-886a-ca4b7d0ce84d/39c70089-f732-4870-85f3-1b14baf8bdb9/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 9,
+          "warmup": false,
+          "execution_id": "7c721f6d-4957-4d65-93ac-8fe1a98f6201",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://7c721f6d-4957-4d65-93ac-8fe1a98f6201/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/7737e677-0f72-485f-bf87-59eede6a6704/7c721f6d-4957-4d65-93ac-8fe1a98f6201/screenshots/step-03-6de0dc12-a213-4602-9399-d28bcc731488.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://7c721f6d-4957-4d65-93ac-8fe1a98f6201/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/7737e677-0f72-485f-bf87-59eede6a6704/7c721f6d-4957-4d65-93ac-8fe1a98f6201/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 10,
+          "warmup": false,
+          "execution_id": "6f019c79-49ad-42b3-bcdc-845bf6fe6243",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://6f019c79-49ad-42b3-bcdc-845bf6fe6243/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/ddddd423-49cf-437c-a26d-79c79c2cb6d8/6f019c79-49ad-42b3-bcdc-845bf6fe6243/screenshots/step-03-fdb32e4a-c10b-4ff5-bf7d-445a3cc51220.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://6f019c79-49ad-42b3-bcdc-845bf6fe6243/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/ddddd423-49cf-437c-a26d-79c79c2cb6d8/6f019c79-49ad-42b3-bcdc-845bf6fe6243/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 11,
+          "warmup": false,
+          "execution_id": "97cacde5-cee3-4f12-a179-f75ff5481b92",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://97cacde5-cee3-4f12-a179-f75ff5481b92/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/4b866579-5a3e-4ebd-bbc1-41836c2de34c/97cacde5-cee3-4f12-a179-f75ff5481b92/screenshots/step-03-6d4c9505-cf73-40b5-8aab-d723c66f2025.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://97cacde5-cee3-4f12-a179-f75ff5481b92/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/4b866579-5a3e-4ebd-bbc1-41836c2de34c/97cacde5-cee3-4f12-a179-f75ff5481b92/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 12,
+          "warmup": false,
+          "execution_id": "81b49a13-f91e-4ab0-ad1c-958881a83d8c",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://81b49a13-f91e-4ab0-ad1c-958881a83d8c/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/236da16e-0125-4262-bb52-f221689c78d4/81b49a13-f91e-4ab0-ad1c-958881a83d8c/screenshots/step-03-4e9a3676-796a-4ede-b282-19088dae6dba.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://81b49a13-f91e-4ab0-ad1c-958881a83d8c/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/236da16e-0125-4262-bb52-f221689c78d4/81b49a13-f91e-4ab0-ad1c-958881a83d8c/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 13,
+          "warmup": false,
+          "execution_id": "fb1f66f0-dd44-446f-b2ff-ac50c2a38c30",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://fb1f66f0-dd44-446f-b2ff-ac50c2a38c30/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/c460c696-d2a9-494c-a800-0bae0d624a4d/fb1f66f0-dd44-446f-b2ff-ac50c2a38c30/screenshots/step-03-b9c09300-7905-43b9-9e80-4ca5d5eb7623.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://fb1f66f0-dd44-446f-b2ff-ac50c2a38c30/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/c460c696-d2a9-494c-a800-0bae0d624a4d/fb1f66f0-dd44-446f-b2ff-ac50c2a38c30/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 14,
+          "warmup": false,
+          "execution_id": "2aace242-dd0c-415d-9833-8ba23099cb64",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://2aace242-dd0c-415d-9833-8ba23099cb64/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/3c50d712-740c-4ce0-848b-bfa692851cbd/2aace242-dd0c-415d-9833-8ba23099cb64/screenshots/step-03-dda49c19-94e1-499c-9374-36a2a298d1d3.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://2aace242-dd0c-415d-9833-8ba23099cb64/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/3c50d712-740c-4ce0-848b-bfa692851cbd/2aace242-dd0c-415d-9833-8ba23099cb64/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 15,
+          "warmup": false,
+          "execution_id": "286583a4-8c02-4957-aa02-b9761184e9a3",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://286583a4-8c02-4957-aa02-b9761184e9a3/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/eac7315c-de74-4d25-b9db-e9eec0280241/286583a4-8c02-4957-aa02-b9761184e9a3/screenshots/step-03-954d58af-9e94-40fc-97af-8c4fe470d6d1.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://286583a4-8c02-4957-aa02-b9761184e9a3/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/eac7315c-de74-4d25-b9db-e9eec0280241/286583a4-8c02-4957-aa02-b9761184e9a3/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 16,
+          "warmup": false,
+          "execution_id": "ac9c88e3-bd45-4b86-9141-af99e4a4a29f",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://ac9c88e3-bd45-4b86-9141-af99e4a4a29f/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/7a47177e-baab-480a-8664-49ef6c203c44/ac9c88e3-bd45-4b86-9141-af99e4a4a29f/screenshots/step-03-56ec7315-c198-4f85-9537-94eb55b63143.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://ac9c88e3-bd45-4b86-9141-af99e4a4a29f/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/7a47177e-baab-480a-8664-49ef6c203c44/ac9c88e3-bd45-4b86-9141-af99e4a4a29f/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 17,
+          "warmup": false,
+          "execution_id": "b02c4e25-6737-4fc0-821a-30672e9e84e9",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://b02c4e25-6737-4fc0-821a-30672e9e84e9/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/77fe1a8b-3437-426e-be6d-eb6649e917f2/b02c4e25-6737-4fc0-821a-30672e9e84e9/screenshots/step-03-230869b1-9293-4de4-b0b9-64f617a1b45a.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://b02c4e25-6737-4fc0-821a-30672e9e84e9/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/77fe1a8b-3437-426e-be6d-eb6649e917f2/b02c4e25-6737-4fc0-821a-30672e9e84e9/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 18,
+          "warmup": false,
+          "execution_id": "d2f07280-5e7d-4702-9004-d326a82c560a",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://d2f07280-5e7d-4702-9004-d326a82c560a/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/75632545-019e-4e9e-a764-1ae66e3d4988/d2f07280-5e7d-4702-9004-d326a82c560a/screenshots/step-03-37eeb0eb-020f-4a68-8a00-8738015898c9.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://d2f07280-5e7d-4702-9004-d326a82c560a/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/75632545-019e-4e9e-a764-1ae66e3d4988/d2f07280-5e7d-4702-9004-d326a82c560a/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 19,
+          "warmup": false,
+          "execution_id": "84af9794-0af2-4f36-ab2b-34f45684f41e",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://84af9794-0af2-4f36-ab2b-34f45684f41e/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/523435fe-7222-4a73-86ea-a4b39a5d8ea1/84af9794-0af2-4f36-ab2b-34f45684f41e/screenshots/step-03-9a8eadbd-ae4f-43f8-89bd-eb6abc7a14d7.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://84af9794-0af2-4f36-ab2b-34f45684f41e/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/523435fe-7222-4a73-86ea-a4b39a5d8ea1/84af9794-0af2-4f36-ab2b-34f45684f41e/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 20,
+          "warmup": false,
+          "execution_id": "1060ca38-69da-45b0-baf3-030e340b2ee2",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://1060ca38-69da-45b0-baf3-030e340b2ee2/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/8615d6d2-21ba-4929-9230-91d693c1acb6/1060ca38-69da-45b0-baf3-030e340b2ee2/screenshots/step-03-3fd0b1bd-7669-4ddb-a451-046dd44b20dd.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://1060ca38-69da-45b0-baf3-030e340b2ee2/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/8615d6d2-21ba-4929-9230-91d693c1acb6/1060ca38-69da-45b0-baf3-030e340b2ee2/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 21,
+          "warmup": false,
+          "execution_id": "3036643b-1129-4bf5-ad7b-c144a61041e8",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://3036643b-1129-4bf5-ad7b-c144a61041e8/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/cca31b0d-d375-45a2-aaaf-5edff262dde8/3036643b-1129-4bf5-ad7b-c144a61041e8/screenshots/step-03-eec9ef34-1a8d-4310-8ce3-f92ae73cdc17.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://3036643b-1129-4bf5-ad7b-c144a61041e8/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/cca31b0d-d375-45a2-aaaf-5edff262dde8/3036643b-1129-4bf5-ad7b-c144a61041e8/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 22,
+          "warmup": false,
+          "execution_id": "fe2b5154-612b-40c2-8b56-2749f040b1bf",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://fe2b5154-612b-40c2-8b56-2749f040b1bf/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/c0a5f39b-1b96-4422-bf45-ec405ce8aa54/fe2b5154-612b-40c2-8b56-2749f040b1bf/screenshots/step-03-0b0a2cf2-0dc5-4d60-bc54-3592e2c2b409.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://fe2b5154-612b-40c2-8b56-2749f040b1bf/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/c0a5f39b-1b96-4422-bf45-ec405ce8aa54/fe2b5154-612b-40c2-8b56-2749f040b1bf/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 23,
+          "warmup": false,
+          "execution_id": "047741e5-2187-406f-99ed-ccb7c3d7af4d",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://047741e5-2187-406f-99ed-ccb7c3d7af4d/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/b6f992dc-be20-4a0e-942e-4e9d1bc3b4d3/047741e5-2187-406f-99ed-ccb7c3d7af4d/screenshots/step-03-d908ae07-1726-448f-82c9-16c3404589e8.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://047741e5-2187-406f-99ed-ccb7c3d7af4d/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/b6f992dc-be20-4a0e-942e-4e9d1bc3b4d3/047741e5-2187-406f-99ed-ccb7c3d7af4d/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 24,
+          "warmup": false,
+          "execution_id": "d85b8960-1b0a-4951-8e3f-37e7b9c309c3",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://d85b8960-1b0a-4951-8e3f-37e7b9c309c3/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/ae3a2e5c-ea25-45ad-ac7a-c3d4148bd9e0/d85b8960-1b0a-4951-8e3f-37e7b9c309c3/screenshots/step-03-55781f9a-188e-40f4-b2b1-630a5892c171.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://d85b8960-1b0a-4951-8e3f-37e7b9c309c3/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/ae3a2e5c-ea25-45ad-ac7a-c3d4148bd9e0/d85b8960-1b0a-4951-8e3f-37e7b9c309c3/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 25,
+          "warmup": false,
+          "execution_id": "9de628e8-7fc6-4d22-8481-5c11d905034c",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://9de628e8-7fc6-4d22-8481-5c11d905034c/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/d73e1178-67dd-41de-8e2e-34b1ec84b359/9de628e8-7fc6-4d22-8481-5c11d905034c/screenshots/step-03-4e08059e-497f-4478-920b-0045394b565d.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://9de628e8-7fc6-4d22-8481-5c11d905034c/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/d73e1178-67dd-41de-8e2e-34b1ec84b359/9de628e8-7fc6-4d22-8481-5c11d905034c/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 26,
+          "warmup": false,
+          "execution_id": "da10fbb2-0030-44f0-b772-bdfbdd38d9f2",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://da10fbb2-0030-44f0-b772-bdfbdd38d9f2/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/f21c01bb-c8f7-442b-af2f-c973eda776ce/da10fbb2-0030-44f0-b772-bdfbdd38d9f2/screenshots/step-03-a548e5c0-2f8f-44e9-88f2-f5a3baa2c07a.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://da10fbb2-0030-44f0-b772-bdfbdd38d9f2/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/f21c01bb-c8f7-442b-af2f-c973eda776ce/da10fbb2-0030-44f0-b772-bdfbdd38d9f2/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 27,
+          "warmup": false,
+          "execution_id": "9d4bf216-aacf-46cd-aa23-f96bc956feb9",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://9d4bf216-aacf-46cd-aa23-f96bc956feb9/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/57931946-244e-4f5a-9b03-0c64b9aa3ea3/9d4bf216-aacf-46cd-aa23-f96bc956feb9/screenshots/step-03-ab5b8691-1ec2-4764-9442-db2fb6258cea.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://9d4bf216-aacf-46cd-aa23-f96bc956feb9/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/57931946-244e-4f5a-9b03-0c64b9aa3ea3/9d4bf216-aacf-46cd-aa23-f96bc956feb9/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 28,
+          "warmup": false,
+          "execution_id": "b0bbfc92-bfc6-4c73-96cd-8518339196b1",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://b0bbfc92-bfc6-4c73-96cd-8518339196b1/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/9efbbb19-1468-4f87-8b22-6ea8f514d0c3/b0bbfc92-bfc6-4c73-96cd-8518339196b1/screenshots/step-03-d0475d1e-99f2-489c-bed1-a97d1f000fbb.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://b0bbfc92-bfc6-4c73-96cd-8518339196b1/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/9efbbb19-1468-4f87-8b22-6ea8f514d0c3/b0bbfc92-bfc6-4c73-96cd-8518339196b1/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 29,
+          "warmup": false,
+          "execution_id": "ff441f2d-4877-4594-b7a3-1c3c1a5757e8",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://ff441f2d-4877-4594-b7a3-1c3c1a5757e8/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/7de04087-6005-46b9-a6a2-b4b7a0b7ea28/ff441f2d-4877-4594-b7a3-1c3c1a5757e8/screenshots/step-03-72d4ed45-752c-4939-9ed1-f98ee8fc946a.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://ff441f2d-4877-4594-b7a3-1c3c1a5757e8/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/7de04087-6005-46b9-a6a2-b4b7a0b7ea28/ff441f2d-4877-4594-b7a3-1c3c1a5757e8/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 30,
+          "warmup": false,
+          "execution_id": "59e77161-3d16-4f4c-afec-f09ff4c6a3c1",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://59e77161-3d16-4f4c-afec-f09ff4c6a3c1/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/4e4ba528-bdb7-4f0d-855d-0f5b4132170d/59e77161-3d16-4f4c-afec-f09ff4c6a3c1/screenshots/step-03-5c24ed5d-752d-4f15-b122-065b5eb63b36.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://59e77161-3d16-4f4c-afec-f09ff4c6a3c1/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/4e4ba528-bdb7-4f0d-855d-0f5b4132170d/59e77161-3d16-4f4c-afec-f09ff4c6a3c1/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 31,
+          "warmup": false,
+          "execution_id": "72580b31-eeff-40f5-b420-edf22fe8596a",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://72580b31-eeff-40f5-b420-edf22fe8596a/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/037f8ac3-af8d-4fc3-89f4-117ec8ca8110/72580b31-eeff-40f5-b420-edf22fe8596a/screenshots/step-03-3ac947ef-1dbf-4f22-aa88-842e9f0e0807.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://72580b31-eeff-40f5-b420-edf22fe8596a/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/037f8ac3-af8d-4fc3-89f4-117ec8ca8110/72580b31-eeff-40f5-b420-edf22fe8596a/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 32,
+          "warmup": false,
+          "execution_id": "e92730cb-96f2-48ac-a5bb-fd293de9c89d",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://e92730cb-96f2-48ac-a5bb-fd293de9c89d/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/f2241bc9-7db9-4d88-b8a1-56a3757e6d83/e92730cb-96f2-48ac-a5bb-fd293de9c89d/screenshots/step-03-b6bce6c7-d4db-4d8b-9e01-4d692d376cf7.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://e92730cb-96f2-48ac-a5bb-fd293de9c89d/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/f2241bc9-7db9-4d88-b8a1-56a3757e6d83/e92730cb-96f2-48ac-a5bb-fd293de9c89d/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 33,
+          "warmup": false,
+          "execution_id": "e9a6cf4a-50e0-44af-bc52-776970e5d789",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://e9a6cf4a-50e0-44af-bc52-776970e5d789/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/ec6039fb-ee68-4315-bdc7-ee3871ddf621/e9a6cf4a-50e0-44af-bc52-776970e5d789/screenshots/step-03-96fbfaba-79a2-4c70-ab5a-8025509a5be3.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://e9a6cf4a-50e0-44af-bc52-776970e5d789/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/ec6039fb-ee68-4315-bdc7-ee3871ddf621/e9a6cf4a-50e0-44af-bc52-776970e5d789/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 34,
+          "warmup": false,
+          "execution_id": "63c8c76e-92cb-41ce-8bcb-7c701d5b3f5e",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://63c8c76e-92cb-41ce-8bcb-7c701d5b3f5e/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/45a51027-4062-44fa-b966-496a231a104e/63c8c76e-92cb-41ce-8bcb-7c701d5b3f5e/screenshots/step-03-bf535de5-1c65-439d-bead-9a088c965e30.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://63c8c76e-92cb-41ce-8bcb-7c701d5b3f5e/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/45a51027-4062-44fa-b966-496a231a104e/63c8c76e-92cb-41ce-8bcb-7c701d5b3f5e/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 35,
+          "warmup": false,
+          "execution_id": "a2f6ac42-ed9b-4957-a167-c5fb675b5952",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://a2f6ac42-ed9b-4957-a167-c5fb675b5952/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/ed7daca1-9127-4e30-a34a-03bb690fea55/a2f6ac42-ed9b-4957-a167-c5fb675b5952/screenshots/step-03-1bd6bc92-adcc-4793-8331-e806cd26ce69.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://a2f6ac42-ed9b-4957-a167-c5fb675b5952/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/ed7daca1-9127-4e30-a34a-03bb690fea55/a2f6ac42-ed9b-4957-a167-c5fb675b5952/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 36,
+          "warmup": false,
+          "execution_id": "f9fb6a3d-6803-4a1a-a0b0-facdf81631df",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://f9fb6a3d-6803-4a1a-a0b0-facdf81631df/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/d30b135b-ee65-40bf-8294-e7f4e3424363/f9fb6a3d-6803-4a1a-a0b0-facdf81631df/screenshots/step-03-f93798f1-509b-4df7-a5a6-27fab100375a.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://f9fb6a3d-6803-4a1a-a0b0-facdf81631df/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/d30b135b-ee65-40bf-8294-e7f4e3424363/f9fb6a3d-6803-4a1a-a0b0-facdf81631df/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 37,
+          "warmup": false,
+          "execution_id": "0aeb5320-797f-4acc-bde5-61458fc783fa",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://0aeb5320-797f-4acc-bde5-61458fc783fa/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/2f180a42-77bc-49a5-82fe-d8b7a049aca3/0aeb5320-797f-4acc-bde5-61458fc783fa/screenshots/step-03-5c8c5708-0163-49a1-b844-c13c48f05987.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://0aeb5320-797f-4acc-bde5-61458fc783fa/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/2f180a42-77bc-49a5-82fe-d8b7a049aca3/0aeb5320-797f-4acc-bde5-61458fc783fa/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 38,
+          "warmup": false,
+          "execution_id": "6017dcca-1cb1-45ac-b690-50240ed67f83",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://6017dcca-1cb1-45ac-b690-50240ed67f83/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/73ff7036-146e-4254-8b51-f302ad9acf3f/6017dcca-1cb1-45ac-b690-50240ed67f83/screenshots/step-03-017eae8c-8d5b-4be3-9e69-528d09b6ceee.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://6017dcca-1cb1-45ac-b690-50240ed67f83/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/73ff7036-146e-4254-8b51-f302ad9acf3f/6017dcca-1cb1-45ac-b690-50240ed67f83/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 39,
+          "warmup": false,
+          "execution_id": "388b7523-5836-4820-a5b9-30abaeb09cbc",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://388b7523-5836-4820-a5b9-30abaeb09cbc/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/30053510-80c8-4fe2-8b8c-2779031538d3/388b7523-5836-4820-a5b9-30abaeb09cbc/screenshots/step-03-d0fea400-acac-41f6-bd34-29eb227d4d25.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://388b7523-5836-4820-a5b9-30abaeb09cbc/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/30053510-80c8-4fe2-8b8c-2779031538d3/388b7523-5836-4820-a5b9-30abaeb09cbc/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 40,
+          "warmup": false,
+          "execution_id": "53622202-e779-4380-a4a7-b5651b03f07f",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://53622202-e779-4380-a4a7-b5651b03f07f/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/750f7f35-6c3d-4697-8706-6668ab1b1c56/53622202-e779-4380-a4a7-b5651b03f07f/screenshots/step-03-d29bd020-8f80-44b8-b8ae-76705b019bd7.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://53622202-e779-4380-a4a7-b5651b03f07f/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/750f7f35-6c3d-4697-8706-6668ab1b1c56/53622202-e779-4380-a4a7-b5651b03f07f/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 41,
+          "warmup": false,
+          "execution_id": "81f5c4c2-70a5-4d2d-8daf-7ce948eb16b4",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://81f5c4c2-70a5-4d2d-8daf-7ce948eb16b4/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/451ec7ff-135f-484b-a2f0-6fc9f79ff822/81f5c4c2-70a5-4d2d-8daf-7ce948eb16b4/screenshots/step-03-6d5b02bd-f865-498d-bb26-0f9636db00bc.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://81f5c4c2-70a5-4d2d-8daf-7ce948eb16b4/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/451ec7ff-135f-484b-a2f0-6fc9f79ff822/81f5c4c2-70a5-4d2d-8daf-7ce948eb16b4/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 42,
+          "warmup": false,
+          "execution_id": "04c75cf2-b7d2-4f3b-a0f2-9b211981d2bc",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://04c75cf2-b7d2-4f3b-a0f2-9b211981d2bc/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/f7a01040-2a24-4498-95ce-c23adbde8096/04c75cf2-b7d2-4f3b-a0f2-9b211981d2bc/screenshots/step-03-7fe56706-dcc1-4174-bc0a-42f9650a8be7.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://04c75cf2-b7d2-4f3b-a0f2-9b211981d2bc/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/f7a01040-2a24-4498-95ce-c23adbde8096/04c75cf2-b7d2-4f3b-a0f2-9b211981d2bc/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 43,
+          "warmup": false,
+          "execution_id": "1464cef4-ebd1-478a-9146-5453beb3f610",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://1464cef4-ebd1-478a-9146-5453beb3f610/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/9c5899f3-8b3b-4c71-9718-292771414582/1464cef4-ebd1-478a-9146-5453beb3f610/screenshots/step-03-6cdeb780-bc81-4267-b4a4-63a32ce1cc78.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://1464cef4-ebd1-478a-9146-5453beb3f610/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/9c5899f3-8b3b-4c71-9718-292771414582/1464cef4-ebd1-478a-9146-5453beb3f610/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 44,
+          "warmup": false,
+          "execution_id": "758c542a-55cf-4d54-9308-f2385d1c89c6",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://758c542a-55cf-4d54-9308-f2385d1c89c6/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/b474fff0-48f0-40aa-811e-d9602273cd1d/758c542a-55cf-4d54-9308-f2385d1c89c6/screenshots/step-03-6fec5ebd-6db0-413b-868e-fc97206af561.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://758c542a-55cf-4d54-9308-f2385d1c89c6/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/b474fff0-48f0-40aa-811e-d9602273cd1d/758c542a-55cf-4d54-9308-f2385d1c89c6/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 45,
+          "warmup": false,
+          "execution_id": "5a2072d3-c785-4b68-a5ac-89a661cfd579",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://5a2072d3-c785-4b68-a5ac-89a661cfd579/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/63bfdb2d-af60-4b43-8e65-5153d580fabe/5a2072d3-c785-4b68-a5ac-89a661cfd579/screenshots/step-03-2dbd609b-965f-4cf4-bebf-cacc6c998737.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://5a2072d3-c785-4b68-a5ac-89a661cfd579/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/63bfdb2d-af60-4b43-8e65-5153d580fabe/5a2072d3-c785-4b68-a5ac-89a661cfd579/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 46,
+          "warmup": false,
+          "execution_id": "a0ac4b2b-2b9f-4ec0-b560-c9a4bc814130",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://a0ac4b2b-2b9f-4ec0-b560-c9a4bc814130/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/076fb5b9-bfb4-4ee6-aa85-ff59db1aecb8/a0ac4b2b-2b9f-4ec0-b560-c9a4bc814130/screenshots/step-03-8422f990-a9de-46bc-89d0-ad34aba6d86c.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://a0ac4b2b-2b9f-4ec0-b560-c9a4bc814130/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/076fb5b9-bfb4-4ee6-aa85-ff59db1aecb8/a0ac4b2b-2b9f-4ec0-b560-c9a4bc814130/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 47,
+          "warmup": false,
+          "execution_id": "7642336d-8241-4c5a-8ccb-47a984d8c029",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://7642336d-8241-4c5a-8ccb-47a984d8c029/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/a4bdc596-9bbf-4ac8-a427-22e362756bde/7642336d-8241-4c5a-8ccb-47a984d8c029/screenshots/step-03-37f70170-360e-4ff8-a14a-bbe5e35e3a05.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://7642336d-8241-4c5a-8ccb-47a984d8c029/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/a4bdc596-9bbf-4ac8-a427-22e362756bde/7642336d-8241-4c5a-8ccb-47a984d8c029/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 48,
+          "warmup": false,
+          "execution_id": "eccfbfba-4e60-4841-80b6-d23ca5a7c94a",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://eccfbfba-4e60-4841-80b6-d23ca5a7c94a/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/138f8b2f-015f-4c1e-b86f-1a0b14bd23f7/eccfbfba-4e60-4841-80b6-d23ca5a7c94a/screenshots/step-03-74003b06-4f29-45be-9b93-96a6d0af0165.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://eccfbfba-4e60-4841-80b6-d23ca5a7c94a/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/138f8b2f-015f-4c1e-b86f-1a0b14bd23f7/eccfbfba-4e60-4841-80b6-d23ca5a7c94a/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 49,
+          "warmup": false,
+          "execution_id": "018f48fa-7966-4f54-be1f-0d1db3523e76",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://018f48fa-7966-4f54-be1f-0d1db3523e76/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/ed7606b4-e330-4cfa-824e-5e0c6a3cb857/018f48fa-7966-4f54-be1f-0d1db3523e76/screenshots/step-03-90f8ef9c-f70f-48a5-9304-c540a9110301.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://018f48fa-7966-4f54-be1f-0d1db3523e76/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/ed7606b4-e330-4cfa-824e-5e0c6a3cb857/018f48fa-7966-4f54-be1f-0d1db3523e76/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 50,
+          "warmup": false,
+          "execution_id": "77c837e2-e4d5-4929-92a5-15d89f174a47",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://77c837e2-e4d5-4929-92a5-15d89f174a47/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/a34cfa76-7699-41f3-8065-79cc050b9d62/77c837e2-e4d5-4929-92a5-15d89f174a47/screenshots/step-03-2e784c68-aa6d-40f7-8ec2-92fded267612.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://77c837e2-e4d5-4929-92a5-15d89f174a47/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/a34cfa76-7699-41f3-8065-79cc050b9d62/77c837e2-e4d5-4929-92a5-15d89f174a47/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 51,
+          "warmup": false,
+          "execution_id": "4b45280a-f17b-4486-8ed0-e98f09b7c2a4",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://4b45280a-f17b-4486-8ed0-e98f09b7c2a4/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/91af2130-d131-4398-837c-5bce53a049de/4b45280a-f17b-4486-8ed0-e98f09b7c2a4/screenshots/step-03-6a62e3be-07cd-48ef-aa5f-3e5dd400b277.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://4b45280a-f17b-4486-8ed0-e98f09b7c2a4/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/91af2130-d131-4398-837c-5bce53a049de/4b45280a-f17b-4486-8ed0-e98f09b7c2a4/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 52,
+          "warmup": false,
+          "execution_id": "d90bc34a-733a-4135-8b37-13fb9a0eb0c5",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://d90bc34a-733a-4135-8b37-13fb9a0eb0c5/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/88f8e0d1-6d9e-4424-87a4-e310e5e0e85e/d90bc34a-733a-4135-8b37-13fb9a0eb0c5/screenshots/step-03-d82bc423-ef63-47b3-b8ce-d6fcd00e5222.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://d90bc34a-733a-4135-8b37-13fb9a0eb0c5/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/88f8e0d1-6d9e-4424-87a4-e310e5e0e85e/d90bc34a-733a-4135-8b37-13fb9a0eb0c5/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 53,
+          "warmup": false,
+          "execution_id": "6f7bb67d-86dd-4439-9066-d24f8bf4118e",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://6f7bb67d-86dd-4439-9066-d24f8bf4118e/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/99b56442-65d2-46fd-8ad9-99df827a4d8f/6f7bb67d-86dd-4439-9066-d24f8bf4118e/screenshots/step-03-c8ebd5b0-19dd-466c-a98c-97bc913f2418.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://6f7bb67d-86dd-4439-9066-d24f8bf4118e/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/99b56442-65d2-46fd-8ad9-99df827a4d8f/6f7bb67d-86dd-4439-9066-d24f8bf4118e/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 54,
+          "warmup": false,
+          "execution_id": "03ddb0c2-8976-466d-87c7-cfda380b1a72",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://03ddb0c2-8976-466d-87c7-cfda380b1a72/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/a86846a3-da50-4177-b982-7e08d24dc8d3/03ddb0c2-8976-466d-87c7-cfda380b1a72/screenshots/step-03-74ac1d63-e1a6-41b3-be6e-d05d94f60ed9.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://03ddb0c2-8976-466d-87c7-cfda380b1a72/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/a86846a3-da50-4177-b982-7e08d24dc8d3/03ddb0c2-8976-466d-87c7-cfda380b1a72/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 55,
+          "warmup": false,
+          "execution_id": "af7e8a81-b656-4eba-a259-2147eed2b8c9",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://af7e8a81-b656-4eba-a259-2147eed2b8c9/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/6b427681-d74f-44b8-9249-ec92935f458f/af7e8a81-b656-4eba-a259-2147eed2b8c9/screenshots/step-03-4378911f-3bcd-46ce-aa0a-202f1ef98c1f.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://af7e8a81-b656-4eba-a259-2147eed2b8c9/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/6b427681-d74f-44b8-9249-ec92935f458f/af7e8a81-b656-4eba-a259-2147eed2b8c9/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 56,
+          "warmup": false,
+          "execution_id": "75dd42be-ae18-480b-b1bc-372c1c5dc777",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://75dd42be-ae18-480b-b1bc-372c1c5dc777/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/743cd35b-725b-40c5-a27a-ebb3ce1b323a/75dd42be-ae18-480b-b1bc-372c1c5dc777/screenshots/step-03-e8303354-e148-434f-9179-67e1cbcc8e9e.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://75dd42be-ae18-480b-b1bc-372c1c5dc777/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/743cd35b-725b-40c5-a27a-ebb3ce1b323a/75dd42be-ae18-480b-b1bc-372c1c5dc777/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 57,
+          "warmup": false,
+          "execution_id": "200d06bf-c445-46ba-bd70-46fd5dcf07cb",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://200d06bf-c445-46ba-bd70-46fd5dcf07cb/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/58d34f44-56f0-440c-89c3-f4eb54650134/200d06bf-c445-46ba-bd70-46fd5dcf07cb/screenshots/step-03-3e3c6a0d-e6c0-49b2-981b-6cdcd806d188.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://200d06bf-c445-46ba-bd70-46fd5dcf07cb/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/58d34f44-56f0-440c-89c3-f4eb54650134/200d06bf-c445-46ba-bd70-46fd5dcf07cb/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 58,
+          "warmup": false,
+          "execution_id": "4351f4bf-b301-460a-a582-e0a4e60516b6",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://4351f4bf-b301-460a-a582-e0a4e60516b6/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/97878948-13f7-40b8-ba5f-8935c40f22fa/4351f4bf-b301-460a-a582-e0a4e60516b6/screenshots/step-03-486869a6-f5f4-4475-9162-ae9bcc782d86.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://4351f4bf-b301-460a-a582-e0a4e60516b6/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/97878948-13f7-40b8-ba5f-8935c40f22fa/4351f4bf-b301-460a-a582-e0a4e60516b6/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 59,
+          "warmup": false,
+          "execution_id": "5f23969e-8bf0-400f-91f2-4fd783d0a4fe",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://5f23969e-8bf0-400f-91f2-4fd783d0a4fe/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/d9130ae7-57bb-4c66-9510-3bc804e6e593/5f23969e-8bf0-400f-91f2-4fd783d0a4fe/screenshots/step-03-27b81b13-7f61-431d-b40c-4ea601c09e75.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://5f23969e-8bf0-400f-91f2-4fd783d0a4fe/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/d9130ae7-57bb-4c66-9510-3bc804e6e593/5f23969e-8bf0-400f-91f2-4fd783d0a4fe/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 60,
+          "warmup": false,
+          "execution_id": "bfac1641-ebc6-4643-ae36-f72f54c48026",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://bfac1641-ebc6-4643-ae36-f72f54c48026/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/4ab8880f-5073-4ed4-a433-6950506b925c/bfac1641-ebc6-4643-ae36-f72f54c48026/screenshots/step-03-1f36100e-dbd2-4f9f-b52b-52ce72366ca8.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://bfac1641-ebc6-4643-ae36-f72f54c48026/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/4ab8880f-5073-4ed4-a433-6950506b925c/bfac1641-ebc6-4643-ae36-f72f54c48026/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 61,
+          "warmup": false,
+          "execution_id": "ff157ee7-7737-45fa-9308-c12357d2a800",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://ff157ee7-7737-45fa-9308-c12357d2a800/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/35c92b92-18cc-465a-872a-4884af103c69/ff157ee7-7737-45fa-9308-c12357d2a800/screenshots/step-03-05753d87-cfad-4336-88bc-fc503a8b924f.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://ff157ee7-7737-45fa-9308-c12357d2a800/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/35c92b92-18cc-465a-872a-4884af103c69/ff157ee7-7737-45fa-9308-c12357d2a800/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 62,
+          "warmup": false,
+          "execution_id": "b2fc79fc-9f8e-4529-8bca-8c1fdd57d108",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://b2fc79fc-9f8e-4529-8bca-8c1fdd57d108/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/f8bfb458-a03f-4a4d-a51a-ddbf450e3092/b2fc79fc-9f8e-4529-8bca-8c1fdd57d108/screenshots/step-03-8bbc1225-d59c-4a61-a3ce-063a674bc3c5.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://b2fc79fc-9f8e-4529-8bca-8c1fdd57d108/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/f8bfb458-a03f-4a4d-a51a-ddbf450e3092/b2fc79fc-9f8e-4529-8bca-8c1fdd57d108/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 63,
+          "warmup": false,
+          "execution_id": "9860855b-fa95-43da-9a4e-9a67b0c2ae37",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://9860855b-fa95-43da-9a4e-9a67b0c2ae37/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/befc76e9-f1d5-4fce-8793-c22e0b523f8e/9860855b-fa95-43da-9a4e-9a67b0c2ae37/screenshots/step-03-ccf36303-4044-4f5f-8f02-ec5350822aca.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://9860855b-fa95-43da-9a4e-9a67b0c2ae37/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/befc76e9-f1d5-4fce-8793-c22e0b523f8e/9860855b-fa95-43da-9a4e-9a67b0c2ae37/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 64,
+          "warmup": false,
+          "execution_id": "d002f828-8959-48f8-a699-7a682f5c8954",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://d002f828-8959-48f8-a699-7a682f5c8954/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/366b037e-0efa-48b2-8069-6123aec8e5dd/d002f828-8959-48f8-a699-7a682f5c8954/screenshots/step-03-976ef80f-84dc-424b-9cb2-7ed7a681aebc.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://d002f828-8959-48f8-a699-7a682f5c8954/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/366b037e-0efa-48b2-8069-6123aec8e5dd/d002f828-8959-48f8-a699-7a682f5c8954/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 65,
+          "warmup": false,
+          "execution_id": "533f6a7b-84bb-4ed8-a92b-8b66490a1b0d",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://533f6a7b-84bb-4ed8-a92b-8b66490a1b0d/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/b8ec3811-ee39-42ca-bc9a-30b927b7a513/533f6a7b-84bb-4ed8-a92b-8b66490a1b0d/screenshots/step-03-0dfbfe54-ff6c-4bbb-8fb5-1ab26d8732a5.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://533f6a7b-84bb-4ed8-a92b-8b66490a1b0d/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/b8ec3811-ee39-42ca-bc9a-30b927b7a513/533f6a7b-84bb-4ed8-a92b-8b66490a1b0d/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 66,
+          "warmup": false,
+          "execution_id": "69b1f962-e818-4867-9e75-b572d432b958",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://69b1f962-e818-4867-9e75-b572d432b958/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/79364379-f4ce-4330-9d9b-eabba98784f9/69b1f962-e818-4867-9e75-b572d432b958/screenshots/step-03-2b202eae-8e0a-449e-bbd7-d6060556fa95.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://69b1f962-e818-4867-9e75-b572d432b958/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/79364379-f4ce-4330-9d9b-eabba98784f9/69b1f962-e818-4867-9e75-b572d432b958/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 67,
+          "warmup": false,
+          "execution_id": "35db11d4-4da6-47a1-a416-141681e63dde",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://35db11d4-4da6-47a1-a416-141681e63dde/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/a5972dd0-262b-4ba8-bc17-20f1a5370b12/35db11d4-4da6-47a1-a416-141681e63dde/screenshots/step-03-fad850fb-dc26-4940-96c1-b132b39087fa.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://35db11d4-4da6-47a1-a416-141681e63dde/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/a5972dd0-262b-4ba8-bc17-20f1a5370b12/35db11d4-4da6-47a1-a416-141681e63dde/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 68,
+          "warmup": false,
+          "execution_id": "48555619-71f0-46f3-97e4-d520ec0fa12f",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://48555619-71f0-46f3-97e4-d520ec0fa12f/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/fd1da5b4-3321-4380-91e4-5a30ae911762/48555619-71f0-46f3-97e4-d520ec0fa12f/screenshots/step-03-47734862-335b-426d-bcc5-3d27c01d981f.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://48555619-71f0-46f3-97e4-d520ec0fa12f/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/fd1da5b4-3321-4380-91e4-5a30ae911762/48555619-71f0-46f3-97e4-d520ec0fa12f/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 69,
+          "warmup": false,
+          "execution_id": "414a7474-8fef-4dd9-8399-c2d7af5abdd2",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://414a7474-8fef-4dd9-8399-c2d7af5abdd2/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/05dd591d-7fc5-41cc-bc7a-a4cff3f24ddb/414a7474-8fef-4dd9-8399-c2d7af5abdd2/screenshots/step-03-bf3031db-33ca-4b07-bf82-9c9824dc41d5.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://414a7474-8fef-4dd9-8399-c2d7af5abdd2/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/05dd591d-7fc5-41cc-bc7a-a4cff3f24ddb/414a7474-8fef-4dd9-8399-c2d7af5abdd2/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 70,
+          "warmup": false,
+          "execution_id": "eb9d40fc-e3d6-44be-9af9-b1ba3843559a",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://eb9d40fc-e3d6-44be-9af9-b1ba3843559a/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/5b0fc600-8d55-4310-9468-284d3f01331b/eb9d40fc-e3d6-44be-9af9-b1ba3843559a/screenshots/step-03-1c2df0a9-8c4a-4291-9873-3ca108cb72ae.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://eb9d40fc-e3d6-44be-9af9-b1ba3843559a/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/5b0fc600-8d55-4310-9468-284d3f01331b/eb9d40fc-e3d6-44be-9af9-b1ba3843559a/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 71,
+          "warmup": false,
+          "execution_id": "78507443-b57a-4107-aa1c-8033b8163b0a",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://78507443-b57a-4107-aa1c-8033b8163b0a/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/b2e5272c-1799-4d10-bfea-d7501990d12b/78507443-b57a-4107-aa1c-8033b8163b0a/screenshots/step-03-b03fc929-0912-401d-96e2-41766a2dcef4.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://78507443-b57a-4107-aa1c-8033b8163b0a/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/b2e5272c-1799-4d10-bfea-d7501990d12b/78507443-b57a-4107-aa1c-8033b8163b0a/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 72,
+          "warmup": false,
+          "execution_id": "638047ab-ff60-4c00-aec5-85472a766c98",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://638047ab-ff60-4c00-aec5-85472a766c98/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/17e395bf-d2ed-4245-a404-759e46135e47/638047ab-ff60-4c00-aec5-85472a766c98/screenshots/step-03-768ef0de-d0a5-4a8a-bca5-9d2252b82f26.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://638047ab-ff60-4c00-aec5-85472a766c98/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/17e395bf-d2ed-4245-a404-759e46135e47/638047ab-ff60-4c00-aec5-85472a766c98/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 73,
+          "warmup": false,
+          "execution_id": "c89eb5a3-02b3-4076-a3a3-95b76623f78e",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://c89eb5a3-02b3-4076-a3a3-95b76623f78e/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/a1dd1e56-d408-4f59-9e50-a2dcc28962bc/c89eb5a3-02b3-4076-a3a3-95b76623f78e/screenshots/step-03-87564948-beab-41c4-b023-e179e5dec0ed.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://c89eb5a3-02b3-4076-a3a3-95b76623f78e/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/a1dd1e56-d408-4f59-9e50-a2dcc28962bc/c89eb5a3-02b3-4076-a3a3-95b76623f78e/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 74,
+          "warmup": false,
+          "execution_id": "ded9692f-13ef-43c5-9e18-c9b032ea35a8",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://ded9692f-13ef-43c5-9e18-c9b032ea35a8/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/a241f7fc-7f14-4bbc-a4d9-e613e8e64634/ded9692f-13ef-43c5-9e18-c9b032ea35a8/screenshots/step-03-dc37ee55-3cb9-41bd-acf6-52df8e9f0706.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://ded9692f-13ef-43c5-9e18-c9b032ea35a8/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/a241f7fc-7f14-4bbc-a4d9-e613e8e64634/ded9692f-13ef-43c5-9e18-c9b032ea35a8/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 75,
+          "warmup": false,
+          "execution_id": "990c7fc4-1eed-467b-9536-93a44ea4ae14",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://990c7fc4-1eed-467b-9536-93a44ea4ae14/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/cfaa5f2c-970b-4d39-b873-b04d38379f9d/990c7fc4-1eed-467b-9536-93a44ea4ae14/screenshots/step-03-6a6cde0b-bc6c-4769-ad96-28b24616ab68.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://990c7fc4-1eed-467b-9536-93a44ea4ae14/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/cfaa5f2c-970b-4d39-b873-b04d38379f9d/990c7fc4-1eed-467b-9536-93a44ea4ae14/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 76,
+          "warmup": false,
+          "execution_id": "b0f953fb-e709-4081-a75d-cb1f6b40b25b",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://b0f953fb-e709-4081-a75d-cb1f6b40b25b/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/af892cf8-6718-4ef7-b6ea-6bbf10afdc38/b0f953fb-e709-4081-a75d-cb1f6b40b25b/screenshots/step-03-5b6b2ff6-8ac8-49df-8927-855b0ab1791e.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://b0f953fb-e709-4081-a75d-cb1f6b40b25b/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/af892cf8-6718-4ef7-b6ea-6bbf10afdc38/b0f953fb-e709-4081-a75d-cb1f6b40b25b/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 77,
+          "warmup": false,
+          "execution_id": "49fb92df-8658-4185-9e62-60751f36480b",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://49fb92df-8658-4185-9e62-60751f36480b/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/f0ecd268-c17d-4d84-981e-5cf906fed013/49fb92df-8658-4185-9e62-60751f36480b/screenshots/step-03-9d687e16-504f-4fc7-9fe2-ae1ef34b3526.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://49fb92df-8658-4185-9e62-60751f36480b/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/f0ecd268-c17d-4d84-981e-5cf906fed013/49fb92df-8658-4185-9e62-60751f36480b/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 78,
+          "warmup": false,
+          "execution_id": "4850ef83-4b66-4599-997c-d79e8cbeb5b6",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://4850ef83-4b66-4599-997c-d79e8cbeb5b6/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/51a9c5c2-eca3-4744-ae3f-fe57c1db872c/4850ef83-4b66-4599-997c-d79e8cbeb5b6/screenshots/step-03-6875101d-3b2d-4494-852f-d637658320d1.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://4850ef83-4b66-4599-997c-d79e8cbeb5b6/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/51a9c5c2-eca3-4744-ae3f-fe57c1db872c/4850ef83-4b66-4599-997c-d79e8cbeb5b6/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 79,
+          "warmup": false,
+          "execution_id": "cd7ca717-00fd-4beb-a58a-5db4eb9b057d",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://cd7ca717-00fd-4beb-a58a-5db4eb9b057d/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/318cacbe-9b12-47d2-9044-8287262bf82d/cd7ca717-00fd-4beb-a58a-5db4eb9b057d/screenshots/step-03-d7838f8f-5233-4f08-9b45-c79bdbc66954.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://cd7ca717-00fd-4beb-a58a-5db4eb9b057d/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/318cacbe-9b12-47d2-9044-8287262bf82d/cd7ca717-00fd-4beb-a58a-5db4eb9b057d/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 80,
+          "warmup": false,
+          "execution_id": "210556a8-6917-49a9-a5b4-1f80ff051df6",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://210556a8-6917-49a9-a5b4-1f80ff051df6/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/4d602eb9-4009-4686-b882-e474cdb0862b/210556a8-6917-49a9-a5b4-1f80ff051df6/screenshots/step-03-ca4beba3-5b0d-4490-9314-89a121773ca3.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://210556a8-6917-49a9-a5b4-1f80ff051df6/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/4d602eb9-4009-4686-b882-e474cdb0862b/210556a8-6917-49a9-a5b4-1f80ff051df6/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 81,
+          "warmup": false,
+          "execution_id": "3dc5d5d6-353e-47a8-b1ae-81b38bd1a72b",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://3dc5d5d6-353e-47a8-b1ae-81b38bd1a72b/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/5c7d2502-b1b2-4df5-a8aa-835fb28f0c4f/3dc5d5d6-353e-47a8-b1ae-81b38bd1a72b/screenshots/step-03-b5aa837c-1685-4d62-a5be-84f3e307cdc3.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://3dc5d5d6-353e-47a8-b1ae-81b38bd1a72b/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/5c7d2502-b1b2-4df5-a8aa-835fb28f0c4f/3dc5d5d6-353e-47a8-b1ae-81b38bd1a72b/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 82,
+          "warmup": false,
+          "execution_id": "0b85a26b-9293-4fc7-a16f-38c03474439f",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://0b85a26b-9293-4fc7-a16f-38c03474439f/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/4eec7cac-6a4e-45ed-ad1b-c95ba31abd4c/0b85a26b-9293-4fc7-a16f-38c03474439f/screenshots/step-03-3d46d91a-1613-44f6-8006-d81ec0333f6d.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://0b85a26b-9293-4fc7-a16f-38c03474439f/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/4eec7cac-6a4e-45ed-ad1b-c95ba31abd4c/0b85a26b-9293-4fc7-a16f-38c03474439f/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 83,
+          "warmup": false,
+          "execution_id": "c797ee75-bbc2-4d50-816a-1bd3b13fef02",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://c797ee75-bbc2-4d50-816a-1bd3b13fef02/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/e905b657-a957-468c-a8f6-19176fbb2e65/c797ee75-bbc2-4d50-816a-1bd3b13fef02/screenshots/step-03-15335132-01fb-43b5-9f57-0f8abb212db3.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://c797ee75-bbc2-4d50-816a-1bd3b13fef02/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/e905b657-a957-468c-a8f6-19176fbb2e65/c797ee75-bbc2-4d50-816a-1bd3b13fef02/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 84,
+          "warmup": false,
+          "execution_id": "ad8160b4-cfca-464a-8494-8d319b1dc1bf",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://ad8160b4-cfca-464a-8494-8d319b1dc1bf/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/3737eab8-20d5-4650-90f8-20507e7ca493/ad8160b4-cfca-464a-8494-8d319b1dc1bf/screenshots/step-03-ee655099-b2a2-4026-b824-d223cb523ded.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://ad8160b4-cfca-464a-8494-8d319b1dc1bf/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/3737eab8-20d5-4650-90f8-20507e7ca493/ad8160b4-cfca-464a-8494-8d319b1dc1bf/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 85,
+          "warmup": false,
+          "execution_id": "90b2c1d5-1459-480d-ba3b-9d10b3b1565d",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://90b2c1d5-1459-480d-ba3b-9d10b3b1565d/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/19f2f335-b90f-40be-bcd7-81350015cbe9/90b2c1d5-1459-480d-ba3b-9d10b3b1565d/screenshots/step-03-26d825c1-83f9-462a-b663-32d60f66dc03.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://90b2c1d5-1459-480d-ba3b-9d10b3b1565d/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/19f2f335-b90f-40be-bcd7-81350015cbe9/90b2c1d5-1459-480d-ba3b-9d10b3b1565d/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 86,
+          "warmup": false,
+          "execution_id": "a5e0fac0-5ed5-4875-8112-10595dd84dfb",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://a5e0fac0-5ed5-4875-8112-10595dd84dfb/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/a9055c14-d52a-45db-9b0d-46c3781a3c50/a5e0fac0-5ed5-4875-8112-10595dd84dfb/screenshots/step-03-0d419af7-7ed1-4d72-bdfd-78fac12a9de6.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://a5e0fac0-5ed5-4875-8112-10595dd84dfb/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/a9055c14-d52a-45db-9b0d-46c3781a3c50/a5e0fac0-5ed5-4875-8112-10595dd84dfb/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 87,
+          "warmup": false,
+          "execution_id": "1fceaa19-b524-4c56-9662-c7eb9118825c",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://1fceaa19-b524-4c56-9662-c7eb9118825c/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/07e07429-af81-4f76-9216-665a63193b5d/1fceaa19-b524-4c56-9662-c7eb9118825c/screenshots/step-03-095fb5c2-49e7-4cbf-b467-be8ad5bcdbff.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://1fceaa19-b524-4c56-9662-c7eb9118825c/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/07e07429-af81-4f76-9216-665a63193b5d/1fceaa19-b524-4c56-9662-c7eb9118825c/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 88,
+          "warmup": false,
+          "execution_id": "2b124eaf-c012-40d8-9202-eccb2c45e805",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://2b124eaf-c012-40d8-9202-eccb2c45e805/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/600890ff-5c44-4375-8c78-5bc1b0931609/2b124eaf-c012-40d8-9202-eccb2c45e805/screenshots/step-03-9943a21e-b085-4568-aa7b-5920799820f8.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://2b124eaf-c012-40d8-9202-eccb2c45e805/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/600890ff-5c44-4375-8c78-5bc1b0931609/2b124eaf-c012-40d8-9202-eccb2c45e805/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 89,
+          "warmup": false,
+          "execution_id": "ad3fede5-bad8-4379-abae-54cef0a1299e",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://ad3fede5-bad8-4379-abae-54cef0a1299e/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/e2be5cef-dc33-4563-bd0b-79910633bdb0/ad3fede5-bad8-4379-abae-54cef0a1299e/screenshots/step-03-f88575d4-e334-46e1-8cd1-fca7f4f6a6ff.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://ad3fede5-bad8-4379-abae-54cef0a1299e/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/e2be5cef-dc33-4563-bd0b-79910633bdb0/ad3fede5-bad8-4379-abae-54cef0a1299e/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 90,
+          "warmup": false,
+          "execution_id": "51448738-fec7-4e06-b69c-2fa0c3c1a0bd",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://51448738-fec7-4e06-b69c-2fa0c3c1a0bd/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/3e4514b0-0e5e-43e3-83e2-368369c30073/51448738-fec7-4e06-b69c-2fa0c3c1a0bd/screenshots/step-03-2f7df140-f4fc-46a8-b016-75478257a159.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://51448738-fec7-4e06-b69c-2fa0c3c1a0bd/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/3e4514b0-0e5e-43e3-83e2-368369c30073/51448738-fec7-4e06-b69c-2fa0c3c1a0bd/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 91,
+          "warmup": false,
+          "execution_id": "d24f4200-f20e-4927-bb09-4e67fc2e2d89",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://d24f4200-f20e-4927-bb09-4e67fc2e2d89/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/6d14a723-8c4e-4f11-8fe1-d5adbd4622c0/d24f4200-f20e-4927-bb09-4e67fc2e2d89/screenshots/step-03-e3ecbe69-8d04-4651-b6cc-aa407b302b63.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://d24f4200-f20e-4927-bb09-4e67fc2e2d89/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/6d14a723-8c4e-4f11-8fe1-d5adbd4622c0/d24f4200-f20e-4927-bb09-4e67fc2e2d89/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 92,
+          "warmup": false,
+          "execution_id": "2f24c417-bea0-4e74-a471-dfcd8724a91f",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://2f24c417-bea0-4e74-a471-dfcd8724a91f/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/09b07d5f-c71c-432c-bd9a-5415c4036b0f/2f24c417-bea0-4e74-a471-dfcd8724a91f/screenshots/step-03-d550b887-9d41-4d2f-8d10-1f2932e27643.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://2f24c417-bea0-4e74-a471-dfcd8724a91f/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/09b07d5f-c71c-432c-bd9a-5415c4036b0f/2f24c417-bea0-4e74-a471-dfcd8724a91f/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 93,
+          "warmup": false,
+          "execution_id": "5b0805dd-7187-419f-b1ee-f407b7334ce7",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://5b0805dd-7187-419f-b1ee-f407b7334ce7/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/5736997d-2a77-4fa8-87f9-f98ed4be13d5/5b0805dd-7187-419f-b1ee-f407b7334ce7/screenshots/step-03-4dfed86a-9a11-422a-b8be-610796b74069.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://5b0805dd-7187-419f-b1ee-f407b7334ce7/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/5736997d-2a77-4fa8-87f9-f98ed4be13d5/5b0805dd-7187-419f-b1ee-f407b7334ce7/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 94,
+          "warmup": false,
+          "execution_id": "134333b3-a643-4f3d-94aa-e2f193fac895",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://134333b3-a643-4f3d-94aa-e2f193fac895/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/546030a3-38d4-4ef6-aea2-dea388488e64/134333b3-a643-4f3d-94aa-e2f193fac895/screenshots/step-03-11ae0d8b-d026-4923-9916-460a79848986.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://134333b3-a643-4f3d-94aa-e2f193fac895/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/546030a3-38d4-4ef6-aea2-dea388488e64/134333b3-a643-4f3d-94aa-e2f193fac895/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 95,
+          "warmup": false,
+          "execution_id": "30e9d9c4-782d-47dd-9a93-0fa8e80fe550",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://30e9d9c4-782d-47dd-9a93-0fa8e80fe550/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/8949d207-1fc0-4aba-9f4d-7da9cf63c8f1/30e9d9c4-782d-47dd-9a93-0fa8e80fe550/screenshots/step-03-a2af5962-771e-4aee-9774-b278d665070c.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://30e9d9c4-782d-47dd-9a93-0fa8e80fe550/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/8949d207-1fc0-4aba-9f4d-7da9cf63c8f1/30e9d9c4-782d-47dd-9a93-0fa8e80fe550/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 96,
+          "warmup": false,
+          "execution_id": "f896c5b6-733c-4f4d-9af3-065e51d54e1e",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://f896c5b6-733c-4f4d-9af3-065e51d54e1e/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/40230ba6-847c-4538-9124-8cc5a725f5ed/f896c5b6-733c-4f4d-9af3-065e51d54e1e/screenshots/step-03-3ef3f9f3-a795-4aa2-ba75-b36f400f3817.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://f896c5b6-733c-4f4d-9af3-065e51d54e1e/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/40230ba6-847c-4538-9124-8cc5a725f5ed/f896c5b6-733c-4f4d-9af3-065e51d54e1e/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 97,
+          "warmup": false,
+          "execution_id": "411b6fc0-5d92-4009-9ce6-43fbb3ed3115",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://411b6fc0-5d92-4009-9ce6-43fbb3ed3115/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/d30f9cb9-330a-46e7-b6fc-5bbf74fe2383/411b6fc0-5d92-4009-9ce6-43fbb3ed3115/screenshots/step-03-404f823b-2afb-4379-b647-9197a816302f.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://411b6fc0-5d92-4009-9ce6-43fbb3ed3115/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/d30f9cb9-330a-46e7-b6fc-5bbf74fe2383/411b6fc0-5d92-4009-9ce6-43fbb3ed3115/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 98,
+          "warmup": false,
+          "execution_id": "b9f299d2-1ed5-426e-8e55-8578daefa35f",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://b9f299d2-1ed5-426e-8e55-8578daefa35f/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/d2dfc69c-25a7-4bd0-b4fc-9ab81bcbe23e/b9f299d2-1ed5-426e-8e55-8578daefa35f/screenshots/step-03-5f705c81-f0c7-4494-b8a4-24060b4968e1.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://b9f299d2-1ed5-426e-8e55-8578daefa35f/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/d2dfc69c-25a7-4bd0-b4fc-9ab81bcbe23e/b9f299d2-1ed5-426e-8e55-8578daefa35f/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        },
+        {
+          "index": 99,
+          "warmup": false,
+          "execution_id": "55823e2f-ffcf-49c6-af32-e52f438deb65",
+          "artifacts": [
+            {
+              "type": "screenshot",
+              "reference": "bas-capture://55823e2f-ffcf-49c6-af32-e52f438deb65/screenshot",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/7f23177b-6f76-45eb-9a40-9096de18ed3f/55823e2f-ffcf-49c6-af32-e52f438deb65/screenshots/step-03-4aec21c9-e725-4b44-b8a9-ae528184bfa6.png",
+              "primary": true,
+              "bytes": 14521,
+              "sha256": "1c79b2d770ce6b71968553400a51a6265ef6e368004916b28cf194e8c08181c1"
+            },
+            {
+              "type": "dom-tree",
+              "reference": "bas-capture://55823e2f-ffcf-49c6-af32-e52f438deb65/dom_tree",
+              "path": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/7f23177b-6f76-45eb-9a40-9096de18ed3f/55823e2f-ffcf-49c6-af32-e52f438deb65/dom-tree.json",
+              "bytes": 4841,
+              "sha256": "ebf8b1972c5b3c8795bc301570680726f092915a13a2496e19e6ed31d509e772"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "metrics": {
+    "before": {
+      "runtime_lines": 1029,
+      "complexity": 190,
+      "functions": 23,
+      "hotspots": [
+        {
+          "function": "(*WorkflowService).executeWorkflowAsyncWithOptions",
+          "complexity": 56
+        },
+        {
+          "function": "(*WorkflowService).ExecuteAdhocWorkflowAPIWithOptions",
+          "complexity": 29
+        },
+        {
+          "function": "(*WorkflowService).ExecuteWorkflowAPIWithOptions",
+          "complexity": 29
+        }
+      ]
+    },
+    "after": {
+      "runtime_lines": 1014,
+      "complexity": 186,
+      "functions": 22,
+      "hotspots": [
+        {
+          "function": "(*WorkflowService).executeWorkflowAsyncWithOptions",
+          "complexity": 56
+        },
+        {
+          "function": "(*WorkflowService).ExecuteAdhocWorkflowAPIWithOptions",
+          "complexity": 25
+        },
+        {
+          "function": "(*WorkflowService).ExecuteWorkflowAPIWithOptions",
+          "complexity": 25
+        }
+      ]
+    },
+    "delta": {
+      "runtime_lines": -15,
+      "complexity": -4,
+      "functions": -1
+    },
+    "cumulative_affected_go_complexity": -61
+  },
+  "pending_operations": {},
+  "limitations": [
+    "All17 release outcomes still pending_telemetry; tidiness budgets fail.",
+    "Fake-clock regressions prove polling-delay removal. Live100/100 cohort shows lower local service/CLI p95; sequential shared-host trials do not qualify every load or release band.",
+    "Existing high-arity runner remains an ownership/cohesion hotspot.",
+    "Terminal DB failure is now explicit to synchronous waiters; broader persistence/recovery behavior is not qualified by this change.",
+    "Driver081 and UI080 qualifications are retained with unchanged source."
+  ]
+}

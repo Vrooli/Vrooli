@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 
 	"github.com/google/uuid"
+	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -19,6 +20,8 @@ import (
 // CheckpointState represents the execution state at a specific checkpoint.
 // Used for resuming executions from a previous point.
 type CheckpointState struct {
+	// AdmissionParameters retains browser, artifact and other execution settings.
+	AdmissionParameters *basexecution.ExecutionParameters
 	// LastStepIndex is the index of the last successfully completed step.
 	// -1 means no steps have completed.
 	LastStepIndex int
@@ -70,6 +73,7 @@ func (s *WorkflowService) ExtractCheckpointState(ctx context.Context, executionI
 		return nil, fmt.Errorf("read execution snapshot: %w", err)
 	}
 	if snapshot != nil {
+		checkpoint.AdmissionParameters = snapshot.Parameters
 		checkpoint.WorkflowVersion = int(snapshot.WorkflowVersion)
 		if snapshot.Parameters != nil {
 			checkpoint.Params = jsonValueMapToAnyMap(snapshot.Parameters.InitialParams)
@@ -78,7 +82,7 @@ func (s *WorkflowService) ExtractCheckpointState(ctx context.Context, executionI
 		}
 	}
 
-	// Read timeline to find last successful step and accumulated state
+	// Compare the committed cursor with durable successful outcome evidence.
 	if execution.ResultPath != "" {
 		timeline, err := s.readExecutionTimelineForCheckpoint(execution.ResultPath)
 		if err != nil {
@@ -89,8 +93,25 @@ func (s *WorkflowService) ExtractCheckpointState(ctx context.Context, executionI
 			return nil, fmt.Errorf("read timeline: %w", err)
 		}
 
-		// Parse timeline entries to find last successful step
-		checkpoint.LastStepIndex, checkpoint.TotalSteps = extractCheckpointFromTimeline(timeline, checkpoint.Variables)
+		var last *bastimeline.TimelineEntry
+		for _, entry := range timeline.Entries {
+			if entry != nil && entry.GetContext().GetSuccess() {
+				last = entry
+			}
+		}
+		if last == nil {
+			return checkpoint, nil
+		}
+		committed, err := executionwriter.ReadCheckpoint(execution.ResultPath, execution.ID, execution.WorkflowID)
+		if err != nil {
+			return nil, fmt.Errorf("%w: committed state unavailable: %v", ErrExecutionNotResumable, err)
+		}
+		if last.StepIndex == nil || committed.LastStepIndex != int(*last.StepIndex) || committed.NodeID != last.GetNodeId() {
+			return nil, fmt.Errorf("%w: committed state disagrees with successful outcome", ErrExecutionNotResumable)
+		}
+		checkpoint.LastStepIndex = committed.LastStepIndex
+		checkpoint.TotalSteps = committed.TotalSteps
+		checkpoint.Variables = committed.Store
 	}
 
 	return checkpoint, nil
@@ -113,73 +134,6 @@ func (s *WorkflowService) readExecutionTimelineForCheckpoint(resultPath string) 
 	}
 
 	return &timeline, nil
-}
-
-// extractCheckpointFromTimeline analyzes timeline entries to find the last
-// successful step and accumulates extracted data into variables.
-func extractCheckpointFromTimeline(timeline *bastimeline.ExecutionTimeline, variables map[string]any) (lastStepIndex, totalSteps int) {
-	lastStepIndex = -1
-	totalSteps = 0
-
-	if timeline == nil || len(timeline.Entries) == 0 {
-		return lastStepIndex, totalSteps
-	}
-
-	// Sort entries by step index to process in order
-	entries := make([]*bastimeline.TimelineEntry, len(timeline.Entries))
-	copy(entries, timeline.Entries)
-	sort.Slice(entries, func(i, j int) bool {
-		iIdx := int32(0)
-		jIdx := int32(0)
-		if entries[i].StepIndex != nil {
-			iIdx = *entries[i].StepIndex
-		}
-		if entries[j].StepIndex != nil {
-			jIdx = *entries[j].StepIndex
-		}
-		return iIdx < jIdx
-	})
-
-	// Track the highest step index seen (for total count estimate)
-	maxStepIndex := int32(-1)
-
-	// Process entries to find last successful step and accumulate extracted data
-	for _, entry := range entries {
-		if entry == nil {
-			continue
-		}
-
-		stepIndex := int32(-1)
-		if entry.StepIndex != nil {
-			stepIndex = *entry.StepIndex
-		}
-
-		if stepIndex > maxStepIndex {
-			maxStepIndex = stepIndex
-		}
-
-		// Check if this step succeeded
-		if entry.Context != nil && entry.Context.Success != nil && *entry.Context.Success {
-			lastStepIndex = int(stepIndex)
-
-			// Accumulate extracted data from successful steps
-			if entry.Aggregates != nil && entry.Aggregates.ExtractedDataPreview != nil {
-				extractedData := typeconv.JsonValueToAny(entry.Aggregates.ExtractedDataPreview)
-				if dataMap, ok := extractedData.(map[string]any); ok {
-					for k, v := range dataMap {
-						variables[k] = v
-					}
-				}
-			}
-		}
-	}
-
-	// Estimate total steps from max index seen
-	if maxStepIndex >= 0 {
-		totalSteps = int(maxStepIndex) + 1
-	}
-
-	return lastStepIndex, totalSteps
 }
 
 // jsonValueMapToAnyMap converts a proto JsonValue map to a Go any map.

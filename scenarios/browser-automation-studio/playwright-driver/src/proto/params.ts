@@ -98,7 +98,7 @@ function assertionModeToString(mode: AssertionMode): string {
     case AssertionMode.TEXT_CONTAINS: return 'text_contains';
     case AssertionMode.ATTRIBUTE_EQUALS: return 'attribute_equals';
     case AssertionMode.ATTRIBUTE_CONTAINS: return 'attribute_contains';
-    default: return 'exists';
+    default: return 'unsupported';
   }
 }
 
@@ -342,6 +342,7 @@ export function getAssertParams(action: ActionDefinition): {
   caseSensitive?: boolean;
   attributeName?: string;
   timeoutMs?: number;
+  failureMessage?: string;
 } | undefined {
   if (action.params?.case === 'assert' && action.params.value) {
     const p = action.params.value;
@@ -353,6 +354,7 @@ export function getAssertParams(action: ActionDefinition): {
       caseSensitive: p.caseSensitive,
       attributeName: p.attributeName,
       timeoutMs: p.timeoutMs,
+      failureMessage: p.failureMessage,
     };
   }
   return undefined;

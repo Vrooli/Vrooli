@@ -66,12 +66,39 @@ func TestCapture_HappyPath_Screenshot(t *testing.T) {
 	require.Equal(t, 1, exec.Calls)
 	require.NotNil(t, exec.LastReq)
 	require.NotNil(t, exec.LastReq.FlowDefinition)
-	require.Len(t, exec.LastReq.FlowDefinition.Nodes, 1)
+	require.Len(t, exec.LastReq.FlowDefinition.Nodes, 2)
 	nav := exec.LastReq.FlowDefinition.Nodes[0].GetAction().GetNavigate()
 	require.NotNil(t, nav)
 	require.Equal(t, "https://example.com", nav.Url)
 	require.Equal(t, "generic-navigation", resp.Msg.GetReadiness().GetSelectedStrategy())
 	require.Equal(t, "ready", resp.Msg.GetReadiness().GetOutcome())
+}
+
+func TestCapture_RequestedImageFollowsReadinessAndSnapshot(t *testing.T) {
+	for _, selector := range []string{"", "#panel"} {
+		t.Run(selector, func(t *testing.T) {
+			exec := &fakeExecutor{}
+			client, _ := newTestServer(t, Deps{Executor: exec})
+			_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+				Url: "https://example.com", InlineDomTree: true, ScreenshotSelector: selector,
+				WaitFor: &capturev1.WaitFor{Spec: &capturev1.WaitFor_Selector{Selector: "#ready"}},
+			}))
+			require.NoError(t, err)
+			flow := exec.LastReq.GetFlowDefinition()
+			require.Len(t, flow.Nodes, 4)
+			for i, kind := range []actionsv1.ActionType{actionsv1.ActionType_ACTION_TYPE_NAVIGATE, actionsv1.ActionType_ACTION_TYPE_WAIT, actionsv1.ActionType_ACTION_TYPE_EVALUATE, actionsv1.ActionType_ACTION_TYPE_SCREENSHOT} {
+				require.Equal(t, kind, flow.Nodes[i].GetAction().GetType())
+				if i > 0 {
+					require.Equal(t, flow.Nodes[i-1].Id, flow.Edges[i-1].Source)
+					require.Equal(t, flow.Nodes[i].Id, flow.Edges[i-1].Target)
+				}
+			}
+			require.Equal(t, selector, flow.Nodes[3].GetAction().GetScreenshot().GetSelector())
+			require.NotNil(t, flow.Nodes[3].GetAction().GetScreenshot().FullPage)
+			require.False(t, flow.Nodes[3].GetAction().GetScreenshot().GetFullPage())
+			require.Equal(t, "capture", exec.LastReq.GetParameters().GetArtifactConfig().GetProfile())
+		})
+	}
 }
 
 func TestCapture_FailedExecutionExportsResultThenReturnsConnectErrorWithoutArtifacts(t *testing.T) {
@@ -118,7 +145,7 @@ func TestBuildAdhocRequest_AppliesDirectionAfterReadiness(t *testing.T) {
 	direction := "rtl"
 	req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{Direction: direction}, 1440, 900, "document.documentElement.outerHTML")
 	require.NoError(t, err)
-	require.Len(t, req.FlowDefinition.Nodes, 2)
+	require.Len(t, req.FlowDefinition.Nodes, 3)
 	require.Equal(t, actionsv1.ActionType_ACTION_TYPE_EVALUATE, req.FlowDefinition.Nodes[1].GetAction().GetType())
 	require.Contains(t, req.FlowDefinition.Nodes[1].GetAction().GetEvaluate().GetExpression(), "document.documentElement.dir")
 }
@@ -208,10 +235,10 @@ func TestCapture_ReadinessWaitsFollowNavigation(t *testing.T) {
 			req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{WaitFor: tt.wait}, 1440, 900, "document.documentElement.outerHTML")
 			require.NoError(t, err)
 			nodes := req.GetFlowDefinition().GetNodes()
-			require.Len(t, nodes, 2)
+			require.Len(t, nodes, 3)
 			require.NotNil(t, nodes[0].GetAction().GetNavigate())
 			require.NotNil(t, nodes[1].GetAction().GetWait())
-			require.Len(t, req.GetFlowDefinition().GetEdges(), 1)
+			require.Len(t, req.GetFlowDefinition().GetEdges(), 2)
 			require.Equal(t, nodes[0].GetId(), req.GetFlowDefinition().GetEdges()[0].GetSource())
 			require.Equal(t, nodes[1].GetId(), req.GetFlowDefinition().GetEdges()[0].GetTarget())
 			tt.assert(t, nodes)
@@ -223,7 +250,7 @@ func TestCapture_NetworkIdleIsADeclaredPostNavigationWait(t *testing.T) {
 	req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{WaitFor: &capturev1.WaitFor{Spec: &capturev1.WaitFor_Networkidle{Networkidle: true}}}, 1440, 900, "document.documentElement.outerHTML")
 	require.NoError(t, err)
 	nodes := req.GetFlowDefinition().GetNodes()
-	require.Len(t, nodes, 1)
+	require.Len(t, nodes, 2)
 	require.Equal(t, actionsv1.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_NETWORKIDLE, nodes[0].GetAction().GetNavigate().GetWaitUntil())
 }
 
@@ -232,7 +259,7 @@ func TestAppendPostNavigationWaitInsertsProfileReadinessBeforeFollowers(t *testi
 	require.NoError(t, err)
 	appendPostNavigationWait(req, &actionsv1.WaitParams{WaitFor: &actionsv1.WaitParams_Selector{Selector: "[data-testid=results]"}})
 	flow := req.GetFlowDefinition()
-	require.Len(t, flow.GetNodes(), 3)
+	require.Len(t, flow.GetNodes(), 4)
 	var waitID string
 	for _, node := range flow.GetNodes() {
 		if node.GetAction().GetWait() != nil {
@@ -259,7 +286,7 @@ func TestAppendPostNavigationWaitsChainsEveryDeclaredSurface(t *testing.T) {
 		{WaitFor: &actionsv1.WaitParams_Selector{Selector: "[data-testid=results]"}},
 	})
 	flow := req.GetFlowDefinition()
-	require.Len(t, flow.GetNodes(), 4)
+	require.Len(t, flow.GetNodes(), 5)
 	var waits []*workflowsv1.WorkflowNodeV2
 	for _, node := range flow.GetNodes() {
 		if node.GetAction().GetWait() != nil {
@@ -472,7 +499,7 @@ func TestCapture_ExternalURLRetainsGenericReadinessWithoutProfileLookup(t *testi
 	require.NoError(t, err)
 	require.Equal(t, 0, readiness.Calls)
 	require.Equal(t, "generic-navigation", resp.Msg.GetReadiness().GetSelectedStrategy())
-	require.Len(t, exec.LastReq.GetFlowDefinition().GetNodes(), 1)
+	require.Len(t, exec.LastReq.GetFlowDefinition().GetNodes(), 2)
 }
 
 func TestCapture_DeclaredRouteWithoutSurfacesExplainsGenericFallback(t *testing.T) {
@@ -506,7 +533,7 @@ func TestCapture_ExplicitWaitOverridesDeclaredReadiness(t *testing.T) {
 	require.Equal(t, 0, readiness.Calls)
 	require.Equal(t, "explicit-selector", resp.Msg.GetReadiness().GetSelectedStrategy())
 	nodes := exec.LastReq.GetFlowDefinition().GetNodes()
-	require.Len(t, nodes, 2)
+	require.Len(t, nodes, 3)
 	require.Equal(t, `[data-testid="caller-ready"]`, nodes[1].GetAction().GetWait().GetSelector())
 }
 
@@ -801,4 +828,50 @@ func TestCapture_EmptyOutDirDefaultsUnderCapturesRoot(t *testing.T) {
 	}))
 	require.NoError(t, err)
 	require.Truef(t, strings.HasPrefix(resp.Msg.OutDir, root+string(filepath.Separator)), "default out dir %q must live under captures root %q", resp.Msg.OutDir, root)
+}
+
+// [REQ:BAS-RH-J20] Capture follows the executed interaction's terminal path.
+func TestCapture_InteractionBoundariesFollowEdges(t *testing.T) {
+	cases := []struct {
+		name, flow, entry string
+		terminals         []string
+	}{
+		{"reversed linear", `{"nodes":[{"id":"last","action":{"type":"ACTION_TYPE_EVALUATE","evaluate":{"expression":"true"}}},{"id":"first","action":{"type":"ACTION_TYPE_EVALUATE","evaluate":{"expression":"true"}}}],"edges":[{"id":"first-last","source":"first","target":"last"}]}`, "first", []string{"last"}},
+		{"branch terminals", `{"nodes":[{"id":"choose","action":{"type":"ACTION_TYPE_CONDITIONAL","conditional":{"condition_type":"CONDITIONAL_TYPE_EXPRESSION","expression":"true"}}},{"id":"right","action":{"type":"ACTION_TYPE_EVALUATE","evaluate":{"expression":"true"}}},{"id":"left","action":{"type":"ACTION_TYPE_EVALUATE","evaluate":{"expression":"true"}}}],"edges":[{"id":"true","source":"choose","target":"left","source_handle":"true"},{"id":"false","source":"choose","target":"right","source_handle":"false"}]}`, "choose", []string{"right", "left"}},
+		{"loop body is not outer terminal", `{"nodes":[{"id":"loop","action":{"type":"ACTION_TYPE_LOOP","loop":{"loop_type":"LOOP_TYPE_REPEAT","count":2}}},{"id":"last","action":{"type":"ACTION_TYPE_EVALUATE","evaluate":{"expression":"true"}}},{"id":"body","action":{"type":"ACTION_TYPE_EVALUATE","evaluate":{"expression":"true"}}}],"edges":[{"id":"body","source":"loop","target":"body","source_handle":"loopbody"},{"id":"return","source":"body","target":"loop","target_handle":"loopcontinue"},{"id":"after","source":"loop","target":"last"}]}`, "loop", []string{"last"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req, domID, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{InteractionFlowJson: tc.flow, InlineDomTree: true}, 640, 480, "document.documentElement.outerHTML")
+			require.NoError(t, err)
+			flow := req.GetFlowDefinition()
+			var entries, terminals []string
+			for _, edge := range flow.Edges {
+				if edge.Source == flow.Nodes[0].Id {
+					entries = append(entries, edge.Target)
+				}
+				if edge.Target == domID {
+					terminals = append(terminals, edge.Source)
+				}
+			}
+			require.Equal(t, []string{tc.entry}, entries)
+			require.ElementsMatch(t, tc.terminals, terminals)
+		})
+	}
+}
+
+func TestCapture_RejectsAmbiguousInteractionBeforeEffects(t *testing.T) {
+	for i, raw := range []string{
+		`{"nodes":[{"id":"a","action":{"type":"ACTION_TYPE_EVALUATE","evaluate":{"expression":"true"}}},{"id":"b","action":{"type":"ACTION_TYPE_EVALUATE","evaluate":{"expression":"true"}}}]}`,
+		`{"nodes":[{"id":"a","action":{"type":"ACTION_TYPE_EVALUATE","evaluate":{"expression":"true"}}}],"edges":[{"id":"cycle","source":"a","target":"a"}]}`,
+		`{"nodes":[{"id":"a","action":{"type":"ACTION_TYPE_EVALUATE","evaluate":{"expression":"true"}}}],"edges":[{"id":"dangling","source":"a","target":"missing"}]}`,
+	} {
+		t.Run(fmt.Sprint(i), func(t *testing.T) {
+			exec := &fakeExecutor{}
+			client, _ := newTestServer(t, Deps{Executor: exec})
+			_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{Url: "https://example.com", InteractionFlowJson: raw}))
+			require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+			require.Zero(t, exec.Calls)
+		})
+	}
 }

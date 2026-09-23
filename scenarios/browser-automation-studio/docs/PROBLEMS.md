@@ -480,7 +480,7 @@ C = later product extension. These letters are not PRD release tiers.
 | BAS-RF-013 | A / code + isolated public executor reproduction | Capture VIDEO/DOM unavailable; target support varies; explicit failed screenshot becomes successful step/workflow with a non-fatal note | BAS evidence + target owners | Published capability matrix; required vs optional capture policy governs terminal verdict; verified artifacts and joined device video. |
 | BAS-RF-014 | A / owner driver passes, locally deployed | Driver required role/shared surface discovery repaired;125suites/1468tests pass with natural exit; UI coverage debt remains | BAS validation/measure program | Current scoped receipts include driver, behavioral corpus and readable truthful board; unavailable remains unknown. |
 | BAS-RF-015 | B / measured size, historical complexity | Responsibility concentration and duplicate policy remain | BAS module owners | Reduced comparable debt/dependencies and preserved behaviors for each extraction; no cosmetic size-only closure. |
-| BAS-RF-016 | B / reproduced capture | DPR1 request yields 2× pixels; four PNGs for one-page capture | BAS capture/compiler/driver | DPR1/2 fixture dimensions and selected artifact policy honored; measured byte/cost improvement. |
+| BAS-RF-016 | B / DPR and passive capture duplication repaired | DPR1 request yields 2× pixels; four PNGs for one-page capture | BAS capture/compiler/driver | DPR1/2 fixture dimensions and selected artifact policy honored; measured byte/cost improvement. |
 | BAS-RF-017 | A / isolated raw-transport disclosure | Synthetic password sent literally by passive recorder; downstream redaction unqualified | BAS recording/evidence | Synthetic secret absent from unprotected events, storage, exports and AI attachments; intended secret-use still works. |
 | BAS-RF-018 | B / compatibility unknown | Provider comments overpromise detection compatibility; injection changes page behavior | BAS runtime/provider | Versioned site/fixture compatibility results, challenge/human recovery and persistent-profile evidence; bounded claims. |
 | BAS-RF-019 | A / isolated reproduction with installed Request prototype | Concurrent requests collide by string identity, corrupting URL/status attribution and dropping responses | BAS driver network evidence | Request-identity fixtures preserve concurrent same/different URLs, redirects and failures; explicit eviction gaps. |
@@ -2346,3 +2346,306 @@ alreadypass. Red/tmp/bas-execution-wait-red-085.txt. Owner: existingworkflow
 executiongoroutine lifetime plusonepersistedterminalread. Repairinprogress;
 validatepublic saved/adhoc paths, delayedteardown, error/status/timestamp, missing
 terminalresult andlocalnativecapture/workflow/performance beforequalification.
+
+RF105 correction085 deployed and locally qualified: both public synchronous
+callers join the existing runner lifetime through teardown and read one persisted
+terminal record. Both250ms polling copies and two obsolete forwarding layers
+removed. Async/manual behavior preserved. Deterministic red/green, three Go race
+packages/build, native workflow12/12, capture admission5/5/DPR18/18 and original
+profiles pass. Comparable local100/100capture cohort: servicep95 755->577ms,
+CLIp95 978.46->780.92ms; shared-host limits retained. Receipt internal/evidence/
+rehabilitation/execution-completion-2026-09-23.json. Wider persistence, recovery
+and release performance remain unqualified; next target is lost admission metadata.
+
+### BAS-RF-106 — Execution lifecycle erases recoverable admission metadata
+
+2026-09-23 investigation086: actual saved/manual/ad-hoc admission tests show
+parameters, trigger and workflow version absent during running and terminal
+hydration/checkpoint reads. Fresh runner overwrites the initial snapshot with a
+lifecycle-only proto; manual/ad-hoc omit some inputs at admission. Omitted saved
+version is also stored as0 instead of the resolved version. Real filesystem
+failure still admits all three runners and records an index. Nine maintained
+subcases fail: /tmp/bas-execution-metadata-red-086.txt (6859consumed1).
+Owner target: immutable admission snapshot committed before effects/index,
+DB-owned changing lifecycle, all four admission callers converted. Repair pending.
+
+### BAS-RF-107 — Resume repeats completed effects at checkpoint zero and in graphs
+
+2026-09-23 read-only087 investigation: actual SimpleExecutor.Execute with an
+independent engine effect log repeats step0 at checkpoint0 in the flat path.
+The compiled graph path ignores checkpoint state entirely and repeats both
+completed steps. Three failures/three controls in retained temporary overlay
+/tmp/bas-resume-checkpoint-red2-087.txt; initial missing-sink producer error
+separately retained. The compiler supplies a graph for ordinary V2 workflows,
+so flat-only repair is insufficient. Owner: checkpoint recovery and executor
+entrypoint. Need explicit checkpoint presence (zero is valid), correct graph
+continuation and proof against repeated effects, branches/loops and uncertain
+outcomes. No087 runtime changes or native proof yet. Related resumed runner
+also discards routed context; that isolation hypothesis is not yet reproduced.
+
+RF106 correction086 deployed: all four admission paths commit immutable recovery
+metadata before index/runner admission; running and terminal updates no longer
+erase it. Atomic owner writer replaces private temp/rename; file failure rejects
+before effects, index errors retain identifiable metadata without retry. Four Go
+race packages/build,14 maintained metadata/resume/index-fault subcases, native
+old12pass/1fail -> new13/13, original profiles andcapture controls pass. Same100
+capture cohort passes100/100; servicep95=586ms versus577previous (+1.56% observed,
+shared-host limit). Receipt internal/evidence/rehabilitation/execution-admission-
+metadata-2026-09-23.json. Historical lost data, power-loss recovery and separate
+RF107 repeated effects remain open; this is a scoped repair, not resume readiness.
+
+RF107 correction087 deployed: zero is an explicit checkpoint and deterministic
+flat/graph continuation starts at its actual successor, before setup effects.
+Native original5pass/1fail -> new6/6, exactlyoneeffect instead oftwo, preserved
+metadata/workflow13/13, capture controls and originalprofiles pass. Four Go race
+packages/build and18 maintained controls pass. Receipt internal/evidence/
+rehabilitation/resume-continuation-2026-09-23.json. Scalar recovery now rejects
+branched/cyclic/loop/subflow ambiguity before browser effects; full cursor/state
+recovery remains open. RF108 context loss is separate and confirmed.
+
+### BAS-RF-108 — Resumed runner loses request isolation context
+
+2026-09-23 read-only088: actual ResumeExecution with a routed test request admits
+successfully, then its private background runner reads the primary context,
+fails to find the routed execution and never completes. Maintained-fixture test
+via temporary overlay fails with called=false/wrong_reads=1/completed=nil:
+/tmp/bas-resume-context-red-088.txt. Fresh runner already preserves durable
+request metadata while detaching cancellation and adds the browser routing
+header; resumed runner duplicates that lifecycle with Background contexts.
+Owner target: one fresh/resumed execution lifetime, preserve route metadata and
+terminal persistence through cancellation; verify browser header and caller
+cancellation explicitly. Public resume lineage projection was also absent.
+
+088 correction deployed: resume uses canonical saved execution admission/runner;
+private lifecycle and duplicate initial-state path deleted. Routed completion and
+explicit stop, caller detachment, full settings, lineage and missing-revision
+rejection pass maintained red/green controls. Five race packages/build pass;
+native resume7/7, metadata/workflow13/13, capture5/5+18/18 and originalprofiles
+pass. Runtime-127/scopedGo-13; full recovery remains unqualified. Receipt
+internal/evidence/rehabilitation/resume-owner-2026-09-23.json.
+
+### BAS-RF-109 — Resume restores initial values instead of completed store mutations
+
+2026-09-23 native089 on qualified088: workflow navigates once, sets token to
+updated, then fails navigating /gate?token=updated. Resume completes and does
+not repeat the first effect, but independently observed request is
+/gate?token=original. Five controls pass/onefails; exact fixture cleaned.
+/tmp/bas-resume-state-089-dp2fS2, executions
+b6e73b88-6e94-4325-a9b0-3878a9da0362/16cc108d-3127-4d5e-9d69-ee3df7346622.
+Source: checkpoint reader guesses store from collected extracted-data previews;
+set_variable writes no extracted data, storeResult names differ from extracted
+keys, and artifact policy can discard previews. Execution state requires its
+own durable checkpoint coupled to the completed cursor, independently of optional
+telemetry. This is a real incorrect-success defect, not unavailable validation.
+Full crash/external-effect atomicity remains a distinct unresolved contract.
+
+### BAS-RF-110 — Typed evaluate store_result is ignored during fresh execution
+
+089 expected-input regression additionally finds that typed EvaluateParams has
+store_result, but actionStoreResult only recognizes ExtractParams.store_as.
+Four graph/flat and full/none-policy controls send an empty value to the next
+step. Four extract controls reach the separate RF109 missing-checkpoint failure.
+Baseline overlay11340 consumed1, /tmp/bas-checkpoint-store-maintained-red3-089.txt.
+Repair the existing typed result-key owner to honor both declared actions; this
+is adjacent to the actual-store persistence boundary, not a compatibility layer.
+
+
+RF109/RF110 correction089 deployed: private0600checkpoint stores actual completed
+cursor+mutable store independently of telemetry; strict identity/version/outcome
+readback rejects missing/corrupt state. Typed evaluate result assignment fixed at
+shared graph/flat owner. Native set-variable6/6,evaluate6/6,settings7/7 and ordinary
+metadata/workflow13/13 pass; three originalprofiles and capture5/5+18/18 preserved.
+Six race packages, AI seams and build pass. Same100capture workload100/100 at593ms
+servicep95 and777.93msCLIp95. Receipt internal/evidence/rehabilitation/
+checkpoint-state-2026-09-23.json. Historical missing-state records are explicitly
+non-resumable; no migration/guessing. Full external-effect/crash atomicity and rich
+control-flow recovery remain unqualified. Original RF110 live timeout is retained
+as inconclusive; four maintained evaluate failures establish its valid red.
+
+### BAS-RF-016 — 2026-09-23 — requested image policy qualified
+
+091 extends082's native DPR correction. Ordinary capture now appends an explicit
+ final viewport screenshot and selects the capture evidence profile. Successful
+ navigation/readiness/snapshot steps no longer create incidental PNGs. Explicit
+ interaction screenshots and failed-step diagnostics persist through the existing
+ evidence owner; product/replay and validation policies remain covered unchanged.
+ Six native cases pass, plus18program/CLI DPRchecks and fiveGo racepackages.
+ PH-owned operationdb72786edda2dc7cbd0281b470eeab97 validates100/100firstattempts:
+ returned PNGs300->100,PNGbytes4510698->1528027,computedtrees100unchanged,
+ servicep95428ms andwallp95622.8881ms. One local cohort per candidate does not
+ establish a repeated latency speedup. Exporter's stable screenshot.png copy
+ remains intentionally available; returned-artifact counts are not all filesystem
+ copies. Full fidelity and unique attempt paint markers verified independently.
+ Receipt internal/evidence/rehabilitation/capture-policy-2026-09-23.json.
+ TestGenie091performancepassed with exactPHreceipt; unitfailed UIcoverage/policy
+ andtidinessfailed unchangedbudgets. FullAPI/CLI/driver tests passed. No fullreleaseclaim.
+
+### BAS-RF-111 — Capture interaction composition uses declaration order
+
+A / native092 reproduction on frozen091candidate. CaptureService joins navigation
+ to the first declared interaction node and joins snapshots/images after the last
+ declared node, ignoring graph entry/terminal topology. Equivalent two-action
+ first->last flows differ solely in array order: orderedcontrol completes both
+ independently logged effects; reversed declaration reaches last first, returns
+ HTTP500 missing-first-effect and records no effects. Operation
+69ebc5b1-62ac-4b4d-941a-3006f8d2094b; nativeexec37341consumed1. Rawproof
+ /tmp/bas-capture-splice-native-092/receipt.json. No sourcechange during091gate.
+
+Expected: navigation/readiness precede the interaction's actual entry; requested
+ snapshot/image follows the executed terminal path, independent of node-array
+ order. Preserve conditional and loop topology through the existing compiler's
+ interpretation. Reject ambiguous disconnected interactions before effects.
+ Do not reorder the array and pretend this repairs graph composition, flatten
+ branches, assume the last declaration is terminal, or add a private graph runner.
+ Compiler topology plus CaptureService composition own the repair.
+
+
+### BAS-RF-112 — Typed conditional action is not executable in the driver
+
+A / native092 branchmatrix on091candidate. Both CONDITIONAL_TYPE_EXPRESSION true
+ andfalse actions reach the driver as unsupported instructiontypeunknown, return
+ HTTP500, and fall through to the firstedge's effect. This is separate from RF111
+ graphboundary composition. /tmp/bas-capture-branches-native-092/receipt.json;
+ exec58665consumed1. Source confirms conditional is a declared action with typed
+ params/Go branchrouting but absent in driver actiondispatch. Repair canonical
+ typeddispatch/handler and preserve actual condition outcomes; do not substitute
+ expression strings or fake a selected branch in tests. Expectedtrue/false take
+ only theirdeclarededge, and evaluator failures never masquerade asfalse.
+
+### BAS-RF-113 — Typed assertion negation is ignored
+
+A / native092 on091candidate. ASSERTION_MODE_VISIBLE on #ready succeeds both with
+ negatedfalse and negatedtrue. The latter takes the successedge despite the typed
+ contract requiring the opposite. Native59171consumed1, preserved
+ /tmp/bas-capture-assert-branches-red-092/receipt.json. Source assertion handler
+ does not read negated. This is a distinct missingtypedsemantic, not evidence that
+ RF111 graph repair is correct or that a falsenegatedassertion should be relaxed.
+ Expectedpositive/negatedpairs across supportedassertionmodes produce opposite
+ truthvalues; missing/failed evaluation must remain distinguishable from logical
+ negation. Repair canonical assertion interpretation and keep original cases.
+
+RF113 repaired093 on build553bc332c8acced00a3ff95cdcf1035047b910e8ed918b05fa350a70c9e9373d.
+Canonical handler now honors negation, case sensitivity and custom mismatch
+messages; typed evidence retains those fields. Four state methods became one
+Playwright state-wait policy and text/attribute checks share one comparison.
+Only genuine state-wait timeouts become logical mismatch; malformed selectors,
+closed browser and failed comparison reads stay errors. Explicit zero timeout
+observes immediately. Missing attributes differ from empty ones. Unsupported
+typed modes fail; unreachable legacy aliases and regex paths removed.
+
+Maintained93/93 tests and typecheck pass; native81086 passes58/58 with independent
+branch effects and typed timeline checks, including delayed state transitions.
+Six old tests had string modes converted to NaN by a helper and silently tested
+exists; canonical enum inputs now exercise their stated text/visibility behavior.
+Scope is these eight typed assertion modes, not RF112 conditionals or full J24
+qualification. /tmp/bas-assertion-native-093/receipt.json and dated
+evidence/rehabilitation/assertion-semantics-2026-09-23.json retain results.
+
+### BAS-RF-114 — V2 edge labels never reach branch selection
+
+A / native092 and skipped regression found. Typed WorkflowEdgeV2.label declares
+ conditional branching, but compiler edgeCondition reads only obsolete V1
+ data.condition, which cannot arrive through its typed proto input. Both labeled
+ success/failure edges compile with emptyconditions; a failed assertion therefore
+ runs the firstedge's successaction. Native16333consumed1,
+ /tmp/bas-capture-labeled-paths-red-092/receipt.json. Source has a skipped
+ TestCompileWorkflow_EdgeConditions explicitly waiting for V2 implementation.
+
+Required: canonical typed labels reach PlanEdge.Condition; branchselectors use
+ their existing success/failure/true/false rules. Replace obsolete data.condition
+ policy and activate the regression. This is necessary to qualify RF111 branch
+ postludes, so092 includes the compiler repair. Earlier source-handle-only probe
+ was insufficient for this claim; labelednative input proves the actual defect.
+
+RF111/RF114 correction092 deployed on
+5c5bb1fcf2135dd2fadd7a23770b6cf28a521cfc24d7f51d722be424d76bb5a4.
+ Compiler-owned boundaries preserveouterentry/terminals andexclude loopbodies;
+ capturepostludejoin is shared across requestedsteps. V2edgeLabel nowreaches
+ branchselection; unreachableV1reader and internalhandlefallback removed. Formerly
+ skippededgeconditiontest runs6controls; maintainedboundary/invalidgraph/purity
+ tests andfourGo racepackages pass. Native reorderedlinear2/2 andlabeledbranches/
+ loop3/3 passwithexact independent effects andpost-terminal snapshots. Owner100
+ capturecohort passes100/100 at414/602.637287ms; stable1image+1treeperordinary
+ request. Receipt internal/evidence/rehabilitation/capture-topology-2026-09-23.json.
+ TestGenie092performancepassedwithexactPHreceipt;tidinessremainsfailed.
+ RF112/113typedconditional/negation remain open; broader
+ graph/crashrecovery andalljourneys are notqualified by these scopedrepairs.
+
+### BAS-RF-115 — Frame actions rejected by incorrect engine capability
+
+A / native094 frame predicates cannot execute: public capture rejects the flow
+before effects with missing=[iframes]. PlaywrightEngine advertises false with
+a comment confusing iframe viewing with automation inside frames. The driver
+already implements selected-frame operations. Four native cases in
+/tmp/bas-conditional-native-094/receipt.json fail at admission (12974consumed1).
+Correct the capability to reflect actual frame automation and prove frame
+selection through the ordinary admission/driver path. Do not bypass requirements
+or change the native cases to main-document checks.
+
+### BAS-RF-116 — Conditional result lost from retained timeline
+
+A / native094: non-frame condition branches produce the expected independent
+effects, but successful condition frames contain no condition evidence.
+FromExecution stores an intermediate ConditionOutcome, yet EventContext and
+TimelineLoader never carry it. The intermediate copy also omits Expression.
+Native12974 fails46/53 overall (42missing-evidence cases plus4frame admissions);
+7explicit-evaluator-error controls pass. Source driver/local outcomes do contain
+condition truth (routing observes it); the persistence/export boundary loses it.
+
+Required: a single shared typed ConditionOutcome used by driver and EventContext,
+preserved through retained TimelineEntry and capture/export TimelineFrame. Keep
+false and negation values, expression/variable/operator, and typed actual/expected
+values. Reuse existing protoconv conversions; do not add opaque metadata or another
+extracted-data convention. Record schema/module movement and regenerate consumers.
+
+094 resolution evidence for RF112/115/116, 2026-09-23: typed conditional execution, actual frame admission and retained condition fields now pass53/53 public CaptureService cases on52b39732df53c8c3bb7c8a246a666ca97a11f837defda13545923389cb5851dd. Independent branch effects distinguish true/false/error; CSP, currentframe and runtimeSyntaxError-after-one-effect are covered. Both earlier7/53failed receipts remain preserved. The secondfailure exposed FileWriter bypassing telemetry conversion; actualwriter→disk→export regression failsbefore/passafter the shared converter is attached. Driver175tests and five-package finalrace pass. Detailed evidence internal/evidence/rehabilitation/conditional-semantics-2026-09-23.json; PH35047pending, noTestGenie094yet. Broaderrelease gaps remain open.
+
+### BAS-RF-117 — Execution effects and completion notifications bypass failed status writes
+
+A / fault-injected actual WorkflowService, 2026-09-23 cycle095. Failed running
+index persistence still invokes the executor; failed terminal persistence still
+publishes execution.completed. Saved and adhoc public service callers reproduce
+both failures; healthy controls pass (/tmp/bas-status-persistence-red-095.txt,
+85413 exit1). Existing085 synchronous missing-receipt protection remains valid
+but does not gate effects or broadcasts. WorkflowService must persist running
+before effects and terminal before notification, with one finalization policy
+for normal/compile/target failure and cancellation. Remove unused MarkCrash
+and its writer repository status authority; preserve real step failure evidence.
+
+095 RF117 localrepair verified: running-write fault produceszero executor effects;
+terminal-write fault produceszero persisted-status notifications. Existing completed/
+failed/cancelled, compilefailure, routedcontext, teardown and paniccontrols pass.
+Removed unusedwriterMarkCrash and its statusauthority. Five-package race + final
+workflowrace/build pass; deployedb92db9cfbf434a85d6c9d7f69ed2c29624723c4afaec9a01ba3ea4912ed85953 passes12/12native recording/savedworkflow/cleanup. Originalprofileunchanged3reads.
+See internal/evidence/rehabilitation/execution-status-authority-2026-09-23.json.
+DB-outage eventualreconciliation and processcrash recovery remain open.
+
+095 RF016 performance follow-up: first/repeat100-trial cohorts pass absolute
+2000msband butwallp95=756.742401/681.528072ms versus094610.723788ms. No relative
+regression clearance or source-causality claim. Individualactionmeans differ
+by<3ms; mostadditionalcost lies outsideactions. ExploratoryIIDbootstrapassumptions
+are limited byserial/sharedhostsamples. Retainbothfailedrelativecomparisons; next
+discriminator is admission/session/finalization/CLI timing or a controlledpaired
+baseline. Do not repeatedly rerun unchangedcohorts or dismiss the increase asnoise.
+
+096 RF011 native checkpoint boundary, 2026-09-23: newfixtureprofile has no
+savedstorage after5507.68ms despite independent cookie/localStorage/IndexedDB
+writes. Manualpersist andclose/reopenLS/IndexedDBcontrols pass;4/5checks pass.
+Receipt /tmp/bas-profile-checkpoint-native-096/receipt.json (39473exit1); all
+fixture sessions/profile cleaned,0remaining. Cookie write is proven; reopen
+cookie continuity is not independently proven bythisfixture's Set-Cookie page.
+No processkill qualification claimed. Periodiccheckpoint ownership is absent.
+Before recurring writes, establish capture/commit association fencing: current
+handler readsprofileID, awaits browser storage/tabs, then commitswithout
+checking whether the session binding was cleared orreplaced.
+
+### BAS-RF-118 — Late profile snapshots commit after binding invalidation
+
+A / maintained publicpersist regressions,096. Clearing a session binding,
+replacing it with the sameprofile (ABA), replacing it with anotherprofile, or
+cancelling the request during browsercapture all return200 andoverwrite the
+original savedprofile. Fourcases fail in /tmp/bas-profile-binding-red-096.txt
+(72274exit1). Fencedcapture/aggregatecommit belongs tosession-profile service;
+recordingadapter supplies browser storage/tabs. Preserve bothold/newprofiles
+andreturnnon-success when ownership orrequestvalidity islost. This is a necessary
+prerequisite for RF011periodiccheckpoints, not proofthat theyalreadyexist.

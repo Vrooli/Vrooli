@@ -16,6 +16,7 @@ import (
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	autodriver "github.com/vrooli/browser-automation-studio/automation/driver"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
+	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
@@ -56,19 +57,13 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 		UpdatedAt:   now,
 	}
 
-	if err := s.repo.CreateExecution(ctx, exec); err != nil {
+	if err := s.createExecution(ctx, exec, &basexecution.Execution{
+		WorkflowVersion: getResp.Workflow.Version,
+		TriggerType:     basbase.TriggerType_TRIGGER_TYPE_MANUAL,
+		Parameters:      &basexecution.ExecutionParameters{InitialStore: convertParamsToProto(parameters)},
+	}); err != nil {
 		return nil, err
 	}
-
-	_ = s.writeExecutionSnapshot(ctx, exec, &basexecution.Execution{
-		ExecutionId: exec.ID.String(),
-		WorkflowId:  workflowID.String(),
-		Status:      enums.StringToExecutionStatus(exec.Status),
-		TriggerType: basbase.TriggerType_TRIGGER_TYPE_MANUAL,
-		StartedAt:   autocontracts.TimeToTimestamp(now),
-		CreatedAt:   autocontracts.TimeToTimestamp(now),
-		UpdatedAt:   autocontracts.TimeToTimestamp(now),
-	})
 
 	// Manual flat parameters remain in @store/; other execution options use defaults.
 	s.startExecutionRunnerWithOptions(ctx, getResp.Workflow, exec.ID, parameters, nil, nil, nil, nil, nil, nil, "", "", "", false, nil, "", nil)
@@ -77,6 +72,9 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 
 // ExecuteOptions contains optional settings for workflow execution.
 type ExecuteOptions struct {
+	// Resume uses the ordinary admission and runner while preserving its origin.
+	ResumeAfterStep *int
+	ResumedFromID   *uuid.UUID
 	// EnableFrameStreaming enables live frame streaming during execution.
 	// When true, the execution will stream browser frames to connected WebSocket clients.
 	EnableFrameStreaming bool
@@ -229,24 +227,19 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
-	if err := s.repo.CreateExecution(ctx, exec); err != nil {
+	trigger := basbase.TriggerType_TRIGGER_TYPE_API
+	if opts != nil && opts.ResumedFromID != nil {
+		exec.TriggerType = "resume"
+		exec.ResumedFromID = opts.ResumedFromID
+		trigger = basbase.TriggerType_TRIGGER_TYPE_RESUME
+	}
+	if err := s.createExecution(ctx, exec, &basexecution.Execution{
+		WorkflowVersion: workflowSummary.Version,
+		TriggerType:     trigger,
+		Parameters:      req.Parameters,
+	}); err != nil {
 		return nil, err
 	}
-
-	// Persist an initial proto snapshot immediately so the filesystem is the source of truth
-	// for parameters/trigger metadata and other rich execution fields not stored in the DB index.
-	snapshot := &basexecution.Execution{
-		ExecutionId:     exec.ID.String(),
-		WorkflowId:      workflowID.String(),
-		WorkflowVersion: int32(version),
-		Status:          enums.StringToExecutionStatus(exec.Status),
-		TriggerType:     basbase.TriggerType_TRIGGER_TYPE_API,
-		StartedAt:       autocontracts.TimeToTimestamp(now),
-		CreatedAt:       autocontracts.TimeToTimestamp(now),
-		UpdatedAt:       autocontracts.TimeToTimestamp(now),
-		Parameters:      req.Parameters,
-	}
-	_ = s.writeExecutionSnapshot(ctx, exec, snapshot)
 
 	completion := s.startExecutionRunnerWithOptions(ctx, workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
 
@@ -433,7 +426,9 @@ func (s *WorkflowService) startExecutionRunnerWithOptions(parent context.Context
 	completion := make(chan struct{})
 	go func() {
 		defer close(completion)
-		s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, browserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
+		if err := s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, browserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError); err != nil && s.log != nil {
+			s.log.WithError(err).WithField("execution_id", executionID).Warn("Execution did not complete successfully")
+		}
 	}()
 	return completion
 }
@@ -489,7 +484,7 @@ func detachedExecutionContext(parent context.Context) context.Context {
 // restoreTabs indicates whether to restore tabs from the session profile before execution.
 // openTabs contains the saved tab states to restore (only used when restoreTabs is true).
 // navigationWaitUntil and continueOnError are execution-level defaults that override workflow settings.
-func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *sessionprofilepersistence.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, restoreTabs bool, openTabs []sessionprofilepersistence.TabState, navigationWaitUntil string, continueOnError *bool) {
+func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *sessionprofilepersistence.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, restoreTabs bool, openTabs []sessionprofilepersistence.TabState, navigationWaitUntil string, continueOnError *bool) (runErr error) {
 	defer s.cancelExecutionByID(executionID)
 
 	// Execution cancellation must stop the runner, but it must not cancel the
@@ -507,25 +502,24 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 	}
 	execIndex, err := s.repo.GetExecution(persistenceCtx, executionID)
 	if err != nil {
-		return
+		return fmt.Errorf("read execution before starting: %w", err)
 	}
-
-	execIndex.Status = database.ExecutionStatusRunning
-	execIndex.UpdatedAt = time.Now().UTC()
-	_ = s.repo.UpdateExecutionStatus(persistenceCtx, execIndex.ID, execIndex.Status, nil, nil, execIndex.UpdatedAt)
-	_ = s.writeExecutionSnapshot(persistenceCtx, execIndex, &basexecution.Execution{
-		ExecutionId: execIndex.ID.String(),
-		WorkflowId:  execIndex.WorkflowID.String(),
-		Status:      enums.StringToExecutionStatus(execIndex.Status),
-		StartedAt:   autocontracts.TimeToTimestamp(execIndex.StartedAt),
-		CreatedAt:   autocontracts.TimeToTimestamp(execIndex.CreatedAt),
-		UpdatedAt:   autocontracts.TimeToTimestamp(execIndex.UpdatedAt),
-	})
+	if execIndex == nil {
+		return fmt.Errorf("execution %s missing before starting", executionID)
+	}
 
 	engineName := autoengine.FromEnv().Resolve("")
 	eventSink := s.newEventSink()
 	if eventSink != nil {
 		defer eventSink.CloseExecution(executionID)
+	}
+	// An unwinding panic must not acquire a successful terminal receipt.
+	runErr = errors.New("execution interrupted before producing a result")
+	defer func() {
+		runErr = errors.Join(runErr, s.finalizeExecution(ctx, execIndex, eventSink, runErr))
+	}()
+	if err := s.repo.UpdateExecutionStatus(persistenceCtx, executionID, database.ExecutionStatusRunning, nil, nil, time.Now().UTC()); err != nil {
+		return fmt.Errorf("persist running execution before effects: %w", err)
 	}
 
 	// Resolve the artifact config for this execution. Legacy callers
@@ -554,13 +548,7 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 
 	plan, _, err := autoexecutor.BuildContractsPlan(compileCtx, executionID, workflow)
 	if err != nil {
-		execIndex.Status, execIndex.ErrorMessage = executionOutcome(ctx, err)
-		now := time.Now().UTC()
-		execIndex.CompletedAt = &now
-		execIndex.UpdatedAt = now
-		errMsg := execIndex.ErrorMessage
-		_ = s.repo.UpdateExecutionStatus(persistenceCtx, execIndex.ID, execIndex.Status, &errMsg, execIndex.CompletedAt, execIndex.UpdatedAt)
-		return
+		return err
 	}
 
 	if opts != nil && opts.RequiresVideo {
@@ -595,13 +583,7 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 	}
 	if opts != nil && opts.AppTarget != nil {
 		if opts.ValidationContext == nil || strings.TrimSpace(opts.ValidationContext.IsolationLeaseID) == "" {
-			execIndex.Status = database.ExecutionStatusFailed
-			execIndex.ErrorMessage = "Electron target requires a lease-bound validation context"
-			now := time.Now().UTC()
-			execIndex.CompletedAt = &now
-			execIndex.UpdatedAt = now
-			_ = s.repo.UpdateExecutionStatus(persistenceCtx, execIndex.ID, execIndex.Status, &execIndex.ErrorMessage, execIndex.CompletedAt, execIndex.UpdatedAt)
-			return
+			return errors.New("Electron target requires a lease-bound validation context")
 		}
 		if plan.Metadata == nil {
 			plan.Metadata = make(map[string]any)
@@ -645,7 +627,6 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 		WorkflowResolver:    s,
 		PlanCompiler:        s.planCompiler,
 		MaxSubflowDepth:     5,
-		StartFromStepIndex:  -1,
 		ProjectRoot:         projectRoot,
 		InitialStore:        store,
 		InitialParams:       params,
@@ -658,6 +639,10 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 		OpenTabs:            openTabs,
 		NavigationWaitUntil: navigationWaitUntil,
 		ContinueOnError:     continueOnError,
+	}
+	if opts != nil {
+		req.ResumeAfterStep = opts.ResumeAfterStep
+		req.ResumedFromID = opts.ResumedFromID
 	}
 
 	// Set up callback to save storage state after successful execution
@@ -699,40 +684,28 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 	if executor == nil {
 		executor = autoexecutor.NewSimpleExecutor(nil)
 	}
-	runErr := executor.Execute(ctx, req)
-	if runErr == nil && opts != nil && opts.RequiresVideo {
+	executionErr := executor.Execute(ctx, req)
+	if executionErr == nil && opts != nil && opts.RequiresVideo {
 		videos, artifactErr := s.GetExecutionVideoArtifacts(persistenceCtx, executionID)
-		runErr = requiredVideoArtifactError(true, videos, artifactErr)
+		executionErr = requiredVideoArtifactError(true, videos, artifactErr)
 	}
 
+	return executionErr
+}
+
+// finalizeExecution is the sole terminal index and notification owner.
+// A notification describes a committed status, never an attempted write.
+func (s *WorkflowService) finalizeExecution(ctx context.Context, execIndex *database.ExecutionIndex, eventSink autoevents.Sink, runErr error) error {
+	persistenceCtx := context.WithoutCancel(ctx)
 	status, errMsg := executionOutcome(ctx, runErr)
-
 	now := time.Now().UTC()
-	execIndex.Status = status
-	execIndex.ErrorMessage = errMsg
-	execIndex.CompletedAt = &now
-	execIndex.UpdatedAt = now
 	var errPtr *string
-	if strings.TrimSpace(execIndex.ErrorMessage) != "" {
-		errPtr = &execIndex.ErrorMessage
+	if errMsg != "" {
+		errPtr = &errMsg
 	}
-	_ = s.repo.UpdateExecutionStatus(persistenceCtx, execIndex.ID, execIndex.Status, errPtr, execIndex.CompletedAt, execIndex.UpdatedAt)
-	_ = s.writeExecutionSnapshot(persistenceCtx, execIndex, &basexecution.Execution{
-		ExecutionId: execIndex.ID.String(),
-		WorkflowId:  execIndex.WorkflowID.String(),
-		Status:      enums.StringToExecutionStatus(execIndex.Status),
-		StartedAt:   autocontracts.TimeToTimestamp(execIndex.StartedAt),
-		CreatedAt:   autocontracts.TimeToTimestamp(execIndex.CreatedAt),
-		UpdatedAt:   autocontracts.TimeToTimestamp(execIndex.UpdatedAt),
-		CompletedAt: autocontracts.TimeToTimestamp(now),
-		Error: func() *string {
-			if strings.TrimSpace(execIndex.ErrorMessage) == "" {
-				return nil
-			}
-			msg := execIndex.ErrorMessage
-			return &msg
-		}(),
-	})
+	if err := s.repo.UpdateExecutionStatus(persistenceCtx, execIndex.ID, status, errPtr, &now, now); err != nil {
+		return fmt.Errorf("persist terminal execution status %s: %w", status, err)
+	}
 
 	// Emit execution completion event via WebSocket so UI gets notified of the final status
 	if eventSink != nil {
@@ -748,16 +721,17 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 		if errMsg != "" {
 			payload["error"] = errMsg
 		}
-		_ = eventSink.Publish(persistenceCtx, autocontracts.EventEnvelope{
+		return eventSink.Publish(persistenceCtx, autocontracts.EventEnvelope{
 			SchemaVersion:  autocontracts.EventEnvelopeSchemaVersion,
 			PayloadVersion: autocontracts.PayloadVersion,
 			Kind:           eventKind,
-			ExecutionID:    executionID,
+			ExecutionID:    execIndex.ID,
 			WorkflowID:     execIndex.WorkflowID,
 			Timestamp:      now,
 			Payload:        payload,
 		})
 	}
+	return nil
 }
 
 func (s *WorkflowService) storeExecutionCancel(executionID uuid.UUID, cancel context.CancelFunc) {

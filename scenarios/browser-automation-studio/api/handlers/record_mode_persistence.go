@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
 
@@ -22,6 +24,10 @@ func (h *Handler) PersistRecordingSession(w http.ResponseWriter, r *http.Request
 	}
 	if err := h.persistSessionProfile(ctx, sessionID); err != nil {
 		h.log.WithError(err).WithField("session_id", sessionID).Warn("Failed to persist session profile")
+		if errors.Is(err, sessionprofile.ErrSessionBindingChanged) {
+			h.respondError(w, ErrConflict.WithMessage(err.Error()))
+			return
+		}
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"error": err.Error()}))
 		return
 	}
@@ -69,24 +75,25 @@ func (h *Handler) persistSessionProfile(ctx context.Context, sessionID string) e
 	if h.sessionProfileService == nil {
 		return nil
 	}
-	profileID := h.getActiveSessionProfile(sessionID)
-	if profileID == "" {
-		return nil
-	}
+	return h.sessionProfileService.PersistSessionState(ctx, sessionID, h.CaptureSessionProfileState)
+}
+
+// CaptureSessionProfileState adapts browser storage and tabs to one profile snapshot.
+func (h *Handler) CaptureSessionProfileState(ctx context.Context, sessionID string) (*sessionprofilepersistence.SessionEndState, error) {
 	state, err := h.recordModeService.GetStorageState(ctx, sessionID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	pages, activePageID, err := h.recordModeService.GetOpenPages(sessionID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	tabs := make([]sessionprofilepersistence.TabState, 0, len(pages))
 	for index, page := range pages {
 		tabs = append(tabs, sessionprofilepersistence.TabState{URL: page.URL, Title: page.Title, IsActive: page.ID == activePageID, Order: index})
 	}
-	return h.sessionProfileService.PersistSessionState(sessionprofilepersistence.ProfileID(profileID), &sessionprofilepersistence.SessionEndState{
+	return &sessionprofilepersistence.SessionEndState{
 		StorageState: state,
 		OpenTabs:     tabs,
-	})
+	}, nil
 }

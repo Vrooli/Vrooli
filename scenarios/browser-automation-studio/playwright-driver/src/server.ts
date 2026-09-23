@@ -268,6 +268,7 @@ const INSTRUCTION_HANDLERS = [
   new handlers.InteractionHandler(),
   new handlers.WaitHandler(),
   new handlers.AssertionHandler(),
+  new handlers.ConditionalHandler(),
   new handlers.ExtractionHandler(),
   new handlers.ScreenshotHandler(),
   new handlers.ScrollHandler(),

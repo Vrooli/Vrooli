@@ -37,11 +37,10 @@ type Request struct {
 	// the credential-use guard before reaching the normal engine.
 	CredentialPolicy *credentialusev1.BrowserSessionPolicy
 
-	// Resume support: when set, execution starts from the step after StartFromStepIndex.
-	// InitialVariables provides state accumulated from previously completed steps.
-	StartFromStepIndex int            // -1 means start from beginning (default).
-	InitialVariables   map[string]any // Variables restored from previous execution (merged into store).
-	ResumedFromID      *uuid.UUID     // ID of the original execution being resumed.
+	// ResumeAfterStep identifies the last completed step. Nil starts a fresh run;
+	// a pointer to zero resumes after step zero.
+	ResumeAfterStep *int
+	ResumedFromID   *uuid.UUID // ID of the original execution being resumed.
 
 	// Namespace-aware variable support (Phase 2).
 	// These fields map to ExecutionParameters proto fields.

@@ -284,6 +284,12 @@ func main() {
 		ProjectRoot:             recordingsRoot.ProjectsRoot,
 	})
 	handler := handlers.NewHandlerWithDeps(repo, hub, log, corsCfg.AllowedOrigins, deps)
+	checkpointCtx, cancelCheckpoints := context.WithCancel(context.Background())
+	checkpointsDone := make(chan struct{})
+	go func() {
+		defer close(checkpointsDone)
+		deps.SessionProfileService.RunCheckpoints(checkpointCtx, handler.CaptureSessionProfileState)
+	}()
 
 	// Initialize project import usecase handler (needs deps.CatalogService for workflow sync)
 	workflowSyncAdapter := adapters.NewWorkflowSyncAdapter(deps.CatalogService)
@@ -594,6 +600,9 @@ func main() {
 			}
 		}), health.Optional).
 		Check(health.HTTP("playwright_driver", playwrightURL+"/health"), health.Optional).
+		Check(health.Func("profile_checkpoints", func(context.Context) error {
+			return deps.SessionProfileService.CheckpointHealth()
+		}), health.Optional).
 		Handler()
 	r.Get("/health", healthHandler)
 	ownerCleanup := registerOwnerCleanupRoutes(r, repo, handler.RecordingsRoot(), paths.ResolveCapturesRoot(log), log)
@@ -1122,6 +1131,12 @@ func main() {
 		Handler:      apihttp.TestModeMiddleware(r),
 		WriteTimeout: globalRequestTimeout + 30*time.Second,
 		Cleanup: func(ctx context.Context) error {
+			cancelCheckpoints()
+			select {
+			case <-checkpointsDone:
+			case <-ctx.Done():
+				log.WithError(ctx.Err()).Error("Profile checkpoint shutdown exceeded its deadline")
+			}
 			if stopSessionReconciler != nil {
 				stopSessionReconciler()
 			}

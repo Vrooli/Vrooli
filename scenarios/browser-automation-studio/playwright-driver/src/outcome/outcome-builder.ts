@@ -1,3 +1,4 @@
+import { ConditionOutcomeSchema, type ConditionOutcome } from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
 /**
  * Outcome Builder
  *
@@ -83,6 +84,8 @@ export interface HandlerResult extends Omit<BaseExecutionResult, 'error'> {
   networkEvents?: NetworkEvent[];
   /** Assertion outcome for assert instructions */
   assertion?: HandlerAssertionOutcome;
+  /** Completed predicate; absent when evaluation itself failed. */
+  condition?: Omit<ConditionOutcome, '$typeName' | 'actual' | 'expected'> & { actual?: unknown; expected?: unknown };
 }
 
 // =============================================================================
@@ -323,6 +326,12 @@ export function buildStepOutcome(params: BuildOutcomeParams): StepOutcome {
   }
 
   // Add extracted data
+  if (result.condition) {
+    const { actual, expected, ...condition } = result.condition;
+    const values = objectToJsonValueMap(safeSerializable({ actual, expected }, 'condition'));
+    outcome.condition = create(ConditionOutcomeSchema, { ...condition, actual: values.actual, expected: values.expected });
+  }
+
   if (result.extracted_data) {
     const safeData = safeSerializable(result.extracted_data, 'extracted_data');
     outcome.extractedData = objectToJsonValueMap(safeData);

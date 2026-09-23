@@ -20,8 +20,11 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/automation/events"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
+	"github.com/vrooli/browser-automation-studio/config"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
@@ -153,7 +156,7 @@ func executeFinalizationFixture(ctx context.Context, s engine.EngineSession, w e
 	e := &finalizationEngine{session: s}
 	return NewSimpleExecutor(nil).Execute(ctx, Request{
 		EngineName: e.Name(), EngineFactory: engine.NewStaticFactory(e), Recorder: w,
-		EventSink: events.NewMemorySink(contracts.DefaultEventBufferLimits), StartFromStepIndex: -1,
+		EventSink: events.NewMemorySink(contracts.DefaultEventBufferLimits),
 		Plan: contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Instructions: []contracts.CompiledInstruction{{
 			NodeID: "navigate", Action: &basactions.ActionDefinition{
 				Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
@@ -361,7 +364,7 @@ func TestExecuteCancellationPersistsRealOutcomes(t *testing.T) {
 				instruction := contracts.CompiledInstruction{Index: 1, NodeID: "action", Action: action}
 				plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Instructions: []contracts.CompiledInstruction{instruction}}
 				sink := &outcomeSink{MemorySink: events.NewMemorySink(contracts.DefaultEventBufferLimits)}
-				req := Request{Plan: plan, EngineName: eng.Name(), EngineFactory: engine.NewStaticFactory(eng), Recorder: writer, EventSink: sink, StartFromStepIndex: -1}
+				req := Request{Plan: plan, EngineName: eng.Name(), EngineFactory: engine.NewStaticFactory(eng), Recorder: writer, EventSink: sink}
 				expectedEntries := 1
 				if shape != "linear" {
 					step := contracts.PlanStep{Index: 1, NodeID: "action", Action: action}
@@ -455,7 +458,7 @@ func TestExecuteSyntheticOutcomeRespectsCancellation(t *testing.T) {
 					plan.Instructions = nil
 					plan.Graph = &contracts.PlanGraph{Steps: []contracts.PlanStep{{Index: 0, NodeID: "variable", Action: action}}}
 				}
-				err := NewSimpleExecutor(nil).Execute(ctx, Request{Plan: plan, EngineName: eng.Name(), EngineFactory: engine.NewStaticFactory(eng), Recorder: writer, EventSink: sink, StartFromStepIndex: -1})
+				err := NewSimpleExecutor(nil).Execute(ctx, Request{Plan: plan, EngineName: eng.Name(), EngineFactory: engine.NewStaticFactory(eng), Recorder: writer, EventSink: sink})
 				if canceled {
 					require.ErrorIs(t, err, context.Canceled)
 					require.Zero(t, session.closeCalls, "canceled-before-admission must not create a browser")
@@ -561,4 +564,92 @@ func TestExecutePreservesInvocationAndTransportOwnership(t *testing.T) {
 			}
 		})
 	}
+}
+
+type checkpointFixtureSession struct {
+	stubEngineSession
+	observed string
+}
+
+func (s *checkpointFixtureSession) Run(_ context.Context, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+	if instruction.Action.GetEvaluate() != nil {
+		return contracts.StepOutcome{Success: true, ExtractedData: map[string]any{"result": map[string]any{"value": "extracted"}}}, nil
+	}
+	if instruction.Action.GetExtract() != nil {
+		return contracts.StepOutcome{Success: true, ExtractedData: map[string]any{"value": "extracted"}}, nil
+	}
+	if nav := instruction.Action.GetNavigate(); nav != nil && strings.Contains(nav.Url, "/gate/") {
+		s.observed = nav.Url
+		return contracts.StepOutcome{}, errors.New("fixture gate unavailable")
+	}
+	return contracts.StepOutcome{Success: true}, nil
+}
+
+// [REQ:BAS-RH-J07] Recovery state is actual runtime state, independent of
+// collected artifacts. Public evidence must not expose private store values.
+func TestExecutePersistsCompletedStoreWithoutTelemetry(t *testing.T) {
+	for _, graph := range []bool{false, true} {
+		for _, profile := range []string{config.ProfileFull, config.ProfileNone} {
+			for _, method := range []string{"extract", "evaluate"} {
+				t.Run(fmt.Sprintf("graph=%t/%s/%s", graph, profile, method), func(t *testing.T) {
+					root := t.TempDir()
+					session := &checkpointFixtureSession{}
+					eng := &finalizationEngine{session: session}
+					writer := executionwriter.NewFileWriter(nil, nil, nil, executionwriter.NewStaticRoot(root))
+					settings := config.DefaultArtifactSettingsForProfile(profile)
+					extraction := &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_EXTRACT, Params: &basactions.ActionDefinition_Extract{Extract: &basactions.ExtractParams{Selector: "#fixture", StoreAs: proto.String("result")}}}
+					if method == "evaluate" {
+						extraction = &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_EVALUATE, Params: &basactions.ActionDefinition_Evaluate{Evaluate: &basactions.EvaluateParams{Expression: "fixture result", StoreResult: proto.String("result")}}}
+					}
+					instructions := []contracts.CompiledInstruction{
+						{Index: 0, NodeID: "start", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid"}}}},
+						{Index: 1, NodeID: "store", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_SET_VARIABLE, Params: &basactions.ActionDefinition_SetVariable{SetVariable: &basactions.SetVariableParams{Name: "token", Value: &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: "updated"}}}}}},
+						{Index: 2, NodeID: "extract", Action: extraction},
+						{Index: 3, NodeID: "gate", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid/gate/${@store/token}/${@store/result.value}/${@params/input}/${@env/region}"}}}},
+					}
+					plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Instructions: instructions, Metadata: map[string]any{"variables": map[string]any{"default": "plan", "token": "default"}}}
+					if graph {
+						steps := make([]contracts.PlanStep, len(instructions))
+						for i, inst := range instructions {
+							steps[i] = contracts.PlanStep{Index: inst.Index, NodeID: inst.NodeID, Action: inst.Action}
+							if i+1 < len(instructions) {
+								steps[i].Outgoing = []contracts.PlanEdge{{Target: instructions[i+1].NodeID}}
+							}
+						}
+						plan.Graph = &contracts.PlanGraph{Steps: steps}
+					}
+					err := NewSimpleExecutor(nil).Execute(context.Background(), Request{Plan: plan, EngineName: eng.Name(), EngineFactory: engine.NewStaticFactory(eng), Recorder: writer, EventSink: events.NewMemorySink(contracts.DefaultEventBufferLimits), ArtifactConfig: &settings, InitialStore: map[string]any{"token": "original", "secret": "private-only"}, InitialParams: map[string]any{"input": "argument"}, Env: map[string]any{"region": "local"}})
+					require.ErrorContains(t, err, "fixture gate unavailable")
+					require.Equal(t, "https://fixture.invalid/gate/updated/extracted/argument/local", session.observed)
+					raw, err := os.ReadFile(filepath.Join(root, plan.ExecutionID.String(), "checkpoint.json"))
+					require.NoError(t, err, "completed cursor and mutable store require durable recovery evidence")
+					var saved struct {
+						LastStepIndex int            `json:"last_step_index"`
+						Store         map[string]any `json:"store"`
+					}
+					require.NoError(t, json.Unmarshal(raw, &saved))
+					require.Equal(t, 2, saved.LastStepIndex)
+					require.Equal(t, map[string]any{"token": "updated", "result": map[string]any{"value": "extracted"}, "secret": "private-only", "default": "plan"}, saved.Store)
+					for _, name := range []string{"result.json", "timeline.proto.json"} {
+						b, e := os.ReadFile(filepath.Join(root, plan.ExecutionID.String(), name))
+						require.NoError(t, e)
+						require.NotContains(t, string(b), "private-only")
+					}
+				})
+			}
+		}
+	}
+}
+
+type failingCheckpointWriter struct{ stubExecutionWriter }
+
+func (*failingCheckpointWriter) RecordCheckpoint(context.Context, executionwriter.Checkpoint) error {
+	return errors.New("checkpoint commit unavailable")
+}
+
+func TestExecuteFailsWhenCompletedStateCannotCommit(t *testing.T) {
+	session := &finalizationSession{}
+	err := executeFinalizationFixture(context.Background(), session, &failingCheckpointWriter{})
+	require.ErrorContains(t, err, "checkpoint commit unavailable")
+	require.Equal(t, 1, session.closeCalls, "checkpoint failure still owns session teardown")
 }

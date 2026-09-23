@@ -2,11 +2,14 @@ package sessionprofile
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -246,7 +249,7 @@ func TestService_DeleteProfile(t *testing.T) {
 	}
 }
 
-func TestService_StartSession(t *testing.T) {
+func TestService_TouchAndAssociateSession(t *testing.T) {
 	svc, _, mockClock := newTestService(t)
 
 	// Create a profile
@@ -257,9 +260,10 @@ func TestService_StartSession(t *testing.T) {
 	mockClock.Advance(time.Hour)
 
 	// Start session
-	err := svc.StartSession("browser-session-1", created.ID)
+	_, err := svc.Touch(created.ID)
+	svc.SetActiveSession("browser-session-1", string(created.ID))
 	if err != nil {
-		t.Fatalf("StartSession failed: %v", err)
+		t.Fatalf("Touch failed: %v", err)
 	}
 
 	// Verify session is tracked
@@ -275,14 +279,12 @@ func TestService_StartSession(t *testing.T) {
 	}
 }
 
-func TestService_EndSession(t *testing.T) {
+func TestService_PersistSessionState(t *testing.T) {
 	svc, _, mockClock := newTestService(t)
 
 	// Create a profile and start session
 	created, _ := svc.CreateProfile("Test")
-	if err := svc.StartSession("browser-session-1", created.ID); err != nil {
-		t.Fatalf("StartSession failed: %v", err)
-	}
+	svc.SetActiveSession("browser-session-1", string(created.ID))
 
 	mockClock.Advance(time.Hour)
 
@@ -295,11 +297,13 @@ func TestService_EndSession(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	err := svc.EndSession(ctx, "browser-session-1", state)
+	err := svc.PersistSessionState(ctx, "browser-session-1", func(context.Context, string) (*persistence.SessionEndState, error) { return state, nil })
 	if err != nil {
-		t.Fatalf("EndSession failed: %v", err)
+		t.Fatalf("PersistSessionState failed: %v", err)
 	}
 
+	// The lifecycle owner detaches only after a successful save and browser close.
+	svc.ClearActiveSession("browser-session-1")
 	// Verify session is no longer tracked
 	profileID := svc.GetActiveSession("browser-session-1")
 	if profileID != "" {
@@ -316,14 +320,12 @@ func TestService_EndSession(t *testing.T) {
 	}
 }
 
-func TestService_EndSession_LimitsTabs(t *testing.T) {
+func TestService_PersistSessionState_LimitsTabs(t *testing.T) {
 	svc, _, _ := newTestService(t)
 
 	// Create a profile and start session
 	created, _ := svc.CreateProfile("Test")
-	if err := svc.StartSession("browser-session-1", created.ID); err != nil {
-		t.Fatalf("StartSession failed: %v", err)
-	}
+	svc.SetActiveSession("browser-session-1", string(created.ID))
 
 	// Create more tabs than the limit
 	tabs := make([]persistence.TabState, persistence.MaxRestoredTabs+10)
@@ -336,9 +338,9 @@ func TestService_EndSession_LimitsTabs(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	err := svc.EndSession(ctx, "browser-session-1", state)
+	err := svc.PersistSessionState(ctx, "browser-session-1", func(context.Context, string) (*persistence.SessionEndState, error) { return state, nil })
 	if err != nil {
-		t.Fatalf("EndSession failed: %v", err)
+		t.Fatalf("PersistSessionState failed: %v", err)
 	}
 
 	// Verify tabs were limited
@@ -346,6 +348,190 @@ func TestService_EndSession_LimitsTabs(t *testing.T) {
 	if len(updated.OpenTabs) > persistence.MaxRestoredTabs {
 		t.Errorf("expected at most %d tabs, got %d", persistence.MaxRestoredTabs, len(updated.OpenTabs))
 	}
+}
+
+// [REQ:BAS-RH-J14] A cancelled waiter neither captures nor publishes an older
+// snapshot; unrelated profiles continue while a browser capture is pending.
+func TestService_ProfileCapturesSerializeAndRespectCancellation(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		svc, _, _ := newTestService(t)
+		profile, _ := svc.CreateProfile("Main")
+		other, _ := svc.CreateProfile("Independent")
+		svc.SetActiveSession("main", string(profile.ID))
+		svc.SetActiveSession("other", string(other.ID))
+		started, release := make(chan struct{}), make(chan struct{})
+		var captures atomic.Int32
+		capture := func(context.Context, string) (*persistence.SessionEndState, error) {
+			value := []byte(`{"marker":"new"}`)
+			if captures.Add(1) == 1 {
+				close(started)
+				<-release
+				value = []byte(`{"marker":"old"}`)
+			}
+			return &persistence.SessionEndState{StorageState: value}, nil
+		}
+		first, second := make(chan error, 1), make(chan error, 1)
+		go func() { first <- svc.PersistSessionState(context.Background(), "main", capture) }()
+		<-started
+		ctx, cancel := context.WithCancel(context.Background())
+		go func() { second <- svc.PersistSessionState(ctx, "main", capture) }()
+		synctest.Wait()
+		if captures.Load() != 1 {
+			t.Error("overlapping snapshots entered capture")
+		}
+		cancel()
+		if err := <-second; !errors.Is(err, context.Canceled) {
+			t.Errorf("cancelled waiter = %v", err)
+		}
+		err := svc.PersistSessionState(context.Background(), "other", func(context.Context, string) (*persistence.SessionEndState, error) {
+			return &persistence.SessionEndState{StorageState: []byte(`{"marker":"independent"}`)}, nil
+		})
+		if err != nil {
+			t.Errorf("independent profile save: %v", err)
+		}
+		close(release)
+		if err := <-first; err != nil {
+			t.Fatal(err)
+		}
+		if err := svc.PersistSessionState(context.Background(), "main", capture); err != nil {
+			t.Fatal(err)
+		}
+		stored, err := svc.GetProfile(profile.ID)
+		if err != nil || string(stored.StorageState) != `{"marker":"new"}` || captures.Load() != 2 {
+			t.Fatalf("final snapshot = %+v, captures=%d, error=%v", stored, captures.Load(), err)
+		}
+	})
+}
+
+type checkpointFaultRepository struct {
+	*persistence.MockRepository
+	fail atomic.Bool
+}
+
+func (r *checkpointFaultRepository) Update(id persistence.ProfileID, modify func(*persistence.SessionProfile) error) (*persistence.SessionProfile, error) {
+	if r.fail.Load() {
+		return nil, errors.New("checkpoint disk fault")
+	}
+	return r.MockRepository.Update(id, modify)
+}
+
+// [REQ:BAS-RH-J06] Automatic saves use the same aggregate writer, retain the
+// last good state on failure, and finish before their lifecycle owner returns.
+func TestService_PeriodicCheckpointDurability(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		repo := &checkpointFaultRepository{MockRepository: persistence.NewMockRepository()}
+		svc := NewService(repo, nil)
+		profile, _ := svc.CreateProfile("Periodic")
+		svc.SetActiveSession("session", string(profile.ID))
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan struct{})
+		var captures atomic.Int32
+		capture := func(context.Context, string) (*persistence.SessionEndState, error) {
+			captures.Add(1)
+			return &persistence.SessionEndState{StorageState: []byte(`{"cookies":[{"name":"identity","value":"retained"}],"origins":[]}`)}, nil
+		}
+		go func() { defer close(done); svc.RunCheckpoints(ctx, capture) }()
+		defer func() { cancel(); <-done }()
+		synctest.Wait()
+		time.Sleep(5 * time.Second)
+		synctest.Wait()
+		stored, err := svc.GetProfile(profile.ID)
+		if err != nil || len(stored.StorageState) == 0 || captures.Load() == 0 || svc.CheckpointHealth() != nil {
+			t.Fatalf("checkpoint missing after recovery window: profile=%+v err=%v health=%v", stored, err, svc.CheckpointHealth())
+		}
+		repo.fail.Store(true)
+		time.Sleep(3 * time.Second)
+		synctest.Wait()
+		preserved, _ := svc.GetProfile(profile.ID)
+		if !reflect.DeepEqual(preserved, stored) || svc.CheckpointHealth() == nil {
+			t.Fatal("failed checkpoint changed state or reported healthy")
+		}
+		repo.fail.Store(false)
+		time.Sleep(3 * time.Second)
+		synctest.Wait()
+		if err := svc.CheckpointHealth(); err != nil {
+			t.Fatalf("checkpoint did not recover after disk fault: %v", err)
+		}
+		cancel()
+		<-done
+		before := captures.Load()
+		time.Sleep(5 * time.Second)
+		if captures.Load() != before {
+			t.Error("checkpoint capture outlived its lifecycle")
+		}
+	})
+}
+
+func TestService_PeriodicCheckpointRejectsAmbiguousWriter(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		svc := NewService(persistence.NewMockRepository(), nil)
+		profile, _ := svc.CreateProfile("Shared")
+		svc.SetActiveSession("first", string(profile.ID))
+		started, release := make(chan struct{}), make(chan struct{})
+		var captures atomic.Int32
+		capture := func(context.Context, string) (*persistence.SessionEndState, error) {
+			if captures.Add(1) == 1 {
+				close(started)
+				<-release
+			}
+			return &persistence.SessionEndState{StorageState: []byte(`{"marker":"automatic"}`)}, nil
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan struct{})
+		go func() { defer close(done); svc.RunCheckpoints(ctx, capture) }()
+		defer func() { cancel(); <-done }()
+		<-started
+		// Joining during capture must also invalidate the automatic commit.
+		svc.SetActiveSession("second", string(profile.ID))
+		close(release)
+		synctest.Wait()
+		stored, _ := svc.GetProfile(profile.ID)
+		if len(stored.StorageState) != 0 || svc.CheckpointHealth() == nil {
+			t.Fatal("automatic save selected an ambiguous writer")
+		}
+		time.Sleep(3 * time.Second)
+		synctest.Wait()
+		if captures.Load() != 1 {
+			t.Fatal("ambiguous automatic writers entered browser capture")
+		}
+		if err := svc.PersistSessionState(context.Background(), "second", func(context.Context, string) (*persistence.SessionEndState, error) {
+			return &persistence.SessionEndState{StorageState: []byte(`{"marker":"manual"}`)}, nil
+		}); err != nil {
+			t.Fatalf("manual save was disabled: %v", err)
+		}
+		svc.ClearActiveSession("second")
+		time.Sleep(3 * time.Second)
+		synctest.Wait()
+		stored, _ = svc.GetProfile(profile.ID)
+		if string(stored.StorageState) != `{"marker":"automatic"}` || svc.CheckpointHealth() != nil {
+			t.Fatal("unique writer did not resume checkpointing")
+		}
+	})
+}
+
+func TestService_CheckpointShutdownCancelsCapture(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		svc := NewService(persistence.NewMockRepository(), nil)
+		profile, _ := svc.CreateProfile("Shutdown")
+		svc.SetActiveSession("session", string(profile.ID))
+		ctx, cancel := context.WithCancel(context.Background())
+		started, done := make(chan struct{}), make(chan struct{})
+		go func() {
+			defer close(done)
+			svc.RunCheckpoints(ctx, func(captureCtx context.Context, _ string) (*persistence.SessionEndState, error) {
+				close(started)
+				<-captureCtx.Done()
+				return nil, captureCtx.Err()
+			})
+		}()
+		<-started
+		cancel()
+		<-done
+		stored, _ := svc.GetProfile(profile.ID)
+		if len(stored.StorageState) != 0 {
+			t.Fatal("cancelled capture committed state")
+		}
+	})
 }
 
 func TestService_AddHistoryEntry(t *testing.T) {
@@ -536,7 +722,7 @@ func TestActiveSessionRegistry_Operations(t *testing.T) {
 	registry := NewActiveSessionRegistry()
 
 	// Test Set and Get
-	registry.Set("session-1", "profile-a")
+	registry.Set("session-1", "profile-a", time.Now())
 	if got := registry.Get("session-1"); got != "profile-a" {
 		t.Errorf("expected profile-a, got %s", got)
 	}
@@ -553,8 +739,8 @@ func TestActiveSessionRegistry_Operations(t *testing.T) {
 	}
 
 	// Test ClearForProfile
-	registry.Set("session-2", "profile-b")
-	registry.Set("session-3", "profile-b")
+	registry.Set("session-2", "profile-b", time.Now())
+	registry.Set("session-3", "profile-b", time.Now())
 	registry.ClearForProfile("profile-b")
 	if got := registry.Get("session-2"); got != "" {
 		t.Error("expected session-2 to be cleared")

@@ -872,10 +872,18 @@ func (r *profileCommitRecorder) Update(id persistence.ProfileID, modify func(*pe
 
 type profileSnapshotDriver struct {
 	*MockRecordModeService
-	pages    []*domain.Page
-	active   uuid.UUID
-	pagesErr error
-	onClose  func()
+	pages     []*domain.Page
+	active    uuid.UUID
+	pagesErr  error
+	onClose   func()
+	onStorage func()
+}
+
+func (d *profileSnapshotDriver) GetStorageState(ctx context.Context, id string) (json.RawMessage, error) {
+	if d.onStorage != nil {
+		d.onStorage()
+	}
+	return d.MockRecordModeService.GetStorageState(ctx, id)
 }
 
 func (d *profileSnapshotDriver) GetOpenPages(string) ([]*domain.Page, uuid.UUID, error) {
@@ -887,6 +895,53 @@ func (d *profileSnapshotDriver) CloseSession(ctx context.Context, id string) err
 		d.onClose()
 	}
 	return d.MockRecordModeService.CloseSession(ctx, id)
+}
+
+// [REQ:BAS-RH-J14] Captures may not commit after their active binding changes.
+func TestRecordingProfileSnapshotRequiresCurrentBinding(t *testing.T) {
+	for _, change := range []string{"clear", "same-profile-rebind", "other-profile-rebind", "cancel"} {
+		t.Run(change, func(t *testing.T) {
+			repo := persistence.NewMockRepository()
+			log := logrus.New()
+			log.SetLevel(logrus.PanicLevel)
+			svc := sessionprofile.NewService(repo, log)
+			old, _ := svc.CreateProfile("Original")
+			other, _ := svc.CreateProfile("Other")
+			svc.SetActiveSession("session", string(old.ID))
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			drv := &profileSnapshotDriver{MockRecordModeService: NewMockRecordModeService()}
+			drv.StorageState = json.RawMessage(`{"cookies":[{"name":"identity","value":"late"}],"origins":[]}`)
+			drv.onStorage = func() {
+				switch change {
+				case "clear":
+					svc.ClearActiveSession("session")
+				case "same-profile-rebind":
+					svc.ClearActiveSession("session")
+					svc.SetActiveSession("session", string(old.ID))
+				case "other-profile-rebind":
+					svc.SetActiveSession("session", string(other.ID))
+				case "cancel":
+					cancel()
+				}
+			}
+			h := &Handler{recordModeService: drv, sessionProfileService: svc, log: log}
+			rctx := chi.NewRouteContext()
+			rctx.URLParams.Add("sessionId", "session")
+			req := httptest.NewRequest(http.MethodPost, "/session/session/persist", nil).WithContext(context.WithValue(ctx, chi.RouteCtxKey, rctx))
+			rr := httptest.NewRecorder()
+			h.PersistRecordingSession(rr, req)
+			if rr.Code < 400 {
+				t.Errorf("invalidated capture acknowledged: %d", rr.Code)
+			}
+			for _, before := range []*persistence.SessionProfile{old, other} {
+				after, err := repo.Get(before.ID)
+				if err != nil || !reflect.DeepEqual(after, before) {
+					t.Errorf("invalidated capture changed profile %s", before.Name)
+				}
+			}
+		})
+	}
 }
 
 // [REQ:BAS-RH-J06] A failed snapshot must not acknowledge persistence or destroy

@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"testing"
 
 	"github.com/google/uuid"
@@ -11,6 +12,7 @@ import (
 	compiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
+	"github.com/vrooli/browser-automation-studio/automation/events"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/automation/state"
 	"github.com/vrooli/browser-automation-studio/config"
@@ -46,6 +48,7 @@ func TestExecuteGraphReturnsNewSessionWhenItsFirstStepFails(t *testing.T) {
 		nil,
 		state.NewFromStore(nil),
 		engine.ReuseModeReuse,
+		firstStep(plan.Graph),
 	)
 	if err == nil {
 		t.Fatal("expected first graph step to fail")
@@ -84,6 +87,7 @@ func TestExecuteGraphCompletesWhenAFailedStepIsConfiguredToContinue(t *testing.T
 		nil,
 		state.NewFromStore(nil),
 		engine.ReuseModeReuse,
+		firstStep(plan.Graph),
 	)
 	require.NoError(t, err)
 	require.Same(t, session, returned)
@@ -122,6 +126,7 @@ func TestExecuteGraphHonorsContinueOnErrorCompiledFromWorkflow(t *testing.T) {
 		nil,
 		state.NewFromStore(nil),
 		engine.ReuseModeReuse,
+		firstStep(plan.Graph),
 	)
 	require.NoError(t, err)
 	require.Same(t, session, returned)
@@ -154,6 +159,7 @@ func TestExecuteGraphAcceptsPersistedSnakeCaseContinueOnError(t *testing.T) {
 		nil,
 		state.NewFromStore(nil),
 		engine.ReuseModeReuse,
+		firstStep(plan.Graph),
 	)
 	require.NoError(t, err)
 }
@@ -338,11 +344,7 @@ func (s *stubExecutionWriter) RecordTelemetry(context.Context, contracts.Executi
 	return nil
 }
 
-func (s *stubExecutionWriter) MarkCrash(context.Context, uuid.UUID, contracts.StepFailure) error {
-	return nil
-}
-
-func (s *stubExecutionWriter) UpdateCheckpoint(context.Context, uuid.UUID, int, int) error {
+func (s *stubExecutionWriter) RecordCheckpoint(context.Context, executionwriter.Checkpoint) error {
 	return nil
 }
 
@@ -367,3 +369,116 @@ var (
 	_ engine.AutomationEngine         = (*stubAutomationEngine)(nil)
 	_ engine.EngineSession            = (*stubEngineSession)(nil)
 )
+
+type checkpointEffectSession struct {
+	stubEngineSession
+	effects []string
+}
+
+func (s *checkpointEffectSession) Run(_ context.Context, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+	s.effects = append(s.effects, instruction.NodeID)
+	return contracts.StepOutcome{Success: true}, nil
+}
+
+func checkpointFixture(indices []int, graph bool) (Request, *checkpointEffectSession) {
+	session := &checkpointEffectSession{}
+	eng := &finalizationEngine{session: session}
+	plan := contracts.ExecutionPlan{SchemaVersion: contracts.ExecutionPlanSchemaVersion, PayloadVersion: contracts.PayloadVersion, ExecutionID: uuid.New(), WorkflowID: uuid.New()}
+	for _, index := range indices {
+		id := "effect-" + strconv.Itoa(index)
+		a := &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid/" + id}}}
+		plan.Instructions = append(plan.Instructions, contracts.CompiledInstruction{Index: index, NodeID: id, Action: a})
+	}
+	if graph {
+		plan.Graph = &contracts.PlanGraph{}
+		for position, instruction := range plan.Instructions {
+			step := contracts.PlanStep{Index: instruction.Index, NodeID: instruction.NodeID, Action: instruction.Action}
+			if position+1 < len(plan.Instructions) {
+				step.Outgoing = []contracts.PlanEdge{{Target: plan.Instructions[position+1].NodeID}}
+			}
+			plan.Graph.Steps = append(plan.Graph.Steps, step)
+		}
+	}
+	return Request{Plan: plan, EngineName: eng.Name(), EngineFactory: engine.NewStaticFactory(eng), Recorder: &stubExecutionWriter{}, EventSink: events.NewMemorySink(contracts.DefaultEventBufferLimits)}, session
+}
+
+// [REQ:BAS-RH-J07] Resume preserves completed effects, including checkpoint zero.
+func TestResumeCheckpointDoesNotRepeatCompletedEffects(t *testing.T) {
+	for _, shape := range []string{"linear", "graph"} {
+		for _, tc := range []struct {
+			name       string
+			checkpoint int
+			resumed    bool
+			want       []string
+		}{
+			{"fresh", 0, false, []string{"effect-0", "effect-1"}},
+			{"after_zero", 0, true, []string{"effect-1"}},
+			{"after_one", 1, true, nil},
+		} {
+			t.Run(shape+"/"+tc.name, func(t *testing.T) {
+				req, session := checkpointFixture([]int{0, 1}, shape == "graph")
+				if tc.resumed {
+					id := uuid.New()
+					req.ResumedFromID = &id
+					req.ResumeAfterStep = &tc.checkpoint
+				}
+				require.NoError(t, NewSimpleExecutor(nil).Execute(context.Background(), req))
+				require.Equal(t, tc.want, session.effects, "completed effects must not repeat")
+			})
+		}
+	}
+}
+
+func TestResumeCheckpointUsesExecutionOrder(t *testing.T) {
+	for _, shape := range []string{"linear", "graph"} {
+		t.Run(shape, func(t *testing.T) {
+			req, session := checkpointFixture([]int{0, 7, 2}, shape == "graph")
+			checkpoint := 7
+			req.ResumeAfterStep = &checkpoint
+			require.NoError(t, NewSimpleExecutor(nil).Execute(context.Background(), req))
+			require.Equal(t, []string{"effect-2"}, session.effects, "numeric index filtering skipped the actual successor")
+		})
+	}
+}
+
+func TestResumeCheckpointRejectsAmbiguousRecoveryBeforeEffects(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		alter func(*Request)
+	}{
+		{"missing", func(r *Request) { index := 99; r.ResumeAfterStep = &index }},
+		{"negative", func(r *Request) { index := -1; r.ResumeAfterStep = &index }},
+		{"branch", func(r *Request) {
+			r.Plan.Graph.Steps[0].Outgoing = append(r.Plan.Graph.Steps[0].Outgoing, contracts.PlanEdge{Target: "effect-2"})
+		}},
+		{"cycle", func(r *Request) { r.Plan.Graph.Steps[2].Outgoing = []contracts.PlanEdge{{Target: "effect-0"}} }},
+		{"missing_edge", func(r *Request) { r.Plan.Graph.Steps[0].Outgoing[0].Target = "absent" }},
+		{"loop", func(r *Request) {
+			r.Plan.Graph.Steps[1].Loop = &contracts.PlanGraph{Steps: []contracts.PlanStep{{Index: 3, NodeID: "body", Action: r.Plan.Instructions[0].Action}}}
+		}},
+		{"subflow", func(r *Request) {
+			r.Plan.Graph.Steps[1].Action = &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_SUBFLOW}
+		}},
+		{"duplicate_graph_index", func(r *Request) { r.Plan.Graph.Steps[1].Index = 0 }},
+		{"duplicate_linear_index", func(r *Request) { r.Plan.Graph = nil; r.Plan.Instructions[1].Index = 0 }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req, session := checkpointFixture([]int{0, 1, 2}, true)
+			checkpoint := 0
+			req.ResumeAfterStep = &checkpoint
+			req.StartURL = "https://fixture.invalid/setup-must-not-run"
+			tc.alter(&req)
+			err := NewSimpleExecutor(nil).Execute(context.Background(), req)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "resume")
+			require.Empty(t, session.effects, "invalid recovery must fail before entrypoint or action effects")
+		})
+	}
+}
+
+func TestFreshBranchExecutionRemainsSupported(t *testing.T) {
+	req, session := checkpointFixture([]int{0, 1, 2}, true)
+	req.Plan.Graph.Steps[0].Outgoing = []contracts.PlanEdge{{Target: "effect-2", Condition: "success"}, {Target: "effect-1", Condition: "failure"}}
+	require.NoError(t, NewSimpleExecutor(nil).Execute(context.Background(), req))
+	require.Equal(t, []string{"effect-0", "effect-2"}, session.effects)
+}

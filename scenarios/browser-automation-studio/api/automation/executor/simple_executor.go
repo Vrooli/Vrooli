@@ -246,50 +246,16 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 		}
 	}()
 
-	// Initialize execution state based on whether namespace-aware fields are provided.
-	// Priority for @store/ initialization:
-	//   1. req.InitialStore (explicit namespace-aware seed)
-	//   2. req.InitialVariables (resume support, backward compat)
-	//   3. req.Plan.Metadata["variables"] (legacy plan-embedded variables)
-	var execState *state.ExecutionState
-	if req.InitialStore != nil || req.InitialParams != nil || req.Env != nil {
-		// Namespace-aware execution: build initial store from multiple sources
-		initialStore := map[string]any{}
-		// Start with plan metadata variables (lowest priority)
-		if metaVars, ok := req.Plan.Metadata["variables"].(map[string]any); ok {
-			for k, v := range metaVars {
-				initialStore[k] = v
-			}
-		}
-		// Merge InitialVariables from resume (middle priority)
-		if req.InitialVariables != nil {
-			for k, v := range req.InitialVariables {
-				initialStore[k] = v
-			}
-		}
-		// Merge InitialStore (highest priority)
-		if req.InitialStore != nil {
-			for k, v := range req.InitialStore {
-				initialStore[k] = v
-			}
-		}
-		execState = state.New(initialStore, req.InitialParams, req.Env)
-	} else {
-		// Legacy execution: use flat variable map
-		seedVars := map[string]any{}
-		if metaVars, ok := req.Plan.Metadata["variables"].(map[string]any); ok {
-			for k, v := range metaVars {
-				seedVars[k] = v
-			}
-		}
-		// Merge initial variables from a resumed execution (takes precedence over plan defaults)
-		if req.InitialVariables != nil {
-			for k, v := range req.InitialVariables {
-				seedVars[k] = v
-			}
-		}
-		execState = state.NewFromStore(seedVars)
+	// Explicit store inputs override plan defaults for fresh and resumed runs.
+	initialStore := make(map[string]any)
+	metaVars, _ := req.Plan.Metadata["variables"].(map[string]any)
+	for key, value := range metaVars {
+		initialStore[key] = value
 	}
+	for key, value := range req.InitialStore {
+		initialStore[key] = value
+	}
+	execState := state.New(initialStore, req.InitialParams, req.Env)
 
 	execState.SetNextIndexFromPlan(req.Plan)
 
@@ -316,15 +282,25 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 
 func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, execState *state.ExecutionState, reuseMode engine.SessionReuseMode) (engine.EngineSession, error) {
 	var err error
+	instructionStart := 0
+	hasGraph := req.Plan.Graph != nil && len(req.Plan.Graph.Steps) > 0
+	graphStart := firstStep(req.Plan.Graph)
 
 	// Log resume context if resuming from a previous execution
-	if req.StartFromStepIndex > 0 {
+	if req.ResumeAfterStep != nil {
+		instructionStart, graphStart, err = resumeStart(req.Plan, *req.ResumeAfterStep)
+		if err != nil {
+			return session, err
+		}
 		logrus.WithFields(logrus.Fields{
-			"execution_id":          req.Plan.ExecutionID,
-			"start_from_step_index": req.StartFromStepIndex,
-			"resumed_from_id":       req.ResumedFromID,
-			"initial_vars_count":    len(req.InitialVariables),
+			"execution_id":        req.Plan.ExecutionID,
+			"resume_after_step":   *req.ResumeAfterStep,
+			"resumed_from_id":     req.ResumedFromID,
+			"initial_store_count": len(req.InitialStore),
 		}).Info("Resuming execution from checkpoint")
+	}
+	if (hasGraph && graphStart == nil) || (!hasGraph && instructionStart == len(req.Plan.Instructions)) {
+		return session, nil
 	}
 
 	// Restore tabs from session profile before workflow execution
@@ -338,25 +314,12 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 		return session, err
 	}
 
-	if req.Plan.Graph != nil && len(req.Plan.Graph.Steps) > 0 {
-		return e.executeGraph(ctx, req, execCtx, eng, spec, session, execState, reuseMode)
+	if hasGraph {
+		return e.executeGraph(ctx, req, execCtx, eng, spec, session, execState, reuseMode, graphStart)
 	}
 
-	for idx := range req.Plan.Instructions {
-		instruction := req.Plan.Instructions[idx]
-
-		// Skip steps that were already completed in a resumed execution.
-		// StartFromStepIndex represents the last completed step, so we skip all steps <= StartFromStepIndex.
+	for _, instruction := range req.Plan.Instructions[instructionStart:] {
 		instrStepType := InstructionStepType(instruction)
-		if req.StartFromStepIndex > 0 && instruction.Index <= req.StartFromStepIndex {
-			logrus.WithFields(logrus.Fields{
-				"execution_id": req.Plan.ExecutionID,
-				"step_index":   instruction.Index,
-				"step_type":    instrStepType,
-				"node_id":      instruction.NodeID,
-			}).Debug("Skipping already completed step (resume)")
-			continue
-		}
 
 		if ctx.Err() != nil {
 			_, err := e.recordTerminatedStep(ctx, req, instruction, ctx.Err())
@@ -398,13 +361,9 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 			continue
 		}
 
-		if isSetVariableInstruction(instruction) {
-			outcome, setErr := e.applySetVariable(ctx, req, instruction.Index, instruction.NodeID, instruction.Action.GetSetVariable(), execState)
-			if setErr != nil {
-				return session, setErr
-			}
-			if !outcome.Success {
-				return session, fmt.Errorf("set_variable step %d failed", instruction.Index)
+		if isWorkflowStateAction(instruction.Action) {
+			if _, stateErr := e.executeWorkflowStateAction(ctx, req, instruction, execState); stateErr != nil {
+				return session, stateErr
 			}
 			continue
 		}
@@ -433,17 +392,12 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 
 		normalized := e.normalizeOutcome(req.Plan, instruction, attempt, startedAt, outcome, runErr)
 
-		if recordErr := e.recordOutcome(ctx, req, normalized); recordErr != nil {
-			return session, errors.Join(runErr, recordErr)
+		if normalized.Success {
+			storeActionResult(instruction.Action, normalized.ExtractedData, execState)
 		}
 
-		// Store extracted data to execState if storeResult is specified
-		if normalized.Success && normalized.ExtractedData != nil {
-			if storeKey := actionStoreResult(instruction.Action); storeKey != "" {
-				// Store the raw ExtractedData directly - it's not wrapped at this point
-				// (wrapping only happens when creating database artifacts in db_recorder)
-				execState.Set(storeKey, normalized.ExtractedData)
-			}
+		if recordErr := e.recordOutcome(ctx, req, normalized, execState); recordErr != nil {
+			return session, errors.Join(runErr, recordErr)
 		}
 
 		if isNavigateInstruction(instruction) {
@@ -1664,7 +1618,7 @@ func computeDynamicTimeout(plan contracts.ExecutionPlan) time.Duration {
 
 // recordOutcome owns the bounded persistence and completion-event boundary for
 // every execution shape. Cancellation stops actions, not their audit trail.
-func (e *SimpleExecutor) recordOutcome(ctx context.Context, req Request, outcome contracts.StepOutcome) error {
+func (e *SimpleExecutor) recordOutcome(ctx context.Context, req Request, outcome contracts.StepOutcome, execState *state.ExecutionState) error {
 	persistCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 	defer cancel()
 	result, err := req.Recorder.RecordStepOutcome(persistCtx, req.Plan, outcome)
@@ -1676,6 +1630,13 @@ func (e *SimpleExecutor) recordOutcome(ctx context.Context, req Request, outcome
 	if req.Plan.Graph != nil && len(req.Plan.Graph.Steps) > 0 {
 		totalSteps = len(req.Plan.Graph.Steps)
 	}
+	if outcome.Success {
+		checkpoint := executionwriter.Checkpoint{SchemaVersion: executionwriter.CheckpointVersion, ExecutionID: req.Plan.ExecutionID, WorkflowID: req.Plan.WorkflowID, LastStepIndex: outcome.StepIndex, NodeID: outcome.NodeID, TotalSteps: totalSteps, Store: execState.GetNamespace(state.NamespaceStore)}
+		if err := req.Recorder.RecordCheckpoint(persistCtx, checkpoint); err != nil {
+			return fmt.Errorf("record execution checkpoint: %w", err)
+		}
+	}
+
 	payload := map[string]any{
 		"outcome":   outcome,
 		"artifacts": result.ArtifactIDs,
@@ -1690,14 +1651,6 @@ func (e *SimpleExecutor) recordOutcome(ctx context.Context, req Request, outcome
 	}
 	e.emitEvent(persistCtx, req, kind, &outcome.StepIndex, &outcome.Attempt, payload)
 
-	// Graph indices do not describe a resumable linear checkpoint.
-	if req.Plan.Graph == nil && outcome.Success {
-		if err := req.Recorder.UpdateCheckpoint(persistCtx, req.Plan.ExecutionID, outcome.StepIndex, totalSteps); err != nil {
-			logrus.WithError(err).WithFields(logrus.Fields{
-				"execution_id": req.Plan.ExecutionID, "step_index": outcome.StepIndex,
-			}).Warn("Failed to update execution checkpoint")
-		}
-	}
 	return nil
 }
 
@@ -1707,7 +1660,7 @@ func (e *SimpleExecutor) recordTerminatedStep(ctx context.Context, req Request, 
 		cause = context.Canceled
 	}
 	outcome := e.normalizeOutcome(req.Plan, instruction, 1, time.Now().UTC(), contracts.StepOutcome{}, cause)
-	return outcome, errors.Join(cause, e.recordOutcome(ctx, req, outcome))
+	return outcome, errors.Join(cause, e.recordOutcome(ctx, req, outcome, nil))
 }
 
 // screenshotEvidenceActions are the steps whose screenshot is diagnostic rather
@@ -1726,14 +1679,14 @@ var screenshotEvidenceActions = map[basactions.ActionType]bool{
 // Kept pure and separate from instruction mutation so the policy can be tested
 // without building a plan or a browser.
 func resolveStepScreenshotPolicy(
-	executionPolicy basexecution.ScreenshotCapturePolicy,
+	settings config.ArtifactCollectionSettings,
 	action *basactions.ActionDefinition,
 ) basexecution.ScreenshotCapturePolicy {
-	switch executionPolicy {
+	switch settings.ScreenshotPolicy {
 	case basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_NEVER:
 		return basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_NEVER
 	case basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ON_FAILURE:
-		if action != nil && screenshotEvidenceActions[action.Type] {
+		if settings.CaptureValidationCheckpoints && action != nil && screenshotEvidenceActions[action.Type] {
 			return basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ALWAYS
 		}
 		return basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ON_FAILURE
@@ -1754,7 +1707,7 @@ func applyTelemetryDirective(
 		return instruction
 	}
 	instruction.Telemetry = &basexecution.StepTelemetryDirective{
-		Screenshot: resolveStepScreenshotPolicy(settings.ScreenshotPolicy, instruction.Action),
+		Screenshot: resolveStepScreenshotPolicy(*settings, instruction.Action),
 	}
 	return instruction
 }

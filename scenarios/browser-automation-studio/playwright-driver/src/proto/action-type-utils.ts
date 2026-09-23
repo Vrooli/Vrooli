@@ -34,6 +34,7 @@ const ACTION_TYPE_STRING_MAP: ReadonlyMap<ActionType, string> = new Map([
   [ActionType.INPUT, 'input'],
   [ActionType.WAIT, 'wait'],
   [ActionType.ASSERT, 'assert'],
+  [ActionType.CONDITIONAL, 'conditional'],
   [ActionType.SCROLL, 'scroll'],
   [ActionType.SELECT, 'select'],
   [ActionType.EVALUATE, 'evaluate'],
@@ -71,6 +72,7 @@ const STRING_TO_ACTION_TYPE_MAP: ReadonlyMap<string, ActionType> = new Map([
   ['input', ActionType.INPUT],
   ['wait', ActionType.WAIT],
   ['assert', ActionType.ASSERT],
+  ['conditional', ActionType.CONDITIONAL],
   ['scroll', ActionType.SCROLL],
   ['select', ActionType.SELECT],
   ['evaluate', ActionType.EVALUATE],
@@ -187,6 +189,7 @@ export const SELECTOR_OPTIONAL_ACTIONS: ReadonlySet<ActionType> = new Set([
   ActionType.KEYBOARD,
   ActionType.SCREENSHOT,
   ActionType.EVALUATE,
+  ActionType.CONDITIONAL,
 ]);
 
 // =============================================================================

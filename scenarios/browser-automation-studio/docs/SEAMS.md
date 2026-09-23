@@ -151,7 +151,6 @@ type PlanCompiler interface {
 type Recorder interface {
     RecordStepOutcome(ctx context.Context, plan contracts.ExecutionPlan, outcome contracts.StepOutcome) (RecordResult, error)
     RecordTelemetry(ctx context.Context, plan contracts.ExecutionPlan, telemetry contracts.StepTelemetry) error
-    MarkCrash(ctx context.Context, executionID uuid.UUID, failure contracts.StepFailure) error
 }
 
 type ExecutionRepository interface {

@@ -83,7 +83,7 @@ func StepOutcomeToProto(outcome *autocontracts.StepOutcome) *basexecution.StepOu
 
 	// Condition outcome
 	if outcome.Condition != nil {
-		pb.Condition = ConditionOutcomeToProto(outcome.Condition)
+		pb.Condition = typeconv.ConditionOutcomeToProto(outcome.Condition)
 	}
 
 	// Probe result
@@ -224,7 +224,7 @@ func ProtoToStepOutcome(pb *basexecution.StepOutcome) *autocontracts.StepOutcome
 
 	// Condition outcome
 	if pb.Condition != nil {
-		outcome.Condition = ProtoToConditionOutcome(pb.Condition)
+		outcome.Condition = typeconv.ProtoToConditionOutcome(pb.Condition)
 	}
 
 	// Probe result
@@ -741,78 +741,6 @@ func ProtoToAssertionOutcome(pb *basexecution.AssertionOutcome) *autocontracts.A
 	}
 
 	return assertion
-}
-
-// ConditionOutcomeToProto converts a native ConditionOutcome to proto.
-func ConditionOutcomeToProto(condition *autocontracts.ConditionOutcome) *basexecution.ConditionOutcome {
-	if condition == nil {
-		return nil
-	}
-
-	pb := &basexecution.ConditionOutcome{
-		Outcome: condition.Outcome,
-		Negated: condition.Negated,
-	}
-
-	if condition.Type != "" {
-		pb.Type = &condition.Type
-	}
-	if condition.Operator != "" {
-		pb.Operator = &condition.Operator
-	}
-	if condition.Variable != "" {
-		pb.Variable = &condition.Variable
-	}
-	if condition.Selector != "" {
-		pb.Selector = &condition.Selector
-	}
-	if condition.Expression != "" {
-		pb.Expression = &condition.Expression
-	}
-	if condition.Actual != nil {
-		pb.Actual = typeconv.AnyToJsonValue(condition.Actual)
-	}
-	if condition.Expected != nil {
-		pb.Expected = typeconv.AnyToJsonValue(condition.Expected)
-	}
-
-	return pb
-}
-
-// ProtoToConditionOutcome converts a proto ConditionOutcome to native.
-func ProtoToConditionOutcome(pb *basexecution.ConditionOutcome) *autocontracts.ConditionOutcome {
-	if pb == nil {
-		return nil
-	}
-
-	condition := &autocontracts.ConditionOutcome{
-		Outcome: pb.Outcome,
-		Negated: pb.Negated,
-	}
-
-	if pb.Type != nil {
-		condition.Type = *pb.Type
-	}
-	if pb.Operator != nil {
-		condition.Operator = *pb.Operator
-	}
-	if pb.Variable != nil {
-		condition.Variable = *pb.Variable
-	}
-	if pb.Selector != nil {
-		condition.Selector = *pb.Selector
-	}
-	if pb.Expression != nil {
-		condition.Expression = *pb.Expression
-	}
-	if pb.Actual != nil {
-		condition.Actual = typeconv.JsonValueToAny(pb.Actual)
-	}
-	if pb.Expected != nil {
-		condition.Expected = typeconv.JsonValueToAny(pb.Expected)
-	}
-
-	return condition
 }
 
 // =============================================================================

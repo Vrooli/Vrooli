@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -18,6 +19,8 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/vrooli/browser-automation-studio/automation/compiler"
+	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/internal/compat"
 	"github.com/vrooli/browser-automation-studio/services/retention"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
@@ -580,10 +583,8 @@ func isDryRun(header string) bool {
 // interaction. Malformed JSON yields a typed error (the handler maps it to
 // InvalidArgument). Empty = the default navigate+settle capture.
 //
-// Greenfield: this is the only translation. No fallback path, no compat
-// shim with the REST ExecuteAdhocWorkflow body shape. Capture-type
-// fan-out into per-artifact steps is the executor's responsibility in a
-// future PR; Phase 2 establishes only the contract surface.
+// This translation preserves the interaction graph and adds only the requested
+// readiness, snapshot and final-image actions through the ordinary executor.
 func buildAdhocRequest(
 	resolvedURL string,
 	msg *capturev1.CaptureRequest,
@@ -606,11 +607,16 @@ func buildAdhocRequest(
 	// wait must happen after navigation, not silently become page.goto's
 	// deadline. Network-idle remains a NavigateParams wait_until because the
 	// driver performs that signal after goto completes.
-	predecessorID := navigateNode.Id
+	predecessorIDs := []string{navigateNode.Id}
+	appendNode := func(node *workflowsv1.WorkflowNodeV2) {
+		nodes = append(nodes, node)
+		for _, predecessorID := range predecessorIDs {
+			edges = append(edges, &workflowsv1.WorkflowEdgeV2{Id: uuid.NewString(), Source: predecessorID, Target: node.Id})
+		}
+		predecessorIDs = []string{node.Id}
+	}
 	if waitNode := postNavigationWaitNode(msg.GetWaitFor()); waitNode != nil {
-		nodes = append(nodes, waitNode)
-		edges = append(edges, &workflowsv1.WorkflowEdgeV2{Id: uuid.NewString(), Source: navigateNode.Id, Target: waitNode.Id})
-		predecessorID = waitNode.Id
+		appendNode(waitNode)
 	}
 	if direction := strings.ToLower(strings.TrimSpace(msg.GetDirection())); direction != "" {
 		if direction != "ltr" && direction != "rtl" {
@@ -625,24 +631,20 @@ func buildAdhocRequest(
 				},
 			},
 		}
-		nodes = append(nodes, directionNode)
-		edges = append(edges, &workflowsv1.WorkflowEdgeV2{Id: uuid.NewString(), Source: predecessorID, Target: directionNode.Id})
-		predecessorID = directionNode.Id
+		appendNode(directionNode)
 	}
 
-	// Splice an interaction flow after the navigate node, inside the same
-	// perf-trace window. The compiler orders nodes topologically (roots =
-	// no incoming edge, tie-broken by array index), so the explicit
-	// navigate→entry edge guarantees the navigate runs first and the
-	// interaction's own internal edges sequence the rest.
+	// Compose the interaction at the compiler's outer boundaries. Its original
+	// branch and loop edges decide the path; every outer terminal reaches the
+	// requested postlude, independently of declaration order.
 	if raw := strings.TrimSpace(msg.GetInteractionFlowJson()); raw != "" {
-		spliced, err := spliceInteractionFlow(predecessorID, raw)
+		spliced, err := spliceInteractionFlow(predecessorIDs[0], raw)
 		if err != nil {
 			return nil, "", err
 		}
 		nodes = append(nodes, spliced.nodes...)
 		edges = append(edges, spliced.edges...)
-		predecessorID = spliced.nodes[len(spliced.nodes)-1].GetId()
+		predecessorIDs = spliced.terminals
 	}
 
 	domNodeID := ""
@@ -657,35 +659,23 @@ func buildAdhocRequest(
 			},
 		}
 		domNodeID = domNode.Id
-		nodes = append(nodes, domNode)
-		edges = append(edges, &workflowsv1.WorkflowEdgeV2{
-			Id:     uuid.NewString(),
-			Source: predecessorID,
-			Target: domNode.Id,
-		})
-		predecessorID = domNode.Id
+		appendNode(domNode)
 	}
 
-	// A capture boundary is a first-class concern of the generic capture
-	// service. Keep it as the final screenshot step so the producer marks the
-	// element capture as the authoritative artifact without requiring callers
-	// to hand-build an interaction flow.
-	if selector := strings.TrimSpace(msg.GetScreenshotSelector()); selector != "" {
+	// The requested image is an explicit final action. Setup and snapshot steps
+	// retain failure diagnostics through the capture profile, without producing
+	// redundant successful-step images. Keep interaction screenshots as authored.
+	if selector := strings.TrimSpace(msg.GetScreenshotSelector()); selector != "" || len(msg.GetCaptures()) == 0 || slices.Contains(msg.GetCaptures(), capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT) {
 		screenshotNode := &workflowsv1.WorkflowNodeV2{
 			Id: uuid.NewString(),
 			Action: &actionsv1.ActionDefinition{
 				Type: actionsv1.ActionType_ACTION_TYPE_SCREENSHOT,
 				Params: &actionsv1.ActionDefinition_Screenshot{
-					Screenshot: &actionsv1.ScreenshotParams{Selector: &selector},
+					Screenshot: &actionsv1.ScreenshotParams{Selector: &selector, FullPage: proto.Bool(false)},
 				},
 			},
 		}
-		nodes = append(nodes, screenshotNode)
-		edges = append(edges, &workflowsv1.WorkflowEdgeV2{
-			Id:     uuid.NewString(),
-			Source: predecessorID,
-			Target: screenshotNode.Id,
-		})
+		appendNode(screenshotNode)
 	}
 
 	flowName := "capture"
@@ -729,6 +719,7 @@ func buildAdhocRequest(
 			ViewportWidth:  &w,
 			ViewportHeight: &h,
 			BrowserProfile: browserProfile,
+			ArtifactConfig: &basexecution.ArtifactCollectionConfig{Profile: proto.String(config.ProfileCapture)},
 		},
 		WaitForCompletion: true,
 	}, domNodeID, nil
@@ -737,13 +728,14 @@ func buildAdhocRequest(
 // splicedFlow holds the nodes/edges contributed by an interaction flow,
 // already wired to follow the navigate node.
 type splicedFlow struct {
-	nodes []*workflowsv1.WorkflowNodeV2
-	edges []*workflowsv1.WorkflowEdgeV2
+	nodes     []*workflowsv1.WorkflowNodeV2
+	edges     []*workflowsv1.WorkflowEdgeV2
+	terminals []string
 }
 
 // spliceInteractionFlow parses a raw bas/flows-shape JSON body (a
 // WorkflowDefinitionV2 protojson) and returns its nodes/edges plus a single
-// edge linking the supplied navigate node to the flow's first node. The
+// edge linking the supplied predecessor to the flow's actual entry. The
 // flow's own internal edges sequence the rest. Malformed JSON or an empty
 // node set is a typed error.
 func spliceInteractionFlow(navigateNodeID, raw string) (splicedFlow, error) {
@@ -758,17 +750,19 @@ func spliceInteractionFlow(navigateNodeID, raw string) (splicedFlow, error) {
 	if err := protojson.Unmarshal(normalized, &def); err != nil {
 		return splicedFlow{}, fmt.Errorf("interaction_flow_json is not a valid WorkflowDefinitionV2: %w", err)
 	}
-	if len(def.GetNodes()) == 0 {
-		return splicedFlow{}, errors.New("interaction_flow_json has no nodes")
+	entry, terminals, err := compiler.WorkflowBoundaries(&def)
+	if err != nil {
+		return splicedFlow{}, fmt.Errorf("interaction_flow_json: %w", err)
 	}
 	out := splicedFlow{
-		nodes: def.GetNodes(),
-		edges: append([]*workflowsv1.WorkflowEdgeV2{}, def.GetEdges()...),
+		nodes:     def.GetNodes(),
+		terminals: terminals,
+		edges:     append([]*workflowsv1.WorkflowEdgeV2{}, def.GetEdges()...),
 	}
 	out.edges = append(out.edges, &workflowsv1.WorkflowEdgeV2{
 		Id:     uuid.NewString(),
 		Source: navigateNodeID,
-		Target: def.GetNodes()[0].GetId(),
+		Target: entry,
 	})
 	return out, nil
 }

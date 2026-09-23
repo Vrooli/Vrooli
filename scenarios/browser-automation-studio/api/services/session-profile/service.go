@@ -175,47 +175,129 @@ func (s *Service) UpdateBrowserProfile(id persistence.ProfileID, browserProfile 
 	})
 }
 
-// StartSession associates a browser session with a profile.
-// This updates the profile's last_used_at timestamp.
-func (s *Service) StartSession(sessionID string, profileID persistence.ProfileID) error {
-	if sessionID == "" || profileID == "" {
-		return nil
-	}
-	s.sessions.Set(sessionID, string(profileID))
-	_, err := s.Touch(profileID)
-	if errors.Is(err, persistence.ErrProfileNotFound) {
-		return nil
-	}
-	return err
+var ErrSessionBindingChanged = errors.New("session profile binding changed during capture; retry with the current session")
+
+// PersistSessionState serializes complete browser snapshots for one active
+// binding. Detach/replacement invalidates any capture still awaiting browser I/O.
+func (s *Service) PersistSessionState(ctx context.Context, sessionID string, capture func(context.Context, string) (*persistence.SessionEndState, error)) error {
+	return s.persistSessionState(ctx, sessionID, capture, false)
 }
 
-// EndSession persists session state to the profile and clears the association.
-// This is the single atomic save point that replaces scattered SaveX() calls.
-func (s *Service) EndSession(ctx context.Context, sessionID string, state *persistence.SessionEndState) error {
-	profileID := s.sessions.Get(sessionID)
-	if profileID == "" {
+func (s *Service) persistSessionState(ctx context.Context, sessionID string, capture func(context.Context, string) (*persistence.SessionEndState, error), automatic bool) (err error) {
+	r := s.sessions
+	r.mu.Lock()
+	binding := r.sessions[sessionID]
+	r.mu.Unlock()
+	if binding == nil {
 		return nil
 	}
-	_, err := s.UpdateProfile(persistence.ProfileID(profileID), func(profile *persistence.SessionProfile) error {
-		applySessionState(profile, state)
-		return nil
-	})
-	if err != nil && !errors.Is(err, persistence.ErrProfileNotFound) {
+	if automatic {
+		defer func() { s.recordCheckpointError(sessionID, binding, err) }()
+	}
+	select {
+	case binding.capture <- struct{}{}:
+		defer func() { <-binding.capture }()
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	r.mu.Lock()
+	err = r.validateCaptureBinding(sessionID, binding, automatic)
+	r.mu.Unlock()
+	if err != nil {
 		return err
 	}
-	s.sessions.Clear(sessionID)
-	return nil
-}
-
-// PersistSessionState saves storage state and tabs without ending the session.
-// Used for mid-session saves (e.g., beforeunload, manual persist).
-func (s *Service) PersistSessionState(profileID persistence.ProfileID, state *persistence.SessionEndState) error {
-	_, err := s.UpdateProfile(profileID, func(profile *persistence.SessionProfile) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	capturedAt := s.clock.Now()
+	state, err := capture(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if err := r.validateCaptureBinding(sessionID, binding, automatic); err != nil {
+		return err
+	}
+	_, err = s.UpdateProfile(persistence.ProfileID(binding.profileID), func(profile *persistence.SessionProfile) error {
 		applySessionState(profile, state)
 		profile.LastUsedAt = s.clock.Now().UTC()
 		return nil
 	})
+	if err == nil {
+		binding.savedAt = capturedAt
+		binding.checkpointError = ""
+	}
 	return err
+}
+
+// RunCheckpoints is owned and joined by the API lifecycle. Browser I/O is bounded
+// per binding; one slow profile does not delay captures for other profiles.
+func (s *Service) RunCheckpoints(ctx context.Context, capture func(context.Context, string) (*persistence.SessionEndState, error)) {
+	ticker := s.clock.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+	for ctx.Err() == nil {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C():
+		}
+		s.sessions.mu.Lock()
+		ids := make([]string, 0, len(s.sessions.sessions))
+		for id := range s.sessions.sessions {
+			ids = append(ids, id)
+		}
+		s.sessions.mu.Unlock()
+		var captures sync.WaitGroup
+		for _, id := range ids {
+			captures.Go(func() {
+				captureCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+				defer cancel()
+				_ = s.persistSessionState(captureCtx, id, capture, true)
+			})
+		}
+		captures.Wait()
+	}
+}
+
+func (s *Service) recordCheckpointError(sessionID string, binding *activeSessionBinding, err error) {
+	if err == nil {
+		return
+	}
+	s.sessions.mu.Lock()
+	current := s.sessions.sessions[sessionID] == binding
+	changed := current && binding.checkpointError != err.Error()
+	if current {
+		binding.checkpointError = err.Error()
+	}
+	s.sessions.mu.Unlock()
+	if changed && s.log != nil {
+		s.log.WithError(err).WithField("session_id", sessionID).Warn("Browser profile checkpoint unavailable")
+	}
+}
+
+// CheckpointHealth reports durability of active browser profiles, not just
+// availability of the profile repository. No active browser requires a checkpoint.
+func (s *Service) CheckpointHealth() error {
+	s.sessions.mu.Lock()
+	defer s.sessions.mu.Unlock()
+	stale := 0
+	for _, binding := range s.sessions.sessions {
+		latest := binding.savedAt
+		if latest.IsZero() {
+			latest = binding.attachedAt
+		}
+		if binding.checkpointError != "" || s.clock.Now().Sub(latest) > 5*time.Second {
+			stale++
+		}
+	}
+	if stale > 0 {
+		return fmt.Errorf("%d of %d active browser profiles lack a current checkpoint", stale, len(s.sessions.sessions))
+	}
+	return nil
 }
 
 func applySessionState(profile *persistence.SessionProfile, state *persistence.SessionEndState) {
@@ -382,7 +464,7 @@ func (s *Service) GetActiveSession(browserSessionID string) string {
 // SetActiveSession associates a browser session with a profile.
 func (s *Service) SetActiveSession(browserSessionID, profileID string) {
 	if browserSessionID != "" && profileID != "" {
-		s.sessions.Set(browserSessionID, profileID)
+		s.sessions.Set(browserSessionID, profileID, s.clock.Now())
 	}
 }
 
@@ -437,36 +519,63 @@ func (s *Service) pruneHistoryByTTL(entries []persistence.HistoryEntry, settings
 // ActiveSessionRegistry tracks browser session to profile ID mappings.
 type ActiveSessionRegistry struct {
 	mu       sync.Mutex
-	sessions map[string]string // browserSessionID -> profileID
+	sessions map[string]*activeSessionBinding
+}
+
+type activeSessionBinding struct {
+	profileID       string
+	capture         chan struct{}
+	attachedAt      time.Time
+	savedAt         time.Time
+	checkpointError string
+}
+
+// validateCaptureBinding requires the registry mutex; commit holds it through
+// the repository transaction, so detach cannot overtake an accepted snapshot.
+func (r *ActiveSessionRegistry) validateCaptureBinding(sessionID string, binding *activeSessionBinding, automatic bool) error {
+	if r.sessions[sessionID] != binding {
+		return ErrSessionBindingChanged
+	}
+	if automatic {
+		for id, current := range r.sessions {
+			if id != sessionID && current.profileID == binding.profileID {
+				return errors.New("automatic checkpoint requires one active browser for this profile; manual saving remains available")
+			}
+		}
+	}
+	return nil
 }
 
 // NewActiveSessionRegistry creates a new registry.
 func NewActiveSessionRegistry() *ActiveSessionRegistry {
 	return &ActiveSessionRegistry{
-		sessions: make(map[string]string),
+		sessions: make(map[string]*activeSessionBinding),
 	}
 }
 
 // Set associates a browser session with a profile.
-func (r *ActiveSessionRegistry) Set(browserSessionID, profileID string) {
+func (r *ActiveSessionRegistry) Set(browserSessionID, profileID string, attachedAt time.Time) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.sessions[browserSessionID] = profileID
+	r.sessions[browserSessionID] = &activeSessionBinding{profileID: profileID, capture: make(chan struct{}, 1), attachedAt: attachedAt}
 }
 
 // Get returns the profile ID for a browser session.
 func (r *ActiveSessionRegistry) Get(browserSessionID string) string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.sessions[browserSessionID]
+	if binding := r.sessions[browserSessionID]; binding != nil {
+		return binding.profileID
+	}
+	return ""
 }
 
 // GetByProfile returns the browser session ID for a profile (reverse lookup).
 func (r *ActiveSessionRegistry) GetByProfile(profileID string) string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for sessionID, pid := range r.sessions {
-		if pid == profileID {
+	for sessionID, binding := range r.sessions {
+		if binding.profileID == profileID {
 			return sessionID
 		}
 	}
@@ -484,8 +593,8 @@ func (r *ActiveSessionRegistry) Clear(browserSessionID string) {
 func (r *ActiveSessionRegistry) ClearForProfile(profileID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for sessionID, pid := range r.sessions {
-		if pid == profileID {
+	for sessionID, binding := range r.sessions {
+		if binding.profileID == profileID {
 			delete(r.sessions, sessionID)
 		}
 	}

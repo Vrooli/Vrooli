@@ -128,3 +128,15 @@ recovery/durability, broad journey/evidence, sustained performance, native platf
 and UI qualification are explicit. No completion percentage or launch date claimed.
 Latest deployed056 passes1685 driver tests,12 native workflow checks and35 native
 API checks; continuous repair proceeds to the reproduced navigation ownership gap.
+
+## BAS-FB-013 — 2026-09-23 — overall goal status and continuation
+
+> Continue please. But quick status update on the goal as a whole?
+
+Status: resolved status request; continuous work remains active. Reported that
+BAS is materially more reliable but not production-ready: repeated basic
+record/save/replay, preserved original profiles, and100/100localcaptures at755ms
+servicep95. All17 release outcomes still unqualified and tidiness still fails.
+Remaining crash/recovery, durability, concurrency/soak, platform/fulljourney and
+debt work named. No completion percentage or delivery date invented. Current085
+work removes duplicated completion waits and qualifies cleanup/error semantics.

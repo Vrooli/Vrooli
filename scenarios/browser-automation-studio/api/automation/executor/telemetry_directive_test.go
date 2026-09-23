@@ -67,7 +67,7 @@ func TestResolveStepScreenshotPolicy(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := resolveStepScreenshotPolicy(tc.execution, tc.action); got != tc.want {
+			if got := resolveStepScreenshotPolicy(config.ArtifactCollectionSettings{ScreenshotPolicy: tc.execution, CaptureValidationCheckpoints: true}, tc.action); got != tc.want {
 				t.Fatalf("resolveStepScreenshotPolicy(%v, %v) = %v, want %v", tc.execution, tc.action, got, tc.want)
 			}
 		})
@@ -232,7 +232,7 @@ func TestExecuteExplicitScreenshotOutcome(t *testing.T) {
 					dir := t.TempDir()
 					store := storage.NewMemoryStorage()
 					writer := executionwriter.NewFileWriter(nil, store, nil, executionwriter.NewStaticRoot(dir))
-					err := NewSimpleExecutor(nil).Execute(context.Background(), Request{Plan: plan, EngineName: eng.Name(), EngineFactory: engine.NewStaticFactory(eng), Recorder: writer, EventSink: events.NewMemorySink(contracts.DefaultEventBufferLimits), ContinueOnError: tc.workflowContinue, StartFromStepIndex: -1})
+					err := NewSimpleExecutor(nil).Execute(context.Background(), Request{Plan: plan, EngineName: eng.Name(), EngineFactory: engine.NewStaticFactory(eng), Recorder: writer, EventSink: events.NewMemorySink(contracts.DefaultEventBufferLimits), ContinueOnError: tc.workflowContinue})
 					if tc.workflowSuccess {
 						require.NoError(t, err)
 					} else {
@@ -286,7 +286,7 @@ func TestExecuteReportsScreenshotStorageFailure(t *testing.T) {
 				{Index: 0, NodeID: "navigate", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid"}}}},
 				{Index: 1, NodeID: "capture", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_SCREENSHOT, Params: &basactions.ActionDefinition_Screenshot{Screenshot: &basactions.ScreenshotParams{}}}},
 			}}
-			err := NewSimpleExecutor(nil).Execute(context.Background(), Request{Plan: plan, EngineName: eng.Name(), EngineFactory: engine.NewStaticFactory(eng), Recorder: writer, EventSink: events.NewMemorySink(contracts.DefaultEventBufferLimits), StartFromStepIndex: -1})
+			err := NewSimpleExecutor(nil).Execute(context.Background(), Request{Plan: plan, EngineName: eng.Name(), EngineFactory: engine.NewStaticFactory(eng), Recorder: writer, EventSink: events.NewMemorySink(contracts.DefaultEventBufferLimits)})
 			require.ErrorContains(t, err, "screenshot")
 			if storeErr != nil {
 				require.ErrorIs(t, err, storeErr)
@@ -296,5 +296,20 @@ func TestExecuteReportsScreenshotStorageFailure(t *testing.T) {
 			require.Contains(t, string(manifest), "SCREENSHOT_PERSISTENCE_FAILED")
 			require.Contains(t, string(manifest), "EXECUTION_STATUS_FAILED")
 		})
+	}
+}
+
+// Capture has a requested final image; successful setup steps add no images.
+// ON_FAILURE still tells the driver to preserve diagnostics for every failure.
+func TestCaptureProfileKeepsFailureDiagnosticsWithoutPassiveFrames(t *testing.T) {
+	settings := config.ResolveArtifactSettings(&basexecution.ArtifactCollectionConfig{Profile: proto.String("capture")})
+	require.True(t, settings.CollectScreenshots)
+	require.True(t, settings.CollectConsoleLogs)
+	require.True(t, settings.CollectNetworkEvents)
+	require.True(t, settings.CollectExtractedData)
+	for _, kind := range []basactions.ActionType{basactions.ActionType_ACTION_TYPE_NAVIGATE, basactions.ActionType_ACTION_TYPE_WAIT, basactions.ActionType_ACTION_TYPE_EVALUATE, basactions.ActionType_ACTION_TYPE_ASSERT, basactions.ActionType_ACTION_TYPE_SCREENSHOT} {
+		instruction := contracts.CompiledInstruction{Action: action(kind)}
+		got := applyTelemetryDirective(instruction, &settings)
+		require.Equal(t, basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ON_FAILURE, got.Telemetry.GetScreenshot(), kind.String())
 	}
 }

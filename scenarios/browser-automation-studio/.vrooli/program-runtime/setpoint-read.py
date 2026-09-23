@@ -63,17 +63,7 @@ def step_validate():
     if profile not in ("operations", "rehabilitation"):
         return fail("failed", "invalid_input", "unknown qualification profile", "validate")
     if profile == "rehabilitation":
-        # These are required product outcomes, not mixed operational diagnostics.
-        # Replace pending rows only with qualified owner-backed sensor reads.
-        for name in REHABILITATION_ROWS:
-            row(name, None, "bas-rehabilitation-v1#" + name, None,
-                unavailable=True, reason="pending_telemetry")
-        envelope["signals"]["required"] = len(REHABILITATION_ROWS)
-        envelope["signals"]["unmet"] = len(REHABILITATION_ROWS)
-        envelope["signals"]["product_qualified"] = False
-        envelope["evidence"] = ["scenarios/browser-automation-studio/docs/internal/REFRACTOR_CONTRACT.json"]
-        envelope["status"] = "ok"
-        return "report"
+        return "collect"
     if not (10 <= window <= 100):
         return fail("failed", "invalid_input", f"window={window} outside 10..100 (executions list caps at 100)", "validate")
     if not (0 <= evidence_sample <= 10):
@@ -83,6 +73,16 @@ def step_validate():
 
 def step_collect():  # COLLECT · one governed read; the evidence sample is read per failed execution
     envelope["phase"] = "collect"
+    if profile == "rehabilitation":
+        try:
+            result = performance_health.sweep.workload_get(scenario="browser-automation-studio", workload="capture")
+            readings = result.head(1)
+            handles["capture"] = readings[0] if readings else {}
+        except Exception as exc:
+            _, klass = program.classify(exc)
+            handles["capture"] = {}
+            handles["capture_error"] = klass
+        return "classify"
     try:
         handles["ex"] = browser_automation_studio.executions.list(limit=window)
         handles["ex"].count()
@@ -125,8 +125,37 @@ def step_collect():  # COLLECT · one governed read; the evidence sample is read
     return "classify"
 
 
+def classify_rehabilitation():
+    capture = handles.get("capture", {})
+    applicable = (capture.get("outcome") == "WORKLOAD_OUTCOME_MEASURED"
+                  and capture.get("sampleCount") == 100
+                  and capture.get("declaredWarmups") == 1
+                  and capture.get("budgetMs") == 2000
+                  and bool(capture.get("operationId"))
+                  and bool(capture.get("receiptSha256")))
+    for name in REHABILITATION_ROWS:
+        if name == "capture" and applicable:
+            reading = {"p95_ms": capture.get("p95Ms"), "wall_p95_ms": capture.get("wallP95Ms"),
+                       "samples": capture.get("sampleCount"), "operation_id": capture.get("operationId"),
+                       "build_identity": capture.get("buildIdentity"), "captured_at": capture.get("capturedAt")}
+            row(name, reading, "bas-rehabilitation-v1#capture", capture.get("withinBudget") is True,
+                sensor="performance-health sweep workload-get browser-automation-studio capture")
+        else:
+            reason = "pending_telemetry"
+            if name == "capture":
+                reason = handles.get("capture_error") or capture.get("reason") or "owner_evidence_not_applicable"
+            row(name, None, "bas-rehabilitation-v1#" + name, None, unavailable=True, reason=reason)
+    envelope["signals"]["required"] = len(REHABILITATION_ROWS)
+    envelope["signals"]["unmet"] = sum(r["in_band"] is not True for r in envelope["signals"]["rows"])
+    envelope["signals"]["product_qualified"] = envelope["signals"]["unmet"] == 0
+    envelope["status"] = "partial" if handles.get("capture_error") else "ok"
+    return "report"
+
+
 def step_classify():  # CLASSIFY · every reading is count or filter in the kernel
     envelope["phase"] = "classify"
+    if profile == "rehabilitation":
+        return classify_rehabilitation()
     ex = handles["ex"]
     completed = ex.filter(lambda r: r.get("status") == "EXECUTION_STATUS_COMPLETED").count()
     failed_h = handles["failed_h"]

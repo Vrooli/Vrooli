@@ -476,6 +476,8 @@ type GetFrameResponse struct {
 // StepOutcomeResponse extends StepOutcome with driver-specific fields for JSON decoding.
 type StepOutcomeResponse struct {
 	contracts.StepOutcome
+	// Decode typed JsonValue fields through their protobuf owner, not into raw maps.
+	ConditionWire json.RawMessage `json:"condition,omitempty"`
 
 	ScreenshotBase64    string `json:"screenshot_base64,omitempty"`
 	ScreenshotMediaType string `json:"screenshot_media_type,omitempty"`

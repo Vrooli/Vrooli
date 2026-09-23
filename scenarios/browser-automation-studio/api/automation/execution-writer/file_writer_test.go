@@ -486,3 +486,36 @@ func BenchmarkStructuredOutcomePersistence(b *testing.B) {
 		writer.ForgetExecution(plan.ExecutionID)
 	}
 }
+
+func TestCheckpointCommitPreservesPreviousStateOnEncodingFailure(t *testing.T) {
+	root := t.TempDir()
+	writer := NewFileWriter(nil, nil, nil, NewStaticRoot(root))
+	cp := Checkpoint{SchemaVersion: CheckpointVersion, ExecutionID: uuid.New(), WorkflowID: uuid.New(), LastStepIndex: 0, NodeID: "first", TotalSteps: 2, Store: map[string]any{"secret": "private-only", "nested": []any{true, nil, map[string]any{"value": 12.5}}}}
+	require.NoError(t, writer.RecordCheckpoint(context.Background(), cp))
+	path := filepath.Join(root, cp.ExecutionID.String(), CheckpointFileName)
+	before, err := os.ReadFile(path)
+	require.NoError(t, err)
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+	got, err := ReadCheckpoint(filepath.Join(filepath.Dir(path), "result.json"), cp.ExecutionID, cp.WorkflowID)
+	require.NoError(t, err)
+	require.Equal(t, cp, *got)
+	cp.LastStepIndex = 1
+	cp.Store = map[string]any{"not_json": math.NaN()}
+	require.ErrorContains(t, writer.RecordCheckpoint(context.Background(), cp), "encode recovery state")
+	after, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, before, after, "failed commit must preserve previous cursor and store together")
+}
+
+func TestCheckpointCommitReportsRealFilesystemFailure(t *testing.T) {
+	root := t.TempDir()
+	writer := NewFileWriter(nil, nil, nil, NewStaticRoot(root))
+	cp := Checkpoint{SchemaVersion: CheckpointVersion, ExecutionID: uuid.New(), WorkflowID: uuid.New(), LastStepIndex: 0, NodeID: "first", TotalSteps: 1, Store: map[string]any{}}
+	path := filepath.Join(root, cp.ExecutionID.String(), CheckpointFileName)
+	require.NoError(t, os.MkdirAll(path, 0o700))
+	require.ErrorContains(t, writer.RecordCheckpoint(context.Background(), cp), "commit recovery state")
+	_, err := ReadCheckpoint(filepath.Join(filepath.Dir(path), "result.json"), cp.ExecutionID, cp.WorkflowID)
+	require.Error(t, err, "a failed filesystem commit cannot become usable recovery state")
+}

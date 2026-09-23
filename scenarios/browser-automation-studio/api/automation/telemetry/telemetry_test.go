@@ -1,6 +1,7 @@
 package telemetry
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -11,7 +12,29 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	"google.golang.org/protobuf/encoding/protojson"
 )
+
+// [REQ:BAS-RH-J24] Retained event context must preserve the branch decision.
+func TestConditionalOutcomeSurvivesTimelineConversion(t *testing.T) {
+	outcome := contracts.StepOutcome{StepType: "conditional", Success: true, Condition: &contracts.ConditionOutcome{
+		Type: "expression", Expression: "return false;", Outcome: true, Negated: true, Actual: false, Expected: true,
+	}}
+	entry := TelemetryToTimelineEntry(StepOutcomeToTelemetry(outcome, uuid.New()))
+	b, err := protojson.Marshal(entry)
+	require.NoError(t, err)
+	var wire map[string]any
+	require.NoError(t, json.Unmarshal(b, &wire))
+	context, ok := wire["context"].(map[string]any)
+	require.True(t, ok)
+	condition, ok := context["condition"].(map[string]any)
+	require.True(t, ok, "condition evidence disappeared from the retained entry")
+	assert.Equal(t, "return false;", condition["expression"])
+	assert.Equal(t, true, condition["negated"])
+	assert.Equal(t, true, condition["outcome"])
+	assert.Equal(t, map[string]any{"boolValue": false}, condition["actual"])
+	assert.Equal(t, map[string]any{"boolValue": true}, condition["expected"])
+}
 
 func TestRecordedActionToTelemetry(t *testing.T) {
 	t.Run("nil action returns nil", func(t *testing.T) {

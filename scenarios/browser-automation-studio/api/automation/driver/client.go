@@ -19,6 +19,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/internal/resilience"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -987,6 +988,13 @@ func decodeStepOutcome(r io.Reader) (contracts.StepOutcome, error) {
 	out := resp.StepOutcome
 	out.SchemaVersion = contracts.StepOutcomeSchemaVersion
 	out.PayloadVersion = contracts.PayloadVersion
+	if len(resp.ConditionWire) > 0 && string(resp.ConditionWire) != "null" {
+		var condition basbase.ConditionOutcome
+		if err := protojson.Unmarshal(resp.ConditionWire, &condition); err != nil {
+			return contracts.StepOutcome{}, fmt.Errorf("decode condition outcome: %w", err)
+		}
+		out.Condition = typeconv.ProtoToConditionOutcome(&condition)
+	}
 
 	if resp.ScreenshotBase64 != "" {
 		data, err := base64.StdEncoding.DecodeString(resp.ScreenshotBase64)

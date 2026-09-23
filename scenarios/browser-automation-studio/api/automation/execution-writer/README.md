@@ -6,7 +6,7 @@ Primary implementation: `FileWriter`.
 - Writes execution results to JSON files on disk (status, duration, attempt metadata, failure details).
 - Stores artifacts: `step_outcome`, console, network, assertion, extracted_data, screenshot (MinIO or inline), DOM snapshot (with truncation), timeline frame.
 - Telemetry persistence for rollout/debug (`telemetry` artifacts).
-- Crash marker helper: `MarkCrash`.
+- Execution terminal status belongs to WorkflowService; the writer only updates result paths.
 
 Key rules:
 - Writer generates IDs/dedupe keys; engines stay vendor-agnostic.

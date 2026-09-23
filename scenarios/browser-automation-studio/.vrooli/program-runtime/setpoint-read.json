@@ -71,6 +71,11 @@
     {
       "id": "vrooli-memory/learning/measure",
       "effect": "read"
+    },
+    {
+      "id": "performance-health/sweep/workload-get",
+      "effect": "read",
+      "optional": true
     }
   ],
   "outputs": {
@@ -154,17 +159,17 @@
       ]
     },
     {
-      "id": "rehabilitation-pending",
+      "id": "rehabilitation-evidence",
       "inputs": {
         "profile": "rehabilitation"
       },
       "expect": {
         "status": [
-          "ok"
+          "ok",
+          "partial"
         ],
         "signals": {
           "required": 17,
-          "unmet": 17,
           "product_qualified": false
         }
       }
