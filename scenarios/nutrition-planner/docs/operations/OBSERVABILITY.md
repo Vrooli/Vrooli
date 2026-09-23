@@ -3,7 +3,7 @@
 This document records logs, metrics, telemetry, health checks, and
 business/product signals for the scenario.
 
-The working product name is **Daily**. Scenario id is `nutrition-planner`.
+The working product name is **Nooch** (formerly Daily; decision D-042). Scenario id is `nutrition-planner`.
 
 ## Purpose Of This Document
 
@@ -38,6 +38,8 @@ fabricated to look better.
 | Job execution | health | job adapter | Jobs are making progress and not stuck | no job `running` past its declared budget |
 | Provider configured vs unavailable | health | provider/AI adapter | Distinguish "not configured" (supported) from "configured but failing" (degraded) | `not_configured` is not an outage; `unavailable` is surfaced with a reason |
 | test-genie result | validation | `make test` | Scenario correctness evidence | required phases pass |
+| Authenticated request succeeds | health (synthetic) | `nutrition-planner workspace list` or a `ListWorkspaces` call | `/health` stays healthy while every workspace RPC returns `401` today (blocker B1); only a real authenticated call proves the app is usable | any `unauthenticated` in the local personal mode is a configuration failure |
+| Capability report (redesign) | health | capabilities/diagnostics endpoint | What is actually configured — image generation, personal-planner link, assisted import — so the UI never shows a dead button (R21.3, R25.4) | reports configured state without leaking credentials; the current capabilities registry still advertises the template's `audio-tools` entry |
 
 `not_configured`, `unavailable`, and `never_run` are deliberately distinct.
 Collapsing them would be the same class of error as showing a missing
@@ -61,8 +63,9 @@ alone, so the user never has to paste their diet into a bug report.
 **Prohibited in logs at any level below a deliberate bounded debug
 capture:** recipe text, ingredient names, receipt contents, product/label
 images or OCR text, dietary restrictions or allergy details, supplement
-schedules, nutrient totals attributable to a person, access tokens, and
-provider credentials. A failed parse logs the error class and source type,
+schedules, nutrient totals attributable to a person, access tokens,
+provider credentials, full generation prompts containing user details,
+private food photos, and signed media URLs (R25.4). A failed parse logs the error class and source type,
 never the payload that failed.
 
 ## Metrics
@@ -77,6 +80,12 @@ never the payload that failed.
 | Import counts | required | Created/updated/skipped/conflicted per staged import; a non-zero `conflicted` count is a normal, reviewable outcome, not an error. |
 | Job retries and failures | required | Retry counts, terminal failures, cancelations, and budget-exceeded events. |
 | Provider/availability by adapter | required | Label by adapter and reason class only. Backs `OPS-02` and `ACT-060`. |
+| Generation jobs (redesign) | required when D7 lands | Count and duration by state (queued, running, awaiting_review, approved, failed, canceled, rejected), attempts, and dedup hits (R18.2, R25.4). Job and asset ids only — never the prompt text when it contains user details. |
+| Budget reservations (redesign) | required when D7 lands | Reserved, settled, released, and pending-unknown amounts per period and unit; a reservation that never settles must remain visible (R18.3). |
+| Media fallback reasons (redesign) | required | Counts by treatment chosen and fallback reason code (missing asset, load failure, wrong appearance, incompatible revision, rejected). Asset ids only; never signed URLs or private paths (R17.1, R25.4). |
+| Sync conflicts and outbox replays (redesign) | required | Outbox depth, replay outcomes (applied, no-op, conflict), and conflict rate by operation type (R22). |
+| Calendar link sync (redesign) | required when D7 lands | Link states (pending, linked, failed, conflict), retries, and reconcile-by-key hits for the personal-planner adapter (R24.3). |
+| Planner timing | required | Search duration, candidate counts, and budget-hit outcomes per run (R25.4). |
 | Product activation | deferred | Collected only with consent and only in aggregate; see below. |
 | Cost telemetry | deferred | Only meaningful once R2 provider/AI usage exists; bounded per workspace by `JOB-01`. |
 
@@ -122,6 +131,9 @@ backfilled with fixture numbers:
 | No operation-duration metric yet | The ~2s search budget cannot be checked in production | Build with the first real domain, not after. |
 | No calculation-version signal yet | A policy/algorithm change could alter assessments unnoticed | Required before the nutrition/planner versions diverge. |
 | No provider availability metric yet | `OPS-02` and `ACT-060` cannot be checked | Build with the R2 adapter boundary. |
+| Health reports healthy while the product is unusable | Every workspace RPC returns `401` in the local runtime; lifecycle health checks never notice | Add the authenticated synthetic check above when the authentication profile lands (B1). |
+| Settings data health calls the wrong route | The diagnostics panel fails with a parse error, so data-health findings are invisible | Fix blocker B6 (`/api/v1/diagnostics`). |
+| No media, generation, reservation, outbox, or calendar signals | Redesign failure modes (silent fallbacks, runaway spend, stuck replays, duplicate events) would be invisible | Build each signal with its surface (REDESIGN_PLAN D4–D7). |
 | Product usage telemetry | Cannot validate adoption or monetization | Before any external claim, and only in a consenting, aggregate, no-personal-content form. |
 | Cost telemetry | Cannot evaluate provider unit economics | Before R2 budgets are enabled for real. |
 | No signal distinguishing "no data entered" from "adapter failed to load" | An empty collection and a broken pipeline can look alike | Before the first non-manual data source. |
@@ -134,4 +146,4 @@ backfilled with fixture numbers:
 - [`../business/GO-TO-MARKET.md`](../business/GO-TO-MARKET.md) — validation experiments
 - [`../internal/SECURITY.md`](../internal/SECURITY.md) — what must never be emitted
 - [`../internal/PERFORMANCE.md`](../internal/PERFORMANCE.md) — budgets and measurements
-- [`../reference/product-specification.md`](../reference/product-specification.md) — sections 2.3, 16.6, 18.4, and 19.2
+- [`../reference/product-specification.md`](../reference/product-specification.md) — R17.1, R18, R22, R24, R25.4, and Appendix A sections 2.3, 16.6, 18.4, and 19.2

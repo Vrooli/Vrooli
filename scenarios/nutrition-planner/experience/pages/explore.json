@@ -1,0 +1,521 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "explore",
+    "title": "Explore",
+    "routes": [
+      "/meals/explore"
+    ],
+    "purpose": "Suggest meals that fit the person's rules, kitchen, and week — each with a visible reason and explicit planning context such as Planning Wednesday dinner — so a new idea becomes a planned meal in one action.",
+    "prd_refs": [
+      "OT-P0-018",
+      "OT-P0-006",
+      "OT-P0-007",
+      "OT-P0-009",
+      "OT-P0-017",
+      "OT-P0-015",
+      "OT-P0-021",
+      "OT-P1-001",
+      "OT-P1-007"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "When opened from a slot, the context banner says what is being planned and each card's primary action targets that slot only."
+    },
+    {
+      "statement": "Every suggestion carries a short reason built from evaluated facts, never fabricated personalization."
+    },
+    {
+      "statement": "Required rules filter candidates before ranking; a candidate that fails them is never offered as fitting."
+    },
+    {
+      "statement": "Only sections with meaningful results appear; an empty one becomes guidance instead of an empty carousel."
+    },
+    {
+      "statement": "Save and Add to the week are idempotent and never silently replace a planned meal."
+    },
+    {
+      "statement": "Creating a meal idea with AI is optional, labelled as a draft, and hidden or explained when unavailable."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "General discovery without planning context.",
+      "setup": {
+        "route": "/meals/explore"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "First read of the page's data; stable skeletons reserve the layout so nothing shifts on arrival, and no sample food is shown as saved data.",
+      "setup": {
+        "route": "/meals/explore",
+        "query": {
+          "fixture": "loading"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some contributing data is unknown or could not be read; what is missing is named rather than shown as zero.",
+      "setup": {
+        "route": "/meals/explore",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is older than its freshness window; its age is shown next to it.",
+      "setup": {
+        "route": "/meals/explore",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "saving",
+      "description": "A write is in flight; the affected control shows a busy state and says why it is unavailable, and success appears only after the durable save.",
+      "setup": {
+        "route": "/meals/explore",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next action are stated, pending edits are kept, and nothing is edited against a fake empty account.",
+      "setup": {
+        "route": "/meals/explore",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "offline",
+      "description": "The client cannot reach the API; cached data, locally pending actions, and server-confirmed saves are distinguished and unsupported actions say why.",
+      "setup": {
+        "route": "/meals/explore",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    },
+    {
+      "id": "no-results",
+      "description": "A search or filter matched nothing; the query stays visible and Reset filters is offered.",
+      "setup": {
+        "route": "/meals/explore",
+        "query": {
+          "fixture": "no-results"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No candidate satisfies the required rules; the blocking conditions and next actions are named.",
+      "setup": {
+        "route": "/meals/explore",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "planning-context",
+      "description": "Opened from an empty slot; the banner reads Planning Wednesday dinner and cards offer Add to Wednesday.",
+      "setup": {
+        "route": "/meals/explore",
+        "query": {
+          "date": "2026-09-23",
+          "slot": "dinner"
+        }
+      }
+    },
+    {
+      "id": "replace-context",
+      "description": "Opened to swap an existing meal; cards offer Replace Wednesday dinner with an impact preview.",
+      "setup": {
+        "route": "/meals/explore",
+        "query": {
+          "date": "2026-09-23",
+          "slot": "dinner",
+          "replace": "occurrence"
+        }
+      }
+    },
+    {
+      "id": "context-stale",
+      "description": "The plan changed while exploring; the slot is revalidated and a refreshed choice is offered instead of an overwrite.",
+      "setup": {
+        "route": "/meals/explore",
+        "query": {
+          "fixture": "context-stale"
+        }
+      }
+    },
+    {
+      "id": "unconfigured",
+      "description": "Setup has not been applied; the page says suggestions do not reflect rules that were never entered.",
+      "setup": {
+        "route": "/meals/explore",
+        "query": {
+          "fixture": "unconfigured"
+        }
+      }
+    },
+    {
+      "id": "generation-unavailable",
+      "description": "No generation capability is configured; Create a meal idea is hidden or explained.",
+      "setup": {
+        "route": "/meals/explore",
+        "query": {
+          "fixture": "generation-unavailable"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "primary-navigation",
+      "role": "navigation",
+      "name": "Primary",
+      "description": "The five destinations with Meals marked current."
+    },
+    {
+      "id": "page-title",
+      "role": "heading",
+      "name": "Meals",
+      "description": "Meals."
+    },
+    {
+      "id": "collection-tabs",
+      "role": "tablist",
+      "name": "Meals",
+      "description": "Your meals and Explore, with Explore selected."
+    },
+    {
+      "id": "search",
+      "role": "searchbox",
+      "name": "Find a meal or ingredient",
+      "description": "Finds a meal or ingredient within eligible candidates."
+    },
+    {
+      "id": "filter-chips",
+      "role": "group",
+      "name": "Filters",
+      "description": "Diet, Quick prep, and Filters; the diet chip reflects active rules."
+    },
+    {
+      "id": "context-banner",
+      "role": "status",
+      "description": "The planning context, such as Planning Wednesday dinner."
+    },
+    {
+      "id": "dismiss-context",
+      "role": "button",
+      "name": "Dismiss planning context",
+      "description": "Returns to general discovery without deleting anything."
+    },
+    {
+      "id": "section-for-your-week",
+      "role": "region",
+      "name": "For your week",
+      "description": "Highlighted suggestions for the open slot."
+    },
+    {
+      "id": "section-something-different",
+      "role": "region",
+      "name": "Something different",
+      "description": "Suggestions that differ from recent plans, when that is supported by data."
+    },
+    {
+      "id": "suggestion-card",
+      "role": "listitem",
+      "description": "Image, name, active time, and reason, with the primary plan action."
+    },
+    {
+      "id": "suggestion-reason",
+      "role": "note",
+      "description": "A reason from evaluated facts, such as Uses your spinach, qualified when stock is uncertain."
+    },
+    {
+      "id": "add-to-slot-action",
+      "role": "button",
+      "name": "Add to Wednesday",
+      "description": "Adds the meal to the context slot and keeps a recipe snapshot in the collection."
+    },
+    {
+      "id": "replace-slot-action",
+      "role": "button",
+      "name": "Replace Wednesday dinner",
+      "description": "Replaces the context occurrence after an impact preview."
+    },
+    {
+      "id": "save-action",
+      "role": "button",
+      "name": "Save",
+      "description": "Bookmarks the suggestion into the collection; saving twice keeps one record."
+    },
+    {
+      "id": "impact-preview",
+      "role": "dialog",
+      "name": "Replace impact",
+      "description": "Material effects of replacing the occurrence."
+    },
+    {
+      "id": "create-idea-action",
+      "role": "button",
+      "name": "Create a meal idea",
+      "description": "Starts an optional AI draft, labelled as such."
+    },
+    {
+      "id": "blocking-conditions",
+      "role": "alert",
+      "description": "The rules and equipment that block every candidate, with next actions."
+    },
+    {
+      "id": "unconfigured-note",
+      "role": "note",
+      "description": "States that suggestions do not reflect unentered rules."
+    },
+    {
+      "id": "refresh-note",
+      "role": "alert",
+      "description": "Says the slot changed and offers a refreshed choice."
+    }
+  ],
+  "claims": [
+    {
+      "id": "context-is-visible",
+      "type": "element-present",
+      "statement": "Opened from a slot, the page names the day and slot being planned.",
+      "tier": "aspirational",
+      "elements": [
+        "context-banner"
+      ],
+      "states": [
+        "planning-context",
+        "replace-context"
+      ]
+    },
+    {
+      "id": "add-targets-context-slot",
+      "type": "single-dominant-action",
+      "statement": "Add to Wednesday is the dominant card action and targets only the context slot.",
+      "tier": "aspirational",
+      "elements": [
+        "add-to-slot-action",
+        "save-action"
+      ],
+      "states": [
+        "planning-context"
+      ]
+    },
+    {
+      "id": "never-silent-replace",
+      "type": "element-present",
+      "statement": "When the slot is occupied the action is Replace with an impact preview; Add never replaces silently.",
+      "tier": "aspirational",
+      "elements": [
+        "replace-slot-action",
+        "impact-preview"
+      ],
+      "states": [
+        "replace-context"
+      ]
+    },
+    {
+      "id": "reasons-from-facts",
+      "type": "element-present",
+      "statement": "Each suggestion's reason comes from evaluated facts and never claims enough stock or nutrition when data is missing.",
+      "tier": "aspirational",
+      "elements": [
+        "suggestion-reason"
+      ]
+    },
+    {
+      "id": "rules-filter-before-ranking",
+      "type": "element-present",
+      "statement": "When nothing fits the required rules, the blockers are named and no exclusion is weakened.",
+      "tier": "aspirational",
+      "elements": [
+        "blocking-conditions"
+      ],
+      "states": [
+        "empty"
+      ]
+    },
+    {
+      "id": "unconfigured-makes-no-fit-claims",
+      "type": "element-present",
+      "statement": "Before setup, the page makes no claim that suggestions fit.",
+      "tier": "aspirational",
+      "elements": [
+        "unconfigured-note"
+      ],
+      "states": [
+        "unconfigured"
+      ]
+    },
+    {
+      "id": "stale-context-refreshed",
+      "type": "element-present",
+      "statement": "A concurrent plan change produces a refreshed choice, not an overwrite.",
+      "tier": "aspirational",
+      "elements": [
+        "refresh-note"
+      ],
+      "states": [
+        "context-stale"
+      ]
+    },
+    {
+      "id": "dismiss-deletes-nothing",
+      "type": "custom",
+      "statement": "Dismissing the planning banner returns to general discovery and never removes an occurrence.",
+      "tier": "aspirational",
+      "elements": [
+        "dismiss-context"
+      ],
+      "states": [
+        "planning-context"
+      ]
+    },
+    {
+      "id": "bookmark-is-named",
+      "type": "accessible-name",
+      "statement": "Save names the meal and says it bookmarks, distinct from the favourite heart.",
+      "tier": "aspirational",
+      "elements": [
+        "save-action"
+      ]
+    },
+    {
+      "id": "ai-idea-is-optional",
+      "type": "custom",
+      "statement": "Create a meal idea is hidden or disabled with an explanation when generation is unavailable, never a dead button.",
+      "tier": "aspirational",
+      "elements": [
+        "create-idea-action"
+      ],
+      "states": [
+        "generation-unavailable"
+      ]
+    },
+    {
+      "id": "explore-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Cards, their actions, filters, and the banner's dismiss control are keyboard reachable.",
+      "tier": "aspirational",
+      "elements": [
+        "suggestion-card",
+        "add-to-slot-action",
+        "save-action",
+        "dismiss-context",
+        "filter-chips"
+      ]
+    },
+    {
+      "id": "phone-one-column",
+      "type": "element-present",
+      "statement": "On phones suggestions are one card per row with the reason visible.",
+      "tier": "aspirational",
+      "elements": [
+        "section-for-your-week"
+      ],
+      "viewports": [
+        "mobile"
+      ]
+    },
+    {
+      "id": "explore-no-horizontal-overflow",
+      "type": "no-document-horizontal-overflow",
+      "statement": "Secondary collections scroll within their own row with visible continuation; the page never scrolls sideways.",
+      "tier": "aspirational",
+      "elements": [
+        "section-for-your-week",
+        "section-something-different"
+      ]
+    },
+    {
+      "id": "appearance-parity",
+      "type": "dark-parity",
+      "statement": "Light and Evening change palette and artwork only; the recipe, servings, dates, occurrences, layout, and actions are identical.",
+      "tier": "aspirational",
+      "elements": [
+        "section-for-your-week",
+        "add-to-slot-action"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "primary-navigation": {
+        "testid": "explore-primary-navigation"
+      },
+      "page-title": {
+        "testid": "explore-page-title"
+      },
+      "collection-tabs": {
+        "testid": "explore-collection-tabs"
+      },
+      "search": {
+        "testid": "explore-search"
+      },
+      "filter-chips": {
+        "testid": "explore-filter-chips"
+      },
+      "context-banner": {
+        "testid": "explore-context-banner"
+      },
+      "dismiss-context": {
+        "testid": "explore-dismiss-context"
+      },
+      "section-for-your-week": {
+        "testid": "explore-section-for-your-week"
+      },
+      "section-something-different": {
+        "testid": "explore-section-something-different"
+      },
+      "suggestion-card": {
+        "testid": "explore-suggestion-card"
+      },
+      "suggestion-reason": {
+        "testid": "explore-suggestion-reason"
+      },
+      "add-to-slot-action": {
+        "testid": "explore-add-to-slot-action"
+      },
+      "replace-slot-action": {
+        "testid": "explore-replace-slot-action"
+      },
+      "save-action": {
+        "testid": "explore-save-action"
+      },
+      "impact-preview": {
+        "testid": "explore-impact-preview"
+      },
+      "create-idea-action": {
+        "testid": "explore-create-idea-action"
+      },
+      "blocking-conditions": {
+        "testid": "explore-blocking-conditions"
+      },
+      "unconfigured-note": {
+        "testid": "explore-unconfigured-note"
+      },
+      "refresh-note": {
+        "testid": "explore-refresh-note"
+      }
+    }
+  }
+}

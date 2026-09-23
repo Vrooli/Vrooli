@@ -7,61 +7,79 @@
   },
   "schemaVersion": "1.0.0",
   "scenario": "nutrition-planner",
-  "description": "Experience contract for Nutrition Planner (Daily). Every figure names its basis, scope, and completeness; missing data is unknown, never zero; required rules are never traded against cost, effort, or variety. Claims are aspirational until the UI exists to reconcile against them.",
+  "description": "Experience contract for Nooch (nutrition-planner), redesign v2.0: five primary destinations (Today, Week, Meals, Groceries, Kitchen) plus Explore, recipe detail, focused cooking, onboarding, and Settings, each composed for desktop and phone in Light and Evening. Every figure names its basis, scope, and completeness; missing data is unknown, never zero; required rules are never traded against cost, effort, or variety. Pages stay draft with aspirational claims until their redesigned surface is built, then become active with machine-tier claims (decision D-035).",
   "pages": [
     {
       "id": "today",
       "path": "pages/today.json",
       "title": "Today",
-      "status": "active"
+      "status": "draft"
     },
     {
       "id": "week",
       "path": "pages/week.json",
       "title": "Your week",
-      "status": "active"
-    },
-    {
-      "id": "groceries",
-      "path": "pages/groceries.json",
-      "title": "Groceries",
-      "status": "active"
+      "status": "draft"
     },
     {
       "id": "meals",
       "path": "pages/meals.json",
-      "title": "Meals",
-      "status": "active"
+      "title": "Your meals",
+      "status": "draft"
+    },
+    {
+      "id": "explore",
+      "path": "pages/explore.json",
+      "title": "Explore",
+      "status": "draft"
     },
     {
       "id": "recipe",
       "path": "pages/recipe.json",
       "title": "Recipe",
-      "status": "active"
+      "status": "draft"
+    },
+    {
+      "id": "cooking",
+      "path": "pages/cooking.json",
+      "title": "Cooking",
+      "status": "draft"
+    },
+    {
+      "id": "groceries",
+      "path": "pages/groceries.json",
+      "title": "Your groceries",
+      "status": "draft"
     },
     {
       "id": "kitchen",
       "path": "pages/kitchen.json",
       "title": "Your kitchen",
-      "status": "active"
+      "status": "draft"
     },
     {
-      "id": "nutrition",
-      "path": "pages/nutrition.json",
-      "title": "Nutrition",
-      "status": "active"
-    },
-    {
-      "id": "data",
-      "path": "pages/data.json",
-      "title": "Your food, portable.",
-      "status": "active"
+      "id": "onboarding",
+      "path": "pages/onboarding.json",
+      "title": "Set up Nooch",
+      "status": "draft"
     },
     {
       "id": "settings",
       "path": "pages/settings.json",
       "title": "Settings",
-      "status": "active"
+      "status": "draft"
+    },
+    {
+      "id": "nutrition",
+      "path": "pages/nutrition.json",
+      "title": "Nutrition (retired)",
+      "status": "deprecated"
+    },
+    {
+      "id": "data",
+      "path": "pages/data.json",
+      "title": "Your food, portable (retired)",
+      "status": "deprecated"
     },
     {
       "id": "dashboard",
@@ -75,43 +93,55 @@
       "id": "first-useful-plan",
       "path": "journeys/first-useful-plan.json",
       "title": "A first useful plan",
-      "status": "active"
+      "status": "draft"
     },
     {
       "id": "capture-existing-routine",
       "path": "journeys/capture-existing-routine.json",
       "title": "Capture an existing routine",
-      "status": "active"
+      "status": "draft"
     },
     {
       "id": "tired-evening",
       "path": "journeys/tired-evening.json",
       "title": "A tired evening",
-      "status": "active"
+      "status": "draft"
     },
     {
       "id": "shopping-and-changes",
       "path": "journeys/shopping-and-changes.json",
       "title": "Shopping and changes",
-      "status": "active"
+      "status": "draft"
     },
     {
       "id": "cooking-and-logging",
       "path": "journeys/cooking-and-logging.json",
       "title": "Cooking and logging",
-      "status": "active"
+      "status": "draft"
     },
     {
       "id": "new-week",
       "path": "journeys/new-week.json",
       "title": "A new week",
-      "status": "active"
+      "status": "draft"
     },
     {
       "id": "moving-data",
       "path": "journeys/moving-data.json",
       "title": "Moving data",
-      "status": "active"
+      "status": "draft"
+    },
+    {
+      "id": "plan-from-explore",
+      "path": "journeys/plan-from-explore.json",
+      "title": "Plan from Explore",
+      "status": "draft"
+    },
+    {
+      "id": "set-up-kitchen",
+      "path": "journeys/set-up-kitchen.json",
+      "title": "Set up the kitchen",
+      "status": "draft"
     }
   ]
 }

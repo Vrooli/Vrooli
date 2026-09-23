@@ -4,7 +4,7 @@
 
 Walk a scenario author through the one path from a generated scaffold to a
 product-shaped UI: decide, configure, adopt, build. Gate 5 in
-`path:../START-HERE.md` is the checklist; this guide is the reasoning and the
+[`START-HERE.md`](../START-HERE.md) is the checklist; this guide is the reasoning and the
 reference for what the shell and the library can do.
 
 ## Why the order matters
@@ -60,25 +60,22 @@ What it deliberately does not have is a top bar. Preferences live in Settings.
 If a product needs a global strip, pass `header`; it appears at every width.
 
 If the shell cannot do what your primary surface needs, do not fork it. Record
-the gap in `docs/reference/component-library-gaps.md` and eject with a reason:
-
-```bash
-react-component-library adoptions eject navigation.app-shell nutrition-planner --reason "..."
-```
-
-An ejection is a declared debt the library can pay back; a silent fork is not.
+the gap in `docs/reference/component-library-gaps.md` with its reason, and
+contribute the missing variant through the library's draft workflow
+(`react-component-library components draft-begin <asset>`). A recorded gap is a
+declared debt the library can pay back; a silent fork is not.
 
 ## 3. Adopt
 
 Ask the library what it has for your route list, then link it. A linked
 adoption is a package import (`@vrooli/react-component-library/<Asset>/<major>`)
-and leaves no file behind; the version follows the library through
-`adoptions reconverge`.
+and leaves no file behind; the version is pinned by `adoptions link`
+and moves when you link a newer release.
 
 ```bash
-react-component-library adoptions suggest nutrition-planner --json
-react-component-library adoptions link <component-id> nutrition-planner
-react-component-library adoptions preflight <component-id> nutrition-planner
+react-component-library components list --match "<route-or-surface>" --json
+react-component-library adoptions link "<component-id>" nutrition-planner
+react-component-library adoptions preflight "<component-id>" nutrition-planner
 react-component-library adoptions obligations nutrition-planner --json
 ```
 
@@ -122,13 +119,13 @@ selectors, strings and tests. When a local component turns out to be generic,
 hand it back:
 
 ```bash
-react-component-library components ingest nutrition-planner ui/src/features/<name>/<Component>.tsx <Component>
+react-component-library components ingest nutrition-planner "ui/src/features/<name>/<Component>.tsx" "<Component>"
 ```
 
 ## Cross-references
 
-- `path:../START-HERE.md` — Gate 5, the checklist this guide explains
-- `path:../concepts/UI-ARCHITECTURE.md` — where files go and why
-- `path:../concepts/EXPERIENCE.md` — where the decision is written
-- `path:../../DESIGN.md` — the token contract the kit provides
-- `path:../../experience/README.md` — turning the decision into typed claims
+- [`../START-HERE.md`](../START-HERE.md) — Gate 5, the checklist this guide explains
+- [`../concepts/UI-ARCHITECTURE.md`](../concepts/UI-ARCHITECTURE.md) — where files go and why
+- [`../concepts/EXPERIENCE.md`](../concepts/EXPERIENCE.md) — where the decision is written
+- [`../../DESIGN.md`](../../DESIGN.md) — the token contract the kit provides
+- [`../../experience/README.md`](../../experience/README.md) — turning the decision into typed claims

@@ -1,10 +1,11 @@
 {
   "_metadata": {
-    "module": "feedback-and-preferences",
     "description": "One-tap feedback, explicit dislikes that outrank inference, transparent cooldowns, and resettable learned preferences.",
+    "module": "feedback-and-preferences",
     "prd_ref": "PRD.md",
     "priority": "P1",
-    "schema_version": "1.0.0"
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
   },
   "requirements": [
     {

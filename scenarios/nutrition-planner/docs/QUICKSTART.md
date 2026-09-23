@@ -50,8 +50,15 @@ Or check the URL directly:
 vrooli scenario port nutrition-planner UI_PORT
 ```
 
-You should see the example UI rendering live `/health` data and a
-worked example feature pane backed by the local SQLite store.
+> **Known issue (2026-09-22):** the UI opens, but every page currently shows an
+> error because the local runtime has no authentication profile and every
+> workspace request is rejected as unauthenticated (blocker B1). See
+> [`guides/troubleshooting.md`](guides/troubleshooting.md) → "Every page shows
+> an error". Until that is fixed, only `/health` and the app shell render.
+
+When the app works, the index route is **Today** in the Nooch redesign; the
+five destinations are Today, Week, Meals, Groceries, and Kitchen, with Settings
+in the header (see [`concepts/EXPERIENCE.md`](concepts/EXPERIENCE.md)).
 
 ## 4 — Talk to the API
 
@@ -60,8 +67,13 @@ automatically):
 
 ```bash
 nutrition-planner status
-nutrition-planner <domain> <command>   # e.g. list/create commands for your domain
+nutrition-planner workspace list
+nutrition-planner recipe list --workspace-id "<workspace-id>"
 ```
+
+The CLI currently exposes only `status`, `workspace list`, `recipe list`, and
+`recipe create`; the workspace and recipe commands fail with an
+unauthenticated error until blocker B1 is fixed.
 
 Or directly via HTTP:
 
@@ -100,20 +112,22 @@ If anything misbehaves on first boot, check
 [`guides/troubleshooting.md`](guides/troubleshooting.md). The most
 common first-time issues are:
 
+- Every request rejected as unauthenticated — the missing authentication
+  profile (blocker B1); see the troubleshooting guide
 - A previous scenario instance still holding ports — `make restart`
 - Stale build artifacts after editing source — `make setup` rebuilds
 - Missing `vrooli` CLI — run workspace-root `make setup`
 
 ## Next steps
 
-- Read [`START-HERE.md`](START-HERE.md) before implementing product
-  behavior. It owns the first-session workflow after generation.
+- Read [`internal/REDESIGN_PLAN.md`](internal/REDESIGN_PLAN.md) and
+  [`internal/REDESIGN_GOAL.md`](internal/REDESIGN_GOAL.md) before changing
+  product behavior; they drive the current v2.0 redesign.
+- Read [`START-HERE.md`](START-HERE.md) for the template initialization gates.
 - Read [`concepts/ARCHITECTURE.md`](concepts/ARCHITECTURE.md) for the
   mental model: three surfaces, proto bridge, layered API, where to
   add code.
 - Read [`internal/TESTING.md`](internal/TESTING.md) before writing
   your first non-trivial test.
-- Update `PRD.md` with your operational targets, then add requirement
-  modules under `requirements/`.
 - Append a one-line entry to [`internal/PROGRESS.md`](internal/PROGRESS.md)
   whenever you land work, so future agents can replay the lifecycle.

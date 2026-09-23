@@ -1,5 +1,32 @@
 # Start Here — Nutrition Planner
 
+> **Current status (2026-09-22) — read this first.** This scenario (display
+> name **Nooch**, formerly Daily) is being rebuilt to the v2.0 redesign. The work is
+> driven by the convergence goal in
+> [`internal/REDESIGN_GOAL.md`](internal/REDESIGN_GOAL.md) and the build order,
+> current-state inventory, and blockers in
+> [`internal/REDESIGN_PLAN.md`](internal/REDESIGN_PLAN.md); the approved visual
+> target is [`reference/mockups/`](reference/mockups/README.md) and the canonical
+> behavior is [`reference/product-specification.md`](reference/product-specification.md).
+> Progress and findings are tracked in
+> [`internal/REDESIGN_LEDGER.md`](internal/REDESIGN_LEDGER.md) — **not** in Plan
+> Manager (decision D-026).
+>
+> The initialization gates below are **not all genuinely closed**, whatever the
+> checker reports. `make orient` reported the `design-language` gate as the next
+> open step on 2026-09-22 (the template Home page is still in place, and the new
+> Warm Kitchen `DESIGN.md` is not yet implemented in tokens or UI). `first-real-vertical-slice` is not met
+> in substance: every workspace RPC returns `401 unauthenticated` in the local
+> runtime (blocker B1), and the live database has never held a row.
+> `example-domain-removed` is not fully met: the `notes` example code is gone,
+> but stale `notes`/`attachments` tables, `notes` comments in Go, and the
+> template proto README remain. The redesign goal closes all three; the
+> orientation manifest is finalized only after they pass for real.
+>
+> Gates 1–2 (charter and requirements) are satisfied by direct authoring from the
+> canonical specification (decisions D-018 and D-025); do **not** run the
+> business-health wizard over the current `PRD.md`.
+
 This is the first document to read after generating the scenario from
 the `react-vite` template. Treat it as the scenario initialization
 protocol: complete the gates in order, check them off as you go, and
@@ -42,9 +69,12 @@ durable infrastructure below. In particular:
   the exception. Pre-1.0 availability alone does not justify forced adoption.
   The check reports the reason and limits the exception to those files.
 - The home page is a placeholder that the "Design decision" orientation gate
-  (step id `design-language`) fails until you replace it. It is marked `PLACEHOLDER:home-surface` in
-  `ui/src/pages/DashboardPage.tsx`. The health card beside it is real and is
-  the example of a scenario-owned feature built from library parts.
+  (step id `design-language`) fails until you replace it. In this scenario the
+  `PLACEHOLDER:home-surface` marker was already removed, but
+  `ui/src/pages/DashboardPage.tsx` is still the template Home page (template
+  description text, the meal list embedded inside it); the redesign replaces
+  Home with Today as the index route (D-031). The template `HealthCard` is no
+  longer rendered anywhere and is dead code to delete.
 - Durable seams you should keep: i18n wiring (`SUPPORTED_LOCALES`,
   `useTranslation`, Settings-owned locale switching), accessibility
   primitives (`role`, `aria-*`, `data-testid` selectors), the
@@ -316,16 +346,16 @@ surface and the page templates is `docs/guides/choosing-ui.md`.
       for your route list and link it:
 
 ```bash
-react-component-library adoptions suggest nutrition-planner --json
-react-component-library adoptions link <component-id> nutrition-planner
+react-component-library components list --match "<route-or-surface>" --json
+react-component-library adoptions link "<component-id>" nutrition-planner
 react-component-library adoptions obligations nutrition-planner --json
 ```
 
       `link` is a package import that leaves no file behind; the linked
-      version follows the library through `adoptions reconverge`. Page
+      version is pinned and moves when you link a newer release. Page
       headers, list-and-detail, async regions, empty states, forms, badges
-      and settings rows all exist. Do not re-implement something `suggest`
-      offered.
+      and settings rows all exist. Do not re-implement something the
+      library already lists.
 - [ ] **Build** only what is left, token-bound, under `ui/src/features/`.
       When it turns out to be generic, hand it back in Gate 7b.
 - [ ] Replace the `ORIENTATION-TODO: scenario-design-adaptation` marker in
@@ -334,7 +364,8 @@ react-component-library adoptions obligations nutrition-planner --json
       intentionally update `DESIGN.md` before UI implementation.
 - [ ] Replace the home placeholder. Delete the `PLACEHOLDER:home-surface`
       block in `ui/src/pages/DashboardPage.tsx` together with the surface you
-      decided on. The gate also reads the shell configuration and kit values;
+      decided on. (Here the marker is already gone but the template Home page
+      remains; the redesign's Today page replaces it.) The gate also reads the shell configuration and kit values;
       removing the marker alone cannot satisfy it.
 - [ ] Audit settings. Settings owns every preference. Put quick access to
       theme or session controls in the library shell’s `utility` slot. Inventory what your scenario needs (theme, font scale, locale,
@@ -483,10 +514,10 @@ this tree and the tree has to be real first.
       directory:
 
 ```bash
-react-component-library components draft-begin <component>
+react-component-library components draft-begin "<component>"
 # add the stories/states your experience spec declares
-react-component-library components test <component-id>
-react-component-library components draft-publish <component>
+react-component-library components test "<component-id>"
+react-component-library components draft-publish "<component>"
 ```
 
       A raised component improves every scenario already consuming it, which a
@@ -495,17 +526,14 @@ react-component-library components draft-publish <component>
       it so the canon inherits the claims rather than losing them:
 
 ```bash
-react-component-library components ingest nutrition-planner <tsx-path> <slug> \
-  --experience-contract experience/components/<component>.json \
-  --display-name "<Name>" --slot <slot>
+react-component-library components ingest nutrition-planner "<tsx-path>" "<slug>" --experience-contract "experience/components/<component>.json" --display-name "<Name>" --slot "<slot>"
 ```
 
 - [ ] Validate before calling anything canonical:
 
 ```bash
-react-component-library components test <component-id>
-react-component-library components style-fit <component-id> nutrition-planner
-react-component-library catalog evidence capture <asset-id>
+react-component-library components test "<component-id>"
+react-component-library adoptions preflight "<component-id>" nutrition-planner
 ```
 
 - [ ] Read the promotion gate. It requires parity, examples, dependency
@@ -513,14 +541,13 @@ react-component-library catalog evidence capture <asset-id>
       scenario:
 
 ```bash
-react-component-library workflows promotion-readiness <asset-id> \
-  --origin-scenario nutrition-planner
+react-component-library workflows promotion-readiness "<asset-id>" --origin-scenario nutrition-planner
 ```
 
 - [ ] Adopt the published version back, then delete the local original:
 
 ```bash
-react-component-library adoptions link <component-id> nutrition-planner
+react-component-library adoptions link "<component-id>" nutrition-planner
 ```
 
       Promotion is not finished while this scenario still runs its own copy.

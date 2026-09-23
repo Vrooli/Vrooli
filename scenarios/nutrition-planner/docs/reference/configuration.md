@@ -22,7 +22,7 @@ scenario starts a separate listener process.
 
 The canonical bands all sit below 32768 so Linux never hands out the
 ports as outbound source ports. See the project-level port allocation reference
-(`path:docs/reference/port-allocation.md`) for the full policy.
+([port allocation reference](../../../../docs/reference/port-allocation.md)) for the full policy.
 
 ### Optional overrides
 
@@ -31,6 +31,20 @@ ports as outbound source ports. See the project-level port allocation reference
 | _(none)_ | — | The SQLite file location is **not** configurable through the environment. It is resolved from the scenario id by `api-core/storage`, so no inherited variable can point one scenario at another's database. Set `VROOLI_STORAGE_ROOT` to relocate the whole storage tree for a test run. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
+| `VROOLI_AUTH_PROVIDERS` and the other `VROOLI_AUTH_*` values | unset today | Read by `authn.FromEnvironment` in `api/main.go`; the lifecycle derives them from the `authentication` block in `.vrooli/service.json`. **None is set today, so no principal exists and every workspace RPC returns `401`** (blocker B1). Do not hand-set them; declare the authentication profile instead (D-032). |
+| `NUTRITION_FDC_API_KEY` | unset | Read only by the diagnostics module to report whether USDA FoodData Central lookup is configured. The USDA adapter itself is not wired into a production path yet. |
+| `AI_GATEWAY_URL` | unset | Read only by the diagnostics module to report whether assisted extraction is configured. |
+
+### Planned adapter configuration (redesign)
+
+None of these exists yet. Each optional adapter must degrade to a working
+fallback with an honest capability state when its configuration is absent.
+
+| Setting | Purpose | Status |
+|---|---|---|
+| image-tools base URL (resolved through the platform's scenario discovery, not a hard-coded port) | In-app scene and meal image generation, edit, and background removal; image-tools routes model execution through ai-gateway roles, so no provider key is configured here (R18.2, D-029) | planned (D7) |
+| personal-planner adapter enablement and base URL (scenario discovery) | Schedule prep / Schedule cooking calendar links (R24) | planned (D7); the personal-planner API must be discovered first |
+| Generation defaults (deployment default mode, allowed variants, maximum attempt cost) | Server-side bounds for R18 generation; new accounts start with generation **Off** | planned (D7) |
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect
@@ -72,6 +86,8 @@ Single source of truth for everything the lifecycle needs to know.
 | `lifecycle.stop` | how to shut down cleanly |
 | `environment` | static env vars set for every lifecycle step |
 | `dependencies.resources` | shared local resources (postgres, redis, qdrant, …) |
+| `authentication` | the scenario's authentication profile (for example `hybrid` with the default mode `personal_local`), protected routes, and capabilities; see repository `docs/concepts/IDENTITY-AND-AUTHENTICATION.md` and `scenarios/git-control-tower/.vrooli/service.json`. **Not declared in this scenario yet** — the cause of blocker B1 (D-032). |
+| `storage.entries` | the SQLite database and its WAL/SHM companions with a storage budget |
 
 Testing is not a lifecycle phase. `.vrooli/testing.json` declares suites,
 and `vrooli scenario test <name>` delegates the run to Test Genie.
@@ -96,13 +112,21 @@ collects them in order (system first, then domains alphabetical), and
 all DDL uses `CREATE TABLE IF NOT EXISTS` / `ALTER TABLE … ADD COLUMN
 IF NOT EXISTS`, so re-runs on every boot are no-ops.
 
+**Current state (2026-09-22).** There are no versioned migrations: every
+table is `CREATE TABLE IF NOT EXISTS`, `PRAGMA user_version` is never set
+(diagnostics reports `0`), and a column added to an existing table would not
+reach an existing database. The live database also still carries the
+template's `notes` and `attachments` tables. Decision D-034 requires versioned
+per-domain migrations (and foreign keys to `workspaces`) before the redesign
+changes any existing table; see `docs/internal/REDESIGN_PLAN.md` blocker B13.
+
 Adding a column lands in the same diff as the Go struct field, the
 repository scan, and the proto wire shape — single location, single
 edit. Drops/renames in production data need the brownfield
 versioned-migration helpers (`Migrate` / `MigrationProvider` in
 `api-core/database`, deferred until the first scenario hits the pain).
 
-See [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#domain-owned-schema)
+See [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#persistence-discipline)
 for the design rationale and [`../internal/SEAMS.md`](../internal/SEAMS.md)
 for the per-seam table including each domain's `<domain>.Schema` and
 `database.SystemSchema`.
@@ -130,7 +154,7 @@ Set values via the CLI rather than editing the file directly:
 
 ```bash
 nutrition-planner configure api_base http://localhost:15001/api/v1
-nutrition-planner configure token <token>
+nutrition-planner configure token "<token>"
 ```
 
 ## API-base resolution precedence
@@ -148,12 +172,30 @@ If none of these resolve, the command exits with an actionable error
 ("API not available — try `--auto-start` or `vrooli scenario start
 nutrition-planner`").
 
+## Product settings (v2.0 redesign)
+
+User-facing settings the redesign adds (R05.2, R16, R17.1, R18.1). They are
+stored per account/workspace through the API; the UI keeps only a local copy of
+the appearance for first paint. **All are planned** — today Settings offers only
+theme (light/dark/system) and language.
+
+| Setting | Values | Notes |
+|---|---|---|
+| Display name | "Nooch" by default (D-042) | Configurable product label; the scenario id `nutrition-planner` never changes. |
+| Appearance | Light, Evening, Follow device | Follow device is the first-run default unless a preference exists; persisted locally for no-flash first paint and in the account. Never changes food data or starts generation. |
+| Meal artwork presentation | Immersive scenes, Editorial photos, Minimal | Independent of appearance and of generation permission (R17.1). |
+| Generation permission | Off, Ask each time, Automatic within budget | Off for new accounts; Automatic requires an explicit nonzero cap, unit, period, allowed triggers, and variant limits (R18.1). |
+| Integrations | personal-planner link | Shows linked, pending, failed, or reconnection-needed states (R24). |
+| Notifications | Opt-in reminders | Only through available platform channels; no messages during development without authorization (R24.4). |
+| Units, currency, timezone, week start | Locale-based and editable | IANA timezone drives local dates; the demo uses metric, USD, and a Monday week start. |
+| Data & exports | Export, import, restore, print | The former `/transfer` page moves here (D-031). |
+
 ## Test/CI configuration
 
 | File | Owns |
 |---|---|
-| `.vrooli/testing.json` | Test categories — lint, unit, business checks (endpoints, CLI commands), Lighthouse, bundle size |
-| `.vrooli/lighthouse.json` | Lighthouse pages, thresholds, Chrome flags |
+| `.vrooli/testing.json` | Test categories — lint, unit, business checks (endpoints, CLI commands), Lighthouse, bundle size. Its `_metadata.description` still reads "Sample testing configuration for React + Vite template". |
+| `.vrooli/lighthouse.json` | Lighthouse pages, thresholds, Chrome flags. Covers only the template `/` page at desktop today; extend it to the five destinations and a phone viewport. |
 | `.vrooli/endpoints.json` | API endpoint manifest (path, method, status codes, request/response shapes, CLI mapping) |
 | `.github/workflows/test.yml` | CI gate — UI lint + test, Go vet + race + coverage, E2E binary smoke |
 

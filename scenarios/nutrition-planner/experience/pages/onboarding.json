@@ -1,0 +1,511 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "onboarding",
+    "title": "Set up Nooch",
+    "routes": [
+      "/setup"
+    ],
+    "purpose": "Set up food rules, kitchen, and rhythm in four short steps — Your food, Your kitchen, Your rhythm, Ready — as a resumable draft that changes nothing until applied, with an Explore-first path that makes no fit claims.",
+    "prd_refs": [
+      "OT-P0-002",
+      "OT-P0-006",
+      "OT-P0-020",
+      "OT-P0-001",
+      "OT-P0-015",
+      "OT-P0-021"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Each step asks only what it needs, with the current and remaining steps visible."
+    },
+    {
+      "statement": "Diet presets show the exclusions they create, and allergies and exclusions stay explicit, separate, and editable."
+    },
+    {
+      "statement": "Kitchen equipment uses the same tiles and scene as Kitchen, and choosing none is valid."
+    },
+    {
+      "statement": "Ready summarizes the rules and how many meals fit, need review, or are excluded, computed by the planner's own eligibility."
+    },
+    {
+      "statement": "Nothing becomes active until Apply; leaving keeps a resumable draft."
+    },
+    {
+      "statement": "Explore first is allowed and says plainly that suggestions do not reflect unentered rules."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Step 1, Your food: diet approach, exclusions, allergies.",
+      "setup": {
+        "route": "/setup"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "First read of the page's data; stable skeletons reserve the layout so nothing shifts on arrival, and no sample food is shown as saved data.",
+      "setup": {
+        "route": "/setup",
+        "query": {
+          "fixture": "loading"
+        }
+      }
+    },
+    {
+      "id": "saving",
+      "description": "A write is in flight; the affected control shows a busy state and says why it is unavailable, and success appears only after the durable save.",
+      "setup": {
+        "route": "/setup",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next action are stated, pending edits are kept, and nothing is edited against a fake empty account.",
+      "setup": {
+        "route": "/setup",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "validation-error",
+      "description": "Input was rejected; the offending field is identified next to it and every other edit is preserved.",
+      "setup": {
+        "route": "/setup",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
+    },
+    {
+      "id": "offline",
+      "description": "The client cannot reach the API; cached data, locally pending actions, and server-confirmed saves are distinguished and unsupported actions say why.",
+      "setup": {
+        "route": "/setup",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No saved or curated meals exist yet, so Ready reports zero fits with Add a meal and Explore instead of an empty summary.",
+      "setup": {
+        "route": "/setup",
+        "query": {
+          "step": "ready",
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some meals lack the evidence needed to judge them; Ready counts them as needs review rather than fits.",
+      "setup": {
+        "route": "/setup",
+        "query": {
+          "step": "ready",
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "The saved draft is older than the active settings, which changed elsewhere; the differences are shown before Apply.",
+      "setup": {
+        "route": "/setup",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "step-kitchen",
+      "description": "Step 2, Your kitchen: equipment tiles and scene.",
+      "setup": {
+        "route": "/setup",
+        "query": {
+          "step": "kitchen"
+        }
+      }
+    },
+    {
+      "id": "step-rhythm",
+      "description": "Step 3, Your rhythm: budget, effort, variety, meal slots, and batch willingness.",
+      "setup": {
+        "route": "/setup",
+        "query": {
+          "step": "rhythm"
+        }
+      }
+    },
+    {
+      "id": "step-ready",
+      "description": "Step 4, Ready: a summary with fits, needs-review, and excluded counts.",
+      "setup": {
+        "route": "/setup",
+        "query": {
+          "step": "ready"
+        }
+      }
+    },
+    {
+      "id": "no-eligible",
+      "description": "Ready finds no fitting meals; Add a meal and Adjust setup are offered and no rule is relaxed.",
+      "setup": {
+        "route": "/setup",
+        "query": {
+          "step": "ready",
+          "fixture": "no-eligible"
+        }
+      }
+    },
+    {
+      "id": "apply-conflicts",
+      "description": "Applying would affect an existing plan; the conflicts are previewed first.",
+      "setup": {
+        "route": "/setup",
+        "query": {
+          "step": "ready",
+          "fixture": "apply-conflicts"
+        }
+      }
+    },
+    {
+      "id": "resume-draft",
+      "description": "Returning to an unfinished setup restores the saved draft.",
+      "setup": {
+        "route": "/setup",
+        "query": {
+          "fixture": "resume-draft"
+        }
+      }
+    },
+    {
+      "id": "unsaved-close",
+      "description": "Closing with unsaved changes offers Keep editing or Discard.",
+      "setup": {
+        "route": "/setup",
+        "query": {
+          "fixture": "unsaved-close"
+        }
+      }
+    },
+    {
+      "id": "explore-first",
+      "description": "The person chose to explore before setup; the unconfigured state is explained.",
+      "setup": {
+        "route": "/setup",
+        "query": {
+          "fixture": "explore-first"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "step-indicator",
+      "role": "list",
+      "name": "Setup steps",
+      "description": "Your food, Your kitchen, Your rhythm, Ready, with the current step marked."
+    },
+    {
+      "id": "step-heading",
+      "role": "heading",
+      "description": "The current step's title."
+    },
+    {
+      "id": "diet-presets",
+      "role": "radiogroup",
+      "name": "Food approach",
+      "description": "Vegan, Vegetarian, Pescatarian, Everything, Plant-forward, My own way."
+    },
+    {
+      "id": "exclusion-details",
+      "role": "region",
+      "name": "Excluded groups",
+      "description": "The exact groups a preset excludes, editable."
+    },
+    {
+      "id": "allergy-chips",
+      "role": "group",
+      "name": "Allergies and exclusions",
+      "description": "Allergy and exclusion chips kept separate from dislikes."
+    },
+    {
+      "id": "anything-else",
+      "role": "textbox",
+      "name": "Anything else off the menu?",
+      "description": "Free-text exclusions resolved during review."
+    },
+    {
+      "id": "equipment-tiles",
+      "role": "group",
+      "name": "Equipment",
+      "description": "The same equipment tiles as Kitchen."
+    },
+    {
+      "id": "rhythm-questions",
+      "role": "group",
+      "name": "Your rhythm",
+      "description": "Budget, effort, variety, slots, and batch willingness."
+    },
+    {
+      "id": "ready-summary",
+      "role": "region",
+      "name": "Ready",
+      "description": "Diet, exclusions, equipment, and priorities."
+    },
+    {
+      "id": "eligibility-counts",
+      "role": "status",
+      "description": "Fits, needs review, and excluded counts from the planner's eligibility."
+    },
+    {
+      "id": "back-action",
+      "role": "button",
+      "name": "Back",
+      "description": "Returns to the previous step, keeping values."
+    },
+    {
+      "id": "continue-action",
+      "role": "button",
+      "name": "Continue",
+      "description": "Moves to the next step."
+    },
+    {
+      "id": "apply-action",
+      "role": "button",
+      "name": "Apply",
+      "description": "Applies the draft atomically."
+    },
+    {
+      "id": "explore-first-action",
+      "role": "link",
+      "name": "Explore first",
+      "description": "Browses Explore before setup."
+    },
+    {
+      "id": "draft-status",
+      "role": "status",
+      "description": "Says the draft is saved and not yet active."
+    },
+    {
+      "id": "conflict-preview",
+      "role": "dialog",
+      "name": "Plan conflicts",
+      "description": "Plan conflicts the new rules would cause."
+    },
+    {
+      "id": "no-eligible-note",
+      "role": "alert",
+      "description": "Says nothing fits yet and offers Add a meal and Adjust setup."
+    }
+  ],
+  "claims": [
+    {
+      "id": "continue-dominant",
+      "type": "single-dominant-action",
+      "statement": "Continue, or Apply on Ready, is the one filled primary action; Back is secondary.",
+      "tier": "aspirational",
+      "elements": [
+        "continue-action",
+        "back-action"
+      ]
+    },
+    {
+      "id": "draft-is-not-active",
+      "type": "element-present",
+      "statement": "Setup values stay a labelled draft and do not affect planning until Apply.",
+      "tier": "aspirational",
+      "elements": [
+        "draft-status"
+      ],
+      "states": [
+        "default",
+        "resume-draft"
+      ]
+    },
+    {
+      "id": "presets-show-exclusions",
+      "type": "element-present",
+      "statement": "A diet preset shows the exact groups it excludes.",
+      "tier": "aspirational",
+      "elements": [
+        "diet-presets",
+        "exclusion-details"
+      ]
+    },
+    {
+      "id": "counts-from-planner",
+      "type": "element-present",
+      "statement": "Ready's counts come from the same eligibility service the planner uses.",
+      "tier": "aspirational",
+      "elements": [
+        "eligibility-counts"
+      ],
+      "states": [
+        "step-ready"
+      ]
+    },
+    {
+      "id": "no-eligible-never-relaxes",
+      "type": "element-present",
+      "statement": "Zero fitting meals are reported with next actions and no restriction is loosened.",
+      "tier": "aspirational",
+      "elements": [
+        "no-eligible-note"
+      ],
+      "states": [
+        "no-eligible"
+      ]
+    },
+    {
+      "id": "apply-previews-conflicts",
+      "type": "element-present",
+      "statement": "Applying rules that affect an existing plan previews the conflicts first.",
+      "tier": "aspirational",
+      "elements": [
+        "conflict-preview"
+      ],
+      "states": [
+        "apply-conflicts"
+      ]
+    },
+    {
+      "id": "zero-equipment-valid",
+      "type": "custom",
+      "statement": "Choosing no equipment is valid and leads to assembly meals, never an implied microwave.",
+      "tier": "aspirational",
+      "elements": [
+        "equipment-tiles"
+      ],
+      "states": [
+        "step-kitchen"
+      ]
+    },
+    {
+      "id": "explore-first-is-unconfigured",
+      "type": "element-present",
+      "statement": "Explore first is available and the resulting state makes no fit claims.",
+      "tier": "aspirational",
+      "elements": [
+        "explore-first-action"
+      ],
+      "states": [
+        "explore-first"
+      ]
+    },
+    {
+      "id": "onboarding-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Presets, chips, tiles, questions, Back, Continue, and Apply are keyboard reachable.",
+      "tier": "aspirational",
+      "elements": [
+        "diet-presets",
+        "allergy-chips",
+        "equipment-tiles",
+        "rhythm-questions",
+        "back-action",
+        "continue-action",
+        "apply-action"
+      ]
+    },
+    {
+      "id": "phone-full-screen-steps",
+      "type": "element-present",
+      "statement": "On phones each step is a full-screen panel with a compact step indicator and actions above the keyboard.",
+      "tier": "aspirational",
+      "elements": [
+        "step-indicator",
+        "continue-action"
+      ],
+      "viewports": [
+        "mobile"
+      ]
+    },
+    {
+      "id": "onboarding-no-horizontal-overflow",
+      "type": "no-document-horizontal-overflow",
+      "statement": "The page never scrolls sideways.",
+      "tier": "aspirational",
+      "elements": [
+        "step-heading"
+      ]
+    },
+    {
+      "id": "appearance-parity",
+      "type": "dark-parity",
+      "statement": "Light and Evening change palette and artwork only; the recipe, servings, dates, occurrences, layout, and actions are identical.",
+      "tier": "aspirational",
+      "elements": [
+        "step-heading",
+        "continue-action"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "step-indicator": {
+        "testid": "onboarding-step-indicator"
+      },
+      "step-heading": {
+        "testid": "onboarding-step-heading"
+      },
+      "diet-presets": {
+        "testid": "onboarding-diet-presets"
+      },
+      "exclusion-details": {
+        "testid": "onboarding-exclusion-details"
+      },
+      "allergy-chips": {
+        "testid": "onboarding-allergy-chips"
+      },
+      "anything-else": {
+        "testid": "onboarding-anything-else"
+      },
+      "equipment-tiles": {
+        "testid": "onboarding-equipment-tiles"
+      },
+      "rhythm-questions": {
+        "testid": "onboarding-rhythm-questions"
+      },
+      "ready-summary": {
+        "testid": "onboarding-ready-summary"
+      },
+      "eligibility-counts": {
+        "testid": "onboarding-eligibility-counts"
+      },
+      "back-action": {
+        "testid": "onboarding-back-action"
+      },
+      "continue-action": {
+        "testid": "onboarding-continue-action"
+      },
+      "apply-action": {
+        "testid": "onboarding-apply-action"
+      },
+      "explore-first-action": {
+        "testid": "onboarding-explore-first-action"
+      },
+      "draft-status": {
+        "testid": "onboarding-draft-status"
+      },
+      "conflict-preview": {
+        "testid": "onboarding-conflict-preview"
+      },
+      "no-eligible-note": {
+        "testid": "onboarding-no-eligible-note"
+      }
+    }
+  }
+}

@@ -1,10 +1,11 @@
 {
   "_metadata": {
-    "module": "commercial-foundations",
     "description": "Configurable commercial-ready policies, resilient entitlements, and billing that never blocks owned data.",
+    "module": "commercial-foundations",
     "prd_ref": "PRD.md",
     "priority": "P2",
-    "schema_version": "1.0.0"
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
   },
   "requirements": [
     {

@@ -4,7 +4,7 @@ This document records how the scenario could create revenue or support
 a monetizable Vrooli capability. Keep it honest: `not-applicable` is
 better than inventing a commercial story.
 
-The working product name is **Daily**. Scenario id is `nutrition-planner`.
+The working product name is **Nooch** (formerly Daily; decision D-042). Scenario id is `nutrition-planner`.
 This is a self-hosted, single-user personal nutrition and meal-planning
 product, vegan-first but multi-diet by design. The originating reason to
 build it is personal usefulness, not revenue; monetization is an option
@@ -87,11 +87,25 @@ spending data. That posture is a deliberate product property (`SYS-03`,
   recipes, editing, existing plans, or exporting owned data (`BIZ-01`).
 - The deterministic planning core is callable without a browser, database,
   network, or model. It cannot be made to require a paid dependency.
+- The redesigned experience itself — both appearances, the curated scene and
+  editorial artwork, the equipment scene, and every page — works with bundled
+  assets and generation turned off (R02.2: "No feature may secretly depend on
+  paid generation"). Beauty is not a tier.
 
 **Bounded provider cost.** Any future provider or AI usage is metered and
 capped server-side per workspace (`JOB-01`: token/spend, runtime, retries,
 items, and concurrency limits). Automation is never unbounded, and an
 unconfigured provider is a supported state, not a broken product.
+
+**Image generation is optional compute.** In-app scene and meal image
+generation (R18, `OT-P1-007`) is Off for new accounts, quoted before it starts,
+reserved atomically against an explicit cap, deduplicated, and never triggered
+by viewing, theme changes, search, hover, or resizing. It is the most plausible
+future paid allowance, but it can only ever add optional artwork — never gate a
+core flow. The one-time cost of producing the curated launch artwork through
+image-tools during development (decision D-029) is bounded to the asset
+inventory and recorded per asset in the manifest; it is a build cost, not a
+user charge.
 
 ## Pricing Hypothesis
 
@@ -100,8 +114,8 @@ unconfigured provider is a supported state, not a broken product.
   a function of grocery spend or the number or size of plans. Charging for
   the product working would create exactly the wrong incentive.
 - **Cost drivers:** the local runtime has near-zero marginal cost. The only
-  variable line is optional AI/provider usage (model tokens, provider
-  requests) when R2 adapters are enabled, which is why those features must
+  variable lines are optional AI/provider usage (model tokens, provider
+  requests, image generation attempts) when those adapters are enabled, which is why those features must
   be optional, bounded, and non-load-bearing for core workflows (`16.1`,
   `19.3`).
 - **Comparable products:** none captured yet. Do not treat a list price read
@@ -148,8 +162,11 @@ also the builder. Two disciplines keep that honest:
 
 ## Current Status
 
-`hypothesis` / `deferred`. The personal role is real and is being built as
-R1. The commercial role is unvalidated: no price, no bundle commitment, no
+`hypothesis` / `deferred`. The personal role is real, but the product has
+not yet worked end to end: the 2026-09-22 audit found every workspace request
+rejected in the local runtime and an empty database
+([`../internal/REDESIGN_PLAN.md`](../internal/REDESIGN_PLAN.md) §3). The v2.0
+redesign rebuilds it toward R1 with reference-quality visuals. The commercial role is unvalidated: no price, no bundle commitment, no
 willingness-to-pay evidence. Billing is explicitly deferred to R3
 (`OT-P2-001`, `OT-P2-002`) and the deterministic core, required rules,
 nutrition checks, and data export are never monetized.
@@ -157,7 +174,7 @@ nutrition checks, and data export are never monetized.
 ## Cross-References
 
 - [`../START-HERE.md`](../START-HERE.md) — orientation workflow
-- [`../../PRD.md`](../../PRD.md) — operational targets `OT-P2-001`…`OT-P2-004`
+- [`../../PRD.md`](../../PRD.md) — operational targets `OT-P1-007` and `OT-P2-001`…`OT-P2-006`
 - [`GO-TO-MARKET.md`](GO-TO-MARKET.md) — audience, positioning, channels, and validation
 - [`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md) — self-hosted runtime and tiers
 - [`../operations/OBSERVABILITY.md`](../operations/OBSERVABILITY.md) — telemetry needed for validation

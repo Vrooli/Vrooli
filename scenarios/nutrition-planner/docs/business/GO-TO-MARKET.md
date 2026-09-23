@@ -3,7 +3,7 @@
 This document records launch strategy, positioning, channels, and
 validation experiments for the scenario.
 
-The working product name is **Daily**. Scenario id is `nutrition-planner`.
+The working product name is **Nooch** (formerly Daily; decision D-042). Scenario id is `nutrition-planner`.
 
 ## Purpose Of This Document
 
@@ -28,8 +28,9 @@ as though it were proven.
   disqualifying trait is wanting to research and optimize every meal
   themselves — that person already has the problem solved by a spreadsheet
   or by doing it for fun.
-- **Positioning:** **dinner, decided.** Affordable variety without turning
-  life into a bookkeeping task. Not the most recipes, not the most
+- **Positioning:** **dinner, decided** — and the rest of the day with it.
+  Affordable variety without turning life into a bookkeeping task, in an app
+  that feels like a beautifully designed cookbook in a warm kitchen. Not the most recipes, not the most
   integrations, not a clinical nutrition authority, and not a calorie
   tracker. The product gives one concrete, explainable recommendation at
   the moment the decision is made.
@@ -53,6 +54,15 @@ captured market evidence):
 | Macro-tracking app | Precise logging, large food database | Optimizes recording, not deciding; demands daily bookkeeping the user will not sustain. |
 | Meal-kit delivery | Removes shopping and planning | Costs more per meal, limited to the kit's menu and diet support, and does not use food on hand. |
 | Ordering out | Immediate, zero effort | The expensive default this product exists to displace. |
+
+**Visual quality is the adoption wedge.** Meal planners are a crowded,
+look-alike category; people decide within seconds whether an app is pleasant
+enough to open every evening. The v2.0 redesign makes reference-quality
+visuals a P0 target (`OT-P0-021`): photoreal meal scenes, an editorial serif,
+Light and Evening appearances, and a phone experience composed for the kitchen
+and the store. Beauty earns the daily open; the honest planner earns the trust.
+Marketing lines such as "Dinner, decided." live in marketing copy only — the
+app itself uses functional copy without slogans (R29.3).
 
 The defensible part is not "local-first" or "private" by itself; those are
 table stakes for a self-hosted segment. The defensible part is the
@@ -82,9 +92,11 @@ invent a complete-looking number.
 
 ## Launch Motion
 
-1. Finish the R0 durable UX foundation and make R1 personally useful for
-   the originating user, using fixtures only where they are clearly labeled
-   (spec §22, [`../internal/PROGRESS.md`](../internal/PROGRESS.md)).
+1. Complete the v2.0 redesign: repair the foundation so the app works
+   end to end, reach reference-quality fidelity against the approved mockups,
+   and make R1 personally useful for the originating user, using fixtures only
+   behind the explicit demo path
+   ([`../internal/REDESIGN_PLAN.md`](../internal/REDESIGN_PLAN.md)).
 2. **Run one real week on real data** — setup, accepted plan, shopping,
    cooking, recorded intake, an export — before any external claim. This is
    the dogfooding gate.
@@ -102,7 +114,8 @@ requires separate authorization (`OT-P2-002`).
 
 | Message | Audience | Evidence | Status |
 |---|---|---|---|
-| "Dinner, decided." | All. **The lead message.** | The Today dashboard showing one concrete next meal with a calculation-backed reason (`OT-P0-008`) | ready-on-build |
+| "Dinner, decided." | All. **The lead message.** | The Today hero showing one concrete next meal with Start cooking and Swap meal (`OT-P0-008`) | ready-on-build |
+| "A cookbook that plans your week." | People who bounce off utilitarian trackers | Captures of Today, Week, Meals, and Cooking matching the approved mockups in both appearances (`OT-P0-021`) | pending-evidence |
 | "Affordable variety without the bookkeeping." | All | Name-only capture, deterministic planning, optional feedback (`C02`, `C07`) | ready-on-build |
 | "It tells you what it doesn't know." | Anyone burned by false nutrition precision | Explicit unknown/partial semantics and provenance (`NUT-03`, `ACT-040`) | pending-evidence |
 | "Your food stays on your box." | Privacy-motivated self-hosters | Self-hosted SQLite runtime, no required external services (`SYS-03`, `SYS-04`) | ready-on-build |

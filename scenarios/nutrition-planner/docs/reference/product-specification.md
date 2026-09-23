@@ -1,3 +1,1148 @@
+# Daily — complete redesign and implementation handoff
+
+**Version:** 2.0  
+**Prepared:** 2026-09-22  
+**Audience:** The local Vrooli implementation agent and product owner.  
+**Inputs required:** This document, the supplied concept mockups, and the destination repository. No prior conversation, hosted prototype, or separate historical specification is required.  
+**Working display name:** Daily, configurable and not a confirmed final brand.  
+**Application slug:** Discover and retain the existing nutrition application slug. Do not rename it to personal-planner; that is a separate application.  
+**Status:** Implementation specification. The destination repository has not been inspected by this document's author. Nothing here claims that backend features, integrations, assets, or acceptance tests already exist.
+
+> **Repository copy.** This file is the canonical copy of the Daily v2.0 specification for the `nutrition-planner` scenario, received 2026-09-22 and stored verbatim except for this notice, two wording fixes inside Appendix A that the documentation auditor would otherwise misread (the legacy `sample` flag sentence, read as a typed reference, and "local, private, and link-local destinations" in AI-03, read as a filesystem path), and the repository-specific **Appendix C**. The concept mockups it refers to are stored in [`mockups/`](mockups/README.md). Where this repository keeps the implementation inventory, the maintained decision log, and the redesign plan is recorded in [Appendix C](#appendix-c--repository-copy-locations-inventory-and-decision-log).
+
+> Build a beautiful, low-effort personal food planning application that helps people decide what to eat, plan a realistic week, shop, use their kitchen, and cook—while balancing their own nutrition goals, dietary rules, available effort, variety, and cost. Beauty must survive ordinary photos, incomplete information, small screens, and unavailable AI providers.
+
+## Document map
+
+The **Redesign specification**, sections R01–R30, defines the current design, interactions, new capabilities, engineering defaults, asset pipeline, delivery order, and acceptance criteria. **Appendix A** embeds the complete earlier product/domain specification so the handoff preserves full-day nutrition, supplements, calculations, revisions, portability, and original fixtures. **Appendix B** contains the copyable implementation-agent instruction.
+
+Read R01 first. Where the historical appendix and redesign disagree, the conflict rules and explicit overrides in R01 apply. The appendix is deliberately included inside this single file; do not ask the user to locate another document.
+
+| Sections | Subject |
+| --- | --- |
+| R01–R04 | Authority, scope, product architecture, routes, and requirements |
+| R05–R07 | Visual system, responsive behavior, accessibility, shared components |
+| R08–R16 | Today, Week, Meals, Explore, recipes, cooking, Groceries, Kitchen, onboarding |
+| R17–R20 | Artwork, scenes, generation workflow, interactive equipment assets |
+| R21–R25 | Contracts, state, calculations, integration, portability, operations |
+| R26–R30 | Edge cases, verification, milestones, decisions, completion report |
+| Appendix A | Full original product/domain foundation and calculation fixtures |
+| Appendix B | Agent starting prompt |
+
+### Jump to a redesign section
+
+- [R01 — Authority, preservation, and explicit overrides](#r01--authority-preservation-and-explicit-overrides)
+- [R02 — Target outcome and release boundaries](#r02--target-outcome-and-release-boundaries)
+- [R03 — Navigation, routes, and state ownership](#r03--navigation-routes-and-state-ownership)
+- [R04 — Redesign requirement register](#r04--redesign-requirement-register)
+- [R05 — Visual system and component grammar](#r05--visual-system-and-component-grammar)
+- [R06 — Responsive layout specification](#r06--responsive-layout-specification)
+- [R07 — Accessibility, motion, loading, and resilience](#r07--accessibility-motion-loading-and-resilience)
+- [R08 — Today: immediate action with broader context](#r08--today-immediate-action-with-broader-context)
+- [R09 — Week: calendar-shaped meal planning](#r09--week-calendar-shaped-meal-planning)
+- [R10 — Meals: personal collection and flexible authoring](#r10--meals-personal-collection-and-flexible-authoring)
+- [R11 — Explore: suggestions that fit the user's context](#r11--explore-suggestions-that-fit-the-users-context)
+- [R12 — Recipe detail and ingredient-action map](#r12--recipe-detail-and-ingredient-action-map)
+- [R13 — Focused cooking mode and persistent timers](#r13--focused-cooking-mode-and-persistent-timers)
+- [R14 — Groceries: review requirements and shop](#r14--groceries-review-requirements-and-shop)
+- [R15 — Kitchen: inventory, equipment, and preferences](#r15--kitchen-inventory-equipment-and-preferences)
+- [R16 — Onboarding, editors, settings, and unmocked states](#r16--onboarding-editors-settings-and-unmocked-states)
+- [R17 — Meal artwork system: scenes, photos, and fallbacks](#r17--meal-artwork-system-scenes-photos-and-fallbacks)
+- [R18 — Generation workflow, budgets, and scene creation](#r18--generation-workflow-budgets-and-scene-creation)
+- [R19 — Asset production and delivery to the codebase](#r19--asset-production-and-delivery-to-the-codebase)
+- [R20 — Interactive equipment scene implementation](#r20--interactive-equipment-scene-implementation)
+- [R21 — Domain extensions and service contracts](#r21--domain-extensions-and-service-contracts)
+- [R22 — Persistence, offline behavior, and concurrency](#r22--persistence-offline-behavior-and-concurrency)
+- [R23 — Nutrition, cost, inventory, and recommendation invariants](#r23--nutrition-cost-inventory-and-recommendation-invariants)
+- [R24 — Vrooli and personal-planner integration](#r24--vrooli-and-personal-planner-integration)
+- [R25 — Import, export, migration, security, and operations](#r25--import-export-migration-security-and-operations)
+- [R26 — Cross-cutting edge cases and recovery behavior](#r26--cross-cutting-edge-cases-and-recovery-behavior)
+- [R27 — Acceptance suite and worked redesign fixtures](#r27--acceptance-suite-and-worked-redesign-fixtures)
+- [R28 — Implementation sequence and exit gates](#r28--implementation-sequence-and-exit-gates)
+- [R29 — Remaining decisions, defaults, and mockup interpretation](#r29--remaining-decisions-defaults-and-mockup-interpretation)
+- [R30 — Definition of done and required agent report](#r30--definition-of-done-and-required-agent-report)
+
+## R01 — Authority, preservation, and explicit overrides
+
+### R01.1 Priority of evidence
+
+1. Current explicit instructions from the product owner and applicable repository requirements.
+2. The normative behavior and reconciliation decisions in this redesign specification.
+3. The retained domain and capability requirements in Appendix A.
+4. Supplied concept mockups for visual intent, composition, atmosphere, and hierarchy.
+5. Historical prototype styling and incidental generated text.
+
+Mockups are concept references, not executable contracts. Do not reproduce incidental dates, recipe arithmetic, inconsistent icons, contradictory sample meals, decorative slogans, or missing controls simply because they appear in an image. The intended UX is approved; exact API names, tokens, schemas, limits, and breakpoints below are concrete engineering defaults rather than individually approved personal choices.
+
+Use MUST for acceptance requirements, SHOULD for preferred defaults with documented exceptions, and MAY for optional enhancements. A listed future enhancement does not block the current release. A unavailable provider does not justify a fake successful feature.
+
+### R01.2 Supersession table
+
+| Historical or mockup ambiguity | Current authoritative decision |
+| --- | --- |
+| Cobalt/white/lime visual identity in Appendix A | Replaced by warm ivory/forest-green/terracotta light mode and olive-charcoal/ivory/amber evening mode. |
+| Four primary destinations or four mobile tabs | Exactly five primary destinations: Today, Week, Meals, Groceries, Kitchen. Same order on desktop and mobile. |
+| Original Today split dashboard | Replaced by the meal-first hero described in R08, with full-day/routine detail still available below. |
+| Dinner-only application | Dinner-first presentation is allowed, but the completion target includes configured full-day food and supplements. |
+| Week matrix optional in earlier specification | Seven-day meal-slot board is the default wide-screen Week view; compact screens use a day agenda and All week alternative. |
+| Original recipe tabs versus new Recipe/Nutrition/Notes tabs | Top detail tabs: Recipe, Nutrition, Notes. Inside Recipe, Reading/Recipe map controls preserve the full ingredient-action map. Start cooking opens focused mode. |
+| Recipe mockup has three steps but focused mockup has four | Both views derive from one selected method revision and its step IDs. Use the consistent four-step fixture in R27. |
+| Next step sometimes appears to complete a step | Next navigates only. Explicit Mark step done/Done checkbox records completion. Include this control even where the concept omitted it. |
+| Step artwork looks like a required feature | Optional. Instructions, amounts, timers, and controls remain excellent without any step images. |
+| Daytime/evening meal pictures differ | Themes change presentation, not recipe, portion, date, or meal selection. Approved assets must represent the same recipe revision. |
+| Mobile kitchen category selectors missing in some concepts | Equipment always exposes Appliances/Cookware/Tools, with scrolling or wrapping as needed. |
+| Stove and oven use identical icons or only one marker | Distinct capabilities. A combined range may provide both; use a cooktop icon and an oven icon, with separate accessible controls. |
+| Mockups imply exact pantry knowledge | Inventory is optional, dated, and can be qualitative. Available does not imply a measured quantity or food-safety certification. |
+| Generated layouts show non-vegan sample food | Demo fixtures for this handoff are vegan; the product supports other diets through configuration. |
+| Mockups contain ornamental slogans | Remove incidental slogans. Use concise functional copy from this document. |
+| Old R2 defers all discovery | Curated Explore and deterministic recommendations are part of the redesign release; paid AI generation remains optional. |
+| Old imagery guidance only mentions generic photos | Implement scene/editorial/minimal presentation with explicit media metadata and fallbacks. No paid provider is needed for prebuilt assets. |
+| Old PDF styling uses cobalt | Use the new light print theme, retaining legibility and all PDF data requirements. |
+| Calendar service inferred from prior discussion | Integrate with personal-planner through a verified adapter; do not assume its API or duplicate its calendar database. |
+
+All original non-conflicting requirements remain: minimal meal drafts, immutable revisions, multiple diets, required-rule enforcement, unknown-data honesty, full-day targets, supplement schedules, components, meal families, batches, leftovers, price book, deterministic planning, consumption feedback, JSON/CSV/PDF transfer, tenant isolation, and recoverable persistence.
+
+### R01.3 What this task does not authorize
+
+This handoff authorizes development and normal verification of the described application. It does not by itself authorize paid generation charges, new subscriptions, automatic purchases, outside messages, public publication, or unrelated infrastructure changes. Follow existing session/repository authorization for those actions. Build configured adapters and useful fallbacks while access is unavailable.
+
+## R02 — Target outcome and release boundaries
+
+### R02.1 Product loop
+
+The user configures food rules and equipment, captures existing foods/meals with little effort, obtains a reviewable plan, shops from that plan, prepares food, and optionally records what actually happened. Suggestions improve through explicit preferences and modest, explainable feedback. The application reduces recurring decisions rather than requiring perfect tracking.
+
+The visual redesign must not turn the product into only a recipe gallery, calorie logger, or dinner calendar. Each screen supports the same loop:
+
+| Destination | Primary question | Main outcome |
+| --- | --- | --- |
+| Today | What am I eating next, and what do I do? | Start, swap, or inspect the next meal. |
+| Week | Does this week's plan fit my life? | Arrange meals, leftovers, prep, time, and goals. |
+| Meals | What can I make or discover? | Save, find, adapt, and plan meals. |
+| Groceries | What do I need, and what have I picked up? | Review needs and shop without losing context. |
+| Kitchen | What do I have, and how do I cook? | Maintain useful stock, capabilities, and preferences. |
+
+### R02.2 Delivery classifications
+
+**Core redesign:** All five pages; Explore over curated/user-approved content; recipe reading/map/cooking; full-day R1 baseline behavior; unified themes; responsive navigation; editorial/no-image rendering; curated scene rendering; equipment selection with an initial curated scene; persistent interactions; accessibility; native exports; migration and acceptance evidence.
+
+**Provider-conditional capabilities:** Scene/recipe generation, assisted import, external nutrition lookup, and personal-planner synchronization. Build the capability checks, settings, interfaces, job states, and fallbacks. Verify the real integration when configured. Report any unconfigured integration as unverified, not implemented-and-tested.
+
+**Later extensions:** User-created scene studio, broad retailer/receipt integrations, learned adherence probabilities, community recipe publishing, mixed-profile household optimization, autonomous ordering, unrestricted room decoration, custom 3D kitchen modeling, and billing activation. These are not prerequisites for a useful release.
+
+No feature may secretly depend on paid generation. Existing licensed/prebuilt scenes and photos are usable with generation disabled. No billing tier is selected by this specification.
+
+### R02.3 First-session repository reconnaissance
+
+Inspect the actual nutrition scenario, its instructions, package/runtime configuration, routes, UI library, data migrations, authentication, jobs, image/media storage, and test commands. Identify what is already working and what must be preserved. Inspect available Vrooli component, event, model-routing, scheduling, and notification services before selecting integrations. Use repository-required wrappers and CLIs where present.
+
+Record a short implementation inventory in the repository copy of this document: requirement ID, existing behavior, gap, relevant files, migration need, verification command. Do not replace a working backend merely to match an assumed stack. TypeScript examples here express contracts, not a demand to replace a Go/Python service.
+
+## R03 — Navigation, routes, and state ownership
+
+### R03.1 Proposed route map
+
+Follow the repository's routing conventions, preserving these semantics:
+
+| Route concept | State and behavior |
+| --- | --- |
+| /today | Defaults to user's local date and next relevant meal. Optional date and occurrence selection. |
+| /week | Date range plus Meals/Nutrition/Time & cost view. Mobile Day/All week is a separate display preference. |
+| /meals | Your meals tab, filters, sort, search, draft/archived views. |
+| /meals/explore | Explore, optional return context and target occurrence/slot. |
+| /meals/:id | Pinned or current revision; Recipe/Nutrition/Notes; Reading/Map subview. |
+| /cook/:sessionId | Focused cooking session; selected step, completion and timers persist separately. |
+| /groceries | Shopping list identity/scope, Review/Shop mode, grouping, search. |
+| /kitchen | On hand, Equipment, Preferences tabs. |
+| /settings | Appearance, artwork/generation controls, notifications, integrations, data export/account. |
+
+URLs may contain harmless UI context such as week and selected tab. Do not encode allergy lists, provider credentials, private signed media URLs, or entire recipe payloads in URLs. Validate all IDs server-side. An invalid context is recoverable; never redirect silently to a different user's record.
+
+Use browser Back correctly through details, editors, and overlays. After saving a meal or returning from cooking, restore originating filters, scroll position, selected date, and slot where possible. Direct links remain usable without previous navigation history.
+
+### R03.2 Context is explicit
+
+Opening Explore from an empty Wednesday dinner slot creates context {date, slotId, occurrenceId if replacing, plannedServings, returnRoute, basePlanRevision}. The visible banner says Planning Wednesday dinner. Dismissing it returns to general discovery; it does not delete an occurrence. A stale context must be revalidated before application.
+
+Selecting the Today hero is UI state, not a recipe mutation. Changing the viewed serving scale does not change a plan until Apply to planned meal. Shopping mode does not create a purchase. Viewing a step does not complete it. Generated artwork does not change recipe composition.
+
+### R03.3 Global action placement
+
+Primary page actions are: Today Start cooking; Week Plan my week; Meals Add meal; Groceries Add item; Kitchen Add ingredient or the active tab's equivalent. Avoid a floating global plus that means different things without a label. Settings remains accessible on every normal page; focused cooking has an explicit Exit cooking action and a minimal session menu.
+
+Notifications/toasts must not obscure mobile primary actions or bottom navigation. Position them above safe-area offsets. Success means the relevant durable operation succeeded, not merely that the component updated.
+
+## R04 — Redesign requirement register
+
+| ID | Requirement | Verification focus |
+| --- | --- | --- |
+| RD-001 | Preserve baseline R1 domain capabilities | Baseline acceptance matrix and migration fixtures. |
+| RD-002 | Five-destination consistent shell | Desktop/mobile routes, direct links, navigation state. |
+| RD-003 | Light/evening/system themes | Tokens, contrast, persistence, first paint. |
+| RD-004 | Scene/editorial/minimal meal presentation | Asset eligibility, theme fallback, no-photo states. |
+| RD-005 | Today supports next meal plus full-day context | No dinner-only or planned/actual conflation. |
+| RD-006 | Desktop Week board and mobile agenda | Moves, locks, custom slots, date/timezone correctness. |
+| RD-007 | Leftovers and shared preparation | No duplicate shopping or batch consumption. |
+| RD-008 | Nutrition and Time & cost views | Explicit scope, bounds, unknown contributions. |
+| RD-009 | Your meals and Explore | Filters, relevance reasons, context-aware planning. |
+| RD-010 | Flexible authoring and imports | Name-only draft; safe review; immutable revisions. |
+| RD-011 | Shared recipe reading/map/cooking data | Step/quantity consistency and dependency integrity. |
+| RD-012 | Durable cooking timers and completion | Reload, pause, background, multiple tabs, no auto-intake. |
+| RD-013 | Grocery Review/Shop semantics | Preserve checked/manual/override state across changes. |
+| RD-014 | Optional qualitative kitchen inventory | Unknown and approximate stock remain honest. |
+| RD-015 | Interactive equipment scene plus tiles | Stable selection, zero equipment, capabilities, responsive. |
+| RD-016 | Household food preferences and routine | All diets, allergies, explicit targets/supplements. |
+| RD-017 | Versioned media/scene pipeline | Ownership, compatibility, provenance, approval. |
+| RD-018 | Optional bounded generation | No implicit spend; deduplication; atomic reservations. |
+| RD-019 | Personal-planner integration boundary | Event ownership, timezone, conflicts, fallback. |
+| RD-020 | Responsive/accessibility/low-motion behavior | Keyboard, screen reader, zoom, touch, image failure. |
+| RD-021 | Real persistence and selected offline support | Outbox, conflicts, partial failure, account isolation. |
+| RD-022 | Portability and print redesign | Actual files, semantic round trip, source preservation. |
+| RD-023 | Visual consistency and performance | Representative screenshots and asset budgets. |
+| RD-024 | Complete implementation handoff/report | Evidence, limitations, run instructions, no false completion. |
+
+## R05 — Visual system and component grammar
+
+### R05.1 Art direction
+
+The app should feel like a beautifully designed cookbook in a warm kitchen. Use photorealistic food where appropriate, quiet typography, restrained line icons, and predictable controls. Today provides immersive atmosphere; Week and Meals use photographs to aid recognition; Groceries and Kitchen inventory emphasize readable information. Avoid glass panels over busy photography, pervasive gradients, oversized metric dashboards, or decorative slogans.
+
+Use one semantic theme system. Do not hardcode separate colors in each screen. These values are starting tokens; adjust after measured contrast checks while preserving the direction:
+
+| Semantic token | Light | Evening |
+| --- | --- | --- |
+| Canvas | #F7F4EE | #191D16 |
+| Surface | #FFFDFA | #24291F |
+| Raised surface | #FFFFFF | #2D3327 |
+| Primary text | #19372A | #F4F0E5 |
+| Secondary text | #596358 | #BDC4B4 |
+| Primary action | #A9472D | #E9B564 |
+| On primary | #FFFFFF | #211C13 |
+| Selection surface | #E3E9DA | #39402D |
+| Selection text | #203F2D | #F2DCAD |
+| Divider | #DCDDD3 | #454C3D |
+| Focus | #2E6A4C | #F5CA80 |
+| Error emphasis | #A33332 | #FFB4AA |
+
+Dividers are not necessarily sufficient for required control boundaries; test actual control contrast separately. Meaningful states need text/icon/shape, not color alone. Avoid reducing entire disabled components to barely visible opacity when their explanation matters.
+
+Recommended typography: a self-hosted, licensed editorial serif for page and recipe titles (for example an approved available variable serif), and the repository's accessible sans-serif for forms, navigation, metadata, and instructions. Choose two families maximum. Use system fallbacks with similar metrics. Do not block content on font downloads. Actual font choice is an implementation decision; document license and included subsets.
+
+Recommended scales: desktop page title 36–44 px; Today meal title 42–58 px as space permits; mobile page title 28–32 px; mobile meal title 28–34 px; section title 22–28 px; card title 18–22 px; body 16 px; metadata 13–14 px; minimum nonessential metadata 12 px. Use normal readable line heights and wrap long meal names rather than shrinking text until it fits.
+
+Spacing uses a 4 px base with 8/12/16/24/32/48 groupings. Controls typically 44–48 px tall. Card radii 10–14 px, panels 14–18 px, hero 16–20 px if inset. Shadows are subtle and limited to elevation. Use hairline separators and spacing before adding more card containers. Mobile body padding 16–20 px; desktop 24–40 px. Standard content max width about 1440 px; Week may use about 1600 px if cells remain readable.
+
+### R05.2 Theme behavior
+
+Appearance choices: Light, Evening, Follow device. Follow device is the initial default unless the repository has an established user preference. Do not infer meal type from theme. A dark breakfast remains breakfast. Optional local-time switching is later functionality, not necessary for this release.
+
+Persist explicit appearance preference locally for early paint and in the account for subsequent sessions. Avoid a bright flash on evening-mode reload. Match native control color scheme. Theme changes never generate images automatically and never modify recipe, servings, history, or planning settings.
+
+### R05.3 Shared components
+
+Create or adapt reusable components rather than screen-specific copies: AppShell, PrimaryNavigation, PageHeader, SegmentedControl, FilterChip, MealCard, MealHero, WeekSelector, MealSlotCard, ServingControl, EvidenceValue, IngredientRow, ShoppingRow, InventoryRow, EquipmentTile, EquipmentScene, RecipeMap, CookingStep, PersistentTimer, EmptyState, SaveStatus, ImpactPreview, EntityEditor, SourceDetails, and GenerationJobStatus.
+
+Use the Vrooli component library if actually available and suitable. Contribute reusable primitives through its established workflow; keep nutrition-specific business logic in this app. Component stories/previews must include long names, missing photos, partial numbers, blocked actions, and both themes. No fake buttons in production layouts.
+
+## R06 — Responsive layout specification
+
+### R06.1 Layout bands
+
+Use container width as the deciding factor. Suggested viewport bands are implementation starting points, not device detection:
+
+| Width | Expected behavior |
+| --- | --- |
+| Below 640 px | Compact layout, bottom navigation, full-screen editors, selected-day agenda, one-column meals. |
+| 640–1023 px | Intermediate layout, one/two-column content where readable; agenda by default if Week cells would be too narrow. |
+| 1024–1279 px | Desktop shell where nav fits; two/three-column collection; Week board only if minimum cell width is met. |
+| 1280 px and above | Full desktop board, wider hero, supporting panels, three/four collection columns within content max width. |
+
+For Week, require at least about 136 px per day plus row labels before showing seven columns. Otherwise use agenda or an explicit horizontally scrollable board option with sticky labels; never force the whole page to overflow. At 200% zoom the layout may switch to compact mode.
+
+### R06.2 Screen-specific reflow
+
+| Screen | Wide | Compact |
+| --- | --- | --- |
+| Today | Text left and scene focal point right; week strip below | Short scene above solid content, actions immediately after title/time; compact week strip. |
+| Week | Seven columns and configured slot rows | Day selector, Day/All week toggle, stacked occurrence cards. |
+| Meals / Explore | Photo grid and editorial sections | One-column cards; compact filter row; no minuscule two-column food cards by default. |
+| Recipe | Ingredient column and wider method; moderate header photo | Compact photo, summary/actions, ingredient/method sections stacked. |
+| Cooking | Step list, active instructions, timer region | Single step, quantities, timer, reachable footer actions. |
+| Groceries | List plus planning sidebar | Full-width list; supplementary detail opens sheets. |
+| Kitchen inventory | Rows plus use-soon/equipment/preferences summaries | Rows and a small use-soon strip; settings in tabs. |
+| Equipment | Scene beside equipment grid | Compact scene above two-column tiles and category selector. |
+
+Bottom navigation uses five labeled destinations with safe-area padding. Reserve its actual height in document flow. It must not cover last rows, editor actions, or the keyboard. Focused cooking intentionally hides ordinary navigation, but Exit cooking remains obvious and preserves session state.
+
+### R06.3 Image layout rules
+
+Food and table within a composed hero scale as a single image. Use focal-point metadata and approved crop bounds. Do not independently apply cover to food and tabletop layers, which can detach the bowl from its surface. Dedicated compact crops/compositions are preferred when a wide crop would be awkward.
+
+On compact Today, target roughly 22–30% of the initial usable viewport for artwork, with a practical clamp around 160–260 px. At short heights or large text settings, reduce or omit decorative artwork before hiding Start cooking. No universal promise that all content fits above the fold; prioritize title and action visibility on representative phones.
+
+On compact recipe detail, avoid the excessively tall hero shown in one mockup; target about 160–220 px unless expanded by the user. Cooking step art is optional and may disappear at short heights. Essential directions and timers remain available.
+
+### R06.4 Interaction reflow
+
+Wide detail panels become sheets or full pages; preserve their semantic state and history. Prefer full-screen editors for long recipe/import forms. Dialogs have a single clear scroll region and sticky actions that remain usable above the on-screen keyboard. Filter chips may scroll locally with visible continuation; all filter options remain reachable by keyboard. Avoid carousels as the only path to critical actions.
+
+## R07 — Accessibility, motion, loading, and resilience
+
+Set a WCAG 2.2 AA implementation target, without claiming certification. Test the actual rendered application. Every icon action needs an accessible name; tabs use correct roles and keyboard behavior; focus is visible in both themes; dialogs restore focus. Use semantic tables or properly labeled lists for ingredient inventories, not arbitrary div collections without relationships.
+
+Common touch controls should be at least 44 × 44 CSS px where practical. Scene markers may have a small visible dot but a larger hit area without overlap. Equipment tile controls are the complete accessible alternative to scene hotspots. Dragging always has Move to/Copy to alternatives.
+
+Reduced motion disables spatial slide/bounce/parallax and uses instant or brief opacity changes. Normal motion should be limited to approximately 120–220 ms state transitions; no animated kitchen activity or simulated steam by default. Timer announcements occur on state changes and expiry, not every second.
+
+Show stable skeletons only while real data is loading. Load failure is not an empty account. Retain drafts and pending changes on errors. Missing image requests use the appropriate fallback without breaking layout. Reserve image dimensions to avoid layout jumps. Offline indicators must distinguish cached data, local pending actions, and server-confirmed saves.
+
+All pages require empty, loading, no-results, error, partial-data, and offline-capability states. Reuse calm short copy and specific recovery: Add a meal, Reset filters, Review amount, Retry save, or Open original photo. Avoid blanket warning banners for every unknown field.
+
+## R08 — Today: immediate action with broader context
+
+### R08.1 Default composition
+
+Header uses the normal shell. Hero shows a local date/slot eyebrow, meal title, short description, active preparation and total elapsed time, Start cooking, Swap meal, and quiet details/menu actions. A seven-day strip below provides quick access to selected meals. Supporting content includes Ready for tonight (or the actual selected slot), Check ingredients, Open grocery list, and a compact rest-of-day/routine summary.
+
+The three supported visual presentations are immersive approved scene, editorial ordinary photo, and minimal no-photo. These are variants of the same component and action structure. Do not load a different page implementation for each. When a meal changes, preserve overall layout and avoid jumping controls while an image loads.
+
+Hero selection is the next relevant noncompleted occurrence according to configured slots, local date, and user selection. Do not assume every user eats dinner next. Allow picking any planned date/meal while labeling it explicitly. If no timing information exists, use configured slot order and ask for selection rather than pretending to know the user's current meal.
+
+### R08.2 Actions and statuses
+
+Start cooking opens a session for the selected recipe revision, preparation method, and intended yield. For a ready-to-eat item, the primary action can be View meal or Log meal; do not manufacture cooking steps. A draft missing instructions opens a clearly incomplete detail view with Edit, not an empty timer screen.
+
+Swap offers suitable alternatives immediately; optional reason chips rerank them. Preserve the baseline reason semantics: missing ingredients is not a permanent dislike. Evaluate plan impact, leftover dependencies, required rules, and locks before application. Compatible simple swaps should be quick, with conditional Undo. Material conflicts require an impact preview. Never replan unrelated days silently.
+
+Other actions in the occurrence menu: View recipe, Move, Lock/unlock, Change servings, Skip, Remove from plan, and Record intake. Their availability depends on status and permissions. Removing a planned future occurrence is different from deleting a recipe or erasing intake history.
+
+### R08.3 Full-day features retained
+
+Below the hero, include a Today overview section that can list breakfast, lunch, dinner, snacks, recurring food/product items, and supplement occurrences. Keep it compact and collapsible when the user prefers a meal-first view. Show Planned / Recorded / Expected scope explicitly for nutrition summaries. A dinner's protein must never appear as the full day's protein.
+
+Offer nutrition details, goal editing, routine configuration, and fixed supplement schedule access without crowding the hero. Missing target values do not produce default personalized numbers. Supplements are user-defined and never increased by the optimizer. Intake remains optional and distinct from preparation completion.
+
+### R08.4 Acceptance examples
+
+An empty user sees Choose a meal or Plan my week, not the demo tofu bowl. A missing image still yields a polished text-first hero. A low-effort request preserves active dietary restrictions. A completed dinner does not disappear from history when the recipe is edited. Switching Light to Evening changes artwork/palette only, never creating a billable job.
+
+## R09 — Week: calendar-shaped meal planning
+
+### R09.1 Header and board
+
+Header: Your week, localized date range, previous/next/today controls, Plan my week. Secondary summary shows meaningful values such as planned days/slots, active cooking time, priced checkout subtotal, and missing-data counts. A day is fully planned only if its configured required planning slots have explicit assignments or intentional open states; do not count one dinner as a complete day without saying dinner scope.
+
+Top view selector: Meals, Nutrition, Time & cost. The selected date range and occurrence IDs remain unchanged between views. Week start comes from user locale/preference, not hardcoded Monday. A seven-day range is represented by local dates; UTC conversion does not shift meals to adjacent days.
+
+Wide Meals view uses seven day columns and configurable slot rows. Default visible slots can be Breakfast, Lunch, Dinner; snacks, custom slots, and routine/supplement rows must remain available. Do not hardcode exactly three rows in the data model. Multiple items in one slot can appear as a compact stack or expanded slot panel. A smoothie plus toast need not be authored as one recipe.
+
+Meal cards show thumbnail if available, title, servings when useful, active time, and status labels such as Leftovers, Prep ahead, Eating out, or Locked. Empty slots offer Add breakfast/lunch/etc. Intentional open/social slots are explicit and not confused with missing assignments. Unknown times show Time not set, not 0 min.
+
+### R09.2 Occurrence operations
+
+Selecting a card opens an occurrence panel with recipe summary, relevant nutrition, ingredients, notes, and actions. Add opens Your meals/Explore with target slot context. Move uses a date/slot picker; dragging is an additional shortcut. Drop on an occupied slot asks whether to swap, add alongside, or replace as supported; never destroy a meal by accidental drop. Copy creates new occurrence identities and does not copy actual consumption.
+
+Locks protect future choices during replan. Copy week offers future dates and shows unresolved rules/revisions. Plan my week creates a preview for unlocked future slots; user anchors and recorded history remain. Stale proposals are revalidated before Apply. Temporary preference modes expire explicitly and never relax exclusions or required targets.
+
+### R09.3 Leftovers and preparation
+
+A cook occurrence can propose extra portions and reserve them for later occurrences. The UI displays For Tue lunch and From Mon, with links showing both sides. Underneath, references point to one planned batch identity or actual prepared batch, not two independently costed recipes.
+
+Before moving or removing the producer, preview affected consumers. If a producer moves after a leftover meal, reject or offer a repair. Canceling a planned leftover releases its reservation; it does not throw food away. Actual prepared stock survives plan edits.
+
+Prep for the week groups actionable tasks such as Cook rice or Wash greens only when supported by meal methods and user choices. Do not automatically merge every repeated ingredient into a batch; preparation states, quantities, storage, and compatibility matter. Grouped tasks link to their contributing meals and estimated active/elapsed time where known. Schedule prep creates a time-block proposal through the calendar adapter; it does not mark the task done.
+
+### R09.4 Nutrition view
+
+Retain the same day columns on wide screens with selected target summaries per day and a detailed panel on selection. Compact mode shows one day's targets as readable rows. Every row includes nutrient/unit, amount or known subtotal, target bounds, applicable period, and completeness/status. Users choose a small set of summary metrics; all configured targets remain available in details.
+
+Use Planned / Recorded / Expected selectors. Expected includes recorded past intake plus explicitly remaining planned quantities; never double-count full plans and intake. Open slots, unresolved ingredient quantities, and absent nutrient mappings remain visible. A weekly average cannot override a daily upper bound. There is no universal nutrition-completeness score.
+
+### R09.5 Time & cost view
+
+Show active preparation separately from total elapsed time and cleanup burden. Shared preparation is counted once, leftover reheating separately. A timeline is only shown when actual timing/dependency information exists; otherwise show estimates per meal/day without implying a solved schedule.
+
+Cost mode identifies portion cost versus incremental checkout. Show coverage and currency. Unknown price is not free; an old observation is labeled by age. Product/package alternatives open a reviewed comparison, retaining restrictions and required method feasibility. A suggestion such as Swap a 50-minute dinner for a 15-minute meal requires known comparable time bases.
+
+### R09.6 Compact layout
+
+Date selector across top, Day/All week controls below, selected day heading, slot cards stacked. Day switching preserves each day's meaningful state. All week is seven compact day sections with meal titles and optional thumbnails, not a shrunk seven-column matrix. Mobile actions open sheets. Expose Plan my week and Review groceries without placing both as competing persistent bottom bars.
+
+## R10 — Meals: personal collection and flexible authoring
+
+### R10.1 Your meals tab
+
+Under Meals, tabs are Your meals and Explore. Use a three-column photo grid at typical desktop widths, two at intermediate widths, one readable feed on compact phones. Cards contain image, title, active time, one or two trustworthy tags, favorite control, and + Plan. Whole-card navigation and nested buttons must use valid accessible markup; avoid a button inside another button.
+
+Search local records by title, ingredient aliases, and approved tags. Debounce searches as needed without model calls per keystroke. Filter chips: All meals, Favorites, Quick meals, High protein; advanced Filters includes Fits my setup, Needs review, Drafts, Archived, equipment, meal slot, source, and preparation range. Preserve filters in navigation. Define Quick meals via an editable active-time threshold and label it; define High protein through an explicit product policy with known data, never just an image or name tag. If evidence is missing, do not claim the badge.
+
+Sort options include Recently added, Recently cooked where recorded, Name, and Active time where known. Unknown numeric values sort into an explicit group rather than appearing as cheapest/fastest. Collection counts distinguish total saved records from filtered results. Drafts remain easy to find.
+
+### R10.2 Add and edit flows
+
+Add meal starts with name or rough text. A name-only record saves as Draft. Add ingredient amounts, source, steps, image, notes, and nutrition later. Keep original pasted/imported material. Editing opens a full page or roomy sheet, with Identity, Yield & time, Ingredients, Method, Nutrition, Source & notes groups; do not require all fields.
+
+Ingredient rows preserve unresolved text and quantities such as to taste. Inputs distinguish empty from zero. Changing ingredient identity/amount invalidates affected nutrition and rule assessments; description-only changes do not trigger unnecessary allergen re-review. Saving creates an immutable recipe revision and retains stable recipe identity.
+
+Plan action opens date/slot/servings. In an Explore/Week context, default to that target. Drafts may be manually placed as unresolved notes with clear status, but must not become automatically recommended compliant recipes. Users may save meals that do not fit current rules; storage and recommendation eligibility are different.
+
+### R10.3 Import and source handling
+
+Provide paste text and structured file imports without an AI provider. URL/photo extraction is optional when configured. Stage results and present unknown quantities, duplicates, method/equipment assumptions, and required-rule evidence for review. Imported page text is untrusted data, not executable instructions. Never overwrite a newer field when an async extraction finishes.
+
+Adapt recipe creates a draft fork with provenance linking to its source; original remains unchanged. A substitution must be quantified and evaluated before showing updated nutrition or eligibility. Recipe archive preserves pinned historical uses. Existing export/import/PDF requirements remain in Appendix A and R25.
+
+## R11 — Explore: suggestions that fit the user's context
+
+### R11.1 Content sources
+
+Core Explore draws from a curated app catalog and user-approved saved recipes/components. Curated recipes need review, rights/provenance, and sufficient method/ingredient evidence; a visually appealing card is not validation. Private recipes must not enter a shared catalog without a separate explicit publishing flow. No social feed or public submission system is required.
+
+Generated new ideas are a distinct optional action, Create a meal idea. Label output AI draft until reviewed. Generated recipe and generated image are separate operations with separate costs and approvals. A beautiful generated photo cannot make a draft ready or resolve ingredient amounts.
+
+### R11.2 Sections and explanations
+
+| Section | Inputs | Required explanation |
+| --- | --- | --- |
+| For your week | Open/selected slot, active profile, serving/time preferences | Why this candidate fits that slot. |
+| Use what you have | Dated ingredient assertions and compatible method | Which ingredients it uses; qualify uncertain stock. |
+| Quick meals | Known active-time data and current equipment | Display active time; distinguish elapsed time. |
+| Something different | Recent plans/intake plus explicit variety preference | Different flavor/family where supported, not fabricated personal insight. |
+| Cook once, eat twice | Yield, batch and leftover feasibility | Proposed portions and future use. |
+| Affordable additions | Compatible price/package observations and existing needs | Reused ingredients and modeled cost scope/coverage. |
+
+Only show sections with meaningful results. Empty sections should collapse into useful guidance rather than a wall of empty carousels. Use deterministic candidate filtering/ranking from the planning engine; avoid a separate recommendation path with weaker restrictions. Hard constraints filter first, preferences rank second.
+
+Reasons are structured facts rendered as short sentences. A recipe may use your broccoli without claiming that you have enough broccoli. Missing data cannot be translated into confident affordability or nutrition statements. Dismissals may influence ranking conservatively; users can inspect/reset learned preferences.
+
+### R11.3 Actions
+
+Open card for full preview and provenance. Save meal creates or links a stable private saved record with a pinned revision. Saving twice is idempotent. Add to week preserves an accessible recipe snapshot in the user's collection and creates the occurrence in one coherent operation. Adapt forks a draft. Favorite is personal metadata, separate from saving or catalog quality.
+
+From an empty slot, primary card action says Add to Wednesday (with slot context in the banner or accessible label). From an existing meal swap, say Replace Wednesday dinner and preview material effects. Do not show Add when it would silently replace something. A concurrent plan change produces a refreshed choice, not an overwrite.
+
+### R11.4 Layout
+
+Wide layout has a header/search/filter area, optional contextual banner, three highlighted suggestions, and short secondary sections. Compact layout uses one-column cards with prominent relevance labels and optionally horizontal secondary collections with See all. Avoid endless-scrolling inspiration as the only route to a decision. Maintain return context when opening a preview.
+
+## R12 — Recipe detail and ingredient-action map
+
+### R12.1 Header and tabs
+
+Header contains breadcrumb/back, title, short description, modest food image, active and elapsed time, serving selector, Start cooking, Add to week, favorite, and overflow actions Edit/Duplicate/Archive/Print/Source. Image caption distinguishes generated serving inspiration when applicable. Regular user photos need no AI label.
+
+Top tabs: Recipe, Nutrition, Notes. Recipe includes Reading and Recipe map views. The compact At a glance overview in the concept is a quick entry into the map, not a replacement for the richer ingredient/action representation. Persist view preference without rewriting recipe data.
+
+### R12.2 Reading and map content
+
+Reading shows ingredient checklist and numbered method side-by-side when wide, stacked when compact. Ingredient checkmarks are local/session preparation aids; they do not consume inventory, mark shopping complete, or change ingredient inclusion. Method actions expose specified equipment, quantities, dependencies, outputs, and actual optional durations.
+
+Recipe map rows represent ingredient allocations/components; columns represent actions/stages. Support split uses, independent branches, joins, and named intermediate outputs. A map cell links to the corresponding step. Use semantic table relationships plus a readable alternative. Wide maps scroll within their own region; stage grouping avoids unreadable font sizes. Missing allocations are labeled and do not remove the ingredient from shopping or nutrition.
+
+One domain graph drives the reading view, map, print, and cooking mode. Never hand-author separate instructions for each presentation. Graph validity, quantity allocations, and nested component cycle checks follow Appendix A. Rendering is real HTML/SVG/code, not a generated bitmap with clickable overlays.
+
+### R12.3 Serving changes
+
+Viewer scaling changes displayed ingredient quantities and totals only. Show Reset and Apply to planned meal when opened from an occurrence. Fractional quantities respect recipe/product constraints; countable units need explicit handling. Cooking time, temperature, and appliance capacity do not scale linearly just because portions do. A method-capacity conflict is surfaced before starting a batch.
+
+Changing methods uses reviewed alternatives. Switching stove to microwave must switch actual instructions and timing/equipment requirements; it is not a cosmetic label change. A saved cooking session pins its method and scale so later recipe edits cannot alter active directions unexpectedly.
+
+### R12.4 Nutrition and notes
+
+Nutrition tab provides per serving / selected yield controls, nutrients with provenance and unknowns, relevant target comparisons with explicit scope, and ingredient contributors. Notes include personal notes, original source/attribution, revision details, and optional recorded feedback. Nutrition data is derived from the authoritative path specified by the recipe; never add asserted totals to ingredient totals.
+
+Missing method permits a saved draft and manual editing. Ready-to-eat products intentionally have no cooking steps. Error and partial states must distinguish these cases. PDF export uses this selected revision and scale.
+
+## R13 — Focused cooking mode and persistent timers
+
+### R13.1 Session lifecycle
+
+Start cooking creates or resumes a session identified by recipe revision, method, scale, optional plan occurrence, and user/workspace. If a matching active session exists, offer Resume or Start another. Ordinary navigation is hidden, with Exit cooking and View full recipe remaining available. Exiting does not silently cancel timers or record intake.
+
+Session states: active, paused, completed, abandoned. Step view, completion, timers, and batch confirmation are separate records/states. Session pause need not pause every cooking timer automatically; explicitly ask/offer timer controls because real food continues cooking when the user leaves the screen.
+
+### R13.2 Step interface
+
+Show Step n of m, title, full instruction, relevant ingredient quantities/components, specified equipment/settings, optional image, and relevant timers. Desktop adds a step list; mobile exposes a step-list sheet. Mark step done is explicit. Previous/Next navigate only. Completed checkmarks are driven by persisted completion events, never by viewing the page.
+
+Dependencies can indicate You can do this while the rice cooks. Users can preview any step. Warn before marking a dependent action complete when prerequisites are unconfirmed, but do not trap the reader on one screen. A user may have completed real-world work outside the app. An Override with confirmation can be a user assertion, not fabricated automatic completion.
+
+### R13.3 Timer model
+
+Each timer has stable ID, session/step linkage, label, original duration, state, start/target timestamps, paused remaining duration, and revision. Use absolute timestamps for running timers and calculate display from current time, rather than decrementing an in-memory counter as the only truth. Multiple timers may run concurrently; hidden timers remain available in a compact tray.
+
+Actions: Start, Pause, Resume, Add minute, Reset with explicit intent, Dismiss expiry. +1 min adds to deadline if running and remaining duration if paused. A displayed value rounds consistently; elapsed expiry never silently becomes a new session. A timer reaching zero marks the timer elapsed, not the step or meal complete. Honor user sound/notification preferences; do not promise background alerts unless the actual platform supports and has permission for them.
+
+Reload or tab restore reconstructs remaining time. Multiple tabs share server/local coordination so an expiry is not announced repeatedly by every tab. Offline timer controls persist locally with revisioned operations for reconciliation. Address system-clock changes by using monotonic elapsed time while active and a documented wall-clock/server reconciliation on resume; test rather than claiming perfect timing across arbitrary clock changes.
+
+### R13.4 Completion and actual records
+
+Finished cooking offers a batch confirmation with actual yield and optional ingredient adjustments, or Finish without inventory update. This is distinct from I ate a serving. Batch confirmation consumes raw ingredients once and creates prepared stock. Eating leftovers consumes prepared portions once. If the user only wants guidance, finishing/closing must not force detailed bookkeeping.
+
+Optional feedback: actual active time, easier/harder than expected, keep in rotation, less often. Time spent with the screen open is not automatically active cooking time. Corrections and Undo must preserve original events and reverse dependent effects correctly.
+
+## R14 — Groceries: review requirements and shop
+
+### R14.1 List scope and rows
+
+Groceries header identifies plan/date range, selected meals, Add item, overflow for export/print/share if implemented, and Review/Shop toggle. List identity is stable across recalculation. Grouping options include store section and custom aisle order; actual stores need not be integrated. Search is available for long lists.
+
+Each derived row can show total needed, usable stock considered, amount missing, package count, and price coverage. Compact view shows the most actionable quantity with details expandable. Preserve product/preparation distinctions: canned tomatoes are not fresh tomatoes, dry rice is not cooked rice, and drained weight is not net package weight without a mapping.
+
+Review mode emphasizes pantry checks, overrides, substitutions, contributing meals, and uncertain quantities. Shop mode emphasizes large checkboxes and quantities; checked rows move into Picked up with immediate Undo and no focus loss. Both modes exist on both device classes; desktop Review/mobile Shop is only a mockup pairing, not a forced default. Remember the user's mode.
+
+### R14.2 Checked, owned, purchased, and consumed
+
+Checking a row means picked up in the shopping list. It does not itself record payment, pantry acquisition, or intake. Have this creates/updates a stock assertion with quantity or qualitative evidence; it does not check the item as purchased. Confirm purchases previews actual amounts and optionally prices, then creates purchase and inventory events atomically and idempotently.
+
+Support partial fulfillment. If a row needs two packs and only one was bought, remaining need stays visible. A zero missing quantity based on credible stock may be grouped Already have. A qualitative Have some cannot subtract an invented number of grams; leave a pantry check unless the user explicitly resolves or overrides the purchase quantity.
+
+### R14.3 Recalculation and plan changes
+
+Preserve stable row identities through canonical requirement grouping and maintain source contribution records. Manual items and quantity overrides are never silently dropped. An unchanged requirement retains checked state. An increased requirement marks the additional amount for review rather than pretending the larger quantity was picked up already.
+
+Shopping status: draft, shopping, completed/archived. Entering Shop can begin shopping after an explicit or clearly documented state transition. While shopping, plan changes generate a reviewable diff: Added, Changed, No longer needed. Keep checked purchases even when their originating meal disappears; present no-longer-needed as contextual information rather than erasing history.
+
+Example: removing Tuesday curry does not delete manually added soap, undo a tofu purchase, or reset every checkbox. Adding 150 g more rice retains the previous fulfilled amount and explains the new shortage. Applying a stale diff uses revision checks.
+
+### R14.4 Costs and substitutions
+
+Sidebar includes contributing meals, pantry checks, and known package subtotal/coverage if available. Display Add prices to estimate your total when no observations exist. Do not invent a full estimate for visual balance. Keep price book accessible from row details and page menu.
+
+Substitution chooses a reviewed compatible ingredient/product/method, previews affected recipes and quantities, and re-evaluates rules, nutrition, and costs. A cheap alternative cannot bypass exclusions. Replacing a shopping product alone must not silently rewrite immutable recipes; explain the scope and create appropriate future-use revisions/overrides.
+
+Offline shopping requirements and exports are in R22/R25. No automated checkout is included.
+
+## R15 — Kitchen: inventory, equipment, and preferences
+
+### R15.1 On hand
+
+Kitchen tabs: On hand, Equipment, Preferences. Inventory header includes Add ingredient, search, and storage filters All/Fridge/Freezer/Pantry. Group rows by storage with ingredient/product, amount, evidence/status, and menu. Support multiple lots when relevant without requiring lot tracking for casual users.
+
+Amount modes: exact, estimated, qualitative, out, unknown. Display wording such as About half a bag, Some left, or Amount not set. Store original expression and any reviewed quantity mapping separately. Last checked reflects actual user/recorded evidence; it is not refreshed just because a page is opened. Never infer numeric confidence percentages.
+
+Use soon is user-set or derived from recorded dates under a disclosed policy. It is a planning prompt, not a guarantee that food is safe. Support clear source/evidence in details and editable flags. Find meals opens Explore with relevant ingredients and active dietary rules; uncertain quantities remain uncertain.
+
+Manual stock correction is quick and reversible. Purchase/batch/consumption updates use ledger semantics from Appendix A. Raw ingredients are consumed once at preparation, prepared portions at intake. Merely placing a meal on the calendar reserves stock instead of subtracting it from actual on-hand.
+
+### R15.2 Equipment UX
+
+Use a curated interactive kitchen scene plus explicit equipment tiles. Scene is delightful context; tiles are the authoritative complete selection interface. Desktop has scene left and tiles right; compact has a short scene above a two-column grid. Categories Appliances, Cookware, Tools remain visible/reachable on all sizes. Search/More equipment handles less common items.
+
+Initial catalog: Stove/cooktop, Oven, Microwave, Air fryer, Rice cooker, Pressure cooker/multicooker, Slow cooker, Blender, Kettle, Food processor, Immersion blender; cookware/tools include Frying pan, Saucepan, Baking sheet, Casserole dish, Steamer basket, Kitchen scale. Refrigeration/freezer and basic-utensil access remain configurable because preparation/storage assumptions matter. No item is silently selected in a real new account.
+
+Selecting a tile immediately updates local visual state and persists the capability selection. Show pending/error reconciliation without losing the choice. Scene marker opens details instead of silently removing equipment. Details can include capacity, reviewed functions, wattage where relevant, and preferred use; none is required for basic selection.
+
+Represent physical devices separately from capabilities. A range may provide cooktop and oven; a multicooker may provide pressure and slow-cooking functions. Distinct physical capacities/resource identities matter for simultaneous use. A blender does not imply every processor capability. Recipe eligibility requires one complete viable preparation method, not all equipment across alternative methods.
+
+Zero appliances is valid and produces assembly/ready-to-eat suggestions. Removing an appliance previews affected future meal methods and offers alternatives. Already-recorded history remains intact. Equipment selection is free, immediate, and works with prebuilt assets; no image generation on each click.
+
+### R15.3 Preferences
+
+Organize into Food rules, Household & servings, Time & effort, Variety & favorites, Planning routine, Nutrition targets & supplements, and Shopping preferences. Advanced sections can collapse. User-defined targets/schedules remain explicit; two household servings do not multiply one individual's nutrition target or imply two identical profiles.
+
+Separate allergy/exclusion rules from dislikes and soft priorities. Changes to required rules preview conflicts in future plans and invalidate affected assessments. Appearance, image budgets, account, and external integrations live in global Settings rather than cluttering the food-preferences form.
+
+### R15.4 Inventory is optional
+
+Offer Skip inventory or Track only staples. Planning remains useful with unknown stock and full grocery requirements. Do not require a pantry census to start. Ask short targeted checks only when uncertainty materially affects a recommendation, and allow dismissal. Repeated dismissed prompts should be suppressed or adjustable.
+
+## R16 — Onboarding, editors, settings, and unmocked states
+
+Retain four setup steps: Your food, Your kitchen, Your rhythm, Ready. Replace the old cobalt rail with the new themes and reuse EquipmentScene/EquipmentTile. Allow Explore first with an explicit unconfigured state; do not claim suggestions fit allergies that have not been entered. Setup drafts persist separately from active settings until applied.
+
+Your food configures diet and explicit restrictions. Your kitchen selects capabilities with optional inventory later. Your rhythm captures budget/effort/variety preferences, slots, and optional batch willingness. Ready summarizes and shows actual candidate availability, then applies and opens a plan draft or Today. Do not prefill personal targets from conversation memory or demonstration fixtures.
+
+Progressive setup adds recurring meals, foods, supplements, targets, and preferred stores/units. Editing an existing custom preference vector preserves it unless the user deliberately changes a choice. Use the original documented priority semantics and required/preferred distinction.
+
+Global Settings includes Appearance, Meal artwork, Generation & usage, Integrations, Notifications, Units/currency/timezone, Data & exports, Account. Meal artwork and generation permission are separate controls. Any unsupported feature has an honest disabled explanation or is omitted; do not create settings that never affect behavior.
+
+Unmocked forms follow shared components: labeled inputs, inline validation, meaningful cancel/save, durable drafts, source preview, and conflict recovery. No extra mockup is needed to implement routine forms. Product forks that change cost/access/irreversible behavior must be recorded or escalated; ordinary reversible implementation choices use these defaults.
+
+## R17 — Meal artwork system: scenes, photos, and fallbacks
+
+### R17.1 One layout with multiple media treatments
+
+MealHero consumes recipe/occurrence data and an explicit presentation descriptor. Presentation choices are Immersive scenes, Editorial photos, Minimal. Appearance is separately Light/Evening/Follow device. Generation permission is separately Off/Ask each time/Automatic within budget. These three settings must not collapse into a single premium-theme switch.
+
+Supported treatments:
+
+| Treatment | Required media | Rendering |
+| --- | --- | --- |
+| Scene | Approved finished meal-in-scene composition compatible with theme/viewport | One coherent image with live text/actions in safe areas. |
+| Cutout | Approved transparent subject plus matching scene/lighting/geometry profile | Shared coordinate container, contact shadow only where approved. |
+| Editorial | Ordinary licensed/user photo with crop metadata | Deliberate photograph frame in themed shell; no automatic room compositing. |
+| Minimal | No reliable image required | Typography, ingredient summary, restrained decorative treatment. |
+
+Default chooser: honor Minimal first; honor Editorial using an eligible photo or Minimal; for Immersive use an approved matching scene, then an explicitly approved compatible cutout, then ordinary photo, then Minimal. Do not select an incompatible scene merely because it exists. Switching themes may change presentation from scene to editorial until an appropriate asset exists; this is acceptable and must remain polished.
+
+Selection is deterministic and does not enqueue generation. Image failure uses the next available treatment and records a safe diagnostic, not a broken-image icon. Avoid loading every variant before choosing. Media changes should not shift titles or interactive controls.
+
+### R17.2 Initial scene catalog
+
+| Family | Geometry and compatibility | Required initial variants |
+| --- | --- | --- |
+| Kitchen table | Angled view; compact bowls/plates; modest height; individual servings | Light wide, light compact, evening wide, evening compact. |
+| Overhead tabletop | Top-down; flatter plates, wraps, salads, pizza, multiple small dishes | Light wide, light compact, evening wide, evening compact. |
+| Breakfast counter | Tall cups/glasses and breakfast arrangements | Later; support schema without requiring launch assets. |
+| Shared table | Platters and multi-person spreads | Later; avoid forcing into a single-bowl template. |
+
+Use food geometry, serving vessel, camera angle, height/footprint, serving count, and existing photo compatibility to choose a scene. Cuisine may influence food content but must not cause an unrelated room for every cuisine. User override is supported. Theme does not decide whether a meal is breakfast or dinner.
+
+Start with two families × two appearances × two viewport compositions = eight empty template reference images. Finished meal artwork is additional. A template alone does not magically render arbitrary food into it. To keep asset cost bounded, launch with approved composed scenes for a small curated subset and use editorial photography elsewhere.
+
+### R17.3 Finished composition as the preferred immersive path
+
+Provide the empty scene and optional original food image to a configured model/editor. Preserve food identity and recipe content as far as possible; allow serving vessel, placement, and lighting to adapt. Generate the food, table contact, shadows, and reflections together. Review before use. Keep original photo and source metadata separate from derivatives.
+
+The app displays the completed scene image behind real interface content. No screenshot text, navigation, buttons, stats, or diagrams belong inside the asset. On wide layouts, a safe negative-space area accommodates live content; compact images prioritize food and use solid UI surfaces below.
+
+Do not claim an image verifies ingredients, nutrient values, exact portions, dietary suitability, or cooking results. Generated imagery is Serving inspiration. If a generated picture appears to add a conflicting ingredient, reject/regenerate or use another treatment; do not change the recipe to match the picture.
+
+### R17.4 Crop and asset metadata
+
+Each asset needs type, owner/scope, immutable content hash, dimensions, encoded format, source/rights, generation provenance where applicable, approval state, recipe revision compatibility, scene version, theme, viewport composition, focal point, safe text rectangles, and crop bounds. Store normalized 0–1 coordinates in a defined source coordinate system. User photos may omit advanced metadata and default to editorial treatment with an editable focal point.
+
+For a wide scene with left text and right food, define the actual safe text area in metadata and constrain live content accordingly. Long headings may require a quiet panel or editorial variant. A CSS gradient can support contrast but cannot guarantee it over arbitrary art. Validate every approved composition against long-content cases.
+
+Generate responsive renditions once during asset processing. Use modern supported image formats and a compatible fallback. Width/height attributes and aspect ratio reserve space. Keep originals for future recrops/export; don't send giant source files to phone thumbnails. User private media remains access-controlled even if shared decorative scene templates are public assets.
+
+## R18 — Generation workflow, budgets, and scene creation
+
+### R18.1 User-facing controls
+
+Default new accounts to generation Off or Ask each time according to a clearly shown deployment default; recommended safest first launch is Off with an explanation of optional generation. Users can still use bundled approved scenes. Ask each time shows the requested variants and configured price/credit estimate before starting. Automatic within budget requires an explicit nonzero cap, event triggers, variant limits, and scope.
+
+Triggers may include user-requested Create scene image or an opted-in job for selected newly saved recipes. Never trigger per page view, theme toggle, search result, hover, window resize, or every meal in a catalog. Generating a wide image does not silently authorize a second paid compact/night generation if it was not included in the quoted scope.
+
+Settings expose current period usage/reservations, currency or credit units, reset date, queued jobs, cancellation, and provider capability availability. Do not invent prices from model names. If no reliable upper-bound estimate is available, disallow unattended automatic spending and require an explicit bounded policy for manual requests.
+
+### R18.2 Job lifecycle
+
+Creation: validate recipe/media ownership and source rights; validate selected template compatibility; capture immutable input revisions; calculate job key; check existing results; quote/reserve budget; enqueue. Worker uses the configured image.generate role or repository equivalent and validated provider capability, never a hardcoded provider in UI code.
+
+States: queued → running → awaiting_review → approved/available, or failed/canceled/rejected. Separate provider job completion, review approval, and asset activation. If automatically accepted output is ever enabled, require a disclosed review policy and robust validation; default curated/admin review or explicit user approval for new generated compositions.
+
+On recipe/source/template edits during generation, store the result against original inputs; do not activate it for the new revision without compatibility review. Canceling does not guarantee an external charge was avoided; settle actual known usage and preserve that distinction. Retry only transient failures under the authorized attempt/total budget. Each potential paid attempt must be covered by the budget policy.
+
+### R18.3 Cost accounting and deduplication
+
+Use an atomic reservation before enqueue/dispatch to prevent simultaneous jobs from each spending the same remaining cap. Budget check includes settled use plus outstanding reservations and configured maximum attempt cost. On known final usage, settle/release the reservation exactly once. If usage is unknown, retain a conservative pending amount until reconciliation; do not silently mark it free.
+
+Deduplication key includes workspace/privacy scope, recipe visual revision or content hash, original photo hash, scene/version, appearance, composition, model/provider configuration version, prompt version, and relevant output parameters. Do not share a private result across workspaces based only on a matching recipe name. Idempotency covers repeated clicks and worker retries; an explicit Generate another version uses a new variation identifier while still respecting budget.
+
+### R18.4 Prompt contract and validation
+
+Version prompts as code/config. Example semantic template, not a provider-specific API call:
+
+~~~text
+Create a food photograph for a meal-planning application.
+Reference A is the approved EMPTY scene template; preserve its camera angle,
+surface geometry, lighting direction, and designated UI negative space.
+Reference B, if present, is the original food photograph; preserve the food's
+identity and visible ingredients. Serving vessel and placement may change.
+Recipe visual description: {reviewed_visual_summary}
+Serving form: {vessel_and_geometry}
+Appearance: {light_or_evening}
+Composition: {wide_or_compact}
+Food placement region: {normalized_region}
+Text-safe region: {normalized_region_or_none}
+Create physically plausible contact shadows and consistent lighting.
+No writing, UI, logos, watermarks, extra dishes, or decorative ingredients
+that contradict the recipe. Preserve the original separately.
+~~~
+
+Validate decodability, MIME/content agreement, size limits, dimensions, theme/composition, and review disposition. Visual review checks food identity, accidental text, malformed bowls, impossible shadows, unwanted ingredients, and crop usability. Automated checks can assist but do not guarantee semantic accuracy. Rejection keeps the ordinary photo available.
+
+### R18.5 Adding scenes
+
+First release: curated scene catalog with versioned manifests and developer/admin import. Import validates required metadata and preview crops. Templates have draft/approved/retired states; retire prevents new generation but does not break previously approved images.
+
+Later user scene studio: choose starter/reference, describe environment, generate empty wide/compact/light/evening variants under an explicit budget, mark food/safe-text regions, preview representative bowl/plate/tall-vessel cases, then approve a private template. Arbitrary background upload is not automatically a reliable composition template. Do not build a room editor or general 3D engine to support this feature.
+
+## R19 — Asset production and delivery to the codebase
+
+### R19.1 Concept images are not production assets
+
+The user supplies full UX mockups. Use them for visual comparison; do not paste a screenshot into the application and overlay invisible controls. Reconstruct layout, typography, labels, icons, and data with real components. Never use crop-extracted fake controls or rasterized recipe maps as the UI.
+
+Approved background/food art must be generated or sourced separately. If an image tool/provider is available and authorized, create missing assets through it using documented prompts. Otherwise integrate the supplied reusable assets where suitable, implement editorial/minimal fallbacks, and report exactly which production artwork is pending. Do not call the intended scene fidelity complete while shipping unrelated stock imagery.
+
+### R19.2 Initial asset inventory
+
+| Asset group | Minimum useful set | Notes |
+| --- | --- | --- |
+| Scene templates | Eight references from R17 | No UI or text; paired families/appearances/compositions. |
+| Composed Today examples | Bowl in table scene, plate/wrap in overhead scene; matching approved variants where produced | Need not generate every recipe at launch; fallback is first class. |
+| Editorial recipe images | At least six licensed/owned vegan demo images | Consistent crops; meaningful no-image fixtures too. |
+| Equipment scene kit | Base kitchen plus selected initial appliances, day/evening | Fixed coordinate system and validated composition combinations. |
+| Equipment icons | Complete initial catalog | Consistent code-native SVG/established icon set where possible. |
+| Ingredient/category icons | Small restrained set | Decorative; text always carries meaning. |
+| Cooking step imagery | Optional curated examples | Never require an image per step or generate automatically. |
+
+Naming convention example: assets/scenes/kitchen-table/v1/light-wide-reference.webp; assets/equipment/kitchen-v1/evening/base.webp. Exact storage folders follow repository conventions. Use stable manifest IDs separate from filenames. No development absolute path or conversation image filename becomes a production URL.
+
+### R19.3 Acceptance of artwork
+
+Review wide/compact at actual UI sizes, not only full-resolution standalone beauty. Confirm negative space accommodates a long title, foreground food remains visible, and button contrast survives. Check alpha edges on light and dark surfaces. Reject green fringe, fake checkerboard baked into pixels, opaque white borders, mismatched contact shadows, and inconsistent appliance perspective.
+
+Keep source prompt, reference IDs/hashes, rights, reviewer, and version metadata in an asset manifest. Private source photos need not be committed to a public repository. Deliver approved optimized assets plus source provenance through the repository's established media workflow. Measure transfer sizes before declaring performance complete.
+
+## R20 — Interactive equipment scene implementation
+
+### R20.1 Geometry and layers
+
+Use a fixed artboard with normalized coordinates. Suggested structure: base cabinets/wall/counter; selected appliance layers; controlled contact-shadow layers where necessary; foreground occluders; DOM hotspots. Every layer uses the same viewBox/coordinate transform. Keep cabinet/table perspective identical between variants.
+
+Each slot defines anchor, bounding box, scale limits, z-order, optional mask/occluder, accepted appliance types, and compact visibility. Appliances are placed into predefined slots; free dragging is not required. The selected equipment state comes from the data model; artwork merely reflects it. A capability need not have a unique physical device rendering—for example one range can expose cooktop and oven markers.
+
+Use a clean kitchen base with neutral cabinet infill where an unselected integrated appliance would be. A stove/oven should not remain obviously present after the user deselects both. For a combined range, valid render states may use reviewed modules for range, cooktop-only, oven-only, and cabinet infill; do not produce impossible cabinetry by cutting out arbitrary rectangles.
+
+For countertop capacity, define a finite set of visible slots and deterministic priority/order. Additional selected appliances remain visible as selected tiles and may appear on a shelf or behind a More selected label. Never cram all devices onto one counter or silently deselect one because art space ran out. Visual slot limits are not kitchen capability limits.
+
+### R20.2 Style and image processing
+
+The concepts lean photorealistic. Aim for matching materials and lighting, but a coherent refined illustration kit is an acceptable documented art-production approach if it preserves the approved atmosphere. Do not independently generate each appliance without matching camera/perspective/lighting references.
+
+Prefer native alpha where the chosen provider actually supports it, otherwise use segmentation/matting on a suitable plain background. Do not assume a particular model/version supports transparency. A model-painted checkerboard is not alpha. Colored key backgrounds can contaminate reflective metal, glass, and translucent objects; inspect the result. CSS shadows can ground already-compatible layers but cannot repair the lighting or geometry.
+
+If photorealistic layer combinations cannot meet quality gates, ship the fully working selection tiles with a curated static overview and label the dynamic scene as pending, or use a consistent illustrated kit after documenting the choice. Do not generate a combinatorial full kitchen image for every selection set.
+
+### R20.3 UI semantics
+
+EquipmentTile is a semantic toggle/checkbox with an explicit label and selected indicator. Marker opens details with accessible equipment name and selected state. Focus/hover may highlight the corresponding object and tile, with reduced-motion support. Selecting a tile may fade a layer in/out; it must not move other controls or reset scroll.
+
+Detail panel can set physical count, capability functions, capacity and optional notes. A multicooker capability picker must not assert functions the device does not have. Changes that affect plan eligibility use the same profile-change preview as Preferences. No generation/provider dependency is involved in ordinary toggles.
+
+### R20.4 Compact rendering
+
+Show a wide, short vignette above the tile grid. Preserve object proportions by cropping only designated nonessential margins or using a compact composition with mapped slots. Hotspots may hide if they would overlap; all information remains available in tiles. Do not separately cover each appliance layer. Test no equipment, one appliance, four, and all selected in both themes and narrow widths.
+
+## R21 — Domain extensions and service contracts
+
+### R21.1 Extension entities
+
+Use the baseline ownership, immutable revisions, decimal quantities, evidence, and operation contracts. The following are conceptual additions; adapt table names to the existing backend:
+
+| Entity | Key fields | Invariants |
+| --- | --- | --- |
+| AppearancePreference | owner, appearance, presentation, revision | Theme has no food/domain side effects. |
+| MediaAsset | owner/scope, content hash, storage ref, media type, dimensions, source, rights, state | Access control and immutable original; no unvalidated remote URLs. |
+| SceneTemplateVersion | family, version, geometry, variant refs, food region, safe regions, compatibility, status | Version immutable once referenced by a job/result. |
+| MealPresentation | recipe/ref, asset, scene version, theme, viewport class, crop, approval | Rendering eligibility differs from recipe eligibility. |
+| GenerationPolicy | owner, mode, cap/unit/period, allowed triggers/variants | Automatic mode requires explicit bounded authorization. |
+| GenerationJob | inputs, dedupe key, state, provider/role version, attempt limit, usage, result | Stale completion cannot overwrite newer user choices. |
+| BudgetReservation | policy/period, job/attempt, reserved/settled amounts, status | Atomic cap enforcement and exactly-once settlement. |
+| EquipmentType | stable ID, categories, capability definitions, icon | Display strings are not capability IDs. |
+| KitchenDevice | owner, type, selected functions, capacity/count, revision | Physical resources distinct from capabilities. |
+| EquipmentSceneManifest | version, theme variants, slots, layers, markers | Bounded deterministic placement; no effect on eligibility. |
+| CookingSession | recipe/method refs, scale, occurrence, state, selected step, revision | View, completion, timers, batches, intake are separate. |
+| CookingStepCompletion | session/step, assertion time, actor, correction | Never inferred from visiting a step. |
+| CookingTimer | session/step, duration, timestamps, paused remainder, state, revision | Timer expiry does not complete a step. |
+| ShoppingListSnapshot | plan scope, requirement revision, mode/state, rows | Plan diffs preserve manual and fulfilled quantities. |
+| RecommendationContext | target slot, inputs, policy version, reason codes | Revalidate at apply; no stale rule bypass. |
+| CalendarLink | source task, external event ID/revision, sync state | Unique stable external identity; no duplicate events on retry. |
+
+### R21.2 Representative contracts
+
+These are illustrative TypeScript interfaces. Runtime validation and database constraints are required; adapt names to existing domain types rather than maintaining incompatible duplicates.
+
+~~~ts
+type Appearance = 'light' | 'evening';
+type ViewportComposition = 'wide' | 'compact';
+type NormalizedRect = { x: number; y: number; width: number; height: number };
+type EntityRef = { id: string; revision: number };
+
+interface MediaPresentation {
+  id: string;
+  recipe: EntityRef;
+  assetId: string;
+  treatment: 'scene' | 'cutout' | 'editorial';
+  appearance: Appearance | 'neutral';
+  composition: ViewportComposition;
+  scene?: EntityRef;
+  focalPoint: { x: number; y: number };
+  safeTextRegions: NormalizedRect[];
+  approval: 'draft' | 'awaiting_review' | 'approved' | 'rejected';
+  provenance: 'user_photo' | 'licensed_photo' | 'generated' | 'edited';
+}
+
+interface MealSelectionContext {
+  localDate: string; // ISO local date; never parse as an implicit UTC instant.
+  slotId: string;
+  occurrence?: EntityRef; // Present for replacement; absent for an empty slot.
+  plannedServings: string; // Validated positive decimal, not a binary-float price.
+  basePlanRevision: number;
+  returnRoute: string; // Validate internal route allowlist before navigation.
+}
+
+type TimerState =
+  | { kind: 'idle'; durationMs: number }
+  | { kind: 'running'; targetAt: string; startedAt: string }
+  | { kind: 'paused'; remainingMs: number }
+  | { kind: 'elapsed'; elapsedAt: string; acknowledged: boolean };
+
+interface CommandEnvelope<T> {
+  operationId: string; // Stable across retries of the same logical operation.
+  expectedRevision?: number;
+  payload: T;
+  // Actor/workspace authority is derived and checked by the server.
+}
+~~~
+
+Validate normalized coordinates, dimensions, safe regions, allowed MIME types, positive scales, bounded durations, and internal references. Money and nutrient amounts use baseline decimal/unit contracts, not generic JavaScript float coercion. Never copy demo IDs into real records.
+
+### R21.3 New operation catalog
+
+| Operation | Input | Result |
+| --- | --- | --- |
+| Query Explore | context, filters, policy/profile revision | Eligible cards and structured reasons; no mutation. |
+| Save catalog meal | catalog revision, idempotency key | Private saved reference/snapshot with provenance. |
+| Plan suggested meal | candidate ref, target context, servings, expected revisions | Preserved recipe plus occurrence, or reviewed impact/conflict. |
+| Query hero presentation | recipe ref, theme, viewport, preference | Descriptor/fallback, never a generation request. |
+| Quote generation | input refs and requested variants | Estimate/bound, capability state, quote expiry. |
+| Start generation | accepted quote/policy, expected revisions, idempotency key | Budget reservation and job identity. |
+| Review generated asset | job/result, approve/reject, expected revision | Approved presentation or rejection; source retained. |
+| Update equipment | desired device/functions, profile revision | Capability revision and affected-plan preview/application. |
+| Start/resume cooking | recipe/method/scale/occurrence | Session and timer/completion snapshot. |
+| Update timer | timer/ref, explicit action, operation identity | New timer revision and state. |
+| Confirm cooking | session, actual yield/usage, update-stock choice | Session/batch effects atomically. |
+| Review shopping changes | list ref and latest requirements | Diff with fulfilled/manual/override preservation. |
+| Apply shopping changes | reviewed diff, expected list/plan refs | New list revision or conflict. |
+| Schedule preparation | source task, local time/zone, duration, calendar choice | Durable link/pending sync or reviewable error. |
+
+Do not expose provider keys or model-internal prompts in ordinary UI responses. Return stable error codes and field paths. Capability endpoints describe actually configured functionality so unavailable adapters do not create dead buttons.
+
+## R22 — Persistence, offline behavior, and concurrency
+
+Server/domain records are authoritative. Editor drafts, viewed tabs, local timer display, and pending outbox operations are separate. Mutations carry expected entity revisions and idempotency keys. Do not send whole-workspace snapshots for checkbox changes. Cache keys include the relevant profile/recipe/plan revisions and policy version.
+
+Offline minimum: previously loaded shopping list can be viewed, rows checked/unchecked, and manual items added locally; an already loaded recipe/session can be read and timers controlled locally. Pending actions are explicit. Planning, external imports, generation, and first-time access to uncached content require connectivity and show a useful state. Do not promise every route works offline.
+
+Persist a bounded outbox with operation IDs, base revision, action, and status. Reconnect replays idempotently. Two clients setting the same checkbox to true must not toggle it twice; store desired state, not an unqualified toggle command. If the requirement quantity changed, reconcile the fulfilled amount and surface the new need. Keep local edits on conflicts and present actionable resolution.
+
+Service workers/cache storage must respect authenticated ownership. Purge or partition private data by account/workspace and clear it on sign-out according to policy. An offline account switch must not show the previous person's meals. Avoid caching private signed URLs indefinitely or treating them as public image identities.
+
+Timers persist across route changes and reload. Server reconcile is needed for multi-device state; local display should stay responsive. Notifications depend on actual platform permission/capability. If the browser cannot deliver a reliable background alarm, show that limitation in timer settings and offer normal in-app behavior, never fake push success.
+
+Implement transactions for plan application, catalog-save-plus-plan, import, purchase/stock, preparation/batch, intake/correction, and budget reservation. Use a durable outbox for external calendar/provider side effects rather than holding database transactions open. Concurrent unrelated changes should not cause a global conflict unnecessarily.
+
+## R23 — Nutrition, cost, inventory, and recommendation invariants
+
+The complete baseline arithmetic and fixtures are in Appendix A. The redesign must expose them honestly rather than duplicating formulas in UI components.
+
+1. Unknown is distinct from zero for quantities, nutrients, prices, and durations.
+2. Required exclusions and equipment/method constraints precede preference scoring.
+3. Nutrient forms, units, raw/cooked state, product basis, and revision provenance must match before arithmetic.
+4. A recipe chooses ingredient-derived or asserted nutrition authority; never both added together.
+5. A daily target is not replaced by a favorable weekly average. Lower and upper bounds assess unknowns differently as specified in Appendix A.
+6. Household recipe yield does not multiply one user's target or automatically record everyone eating.
+7. Portion cost, checkout packages, actual spend, and replenishment cost are separate concepts.
+8. Exact known stock may reduce requirements; qualitative stock creates a check, not an invented subtraction.
+9. Planned reservations do not decrement actual inventory. A replan excludes its own replaced reservations when assessing availability.
+10. Batch preparation consumes raw ingredients once; leftover consumption reduces prepared stock, not the raw ingredients again.
+11. Recipe revisions are pinned by plans, sessions, batches, and intake. Later edits do not rewrite historical totals.
+12. A generated image or model explanation cannot establish nutrition, ingredient quantities, allergy evidence, price, or actual consumption.
+13. Supplement dose schedules are user-defined and fixed during optimization; no automatic dosing recommendations.
+14. No feasible result found within a bounded search is not proof of mathematical infeasibility.
+15. Recommendation explanations must be traceable to evaluated inputs, not fabricated personalization.
+
+Use shared pure calculation modules callable from UI services, API, jobs, and CLI. Recompute on relevant changes through explicit dependency rules. Keep badge policies (Quick/High protein/Affordable) versioned and testable. An unknown-data candidate must not appear superior because its missing values are treated as zero cost/time.
+
+## R24 — Vrooli and personal-planner integration
+
+### R24.1 Repository fit
+
+Discover the actual nutrition scenario and retain its slug. Daily is a configurable display name. personal-planner is the separate time-management application identified by the product owner. Reuse existing auth, media storage, events, jobs, model roles, observability, component library, and schedule infrastructure only after confirming their contracts. Do not assume the monorepo uses one database or language for every scenario.
+
+### R24.2 Ownership boundary
+
+Nutrition app owns meal choices, recipes, servings, ingredient requirements, cooking/prep tasks, and actual food records. Shared scheduling infrastructure/personal-planner owns calendar event timing and calendar semantics according to the verified API. Meal slot dates alone do not require timed events.
+
+Schedule prep or Schedule cooking opens a proposed block with title, start/end or duration, local timezone, source task identity, and Open full calendar link. User can confirm/edit it. Group prep tasks only when supported by the task model. Existing personal-planner tasks/events should be linked rather than duplicated.
+
+### R24.3 Adapter and reconciliation
+
+Define capabilities such as create/read/update/cancel event, subscribe/poll changes, deep-link, and optional actual-time feedback. Exact endpoints are discovered locally. Link records store source task ID/revision, external event ID/revision, sync state, and operation identity.
+
+Use a stable idempotent external key per source task/event purpose. After timeout, reconcile by key or stored operation before creating another event. Distinguish pending, linked, failed, and conflict. Retry bounded transient failures. Calendar access revoked leaves nutrition tasks intact and indicates reconnection needed.
+
+If an external event is moved within the same day, update the linked time view under the chosen ownership policy. A move across local dates must preview implications for the meal plan and leftovers; do not silently move a dinner, invalidate batch order, or rewrite shopping. Deleting a calendar block unschedules time only, not the recipe or actual food history. Completing a calendar task never records eating.
+
+Support IANA timezone, daylight-saving ambiguity handling, and all-day versus timed semantics. Provide timezone-aware local date selection. If no integration exists, retain internal untimed prep tasks and optionally export calendar data if implemented; do not build an entire competing calendar as a fallback.
+
+### R24.4 Optional notifications and learning
+
+Reminders are opt-in and use available platform channels. No user messages are sent during development without authorization. Actual cooking duration can optionally inform the planner through explicit events, but elapsed browser time is not automatically active effort. Preserve event source, units, confidence/evidence class, and correction links. Do not create notification loops between apps.
+
+## R25 — Import, export, migration, security, and operations
+
+### R25.1 Preserve existing records
+
+Inspect existing schema and actual data before migrating. Back up under repository policy. Add new theme/media/equipment/session fields with conservative defaults. Retain recipe IDs, revisions, plans, intake, grocery state, preferences, and source provenance. An existing appliance selection maps to stable capability IDs; ambiguous values remain visible for review. Do not reset everyone to the vegan demo or seed stock during migration.
+
+If prototype data exists only in an old snapshot format, implement the baseline legacy importer into staged records and preview duplicates. Preserve known values without inventing missing times/nutrients. Existing plans should continue to open even if new scene metadata is absent; editorial/minimal fallback handles them.
+
+### R25.2 Portable formats
+
+Native exports include supported domain records and immutable references plus new scene/media metadata, equipment capabilities, preferences, sessions where chosen, and calendar links as non-authoritative external references. Exclude secrets, access tokens, billing instruments, and signed URL credentials. A JSON export omitting binary originals must explicitly report omissions. Full media backup can use a bounded archive with manifest/checksums, subject to actual scope.
+
+Import stages first, validates ownership remapping, schema version, references, cycles, limits, and duplicate choices. No live mutations during preview. Full restore requires a checkpoint and explicit restore flow. Export schemas and database migrations are separately versioned. Generated assets are not regenerated on restore unless explicitly requested and budget-authorized.
+
+PDFs are real readable documents: recipe with scaled ingredients/method/map; week menu; groceries grouped by category. Use light print tokens even when the app is in Evening mode. Support Letter/A4, multipage headers, long names, Unicode and fractions. Avoid raster screenshots as the only output. CSV is a spreadsheet-friendly view with proper escaping and formula-injection handling; JSON preserves exact original text.
+
+### R25.3 Application security boundaries
+
+Every entity/media/job lookup checks workspace authorization, including nested references. Validate upload MIME by content, decoded dimensions, byte limits, decompression limits, and allowed formats. Sanitize or safely render imported rich text/SVG. Protect URL ingestion from SSRF and redirects into disallowed internal resources using repository conventions. Imported text and image-model outputs are data, not instructions to agents or tools.
+
+Keep provider secrets server-side and use configured role routing. Only send task-relevant data to external providers; a food-image generation request normally does not need the user's target history or supplement schedule. Private food photos remain private by default. Shared scene artwork does not imply shared recipes.
+
+### R25.4 Performance budgets and observability
+
+Use initial engineering targets, measured on documented representative hardware/network: ordinary UI actions should acknowledge locally within about 100 ms; cached navigation should feel immediate; common server writes target sub-second response absent external services. Planning is bounded and moves to a job when necessary. Do not present these targets as already achieved guarantees.
+
+Initial media targets: optimized hero around 250–600 KB where quality permits; collection thumbnails around 30–100 KB; equipment composite/layers budget approximately 1 MB initially visible on compact screens. These are review triggers, not reasons to destroy quality. Load only current theme/composition, lazy-load below-fold images, and avoid sending full-resolution references or both entire theme packs on first paint. Record exceptions with measured justification.
+
+Observe job duration/failures, budget reservations/settlements, media fallback reasons, planner timing, sync conflicts, and operation retries using safe IDs and counts. Never log raw private food histories, full prompts containing user details, signed media URLs, or tokens by default. Health/diagnostic endpoints should expose actual configured capabilities without leaking credentials.
+
+## R26 — Cross-cutting edge cases and recovery behavior
+
+| Condition | Required behavior |
+| --- | --- |
+| New account, no setup | Explain configuration and allow exploration; no personal claims or seeded history. |
+| No eligible recipe for a slot | Show the blocking conditions and useful next actions; never weaken exclusions silently. |
+| Long recipe title or translated copy | Wrap and expand layout; preserve actions, no tiny unreadable title. |
+| Missing food photo | Editorial placeholder/minimal layout with real meal information. |
+| Scene for wrong appearance or recipe revision | Use an eligible alternative treatment; do not auto-generate or display stale incompatible food. |
+| Image fails after load | Replace media region without resetting meal state or jumping buttons. |
+| User uploads ordinary overhead photo | Editorial by default; scene preparation is an explicit optional workflow. |
+| Recipe is archived after planning | Pinned revision remains readable/cookable; future recommendations exclude it. |
+| Active allergy changes | Re-evaluate future plan and locked conflicts; historical records remain. |
+| No appliances selected | Offer viable assembly/ready-to-eat methods; no implied microwave. |
+| All appliances selected | Tiles remain accurate; scene shows a bounded subset or shelf layout. |
+| Stale pantry amount | Label age/uncertainty; don't certify enough stock. |
+| Same stock reserved by current plan | Replanning excludes its own superseded reservations. |
+| Shopping underway during meal swap | Queue/show a list diff; keep picked-up/manual items. |
+| Same grocery item checked on two devices | Desired state applies idempotently; no double toggle or purchase. |
+| Ingredient increased after picked up | Retain fulfilled amount and show extra requirement. |
+| Cooking timer expires off-screen | Persist elapsed state, notify only as supported/authorized; no automatic step completion. |
+| Recipe edited during cooking | Session remains pinned; new revision available after explicit choice. |
+| Browser reload or clock adjustment | Recover timers and state with documented clock reconciliation. |
+| Generated image job canceled after provider dispatch | No auto-activation; retain actual/pending usage honestly. |
+| Two simultaneous generation jobs at budget limit | Atomic reservation allows only covered work. |
+| Generation unavailable | Bundled assets, ordinary photos, manual editing, and planning still work. |
+| External calendar event deleted | Mark task unscheduled; no meal/intake deletion. |
+| Import ID collision | Show Keep/Copy/Replace revision options; remap dependent IDs coherently. |
+| Save succeeds but response is lost | Retry with same operation identity retrieves original result. |
+| Unknown nutrients/prices | Partial assessments and scoped known subtotals, never fake zeros. |
+| Offline sign-out/account switch | Private cache is isolated/cleared; no cross-account reveal. |
+| No touch/drag capability | Every operation accessible through buttons/menus/keyboard. |
+| Reduced motion or large text | Disable spatial motion, reflow, preserve all actions. |
+
+## R27 — Acceptance suite and worked redesign fixtures
+
+### R27.1 Verification principles
+
+The implementation agent must test domain semantics and actual user journeys, not only snapshot appearance. Reuse baseline fixtures and existing repository test conventions. Add tests where there is material behavior/risk; do not write trivial tests that merely duplicate CSS values. Visual review is required for the redesign; passing unit tests cannot establish that it matches the supplied references.
+
+The following fixture values are synthetic development examples, not the user's actual foods, prices, allergies, targets, equipment, or current plan. Demo data lives behind an explicit seed/demo path and never appears as a real user's saved history.
+
+### R27.2 Consistent recipe fixture
+
+Use one four-step method across reading, map, and cooking to resolve the concept inconsistency:
+
+- Identity: Sesame tofu bowl; canonical yield 2 servings.
+- Ingredients: firm tofu 400 g; broccoli 1 head with unresolved mass unless explicitly mapped; dry rice 150 g; soy sauce 2 tbsp; cooking oil 1 tbsp; sesame seeds 1 tbsp. Optional demo conversion factors must be marked synthetic and have provenance.
+- Active time: 15 minutes; elapsed: 30 minutes, both fixture assertions, not computed safety claims.
+- Step 1: Cook rice. Uses rice and any water explicitly represented; follow the chosen reviewed method. Output cooked rice.
+- Step 2: Prep tofu and broccoli. Uses tofu and broccoli; output prepared tofu and florets. Can occur independently of step 1.
+- Step 3: Cook tofu. Depends on step 2; uses prepared tofu and cooking oil. Optional fixture timer; output cooked tofu.
+- Step 4: Finish and serve. Depends on steps 1 and 3; cook prepared broccoli according to reviewed instructions, combine with sauce, cooked tofu, and rice, finish with sesame seeds.
+
+Do not turn this brief fixture into a nutritionally complete source record without actual mapped data. Use baseline synthetic nutrition fixtures for arithmetic tests. If the curated recipe authoring supplies a more detailed valid method, keep all presentations consistent with that method rather than preserving the exact four steps.
+
+### R27.3 Artwork fixtures
+
+Create cases for: approved table-scene bowl; approved overhead plate/wrap; ordinary portrait phone photo with cluttered background; ordinary overhead photo; no image; incompatible scene revision; rejected generated image; image load failure; and no evening asset. Include long titles and very short/long descriptions. At least one normal-photo and no-photo fixture must appear in visual review, not only ideal generated images.
+
+Equipment fixtures: zero selected; stove only; oven only; combined range with both capabilities; microwave+blender; four selected; all selected; unknown custom device; multicooker with only pressure enabled; missing layer image. Tile state must remain correct independent of art availability.
+
+### R27.4 Functional acceptance cases
+
+| Test ID | Given / action | Required result |
+| --- | --- | --- |
+| AT-001 | Fresh user opens each destination | Real empty states, five consistent routes, no demo data leakage. |
+| AT-002 | Save appearance and reload on second session | Account preference persists; no bright flash where avoidable. |
+| AT-003 | Change theme with generation disabled | Existing asset/fallback renders; zero generation jobs or charges. |
+| AT-004 | Open Today with only an ordinary photo | Editorial layout has same actions and readable hierarchy. |
+| AT-005 | Open Today with no photo | Minimal layout fully usable; no broken image or fake food. |
+| AT-006 | Change selected date and slot | Correct explicit context; no misleading Tonight label for other dates. |
+| AT-007 | Swap one future meal | Only chosen occurrence changes; groceries/assessments update coherently. |
+| AT-008 | Swap conflicts with locked leftover dependency | Impact preview/repair; no silent deletion. |
+| AT-009 | Move meal onto occupied slot | Explicit choice; preserve data until applied. |
+| AT-010 | Replan with locks and open/social slots | Locks preserved; open slots remain honestly unknown. |
+| AT-011 | Week at 390 px and large text | Day agenda readable; no whole-page horizontal overflow. |
+| AT-012 | Same week across local midnight/DST | Correct local dates/slots; no UTC day shift. |
+| AT-013 | Planned + recorded partial intake | Expected view does not double-count original planned quantity. |
+| AT-014 | Missing upper-bound nutrient contributions | Unknown assessment rather than unjustified pass. |
+| AT-015 | Required budget with unpriced products | Cannot claim validated budget compliance. |
+| AT-016 | Save name-only meal | Durable draft with unknown values, editable after reload. |
+| AT-017 | Archive scheduled recipe | Historical/pinned detail remains available. |
+| AT-018 | Edit recipe during an active session | Session pinned to original method/revision. |
+| AT-019 | Explore with soy excluded | Soy-containing/inadequately evidenced candidates not recommended as compliant. |
+| AT-020 | Explore opened from Wednesday dinner | Context visible; Add/Replace behavior targets that slot only. |
+| AT-021 | Save catalog meal twice | No duplicate saved recipe from retry. |
+| AT-022 | Add Explore meal to week | Accessible recipe snapshot and occurrence both preserved. |
+| AT-023 | Adapt recipe with ingredient substitution | New draft revision/fork, reassessed nutrition/rules; original intact. |
+| AT-024 | Reading/map/cooking at 1 and 2 servings | Same step IDs and scaled quantities in every view. |
+| AT-025 | Split ingredient allocations | No duplicate grocery/nutrient quantity. |
+| AT-026 | Next step without Mark done | View advances, completion unchanged. |
+| AT-027 | Running timer reload/pause/resume/+1 min | Correct reconstructed timing and independent step state. |
+| AT-028 | Timer expiry in two tabs | No duplicate persisted expiry effects; avoid repeated alerts. |
+| AT-029 | Finish cooking without eating | Batch/preparation can record; intake not fabricated. |
+| AT-030 | Cook then eat leftovers | Raw stock used once, prepared stock decremented once. |
+| AT-031 | Check grocery row | Checklist only; no automatic payment/stock/intake event. |
+| AT-032 | Confirm partial purchases twice via retry | Actual quantity applied exactly once; remainder visible. |
+| AT-033 | Add manual item then replan | Manual item and user overrides remain. |
+| AT-034 | Increase already checked requirement | Fulfilled amount preserved, extra need flagged. |
+| AT-035 | Shop offline then reconnect after server change | Pending state reconciles, conflict visible, no lost edit. |
+| AT-036 | Mark Have some rice | No invented exact grams subtracted. |
+| AT-037 | Select zero/all equipment | Valid state; scene adapts without changing capabilities incorrectly. |
+| AT-038 | Remove only oven capability from combined range | Cooktop remains; affected oven-only future methods flagged. |
+| AT-039 | Use scene hotspot via keyboard equivalent | Tile/detail flow exposes same information/actions. |
+| AT-040 | Queue two jobs exceeding remaining combined budget | Reservation prevents cap overspend. |
+| AT-041 | Retry same generation request | Reuse job/result under same idempotency key. |
+| AT-042 | Recipe changes while image generates | Result not activated blindly against new revision. |
+| AT-043 | Provider fails or no credentials exist | Existing app workflows function; clear generation capability state. |
+| AT-044 | Private media accessed from another workspace | Access denied without leaking sensitive metadata. |
+| AT-045 | Calendar create times out after remote commit | Reconcile stable identity; no duplicate event. |
+| AT-046 | Linked calendar event crosses day/deletes | Review implications or unschedule only; no silent meal/intake rewrite. |
+| AT-047 | Export/import complete supported data | Semantic round trip, source/revision references resolve, omissions explicit. |
+| AT-048 | Print long recipe/week/groceries in both paper sizes | Readable real PDF, correct quantities, no clipped map or UI chrome. |
+| AT-049 | Imported malicious text/URL/media | Validation and safe rendering/fetch policy, no instruction execution. |
+| AT-050 | Sign out then another user enters offline | No previous user's private cache displayed. |
+| AT-051 | Existing populated database migrates | IDs/history/plans preserved, no reset to seed data. |
+| AT-052 | Reduced motion, keyboard, zoom, image failure | All primary journeys usable and visually coherent. |
+
+AT-040–043 and AT-045–046 require real configured integrations for end-to-end evidence; deterministic adapter/worker tests alone must be labeled as such. If access is absent, retain these as explicitly blocked integration tests with manual fallback evidence. Do not mark them passed using hardcoded provider responses while implying production connectivity.
+
+### R27.5 Visual acceptance matrix
+
+Capture representative screenshots at 360×800, 390×844, 768×1024, 1024×768, and 1440×1000 CSS pixels; add 320 px width and 200% zoom for reflow stress. Exact device dimensions are test examples, not layout breakpoints. Include both themes and use real fonts/assets at normal browser scale.
+
+Review all primary screens plus Explore, recipe detail, recipe map, focused cooking, inventory, equipment, Preferences, and one long editor. Compare hierarchy, whitespace, image proportions, alignment, contrast, component consistency, and interaction reachability against the supplied references. Do not require pixel identity with inconsistent AI-generated borders/text. Fix layout defects before taking new evidence screenshots.
+
+Specific visual checks: mobile hero doesn't bury actions; bottom nav doesn't obscure content; Week has no tiny seven-column phone layout; recipe card buttons align despite wrapped titles; grocery amounts remain aligned; equipment hotspots align with objects; timer text fits at large font size; overlays work with software keyboard; ordinary photo/no-photo versions look intentional.
+
+### R27.6 Suggested integrated review journey
+
+Start a clean account, choose vegan plus an illustrative exclusion, select microwave/stove/blender, save a name-only meal, enrich another recipe, inspect map/reading consistency, generate a week draft, lock a favorite, add an Explore meal, allocate leftovers, review groceries, mark partial shopping offline, reconnect, confirm purchases, cook a session with a timer, record a batch and one consumed serving, inspect full-day nutrition with unknowns, change a recipe revision, and export/restore into a test workspace. Verify history, counts, quantities, and UI state throughout.
+
+Keep personal data separate from this fixture journey. The purpose is to exercise the whole product loop, not demonstrate invented health outcomes.
+
+## R28 — Implementation sequence and exit gates
+
+The agent should work in complete vertical slices. Existing implemented features may satisfy a milestone after verification; do not rebuild them solely because they appear later in this list.
+
+| Milestone | Work | Exit gate |
+| --- | --- | --- |
+| D0 — Inspect and map | Read repo instructions, inventory current behavior/data, map requirements, identify adapters/assets | Actual stack, migrations, test commands, and gaps documented. |
+| D1 — Visual foundation | Tokens, fonts, five-destination shell, responsive primitives, core component previews | Both themes, keyboard/navigation, representative widths work. |
+| D2 — Collection and recipe | Durable meals/drafts, editor, import review, reading/map/cooking basics | Create/save/reopen/edit and revision integrity; no-photo state polished. |
+| D3 — Today and Week | Hero treatments, slots, move/swap/locks, plan preview, full-day analysis surfaces | Persistent end-to-end planning with known/unknown semantics. |
+| D4 — Shopping and Kitchen | Review/Shop, stable derived lists, offline outbox, inventory, preferences, equipment capabilities | Manual/picked-up/purchase/intake boundaries verified. |
+| D5 — Explore and cooking depth | Curated recommendations/reasons, contextual planning, persistent timers, batches/leftovers | Discovery-to-cooking-to-intake flow correct. |
+| D6 — Production artwork | Curated scenes, ordinary-photo fallback, equipment layer kit, manifests and optimization | Reference quality on desktop/mobile; no paid generation dependency. |
+| D7 — Optional adapters | Bounded image generation, assisted import, personal-planner linkage where configured | Real integration evidence or explicit blocked state with working fallback. |
+| D8 — Migration, portability, release review | Populated-data migration, actual exports/PDFs, accessibility, performance, screenshot review | Required acceptance matrix passed or specifically approved scope deviations recorded. |
+
+Baseline R0/R1 release gates still apply. If the existing app lacks full-day nutrition, targets, supplement routines, prices, or batch accounting, include those gaps in D2–D5 work; do not declare redesign complete while silently removing their controls or replacing calculations with placeholders.
+
+Recommended first fidelity proof: implement Today with one approved scene, one ordinary photo, and one no-photo meal; verify light/evening and phone/desktop; then apply the validated shell/components to remaining screens. In parallel within the agent's normal workflow, validate durable data semantics before expanding complex planning. No explicit multi-agent orchestration is required by this specification.
+
+Do not stop after producing a generic scaffold or screenshots. Every visible production action must either work end-to-end or have an honest capability explanation. Build with demo fixtures only in an explicit environment. Keep regular application loading separate from showcase/demo mode.
+
+## R29 — Remaining decisions, defaults, and mockup interpretation
+
+### R29.1 Decisions that do not block work
+
+| Decision | Default for implementation |
+| --- | --- |
+| Final public name | Daily as replaceable label; retain existing internal slug. |
+| Theme startup | Follow device unless existing preference present. |
+| Presentation default | Immersive when approved asset exists, otherwise editorial/minimal. |
+| Generation spending | Off initially; opt-in Ask each time; bounded automatic later/configured. |
+| Initial scene families | Kitchen table and Overhead tabletop. |
+| Custom scene creation | Schema/admin import now; end-user scene studio later. |
+| Equipment interaction | Scene + tiles; deterministic slots; no free room decoration. |
+| Equipment art style | Match approved warm materials; prefer coherent layered kit over malformed photo composites. |
+| Week start and units | Locale-based editable preferences; demo uses explicit date/metric examples. |
+| Mobile navigation | Five labeled tabs on every normal screen. |
+| Cooking completion | Explicit Mark step done; Next only navigates. |
+| Optional AI recipe ideas | Separate labeled draft workflow, never required for Explore. |
+| Real personal profile | Collected in app; no guessed targets, stock, allergies, supplement doses. |
+| Shared calendar protocol | Discover actual personal-planner API; adapter + internal untimed fallback. |
+| Commercial pricing/tiers | Not selected. Do not invent paywalls or activate billing. |
+
+### R29.2 Design-reference inventory
+
+Use the supplied images by visible subject/caption rather than requiring these exact files to exist in the repo:
+
+| Reference set | Intended authority |
+| --- | --- |
+| Today Sunroom / Evening Kitchen / Editorial | Hero atmosphere and responsive composition. |
+| Week Light / Evening | Meal board, selected-day agenda, restrained food thumbnails. |
+| Meals Light / Evening | Collection grid/feed and recipe-card hierarchy. |
+| Groceries Light / Evening | Market-list styling, Review/Shop emphasis, desktop sidebar. |
+| Kitchen Light / Evening | Inventory grouping and contextual panels. |
+| Kitchen Equipment Light / Evening | Scene-plus-tiles interaction and warm materials. |
+| Explore — Meals that fit | Contextual discovery, relevance labels, plan action. |
+| Recipe — Ready to cook | Detail hierarchy and ingredient/method layout. |
+| Cooking — One step at a time | Focused step, timer prominence, reduced navigation. |
+
+Do not use the earliest rejected conventional cobalt prototype as the new visual target. Do not recreate presentation-board captions around the live app. Concept examples are not actual calendar dates, inventory records, active sessions, or dietary facts.
+
+### R29.3 Specific visual corrections to make
+
+Use one icon set throughout; Today should not alternate arbitrarily between a calendar, sun, and home icon. Week uses a calendar/weekly icon rather than a chart unless the repository design system provides an appropriate coherent alternative. Keep Kitchen consistently identifiable. Store favorites and bookmarks intentionally; use heart for personal favorite and save/bookmark for unsaved Explore entries, with accessible distinction.
+
+Use functional copy rather than incidental Good food, brighter days slogans. Keep buttons the same component across themes. Ensure mobile Equipment has category selectors even where a mockup omitted them. Standardize recipe and active session step counts. Show a Mark step done control absent from the cooking concept. Make the phone recipe photo shorter than the oversized concept if needed to expose the action sooner. Do not fabricate nutrition/cost badges for incomplete demo recipes.
+
+## R30 — Definition of done and required agent report
+
+The redesign is complete only when core page behavior, baseline retained capabilities, durable persistence, migration, responsive UI, asset fallbacks, and required verification are complete. Provider-conditional features must be genuinely verified when configured or clearly reported unavailable with working fallbacks. A screenshot does not prove persistence, arithmetic, eligibility, spending controls, or integrations.
+
+The final agent report should include:
+
+1. What changed and why, organized by user journey rather than a raw file list.
+2. Existing capabilities preserved and any explicit migration performed.
+3. Requirement/acceptance status with evidence and actual commands/results.
+4. Desktop/mobile screenshots for both themes and nonideal media states.
+5. Assets created/sourced, their provenance and optimization, and any remaining art gaps.
+6. Which adapters were tested against real services versus simulated fixtures.
+7. How to run, seed an isolated demo, configure optional providers, and verify the app.
+8. Known limitations and exact unresolved blockers, without claiming complete coverage where tests were not run.
+
+Maintain a short decision log in the repository's canonical copy of this file. Record date, requirement, decision, reason, affected behavior, and verification. The user should not need another conversation to know whether an unimplemented feature was deliberately deferred or accidentally omitted.
+
+### Redesign implementation status at handoff
+
+| Item | Status |
+| --- | --- |
+| Main visual direction and concept references | Discussed and positively reviewed by product owner. |
+| Page behavior and recommended engineering defaults | Specified here for implementation. |
+| Actual destination repository inspection | To be performed by implementation agent. |
+| Production scene/equipment assets | To be inventoried and prepared; UX screenshots are not an asset kit. |
+| Backend/adapter/test completeness | Unknown until repository inspection and verification. |
+| Acceptance suite execution | Not executed by the specification author. |
+
+## Appendix A — Retained product and domain foundation
+
+The full text below is the earlier Daily implementation specification, retrieved for this handoff. It is included to preserve detailed domain contracts, nutrition/cost/stock semantics, original fixtures, portability behavior, and baseline acceptance requirements. Its earlier styling, navigation, recipe-tab arrangement, and release deferrals are overridden wherever R01–R30 explicitly say so. Its statement that it is the single handoff now refers to this combined document as a whole. Its original reference list is historical sourcing, not a claim that provider APIs or prices were rechecked for this redesign.
+
+**Reading rule:** Apply the supersession table in R01 before implementing an old UI paragraph. Continue to enforce non-conflicting domain requirements. R28 is the current delivery sequence. Appendix B is the current agent starting instruction.
+
+---
 # Daily — complete product and implementation specification
 
 **Version:** 1.0 · **Prepared:** 2026-09-18  
@@ -1238,7 +2383,7 @@ If a label displays energy and protein but omits iodine, preserve iodine as unkn
 
 R2 link ingestion should handle direct recipe pages and readable text before attempting complex authenticated sites. Store the URL immediately even if fetching is unavailable. Show fetch/extraction status separately from whether the meal draft was saved.
 
-Fetch through a controlled server adapter. Restrict supported schemes; reject local/private/link-local destinations; validate resolved addresses and each redirect; bound response size, redirects, and time; isolate outbound credentials. Avoid arbitrary server-side requests to user-supplied targets. These controls address the class of issues described by the [OWASP SSRF Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html).
+Fetch through a controlled server adapter. Restrict supported schemes; reject local, private, and link-local destinations; validate resolved addresses and each redirect; bound response size, redirects, and time; isolate outbound credentials. Avoid arbitrary server-side requests to user-supplied targets. These controls address the class of issues described by the [OWASP SSRF Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html).
 
 Treat all fetched content and document text as untrusted data. A page that says “ignore previous instructions” has no authority over the application. Scripts, hidden instructions, embedded forms, and external links do not become domain actions. Render imported rich text with a safe allowed subset or plain text. Enforce attachment MIME/size limits and private access; do not execute document macros.
 
@@ -2143,3 +3288,63 @@ Keep source code and executable schemas authoritative for exact current transpor
 ### 25.3 DOC-03 — The instruction to begin
 
 > Build Daily according to this specification, using the target repository's established conventions. Read the full document, inspect the repository, select the R1 target through staged R0 milestones, and begin with the durable minimal-meal vertical slice. Preserve required dietary rules, explicit unknowns, immutable history, honest cost/nutrition scope, and low-friction UX. Use the embedded fixtures and acceptance criteria to verify behavior. Make routine reversible implementation choices using the recommended defaults; record material deviations and surface only genuine blockers. Do not require access to the original prototype or previous conversations to proceed.
+
+---
+
+## Appendix B — Copyable implementation-agent instruction
+
+> Implement the nutrition application's redesign using this complete specification and the accompanying UX mockups. Read sections R01–R30, the retained domain requirements and fixtures in Appendix A, and applicable repository instructions before changing architecture. Inspect the existing nutrition scenario and preserve its internal slug, data, authentication, and working capabilities. Use Daily as a configurable display name; personal-planner is a separate application to integrate through a verified adapter. Treat the mockups as visual references and the written conflict rules as authoritative for behavior. Deliver the five main pages, Explore, recipe reading/map/cooking, interactive equipment selection, responsive light/evening themes, honest media fallbacks, and the retained full-day planning/nutrition/stock/portability capabilities in complete persistent vertical slices. Build optional generation and calendar adapters with explicit budgets, revision checks, and useful unconfigured fallbacks; do not invent credentials, charges, APIs, or personal data. Follow the staged gates in R28 and verification cases in R27 plus the baseline acceptance criteria. Make routine reversible choices using the stated defaults and record material deviations. Continue until the authorized core work is complete; report genuine blockers precisely while completing independent work. Finish with actual test evidence, desktop/mobile screenshots, migration/run instructions, asset provenance, configured-versus-unverified integration status, and remaining limitations. Do not claim success from static mockups, hardcoded totals, no-op buttons, or fake provider responses.
+
+**Suggested first response from the implementation agent:** Briefly identify the repository/scenario found, the existing capabilities verified, the first vertical slice to implement, and any genuine blocking mismatch. Do not ask the user to repeat this conversation or supply the historical specification separately.
+
+---
+
+## Appendix C — Repository copy: locations, inventory, and decision log
+
+This appendix is maintained in the repository. It answers R02.3, R25.1, R29.2, R30, and DOC-01 for this scenario without restating the design above.
+
+### C.1 Identity and supersession
+
+| Item | Repository fact |
+| --- | --- |
+| Scenario slug | `nutrition-planner` (retained; never renamed). |
+| Display name | **Nooch** since 2026-09-22 (decision D-042), configurable. "Daily" throughout this specification and in the mockups is the earlier working name; read it as the configured display name. |
+| Separate application | `personal-planner` is the time-management scenario; integrate only through the verified adapter in R24. |
+| Earlier specification | Version 1.0 (2026-09-18) is embedded verbatim as Appendix A. The former duplicate copy at `docs/spec/daily-implementation-spec.md` was removed on 2026-09-22; nothing referenced it. |
+| Earlier execution plan | Plan Manager plan `implement-daily-nutrition-planner-to-production-ready-r0-r1` (id `63ef6942-e987-4659-9a1d-6ff98b1ab038`, execution `27e8a38e-18d9-47c4-9bd9-d5925c91c002`) predates this redesign. Its phases 0–3 are recorded done and phases 4–9 are open. It is **superseded by the redesign goal** and was archived in Plan Manager on 2026-09-22 (D-026); do not resume it, and do not use Plan Manager for this effort. Treat its recorded completions as unverified inputs to milestone D0, not as evidence. |
+
+### C.2 Concept mockups
+
+The supplied concept mockups are stored as immutable reference images in [`mockups/`](mockups/README.md). Each file maps to one R29.2 reference set:
+
+| R29.2 reference set | Files |
+| --- | --- |
+| Today Sunroom / Evening Kitchen / Editorial | `mockups/today-sunroom-light.png`, `mockups/today-evening-kitchen-dark.png`, `mockups/today-editorial-light.png` |
+| Week Light / Evening | `mockups/week-light.png`, `mockups/week-evening.png` |
+| Meals Light / Evening | `mockups/meals-light.png`, `mockups/meals-evening.png` |
+| Groceries Light / Evening | `mockups/groceries-light.png`, `mockups/groceries-evening.png` |
+| Kitchen Light / Evening | `mockups/kitchen-on-hand-light.png`, `mockups/kitchen-on-hand-evening.png` |
+| Kitchen Equipment Light | `mockups/kitchen-equipment-light.png` (no evening equipment concept was supplied; derive it from the Kitchen Evening palette) |
+| Explore — Meals that fit | `mockups/explore-light.png` |
+| Recipe — Ready to cook | `mockups/recipe-detail-light.png` |
+| Cooking — One step at a time | `mockups/cooking-evening.png` |
+
+The per-image reading guide — what each image is authoritative for, what to ignore, and which R29.3 corrections apply — is [`mockups/README.md`](mockups/README.md). The images are concept references, not production assets (R19.1).
+
+### C.3 Where the maintained records live
+
+| Record the specification asks for | Location in this repository |
+| --- | --- |
+| R02.3 implementation inventory (requirement, existing behavior, gap, files, migration, verification) | [`../internal/REDESIGN_PLAN.md`](../internal/REDESIGN_PLAN.md) §"Current state inventory". Seeded 2026-09-22 from a read-only audit; milestone D0 re-verifies it and keeps it current. |
+| R28 delivery sequence, surface-by-surface build notes, and the definition of done | [`../internal/REDESIGN_PLAN.md`](../internal/REDESIGN_PLAN.md) |
+| R30 decision log (date, requirement, decision, reason, affected behavior, verification) | [`../internal/DECISIONS.md`](../internal/DECISIONS.md), entries D-025 onward. Appendix A DOC-02 is historical. |
+| Convergence findings, pass history, and required agent report evidence | [`../internal/REDESIGN_LEDGER.md`](../internal/REDESIGN_LEDGER.md) |
+| Operator feedback received while work runs | [`../internal/OPERATOR_FEEDBACK.md`](../internal/OPERATOR_FEEDBACK.md) |
+| Goal message that drives the implementation | [`../internal/REDESIGN_GOAL.md`](../internal/REDESIGN_GOAL.md) |
+| Operational targets and requirement registry | [`../../PRD.md`](../../PRD.md) and [`../../requirements/`](../../requirements/README.md) |
+| Page and journey experience contract | [`../../experience/index.json`](../../experience/index.json) and [`../concepts/EXPERIENCE.md`](../concepts/EXPERIENCE.md) |
+| Binding design language (tokens, type, spacing, appearance) | [`../../DESIGN.md`](../../DESIGN.md) |
+
+### C.4 Maintenance rule
+
+Keep R01–R30 and Appendix A as received. Record a changed product decision in `DECISIONS.md` and, when it changes intended behavior, amend the affected section here with a dated note that names the decision ID. Source code and executable schemas stay authoritative for transport details (DOC-01); a divergence between code and this document is a defect to resolve, not a state to keep.

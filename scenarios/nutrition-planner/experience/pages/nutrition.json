@@ -4,46 +4,26 @@
   "schemaVersion": "1.0.0",
   "page": {
     "id": "nutrition",
-    "title": "Nutrition",
+    "title": "Nutrition (retired)",
     "routes": [
       "/nutrition"
     ],
-    "purpose": "Report configured targets against the chosen scope with known subtotals, named missing contributors, and explicit unknown or not-applicable outcomes rather than a universal green badge.",
+    "purpose": "Retired as a primary route by decision D-031. Nutrition analysis now lives in the Week Nutrition view, the Today overview, and the recipe Nutrition tab; targets and supplements live in Kitchen Preferences.",
     "prd_refs": [
-      "OT-P0-010",
-      "OT-P0-006",
-      "OT-P1-002",
-      "OT-P2-005"
+      "OT-P0-010"
     ]
   },
-  "priorities": [
-    {
-      "statement": "The selected scope (meal, planned day, recorded so far, expected day, or week) is stated before any figure."
-    },
-    {
-      "statement": "A lower-only target can pass on the known subtotal while its partial completeness stays visible; an upper limit cannot pass while unbounded unknowns remain."
-    },
-    {
-      "statement": "Every unknown names its missing contributors and a concrete next action."
-    },
-    {
-      "statement": "No single badge asserts that all nutrients are covered, and a dinner-only plan never claims full-day compliance."
-    },
-    {
-      "statement": "Supplements are fixed schedules the planner never adjusts; a coverage gap is shown, not dosed away."
-    }
-  ],
   "states": [
     {
       "id": "default",
-      "description": "The surface at rest with data present; the state a journey step assumes when it names none.",
+      "description": "The surface at rest with persisted data present; the state a journey step assumes when it names none.",
       "setup": {
         "route": "/nutrition"
       }
     },
     {
       "id": "loading",
-      "description": "First read of the page's data; layout is reserved so nothing shifts on arrival.",
+      "description": "First read of the page's data; stable skeletons reserve the layout so nothing shifts on arrival, and no sample food is shown as saved data.",
       "setup": {
         "route": "/nutrition",
         "query": {
@@ -53,7 +33,7 @@
     },
     {
       "id": "empty",
-      "description": "The read succeeded and there is genuinely nothing, which is distinct from not-yet-loaded.",
+      "description": "The read succeeded and there is genuinely nothing yet, which is distinct from not-yet-loaded; one specific next action is offered.",
       "setup": {
         "route": "/nutrition",
         "query": {
@@ -63,7 +43,7 @@
     },
     {
       "id": "partial",
-      "description": "Some contributing data could not be read; what is missing is named rather than shown as zero.",
+      "description": "Some contributing data is unknown or could not be read; what is missing is named rather than shown as zero.",
       "setup": {
         "route": "/nutrition",
         "query": {
@@ -73,7 +53,7 @@
     },
     {
       "id": "stale",
-      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "description": "Displayed data is older than its freshness window; its age is shown next to it.",
       "setup": {
         "route": "/nutrition",
         "query": {
@@ -83,7 +63,7 @@
     },
     {
       "id": "request-error",
-      "description": "The request failed; the reason and the next available action are stated.",
+      "description": "The request failed; the reason and the next action are stated, pending edits are kept, and nothing is edited against a fake empty account.",
       "setup": {
         "route": "/nutrition",
         "query": {
@@ -93,7 +73,7 @@
     },
     {
       "id": "validation-error",
-      "description": "Input was rejected before submission; the offending field is identified next to it.",
+      "description": "Input was rejected; the offending field is identified next to it and every other edit is preserved.",
       "setup": {
         "route": "/nutrition",
         "query": {
@@ -103,7 +83,7 @@
     },
     {
       "id": "saving",
-      "description": "A write is in flight; the affected control says why it is unavailable.",
+      "description": "A write is in flight; the affected control shows a busy state and says why it is unavailable, and success appears only after the durable save.",
       "setup": {
         "route": "/nutrition",
         "query": {
@@ -113,267 +93,13 @@
     },
     {
       "id": "offline",
-      "description": "The client cannot reach the API; read-only or queued behavior is explained.",
+      "description": "The client cannot reach the API; cached data, locally pending actions, and server-confirmed saves are distinguished and unsupported actions say why.",
       "setup": {
         "route": "/nutrition",
         "query": {
           "fixture": "offline"
         }
       }
-    },
-    {
-      "id": "unknown-coverage",
-      "description": "One or more contributions are unknown; the target is reported as unknown rather than pass or fail, with the missing contributors named.",
-      "setup": {
-        "route": "/nutrition",
-        "query": {
-          "fixture": "unknown-coverage"
-        }
-      }
-    },
-    {
-      "id": "recorded-scope",
-      "description": "The figures are scoped to what has actually been recorded rather than the planned or expected day.",
-      "setup": {
-        "route": "/nutrition",
-        "query": {
-          "fixture": "recorded-scope"
-        }
-      }
-    },
-    {
-      "id": "missing-contributors",
-      "description": "A target row names the specific contributors lacking a quantity or nutrient value.",
-      "setup": {
-        "route": "/nutrition",
-        "query": {
-          "fixture": "missing-contributors"
-        }
-      }
     }
-  ],
-  "elements": [
-    {
-      "id": "scope-toggle",
-      "role": "tab",
-      "description": "Selected meal, Planned day, Recorded so far, Expected day, and Selected week."
-    },
-    {
-      "id": "target-summary",
-      "role": "table",
-      "name": "Targets",
-      "description": "One row per configured target with amount or subtotal, bounds, period, and status."
-    },
-    {
-      "id": "coverage-status",
-      "role": "status",
-      "description": "Pass, fail, unknown, or not applicable, with material required misses sorted first."
-    },
-    {
-      "id": "known-subtotal",
-      "role": "status",
-      "description": "The known subtotal, labeled as at-least when unresolved nonnegative contributors remain."
-    },
-    {
-      "id": "target-bounds",
-      "role": "status",
-      "description": "The configured lower and upper bounds with the evaluation period."
-    },
-    {
-      "id": "completeness-note",
-      "role": "note",
-      "description": "Separates data completeness, target evaluation, and evidence quality."
-    },
-    {
-      "id": "missing-contributors-list",
-      "role": "list",
-      "description": "The exact contributors lacking a quantity or nutrient value."
-    },
-    {
-      "id": "suggested-fix",
-      "role": "note",
-      "description": "A concrete next action, such as adding a missing label value or leaving coverage unknown."
-    },
-    {
-      "id": "unknown-coverage-note",
-      "role": "alert",
-      "description": "States that an upper limit cannot pass while unbounded unknown contributions remain."
-    },
-    {
-      "id": "supplement-list",
-      "role": "list",
-      "description": "Fixed supplement schedules contributing to planned and expected views."
-    },
-    {
-      "id": "supplement-schedule",
-      "role": "status",
-      "description": "The user's selected days, local times, and dose, which the planner does not change."
-    },
-    {
-      "id": "contributor-details",
-      "role": "region",
-      "description": "Expandable per-contributor details behind the summary row."
-    },
-    {
-      "id": "evening-scope-note",
-      "role": "note",
-      "description": "States that a dinner-only plan cannot claim full-day compliance."
-    }
-  ],
-  "claims": [
-    {
-      "id": "known-subtotal-is-not-exact",
-      "type": "element-present",
-      "statement": "A known subtotal is labeled as at-least when unresolved nonnegative contributors remain and is never presented as the exact total.",
-      "tier": "aspirational",
-      "elements": [
-        "known-subtotal",
-        "completeness-note"
-      ]
-    },
-    {
-      "id": "missing-contributors-are-named",
-      "type": "element-present",
-      "statement": "An unknown evaluation names the missing contributors and a concrete next action.",
-      "tier": "aspirational",
-      "elements": [
-        "missing-contributors-list",
-        "suggested-fix"
-      ],
-      "states": [
-        "missing-contributors",
-        "unknown-coverage"
-      ]
-    },
-    {
-      "id": "unknown-upper-cannot-pass",
-      "type": "element-present",
-      "statement": "An upper bound is not reported as passing while unbounded unknown contributions remain; the limitation is stated.",
-      "tier": "aspirational",
-      "elements": [
-        "coverage-status",
-        "unknown-coverage-note"
-      ],
-      "states": [
-        "unknown-coverage"
-      ]
-    },
-    {
-      "id": "scope-separates-planned-and-recorded",
-      "type": "element-present",
-      "statement": "Planned, expected, and recorded scopes are separately selectable and an occurrence never contributes both planned and actual amounts.",
-      "tier": "aspirational",
-      "elements": [
-        "scope-toggle",
-        "target-summary"
-      ],
-      "states": [
-        "recorded-scope",
-        "default"
-      ]
-    },
-    {
-      "id": "dinner-only-is-not-full-day",
-      "type": "element-present",
-      "statement": "A dinner-only plan states that it cannot claim full-day compliance.",
-      "tier": "aspirational",
-      "elements": [
-        "evening-scope-note",
-        "coverage-status"
-      ]
-    },
-    {
-      "id": "supplements-stay-fixed",
-      "type": "element-present",
-      "statement": "Supplement schedules are shown as fixed user-defined intakes that the planner can flag as a gap but never adjusts.",
-      "tier": "aspirational",
-      "elements": [
-        "supplement-list",
-        "supplement-schedule"
-      ]
-    },
-    {
-      "id": "no-universal-coverage-badge",
-      "type": "custom",
-      "statement": "No aggregate badge asserts universal nutrient coverage; required unknowns remain visible above any reassuring summary.",
-      "tier": "aspirational",
-      "elements": [
-        "coverage-status",
-        "target-summary"
-      ]
-    },
-    {
-      "id": "material-misses-read-first",
-      "type": "reading-order",
-      "statement": "Unresolved or failed required targets read before satisfied and informational targets.",
-      "tier": "aspirational",
-      "elements": [
-        "coverage-status",
-        "missing-contributors-list",
-        "target-summary"
-      ]
-    },
-    {
-      "id": "contributors-are-expandable",
-      "type": "affordance-present",
-      "statement": "Each target row exposes its contributing sources and amounts on demand without forcing a full matrix before dinner.",
-      "tier": "aspirational",
-      "elements": [
-        "contributor-details",
-        "target-summary"
-      ]
-    },
-    {
-      "id": "nutrition-no-horizontal-overflow",
-      "type": "no-document-horizontal-overflow",
-      "statement": "The target summary never scrolls the whole document sideways; columns reflow or scroll within the region.",
-      "tier": "aspirational",
-      "elements": [
-        "target-summary"
-      ]
-    }
-  ],
-  "bindings": {
-    "elements": {
-      "scope-toggle": {
-        "testid": "nutrition-scope-toggle"
-      },
-      "target-summary": {
-        "testid": "nutrition-target-summary"
-      },
-      "coverage-status": {
-        "testid": "nutrition-coverage-status"
-      },
-      "known-subtotal": {
-        "testid": "nutrition-known-subtotal"
-      },
-      "target-bounds": {
-        "testid": "nutrition-target-bounds"
-      },
-      "completeness-note": {
-        "testid": "nutrition-completeness-note"
-      },
-      "missing-contributors-list": {
-        "testid": "nutrition-missing-contributors-list"
-      },
-      "suggested-fix": {
-        "testid": "nutrition-suggested-fix"
-      },
-      "unknown-coverage-note": {
-        "testid": "nutrition-unknown-coverage-note"
-      },
-      "supplement-list": {
-        "testid": "nutrition-supplement-list"
-      },
-      "supplement-schedule": {
-        "testid": "nutrition-supplement-schedule"
-      },
-      "contributor-details": {
-        "testid": "nutrition-contributor-details"
-      },
-      "evening-scope-note": {
-        "testid": "nutrition-evening-scope-note"
-      }
-    }
-  }
+  ]
 }

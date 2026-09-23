@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Parent registry linking operational targets to technical requirements",
-    "auto_sync_enabled": true,
+    "auto_sync_enabled": false,
     "schema_version": "1.0.0"
   },
   "imports": [
@@ -23,6 +23,16 @@
     "16-jobs-and-recurring/module.json",
     "17-feedback-and-preferences/module.json",
     "18-commercial-foundations/module.json",
-    "19-deferred-expansion/module.json"
+    "19-deferred-expansion/module.json",
+    "20-week-board-and-agenda/module.json",
+    "21-shell-and-appearance/module.json",
+    "22-meal-artwork-and-media/module.json",
+    "23-explore/module.json",
+    "24-cooking-sessions/module.json",
+    "25-kitchen-inventory-and-equipment/module.json",
+    "26-visual-fidelity/module.json",
+    "27-image-generation/module.json",
+    "28-calendar-integration/module.json",
+    "29-scene-studio/module.json"
   ]
 }

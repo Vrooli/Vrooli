@@ -1,31 +1,39 @@
 {
   "_metadata": {
+    "description": "The Today meal-first hero, seven-day strip, full-day overview, occurrence actions, and scoped swaps with preview, undo, and immutable history.",
     "module": "today-and-swap",
-    "description": "The Today recommendation, reason-chipped swaps scoped to future occurrences, preview, undo, and immutable history.",
     "prd_ref": "PRD.md",
     "priority": "P0",
-    "schema_version": "1.0.0"
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
   },
   "requirements": [
     {
       "id": "TODAY-001",
-      "title": "The next meal carries a calculation-backed reason",
+      "title": "Today leads with the next relevant meal and one dominant action",
       "status": "planned",
       "prd_ref": "OT-P0-008",
       "category": "ui",
       "criticality": "P0",
-      "description": "The Today dashboard shall show the next uncompleted scheduled meal with one concise calculation-backed reason and an honest unknown state for energy, protein, portion cost, and time, where a missing price is never shown as $0.00 and a known zero remains distinguishable.",
+      "description": "When a user opens Today, the scenario shall show a hero for the next relevant noncompleted occurrence by configured slots and local date, with a date and slot eyebrow, meal title, short description, active and total time, Start cooking as the dominant action, Swap meal, a quiet details menu, a seven-day strip below, and Ready for tonight links to Check ingredients and Open grocery list; another selected date shall be labeled explicitly rather than as Tonight, and an empty account shall see Choose a meal or Plan my week instead of demo food.",
       "tags": [
         "today",
-        "reasons",
-        "unknown"
+        "hero",
+        "actions",
+        "empty-state"
       ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
           "status": "planned",
-          "notes": "Planned: a missing price renders as unpriced, while a zero-cost assertion renders as a known zero; the hero reason cites the evaluated values rather than an invented claim (ACT-022)."
+          "notes": "Planned: the hero picks the next noncompleted occurrence per configured slots and labels a non-today selection by its date and slot, never Tonight (AT-006)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a fresh account shows Choose a meal or Plan my week and no demo bowl; a meal with only an ordinary photo or none keeps the same actions (AT-001, AT-004, AT-005, ACT-022)."
         }
       ]
     },
@@ -70,6 +78,12 @@
           "phase": "integration",
           "status": "planned",
           "notes": "Planned: applying a single-slot swap affects only that occurrence, recomputes derived plan state, and offers a compact confirmation when a required target, batch, or lock is affected (ACT-018)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: swapping one future meal changes only that occurrence and refreshes groceries and assessments; a swap that conflicts with a locked leftover dependency shows an impact preview or repair (AT-007, AT-008)."
         }
       ]
     },
@@ -92,6 +106,58 @@
           "phase": "unit",
           "status": "planned",
           "notes": "Planned: a consumed occurrence is not offered for replacement, and a conflicting newer edit produces a new preview instead of being overwritten (ACT-018)."
+        }
+      ]
+    },
+    {
+      "id": "TODAY-005",
+      "title": "The Today overview keeps full-day scope explicit",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Below the hero, the scenario shall show a collapsible Today overview listing every configured slot, recurring item, and supplement occurrence, with nutrition summaries labeled Planned, Recorded, or Expected, so a single meal's values never appear as the whole day's and missing targets never become default personalized numbers.",
+      "tags": [
+        "today",
+        "full-day",
+        "scope",
+        "supplements"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: Expected combines recorded intake with explicitly remaining planned quantities without double-counting a partially eaten occurrence (AT-013, ACT-041)."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a dinner-only plan reports the rest of the day as not covered rather than as a failed or passed daily target (FIX-04)."
+        }
+      ]
+    },
+    {
+      "id": "TODAY-006",
+      "title": "Occurrence actions match status and never delete history",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The Today occurrence shall offer Start cooking for a cookable revision, View meal or Log meal for a ready-to-eat item, and Edit for a draft missing instructions, plus View recipe, Move, Lock or unlock, Change servings, Skip, Remove from plan, and Record intake as status and permissions allow, where removing a future occurrence never deletes the recipe or erases intake history.",
+      "tags": [
+        "today",
+        "occurrence",
+        "actions",
+        "history"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a draft without steps opens an incomplete detail view with Edit instead of an empty cooking session, and Remove from plan leaves the recipe and recorded intake intact (R08.2, AT-017)."
         }
       ]
     }

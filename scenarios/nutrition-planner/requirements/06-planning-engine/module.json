@@ -1,10 +1,11 @@
 {
   "_metadata": {
-    "module": "planning-engine",
     "description": "Deterministic bounded planning and replanning: draft generation, target evaluation, and transactional apply.",
+    "module": "planning-engine",
     "prd_ref": "PRD.md",
     "priority": "P0",
-    "schema_version": "1.0.0"
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
   },
   "requirements": [
     {
@@ -102,7 +103,7 @@
       "prd_ref": "OT-P0-009",
       "category": "domain",
       "criticality": "P0",
-      "description": "The scenario shall produce a seven-consecutive-local-day plan with configurable slots, routine anchors, open or social slots, locks, and an explicit dinner versus full-day scope, and past uneaten slots shall remain unrecorded rather than automatically consumed.",
+      "description": "The scenario shall produce a plan of consecutive local days with configurable slots, routine anchors, open or social slots, locks, and an explicit single-meal versus full-day scope, persisted as dated occurrences with stable identities so Today and Week read the same saved plan, and past uneaten slots shall remain unrecorded rather than automatically consumed.",
       "tags": [
         "weekly-plan",
         "slots",
@@ -136,6 +137,34 @@
           "phase": "integration",
           "status": "planned",
           "notes": "Planned: replan preserves valid locks, reports unknown cost/nutrient/time contributions, and rejects an invalidated preview with an updated one (ACT-018, ACT-019)."
+        }
+      ]
+    },
+    {
+      "id": "PLAN-007",
+      "title": "The applied plan is persisted and readable",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "contract",
+      "criticality": "P0",
+      "description": "The scenario shall persist an applied plan as occurrence records with stable identities and revisions, validate occurrences server-side at apply rather than storing client-authored plan text, and expose a read operation so pages show the saved plan instead of generating a fresh draft on every visit.",
+      "tags": [
+        "planning",
+        "persistence",
+        "read-model"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: applying a one-day change does not overwrite other days' occurrences, and apply rejects an occurrence that references a recipe revision outside the workspace (blockers B4 and B5 in docs/internal/REDESIGN_PLAN.md §3.2)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: after Plan my week and apply, reloading Today and Week shows the saved occurrences without calling generation."
         }
       ]
     }

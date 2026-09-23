@@ -7,121 +7,171 @@ third-party services used by the scenario.
 
 Use this document to answer:
 
-- What does the scenario depend on?
+- What does the scenario depend on, at runtime and during development?
 - Which dependencies are required versus optional?
-- Which domain uses each dependency?
-- What is the failure or degradation behavior?
+- Which domain uses each dependency, and through which contract?
+- What degrades when a dependency is absent, and how is that reported?
 - Where is the dependency declared or configured?
 
-The short list below is a design outcome, not an early-stage accident. Nutrition Planner
-computes nutrition, eligibility, cost, and planning deterministically on local data. Manual
-entry and deterministic planning are sufficient to deliver every P0 workflow, so no required
-P0 dependency is served by an external system.
+The core loop — setup, capture, eligibility, planning, groceries, inventory, cooking, intake,
+portability — runs on local data with bundled curated artwork. Every external integration is
+optional at runtime, sits behind an adapter, and degrades to a working fallback. **Today no
+adapter below is wired into a production path** (2026-09-22 audit); the USDA and URL-fetch
+providers exist only as test-reached libraries.
+
+**Capability-state rule (R21.3).** The API reports what each adapter can actually do right
+now — configured, unconfigured, unavailable, or access revoked — through its capability and
+diagnostics endpoints. The UI reads that state and shows an honest disabled explanation or
+omits the action; an unconfigured adapter never produces a dead button, a fake success, or a
+hardcoded provider response presented as real.
 
 ## Dependency Inventory
 
-| Dependency | Type | Required? | Used By | Contract | Failure Behavior |
+| Dependency | Type | Required? | Used By | Contract | When Absent |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes (P0) | Every persistence-backed domain | Resolved in-process by `api-core/storage` from the scenario id; schemas applied by `api-core/database` | API reports unhealthy if the database is unreachable. |
-| Vrooli lifecycle | local platform | yes (P0) | API, UI, CLI | `.vrooli/service.json`, Makefile targets, `vrooli scenario start` | The scenario must be started through lifecycle commands; a direct binary start bypasses ports and health checks. |
-| `ai-gateway` | Vrooli resource | no (P1) | provider-and-job-adapters | Optional model-inference adapter behind a provider interface | No model configured is a supported state. Capture, editing, planning, and export continue to work manually; extraction is unavailable, not failed. |
-| `notification-hub` | Vrooli resource | no (P1) | provider-and-job-adapters | Optional delivery channel for opt-in scheduled notifications | Notifications are simply not delivered; the in-app badge remains. Scheduling never depends on delivery. |
-| `document-manager` | Vrooli resource | no (P1) | transfer-and-documents | Optional custody for source attachments and exported bundles | Attachments fall back to local blob storage; no core workflow is blocked. |
+| SQLite | embedded storage | yes | every persistence-backed domain | `api-core/database`, per-domain schemas and migrations | API reports unhealthy; UI shows a load error, never a fake empty workspace. |
+| Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile, `vrooli scenario start` | Direct binary starts bypass ports and health checks; unsupported. |
+| Platform authentication profile | platform | yes | application-services, workspace | `authentication` block in `.vrooli/service.json` (hybrid, `personal_local` default) — D-032 | Every workspace RPC returns 401 — the state today (B1). |
+| `image-tools` | scenario | development: yes (curated artwork); runtime: no (P1) | media-and-scenes, generation | CLI and Connect services (`ai`, `ops`, `jobs`) | Bundled approved assets, editorial photos, and the minimal treatment keep every surface usable; generation shows a disabled capability state. |
+| `ai-gateway` | scenario (behind image-tools; direct for assisted import) | no (P1) | generation (via image-tools), provider-and-job-adapters | Policy roles routed to `resource-openrouter` / `resource-ollama` | Generation and extraction unavailable, not failed; manual paths continue. |
+| `personal-planner` | scenario | no (P1) | calendar-link | Verified adapter over its Connect API | Prep and cooking tasks stay untimed inside nutrition-planner. |
+| `notification-hub` | scenario | no (P1) | provider-and-job-adapters, cooking-sessions | Opt-in delivery | In-app badge and in-app timer alerts only. |
+| `document-manager` | scenario | no (P1) | transfer-and-documents | Optional attachment custody | Local blob storage. |
+| `@vrooli/react-component-library` | shared package | yes (UI build) | ui | Linked package imports; contribution through its draft workflow | n/a — build dependency. |
+| USDA FoodData Central | third-party API | no (P1/R2) | food-and-product-catalog | Search/detail adapter | Manual nutrient entry; unknown stays unknown. |
 
 ## Vrooli Resources
 
 | Resource | Status | Reason | Revisit Trigger |
 |---|---|---|---|
-| None required | not-applicable (P0–R2) | The application is one private workspace running against in-process SQLite. No P0 target requires a shared resource, and SQLite's single-writer model matches a personal, mostly append-only dataset. | A second concurrent writer appears, the dataset outgrows local storage, or a commercial multi-tenant deployment is selected. |
-| `ai-gateway` | optional (P1) | Model inference for the capture → extract → validate → compare → review → apply pipeline. The planner itself never requires a model. | OT-P1-001 is implemented and the user configures a provider. |
-| `notification-hub` | optional (P1) | Opt-in delivery for scheduled draft and quiet preparation notifications. | OT-P1-005 is implemented and the user enables an external channel. |
-| `document-manager` | optional (P1) | Delegated custody for attachment bytes if local blob storage is insufficient for backups or sharing. | A complete backup must carry attachments the local BlobStore cannot durably hold. |
+| None required at runtime | not-applicable | One private workspace on in-process SQLite with bundled artwork. | A second concurrent writer, outgrowing local storage, or a multi-tenant deployment. |
+| `resource-openrouter`, `resource-ollama` | indirect, optional | Model execution for image generation and assisted import. nutrition-planner never calls them; ai-gateway routes to them, and image-tools calls ai-gateway. | Only if routing ownership changes. |
 
-A configured model provider is optional at P1 and routes through `ai-gateway` and the
-platform's secret store. A secret store is required before any credentialed external
-adapter, and provider credentials never live in scenario config, the SQLite database, or an
-export.
+Provider credentials live in the platform secret store and are resolved by the owning scenario;
+they never appear in nutrition-planner config, its database, exports, logs, or client bundles
+(R25.3).
 
 ## Scenario Dependencies
 
-| Scenario | Status | Reason | Contract |
-|---|---|---|---|
-| None required | not-applicable (P0) | Every P0 workflow — setup, capture, eligibility, planning, groceries, inventory, intake, portability — runs locally. | — |
-| `ai-gateway` | optional (P1) | Model inference for assisted capture, explanation, and research proposals. | Typed proposal contract; model output is never a domain write. |
-| `notification-hub` | optional (P1) | Delivery of opt-in notifications in the profile's IANA timezone. | Deduplicated schedule events by workspace, recurrence, and intended local period. |
-| `document-manager` | optional (P1) | Attachment custody. | Opaque bytes behind a BlobStore seam; metadata stays with the owning domain. |
+### image-tools (with ai-gateway behind it)
 
-No scenario dependency is load-bearing. If every optional scenario is unreachable, the
-product remains fully usable through manual entry and deterministic planning.
+- **Two uses.** (1) **Development-time asset production** of the curated kit —
+  scene templates, composed Today scenes, editorial recipe photos, the equipment layer kit,
+  ingredient icons — authorized by the operator on 2026-09-22 (D-029; plan in
+  [`../internal/REDESIGN_PLAN.md` §7](../internal/REDESIGN_PLAN.md#7-production-artwork)).
+  (2) **In-app opt-in generation** (OT-P1-007) through a nutrition-planner generation adapter.
+- **Commands** for production work: `image-tools ai generate` (text to image), `ai edit`
+  (identity-preserving: place a recipe photo into a scene template, relight day to evening),
+  `ai inpaint` and `ai object-removal` (empty counters, cabinet infill), `ai bg-removal`
+  (cutouts, ingredient icons), `ai upscale`; `image-tools ops resize|crop|convert|compress`
+  (renditions, WebP/AVIF); `image-tools jobs get|wait|list|cancel|download` (durable async
+  jobs — block once with `jobs wait`, never poll). Confirm flags with `image-tools ai <op>
+  --help`.
+- **Runtime contract.** The adapter calls image-tools' Connect services (proto under
+  `packages/proto/schemas/image-tools/v1/`, including `ai` and `jobs`) and maps their job
+  states onto nutrition-planner's GenerationJob; quotes, atomic budget reservation, dedup
+  keys, review, and activation stay in nutrition-planner (R18). The adapter never calls a
+  model provider directly and never holds provider credentials.
+- **Rules.** Generation policy defaults Off; no spend from views, theme changes, search, hover,
+  or resize; only task-relevant data is sent (a reviewed visual summary and references, never
+  targets or supplement schedules); a style reference is cropped to the photograph region so
+  the model does not copy UI; every result carries provenance and reported cost into the asset
+  manifest and passes review before activation.
+- **Absent or unconfigured.** Curated bundled assets and the editorial/minimal treatments cover
+  every surface; Settings › Generation & usage shows the capability as unavailable; AT-043.
+
+### ai-gateway (direct)
+
+Optional model routing for the assisted-import pipeline (capture → extract → validate →
+compare → review → apply, AI-02) and explanations. Proposals are data, never domain writes;
+model output never authorizes a rule, price, target, stock change, or recipe edit (D-004).
+Absent: paste-text and structured-file imports still work without a model (R10.3).
+
+### personal-planner
+
+- **Boundary.** nutrition-planner owns meals, recipes, servings, requirements, and prep and
+  cooking tasks; personal-planner owns calendar timing and semantics (R24.2; see
+  [`DOMAINS.md`](DOMAINS.md#ownership-boundary-with-personal-planner)).
+- **Adapter capabilities** (R24.3): create, read, update, and cancel an event; observe changes
+  (subscribe or poll); deep-link to the event; optional actual-time feedback. personal-planner
+  exposes calendar and work services under `packages/proto/schemas/personal-planner/v1/`
+  (for example `calendar/` with allocation preview/apply RPCs); the exact endpoints are
+  **discovered and verified locally before use** — nothing here asserts their semantics.
+- **Identity.** One stable idempotent external key per source task and purpose; after a timeout
+  reconcile by key or stored operation before creating another event (AT-045). Link records
+  hold source task and revision, external event id and revision, sync state, and operation id.
+- **Absent, unconfigured, or revoked.** Prep tasks stay untimed and fully usable; Settings ›
+  Integrations shows the state and a reconnect action; nutrition-planner never builds a
+  competing calendar.
+
+### notification-hub
+
+Opt-in reminders (timer expiry where the platform supports it, scheduled drafts, prep). No
+messages are sent during development without authorization (R24.4). Absent: in-app badges and
+in-app timer alerts; the timer settings state when background alerts are not reliable (R22).
+
+### document-manager
+
+Optional custody for attachment bytes and full media backups. Absent: local blob storage behind
+the seam in [`../internal/SEAMS.md`](../internal/SEAMS.md).
+
+### react-component-library
+
+The UI builds on `@vrooli/react-component-library` primitives (the shell is `AppShell/2` today)
+when they fit the Nooch design language. A missing reusable primitive is contributed through
+the library's draft workflow (`react-component-library components draft-begin <asset>`), never
+by editing a release directory; nutrition-specific components stay in this scenario. Gaps are
+recorded in [`../reference/component-library-gaps.md`](../reference/component-library-gaps.md).
 
 ## Third-Party Services
 
-No third-party service is required at any release through R2. The entries below are
-**interfaces, not promised vendors**: an adapter is implemented only after its access,
-terms, coverage, and maintenance cost are evaluated.
+No third-party service is required at any release. Entries are **interfaces, not promised
+vendors**; an adapter is built only after its access, terms, coverage, and maintenance cost are
+evaluated.
 
-| Service | Status | Reason | Contract |
-|---|---|---|---|
-| USDA FoodData Central | optional (P1/R2) | A reasonable first nutrition-data provider; its data documentation distinguishes analytically based and branded-label data types. | Search/detail adapter returning pinned local source revisions, source identity, version, observed date, nutrient mapping, caching, and error classification. Credentials stay server-side; limits are respected. |
-| Price sources (retailer APIs, store sites) | optional (P2) | Returns structured observations, never one universal price per ingredient. | Price adapter preserving package, amount/unit, retailer, conditions, currency, date, and source. A store with no integration still supports manual package prices. |
-| Receipt / order-history sources | optional (P2) | Reduces manual capture for opt-in users only. | Opt-in, source-specific scope; stages purchase proposals, matches packages/units, and dedupes by source transaction identity plus normalized line content. Never turns old receipts into current stock. |
-| Recipe URLs and readable pages | optional (P2) | Assists capture from user-supplied links. | Controlled server-side fetch (see below). The URL is stored even when fetching is unavailable. |
-| Amazon, Costco, Walmart, Target, delivery services | potential only | Named retailers are potential sources, not promised supported integrations. | No adapter promises coverage. No integration in R0–R2 performs checkout or places an order. |
+| Service | Status | Contract |
+|---|---|---|
+| USDA FoodData Central | optional (P1/R2) | Search/detail adapter returning pinned local source revisions with source identity, data type, version, observed date, nutrient mapping, caching, and error classification; credentials server-side. A library exists (`api/internal/providers/usda.go`) but no production path calls it. |
+| Price sources | optional (P2) | Structured observations with package, retailer, conditions, currency, date, source. Manual package prices always work. |
+| Receipt / order sources | optional (P2) | Opt-in, source-specific scope; staged proposals deduplicated by source transaction identity plus normalized line; old receipts never imply current stock. |
+| Recipe URLs | optional (P1) | Controlled server-side fetch (below); the URL is stored even when fetching is unavailable. A library exists (`api/internal/providers/urlfetch.go`). |
+| Named retailers | potential only | No checkout or ordering in any release. |
 
 ### Controlled URL And Attachment Ingestion
 
-Any user-supplied URL fetch goes through a controlled server adapter. It restricts supported
-schemes, rejects local/private/link-local destinations, validates resolved addresses and
-every redirect, bounds response size/redirects/time, and isolates outbound credentials. This
-addresses the class of issues described by the [OWASP SSRF Prevention Cheat
-Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html).
-
-Fetched content and document text are untrusted data. A page that says "ignore previous
-instructions" has no authority; scripts, hidden instructions, embedded forms, and external
-links never become domain actions. Imported rich text renders through a safe allowed subset
-or plain text. Attachments enforce MIME and size limits and never execute macros. Source
-attribution and content-use metadata are retained; arbitrary-site scraping and unrestricted
-redistribution are not promised.
+User-supplied URLs are fetched through a controlled server adapter: restricted schemes; no
+local, private, or link-local destinations; resolved addresses and every redirect validated;
+bounded size, redirects, and time; isolated outbound credentials (OWASP SSRF guidance, R25.3).
+Uploads are validated by content-sniffed MIME, decoded dimensions, byte and decompression
+limits, and allowed formats; imported rich text and SVG render through a safe subset. Fetched
+content and imported text are untrusted data: "ignore previous instructions" has no authority,
+and nothing in an imported page becomes a domain action.
 
 ## Failure Modes
 
 | Dependency | Failure Signal | Expected Behavior | Tests |
 |---|---|---|---|
-| SQLite | database unreachable or `PingContext` error | `/health` reports an unhealthy dependency status; the UI shows a load error rather than a fake empty workspace. | health handler tests; boot/health E2E |
-| Model provider (`ai-gateway`) | unavailable, over budget, or returns malformed output | The extraction or research job fails or waits; manual editing, planning, groceries, and export continue. A malformed field is rejected without losing the original source. A model proposal never authors a rule, price, target, or stock change. | provider-adapter tests with recorded responses; job budget tests; "providers disabled" suite |
-| `notification-hub` | unavailable or delivery rejected | The scheduled run still produces its reviewable draft; the notification is dropped, not retried into duplicate reminders. | scheduling tests with a faked notification seam |
-| `document-manager` | unavailable | Attachment fetches fail with a named reason; local blob fallback remains available where configured. | transfer tests with a faked attachment seam |
-| Nutrition provider (e.g. FoodData Central) | HTTP error, auth failure, timeout, or ambiguous match | The lookup reports unavailable and queues the unresolved item for manual resolution. Unknown mappings are never silently assigned to a vaguely similar food; a missing nutrient stays unknown. | provider contract tests against recorded permitted responses; manual fallback tests |
-| Price / receipt source | unavailable or malformed | A missing price remains unpriced; ranking may use a documented internal fallback that is never displayed as an observed price. Duplicate receipts cannot double-apply. | cost tests with faked unavailable sources; receipt dedup tests |
-| Controlled URL fetch | blocked destination, oversized response, or fetch failure | The URL is preserved, fetch status is shown separately from whether the draft saved, and the user can enter the recipe manually. | SSRF and attachment-limit tests |
+| SQLite | unreachable or ping error | `/health` unhealthy; UI load error, never a fake empty account. | health handler tests; boot E2E |
+| Authentication profile | missing principal | Today: every RPC 401 (B1). Intended: `personal_local` resolves the local principal; foreign-workspace access stays denied (AT-044). | handler auth tests; cross-workspace tests |
+| image-tools / ai-gateway | unavailable, over budget, malformed or incompatible output, canceled after dispatch | No activation; reservation settled or held pending honestly; ordinary photo and minimal treatment remain; capability state shown. | adapter tests with recorded responses labelled simulated; AT-040–AT-043 with real configuration when available |
+| personal-planner | timeout after remote commit, cross-date move, deletion, revoked access | Reconcile by stable key; review implications; unschedule only; reconnect state; untimed tasks keep working. | adapter tests; AT-045–AT-046 against a configured instance or a recorded blocked state |
+| notification-hub | unavailable or rejected | Draft or timer state still persists; no duplicate reminders; in-app alert remains. | faked notification seam |
+| document-manager | unavailable | Named failure; local blob fallback. | faked attachment seam |
+| USDA FoodData Central | HTTP, auth, timeout, ambiguous match | Report unavailable; queue for manual resolution; never assign a vaguely similar food. | recorded contract tests; manual fallback tests |
+| Price / receipt source | unavailable or malformed | Missing price stays unpriced; duplicate receipts cannot double-apply. | cost and receipt dedup tests |
+| Controlled URL fetch | blocked destination, oversize, failure | URL preserved; fetch status separate from draft save; manual entry offered. | SSRF and limit tests (AT-049) |
 
-### Why There Are No P0 External Dependencies
-
-The product's core promise is a deterministic, explainable plan built from the user's own
-data. That data — diet rules, kitchen capabilities, recipes, prices, and stock — can be
-entered manually in small increments, and the calculation must work offline from any
-provider. Making a provider required would violate three specified properties at once:
-
-1. **Determinism and reproducibility.** The planning engine must produce the same draft
-   from the same inputs, seed, and algorithm version. A live external call is neither
-   deterministic nor reproducible (specification §14.1, ACT-045).
-2. **Honest unknowns.** A missing provider value must stay unknown, not become a fabricated
-   fallback. Requiring a provider invites treating absence as data (DOM-07 #1).
-3. **Low maintenance and no invented facts.** The user will not maintain integrations or
-   research every food. Manual entry plus starter content is sufficient, and provider
-   adapters are an enhancement, never a gate.
-
-Consequently every external integration is optional, sits behind an interface, and degrades
-to manual fallback. Third-party packages themselves flow only through Scenario Dependency
-Analyzer per the repository dependency rule; this document records intent, not an
-installation.
+Integration tests against simulated adapters are labelled as such; AT-040–AT-043 and
+AT-045–AT-046 are not reported passed from hardcoded provider responses (R27.4).
 
 ## Cross-References
 
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) — system boundaries
-- [`DOMAINS.md`](DOMAINS.md) — which domain uses each dependency
-- [`DATA.md`](DATA.md) — storage ownership and privacy
-- [`FLOWS.md`](FLOWS.md) — job and import lifecycles
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — module boundaries and the local authentication profile
+- [`DOMAINS.md`](DOMAINS.md) — which domain owns each adapter
+- [`DATA.md`](DATA.md) — asset manifest, privacy, and export of media metadata
+- [`FLOWS.md`](FLOWS.md) — generation job and calendar link state machines
 - [`../reference/configuration.md`](../reference/configuration.md) — environment and service manifest
-- [`../reference/product-specification.md`](../reference/product-specification.md) — §16, §19
-- [`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md) — deployment readiness
+- [`../internal/SEAMS.md`](../internal/SEAMS.md) — adapter seams
+- [`../internal/REDESIGN_PLAN.md`](../internal/REDESIGN_PLAN.md) — artwork production plan (§7)
+- [`../internal/DECISIONS.md`](../internal/DECISIONS.md) — D-029 (artwork authorization), D-032 (authentication profile)
+- [`../reference/product-specification.md`](../reference/product-specification.md) — R18, R19, R21.3, R24, R25.3, Appendix A §16

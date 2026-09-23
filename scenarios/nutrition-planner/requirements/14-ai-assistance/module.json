@@ -1,10 +1,11 @@
 {
   "_metadata": {
-    "module": "ai-assistance",
     "description": "Optional AI capture-to-review pipeline, proposals that are never truth, and safe URL and attachment ingestion.",
+    "module": "ai-assistance",
     "prd_ref": "PRD.md",
     "priority": "P1",
-    "schema_version": "1.0.0"
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
   },
   "requirements": [
     {

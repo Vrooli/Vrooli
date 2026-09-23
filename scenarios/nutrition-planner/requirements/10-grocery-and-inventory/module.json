@@ -1,10 +1,11 @@
 {
   "_metadata": {
+    "description": "Stable derived shopping lists with Review and Shop modes, honest package and unknown states, Have this assertions, purchase confirmation, plan-change diffs, and an event-based stock ledger with batches.",
     "module": "grocery-and-inventory",
-    "description": "Derived shopping list, honest package and unknown states, event-based stock, purchases, batches, and consumption.",
     "prd_ref": "PRD.md",
     "priority": "P0",
-    "schema_version": "1.0.0"
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
   },
   "requirements": [
     {
@@ -14,7 +15,7 @@
       "prd_ref": "OT-P0-011",
       "category": "domain",
       "criticality": "P0",
-      "description": "The scenario shall derive the shopping list from an explicitly selected plan or range and the current inventory policy, showing total planned need, stock considered, missing amount, selected package plan, and estimated checkout while displaying unknown amount, unit conversion, package size, or price separately.",
+      "description": "The scenario shall derive the shopping list from an explicitly identified plan or date range and the current inventory policy, keep each row's identity stable across recalculation through canonical requirement grouping, group rows by store section or custom aisle order with search, and show total need, usable stock considered, missing amount, package plan, and price coverage while keeping product and preparation distinctions such as canned versus fresh or dry versus cooked.",
       "tags": [
         "groceries",
         "derivation",
@@ -97,12 +98,12 @@
     },
     {
       "id": "GROC-005",
-      "title": "Checkout, purchase, and consumption are distinct",
+      "title": "Picked up, Have this, purchased, and consumed are distinct",
       "status": "planned",
       "prd_ref": "OT-P0-011",
       "category": "policy",
       "criticality": "P0",
-      "description": "Checking a shopping line shall update only checklist state; an explicit purchase action shall preview quantities and prices and create idempotent purchase and stock events exactly once, and receipt parsing shall stage review proposals without silently creating consumption.",
+      "description": "Checking a shopping row shall mean only picked up; Have this shall create or update a stock assertion with an exact or qualitative basis without checking the row; Confirm purchases shall preview actual amounts and optional prices and create purchase and inventory events atomically and exactly once with partial fulfillment keeping the remaining need visible; and no shopping action shall record intake.",
       "tags": [
         "checkout",
         "purchase",
@@ -111,9 +112,89 @@
       "validation": [
         {
           "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: checking a row creates no payment, stock, or intake event (AT-031); Have some rice subtracts no invented grams (AT-036)."
+        },
+        {
+          "type": "test",
           "phase": "integration",
           "status": "planned",
-          "notes": "Planned: checking a line does not alter purchased inventory or recorded spend; confirming and retrying a purchase applies once (ACT-025, ACT-050)."
+          "notes": "Planned: confirming a partial purchase twice through a retry applies the actual quantity once and leaves the remainder visible (AT-032, ACT-025)."
+        }
+      ]
+    },
+    {
+      "id": "GROC-006",
+      "title": "Review and Shop modes exist on every device",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The Groceries destination shall offer Review and Shop modes on both desktop and phone and remember the user's choice, where Review emphasizes pantry checks, overrides, substitutions, contributing meals, and uncertain quantities, and Shop emphasizes large checkboxes and quantities with checked rows moving into Picked up with immediate Undo and no focus loss.",
+      "tags": [
+        "groceries",
+        "modes",
+        "undo",
+        "accessibility"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: checking a row in Shop moves it to Picked up, Undo restores it, and keyboard focus stays on the next row (R14.1)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: the chosen mode persists across reload on both a desktop and a phone viewport (R14.1)."
+        }
+      ]
+    },
+    {
+      "id": "GROC-007",
+      "title": "Plan changes produce a reviewable shopping diff",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
+      "category": "service",
+      "criticality": "P0",
+      "description": "While a list is being shopped, a plan change shall produce a reviewable diff of Added, Changed, and No longer needed rows that preserves manual items, quantity overrides, and checked or purchased quantities, marks only the additional amount of an increased requirement for review, and applies with revision checks.",
+      "tags": [
+        "groceries",
+        "diff",
+        "replan",
+        "preservation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: removing Tuesday curry keeps a manual item and the tofu purchase; adding 150 g more rice keeps the fulfilled amount and flags the new shortage (AT-033, AT-034, R14.3)."
+        }
+      ]
+    },
+    {
+      "id": "GROC-008",
+      "title": "Substitutions are previewed and keep exclusions",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "When a user substitutes an ingredient, product, or method from a shopping row, the scenario shall preview the affected recipes, quantities, nutrition, rules, and costs, never let a cheaper alternative bypass an exclusion, and create future-use revisions or overrides instead of silently rewriting immutable recipes.",
+      "tags": [
+        "groceries",
+        "substitution",
+        "rules"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a cheaper substitute containing an excluded ingredient is not offered as compliant, and applying a substitution leaves the source recipe revision unchanged (R14.4)."
         }
       ]
     }

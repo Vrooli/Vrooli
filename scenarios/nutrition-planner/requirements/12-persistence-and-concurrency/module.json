@@ -1,10 +1,11 @@
 {
   "_metadata": {
+    "description": "Honest save states, idempotent revision-checked mutations, atomic effects, versioned migrations, a bounded offline outbox, and conflict-safe retries.",
     "module": "persistence-and-concurrency",
-    "description": "Honest save states, idempotent mutations, expected-revision checks, atomic effects, and conflict-safe retries.",
     "prd_ref": "PRD.md",
     "priority": "P0",
-    "schema_version": "1.0.0"
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
   },
   "requirements": [
     {
@@ -58,7 +59,7 @@
       "prd_ref": "OT-P0-014",
       "category": "storage",
       "criticality": "P0",
-      "description": "The scenario shall give all-or-nothing domain effects to profile activation, plan application, import and restore application, purchase plus stock update, preparation plus batch creation, and intake correction plus batch adjustment, using a durable outbox rather than claiming unrelated writes are atomic.",
+      "description": "The scenario shall give all-or-nothing domain effects to profile activation, plan application, catalog save plus plan, import and restore application, purchase plus stock update, preparation plus batch creation, intake correction plus batch adjustment, recipe create and update, and budget reservation, using database transactions and a durable outbox for external side effects rather than claiming unrelated writes are atomic.",
       "tags": [
         "transactions",
         "atomicity",
@@ -92,6 +93,57 @@
           "phase": "integration",
           "status": "planned",
           "notes": "Planned: a stale second tab receives a conflict with the saved revision and local draft, and a lost save response followed by retry creates no duplicate (ACT-035)."
+        }
+      ]
+    },
+    {
+      "id": "SYS-005",
+      "title": "Versioned migrations preserve existing records",
+      "status": "planned",
+      "prd_ref": "OT-P0-014",
+      "category": "storage",
+      "criticality": "P0",
+      "description": "The scenario shall apply versioned, per-domain schema migrations that record the applied version, add new fields with conservative defaults, retain recipe identities, revisions, plans, intake, grocery state, preferences, and source provenance, remove obsolete template tables deliberately, and never reset an existing workspace to seed or demo data.",
+      "tags": [
+        "migrations",
+        "storage",
+        "preservation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: upgrading a populated prior database preserves ids, history, plans, and unknown values and reports the applied schema version (AT-051, ACT-054, blocker B13)."
+        }
+      ]
+    },
+    {
+      "id": "SYS-006",
+      "title": "A bounded offline outbox replays without double-applying",
+      "status": "planned",
+      "prd_ref": "OT-P0-014",
+      "category": "resilience",
+      "criticality": "P0",
+      "description": "While offline, the scenario shall let a previously loaded shopping list be viewed, checked, unchecked, and extended with manual items, and a loaded recipe or cooking session be read with timers controlled locally, queue those actions in a bounded outbox of desired-state operations with operation ids and base revisions, replay them idempotently on reconnect, surface conflicts without losing edits, and partition or clear private cached data by account on sign-out.",
+      "tags": [
+        "offline",
+        "outbox",
+        "sync",
+        "privacy"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: checking rows offline and reconnecting after a server change reconciles pending state with a visible conflict and no lost edit, and the same checkbox set true on two devices applies once (AT-035, R22)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: after sign-out, another user entering offline sees none of the previous user's cached data (AT-050)."
         }
       ]
     }

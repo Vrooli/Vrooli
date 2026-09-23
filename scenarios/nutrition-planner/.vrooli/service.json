@@ -4,8 +4,8 @@
   "service": {
     "parent": "vrooli",
     "name": "nutrition-planner",
-    "displayName": "Nutrition Planner",
-    "description": "Plan meals, recipes, and nutrition from food on hand — track calories and macros toward dietary goals and generate grocery lists.",
+    "displayName": "Nooch",
+    "description": "Nooch — plan what to eat, shop, and cook around your diet, kitchen, effort, budget, and nutrition goals, with honest unknowns and grocery lists.",
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",
@@ -62,7 +62,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "React UI",
-      "range": "20000-24999"
+      "port": 20002
     }
   },
   "components": {
@@ -136,7 +136,10 @@
         "subpath": "nutrition-planner.db",
         "format": "sqlite",
         "regenerable": false,
-        "budget": {"max_bytes": "2GiB", "rationale": "Durable workspace, recipe, profile, plan, catalog, feedback, and shopping state."},
+        "budget": {
+          "max_bytes": "2GiB",
+          "rationale": "Durable workspace, recipe, profile, plan, catalog, feedback, and shopping state."
+        },
         "rationale": "Primary scenario SQLite database."
       },
       "nutrition-planner-db-wal": {
@@ -146,7 +149,10 @@
         "subpath": "nutrition-planner.db-wal",
         "format": "sqlite",
         "regenerable": true,
-        "budget": {"max_bytes": "2GiB", "rationale": "SQLite WAL sidecar is bounded by the primary database ceiling."},
+        "budget": {
+          "max_bytes": "2GiB",
+          "rationale": "SQLite WAL sidecar is bounded by the primary database ceiling."
+        },
         "rationale": "SQLite write-ahead log sidecar."
       },
       "nutrition-planner-db-shm": {
@@ -156,7 +162,10 @@
         "subpath": "nutrition-planner.db-shm",
         "format": "sqlite",
         "regenerable": true,
-        "budget": {"max_bytes": "64MiB", "rationale": "SQLite shared-memory sidecar is regenerable and bounded."},
+        "budget": {
+          "max_bytes": "64MiB",
+          "rationale": "SQLite shared-memory sidecar is regenerable and bounded."
+        },
         "rationale": "SQLite shared-memory sidecar."
       },
       "deployment-report": {
@@ -166,7 +175,10 @@
         "subpath": "deployment/deployment-report.json",
         "format": "json",
         "regenerable": false,
-        "budget": {"max_age": "30d", "rationale": "Retain recent deployment evidence for operations."},
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Retain recent deployment evidence for operations."
+        },
         "rationale": "Lifecycle deployment evidence."
       },
       "retention": {
@@ -176,7 +188,11 @@
         "subpath": "retention/enforcement-receipt.json",
         "format": "json",
         "regenerable": true,
-        "budget": {"max_bytes": "1MiB", "max_age": "30d", "rationale": "The shared retention engine replaces this compact operational receipt on each run."},
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "The shared retention engine replaces this compact operational receipt on each run."
+        },
         "rationale": "Shared storage retention enforcement receipt."
       }
     }

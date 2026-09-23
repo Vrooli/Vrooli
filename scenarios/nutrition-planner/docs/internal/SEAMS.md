@@ -84,10 +84,10 @@ and use matrix/trace helpers from the relevant testutil package.
 | | |
 |---|---|
 | **Seam** | Wall-clock time |
-| **Interface** | `internal/clock/clock.go::Clock` (`Now() time.Time`) |
-| **Production wiring** | `main.go` constructs `clock.System{}` and passes it via `server.Deps`. |
-| **Test fake** | `internal/testutil/mocks::FakeClock` (`Now`, `Advance`, `SetNow`). |
-| **Why it exists** | Middleware computes request-duration log lines from two `Now()` calls. With `time.Now()` direct, duration assertions are flaky on loaded CI and undefined on fast hardware. With `FakeClock.Advance(150 * time.Millisecond)` inside the inner handler, the duration string is bit-for-bit deterministic. See `internal/middleware/logging_test.go::TestLoggingMiddleware_LogsDuration`. |
+| **Interface** | `api-core/schedule::Clock` (`Now() time.Time`), carried as `server.Deps.Clock` (`internal/server/server.go`); `server.New` panics without it. |
+| **Production wiring** | `main.go` passes `schedule.System()` via `server.Deps`. |
+| **Test fake** | `api-core/scheduletest::New(t0)` (a settable, advanceable fake clock). There is no scenario-local `internal/clock` package or `FakeClock` in `internal/testutil/mocks/`. |
+| **Why it exists** | Middleware computes request-duration log lines from two `Now()` calls. With `time.Now()` direct, duration assertions are flaky on loaded CI and undefined on fast hardware. With the `scheduletest` fake clock advanced by 150 ms inside the inner handler, the duration string is bit-for-bit deterministic. See `internal/middleware/logging_test.go::TestLoggingMiddleware_LogsDuration`. |
 
 ### Pinger (database reachability)
 
@@ -145,7 +145,7 @@ and use matrix/trace helpers from the relevant testutil package.
 |---|---|
 | **Seam** | Binary object storage for REST multipart edges |
 | **Interface** | `api-core/blobstore::BlobStore` (`Put`, `Get`, `Delete`) |
-| **Production wiring** | A domain module that exposes multipart endpoints owns its blob store. A domain resolves filesystem-backed storage in its `handlers/<domain>/module.go::defaultBlobStore()`; tests inject `blobstore.NewMemoryBlobStore()` through `ModuleWithBlobStore(...)`. |
+| **Production wiring** | A domain module that exposes multipart endpoints owns its blob store. A domain resolves filesystem-backed storage in its `handlers/<domain>/module.go::defaultBlobStore()`; tests inject `blobstore.NewMemoryBlobStore()` through `ModuleWithBlobStore(...)`. **Current state (2026-09-22):** no nutrition-planner domain wires a BlobStore yet; the redesign's media assets (R17.4) and user photos are the first intended consumers. |
 | **Test fake** | `api-core/blobstore.MemoryBlobStore` or a domain-local fake lets handler tests assert metadata and failure behavior without touching the filesystem. |
 | **Why it exists** | Connect-RPC is the default for proto-typed payloads, but opaque bytes are not proto payloads. Keeping bytes behind `BlobStore` lets the handler stay transport-focused and lets future scenarios swap filesystem, S3, or another object store without changing domain services. |
 
@@ -201,15 +201,25 @@ and use matrix/trace helpers from the relevant testutil package.
 
 ## Planned product seams
 
-The seams above ship with the template and are already wired. The sections
-below are the **intended product boundaries** for Nutrition Planner, derived
-from the canonical specification (`docs/reference/product-specification.md`
-§17.2 module boundaries, §16 adapters/jobs, §9.7/§11 documents, §14
-deterministic core). None are implemented yet; this list exists so the first
-implementer declares them deliberately instead of reaching past `*sql.DB`,
-`http.Get`, `time.Now()`, or a model client ad hoc. When a seam below is
-built, replace its "planned" row with the five-column format used above and
-give it a real test fake.
+The seams above ship with the template and are wired. The sections below
+are the **intended product boundaries** for Nooch, derived from the canonical
+specification (`docs/reference/product-specification.md` — Appendix A §17.2
+module boundaries, §16 adapters/jobs, §9.7/§11 documents, §14 deterministic
+core; redesign R17–R24). When a seam below is built and wired, replace its row
+with the five-column format used above and give it a real test fake.
+
+**Current state (audit 2026-09-22, see
+[`REDESIGN_PLAN.md`](REDESIGN_PLAN.md) §3).** Some of these boundaries exist
+as interfaces but are **not wired into any production path** — they are
+reachable only from their own tests: `internal/providers::Nutrition`,
+`NutritionCatalog`, and `Price` (USDA FoodData Central, URL fetch, and fixture
+implementations), `internal/entitlements::BillingAdapter`, the recurring-job
+helpers in `internal/jobs/recurring.go`, and the assistance proposal code in
+`internal/assistance`. Per-domain `Repository`/`SQLExecutor` interfaces exist
+in most `internal/<domain>` packages, but no domain has co-located
+`mocks/` fakes and no Connect handler has a test. A planned row is not
+evidence; wire the seam, add its fake, and test through it before moving it
+up.
 
 | Seam | Planned interface / kind | Production wiring | Test fake | Why it exists |
 |---|---|---|---|---|
@@ -220,14 +230,35 @@ give it a real test fake.
 | AI / model adapter | `internal/ai::Proposer` returning versioned structured proposals with evidence | `ai-gateway` adapter; absent is a supported state | Canned-proposal fake; malformed-output fixtures | Model output is a proposal, never a domain write (`AI-01/02`, `ACT-056`) |
 | Provider/JA cache | Repository interface keyed by source/version with freshness | Domain repository over SQLite | In-memory fake with controllable clock | Refreshes propose revisions; history is never overwritten |
 | Deterministic seed / randomness | `internal/planning::SeedSource` (or a `Rand` seam) | `main.go` supplies the run seed | Fixed-seed fake | Same input snapshot + seed must reproduce a result (`PLN-03`, `ACT-045`) |
-| Clock and timezone | Extend `internal/clock::Clock` with IANA/timezone + local-date helpers, or add `internal/timex::Clock` | `main.go` supplies `timex.System{}` | `FakeClock` + fixed-zone fixture | Local dates and DST must be testable and stable (`SYS-06`, `ACT-055`) |
+| Clock and timezone | Wrap `api-core/schedule::Clock` with IANA/timezone + local-date helpers (for example `internal/timex`) | `main.go` supplies the system clock and the workspace zone | `scheduletest` fake clock + fixed-zone fixture | Local dates and DST must be testable and stable (`SYS-06`, `ACT-055`) |
 | Domain repositories | `Repository` interface per domain (`internal/profile`, `rules`, `catalog`, `recipes`, `planning`, `inventory`, `costs`, `shopping`, `intake`, `transfer`) | Domain service constructed in `handlers/<domain>/module.go` | Co-located `internal/<domain>/mocks::FakeRepository` | Persistence contract stays behind the service; engine is swappable (`ARCH-02`) |
 | Operation / idempotency store | `internal/app::OperationStore` (operation record + idempotency key + expected/applied revision) | Application service in `internal/app/`, SQLite-backed | In-memory fake with key/payload conflict knobs | Retries must not double-apply; conflicts are distinct (`SYS-01/02`, `ACT-053`) |
-| Job queue + scheduler | `internal/jobs::Queue` and `internal/jobs::Scheduler` with persisted job states | Job worker over the operation store; clock-driven | In-memory queue fake + `FakeClock` | Extraction/export/research/recurring runs are bounded, cancellable, and idempotent (`JOB-01/02`, `ACT-060/061`) |
+| Job queue + scheduler | `internal/jobs::Queue` and `internal/jobs::Scheduler` with persisted job states | Job worker over the operation store; clock-driven | In-memory queue fake + `scheduletest` fake clock | Extraction/export/research/recurring runs are bounded, cancellable, and idempotent (`JOB-01/02`, `ACT-060/061`) |
 | Attachment / label blobstore | Reuse `api-core/blobstore::BlobStore` for opaque uploads | Domain module resolves a filesystem-backed store | `blobstore.MemoryBlobStore` (already exists) | Bytes stay out of proto payloads; access is workspace-private (`SYS-03`) |
 | Document renderer (PDF/CSV) | `internal/render::DocumentRenderer` (recipe PDF, weekly PDF, shopping CSV) | Renderer module invoked by export operations/jobs | Golden-file tests on real generated bytes | Documents must be inspectable, not screenshots (`UX-REC-07`, `UX-DAT-04`, `ACT-031/033`) |
 | Notification relay (optional) | `internal/notify::Relay` | `notification-hub` adapter, enabled only by preference | Recording fake | Scheduled drafts and digests are opt-in and quiet (`JOB-02`, `ACT-061`) |
 | Secret access (provider credentials) | Platform secret store interface | Credential authority / secret store at the composition edge | In-memory secret fake | Provider credentials never sit in scenario config or exports (`SYS-03/04`) |
+
+### Redesign seams (v2.0)
+
+These boundaries come from the redesign (R13, R17–R22, R24). All are
+**planned**; none exists in code as of 2026-09-22. Decision references point
+into [`DECISIONS.md`](DECISIONS.md).
+
+| Seam | Planned interface / kind | Production wiring | Test fake | Why it exists |
+|---|---|---|---|---|
+| Request principal (local auth) | Platform `authn` middleware producing `identity.Principal` from the scenario's declared authentication profile (`hybrid`, default mode `personal_local`) | `.vrooli/service.json` `authentication` block → lifecycle env → `authn.FromEnvironment` in `main.go` (D-032) | Handler tests inject a principal into the request context through the api-core identity test helpers; never a production bypass | Today every workspace RPC returns `401 unauthenticated` because no principal exists locally (blocker B1). Ownership must stay server-derived. |
+| Asset manifest loader | `internal/media::ManifestSource` returning versioned scene, editorial, equipment, and ingredient asset records (hash, dimensions, rights, approval, appearance, composition, focal point, safe-text rectangles, crop bounds) | Reads the bundled curated manifest at boot; user media rows from SQLite | In-memory manifest fake with incompatible, rejected, and missing-appearance entries | The presentation chooser must be testable against R27.3 artwork fixtures without real image files (R17.4, R19.2). |
+| Media presentation chooser | **Not a seam** — a pure function `(recipe revision, appearance, viewport, preference, manifest snapshot) → descriptor` | Called by the hero/card query handler | Called directly in tests | Deterministic selection with no generation side effect (R17.1); listed here so nobody wraps it in an interface. |
+| Image generation adapter | `internal/media::Generator` (`Quote`, `Start`, `Status`, `Cancel`) calling the image-tools API, which routes models through ai-gateway roles | Constructed in the media module over `Doer` with the configured image-tools base URL; absent is a supported state | Recorded-response fake with transient failure, cancel-after-dispatch, and unknown-usage cases | Generation is optional, budgeted, deduplicated, and reviewable (R18, D-029); the UI and domain never call a provider directly. |
+| Budget reservation store | Reuse `internal/entitlements` reservations behind a `Reserver` interface (`Reserve`, `Settle`, `Release`) | Media/jobs module over SQLite in one transaction with job creation | In-memory reserver with a concurrent-reservation test | Two simultaneous jobs at the cap must not both spend (AT-040, R18.3). |
+| personal-planner calendar adapter | `internal/calendar::Linker` (`Create`, `Get`, `Update`, `Cancel`, `ReconcileByKey`, deep link) over personal-planner's verified API | Constructed only when the integration is configured; untimed internal prep tasks otherwise | Fake with timeout-after-commit, moved-event, deleted-event, and revoked-access cases | Stable idempotent external keys and reconciliation prevent duplicate events (R24.3, AT-045–AT-046). The real API must be discovered first. |
+| Cooking timer clock and reconciliation | Server: `api-core/schedule::Clock` for target timestamps and expiry; UI: a `now()`/monotonic source injected into `PersistentTimer` | `main.go` clock; UI default `performance.now()` + `Date.now()` | `scheduletest` fake clock; UI fake timers with wall-clock jumps | Timers derive from absolute timestamps, survive reload and multiple tabs, and reconcile clock changes (R13.3, AT-027–AT-028). |
+| Offline outbox (UI) | `ui/src/lib/outbox` — bounded store of `{operationId, baseRevision, action, desiredState, status}` with replay | IndexedDB, partitioned by account and workspace; replay on reconnect through the Connect clients | In-memory store; replay tests with server conflicts | Shopping checks and timer controls work offline and replay idempotently without double toggles (R22, AT-035, AT-050). |
+| Breakpoint hook (UI) | `useBreakpoint()` / `useIsMobile()` over `matchMedia`, SSR-safe; reuse a react-component-library export if one exists | Consumed by surfaces whose interaction model changes (Today, Week, Cooking, Equipment, Groceries) | `matchMedia` stub in `test-setup.ts` switchable per test | Per-medium component trees instead of CSS reflow only (D-036, R06). |
+| Appearance boot (UI) | A pre-render inline boot step that reads the stored appearance (Light, Evening, Follow device) and sets the resolved theme attribute before first paint; `ThemeProvider` reconciles with the account preference | `index.html` boot script + `ui/src/theme/ThemeProvider.tsx` | Tests set storage and `prefers-color-scheme` stubs | No bright flash on evening reload; theme never changes food data or starts generation (R05.2, AT-002, AT-003). |
+| Local date and timezone | Extend the clock seam with IANA-zone local-date helpers (server) and one `localDate()` helper (UI) | Workspace timezone from the profile | Fixed-zone and DST fixtures | The UI currently derives dates from UTC (`toISOString().slice(0,10)`, blocker B10); meals must stay on their local day (AT-012). |
+| Demo seed | A repeat-safe seed command that loads the vegan fixture catalog into a separate demo workspace | CLI/Make target only; never the normal boot path | Seed-twice idempotency test | Demo data never leaks into a real workspace (R27.1, AT-001). |
 
 Two rules keep this list honest:
 
@@ -292,7 +323,7 @@ sweep.
 never domain-specific interfaces.
 
 `internal/testutil/mocks/` retains only cross-domain fakes
-(`FakeClock`, `FakePinger`, `FakeDoer`).
+(`FakePinger`, `FakeDoer`; the fake clock comes from `api-core/scheduletest`).
 
 ### Mechanical steps
 
@@ -321,7 +352,7 @@ never domain-specific interfaces.
    Each method takes a per-method error knob (`CreateErr error`) plus
    any state it needs to return. Counters use `atomic.Int64`, not plain
    `int`, so race-detector tests don't flap. Cross-domain fakes
-   (`FakeClock`, `FakePinger`, `FakeDoer`) stay in
+   (`FakePinger`, `FakeDoer`) stay in
    `internal/testutil/mocks/`.
 5. **Update this document.** A row in the table above with the same
    five columns. If you skip this step, the seam exists but isn't
@@ -352,7 +383,7 @@ the goal is the same: production wires once, tests substitute.
 |---|---|
 | **Seam** | UI ↔ API per-domain endpoints |
 | **Module** | `ui/src/api/<domain>.ts` exports `<domain>Client = createClient(<Service>, transport)` plus any multipart-upload helper for the REST exception. |
-| **Production wiring** | Feature components wire generated client methods through `useQuery` / `useMutation`, for example `<domain>Client.list<Entity>s({})` and `<domain>Client.create<Entity>({ ... })`. Multipart flows call the upload helper, which uses `FormData` plus `uploadFile()` and returns generated metadata. |
+| **Production wiring** | Intended: feature components wire generated client methods through `useQuery` / `useMutation` with revision-aware query keys, for example `<domain>Client.list<Entity>s({})` and `<domain>Client.create<Entity>({ ... })`. **Current state:** feature pages call the clients from `useEffect` chains and `@tanstack/react-query` is used only by the dead `HealthCard`; migrating pages to react-query is part of the redesign (D-036). `ensureWorkspace()` mints a fresh idempotency key per call (blocker B11). |
 | **Test fake** | Component tests use inline `vi.mock("./api/<domain>", async (importOriginal) => ...)` and replace client methods or the upload helper. Factories build generated proto types, including `Timestamp` values. |
 | **Why it exists** | The per-domain client pattern. Mirror this shape for each domain client: export the generated Connect client, keep binary-upload helpers beside it when needed, and let components consume typed results rather than hand-written response interfaces. |
 

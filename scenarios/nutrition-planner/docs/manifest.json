@@ -131,12 +131,7 @@
           "requiredBy": [
             "generated"
           ],
-          "completion": "required",
-          "validation": {
-            "forbiddenPlaceholders": [
-              "[TODO]"
-            ]
-          }
+          "completion": "required"
         },
         {
           "path": "../PRD.md",
@@ -166,11 +161,11 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "\ud83c\udfaf Overview",
-              "\ud83c\udfaf Operational Targets",
-              "\ud83e\uddf1 Tech Direction Snapshot",
-              "\ud83e\udd1d Dependencies & Launch Plan",
-              "\ud83c\udfa8 UX & Branding"
+              "🎯 Overview",
+              "🎯 Operational Targets",
+              "🧱 Tech Direction Snapshot",
+              "🤝 Dependencies & Launch Plan",
+              "🎨 UX & Branding"
             ],
             "forbiddenPlaceholders": [
               "[Summarize the permanent capability this scenario adds]",
@@ -245,10 +240,10 @@
           "validation": {
             "requiredHeadings": [
               "Prerequisites",
-              "1 \u2014 Setup",
-              "2 \u2014 Start",
-              "3 \u2014 Open",
-              "5 \u2014 Run the tests"
+              "1 — Setup",
+              "2 — Start",
+              "3 — Open",
+              "5 — Run the tests"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -1030,7 +1025,6 @@
           "validation": {
             "requiredHeadings": [
               "System",
-              "Notes (CRUD reference)",
               "Adding a new endpoint",
               "Cross-references"
             ],
@@ -1070,7 +1064,6 @@
             "requiredHeadings": [
               "Global flags (provided by cli-core)",
               "Built-in commands (auto-provided by `cli-core`)",
-              "Scenario commands \u2014 `notes` (CRUD reference)",
               "Output contracts",
               "Adding a new command",
               "Cross-references"
@@ -1187,11 +1180,13 @@
           "docType": "product-specification",
           "title": "Product Specification",
           "aliases": [
-            "product-spec",
             "canonical-spec",
-            "implementation-handoff"
+            "daily-v2",
+            "implementation-handoff",
+            "product-spec",
+            "redesign-spec"
           ],
-          "description": "Canonical product and implementation specification: intended behavior, domain contracts, fixtures, acceptance matrix, and decision log",
+          "description": "Canonical v2.0 product and implementation specification: redesign sections R01–R30, the retained v1.0 domain specification with fixtures and baseline acceptance (Appendix A), and repository notes (Appendix C)",
           "audience": [
             "developers",
             "agents",
@@ -1209,6 +1204,41 @@
           ],
           "completion": "required",
           "validation": {
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "reference/mockups/README.md",
+          "docType": "mockups",
+          "title": "Concept Mockups",
+          "aliases": [
+            "mockups",
+            "visual-target",
+            "design-references"
+          ],
+          "description": "Reading guide for the fifteen approved Nooch concept mockups: what each image is authoritative for, cross-mockup resolutions, corrections, and artwork direction",
+          "audience": [
+            "developers",
+            "agents",
+            "designers"
+          ],
+          "canonicalFor": [
+            "visual-target",
+            "mockup-interpretation"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Inventory",
+              "Cross-mockup decisions",
+              "Per-image reading notes"
+            ],
             "forbiddenPlaceholders": [
               "[TODO]"
             ]
@@ -1234,7 +1264,7 @@
             "boundaries",
             "boundary-registry"
           ],
-          "description": "Boundary registry \u2014 every interface and its production / test fake",
+          "description": "Boundary registry — every interface and its production / test fake",
           "audience": [
             "developers",
             "agents"
@@ -1540,7 +1570,7 @@
             "changelog",
             "handoff-log"
           ],
-          "description": "Lifecycle log \u2014 append a row whenever work lands",
+          "description": "Lifecycle log — append a row whenever work lands",
           "audience": [
             "developers",
             "agents"
@@ -1578,6 +1608,138 @@
           "validation": {
             "requiredHeadings": [
               "Progress Log"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "internal/REDESIGN_PLAN.md",
+          "docType": "plan",
+          "title": "Redesign Plan",
+          "aliases": [
+            "redesign-plan",
+            "build-order",
+            "goal-notes"
+          ],
+          "description": "Implementation plan and goal notes for the v2.0 redesign: definition of done, audited current state, engineering bar, build spine, surface specifications, production artwork, verification, and convergence protocol",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "redesign-plan",
+            "implementation-inventory",
+            "definition-of-done"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "1. Outcome and definition of done",
+              "3. Current state inventory",
+              "5. Build spine",
+              "9. Convergence protocol"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "internal/REDESIGN_GOAL.md",
+          "docType": "goal",
+          "title": "Redesign Goal",
+          "aliases": [
+            "goal-message",
+            "convergence-goal"
+          ],
+          "description": "The harness goal message (main and compact variants) that drives the redesign to done, with its slot map",
+          "audience": [
+            "operators",
+            "agents"
+          ],
+          "canonicalFor": [
+            "redesign-goal"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Main message",
+              "Compact variant"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "internal/REDESIGN_LEDGER.md",
+          "docType": "ledger",
+          "title": "Redesign Ledger",
+          "aliases": [
+            "findings-ledger",
+            "redesign-progress"
+          ],
+          "description": "Status board, findings, review-pass log, checkpoints, and evidence for the redesign convergence goal",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "redesign-status",
+            "review-findings"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Status board",
+              "Findings",
+              "Pass log"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "internal/OPERATOR_FEEDBACK.md",
+          "docType": "feedback-ledger",
+          "title": "Operator Feedback",
+          "aliases": [
+            "operator-feedback",
+            "feedback-ledger"
+          ],
+          "description": "Verbatim operator instructions and feedback for the redesign, each resolved with a receipt; gating input to the convergence loop",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "operator-feedback"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Rules",
+              "Entries"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"

@@ -3,7 +3,7 @@
 This document records operator procedures for running, diagnosing,
 recovering, and maintaining the scenario.
 
-The working product name is **Daily**. Scenario id is `nutrition-planner`.
+The working product name is **Nooch** (formerly Daily; decision D-042). Scenario id is `nutrition-planner`.
 All state lives in one local SQLite database plus the build artifacts; the
 database is **user-owned, private, and non-regenerable**.
 
@@ -39,14 +39,25 @@ vrooli scenario stop nutrition-planner
 ```
 
 Health endpoints: API `/health` and UI `/health`, as declared in
-`.vrooli/service.json`. The CLI (`nutrition-planner status`) is a typed
-mirror of the API; it must never be treated as the authorization boundary.
+`.vrooli/service.json`. Ports come from the lifecycle (read them from
+`vrooli scenario status nutrition-planner`); never hard-code them. The CLI
+(`nutrition-planner status`) is a typed mirror of the API; it must never be
+treated as the authorization boundary. Today the CLI exposes only `status`,
+`workspace list`, `recipe list`, and `recipe create`.
+
+**Healthy is not usable (2026-09-22).** `/health` reports healthy while every
+workspace RPC returns `401 unauthenticated`, because `.vrooli/service.json`
+declares no authentication profile (blocker B1). Check a real call —
+`nutrition-planner workspace list` — not only the health endpoint.
 
 ## Common Incidents
 
 | Symptom | Checks | Fix | Escalation |
 |---|---|---|---|
 | Scenario does not start | `make status`, `make logs` | `make restart`, then inspect lifecycle logs | Record recurring failures in [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md). |
+| Every page shows an error; the CLI reports an "unauthenticated — verified actor required" error | `nutrition-planner workspace list`; whether `.vrooli/service.json` has an `authentication` block; whether the API process received authentication configuration | Declare the platform authentication profile (`hybrid`, default mode `personal_local`) per repository `docs/concepts/IDENTITY-AND-AUTHENTICATION.md`, then `make restart`. Never add a handler bypass. | Known blocker B1 (D-032); tracked in `docs/internal/REDESIGN_PLAN.md` §3.2. |
+| Settings data health shows a parse error | Browser network panel: the request goes to `/diagnostics` and returns HTML | Known defect B6: the client must call `/api/v1/diagnostics` | Fix in `ui/src/api/diagnostics.ts`; do not treat it as a server fault. |
+| A meal image is missing or looks wrong | Asset manifest entry (approval, appearance, recipe revision compatibility); the safe fallback diagnostic in the logs | Expected fallback to editorial or minimal is not an incident. For a wrong or rejected curated asset, regenerate it through the asset procedure below; never hot-swap an unreviewed image. | Record the asset id and reason in `docs/internal/REDESIGN_LEDGER.md`. |
 | API or database unavailable | `/health` payload, SQLite file exists and is writable, API logs | `make setup`; verify the storage path resolves for this scenario id, then `make restart`. If the file is corrupt, go to Backup / Restore. | A lost or unreadable database is data loss, not an incident to retry. Preserve a quarantine copy before any restore. |
 | Migration mismatch (API refuses to start or reports a version error) | API health/log output naming the expected migration version; the database's recorded schema version | Do not delete the database. Restore a pre-migration checkpoint, or run the documented migration path. `SYS-05` requires testing upgrades on a populated database. | If no checkpoint exists, escalate before touching schema — do not guess. |
 | Provider or AI unavailable | Job state (`queued`/`running`/`failed`), provider configured-vs-unavailable signal, safe error code | Expected. Use the prominent manual fallback: manual capture, manual prices, deterministic planning. No core flow is blocked. | Only escalate if manual fallback is missing or a job is stuck `running` past its budget. |
@@ -106,7 +117,8 @@ Restore procedure:
 
 | Data | Backup | Restore | Status |
 |---|---|---|---|
-| SQLite database (all domain state) | Portable `daily.workspace` export plus stopped-file copy with checksum | Staged import or file restore after checkpoint | **Required before real use; no automated backup target is configured yet.** |
+| SQLite database (all domain state) | Portable `daily.workspace` export plus stopped-file copy with checksum | Staged import or file restore after checkpoint | **Required before real use; no automated backup target is configured yet.** The current workspace export covers only workspace, recipes, and plan and declares eleven omitted record kinds, so the file-level copy is the only complete backup today. |
+| Media originals and derivatives (redesign) | Curated assets live in source with their manifest; user photos need a bounded archive with manifest and checksums (R25.2) | Re-link by asset id and content hash | Planned; generated assets are never regenerated on restore unless explicitly requested and budget-authorized. |
 | Source attachments (if retained) | Bounded archive or explicitly omitted with a manifest report | Re-link by metadata reference | Deferred; a JSON-only export must state the omission. |
 | Provider/AI credentials | Not here — held in the platform secret store | Re-resolved by reference | Deliberate; nothing to back up in this scenario. |
 | Export bundles | Store outside the scenario directory | N/A | User-owned; never include secrets or billing identifiers. |
@@ -123,6 +135,10 @@ Restore procedure:
 | Regenerate UI strings | after i18n changes | `cd ui && pnpm strings:gen` |
 | Inspect PDFs/CSV | each release | Open the generated recipe/week PDFs and CSV bytes; do not trust HTTP 200 (`ACT-031`). |
 | Review data health | weekly while in use | Unresolved ingredients, aged price observations, unknown targets, failed scheduled jobs (`OPS-02`). |
+| Load demo data | on demand, development only | **Planned:** a repeat-safe demo seed command that loads the vegan fixture catalog into a separate demo workspace (R27.1). It does not exist yet; never load fixtures into a real workspace by hand. |
+| Produce or replace a curated asset | when an asset is missing, rejected, or its recipe revision changed | Generate or edit through image-tools (`image-tools ai generate`, `ai edit`, `ai bg-removal`, then `image-tools ops convert`/`compress` for renditions; check flags with `image-tools ai <op> --help` and job progress with `image-tools jobs help`). Review at real UI sizes against R19.3, record prompt version, reference hashes, model role, reported cost, and reviewer in the asset manifest, then validate the manifest (D-029). Never crop concept mockups into assets. |
+| Validate the asset manifest | after any asset change | **Planned:** a manifest validator (ids, hashes, dimensions, required metadata, safe-text rectangles within bounds, approval state) run as part of the unit or structure phase. |
+| Review generation usage | while in-app generation is enabled | Settings › Generation & usage shows period usage, reservations, and queued jobs; a reservation that never settles stays pending, not free (R18.3). |
 
 ## Escalation
 
@@ -140,4 +156,5 @@ evidence rather than repairing in place.
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — common fixes
 - [`../reference/configuration.md`](../reference/configuration.md) — runtime configuration
 - [`../internal/SECURITY.md`](../internal/SECURITY.md) — isolation and secret handling
-- [`../reference/product-specification.md`](../reference/product-specification.md) — sections 11, 17, and 18
+- [`../internal/REDESIGN_PLAN.md`](../internal/REDESIGN_PLAN.md) — blockers, build order, and the artwork workflow
+- [`../reference/product-specification.md`](../reference/product-specification.md) — R19, R22, R25, and Appendix A sections 11, 17, and 18

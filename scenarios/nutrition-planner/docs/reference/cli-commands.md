@@ -101,7 +101,7 @@ per [`configuration.md`](configuration.md#cli-config-file)).
 
 ```bash
 nutrition-planner configure api_base http://localhost:15001/api/v1
-nutrition-planner configure token <token>
+nutrition-planner configure token "<token>"
 ```
 
 Read values back without an argument:

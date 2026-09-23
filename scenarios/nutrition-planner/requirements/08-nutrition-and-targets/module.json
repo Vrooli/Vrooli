@@ -1,10 +1,11 @@
 {
   "_metadata": {
-    "module": "nutrition-and-targets",
     "description": "Unit-aware nutrient arithmetic, distinct nutrient forms, explicit targets, unknown/zero semantics, scopes, and fixed supplement schedules.",
+    "module": "nutrition-and-targets",
     "prd_ref": "PRD.md",
     "priority": "P0",
-    "schema_version": "1.0.0"
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
   },
   "requirements": [
     {

@@ -6,66 +6,64 @@
     "id": "recipe",
     "title": "Recipe",
     "routes": [
-      "/meals/:id/recipe"
+      "/meals/:id"
     ],
-    "purpose": "Drive one pinned recipe revision through a map, a conventional reading view, and a focused cooking mode, with separate cooking and eating actions and a printable PDF.",
+    "purpose": "Show one meal so it can be read, understood, scaled, planned, and cooked: header actions, Recipe, Nutrition, and Notes tabs, and Reading and Recipe map views driven by the same method graph as cooking and print.",
     "prd_refs": [
       "OT-P0-005",
       "OT-P0-004",
+      "OT-P0-003",
+      "OT-P0-010",
+      "OT-P0-019",
       "OT-P0-013",
-      "OT-P0-014"
+      "OT-P0-017",
+      "OT-P0-015",
+      "OT-P0-021"
     ]
   },
   "priorities": [
     {
-      "statement": "The same pinned revision drives the map, reading view, cooking mode, and PDF, and the revision is named on the page."
+      "statement": "Title, times, servings, and Start cooking are visible together at the top on every device."
     },
     {
-      "statement": "A wide recipe map scrolls only inside its own region and always has a reading alternative."
+      "statement": "Ingredients and the numbered method read side by side on wide screens and stacked on phones, in the same revision and step order as cooking mode."
     },
     {
-      "statement": "In cooking mode one step is prominent and viewing a step is visibly distinct from completing it."
+      "statement": "Changing servings changes displayed quantities only until the person applies it to a planned meal."
     },
     {
-      "statement": "Scaling and method switching change the displayed yield without mutating the stored canonical recipe."
+      "statement": "The Recipe map shows how ingredients become the meal, including split uses and joins, with a readable alternative."
     },
     {
-      "statement": "Finishing cooking, eating a serving, and undoing are distinct idempotent actions with a correction record."
+      "statement": "Nutrition names its basis, provenance, and unknowns, and compares against targets only with explicit scope."
+    },
+    {
+      "statement": "A draft without ingredients or method says so plainly and offers Edit."
     }
   ],
   "states": [
     {
       "id": "default",
-      "description": "The surface at rest with data present; the state a journey step assumes when it names none.",
+      "description": "The Recipe tab in Reading view for the current or pinned revision.",
       "setup": {
-        "route": "/meals/:id/recipe"
+        "route": "/meals/:id"
       }
     },
     {
       "id": "loading",
-      "description": "First read of the page's data; layout is reserved so nothing shifts on arrival.",
+      "description": "First read of the page's data; stable skeletons reserve the layout so nothing shifts on arrival, and no sample food is shown as saved data.",
       "setup": {
-        "route": "/meals/:id/recipe",
+        "route": "/meals/:id",
         "query": {
           "fixture": "loading"
         }
       }
     },
     {
-      "id": "empty",
-      "description": "The read succeeded and there is genuinely nothing, which is distinct from not-yet-loaded.",
-      "setup": {
-        "route": "/meals/:id/recipe",
-        "query": {
-          "fixture": "empty"
-        }
-      }
-    },
-    {
       "id": "partial",
-      "description": "Some contributing data could not be read; what is missing is named rather than shown as zero.",
+      "description": "Some contributing data is unknown or could not be read; what is missing is named rather than shown as zero.",
       "setup": {
-        "route": "/meals/:id/recipe",
+        "route": "/meals/:id",
         "query": {
           "fixture": "partial"
         }
@@ -73,19 +71,29 @@
     },
     {
       "id": "stale",
-      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "description": "Displayed data is older than its freshness window; its age is shown next to it.",
       "setup": {
-        "route": "/meals/:id/recipe",
+        "route": "/meals/:id",
         "query": {
           "fixture": "stale"
         }
       }
     },
     {
-      "id": "request-error",
-      "description": "The request failed; the reason and the next available action are stated.",
+      "id": "saving",
+      "description": "A write is in flight; the affected control shows a busy state and says why it is unavailable, and success appears only after the durable save.",
       "setup": {
-        "route": "/meals/:id/recipe",
+        "route": "/meals/:id",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next action are stated, pending edits are kept, and nothing is edited against a fake empty account.",
+      "setup": {
+        "route": "/meals/:id",
         "query": {
           "fixture": "request-error"
         }
@@ -93,300 +101,467 @@
     },
     {
       "id": "validation-error",
-      "description": "Input was rejected before submission; the offending field is identified next to it.",
+      "description": "Input was rejected; the offending field is identified next to it and every other edit is preserved.",
       "setup": {
-        "route": "/meals/:id/recipe",
+        "route": "/meals/:id",
         "query": {
           "fixture": "validation-error"
         }
       }
     },
     {
-      "id": "saving",
-      "description": "A write is in flight; the affected control says why it is unavailable.",
-      "setup": {
-        "route": "/meals/:id/recipe",
-        "query": {
-          "fixture": "saving"
-        }
-      }
-    },
-    {
       "id": "offline",
-      "description": "The client cannot reach the API; read-only or queued behavior is explained.",
+      "description": "The client cannot reach the API; cached data, locally pending actions, and server-confirmed saves are distinguished and unsupported actions say why.",
       "setup": {
-        "route": "/meals/:id/recipe",
+        "route": "/meals/:id",
         "query": {
           "fixture": "offline"
         }
       }
     },
     {
-      "id": "cook-mode",
-      "description": "The focused step-by-step cooking view is active, showing one action with dependency cues and optional timers.",
+      "id": "empty",
+      "description": "The recipe id does not resolve in this workspace; a not-found state offers Back to meals and reveals nothing about other workspaces.",
       "setup": {
-        "route": "/meals/:id/recipe",
+        "route": "/meals/:id",
         "query": {
-          "fixture": "cook-mode"
+          "fixture": "empty"
         }
       }
     },
     {
-      "id": "serving-scale",
-      "description": "The viewer is showing a display yield that differs from the recipe's stored canonical yield.",
+      "id": "recipe-map",
+      "description": "The Recipe map view: ingredient allocations as rows and actions as columns in their own scroll region.",
       "setup": {
-        "route": "/meals/:id/recipe",
+        "route": "/meals/:id",
         "query": {
-          "fixture": "serving-scale"
+          "view": "map"
+        }
+      }
+    },
+    {
+      "id": "nutrition-tab",
+      "description": "The Nutrition tab: per serving or selected yield, provenance, unknowns, contributors, and scoped target comparisons.",
+      "setup": {
+        "route": "/meals/:id",
+        "query": {
+          "tab": "nutrition"
+        }
+      }
+    },
+    {
+      "id": "notes-tab",
+      "description": "The Notes tab: personal notes, source and attribution, revision details, and recorded feedback.",
+      "setup": {
+        "route": "/meals/:id",
+        "query": {
+          "tab": "notes"
+        }
+      }
+    },
+    {
+      "id": "scaled",
+      "description": "Servings differ from the recipe yield; quantities are scaled for display with Reset, and Apply to planned meal when opened from an occurrence.",
+      "setup": {
+        "route": "/meals/:id",
+        "query": {
+          "servings": "4"
+        }
+      }
+    },
+    {
+      "id": "draft-incomplete",
+      "description": "A draft shows No ingredients added yet and No method added yet with Edit.",
+      "setup": {
+        "route": "/meals/:id",
+        "query": {
+          "fixture": "draft-incomplete"
+        }
+      }
+    },
+    {
+      "id": "ready-to-eat",
+      "description": "A ready-to-eat item deliberately has no cooking steps; the primary action is Add to week or Log meal.",
+      "setup": {
+        "route": "/meals/:id",
+        "query": {
+          "fixture": "ready-to-eat"
+        }
+      }
+    },
+    {
+      "id": "archived-pinned",
+      "description": "An archived recipe opened from history; the pinned revision stays readable and cookable.",
+      "setup": {
+        "route": "/meals/:id",
+        "query": {
+          "fixture": "archived-pinned"
+        }
+      }
+    },
+    {
+      "id": "generated-image",
+      "description": "The header image is generated serving inspiration and carries that caption.",
+      "setup": {
+        "route": "/meals/:id",
+        "query": {
+          "fixture": "generated-image"
+        }
+      }
+    },
+    {
+      "id": "no-image",
+      "description": "The recipe has no usable image; the header uses the minimal treatment without an empty frame.",
+      "setup": {
+        "route": "/meals/:id",
+        "query": {
+          "fixture": "no-image"
         }
       }
     }
   ],
   "elements": [
     {
+      "id": "primary-navigation",
+      "role": "navigation",
+      "name": "Primary",
+      "description": "The five destinations with Meals marked current."
+    },
+    {
+      "id": "breadcrumb",
+      "role": "navigation",
+      "name": "Breadcrumb",
+      "description": "Meals, then the recipe name; Back restores the originating filters and scroll."
+    },
+    {
+      "id": "recipe-status",
+      "role": "note",
+      "description": "Readiness and eligibility, such as Recipe · Ready to cook."
+    },
+    {
       "id": "recipe-title",
       "role": "heading",
-      "description": "The recipe name and its source/readiness context."
+      "description": "The recipe name in the editorial serif."
     },
     {
-      "id": "serving-selector",
-      "role": "combobox",
-      "description": "The displayed yield, which scales quantities without changing the stored recipe."
+      "id": "recipe-times",
+      "role": "group",
+      "name": "Time",
+      "description": "Active and total time, each with its own unknown state."
     },
     {
-      "id": "revision-label",
-      "role": "status",
-      "description": "The exact immutable revision used by every view and by the printed PDF."
+      "id": "serving-control",
+      "role": "group",
+      "name": "Servings",
+      "description": "Decrease and increase servings with the current value; discrete ingredients show adjustment notes."
     },
     {
-      "id": "view-tabs",
-      "role": "tab",
-      "description": "Switches between Recipe map, Read recipe, and Cook step by step over the same revision."
+      "id": "start-cooking-action",
+      "role": "button",
+      "name": "Start cooking",
+      "description": "Starts or resumes a session pinned to this revision, method, and scale."
+    },
+    {
+      "id": "add-to-week-action",
+      "role": "button",
+      "name": "Add to week",
+      "description": "Plans the meal for a date and slot."
+    },
+    {
+      "id": "favourite-toggle",
+      "role": "button",
+      "name": "Favorite",
+      "description": "Marks the recipe as a personal favourite."
+    },
+    {
+      "id": "overflow-menu",
+      "role": "button",
+      "name": "More recipe actions",
+      "description": "Edit, Duplicate, Archive, Print, and Source."
+    },
+    {
+      "id": "recipe-image",
+      "role": "img",
+      "description": "The recipe photo at a moderate height; about 160–220 px on phones."
+    },
+    {
+      "id": "image-caption",
+      "role": "note",
+      "description": "Serving inspiration, shown only for generated imagery."
+    },
+    {
+      "id": "detail-tabs",
+      "role": "tablist",
+      "name": "Recipe details",
+      "description": "Recipe, Nutrition, and Notes."
+    },
+    {
+      "id": "view-toggle",
+      "role": "radiogroup",
+      "name": "Recipe view",
+      "description": "Reading or Recipe map inside the Recipe tab."
+    },
+    {
+      "id": "ingredient-list",
+      "role": "list",
+      "name": "Ingredients",
+      "description": "Ingredient rows with scaled quantities; the checkmarks are session-only preparation aids."
+    },
+    {
+      "id": "method-list",
+      "role": "list",
+      "name": "Instructions",
+      "description": "Numbered steps with titles, instructions, and dependency hints."
+    },
+    {
+      "id": "at-a-glance",
+      "role": "figure",
+      "name": "At a glance",
+      "description": "A compact ingredient-to-action flow that opens the full map."
     },
     {
       "id": "recipe-map",
       "role": "table",
       "name": "Recipe map",
-      "description": "Ingredient uses as rows and ordered actions as columns, with dependency cues."
+      "description": "Ingredient allocations by action with split uses, joins, and named outputs; a cell links to its step."
     },
     {
-      "id": "map-scroll-region",
+      "id": "map-alternative",
       "role": "region",
-      "description": "The horizontally scrollable map region, confined so the page itself never scrolls sideways."
+      "name": "Recipe map as text",
+      "description": "A readable text version of the map."
     },
     {
-      "id": "unlinked-note",
+      "id": "apply-scale-action",
+      "role": "button",
+      "name": "Apply to planned meal",
+      "description": "Applies the displayed servings to the planned occurrence."
+    },
+    {
+      "id": "reset-scale-action",
+      "role": "button",
+      "name": "Reset",
+      "description": "Returns to the recipe's yield."
+    },
+    {
+      "id": "nutrition-panel",
+      "role": "region",
+      "name": "Nutrition",
+      "description": "Nutrients with basis, provenance, unknowns, and scoped comparisons."
+    },
+    {
+      "id": "notes-panel",
+      "role": "region",
+      "name": "Notes",
+      "description": "Notes, source, revisions, and feedback."
+    },
+    {
+      "id": "incomplete-note",
       "role": "note",
-      "description": "A clearly labeled 'Not linked to a step' state for ingredients with no recorded allocation."
-    },
-    {
-      "id": "reading-view",
-      "role": "region",
-      "description": "The conventional ingredient column and method column rendering."
-    },
-    {
-      "id": "ingredient-list",
-      "role": "list",
-      "description": "Scaled quantities with unit and basis qualifiers."
-    },
-    {
-      "id": "method-list",
-      "role": "list",
-      "description": "Numbered steps with titles, instructions, optional times, and dependency hints."
-    },
-    {
-      "id": "cook-mode-panel",
-      "role": "region",
-      "description": "The focused one-action cooking view."
-    },
-    {
-      "id": "current-step",
-      "role": "group",
-      "description": "The prominently displayed current step, its needed ingredients, and next/back controls."
-    },
-    {
-      "id": "step-complete-checkbox",
-      "role": "checkbox",
-      "description": "Marks completion separately from the viewed step."
-    },
-    {
-      "id": "timer",
-      "role": "status",
-      "description": "An absolute-timestamp timer that persists across reload and never asserts food safety."
-    },
-    {
-      "id": "cooked-action",
-      "role": "button",
-      "name": "Finished cooking",
-      "description": "Creates a prepared batch from the pinned revision."
-    },
-    {
-      "id": "ate-action",
-      "role": "button",
-      "name": "I ate a serving",
-      "description": "Records a consumption event distinct from cooking."
-    },
-    {
-      "id": "undo-action",
-      "role": "button",
-      "name": "Undo",
-      "description": "Creates a correction and reverses linked inventory effects transactionally."
-    },
-    {
-      "id": "pdf-action",
-      "role": "button",
-      "name": "Recipe PDF",
-      "description": "Produces a real vector PDF for the selected revision and scale."
+      "description": "Names what the draft is missing and offers Edit."
     }
   ],
   "claims": [
     {
-      "id": "one-revision-all-views",
-      "type": "element-present",
-      "statement": "The map, reading view, cooking mode, and PDF are all driven by the same named revision.",
-      "tier": "aspirational",
-      "elements": [
-        "revision-label",
-        "recipe-map",
-        "reading-view",
-        "cook-mode-panel",
-        "pdf-action"
-      ]
-    },
-    {
-      "id": "map-scroll-confined",
-      "type": "no-document-horizontal-overflow",
-      "statement": "A wide recipe map scrolls inside its own region and never scrolls the whole document sideways.",
-      "tier": "aspirational",
-      "elements": [
-        "map-scroll-region",
-        "recipe-map"
-      ]
-    },
-    {
-      "id": "unlinked-ingredients-are-labeled",
-      "type": "element-present",
-      "statement": "Ingredients with no recorded step allocation appear in a labeled 'Not linked to a step' state rather than disappearing from nutrition or groceries.",
-      "tier": "aspirational",
-      "elements": [
-        "unlinked-note",
-        "recipe-map"
-      ]
-    },
-    {
-      "id": "cook-mode-single-step",
+      "id": "start-cooking-dominant",
       "type": "single-dominant-action",
-      "statement": "Cooking mode displays one action prominently while keeping the step list reachable without losing progress.",
+      "statement": "Start cooking is the one filled primary action in the header.",
       "tier": "aspirational",
       "elements": [
-        "current-step",
-        "cook-mode-panel",
-        "view-tabs"
+        "start-cooking-action",
+        "add-to-week-action",
+        "favourite-toggle",
+        "overflow-menu"
       ],
       "states": [
-        "cook-mode"
+        "default",
+        "scaled"
       ]
     },
     {
-      "id": "viewed-is-not-complete",
-      "type": "state-distinct",
-      "statement": "The viewed step and a completed step are visually distinct, and advancing does not imply completion.",
+      "id": "header-action-without-scroll",
+      "type": "visible-without-scroll",
+      "statement": "On phones the title, servings, and Start cooking are reached without scrolling past the photo.",
       "tier": "aspirational",
       "elements": [
-        "current-step",
-        "step-complete-checkbox"
+        "recipe-title",
+        "serving-control",
+        "start-cooking-action"
       ],
       "states": [
-        "cook-mode",
         "default"
-      ]
-    },
-    {
-      "id": "cooked-and-ate-are-separate",
-      "type": "affordance-present",
-      "statement": "Finishing cooking and eating a serving are separate actions so a person can batch-cook without consuming.",
-      "tier": "aspirational",
-      "elements": [
-        "cooked-action",
-        "ate-action",
-        "cook-mode-panel"
       ],
-      "states": [
-        "cook-mode"
+      "viewports": [
+        "mobile"
       ]
     },
     {
-      "id": "scaling-is-display-only",
+      "id": "scaling-is-view-only",
       "type": "element-present",
-      "statement": "Scaling changes displayed quantities and totals without mutating the stored canonical yield until explicitly applied.",
+      "statement": "Scaled servings change displayed quantities only; the recipe and plan change only through Apply to planned meal.",
       "tier": "aspirational",
       "elements": [
-        "serving-selector",
-        "revision-label"
+        "serving-control",
+        "apply-scale-action",
+        "reset-scale-action"
       ],
       "states": [
-        "serving-scale"
+        "scaled"
       ]
     },
     {
-      "id": "timer-persists",
-      "type": "element-present",
-      "statement": "An optional timer uses an absolute timestamp, persists across reload, and never claims that food is safely cooked.",
-      "tier": "aspirational",
-      "elements": [
-        "timer"
-      ],
-      "states": [
-        "cook-mode"
-      ]
-    },
-    {
-      "id": "pdf-is-text-vector",
+      "id": "one-graph-everywhere",
       "type": "custom",
-      "statement": "The recipe PDF is a real text/vector document with embedded fonts and shows the selected yield and revision, not a screenshot.",
+      "statement": "Reading, map, print, and cooking mode show the same revision, step ids, and scaled quantities.",
       "tier": "aspirational",
       "elements": [
-        "pdf-action",
-        "revision-label"
+        "method-list",
+        "recipe-map",
+        "start-cooking-action"
       ]
     },
     {
-      "id": "undo-creates-a-correction",
-      "type": "affordance-present",
-      "statement": "Undo after cooking or eating creates a correction and reverses linked effects transactionally rather than silently erasing history.",
+      "id": "map-has-text-alternative",
+      "type": "element-present",
+      "statement": "The Recipe map has a readable text alternative, and unlinked ingredients are labelled rather than dropped.",
       "tier": "aspirational",
       "elements": [
-        "undo-action",
-        "ate-action",
-        "cooked-action"
+        "recipe-map",
+        "map-alternative"
+      ],
+      "states": [
+        "recipe-map"
+      ]
+    },
+    {
+      "id": "map-scrolls-in-its-region",
+      "type": "no-document-horizontal-overflow",
+      "statement": "A wide map scrolls inside its own region; the page never scrolls sideways.",
+      "tier": "aspirational",
+      "elements": [
+        "recipe-map"
+      ],
+      "states": [
+        "recipe-map"
+      ]
+    },
+    {
+      "id": "generated-image-is-labelled",
+      "type": "element-present",
+      "statement": "Generated imagery is captioned Serving inspiration; ordinary photos carry no such label.",
+      "tier": "aspirational",
+      "elements": [
+        "image-caption"
+      ],
+      "states": [
+        "generated-image"
+      ]
+    },
+    {
+      "id": "draft-says-what-is-missing",
+      "type": "element-present",
+      "statement": "An incomplete draft says what is missing and offers Edit instead of an empty cooking screen.",
+      "tier": "aspirational",
+      "elements": [
+        "incomplete-note"
+      ],
+      "states": [
+        "draft-incomplete"
+      ]
+    },
+    {
+      "id": "ready-to-eat-has-no-steps",
+      "type": "element-absent",
+      "statement": "A ready-to-eat item does not offer Start cooking or manufactured steps.",
+      "tier": "aspirational",
+      "elements": [
+        "start-cooking-action"
+      ],
+      "states": [
+        "ready-to-eat"
+      ]
+    },
+    {
+      "id": "nutrition-unknown-distinct",
+      "type": "state-distinct",
+      "statement": "Unknown nutrient contributions are perceivably different from known zeros.",
+      "tier": "aspirational",
+      "elements": [
+        "nutrition-panel"
+      ],
+      "states": [
+        "nutrition-tab",
+        "partial"
+      ]
+    },
+    {
+      "id": "recipe-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Tabs, the view toggle, serving controls, header actions, and map cells are keyboard reachable with correct tab semantics.",
+      "tier": "aspirational",
+      "elements": [
+        "detail-tabs",
+        "view-toggle",
+        "serving-control",
+        "start-cooking-action",
+        "recipe-map"
+      ]
+    },
+    {
+      "id": "appearance-parity",
+      "type": "dark-parity",
+      "statement": "Light and Evening change palette and artwork only; the recipe, servings, dates, occurrences, layout, and actions are identical.",
+      "tier": "aspirational",
+      "elements": [
+        "recipe-title",
+        "start-cooking-action",
+        "ingredient-list"
       ]
     }
   ],
   "bindings": {
     "elements": {
+      "primary-navigation": {
+        "testid": "recipe-primary-navigation"
+      },
+      "breadcrumb": {
+        "testid": "recipe-breadcrumb"
+      },
+      "recipe-status": {
+        "testid": "recipe-recipe-status"
+      },
       "recipe-title": {
         "testid": "recipe-recipe-title"
       },
-      "serving-selector": {
-        "testid": "recipe-serving-selector"
+      "recipe-times": {
+        "testid": "recipe-recipe-times"
       },
-      "revision-label": {
-        "testid": "recipe-revision-label"
+      "serving-control": {
+        "testid": "recipe-serving-control"
       },
-      "view-tabs": {
-        "testid": "recipe-view-tabs"
+      "start-cooking-action": {
+        "testid": "recipe-start-cooking-action"
       },
-      "recipe-map": {
-        "testid": "recipe-recipe-map"
+      "add-to-week-action": {
+        "testid": "recipe-add-to-week-action"
       },
-      "map-scroll-region": {
-        "testid": "recipe-map-scroll-region"
+      "favourite-toggle": {
+        "testid": "recipe-favourite-toggle"
       },
-      "unlinked-note": {
-        "testid": "recipe-unlinked-note"
+      "overflow-menu": {
+        "testid": "recipe-overflow-menu"
       },
-      "reading-view": {
-        "testid": "recipe-reading-view"
+      "recipe-image": {
+        "testid": "recipe-recipe-image"
+      },
+      "image-caption": {
+        "testid": "recipe-image-caption"
+      },
+      "detail-tabs": {
+        "testid": "recipe-detail-tabs"
+      },
+      "view-toggle": {
+        "testid": "recipe-view-toggle"
       },
       "ingredient-list": {
         "testid": "recipe-ingredient-list"
@@ -394,29 +569,29 @@
       "method-list": {
         "testid": "recipe-method-list"
       },
-      "cook-mode-panel": {
-        "testid": "recipe-cook-mode-panel"
+      "at-a-glance": {
+        "testid": "recipe-at-a-glance"
       },
-      "current-step": {
-        "testid": "recipe-current-step"
+      "recipe-map": {
+        "testid": "recipe-recipe-map"
       },
-      "step-complete-checkbox": {
-        "testid": "recipe-step-complete-checkbox"
+      "map-alternative": {
+        "testid": "recipe-map-alternative"
       },
-      "timer": {
-        "testid": "recipe-timer"
+      "apply-scale-action": {
+        "testid": "recipe-apply-scale-action"
       },
-      "cooked-action": {
-        "testid": "recipe-cooked-action"
+      "reset-scale-action": {
+        "testid": "recipe-reset-scale-action"
       },
-      "ate-action": {
-        "testid": "recipe-ate-action"
+      "nutrition-panel": {
+        "testid": "recipe-nutrition-panel"
       },
-      "undo-action": {
-        "testid": "recipe-undo-action"
+      "notes-panel": {
+        "testid": "recipe-notes-panel"
       },
-      "pdf-action": {
-        "testid": "recipe-pdf-action"
+      "incomplete-note": {
+        "testid": "recipe-incomplete-note"
       }
     }
   }

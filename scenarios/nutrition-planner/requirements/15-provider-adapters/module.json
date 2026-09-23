@@ -1,10 +1,11 @@
 {
   "_metadata": {
-    "module": "provider-adapters",
     "description": "Manual-first nutrition and price provider interfaces with source identity, caching, error classification, and revision proposals.",
+    "module": "provider-adapters",
     "prd_ref": "PRD.md",
     "priority": "P1",
-    "schema_version": "1.0.0"
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
   },
   "requirements": [
     {

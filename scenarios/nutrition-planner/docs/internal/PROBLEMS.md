@@ -50,6 +50,8 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ### 2026-09-18 — PRD was authored directly, not through the business-health wizard
 
+> **Status 2026-09-22:** still accurate; direct authoring was repeated for the v2.0 redesign (D-025).
+
 **Symptom:** `PRD.md` is conformant and scenario-specific, but it was not produced by the canonical `business-health wizard` path that `docs/START-HERE.md` Gate 1 prescribes. The registry was authored directly from the PRD instead (`vrooli scenario requirements validate nutrition-planner` passes with the `requirements_registry` capability at L3).
 
 **Root cause:** The PRD, requirements registry, concepts, and experience contract were written from the canonical product specification as one deliberate documentation/planning step rather than through the wizard interview. This is a **process divergence, not a product defect**; the resulting PRD validates, carries real `OT-P0/P1/P2` targets, and every target has at least one requirement.
@@ -63,6 +65,8 @@ Use this shape so entries are scannable. Append newest at the bottom.
 **Refs:** `PRD.md`, `requirements/index.json`, `requirements/README.md`, `docs/START-HERE.md` Gates 1–2.
 
 ### 2026-09-18 — UI, API, and CLI implementation has not started
+
+> **Status 2026-09-22: superseded.** Code was written after this entry but has never worked end to end; see the 2026-09-22 entry below.
 
 **Symptom:** The scenario idles at the scaffold state. Only the `health` domain and the fenced `notes` example domain exist; none of the product domains (profile/rules, food catalog, recipes, nutrition, planning, inventory/costs, intake/feedback, transfer, provider jobs) are implemented. `make orient` reports the first-real-vertical-slice and design-language gates open.
 
@@ -78,6 +82,8 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ### 2026-09-18 — Orientation gates: scaffold-health passed; several gates remain open
 
+> **Status 2026-09-22:** the gates are still open in substance; see the status note at the top of [`../START-HERE.md`](../START-HERE.md).
+
 **Symptom:** The scaffold starts, reports status, and passes the generated lifecycle test (Gate 0 / `scaffold-health`). The following orientation steps remain unsatisfied: `design-language` (the home placeholder and `DESIGN.md` rationale are untouched), `first-real-vertical-slice` (no real product domain), and `example-domain-removed`.
 
 **Root cause:** Documentation work ran ahead of implementation. Replacing the home placeholder and building a real domain are implementation tasks, not doc tasks, and were intentionally not attempted.
@@ -91,6 +97,8 @@ Use this shape so entries are scannable. Append newest at the bottom.
 **Refs:** `.vrooli/orientation.json` step ids `scaffold-health`, `design-language`, `first-real-vertical-slice`, `example-domain-removed`, `progress-handoff`; `docs/concepts/EXPERIENCE.md`, `ui/src/pages/DashboardPage.tsx`.
 
 ### 2026-09-18 — The removable `notes` example domain is still present by design
+
+> **Status 2026-09-22: mostly resolved.** The `notes` code was removed on 2026-09-18; stale `notes`/`attachments` tables, `notes` comments in Go, and the template proto README remain ([`REDESIGN_PLAN.md`](REDESIGN_PLAN.md) §3.5).
 
 **Symptom:** The `notes` domain still exists across proto, API, CLI, UI, schema, and docs (fenced with `EXAMPLE-DOMAIN` markers), and its page remains in `experience/index.json`. It carries placeholder data and is not product scope.
 
@@ -106,6 +114,8 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ### 2026-09-18 — Generated reference docs still mirror the `notes` example and miss manifest headings
 
+> **Status 2026-09-22:** the reference docs now carry a generic `<domain>` placeholder, and the manifest no longer requires the `notes` headings; regenerate both docs from the real API and CLI (ledger F-016).
+
 **Symptom:** `docs/reference/api-endpoints.md` and `docs/reference/cli-commands.md` document the example `notes` domain (correct for the current code) but their headings do not match the `docs/manifest.json` contract (`Notes (CRUD reference)` and `Scenario commands — notes (CRUD reference)`). Those two required headings are therefore unsatisfied.
 
 **Root cause:** The reference docs are generated from the scaffold's example domain, and the manifest's required-heading expectations drifted from the generated heading text. Both are inherited template artifacts, not product decisions.
@@ -120,6 +130,8 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ### 2026-09-18 — Baseline comprehensive test run fails on inherited scaffold debt (docs phase included)
 
+> **Status 2026-09-22: superseded** by the runs in the evidence index of [`REDESIGN_LEDGER.md`](REDESIGN_LEDGER.md).
+
 **Symptom:** `test-genie execute nutrition-planner` (default preset, 27 phases; run `20260918-145731-c1c08d4f`) returns FAIL. Passing phases include `structure`, `api`, `architecture`, `quality`, `performance`, `business`, `experience`, `tidiness`, `security`, `programs`, `proto`, `branding`, `templates`, `code-facts`, and both code-graph phases. Failing phases: `portability`, `contracts`, `ui-health`, `dependencies`, `docs`, `unit`, `storage`, `workflow`, `measures`, `skill-set`.
 
 **Root cause:** The failures are inherited scaffold/template conditions, not this documentation milestone. Examples: `ui-health` blocks on `standard_shell_ownership` / `standard_component_adoption_contracts` (the home placeholder has not been replaced and the shell has not been configured — intended Gate 5 work); `contracts` on `binding.scalar_bound_to_message`; `storage` on `STORAGE_ACCOUNTABILITY_UNDECLARED`; `unit` on `TEST_MISCONFIGURATION`; `docs` on `broken_command_snippet` in `bas/README.md` and `docs/QUICKSTART.md` plus `broken_marked_ref` in template guides and reference docs; `branding`, `portability`, `dependencies`, `workflow`, `measures`, and `skill-set` carry their own template debt.
@@ -132,6 +144,40 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** test-genie run `20260918-145731-c1c08d4f`; `docs/START-HERE.md` Gates 5–7; `knowledge-observatory docs audit nutrition-planner --json`.
 
+### 2026-09-22 — The app has never worked end to end; the redesign contract replaces the old one
+
+**Symptom:** In the running scenario every workspace-scoped RPC returns `401 unauthenticated` (UI, UI proxy, and CLI), so every page renders its error state; the live database has 29 tables and zero rows. Beyond that, a fresh workspace hits Internal errors on profile, plan, and swap; Today and Week regenerate and overwrite each other's plan; ~1.1k lines of domain logic are reachable only from tests; the UI is a minified-style prototype with raw palette classes and no redesign surface. No requirement references a real test and none of the 143 experience-contract test ids exists in the UI.
+
+**Root cause:** The scenario declares no authentication profile, so no principal reaches the handlers (B1); the remaining causes are listed as B2–B14 in [`REDESIGN_PLAN.md`](REDESIGN_PLAN.md) §3.2. Earlier progress entries recorded code that compiled and unit-tested, not behaviour that ran.
+
+**Workaround:** None for users. Do not treat the 2026-09-18 "implemented" entries in [`PROGRESS.md`](PROGRESS.md) or the archived plan's "done" phases as evidence (D-035).
+
+**Real fix:** Execute the redesign goal ([`REDESIGN_GOAL.md`](REDESIGN_GOAL.md)) starting with milestone D0 in [`REDESIGN_PLAN.md`](REDESIGN_PLAN.md) §5; delete this entry when D0's exit proof and the redesign's definition of done are recorded in [`REDESIGN_LEDGER.md`](REDESIGN_LEDGER.md).
+
+**Rung record (`scenario-work-ladder`, 2026-09-22):**
+- **W0 contract** — repaired: `PRD.md` regenerated for the v2.0 redesign against the operator-supplied specification and mockups (D-025). `business-health validate` reports the contract shape clean.
+- **W1 obligations** — repaired in the same change: requirement modules updated and 20–29 added so every operational target has requirements.
+- **W2 evidence** — broken: zero validation refs to real tests; every status is `planned`. This is the rung the redesign goal must raise, surface by surface, through `[REQ:ID]`-tagged tests.
+- **W3 implementation** — broken at the foundation (B1–B14) and absent for most redesign surfaces.
+
+**Owner:** the redesign goal.
+
+**Refs:** [`REDESIGN_PLAN.md`](REDESIGN_PLAN.md) §3; audit of 2026-09-22 summarized there; `api/main.go`, `.vrooli/service.json`, `api/internal/profile/sqlite.go`, `api/internal/planning/`, `ui/src/features/`.
+
+### 2026-09-22 — Requirements sync promotes ref-less validations from a phase-level pass
+
+**Symptom:** After the comprehensive Test Genie run `20260922-205742-7edb0e18`, 93 requirements became `complete`, 143 validation entries became `implemented`, and six PRD targets were checked, although no test references any requirement and the app does not work.
+
+**Root cause:** test-genie's requirement matcher (`scenarios/test-genie/api/internal/requirements/enrichment/matcher.go`, `matchByPhase`) folds the phase-level `__phase__<phase>` record and every record without a requirement id into the candidates for any validation that declares that phase. The schema makes `phase` mandatory and `ref` optional, so every ref-less validation inherits its phase's overall pass.
+
+**Workaround:** Statuses reverted to `planned` and PRD boxes cleared; auto-sync disabled for every module (D-037).
+
+**Real fix:** test-genie must require per-requirement evidence (a `ref` whose test carries `[REQ:<ID>]`, a manual attestation, or a record naming the requirement) before promoting a validation. Here, re-enable sync per module once its validations carry real refs. Delete this entry when both hold.
+
+**Owner:** test-genie (scenario-qa bug `knw-1790111426711964967`); the redesign goal for the per-module re-enable.
+
+**Refs:** D-037; [`REDESIGN_LEDGER.md`](REDESIGN_LEDGER.md) F-015.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.
@@ -141,8 +187,9 @@ a migration handoff with a planned retirement path back into
 
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
-| Documentation vs. implementation | The PRD, requirements registry, concepts, business/operations/internal docs, and experience contract now describe the real product, but no product code exists yet — only the `health` domain and the fenced `notes` example. A reader who trusts the docs would assume capabilities that are not implemented. | Documentation is deliberately ahead of implementation; `docs/manifest.json` marks these documents `active` as authored contracts, not as working code. | Deliver the first real vertical slice (Gate 6), then detemplate (Gate 7), and keep every planned-versus-implemented statement explicit until then. |
-| Design contract vs. implementation | `DESIGN.md` still carries the template `ORIENTATION-TODO: scenario-design-adaptation` rationale and the home surface is still marked `PLACEHOLDER:home-surface`; `docs/concepts/EXPERIENCE.md` states the product decision but the UI has not been configured to it. | The design-language gate cannot pass, so no UI implementation should be treated as final. | Complete Gate 5: configure the shell, replace the home placeholder, and record the design rationale in `DESIGN.md`. |
+| Documentation vs. implementation | As of 2026-09-22 the documentation describes the v2.0 redesign as intended behaviour and states the current state separately ([`REDESIGN_PLAN.md`](REDESIGN_PLAN.md) §3). The code is a non-working prototype of the v1.0 direction. | Documentation is deliberately ahead of implementation; every planned-versus-existing statement must stay explicit. | Deliver the redesign goal; keep §3 of the plan current as defects close. |
+| Design contract vs. implementation | `DESIGN.md` now defines the Warm Kitchen language (D-030); `design-tokens.css`, fonts, and every page still use the generic vrooli-default blue/cyan kit and raw palette classes. | No UI can be judged against the mockups until tokens, fonts, and the shell are rebuilt. | Milestone D1 in [`REDESIGN_PLAN.md`](REDESIGN_PLAN.md) §5. |
+| Experience contract vs. UI | `experience/` describes the redesigned pages with aspirational claims; none of its bound test ids exist in `ui/src`. | The experience phase cannot prove anything yet. | Render bound test ids as surfaces land and promote claims to machine tier (D-035). |
 
 ## Current-state clarification
 
@@ -155,6 +202,8 @@ a migration handoff with a planned retirement path back into
 **Workaround:** Read the current code, `PROGRESS.md`, and the active plan evidence as authoritative for present implementation state.
 
 **Real fix:** Retire or annotate historical entries when the scenario’s documentation lifecycle permits a consolidated problem-register cleanup; do not use them as current product claims.
+
+**Update 2026-09-22:** Superseded by the 2026-09-22 entry above; the active Plan Manager execution referenced below belonged to a plan that is now archived (D-026).
 
 **Owner:** nutrition-planner implementation
 

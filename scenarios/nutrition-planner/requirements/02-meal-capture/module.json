@@ -1,10 +1,11 @@
 {
   "_metadata": {
-    "module": "meal-capture",
     "description": "Flexible quick capture, conservative text organization, the detailed editor, and authoring readiness.",
+    "module": "meal-capture",
     "prd_ref": "PRD.md",
     "priority": "P0",
-    "schema_version": "1.0.0"
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
   },
   "requirements": [
     {
@@ -126,6 +127,63 @@
           "phase": "unit",
           "status": "planned",
           "notes": "Planned: saving with only a URL persists the source reference and reports fetch status separately from draft-save status."
+        }
+      ]
+    },
+    {
+      "id": "CAP-006",
+      "title": "Imports stage untrusted content for review",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "service",
+      "criticality": "P0",
+      "description": "When a user pastes text or supplies a structured file, the scenario shall stage the result without any AI provider, present unknown quantities, duplicates, method and equipment assumptions, and required-rule evidence for review, treat imported text as untrusted data, and never let a late asynchronous extraction overwrite a newer field.",
+      "tags": [
+        "import",
+        "review",
+        "untrusted-input"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: paste and file imports stage a reviewable proposal with unresolved quantities preserved and imported instructions ignored as data (R10.3, AT-049)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: an extraction that finishes after the user edited a field produces a comparison rather than overwriting the edit (R10.3, UX-MEA-02)."
+        }
+      ]
+    },
+    {
+      "id": "CAP-007",
+      "title": "Your meals is a searchable, filterable collection",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The Meals destination shall present Your meals as a three-, two-, or one-column collection by width with image, title, active time, at most two evidence-backed tags, a favorite control, and + Plan on each card, search over titles, aliases, and approved tags without a model call per keystroke, chips and Filters for favorites, quick meals, high protein, fits my setup, needs review, drafts, and archived, and sorts that place unknown values in an explicit group.",
+      "tags": [
+        "meals",
+        "collection",
+        "filters",
+        "search"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: Quick meals and High protein badges come from versioned badge policies and are absent without evidence; sorting by active time puts unknown times in their own group; collection counts distinguish saved from filtered (R10.1, R23)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a name-only draft appears under Drafts after reload and favorite state is personal metadata separate from saving (AT-016)."
         }
       ]
     }

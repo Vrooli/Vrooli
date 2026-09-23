@@ -4,49 +4,54 @@
   "schemaVersion": "1.0.0",
   "page": {
     "id": "meals",
-    "title": "Meals",
+    "title": "Your meals",
     "routes": [
-      "/meals",
-      "/meals/:id"
+      "/meals"
     ],
-    "purpose": "Hold the meal collection so a person can save a name-only idea, find meals by fit or readiness, and archive without losing pinned history.",
+    "purpose": "Keep the person's own meals findable and plannable: a photo collection with search, filters, favourites, drafts, and a Plan action on every card, plus Add meal and Import recipe for capturing as little or as much detail as they have.",
     "prd_refs": [
       "OT-P0-003",
       "OT-P0-004",
       "OT-P0-006",
+      "OT-P0-017",
+      "OT-P0-016",
+      "OT-P0-015",
+      "OT-P0-021",
       "OT-P1-001",
-      "OT-P1-003",
-      "OT-P2-004"
+      "OT-P1-003"
     ]
   },
   "priorities": [
     {
-      "statement": "A name-only draft is valid and no field is silently set to zero because an input was empty."
+      "statement": "Saved meals appear as recognisable cards — image, name, active time, and at most two evidence-backed tags — each with a one-tap Plan."
     },
     {
-      "statement": "Authoring readiness is visibly separate from current-profile eligibility."
+      "statement": "Add meal accepts just a name and saves a draft; nothing else is required."
     },
     {
-      "statement": "A meal outside the active diet is stored and shown with the reason it is not recommended, never hidden."
+      "statement": "Search, chips, and Filters narrow the collection, and the filter state survives navigating away and back."
     },
     {
-      "statement": "Search spans names, aliases, ingredients, and approved tags without calling an external model per keystroke."
+      "statement": "Counts distinguish total saved meals from filtered results, and drafts stay easy to find."
     },
     {
-      "statement": "Archiving removes a meal from future discovery while pinned revisions in plans and history remain usable."
+      "statement": "A meal that does not fit current rules stays in the collection with its reason instead of disappearing."
+    },
+    {
+      "statement": "Explore is one tab away for new ideas that fit."
     }
   ],
   "states": [
     {
       "id": "default",
-      "description": "The surface at rest with data present; the state a journey step assumes when it names none.",
+      "description": "The saved collection as a photo grid on wide screens and a one-column feed on phones.",
       "setup": {
         "route": "/meals"
       }
     },
     {
       "id": "loading",
-      "description": "First read of the page's data; layout is reserved so nothing shifts on arrival.",
+      "description": "First read of the page's data; stable skeletons reserve the layout so nothing shifts on arrival, and no sample food is shown as saved data.",
       "setup": {
         "route": "/meals",
         "query": {
@@ -55,18 +60,8 @@
       }
     },
     {
-      "id": "empty",
-      "description": "The read succeeded and there is genuinely nothing, which is distinct from not-yet-loaded.",
-      "setup": {
-        "route": "/meals",
-        "query": {
-          "fixture": "empty"
-        }
-      }
-    },
-    {
       "id": "partial",
-      "description": "Some contributing data could not be read; what is missing is named rather than shown as zero.",
+      "description": "Some contributing data is unknown or could not be read; what is missing is named rather than shown as zero.",
       "setup": {
         "route": "/meals",
         "query": {
@@ -76,7 +71,7 @@
     },
     {
       "id": "stale",
-      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "description": "Displayed data is older than its freshness window; its age is shown next to it.",
       "setup": {
         "route": "/meals",
         "query": {
@@ -85,8 +80,18 @@
       }
     },
     {
+      "id": "saving",
+      "description": "A write is in flight; the affected control shows a busy state and says why it is unavailable, and success appears only after the durable save.",
+      "setup": {
+        "route": "/meals",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
       "id": "request-error",
-      "description": "The request failed; the reason and the next available action are stated.",
+      "description": "The request failed; the reason and the next action are stated, pending edits are kept, and nothing is edited against a fake empty account.",
       "setup": {
         "route": "/meals",
         "query": {
@@ -96,7 +101,7 @@
     },
     {
       "id": "validation-error",
-      "description": "Input was rejected before submission; the offending field is identified next to it.",
+      "description": "Input was rejected; the offending field is identified next to it and every other edit is preserved.",
       "setup": {
         "route": "/meals",
         "query": {
@@ -105,18 +110,8 @@
       }
     },
     {
-      "id": "saving",
-      "description": "A write is in flight; the affected control says why it is unavailable.",
-      "setup": {
-        "route": "/meals",
-        "query": {
-          "fixture": "saving"
-        }
-      }
-    },
-    {
       "id": "offline",
-      "description": "The client cannot reach the API; read-only or queued behavior is explained.",
+      "description": "The client cannot reach the API; cached data, locally pending actions, and server-confirmed saves are distinguished and unsupported actions say why.",
       "setup": {
         "route": "/meals",
         "query": {
@@ -125,228 +120,361 @@
       }
     },
     {
-      "id": "needs-review",
-      "description": "The evaluator cannot decide eligibility because required evidence is missing or conflicting; the meal is stored and the missing evidence is named.",
+      "id": "empty",
+      "description": "No meals are saved yet; Add a meal and Explore are offered.",
       "setup": {
         "route": "/meals",
         "query": {
-          "fixture": "needs-review"
+          "fixture": "empty"
         }
       }
     },
     {
-      "id": "search-no-results",
-      "description": "The search and filter combination matched nothing; the page offers a reset action.",
+      "id": "no-results",
+      "description": "A search or filter matched nothing; the query stays visible and Reset filters is offered.",
       "setup": {
         "route": "/meals",
         "query": {
-          "fixture": "search-no-results"
+          "fixture": "no-results"
         }
       }
     },
     {
-      "id": "capture-error",
-      "description": "Text organization or extraction failed or arrived after an edit; the original text is preserved and a comparison is offered instead of an overwrite.",
+      "id": "drafts",
+      "description": "The Drafts filter lists name-only and incomplete meals with Add details.",
       "setup": {
         "route": "/meals",
         "query": {
-          "fixture": "capture-error"
+          "filter": "drafts"
+        }
+      }
+    },
+    {
+      "id": "add-meal-open",
+      "description": "Add meal is open with a name or rough-text field; a name alone saves a draft.",
+      "setup": {
+        "route": "/meals",
+        "query": {
+          "fixture": "add-meal-open"
+        }
+      }
+    },
+    {
+      "id": "import-review",
+      "description": "A pasted or file import is staged for review, showing unknown quantities, duplicates, and assumptions before anything is saved.",
+      "setup": {
+        "route": "/meals",
+        "query": {
+          "fixture": "import-review"
+        }
+      }
+    },
+    {
+      "id": "missing-photo",
+      "description": "Some cards have no image; they render a deliberate no-photo treatment of the same size.",
+      "setup": {
+        "route": "/meals",
+        "query": {
+          "fixture": "missing-photo"
+        }
+      }
+    },
+    {
+      "id": "not-fitting",
+      "description": "Some saved meals do not fit the current rules; they stay visible with the reason and without a fitting claim.",
+      "setup": {
+        "route": "/meals",
+        "query": {
+          "fixture": "not-fitting"
         }
       }
     }
   ],
   "elements": [
     {
-      "id": "collection-title",
+      "id": "primary-navigation",
+      "role": "navigation",
+      "name": "Primary",
+      "description": "The five destinations with Meals marked current."
+    },
+    {
+      "id": "page-title",
       "role": "heading",
-      "name": "Your kind of good.",
-      "description": "The collection page title and its Add meal entry point."
+      "name": "Your meals",
+      "description": "Your meals, with a short functional subtitle."
     },
     {
-      "id": "collection-count",
-      "role": "status",
-      "description": "Total collection count and the count currently fitting the active setup."
-    },
-    {
-      "id": "search-box",
-      "role": "combobox",
-      "description": "Searches meal names, aliases, ingredient names, and approved tags."
-    },
-    {
-      "id": "filter-tabs",
-      "role": "tab",
-      "description": "Fits my setup, Needs review, Drafts, Favorites, and Archived."
-    },
-    {
-      "id": "meal-grid",
-      "role": "list",
+      "id": "collection-tabs",
+      "role": "tablist",
       "name": "Meals",
-      "description": "The meal cards in a responsive collection."
-    },
-    {
-      "id": "meal-card",
-      "role": "listitem",
-      "description": "A readable name, description, available metrics, readiness and fit status, and per-card actions."
-    },
-    {
-      "id": "fit-status",
-      "role": "status",
-      "description": "Fits current rules, Excluded, or Needs information, with the rule or missing evidence named."
-    },
-    {
-      "id": "revision-badge",
-      "role": "status",
-      "description": "The pinned revision and authoring status, kept distinct from fit."
-    },
-    {
-      "id": "no-results-note",
-      "role": "note",
-      "description": "A clear no-results message with a reset action."
+      "description": "Your meals and Explore."
     },
     {
       "id": "add-meal-action",
       "role": "button",
       "name": "Add meal",
-      "description": "Opens quick capture for a new meal or idea."
+      "description": "Starts a new meal from a name or rough text."
     },
     {
-      "id": "quick-capture-form",
-      "role": "form",
-      "name": "Quick capture",
-      "description": "Accepts a name, rough notes, or pasted recipe text and saves a draft."
-    },
-    {
-      "id": "detailed-editor",
-      "role": "form",
-      "name": "Meal details",
-      "description": "The full editor for identity, yield, ingredients, nutrition, cost, method, and evidence."
-    },
-    {
-      "id": "archive-action",
+      "id": "import-action",
       "role": "button",
-      "name": "Archive",
-      "description": "Removes a meal from future discovery while preserving pinned revisions."
+      "name": "Import recipe",
+      "description": "Starts a paste or file import that is reviewed before saving."
     },
     {
-      "id": "end-card",
+      "id": "search",
+      "role": "searchbox",
+      "name": "Search meals or ingredients",
+      "description": "Searches titles, ingredient aliases, and approved tags without a model call per keystroke."
+    },
+    {
+      "id": "filter-chips",
+      "role": "group",
+      "name": "Filters",
+      "description": "All meals, Favorites, Quick meals, High protein."
+    },
+    {
+      "id": "filters-action",
+      "role": "button",
+      "name": "Filters",
+      "description": "Opens advanced filters: Fits my setup, Needs review, Drafts, Archived, equipment, meal slot, source, preparation range."
+    },
+    {
+      "id": "sort-control",
+      "role": "combobox",
+      "name": "Sort by",
+      "description": "Recently added, Recently cooked, Name, Active time; unknown values sort into an explicit group."
+    },
+    {
+      "id": "result-count",
+      "role": "status",
+      "description": "Saved total and filtered count, such as 12 saved meals."
+    },
+    {
+      "id": "meal-grid",
+      "role": "list",
+      "name": "Saved meals",
+      "description": "The meal cards: three columns on desktop, two at intermediate widths, one on phones."
+    },
+    {
+      "id": "meal-card",
+      "role": "listitem",
+      "description": "Image or no-photo treatment, name, active time, up to two tags, a favourite control, and Plan; the name links to the recipe."
+    },
+    {
+      "id": "card-tag",
       "role": "note",
-      "description": "The quiet end-card inviting a favorite to be saved with just a name."
+      "description": "A neutral tag chip with an icon, shown only when its versioned policy has evidence."
+    },
+    {
+      "id": "favourite-toggle",
+      "role": "button",
+      "name": "Favorite",
+      "description": "Marks the meal as a personal favourite; named with the meal and its current state."
+    },
+    {
+      "id": "plan-action",
+      "role": "button",
+      "name": "Plan",
+      "description": "Opens date, slot, and servings; defaults to the target when opened with planning context."
+    },
+    {
+      "id": "fit-reason",
+      "role": "note",
+      "description": "Why a saved meal does not fit the current rules."
+    },
+    {
+      "id": "drafts-link",
+      "role": "link",
+      "name": "Draft meals",
+      "description": "Opens the Drafts filter with its count."
+    },
+    {
+      "id": "capture-form",
+      "role": "form",
+      "name": "Add meal",
+      "description": "Name or rough text, with Save draft."
+    },
+    {
+      "id": "import-review",
+      "role": "region",
+      "name": "Import review",
+      "description": "Staged import results awaiting review."
+    },
+    {
+      "id": "no-results-note",
+      "role": "status",
+      "description": "Says nothing matched and keeps the query visible."
+    },
+    {
+      "id": "reset-filters-action",
+      "role": "button",
+      "name": "Reset filters",
+      "description": "Clears search and filters."
     }
   ],
   "claims": [
     {
-      "id": "fit-distinct-from-readiness",
-      "type": "element-present",
-      "statement": "Current-profile eligibility is reported separately from authoring readiness and revision, so Ready is never read as diet-safe.",
+      "id": "add-meal-dominant",
+      "type": "single-dominant-action",
+      "statement": "Add meal is the one filled primary action; Import recipe is secondary.",
       "tier": "aspirational",
       "elements": [
-        "fit-status",
-        "revision-badge",
-        "meal-card"
+        "add-meal-action",
+        "import-action"
       ]
     },
     {
-      "id": "name-only-draft-is-valid",
-      "type": "affordance-present",
-      "statement": "A nonempty trimmed name is sufficient to save a draft, and no unnamed field becomes zero.",
+      "id": "name-only-saves-draft",
+      "type": "element-present",
+      "statement": "A name alone saves a durable draft, and blank numbers stay unknown instead of becoming zero.",
       "tier": "aspirational",
       "elements": [
-        "quick-capture-form",
-        "add-meal-action"
+        "capture-form"
+      ],
+      "states": [
+        "add-meal-open"
       ]
     },
     {
-      "id": "outside-diet-stored-and-explained",
+      "id": "tags-need-evidence",
       "type": "element-present",
-      "statement": "A stored meal outside the active diet is shown with the rule or missing evidence that blocks recommendation rather than hidden.",
+      "statement": "Quick meals and High protein tags appear only when their policy has evidence; a name or image never earns a badge.",
+      "tier": "aspirational",
+      "elements": [
+        "card-tag"
+      ]
+    },
+    {
+      "id": "favourite-is-named",
+      "type": "accessible-name",
+      "statement": "The favourite control names the meal and whether it is a favourite, and is distinct from the Explore bookmark.",
+      "tier": "aspirational",
+      "elements": [
+        "favourite-toggle"
+      ]
+    },
+    {
+      "id": "card-controls-separately-reachable",
+      "type": "keyboard-reachable",
+      "statement": "The meal link, favourite, and Plan are separately keyboard reachable, with no button nested inside another interactive control.",
       "tier": "aspirational",
       "elements": [
         "meal-card",
-        "fit-status"
-      ],
-      "states": [
-        "needs-review"
+        "favourite-toggle",
+        "plan-action"
       ]
     },
     {
-      "id": "search-no-external-ai",
-      "type": "custom",
-      "statement": "Search spans local names, aliases, ingredients, and approved tags and does not make an external AI call per keystroke.",
-      "tier": "aspirational",
-      "elements": [
-        "search-box",
-        "filter-tabs"
-      ]
-    },
-    {
-      "id": "no-results-offers-reset",
+      "id": "no-results-recovers",
       "type": "element-present",
-      "statement": "A no-results state is explicit and offers a reset action rather than an empty grid.",
+      "statement": "An empty search or filter result offers Reset filters.",
       "tier": "aspirational",
       "elements": [
         "no-results-note",
-        "filter-tabs"
+        "reset-filters-action"
       ],
       "states": [
-        "search-no-results"
+        "no-results"
       ]
     },
     {
-      "id": "archive-preserves-history",
+      "id": "counts-are-distinct",
       "type": "element-present",
-      "statement": "Archiving stops future discovery while pinned revisions remain identifiable and usable in plans and history.",
+      "statement": "The count distinguishes saved meals from filtered results.",
       "tier": "aspirational",
       "elements": [
-        "archive-action",
-        "revision-badge"
+        "result-count"
       ]
     },
     {
-      "id": "capture-does-not-overwrite-edits",
+      "id": "missing-photo-is-intentional",
       "type": "element-present",
-      "statement": "When text organization finishes after a manual edit, the page shows a comparison and preserves the original text instead of overwriting the newer edit.",
+      "statement": "A card without an image keeps its size and actions and looks deliberate.",
       "tier": "aspirational",
       "elements": [
-        "quick-capture-form",
-        "detailed-editor"
+        "meal-card"
       ],
       "states": [
-        "capture-error"
+        "missing-photo"
       ]
     },
     {
-      "id": "search-is-keyboard-reachable",
-      "type": "keyboard-reachable",
-      "statement": "Search and the collection filters are fully keyboard reachable.",
+      "id": "not-fitting-stays-visible",
+      "type": "element-present",
+      "statement": "A meal outside the current rules stays in the collection with its reason.",
       "tier": "aspirational",
       "elements": [
-        "search-box",
-        "filter-tabs"
+        "fit-reason"
+      ],
+      "states": [
+        "not-fitting"
+      ]
+    },
+    {
+      "id": "phone-one-column",
+      "type": "element-present",
+      "statement": "On phones the collection is one readable card per row, never minuscule two-column food cards.",
+      "tier": "aspirational",
+      "elements": [
+        "meal-grid"
+      ],
+      "viewports": [
+        "mobile"
       ]
     },
     {
       "id": "meals-no-horizontal-overflow",
       "type": "no-document-horizontal-overflow",
-      "statement": "The meal collection reflows from three to two to one column without horizontal document overflow.",
+      "statement": "Filter chips scroll within their row and the page never scrolls sideways.",
       "tier": "aspirational",
       "elements": [
+        "filter-chips",
         "meal-grid"
+      ]
+    },
+    {
+      "id": "appearance-parity",
+      "type": "dark-parity",
+      "statement": "Light and Evening change palette and artwork only; the recipe, servings, dates, occurrences, layout, and actions are identical.",
+      "tier": "aspirational",
+      "elements": [
+        "meal-grid",
+        "add-meal-action"
       ]
     }
   ],
   "bindings": {
     "elements": {
-      "collection-title": {
-        "testid": "meals-collection-title"
+      "primary-navigation": {
+        "testid": "meals-primary-navigation"
       },
-      "collection-count": {
-        "testid": "meals-collection-count"
+      "page-title": {
+        "testid": "meals-page-title"
       },
-      "search-box": {
-        "testid": "meals-search-box"
+      "collection-tabs": {
+        "testid": "meals-collection-tabs"
       },
-      "filter-tabs": {
-        "testid": "meals-filter-tabs"
+      "add-meal-action": {
+        "testid": "meals-add-meal-action"
+      },
+      "import-action": {
+        "testid": "meals-import-action"
+      },
+      "search": {
+        "testid": "meals-search"
+      },
+      "filter-chips": {
+        "testid": "meals-filter-chips"
+      },
+      "filters-action": {
+        "testid": "meals-filters-action"
+      },
+      "sort-control": {
+        "testid": "meals-sort-control"
+      },
+      "result-count": {
+        "testid": "meals-result-count"
       },
       "meal-grid": {
         "testid": "meals-meal-grid"
@@ -354,29 +482,32 @@
       "meal-card": {
         "testid": "meals-meal-card"
       },
-      "fit-status": {
-        "testid": "meals-fit-status"
+      "card-tag": {
+        "testid": "meals-card-tag"
       },
-      "revision-badge": {
-        "testid": "meals-revision-badge"
+      "favourite-toggle": {
+        "testid": "meals-favourite-toggle"
+      },
+      "plan-action": {
+        "testid": "meals-plan-action"
+      },
+      "fit-reason": {
+        "testid": "meals-fit-reason"
+      },
+      "drafts-link": {
+        "testid": "meals-drafts-link"
+      },
+      "capture-form": {
+        "testid": "meals-capture-form"
+      },
+      "import-review": {
+        "testid": "meals-import-review"
       },
       "no-results-note": {
         "testid": "meals-no-results-note"
       },
-      "add-meal-action": {
-        "testid": "meals-add-meal-action"
-      },
-      "quick-capture-form": {
-        "testid": "meals-quick-capture-form"
-      },
-      "detailed-editor": {
-        "testid": "meals-detailed-editor"
-      },
-      "archive-action": {
-        "testid": "meals-archive-action"
-      },
-      "end-card": {
-        "testid": "meals-end-card"
+      "reset-filters-action": {
+        "testid": "meals-reset-filters-action"
       }
     }
   }

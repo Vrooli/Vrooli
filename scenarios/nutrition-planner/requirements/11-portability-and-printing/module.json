@@ -1,10 +1,11 @@
 {
   "_metadata": {
-    "module": "portability-and-printing",
     "description": "Namespaced native import/export, semantic round-trip, legacy migration, recoverable restore, and printable PDF/CSV output.",
+    "module": "portability-and-printing",
     "prd_ref": "PRD.md",
     "priority": "P0",
-    "schema_version": "1.0.0"
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
   },
   "requirements": [
     {
@@ -108,7 +109,7 @@
       "prd_ref": "OT-P0-013",
       "category": "reporting",
       "criticality": "P0",
-      "description": "The scenario shall generate real text/vector recipe and weekly PDFs with embedded fonts, labeled scope, page numbers, and printable A4 and US Letter layouts, plus CSV that keeps known numeric columns numeric and neutralizes formula interpretation for user-controlled text.",
+      "description": "The scenario shall generate real text and vector recipe, week, and grocery PDFs in the light print theme even when the app is in Evening, with fonts bundled with the scenario rather than read from the host, scaled quantities, labeled scope, repeated headers, page numbers, Unicode and fractions, and printable A4 and US Letter layouts, plus CSV that keeps known numeric columns numeric and neutralizes formula interpretation for user-controlled text.",
       "tags": [
         "pdf",
         "csv",
@@ -120,6 +121,34 @@
           "phase": "integration",
           "status": "planned",
           "notes": "Planned: recipe and weekly PDFs download and open with legible long text, Unicode, branches, and open slots; CSV survives commas, quotes, line breaks, non-ASCII, and formula-like cells (ACT-031, ACT-032, ACT-033)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: long recipe, week, and grocery PDFs open on A4 and Letter with no clipped map or UI chrome on a host without system fonts (AT-048, blocker B14)."
+        }
+      ]
+    },
+    {
+      "id": "PORT-006",
+      "title": "A complete backup covers every record kind or says what it omits",
+      "status": "planned",
+      "prd_ref": "OT-P0-013",
+      "category": "contract",
+      "criticality": "P0",
+      "description": "The workspace export shall include every supported domain record kind with immutable references, including media and scene metadata, equipment devices and capabilities, preferences, chosen sessions, and calendar links as non-authoritative references, shall exclude secrets and signed URL credentials, shall report every omission explicitly, and restore shall never regenerate generated assets unless explicitly requested and authorized.",
+      "tags": [
+        "portability",
+        "backup",
+        "completeness"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: exporting a populated workspace, importing into an empty authorized workspace, and re-exporting yields semantically equal content with source and revision references resolved and omissions listed (AT-047, ACT-029)."
         }
       ]
     }

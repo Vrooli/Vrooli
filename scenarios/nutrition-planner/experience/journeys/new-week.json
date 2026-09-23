@@ -5,50 +5,43 @@
   "journey": {
     "id": "new-week",
     "title": "A new week",
-    "purpose": "Carry forward accepted anchors, preferences, credible stock, and feedback into a preview that explains meaningful changes, preserves locks, and refuses a stale input revision.",
+    "purpose": "Move to next week, carry forward locked anchors and credible stock, review a generated draft, apply it, and get the matching grocery list.",
     "prd_refs": [
       "OT-P0-009",
       "OT-P0-007",
-      "OT-P1-005",
-      "OT-P0-014"
+      "OT-P0-011",
+      "OT-P1-005"
     ]
   },
   "steps": [
     {
       "page": "week",
-      "intent": "Carry forward accepted anchors, current preferences, and credible stock into the next date range.",
-      "via": "week-nav"
+      "intent": "Move to the next week and see locks and anchors carried forward.",
+      "via": "week-range-nav"
     },
     {
       "page": "week",
-      "state": "replan-preview",
-      "intent": "Preview changed, unchanged, and locked rows and the unknown cost, nutrient, or time contributions.",
-      "via": "replan-dialog"
+      "state": "plan-preview",
+      "intent": "Generate a draft and review changed, unchanged, and locked slots.",
+      "via": "plan-week-action"
     },
     {
       "page": "week",
-      "state": "stale-inputs",
-      "intent": "See that a material input changed and require a rebuilt preview before applying.",
-      "via": "stale-inputs-alert"
+      "state": "stale-proposal",
+      "intent": "Revalidate a draft whose inputs changed instead of applying it stale.",
+      "via": "stale-note"
     },
     {
-      "page": "week",
-      "state": "replan-applied",
-      "intent": "Apply the preview against its captured input revision and confirm the week reflects it.",
-      "via": "replan-action"
+      "page": "groceries",
+      "intent": "Open the new week's grocery list.",
+      "via": "list-scope"
     }
   ],
   "claims": [
     {
-      "id": "locks-outlive-a-replan",
-      "type": "state-covered",
-      "statement": "Locked commitments survive replanning and are shown unchanged in the preview.",
-      "tier": "aspirational"
-    },
-    {
-      "id": "a-scheduled-run-never-replaces-a-plan",
-      "type": "state-covered",
-      "statement": "A scheduled draft is prepared without silently replacing a plan the person already arranged.",
+      "id": "draft-never-replaces-silently",
+      "type": "custom",
+      "statement": "A generated draft never replaces an accepted plan without review.",
       "tier": "aspirational"
     }
   ]

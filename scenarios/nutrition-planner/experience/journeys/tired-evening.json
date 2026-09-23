@@ -5,49 +5,51 @@
   "journey": {
     "id": "tired-evening",
     "title": "A tired evening",
-    "purpose": "From the next meal to a lower-effort alternative in one action, with cost and effort tradeoffs visible and dependent groceries recalculated, without giving a reason.",
+    "purpose": "Swap tonight's planned meal for something less effortful in a few taps, see the material effects, and keep groceries and leftovers coherent without changing permanent preferences.",
     "prd_refs": [
       "OT-P0-008",
       "OT-P0-006",
-      "OT-P0-011"
+      "OT-P0-007",
+      "OT-P0-011",
+      "OT-P1-006"
     ]
   },
   "steps": [
     {
       "page": "today",
-      "intent": "See the next meal immediately with its reason and known metrics.",
-      "via": "next-meal-card"
+      "intent": "See tonight's meal and decide it is too much work.",
+      "via": "meal-hero"
     },
     {
       "page": "today",
       "state": "swap-open",
-      "intent": "Ask for less effort and compare eligible alternatives ranked for minimal active effort.",
-      "via": "easy-night-action"
+      "intent": "Open Swap meal and pick Less effort to rerank alternatives.",
+      "via": "swap-reason-chips"
     },
     {
       "page": "today",
-      "state": "swap-open",
-      "intent": "Select an alternative that still passes every required rule and equipment constraint.",
-      "via": "swap-alternatives"
+      "state": "swap-impact",
+      "intent": "Review the impact on leftovers and groceries before applying.",
+      "via": "impact-preview"
     },
     {
       "page": "groceries",
-      "state": "unknown-cost",
-      "intent": "See the recalculated grocery requirements and which prices remain unknown.",
-      "via": "grocery-list"
+      "state": "plan-changed",
+      "intent": "See the grocery list reflect the swap as a reviewable change.",
+      "via": "plan-diff"
     }
   ],
   "claims": [
     {
-      "id": "swap-is-optional-and-reason-free",
-      "type": "affordance-present",
-      "statement": "A swap can be requested and completed without giving a reason and without changing permanent priorities.",
+      "id": "reason-is-optional",
+      "type": "custom",
+      "statement": "The swap works without choosing a reason, and a missing-ingredient reason never becomes a permanent dislike.",
       "tier": "aspirational"
     },
     {
-      "id": "blocked-alternatives-not-offered",
-      "type": "state-distinct",
-      "statement": "Alternatives that fail a required rule are separated and not selectable as compliant recommendations.",
+      "id": "rules-hold-under-fatigue",
+      "type": "custom",
+      "statement": "Every offered alternative still satisfies the required rules.",
       "tier": "aspirational"
     }
   ]

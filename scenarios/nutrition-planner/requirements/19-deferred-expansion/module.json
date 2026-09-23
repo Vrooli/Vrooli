@@ -1,11 +1,11 @@
 {
   "_metadata": {
     "description": "Deferred household, public-sharing, and adaptive-intelligence capabilities gated on deliberate evidence and authorization.",
-    "last_validated_at": "2026-09-18T11:10:07-04:00",
     "module": "deferred-expansion",
     "prd_ref": "PRD.md",
     "priority": "P2",
-    "schema_version": "1.0.0"
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
   },
   "requirements": [
     {
@@ -25,7 +25,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "planned",
           "notes": "Planned: two profiles in one household keep separate targets while sharing a shopping plan (spec section 19.4)."
         }
       ]
@@ -33,7 +33,7 @@
     {
       "id": "EXP-002",
       "title": "Public sharing handles rights before catalog",
-      "status": "complete",
+      "status": "planned",
       "prd_ref": "OT-P2-004",
       "category": "policy",
       "criticality": "P2",
@@ -47,8 +47,8 @@
         {
           "type": "manual",
           "phase": "business",
-          "status": "implemented",
-          "notes": "Planned review of attribution, permission, redaction, moderation, and copied-versus-linked revision handling before enabling any public catalog (spec section 18.3)."
+          "status": "planned",
+          "notes": "Planned review of attribution, permission, redaction, moderation, and copied-versus-linked revision handling before enabling any public catalog (spec Appendix A section 18.3); no attestation has been recorded."
         }
       ]
     },
@@ -69,7 +69,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "planned",
           "notes": "Planned: each deferred capability is disabled by default and exposes the inputs and evaluation criteria it requires before activation (spec section 14.7)."
         }
       ]

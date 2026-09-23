@@ -1,8 +1,8 @@
 ---
 id: vrooli-default
-version: 0.2.0
-name: Vrooli Operational Console
-description: Dense, responsive, customizable operational UI for generated Vrooli scenarios.
+version: 0.3.0
+name: Nooch — Warm Kitchen
+description: A calm cookbook in a warm kitchen — editorial serif titles, photorealistic food, warm ivory and forest days, olive-charcoal and amber evenings — over the Vrooli token plumbing.
 components:
   button-primary:
     tokenSource: design-tokens.css
@@ -26,125 +26,293 @@ components:
     tokenSource: design-tokens.css
 constraints:
   letterSpacing: "0"
-  cardRadiusMaximum: "0.5rem"
-  defaultMode: "light"
+  cardRadiusMaximum: "1.25rem"
+  defaultMode: "system"
   supportedModes: ["light", "dark", "system"]
   responsiveBaseline: "mobile-first"
-  dominantPalette: "neutral-operational-with-blue-cyan-and-semantic-status"
+  dominantPalette: "warm-ivory-forest-terracotta-day-and-olive-charcoal-ivory-amber-evening"
 ---
 
-# Vrooli Operational Console Design
+# Nooch — Warm Kitchen Design
 
 `DESIGN.md` is the source of truth for scenario UI decisions. Stack-specific adapters may translate these tokens into CSS, Tailwind, egui, native mobile themes, or future targets, but adapters must not redefine the design language.
 
-Daily uses the Vrooli Operational Console language because meal capture,
-planning, shopping, and history are repeated operational workflows: users need
-compact lists, clear revision and completeness states, and trustworthy pending
-or unknown indicators rather than decorative dashboards. The existing token
-contract is retained so the nutrition-specific surfaces remain keyboard-first,
-responsive, and legible when data is incomplete.
+**Warm Kitchen is a deliberate product theme, not the default operational
+console** (decision D-030). It keeps the Vrooli token plumbing — the
+`design-tokens.css` sources, the spacing scale, semantic status roles, the
+component-library shell — and intentionally departs from the console's
+"compact, operational, no atmospheric imagery" defaults because the product
+owner approved this direction and beauty is a stated product requirement
+(OT-P0-021). A meal planner is opened every day by choice; the calm, appetizing
+look is what earns that habit, and the habit is what makes the honest planning
+loop valuable. Do **not** substitute a stock dashboard and call it equivalent.
+
+The visual target is the set of approved concept mockups in
+[`docs/reference/mockups/`](docs/reference/mockups/README.md). The values below are
+starting tokens from the specification (R05.1); tune them only after measured
+contrast checks against real captures, preserving the direction. Never sample
+colours from a generated image.
 
 ## How To Read This Document
 
 This file mixes two kinds of guidance, and the distinction matters.
 
-- **Binding contract** (must follow): the tokens, color roles, typography scale, spacing, radius, motion rules, status-color semantics, responsive transformations, accessibility floors, and the overall "calm/dense/operational" feel target. These define the design language and must be respected.
-- **Illustrative examples** (shape, not checklist): any concrete list of components, layouts, page surfaces, settings controls, or copy. These exist to communicate *shape and feel*, not to enumerate the features your scenario must (or must not) ship. If a section lists "preferred primitives" or sketches an example settings page, treat that as a representative sample — your scenario should implement every feature its users actually need, even if it is not listed here.
+- **Binding contract** (must follow): the tokens, colour roles, typography scale, spacing, radius, motion rules, status semantics, responsive transformations, accessibility floors, the appearance model (Light, Evening, Follow device), the media-treatment rules, the component grammar in "Component Language", and the overall "calm cookbook in a warm kitchen" feel target.
+- **Illustrative examples** (shape, not checklist): any concrete list of components, layouts, page surfaces, settings controls, or copy. They communicate *shape and feel*, not the feature set. The surface set is owned by [`docs/concepts/EXPERIENCE.md`](docs/concepts/EXPERIENCE.md) and `experience/`.
 
-Concrete rule of thumb: this design tells you *how* a control should look, behave, and feel — not *which* controls your scenario must include. Match the design's visual and behavioral floor; do not constrain your scenario's feature set to whatever examples appear below.
+Concrete rule of thumb: this design tells you *how* a surface looks, behaves, and feels — not *which* surfaces the product must include.
 
 ## Intent
 
-Vrooli Operational Console is the default design language for scenario applications. It is built for operators, agents, reviewers, maintainers, and builders who need to understand system state quickly and act repeatedly without friction.
+Nooch should feel like a beautifully designed cookbook in a warm kitchen. It
+answers one question per screen — what am I eating next, does my week fit my
+life, what can I make, what do I need, what do I have — with one clear primary
+action and supporting detail on request.
 
-The interface should feel calm, technical, dense, legible, and durable. It should borrow the strongest patterns from Swarm Manager and Git Control Tower: dark operational chrome, precise status color, compact information surfaces, resizable desktop panels, mobile-first navigation adaptations, and strong support for long-running workflows. It should not feel like a marketing site, decorative dashboard, consumer social app, or generic purple-gradient AI product.
+- **Food carries the colour; chrome stays quiet.** Photorealistic food and
+  kitchen imagery supply warmth on Today, Week, Meals, Explore, recipe detail,
+  cooking, and the equipment scene. Groceries and Kitchen inventory emphasize
+  readable lists.
+- **Editorial, not clinical.** Serif titles, generous whitespace, hairlines
+  before boxes, restrained line icons.
+- **Honest.** Unknown values read as unknown, scope is always named, and
+  nothing decorative ever implies a fact (a photo never proves ingredients,
+  nutrition, or portions).
+
+Avoid: glass panels over busy photography, pervasive gradients, neon, oversized
+metric dashboards, decorative slogans, stock-dashboard card walls, and
+generated text inside images.
 
 ## Layout
 
-Use full-width application surfaces. Prefer navigation, toolbars, tables, forms, split panes, file/code viewers, graph canvases, command bars, and compact panels over oversized hero sections or decorative cards.
-
-Desktop layouts should maximize screen space. Sidebars and inspector panels sit beside the main content and reduce the main content width when opened. Resizable sidebars and split panes are preferred for work surfaces where users compare lists, details, diffs, logs, previews, or execution output. Preserve enough adjacent content width that opening a panel never makes the workspace unusable.
-
-Mobile layouts are not shrunken desktop layouts. Sidebars become full-width drawers or route-level panels. Main route navigation may become bottom navigation when it replaces desktop sidebar or header navigation. Complex dialogs become full-screen panels or bottom sheets, especially when they contain forms, review steps, filters, file actions, or multi-step decisions. Mobile primary actions should live near the bottom edge, respect safe-area insets, and support optional left-handed or right-handed placement when the action is frequent.
-
-Use cards only for repeated records, focused tools, modals, and intentionally framed objects. Do not wrap whole page sections in floating cards. Keep page-level structure unframed unless the content is a true object or tool.
+- **Desktop:** a single header row (serif wordmark (the configured display name, `Nooch`) at left, the five
+  destinations as text links, appearance control and Settings at right, hairline
+  below). No sidebar. Content max width ~1440 px; Week may use ~1600 px when its
+  cells stay readable. Side padding 24–40 px.
+- **Phone:** compact header (wordmark, appearance, Settings), page title in large
+  serif, one column, and **five labelled bottom tabs** (Today, Week, Meals,
+  Groceries, Kitchen) whose height is reserved in document flow and which respect
+  the safe area. Side padding 16–20 px.
+- **Focused cooking** replaces the destinations with **Exit cooking** and keeps
+  appearance and Settings.
+- Layout bands follow container width (R06.1): below 640 px compact; 640–1023 px
+  intermediate; 1024–1279 px desktop where navigation fits; 1280 px and above full
+  desktop. At 200 % zoom the compact layout may take over.
+- Use cards for repeatable objects (meal cards, day cells, sidebar panels, timer,
+  tiles) and intentionally framed tools. Page structure stays unframed; separate
+  list rows with hairlines.
 
 ## Color
 
-Default presentation is light mode with a neutral work surface and optional dark shell chrome. Dark mode is first-class and should preserve the deep slate operational feel of existing Vrooli tools. System mode should follow the platform preference.
+One semantic token system with two appearances (R05.1). Screens never hard-code
+colours; feature code uses tokens only.
 
-Use neutral slate surfaces as the dominant base. Use blue for primary commands and selected navigation, cyan for technical emphasis, green for success or completed work, amber for warnings or pending attention, and red for destructive, failed, or blocked states. Do not rely on color alone for status; pair it with labels, icons, position, or shape.
+| Semantic token | Light | Evening |
+| --- | --- | --- |
+| Canvas | `#F7F4EE` | `#191D16` |
+| Surface | `#FFFDFA` | `#24291F` |
+| Raised surface | `#FFFFFF` | `#2D3327` |
+| Primary text | `#19372A` | `#F4F0E5` |
+| Secondary text | `#596358` | `#BDC4B4` |
+| Primary action | `#A9472D` | `#E9B564` |
+| On primary | `#FFFFFF` | `#211C13` |
+| Selection surface | `#E3E9DA` | amber-tinted, starting from `#E9B564` (D-040) |
+| Selection text | `#203F2D` | `#211C13` |
+| Column highlight | `#E3E9DA` | `#39402D` |
+| Divider | `#DCDDD3` | `#454C3D` |
+| Focus | `#2E6A4C` | `#F5CA80` |
+| Error emphasis | `#A33332` | `#FFB4AA` |
 
-Avoid one-note palettes dominated by a single hue family. Avoid decorative gradient blobs, bokeh, and atmospheric backgrounds. Gradients may be used sparingly for product-specific hero metrics or specialized visualizations, but not as the default application background.
+Derived roles (define as tokens; tune by contrast):
+
+- **Column highlight** tints the selected or current day column and day cell
+  (Week board, week strips); it is not a control selection.
+- **Navigation indicator:** forest (`Primary text`) underline by day, amber
+  (`Primary action`) by evening.
+- **Status pills:** *Use soon* — warm peach fill with dark text by day, amber
+  outline by evening; *Available* — sage fill by day and olive by evening (the
+  `Column highlight` values); *Out* and
+  *Unknown* — neutral with a text label. Status is never colour alone.
+- **Tag chips:** one neutral chip style with a leading icon; meaning comes from
+  the label and icon, not a per-tag colour (D-028).
+- **Scene text support:** a restrained scrim may improve contrast over imagery but
+  never replaces an asset's approved safe-text region (R17.4).
+
+Dividers are not automatically sufficient control boundaries; test control
+contrast separately. Disabled components keep their explanation readable.
 
 ## Typography
 
-Use Inter or the platform sans stack for application UI. Use a monospace stack for code, diffs, hashes, paths, identifiers, logs, tabular metrics, and command output.
+- **Two families only.** A self-hosted, licensed editorial serif for the
+  wordmark, page titles, section titles, meal and recipe names, and large numerals
+  (the cooking timer); the UI sans (Inter, already in the kit) for navigation,
+  controls, chips, metadata, instructions, and forms. The serif is chosen by
+  side-by-side comparison with the mockups (OFL candidates: Newsreader, Source
+  Serif 4, Fraunces); record the licence and subsets. Similar-metric system
+  fallbacks; never block content on font loading.
+- **Scale (R05.1):** desktop page title 36–44 px; Today meal title 42–58 px as
+  space permits; phone page title 28–32 px; phone meal title 28–34 px; section
+  title 22–28 px; card title 18–22 px; body 16 px; metadata 13–14 px; minimum
+  nonessential metadata 12 px. Wrap long names instead of shrinking them.
+- **Eyebrows** (`TODAY · WEDNESDAY`, `USE SOON`) and storage/aisle group labels
+  are small caps with modest letter spacing — the one sanctioned exception to zero
+  letter spacing.
+- **Numerals:** tabular numerals for timers, quantities, and amounts so digits do
+  not shift.
+- Support user font scaling and 200 % zoom without clipping.
 
-Base body text is 16px for mobile input safety and accessibility. Dense desktop panels may use 14px body text when the interaction benefits from scanning, but controls must remain legible and targets must remain usable. Support user font-size scaling. Letter spacing is zero by default except for rare compact labels where local implementation has a clear reason.
+## Spacing, Radius, Elevation
 
-Reserve hero-scale type for true landing or product-identity screens. Scenario applications should usually use compact page titles, section headers, labels, and status text sized to their container.
+- 4 px base; groups of 8 / 12 / 16 / 24 / 32 / 48.
+- Controls 44–48 px tall; touch targets at least 44 × 44 CSS px.
+- Radii: controls and chips 8–10 px (chips may be fully rounded); cards 10–14 px;
+  panels 14–18 px; an inset hero 16–20 px (maximum 1.25 rem).
+- Shadows are subtle and only express elevation (sheets, menus, the timer card
+  over imagery). Prefer spacing and hairlines to extra containers.
 
-## Components
+## Component Language
 
-Controls should be predictable, stable, and optimized for repeated work. Use icon buttons for familiar tool actions, segmented controls for modes, toggles or checkboxes for binary settings, sliders or inputs for numeric values, menus for option sets, tabs for sibling views, and command bars for high-frequency workflow actions.
+Binding grammar resolved from the mockups (D-027, D-028); the reusable
+components themselves are listed in [`docs/concepts/UI-ARCHITECTURE.md`](docs/concepts/UI-ARCHITECTURE.md).
 
-Example primitives (illustrative, not a feature checklist — include whatever your scenario actually needs, styled to match these patterns):
+- **Primary action:** one filled button per region in the `Primary action`
+  token (Start cooking, Plan my week, Add meal, Add item, Add ingredient, Next
+  step). Secondary actions are outlined (action hue or neutral). Onward text
+  links use the action hue with a trailing arrow ("Review groceries →").
+- **Primary navigation and in-page tabs:** semibold label with a 2 px underline
+  indicator. No pill-style active navigation.
+- **Mode switches** (Meals / Nutrition / Time & cost, Day / All week, Review /
+  Shop, Appliances / Cookware / Tools, Reading / Recipe map, Planned / Recorded /
+  Expected, per serving / per yield) are `SegmentedControl`s; **filters** are
+  `FilterChip`s. Both use the single `Selection surface` token per appearance (D-040); the
+  Equipment mockup's forest-filled segment is not reproduced.
+- **Appearance control:** an icon button reflecting the current setting that opens
+  Light / Evening / Follow device — never a blind toggle.
+- **Favourite vs save:** heart for a personal favourite; bookmark for saving an
+  unsaved Explore suggestion; both with explicit accessible names.
+- **Icons:** one line-icon family (`lucide-react`) with one icon per destination
+  used everywhere (Today home, Week weekly calendar, Meals fork and knife,
+  Groceries shopping bag, Kitchen cooking pot); custom equipment icons in the same
+  stroke weight; distinct cooktop and oven icons.
+- **Lists:** round checkboxes for shopping rows; square checkboxes for ingredient
+  and prep checklists; right-aligned tabular amounts; small realistic ingredient
+  icons are decorative (text carries meaning).
+- **Decorative line art:** at most one botanical sprig per view, `aria-hidden`,
+  never meaningful, light appearance only unless a matching evening treatment is
+  drawn.
+- **Copy:** functional and short. No slogans or script lettering.
 
-- **Shells:** desktop sidebars, collapsible panes, resizable inspectors, bottom mobile navigation, route-level mobile panels.
-- **Dialogs:** compact modal on desktop; bottom sheet or full-screen panel on mobile when content is more than a short confirmation.
-- **Lists and tables:** dense rows, sticky headers when useful, clear selected state, empty/loading/error states, and bulk action affordances.
-- **Status:** semantic chips, health indicators, badges, progress bars, and validation summaries with both text and color.
-- **Code and files:** monospace text, stable line height, visible focus, preserved whitespace, horizontal scroll affordances, and clear added/modified/deleted states.
-- **Actions:** primary action near the active work surface; destructive actions separated, confirmed, and visually distinct.
+Text must not overflow or overlap at any width. Fixed-format controls (day
+cells, tiles, timer, nav items, badges) have stable dimensions so dynamic content
+cannot shift layout.
 
-Text must not overflow or overlap at mobile or desktop sizes. Fixed-format controls such as boards, tiles, counters, toolbars, nav items, and badges need stable dimensions or responsive constraints so dynamic content cannot shift the surrounding layout.
+## Imagery And Media Treatments
+
+MealHero and meal cards render **one layout** with one of four treatments chosen
+deterministically (R17.1): **Scene** (approved finished meal-in-scene
+composition matching appearance and viewport), **Cutout** (approved transparent
+subject in a compatible scene), **Editorial** (an ordinary licensed or user photo
+in a deliberate rounded frame), **Minimal** (typography and ingredient summary on
+a tinted panel). Presentation preference (Immersive, Editorial, Minimal),
+appearance, and generation permission are three separate settings.
+
+- Live text sits only inside an asset's approved safe-text region; long titles
+  may switch to a quiet panel or the editorial treatment.
+- Scale a composed scene as one image using its focal point and crop bounds;
+  never cover food and table layers independently (R06.3).
+- Phone Today artwork takes roughly 22–30 % of the initial viewport (160–260 px);
+  phone recipe photos about 160–220 px. Artwork shrinks or disappears before the
+  primary action does.
+- Reserve dimensions; failed or missing media falls back to the next treatment
+  without a broken-image icon or layout shift.
+- Never bake text, UI, logos, or watermarks into assets. Generated imagery is
+  captioned *Serving inspiration*; ordinary user photos are not labelled.
+
+## Appearance Behavior
+
+- **Light, Evening, Follow device.** Follow device is the first-run default unless
+  a stored preference exists.
+- Persist an explicit choice locally (for first paint) and in the account; apply
+  it before first paint so an evening reload never flashes light. Match native
+  control colour scheme.
+- Appearance changes presentation only: never the meal, servings, date, slot, or
+  plan, and never a generation job. A dark breakfast is still breakfast.
+- Themes change colour, not structure: every surface keeps the same components
+  and layout in both appearances.
+
+## Motion
+
+Reduced motion replaces spatial slides, bounces, and parallax with instant or
+brief opacity changes. Otherwise use 120–220 ms state transitions. No animated
+kitchen activity or simulated steam. Timer announcements happen on state changes
+and expiry, not every second. Selecting an equipment tile may fade a scene layer;
+it never moves other controls or resets scroll.
 
 ## Responsiveness
 
-Design mobile first, then expand to tablet and desktop. Mobile should provide complete capability, not a read-only fallback. If a workflow is important on desktop, define the mobile equivalent deliberately.
+Design mobile-first; the phone gets complete capability, composed for sequence
+and thumb reach rather than shrunk from desktop (D-036). Where the interaction
+model changes, a breakpoint hook selects a different component tree off the same
+data; where only arrangement changes, use CSS reflow.
 
-Breakpoints should be treated as behavior changes, not only width changes. Common transformations:
-
-- Desktop sidebar -> mobile full-width drawer.
-- Desktop modal -> mobile bottom sheet or full-screen panel.
-- Desktop header/sidebar route navigation -> mobile bottom navigation where appropriate.
-- Desktop split panes -> mobile stepwise panels or tabs with preserved context.
-- Desktop hover affordance -> mobile visible affordance or long-press-safe alternative.
-
-Use safe-area padding for mobile bottom and top chrome. Primary touch targets should be at least 44px. Avoid hiding essential actions behind hover-only UI.
+- Today: text-left/scene-right hero → short scene above solid content with
+  actions right after the title.
+- Week: seven-column board only when each day gets ~136 px plus the label column
+  → otherwise day selector, Day / All week, stacked slot cards; never a shrunken
+  seven-column grid.
+- Meals and Explore: three / two / one columns; no miniature two-column food
+  cards on phones.
+- Recipe: ingredient column beside method → stacked sections with a compact photo.
+- Cooking: step rail + step + timer → single step, step-list sheet, footer actions
+  in the thumb zone.
+- Groceries: list + planning sidebar → full-width list, supplementary detail in
+  sheets.
+- Kitchen: rows + summary panels → rows and a use-soon strip; Equipment scene
+  beside tiles → short scene above the category selector and two-column tiles.
+- Desktop dialogs and panels → sheets or full pages that preserve state and
+  history; long forms are full-screen editors with sticky actions above the
+  keyboard.
 
 ## Customization
 
-Every generated scenario should be able to support light, dark, and system mode unless the product explicitly documents a different reason. Font size scaling, reduced motion, and RTL layout should be planned from the start. For mobile-heavy workflows with frequent bottom actions, support optional left-handed and right-handed action placement when feasible.
-
-Build a full settings/preferences surface covering everything your scenario actually needs — theme, font scale, locale, accessibility preferences, account or workspace controls, notification toggles, and scenario-specific options. Do not treat any specific subset of preferences mentioned elsewhere in this document as the complete set; those are illustrative. Style and behavior of the settings surface are governed by this design; *which* settings exist is governed by your scenario's users.
-
-Customization should be implemented through tokens and stateful preferences, not one-off component rewrites. Local product themes may extend this design, but they should keep semantic color roles, focus behavior, responsive transformations, and accessibility guarantees intact.
+Support Light, Evening, and Follow device from the start, plus font scaling,
+reduced motion, RTL, and the presentation preference (Immersive, Editorial,
+Minimal). Customization is implemented through tokens and stateful preferences,
+not one-off rewrites. The Settings surface covers Appearance, Meal artwork,
+Generation & usage, Integrations, Notifications, Units/currency/timezone, Data &
+exports, and Account — governed in style by this design and in content by the
+product's users.
 
 ## Workflow Ergonomics
 
-Design from the user's flow, not from component inventory. For each major screen, identify the primary repeated action, the highest-risk action, the most common comparison, and the first thing a new user needs to understand.
-
-Experienced users should be able to move quickly with short pointer travel, predictable keyboard focus, visible shortcuts where appropriate, persisted panel sizes, remembered filters, and stable navigation state. New users should see enough structure, labels, and progressive disclosure to understand what is actionable without reading documentation.
+Design from the user's flow. For each surface, know the primary repeated action
+(Start cooking on Today, Add to <day> in Explore, check a row in Shop mode), the
+highest-risk action (apply a replan, confirm purchases, change an allergy), the
+most common comparison (planned versus recorded, need versus stock), and the
+first thing a new user must understand (what fits their rules). Remember
+filters, tabs, Review/Shop mode, and scroll position across navigation.
 
 ## Feedback & State
 
 Every user-triggered operation needs visible state. Loading, submitting, saving, syncing, refreshing, empty, partial, stale, success, validation-error, request-error, permission-denied, offline, and retry states are part of the design contract, not implementation polish.
 
-Buttons that start asynchronous work should acknowledge the click immediately, show a busy state, prevent duplicate submission when duplicate work would be harmful, and restore a usable state when the operation finishes. Forms should preserve user input on failure, place field-level validation near the affected control, and show a form-level summary when the submit action fails. Lists, tables, panels, and dashboards should have purposeful loading, empty, partial, and error states instead of blank space.
-
-Use inline feedback near the action when the user needs to continue working in context. Use toasts only for transient confirmation or background results. Use alert panels for failures that need reading, retry, or escalation. Error messages should explain what happened, what is still safe, and the next available action without exposing stack traces, secrets, raw tokens, or irrelevant internals.
+Buttons that start asynchronous work acknowledge the click immediately, show a
+busy state, prevent harmful duplicate submission, and restore a usable state when
+finished. "Saved" means the durable operation succeeded, not that a component
+updated. Offline indicators distinguish cached data, local pending actions, and
+server-confirmed saves. Toasts sit above the phone tab bar and safe area and never
+cover primary actions. Load failure is never presented as an empty account.
 
 ## UX-State Contract
 
 Every major surface declares the lifecycle states that users can encounter:
 `idle`, `pending`, `success`, `loading`, `saving`, `syncing`, `refreshing`,
 `empty`, `partial`, `stale`, `validation-error`, `request-error`, `retrying`,
-`permission-denied`, and `offline`. A scenario may add a more specific state,
-but it must keep the generic state legible and actionable. The state must be
-represented in the accessibility tree with a role, name, status, or alert that
-explains what changed and what the user can do next.
+`permission-denied`, and `offline`. A scenario may add a more specific state
+(for example `no-eligible-meals`, `unknown-cost`, `timer-elapsed`,
+`plan-changed-while-shopping`), but it must keep the generic state legible and
+actionable. The state must be represented in the accessibility tree with a role,
+name, status, or alert that explains what changed and what the user can do next.
 
 Experience-manager's state coverage check uses this section as the contract
 source. Pages that do not encounter a state may omit it with a documented
@@ -154,45 +322,49 @@ reason.
 ## Baseline Capture Matrix
 
 The default machine-evidence run uses a bounded covering set of at most 12
-captures per active surface. It includes every declared viewport, light and
-dark desktop coverage, English and Arabic direction coverage, both motion
+captures per active surface. It includes every declared viewport, Light and
+Evening desktop coverage, English and Arabic direction coverage, both motion
 preferences, and rest/hover/focus-visible/pressed interaction states. The
 matrix is a covering set rather than a Cartesian product so capture cost stays
-predictable; a claim scoped to an additional axis opts into the smallest
-targets needed for that claim.
+predictable; a claim scoped to an additional axis (for example the phone
+Evening Today hero) opts into the smallest targets needed for that claim. The
+redesign's visual acceptance additionally compares R27.5 captures side by side
+with the concept mockups.
 
 ## Request Lifecycle
 
-For every network call, long-running local task, file operation, generation step, or resource mutation, design the lifecycle deliberately: idle, pending, success, failure, retrying, and disabled/unavailable. Slow operations should show progress, skeletons, spinners, streaming output, or queued status appropriate to the surface. If exact progress is unknown, show an indeterminate but visible pending state with stable layout.
-
-Optimistic updates are allowed only when rollback is clear. If an optimistic change fails, restore the previous state or mark the item as unsynced with a retry action. Background sync should expose freshness, last-updated time, stale data, and reconnection status when the result affects decisions.
+For every network call, long-running task (plan generation, import, generation
+job, calendar sync), file operation, or mutation, design idle, pending, success,
+failure, retrying, and unavailable states. Optimistic updates are allowed only
+where rollback is clear and revision-aware (checking a shopping row, selecting an
+equipment tile); plan apply, purchase confirmation, import, and generation always
+wait for canonical success. Background sync exposes freshness and pending state.
 
 ## Accessibility
 
-Interactive controls need visible focus states, disabled states, hover/active states where supported, and readable contrast in both light and dark modes. Do not rely on color alone to communicate status. Keep target sizes usable for mouse, keyboard, touch, and remote/TV-like pointer input when relevant.
-
-Respect reduced-motion preferences. Animations should clarify spatial change, such as drawers and sheets entering from their origin, and should never block task completion. Scrollbars and overflow regions must be discoverable on pointer-based devices.
+WCAG 2.2 AA target (R07): visible focus in both appearances, accessible names on
+every icon action, correct tab roles and keyboard behaviour, dialogs that restore
+focus, semantic tables or labelled lists for ingredients and inventory, 44 px
+targets, Move/Copy alternatives to drag, equipment tiles as the complete
+alternative to scene markers, non-colour status cues, contrast verified on real
+captures including text over imagery.
 
 ## Do's and Don'ts
 
 ### Do
 
-- Start UI work by reading this file and mapping the main user flows.
-- Prefer compact operational surfaces over decorative composition.
-- Support light, dark, and system mode from the beginning.
-- Use responsive behavior changes for sidebars, dialogs, navigation, and split panes.
-- Use semantic status colors consistently and pair them with text or icons.
-- Preserve user preferences for theme, font scale, panel sizing, filters, and active views when useful.
-- Design loading, empty, partial, success, validation-error, request-error, and retry states for every asynchronous workflow.
-- Preserve user input and provide a clear next step when a form submission or mutation fails.
+- Start UI work by reading this file, the mockups guide, and the surface's section in `docs/internal/REDESIGN_PLAN.md`.
+- Use tokens for every colour, size, and radius; keep feature code free of raw palette classes.
+- Compose phone and desktop deliberately; keep the primary action in reach.
+- Let food photography carry warmth and keep chrome quiet.
+- Keep unknown, zero, partial, and stale visually and textually distinct.
+- Design empty, loading, partial, error, offline, and nonideal-media states for every surface.
 
 ### Don't
 
-- Create a marketing-style landing page as the first screen of a scenario application.
-- Make mobile a cramped version of desktop.
-- Hide important mobile actions behind hover-only affordances.
-- Use decorative gradients, orbs, or background effects as the default visual identity.
-- Let component libraries or adapter assets become a separate source of design truth.
-- Introduce a new product theme without updating the scenario's root `DESIGN.md`.
-- Leave users without visible feedback after they submit, save, generate, refresh, or delete something.
-- Use silent failure, blank panels, disabled controls without explanation, or toasts as the only record of a blocking error.
+- Build a stock dashboard or a card wall and call it this design.
+- Make the phone a cramped desktop, or show a seven-column grid on a phone.
+- Put text, UI, or slogans inside images, or glass panels over busy photography.
+- Use colour as the only signal.
+- Let a component library or an asset become a second source of design truth.
+- Change structure between appearances.

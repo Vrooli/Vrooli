@@ -87,6 +87,35 @@ non-API command, force a rebuild:
 make setup   # rebuilds CLI from sources
 ```
 
+### Every page shows an error and every API or CLI call is "unauthenticated"
+
+**Symptom:** the scenario starts and `/health` is healthy, but every page
+renders its error state, `nutrition-planner workspace list` fails with an
+"unauthenticated — verified actor required" error, and a direct
+`ListWorkspaces` call returns HTTP 401.
+
+**Cause:** the API installs its authentication middleware only when the
+lifecycle supplies authentication configuration, and
+`.vrooli/service.json` declares no `authentication` block, so no request ever
+carries a principal. This is blocker B1 in
+[`../internal/REDESIGN_PLAN.md`](../internal/REDESIGN_PLAN.md) §3.2 (decision
+D-032), not a transient failure — restarting does not help.
+
+**Fix direction:** declare the platform authentication profile (`hybrid` with
+the default mode `personal_local`) following the repository's
+[identity and authentication concept](../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md);
+`scenarios/git-control-tower/.vrooli/service.json` is a working example. Then
+`make restart` and confirm with `nutrition-planner workspace list`. Do not
+hand-set `VROOLI_AUTH_*` variables, hard-code an owner, or add a "skip auth"
+branch in a handler.
+
+### Settings "data health" shows a parse error
+
+The UI client requests `/diagnostics`, which the UI server answers with the
+single-page app's HTML, so JSON parsing fails. The real route is
+`/api/v1/diagnostics` (blocker B6). Fix the client base in
+`ui/src/api/diagnostics.ts`; the server is fine.
+
 ### `nutrition-planner configure` doesn't persist
 
 Check which config-file path resolved (precedence in
@@ -127,8 +156,8 @@ make setup
 
 For dependency additions or changes, use
 `scenario-dependency-analyzer deps install` through
-package governance (`path:docs/package-governance.md`). Do not run a raw
-package manager.
+package governance ([repository package-governance guide](../../../../docs/package-governance.md)).
+Do not run a raw package manager.
 
 The UI is a standalone pnpm project, isolated from the repo-root
 `packages/*` workspace. The template's `ui/pnpm-workspace.yaml` is a

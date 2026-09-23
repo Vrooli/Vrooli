@@ -1,10 +1,11 @@
 {
   "_metadata": {
-    "module": "cost-and-pricing",
     "description": "Allocated portion cost, checkout estimate, actual spend, and dated price observations without fabricated savings.",
+    "module": "cost-and-pricing",
     "prd_ref": "PRD.md",
     "priority": "P0",
-    "schema_version": "1.0.0"
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
   },
   "requirements": [
     {
@@ -92,6 +93,34 @@
           "phase": "unit",
           "status": "planned",
           "notes": "Planned: an unrecorded net-to-drained conversion is rejected or flagged, and the chosen purchase combination preserves each selected offer."
+        }
+      ]
+    },
+    {
+      "id": "COST-005",
+      "title": "Price coverage is visible and never invented",
+      "status": "planned",
+      "prd_ref": "OT-P0-012",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "Wherever the scenario shows cost, it shall state currency, coverage, and scope, label older observations by age, treat an unknown price as unpriced rather than free, show Add prices to estimate your total when no observations exist, and never claim a required budget is met while priced coverage is incomplete.",
+      "tags": [
+        "cost",
+        "coverage",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a required budget over a plan with unpriced products reports that compliance cannot be validated (AT-015); an unpriced candidate never ranks as cheaper than a priced one (R23)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: the Groceries sidebar and Week Time & cost view show known subtotals with coverage and no invented total (R14.4, R09.5)."
         }
       ]
     }

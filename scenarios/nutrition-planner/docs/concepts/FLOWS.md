@@ -2,18 +2,19 @@
 
 This document is the canonical workflow and state-transition map for the scenario. Use it
 when behavior depends on ordered states, retries, cancellation, stale completion,
-background jobs, polling, or mutually exclusive UI modes.
+background jobs, offline replay, or mutually exclusive UI modes.
 
-**Current status: no formal workflow model exists yet.** The temporal layers described in
-[`Maturity Ladder`](#maturity-ladder) are at levels 1–2: the journeys and state machines
-below are documented, but no `*.flow.json` contract, generated Quint model, or replay test
-has been authored. This section names where that work will attach.
+**Current status.** No journey below runs end to end today: every workspace RPC returns
+`401 unauthenticated` in the local runtime (B1 in
+[`../internal/REDESIGN_PLAN.md` §3.2](../internal/REDESIGN_PLAN.md#32-blocking-defects-fix-first-in-d0)).
+The journeys and state machines are **documented intent** at maturity level 1: no
+`*.flow.json` contract, generated model, or replay test exists yet.
 
 ## Purpose Of This Document
 
 Use this document to answer:
 
-- Which user/system workflows matter?
+- Which user and system workflows matter, and on which redesigned surfaces they run?
 - Which workflows have explicit states and events?
 - Which transitions are illegal?
 - Which tests prove workflow correctness?
@@ -23,217 +24,335 @@ Plain CRUD with no meaningful ordering constraints does not need a workflow mode
 
 ## Flow Inventory
 
-`health` is a stateless reporting domain and ships no workflows. The rows below are the
-seven product journeys (specification §4) and the stateful system flows that support them.
+Journeys A–G are specification §4 re-expressed on the redesigned surfaces (R08–R16); H is
+the Explore journey R11 adds. The remaining rows are the stateful system flows behind them.
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
-| A. A first useful plan | workspace-and-profile, planning-engine | A new user completes or skips setup. | Active rules plus a draft week, or a clearly labeled empty collection. | Resumable setup draft; generate/apply separation; stale-input checks. | L1 |
-| B. Capture an existing routine | recipe-library, dietary-rules | The user pastes a routine or enters meal names. | A review queue and, after review, accepted recurring anchor templates. | Review-before-write; unresolved quantities preserved; no invented facts. | L1 |
-| C. A tired evening | planning-engine, intake-and-feedback | The user opens Today and asks for a lower-effort alternative. | A scoped one-meal override with recalculated groceries and batch dependencies. | Quote/apply; undo only when revisions still match; locks preserved. | L1 |
-| D. Shopping and changes | shopping-plan, inventory-and-batches | The user reviews a week and derives groceries. | A checked shopping plan; purchases remain a separate explicit action. | Check state preserves unchanged lines; overrides retained; idempotent purchase. | L1 |
-| E. Cooking and logging | recipe-method-graph, inventory-and-batches, intake-and-feedback | The user finishes cooking or eats. | A prepared batch and/or a consumption event with correction linkage. | Cook and eat are distinct; undo/correction reverses stock exactly once. | L1 |
-| F. A new week | planning-engine | The user requests the next date range (R2: a scheduled job). | A draft for the range that preserves anchors, locks, and accepted preferences. | Generate/apply separation; a scheduled run never replaces an accepted plan. | L1 |
-| G. Moving data | transfer-and-documents | The user exports, imports, restores, or prints. | A portable envelope or a rendered document; staged import applies atomically. | Staged → applied; recoverable restore checkpoint; stale preview rebuild. | L1 |
-| Generate plan draft | planning-engine | User request or scheduled run. | A draft with occurrences, evaluations, costs, reasons, and unresolved slots. | Seed-reproducible; bounded search; timeout is not infeasibility. | L1 |
-| Apply plan | planning-engine, application-services | User confirms a preview. | An accepted plan revision or a stale/conflict error. | Expected-revision checks; all-or-nothing; preserves locks. | L1 |
-| Record / correct intake | intake-and-feedback, inventory-and-batches | User logs or corrects a consumption event. | An idempotent event and refreshed actual totals; batch adjusted once. | Idempotency key; document the same payload/conflict rule. | L1 |
-| Confirm preparation | inventory-and-batches | User confirms a cooking session with actual yield. | A prepared batch; raw ingredients consumed once; reservation released. | All-or-nothing; leftover portions reference the batch. | L1 |
-| Record purchase | inventory-and-batches, shopping-plan | User confirms shopping lines as bought. | An idempotent purchase event and one inventory application. | Durable source identity prevents double-apply. | L1 |
-| Stage / apply import | transfer-and-documents | User selects a file or pasted JSON. | A validation report, then an atomic apply with counts. | Parse/preview never mutates; stale proposal rebuilds. | L1 |
-| Run background job | provider-and-job-adapters | Schedule, manual trigger, or an adapter call. | A terminal job record and, if extraction succeeded, an unapplied proposal. | Bounded retries; cancellation; provider failure never blocks manual paths. | L1 |
+| A. A first useful plan | profile-and-preferences, equipment, planning-engine | A new user opens Nooch. | Active rules and a draft week, or an honest unconfigured Explore. | Resumable setup draft; atomic apply; stale-input checks. | L1 |
+| B. Capture an existing routine | recipe-library, routines-and-supplements | Add meal or Preferences › Planning routine. | Drafts and reviewed recurring anchors. | Review before write; unresolved quantities kept. | L1 |
+| C. A tired evening | planning-engine, intake-and-feedback | Today › Swap meal. | A scoped one-occurrence override. | Quote/apply; conditional undo; locks preserved. | L1 |
+| D. Shopping and changes | shopping-list, inventory-and-batches | Groceries › Review, then Shop. | Picked-up rows, confirmed purchases, reviewed plan diffs. | Row states; outbox replay; idempotent purchase. | L1 |
+| E. Cooking and logging | cooking-sessions, inventory-and-batches, intake-and-feedback | Start cooking on Today or a recipe. | A finished session, optional batch, optional intake. | Session and timer machines; exactly-once stock effects. | L1 |
+| F. A new week | planning-engine, calendar-link | Week › Plan my week. | An applied week with locks kept; optional scheduled prep. | Generate/apply separation; calendar link outbox. | L1 |
+| G. Moving data | transfer-and-documents | Settings › Data & exports, or Print. | An envelope, a restore, or a document. | Staged → applied; recoverable checkpoint. | L1 |
+| H. Plan a meal from Explore | explore, planning-engine | Week empty slot › Add, or Meals › Explore. | A saved recipe snapshot plus one occurrence, or an explicit Replace preview. | Context revalidation; idempotent save. | L1 |
+| Integrated review journey (R27.6) | all | Clean account. | Every step's persisted effect verified end to end. | Composite of A–H. | L0 |
+| Generate / apply plan | planning-engine, application-services | Plan my week, replan, swap. | Draft, then an accepted plan revision or a stale/conflict error. | Seeded search; expected revisions; all-or-nothing. | L1 |
+| Cooking session and timers | cooking-sessions | Start cooking. | Session terminal state; timers reconciled across tabs. | See State Machines. | L0 |
+| Shopping list and rows | shopping-list | Groceries. | Row states and purchases. | See State Machines. | L0 |
+| Generation job | generation | Create scene image (opt-in). | Approved asset or an honest failure; usage settled once. | See State Machines. | L0 |
+| Calendar link | calendar-link | Schedule prep / Schedule cooking. | Linked event or honest pending/failed/conflict. | See State Machines. | L0 |
+| Offline outbox replay | ui, shopping-list, cooking-sessions | Reconnect. | Confirmed, conflicted, or rejected operations; no double apply. | See State Machines. | L0 |
+| Appearance boot | ui, profile-and-preferences | Page load. | The chosen appearance at first paint. | See State Machines. | L0 |
+| Record / correct intake | intake-and-feedback | I ate a serving, or correction. | Idempotent event; refreshed actual totals. | Key/payload conflict rule. | L1 |
+| Confirm preparation | cooking-sessions, inventory-and-batches | Finish cooking › confirm batch. | Batch created; raw ingredients consumed once. | All-or-nothing. | L1 |
+| Stage / apply import | transfer-and-documents | File or pasted JSON. | Validation report, then atomic apply. | Parse/preview never mutates. | L1 |
+| Run background job | provider-and-job-adapters | Schedule or adapter call. | Terminal job; unapplied proposal if extraction succeeded. | Bounded retries; cancellation. | L1 (no worker exists today) |
 
 ## Flow Details
 
 ### Journey A — A first useful plan
 
-Owner: `workspace-and-profile` with `planning-engine`. Trigger: a new or edited profile.
+1. A new user opens Nooch. With no configuration, Today invites **Choose a meal** or **Plan
+   my week** — never the demo bowl (R08.4). Explore is usable immediately with an explicit
+   "not set up yet" state that makes no claim about allergies it has not been told (R16).
+2. Setup runs four steps as a resumable draft: **Your food** (diet preset, exclusions),
+   **Your kitchen** (the same EquipmentScene and EquipmentTile components as Kitchen ›
+   Equipment; zero is valid), **Your rhythm** (budget, effort, variety, slots, batch
+   willingness), **Ready** (summary with fits / needs review / excluded counts from the
+   planner's eligibility service).
+3. Apply is atomic and previews conflicts with any existing plan; the app opens a plan draft
+   or Today.
+4. Progressive setup (recurring meals, supplements, targets, stores, units) is offered later
+   from Kitchen › Preferences; no targets are prefilled from fixtures.
 
-1. New user enters the brief four-step setup (**Your food**, **Your kitchen**,
-   **Your rhythm**, **Ready**) or chooses Explore first. Setup is held as a resumable draft
-   separate from active rules.
-2. They choose a diet approach and exclusions; they select appliances (zero is valid).
-3. Three questions establish initial cost, effort, and variety settings.
-4. The final step summarizes the rules and reports how many meals can currently be
-   evaluated as fitting — counts for fits, needs review, and excluded, computed by the same
-   eligibility service the planner uses.
-5. Applying the profile is atomic and previews conflicts with existing plans. With
-   sufficient recipes, a draft week is generated; without them, the user can add a meal or
-   explore clearly labeled sample content.
-6. The user sees one recommended meal with a calculation-backed reason and can start, swap,
-   edit setup, or inspect the week.
-7. If the profile is applied against an existing plan, locked future conflicts are surfaced
-   and historical intake is untouched.
-
-Failure modes: no eligible meals produces a rule-conflict summary and offers Add a meal or
-Adjust setup — never an automatic relaxation. A stale profile revision invalidates a
-generated draft rather than applying it.
+Failure modes: no eligible meals names the blocking rules and offers Add a meal or Adjust
+setup, never relaxation; a stale profile revision invalidates a generated draft.
 
 ### Journey B — Capture an existing routine
 
-Owner: `recipe-library` with `dietary-rules`. Trigger: pasted text or a sequence of names.
+1. **Meals › Add meal** accepts a name or rough text; a name-only record saves as Draft
+   (FIX-01). Paste and file import stage results for review (R10.3).
+2. Routine capture (Kitchen › Preferences › Planning routine) builds recurring slots with
+   anchors; multiple items per slot are allowed.
+3. Only material questions are asked; source text is preserved; nothing — recipe, brand,
+   serving weight, dose, target — is invented.
 
-1. The user pastes a rough routine or adds meal names.
-2. The application creates a review queue with detected meals, recurring slots, foods, and
-   supplements.
-3. It asks only material questions: quantity/basis, exact product where fortification
-   matters, and whether a repeated item is a separate consumption or the same item described
-   twice.
-4. The source text is preserved. The system must not invent a recipe, brand, serving
-   weight, dose, or daily target.
-5. Reviewed recurring items become baseline anchor templates; flexible slots stay variable
-   in later weeks.
-
-Failure modes: an ambiguous extraction stays unresolved with its original text. A missing
-quantity is unknown, not zero.
+Failure modes: ambiguous extraction stays unresolved with its text; a late async extraction
+never overwrites a newer edit.
 
 ### Journey C — A tired evening
 
-Owner: `planning-engine` with `intake-and-feedback`. Trigger: Open Today → next meal.
+1. Today's hero shows the selected occurrence; the user presses **Swap meal**.
+2. Suitable alternatives appear immediately; optional reason chips (Something different,
+   Less effort, Lower cost, Missing ingredients) rerank them. Blocked alternatives are
+   inspectable but not selectable.
+3. A compatible simple swap applies quickly with conditional Undo; material conflicts
+   (locks, leftover dependencies, required targets, large grocery changes) show an impact
+   preview (R08.2).
+4. Only the chosen occurrence changes; groceries and assessments update coherently (AT-007).
 
-1. The user sees the next meal and chooses "Not a cooking kind of night?".
-2. Eligible alternatives are ranked for minimal active effort; blocked alternatives are
-   shown separately with reasons and are not selectable as compliant.
-3. The user compares time, cost, and material target effects.
-4. Selecting one opens a scoped preview; grocery requirements and future dependent batch
-   uses are recalculated.
-5. Apply affects only the selected future occurrence and its planned servings; other
-   occurrences of the same recipe are unchanged unless explicitly broadened.
-6. Giving a reason is optional. This can be a one-meal override without changing permanent
-   priorities.
-
-Failure modes: undo restores the prior occurrence and derived state only if the affected
-revisions still match; otherwise it offers a new preview. Consumed occurrences are never
-changed.
+Failure modes: undo restores only if revisions still match; consumed occurrences are never
+offered for replacement; a missing-ingredient exclusion belongs to this swap only.
 
 ### Journey D — Shopping and changes
 
-Owner: `shopping-plan` with `inventory-and-batches`. Trigger: review a week.
+1. **Groceries › Review** shows scope, aisle groups, need, stock considered, missing,
+   package plan, price coverage, contributing meals, and pantry checks with **Have this**.
+2. Entering **Shop** starts shopping through an explicit, documented transition; checking a
+   row moves it to **Picked up** with immediate Undo and no focus loss.
+3. **Confirm purchases** previews actual amounts and optional prices, then creates purchase
+   and inventory events atomically and idempotently; partial fulfillment keeps the remaining
+   need visible.
+4. A plan change while shopping produces a reviewable diff (Added, Changed, No longer
+   needed); picked-up rows, manual items, and overrides are preserved (R14.3).
+5. Offline, checks and manual items queue in the outbox and replay on reconnect (R22).
 
-1. The user inspects derived groceries: total need, stock considered, amount missing,
-   estimated package count, price source/date, and unknowns — each separately.
-2. They check off items as shopping progresses. A checkmark is checklist state only.
-3. If a meal changes, checked states are preserved for materially unchanged line
-   requirements; increased or changed requirements are marked for review, and a compact
-   summary explains the difference.
-4. Inventory changes only through an explicit confirm-purchases action that previews
-   quantities and prices and creates idempotent purchase/stock events. Partial fulfillment
-   is supported; dismissing it keeps approximate stock.
-
-Failure modes: a missing package size or price leaves the row visibly unresolved. Replanning
-cannot delete a manual item, and an overridden quantity carries a mismatch badge if plan need
-changes.
+Failure modes: an increased requirement flags the extra amount rather than pretending it was
+picked up (AT-034); a stale diff is revalidated; two devices checking the same row apply the
+desired state once (AT-035).
 
 ### Journey E — Cooking and logging
 
-Owner: `recipe-method-graph`, `inventory-and-batches`, `intake-and-feedback`. Trigger: open
-a recipe.
+1. **Start cooking** creates or resumes a session pinned to the recipe revision, method,
+   scale, and occurrence; a matching active session offers Resume or Start another.
+2. The focused shell hides the destinations; **Exit cooking** and **View full recipe** stay
+   available. **Mark step done** records completion; **Previous / Next** navigate only.
+3. Timers run from absolute timestamps and survive reload, route changes, and multiple tabs.
+4. Finishing offers batch confirmation (actual yield, ingredient adjustments), **Finish
+   without inventory update**, and separately **I ate a serving**; optional feedback records
+   actual active time and "keep in rotation / less often".
 
-1. The user chooses map, read, or focused mode; all three use the same pinned revision.
-2. They adjust servings if needed. Scaling changes displayed quantities and totals but not
-   the stored recipe or the planned occurrence until explicitly applied.
-3. They follow steps or use a timer. Previewing or marking a step complete does not mark
-   food eaten; a Next button navigates by default.
-4. "Finished cooking" confirms a preparation with actual yield: raw ingredients are
-   consumed once and a prepared batch is created. "I ate this" is a separate action.
-5. Confirming a default consumed portion is one action, optionally adjusted, or left
-   unrecorded. A portion consumed from a batch reduces batch stock, not the raw ingredients
-   again.
-6. Undo creates a correction and reverses linked inventory effects transactionally.
-
-Failure modes: undo cooking is valid only if no downstream batch portion is unreversable;
-otherwise a correction workflow explains the affected records. A timer ending never implies
-food is safely cooked.
+Failure modes: a recipe edit during cooking leaves the session pinned (AT-018); timer expiry
+completes nothing; undo cooking is allowed only when no downstream portion makes it
+irreversible, otherwise a correction flow explains the affected records.
 
 ### Journey F — A new week
 
-Owner: `planning-engine`. Trigger: request the next date range (R2: scheduled draft).
+1. **Week › Plan my week** previews unlocked future slots; anchors, locks, open and social
+   slots, and recorded history are kept.
+2. Apply is revision-checked; a stale proposal is revalidated.
+3. **Prep for the week** groups supported tasks; **Schedule prep** proposes a time block
+   through the calendar link, which never marks the task done.
 
-1. The system carries forward accepted routine anchors, current preferences, credible
-   stock, and actual feedback.
-2. It generates a draft for the next range, preserves locked commitments, and explains
-   meaningful changes.
-3. The user previews apply scope (default: unlocked future occurrences) and may apply,
-   keep the current plan, or try another draft.
-4. R2's scheduled job creates a reviewable draft and never silently replaces an accepted
-   plan.
-
-Failure modes: stale inputs invalidate the preview and require regeneration. Regeneration
-may vary the deterministic seed but must preserve constraints and explain what changed.
+Failure modes: a producer moved after its leftover consumer is rejected or repaired; a
+calendar failure leaves the untimed task intact.
 
 ### Journey G — Moving data
 
-Owner: `transfer-and-documents`. Trigger: export, import, restore, or print.
+1. **Settings › Data & exports** offers complete backup, recipe collection, grocery CSV, and
+   restore; recipe, week, and grocery **Print** actions live on their surfaces.
+2. Import detects format and version, enforces limits, and shows counts, duplicates,
+   conflicts, missing references, and omissions before any write.
+3. Apply is one transaction against an expected revision; full restore creates a checkpoint.
 
-1. Export produces a complete backup, meal collection, weekly PDF, recipe PDF, or grocery
-   CSV from an immutable input snapshot.
-2. Import detects format and version before parsing into the live model, enforces configured
-   limits, and shows counts, duplicates, conflicts, missing dependencies, and unsupported
-   fields.
-3. The default is Add meals only. Full restore offers Restore everything with a precise
-   impact summary and a recoverable pre-restore checkpoint.
-4. No live data mutates during parse or preview. Apply writes all selected valid changes in
-   one transaction against an expected revision.
-5. A recipe has its own PDF action. A text-only export that omits source bytes says so.
+Failure modes: invalid entries reject the whole import by default; a failed restore leaves
+the previous workspace intact.
 
-Failure modes: a multi-record import with invalid entries rejects the full import by
-default; an explicit "Import valid records only" shows exactly what is omitted and preserves
-rejected content. A stale preview must be rebuilt before apply. A failed restore leaves the
-previous workspace intact.
+### Journey H — Plan a meal from Explore
+
+1. From an empty Wednesday dinner cell, **Add** opens Explore with context `{date, slotId,
+   plannedServings, returnRoute, basePlanRevision}` and the banner **Planning Wednesday
+   dinner** (R03.2).
+2. Sections show only meaningful results with structured reasons; hard constraints filter
+   first through the planner's eligibility path.
+3. **Add to Wednesday** saves an accessible recipe snapshot and creates the occurrence in one
+   operation; replacing an existing meal reads **Replace Wednesday dinner** and previews
+   effects (R11.3). Dismissing the banner returns to general discovery without deleting
+   anything.
+
+Failure modes: a concurrent plan change produces a refreshed choice, not an overwrite; saving
+twice is idempotent (AT-021).
 
 ## State Machines
 
-The following lifecycle models are specified but not yet formally encoded. The
-`Enforcement` column names the planned mechanism.
+Specified, not yet encoded. `Enforcement` names the intended mechanism.
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
-| recipe-library / authoring | `draft → ready → archived` | Recommending a `draft`; resolving an `archived` revision into new plans; any transition out of `archived` except explicit unarchive by the owner. | Authoring status is a field on stable identity, separate from the immutable content revision. |
-| dietary-rules / eligibility | `eligible → { ineligible, needs_information }` and back when rules or evidence change | Treating `needs_information` as `eligible`; overriding `ineligible` with a preference weight. | Eligibility is recomputed per profile revision and evaluator version; required exclusions are hard constraints. |
-| planning-engine / planned occurrence | `planned → locked → cooked → consumed`, with `planned → skipped`, `locked → planned` (unlock), and any non-terminal → `unrecorded` after its local date passes | Editing a consumed or skipped occurrence; planning a locked occurrence away without an explicit unlock; deriving `consumed` from the plan. | Occurrence status checks at apply time; locks preserved by replan; consumption requires an event. |
-| inventory-and-batches / prepared batch | `planned → created → depleting → { consumed, wasted }` | Consuming or wasting more than the remaining amount; creating a batch without a preparation confirmation; reverting a batch after downstream portions. | Batch quantity arithmetic plus idempotent inventory events; undo only when atomically reversible. |
-| provider-and-job-adapters / job | `queued → running → { waiting_for_review, succeeded, failed, canceled }`; `waiting_for_review → { succeeded, failed, canceled }` | Applying a proposal from a `failed` or `canceled` job; marking a job `succeeded` when its proposal is unapplied; retrying a non-retryable schema/permission failure indefinitely. | Job record with attempt count, dedup key, budget, and separate application status. |
-| transfer-and-documents / import | `staged → { applied, canceled }`, with `staged → staged` only via revalidation | Writing live data while `staged`; applying a stale stage; applying after `canceled`. | Staged proposal id/hash plus expected-revision check inside the apply transaction. |
-| inventory-and-batches / purchase | `proposed → recorded` (idempotent); `recorded → corrected` | Double-applying the same purchase; marking a shopping check as a purchase. | `(source transaction identity, normalized line)` dedup key; idempotency key on the operation. |
-| inventory-and-batches / preparation | `reserved → confirmed → released` | Double-consumption of raw ingredients; confirming without an explicit yield basis. | All-or-nothing confirmation; one inventory application per operation key. |
-| intake-and-feedback / intake | `unrecorded → recorded → corrected` | Editing a recorded event in place; deleting it in place; recording the same logical intake twice under one key. | Idempotency key with key/payload conflict detection; corrections are linked new events. |
+| recipe-library / authoring | `draft → ready → archived` | Recommending a draft; resolving an archived recipe into new plans. | Status on identity, separate from immutable revisions. |
+| dietary-rules / eligibility | `eligible ⇄ { ineligible, needs_information }` as rules or evidence change | Treating `needs_information` as eligible; overriding `ineligible` with a weight. | Recomputed per profile revision and evaluator version. |
+| planning-engine / occurrence | `planned → locked → cooked → consumed`, `planned → skipped`, `locked → planned`, past non-terminal → `unrecorded` | Editing consumed or skipped occurrences; replanning a lock away; deriving `consumed` from the plan. | Persisted occurrence rows with revisions (D-033); consumption requires an event. |
+| inventory / prepared batch | `created → depleting → { consumed, wasted }` | Consuming more than remains; batch without confirmation; reverting after downstream portions. | Idempotent events and batch arithmetic. |
+| inventory / purchase | `proposed → recorded → corrected` | Double-applying; treating a check as a purchase. | Source-transaction dedup key plus operation key. |
+| intake / consumption | `unrecorded → recorded → corrected` | Editing or deleting in place; recording twice under one key. | Key/payload conflict detection; linked corrections. |
+| transfer / import | `staged → { applied, canceled }` | Writing while staged; applying stale or canceled. | Stage id/hash plus expected revision in the apply transaction. |
+| jobs / background job | `queued → running → { waiting_for_review, succeeded, failed, canceled }` | Applying from failed/canceled; retrying non-retryable failures forever. | Job record with attempts, dedup key, budget, application status. |
 
-### Why The Unknown And Stale Rules Matter
+### Cooking session
 
-Two transitions are easy to get wrong and expensive when wrong:
+```mermaid
+stateDiagram-v2
+    [*] --> active: Start cooking (no matching active session)
+    active --> paused: Pause session (timers offered, not auto-paused)
+    paused --> active: Resume
+    active --> completed: Finish (batch confirmation / finish without update)
+    paused --> completed: Finish
+    active --> abandoned: Abandon
+    paused --> abandoned: Abandon
+    completed --> [*]
+    abandoned --> [*]
+```
 
-- **Unknown is not a pass.** A missing allergen tag or price produces
-  `needs_information` or an unresolved shopping row. Treating unknown as false would let an
-  ineligible meal through under a green badge.
-- **Stale completion cannot apply.** A draft or import preview captured against an input
-  revision must be revalidated before apply. A plan update with a stale expected revision
-  returns a conflict and preserves the newer revision plus the stale client's proposals.
+Step view, step completion, timers, batch confirmation, and intake are **separate** records.
+Illegal: completing a step because it was viewed or because a timer expired; leaving
+`completed`/`abandoned`; silently cancelling timers or recording intake on Exit cooking;
+re-pointing a session at a newer recipe revision without an explicit choice (R13.1–R13.2).
+
+### Cooking timer
+
+```mermaid
+stateDiagram-v2
+    [*] --> idle
+    idle --> running: Start (startedAt=now, targetAt=now+duration)
+    running --> paused: Pause (remaining=targetAt-now)
+    paused --> running: Resume (targetAt=now+remaining)
+    running --> running: +1 min (targetAt += 60 s)
+    paused --> paused: +1 min (remaining += 60 s)
+    running --> elapsed: now ≥ targetAt (persisted once)
+    elapsed --> elapsed: Dismiss (acknowledged=true)
+    running --> idle: Reset (explicit intent)
+    paused --> idle: Reset (explicit intent)
+    elapsed --> idle: Reset (explicit intent)
+```
+
+Every transition increments the timer revision and carries an operation id. Display is
+derived from absolute timestamps and the current time, never from an in-memory countdown
+alone. Across tabs, expiry is persisted and announced once (AT-028). While active, monotonic
+elapsed time guards against clock jumps; on resume, a documented wall-clock/server
+reconciliation applies (R13.3). Illegal: expiry marking a step or meal complete; an elapsed
+timer silently becoming a new run.
+
+### Shopping list and rows
+
+```mermaid
+stateDiagram-v2
+    state "List" as L {
+        [*] --> draft
+        draft --> shopping: Enter Shop (explicit, documented)
+        shopping --> completed: Finish / archive
+        shopping --> draft: Leave Shop without purchases
+    }
+    state "Row" as R {
+        [*] --> needed
+        needed --> picked_up: Check
+        picked_up --> needed: Undo / uncheck
+        needed --> have_this: Have this (stock assertion)
+        picked_up --> purchased: Confirm purchases (idempotent)
+        picked_up --> partially_purchased: Confirm less than needed
+        partially_purchased --> purchased: Confirm remainder
+    }
+```
+
+`have_this` records inventory evidence and does **not** check the row; a qualitative "Have
+some" leaves a pantry check rather than subtracting invented grams. `purchased` is the only
+row state backed by purchase and inventory events.
+
+**Plan-change diff (while shopping).** A plan change computes `{added, changed, no longer
+needed}` against the list's requirement revision → the user reviews → apply with expected
+list and plan revisions. Rows keep stable identities through canonical requirement grouping;
+unchanged requirements keep their state; increases mark the extra amount for review;
+picked-up rows whose meal disappeared stay visible as history; manual items and overrides are
+never dropped (R14.3, AT-033–AT-034).
+
+### Generation job
+
+```mermaid
+stateDiagram-v2
+    [*] --> quoted: Quote (inputs, variants, estimate, expiry)
+    quoted --> queued: Accept → atomic budget reservation
+    queued --> running: Worker dispatch via image-tools
+    running --> awaiting_review: Provider result stored against original inputs
+    awaiting_review --> approved: Review approve
+    approved --> available: Activate (compatible revision only)
+    awaiting_review --> rejected: Review reject (ordinary photo stays)
+    running --> failed: Non-retryable or attempts exhausted
+    queued --> canceled: Cancel
+    running --> canceled: Cancel (charge may still settle)
+```
+
+Reservation is taken before dispatch against settled use plus outstanding reservations and
+the maximum attempt cost; on known final usage it is settled or released **exactly once**;
+unknown usage stays pending until reconciled, never free (R18.3). The dedup key covers
+workspace scope, recipe visual revision, photo hash, scene version, appearance, composition,
+model configuration, prompt version, and output parameters; "Generate another version" uses a
+new variation id. Illegal: activating a result against a newer recipe revision without
+compatibility review; any generation triggered by view, theme, search, hover, or resize
+(R18.1–R18.2, AT-040–AT-043).
+
+### Calendar link
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending: Schedule prep / cooking (outbox op, stable external key)
+    pending --> linked: Adapter confirms (reconciled by key after timeout)
+    pending --> failed: Non-transient error / retries exhausted
+    failed --> pending: Retry
+    linked --> linked: Same-day move reflected per ownership policy
+    linked --> conflict: Cross-date move or external deletion
+    conflict --> linked: User reviews implications
+    conflict --> unscheduled: External deletion accepted
+    linked --> reconnect_needed: Access revoked
+```
+
+After a timeout the adapter reconciles by the stable key or stored operation before creating
+another event (AT-045). Deleting a calendar block unschedules time only; completing a calendar
+task never records eating; a cross-date move previews meal and leftover implications and never
+silently moves a dinner (R24.3, AT-046).
+
+### Offline outbox replay
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending: Local action (operation id, base revision, desired state)
+    pending --> sending: Reconnect
+    sending --> confirmed: Server accepts (or returns original result for the same key)
+    sending --> conflict: Revision changed server-side
+    conflict --> pending: User resolves (local edit kept)
+    sending --> rejected: Validation or authorization failure
+```
+
+Operations carry **desired state**, not toggles, so two clients setting the same checkbox to
+true never flip it twice. The outbox is bounded, partitioned by account and workspace, and
+cleared on sign-out per policy. Only the R22 offline minimum queues: shopping checks and manual
+items, and timer controls for a loaded session. Planning, imports, generation, and first-time
+loads require connectivity and say so.
+
+### Appearance boot
+
+```mermaid
+stateDiagram-v2
+    [*] --> prepaint: HTML boot script reads the local appearance preference
+    prepaint --> painted: data-theme set before first paint (Follow device reads prefers-color-scheme)
+    painted --> reconciled: Account preference loads
+    reconciled --> reconciled: Account differs → apply and update local copy without flash
+    reconciled --> following: Follow device → listen for system changes
+```
+
+Theme changes never generate images and never modify recipe, servings, history, or planning
+settings; native control colour scheme matches (R05.2, AT-002, AT-003).
 
 ## Maturity Ladder
-
-Temporal workflows mature in layers. Do not skip the executable layers to add a formal
-document that no test reads.
 
 | Level | Name | What exists |
 |---|---|---|
 | 0 | Unmodeled risk | Lifecycle behavior exists only inside handlers, components, callbacks, or jobs. |
 | 1 | Inventory | The flow is listed here with owner, source links, risk, and next step. |
-| 2 | Workflow model | State/status values, event values, `Transition`, and `CheckInvariants` live beside the owning domain or feature. |
+| 2 | Workflow model | State/status values, events, `Transition`, and `CheckInvariants` live beside the owning domain or feature. |
 | 3 | Matrix + traces | Tests cover every state/event pair and replay representative traces against production transition logic. |
 | 4 | Declarative contract | A domain-local `*.flow.json` declares states, events, transitions, invariants, and named traces. |
-| 5 | Checked formal model | Quint/TLA+ or an equivalent tool is generated from the contract, checked, and replayed by production tests. |
+| 5 | Checked formal model | A generated Quint/TLA+ model is checked and replayed by production tests. |
 
-The flows above are at level 1. The first flows to promote to level 2–3 are planned
-occurrence, prepared batch, job, and import, because they carry the riskiest idempotency and
-stale-completion behavior.
+All flows are at level 0–1. Promote first, in this order, because they carry the riskiest
+idempotency and stale-completion behavior: **cooking timer**, **shopping row plus outbox**,
+**generation reservation**, **planned occurrence**, **calendar link**. A redesign surface is not
+done while its flow is level 0.
 
 ## Production Shape
 
-Three (Go) or four (UI) files per flow at the top of the feature folder, plus one
-`generated/` sibling. Everything in `generated/` is codegen output.
-
-Every flow lives in a `flow/` subdirectory next to its consumer with conventional file names.
-API domains that own durable lifecycle state use:
+Three (Go) or four (UI) files per flow, plus one `generated/` sibling. Everything in
+`generated/` is codegen output.
 
 ```text
 api/internal/<domain>/
@@ -248,10 +367,8 @@ api/internal/<domain>/
       replay.go
 ```
 
-UI features that own client-side modes use:
-
 ```text
-ui/src/features/<domain>/
+ui/src/features/<surface>/
   flow/
     flow.json                   # hand: source of truth (schema v6)
     transition.ts               # hand: wrapper
@@ -264,38 +381,30 @@ ui/src/features/<domain>/
       replay.helper.ts
 ```
 
-The `flow/` directory is the unit; the contract declares no output paths or module names.
-The workflow owns state/status values, events, `Transition`, and `CheckInvariants`, and stays
-pure or nearly pure. Effects live outside it behind seams: repositories, BlobStore, clocks,
-timers, HTTP clients, and UI API modules.
-
-The `*.flow.json` contract is the source of truth. Level 5 generated artifacts are
-checked-in source artifacts, refreshed and checked by the `flow-verifier` scenario CLI; the
-scenario lifecycle runs `make temporal-models` (which calls `flow-verifier verify check`)
-before the normal test suite. A Quint file alone is not accepted: the model must typecheck,
-test, verify named invariants, emit deterministic artifacts, and those artifacts must replay
-against the production transition functions.
-
-To scaffold a new flow:
+The workflow owns states, events, `Transition`, and `CheckInvariants`, and stays pure; effects
+live behind seams (repositories, blob storage, clock, timers, HTTP clients, UI API modules).
+The `*.flow.json` contract is the source of truth; `make temporal-models` (which calls
+`flow-verifier verify check`) runs before the normal test suite.
 
 ```bash
-flow-verifier flows new ui/src/features/<feature> --flow-id <flow-id> --lang ts --root .
-flow-verifier flows new api/internal/<domain>     --flow-id <flow-id> --lang go --root .
+flow-verifier flows new "ui/src/features/<surface>" --flow-id "<flow-id>" --lang ts --root .
+flow-verifier flows new "api/internal/<domain>"     --flow-id "<flow-id>" --lang go --root .
 ```
 
-To add or rename a state/event: edit the owning `*.flow.json`, regenerate with
-`flow-verifier verify run --flow <flow-id>`, update only payload-specific wrapper branches,
-update the UI replay fixtures, then run `make temporal-models` and the scenario tests.
+To add or rename a state or event: edit the owning `*.flow.json`, regenerate with
+`flow-verifier verify run --flow <flow-id>`, update wrapper branches and replay fixtures, then
+run `make temporal-models` and the scenario tests.
 
 ## Deferred / Unmodeled Flows
 
 | Flow | Risk | Next Step |
 |---|---|---|
-| Scheduled draft generation | A scheduled run must create one draft per intended local period and never replace an accepted plan or mark food eaten. | Model the recurrence dedup key and the `draft_created` outcome at L2 when OT-P1-005 is implemented. |
-| Provider research job | Cancellation can still receive a late external response; a late proposal must not apply over newer edits. | Model the job and proposal application split at L2/L3 alongside the first adapter. |
-| Receipt ingestion | Duplicate or out-of-order receipts must not double-apply purchases or imply current stock. | Model source-identity dedup at L2 before any receipt adapter ships. |
-| Preference learning | Learned preferences must stay inspectable, resettable, and weaker than explicit dislikes. | Model the explicit/inferred separation and cooldown at L2 when OT-P1-006 adds inference. |
-| Household collaboration | Roles, profile-to-person mapping, and shared shopping introduce per-person targets. | Deferred until OT-P2-003; do not model prematurely. |
+| Scheduled draft generation | One draft per intended local period; never replaces an accepted plan. | Model the recurrence dedup key at L2 with OT-P1-005. |
+| Provider research job | A late response must not apply over newer edits. | Model job/proposal split at L2 with the first adapter. |
+| Receipt ingestion | Duplicate or old receipts must not double-apply or imply stock. | Model source-identity dedup before any receipt adapter. |
+| Preference learning | Learned values must stay weaker than explicit dislikes and resettable. | Model at L2 with OT-P1-006 inference. |
+| Scene studio | User templates need budgets, region marking, and review. | Deferred to OT-P2-006. |
+| Household collaboration | Per-person targets and shared shopping. | Deferred to OT-P2-003. |
 
 ## Cross-References
 
@@ -303,6 +412,8 @@ update the UI replay fixtures, then run `make temporal-models` and the scenario 
 - [`DATA.md`](DATA.md) — persisted state and retention
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — state ownership and invalidation
 - [`EXPERIENCE.md`](EXPERIENCE.md) — the surfaces these flows run on
+- [`INTEGRATIONS.md`](INTEGRATIONS.md) — image-tools and personal-planner adapters
 - [`../internal/SEAMS.md`](../internal/SEAMS.md) — side-effect boundaries
-- [`../reference/product-specification.md`](../reference/product-specification.md) — §4, §8–§11, §14–§18, §20
+- [`../internal/REDESIGN_PLAN.md`](../internal/REDESIGN_PLAN.md) — build order and blocking defects
+- [`../reference/product-specification.md`](../reference/product-specification.md) — R03, R08–R16, R18, R22, R24, R27, Appendix A §4, §14–§18
 - [Shared harness recipes](/scenarios/template-manager/docs/internal/TESTING-RECIPES.md#temporal-workflow-tests) — matrix and trace testing

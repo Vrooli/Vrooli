@@ -6,46 +6,52 @@
     "id": "week",
     "title": "Your week",
     "routes": [
-      "/week",
-      "/week/:start"
+      "/week"
     ],
-    "purpose": "Show a dated seven-day plan so a person can see slots, anchors, locks, and exactly what a replan would change before any write.",
+    "purpose": "Show whether this week's plan fits real life: a seven-day board of meal slots on wide screens and a day agenda on phones, with Nutrition and Time & cost views over the same occurrences, linked leftovers and prep, and a reviewable Plan my week.",
     "prd_refs": [
       "OT-P0-009",
       "OT-P0-007",
-      "OT-P0-006",
       "OT-P0-010",
-      "OT-P1-005"
+      "OT-P0-011",
+      "OT-P0-012",
+      "OT-P0-006",
+      "OT-P0-015",
+      "OT-P0-021",
+      "OT-P1-008"
     ]
   },
   "priorities": [
     {
-      "statement": "The actual local date range and meal scope are read before any row."
+      "statement": "Each day's planned meals by slot are readable at a glance; empty slots offer Add and intentionally open slots say so."
     },
     {
-      "statement": "Locked occurrences are unmistakable and survive a replan preview unchanged."
+      "statement": "Plan my week is the primary action and always previews changes to unlocked future slots before applying."
     },
     {
-      "statement": "A replan preview shows changed, unchanged, and locked rows against the captured input revision."
+      "statement": "Meals, Nutrition, and Time & cost show the same date range and occurrences; only the lens changes."
     },
     {
-      "statement": "Unknown cost, nutrient, or time contributions and infeasible required constraints are named in the summary."
+      "statement": "Leftovers and shared prep link both sides, such as For Tue lunch and From Mon, and never duplicate shopping or cooking."
     },
     {
-      "statement": "An open or unrecorded slot contributes unknown future intake, never zero or assumed compliance."
+      "statement": "Summary values name their scope and missing data; a day counts as planned only when its required slots are assigned or intentionally open."
+    },
+    {
+      "statement": "On phones the week reads as a day agenda with an All week alternative, never a shrunken seven-column grid."
     }
   ],
   "states": [
     {
       "id": "default",
-      "description": "The surface at rest with data present; the state a journey step assumes when it names none.",
+      "description": "The Meals view of the current local week with persisted occurrences.",
       "setup": {
         "route": "/week"
       }
     },
     {
       "id": "loading",
-      "description": "First read of the page's data; layout is reserved so nothing shifts on arrival.",
+      "description": "First read of the page's data; stable skeletons reserve the layout so nothing shifts on arrival, and no sample food is shown as saved data.",
       "setup": {
         "route": "/week",
         "query": {
@@ -54,18 +60,8 @@
       }
     },
     {
-      "id": "empty",
-      "description": "The read succeeded and there is genuinely nothing, which is distinct from not-yet-loaded.",
-      "setup": {
-        "route": "/week",
-        "query": {
-          "fixture": "empty"
-        }
-      }
-    },
-    {
       "id": "partial",
-      "description": "Some contributing data could not be read; what is missing is named rather than shown as zero.",
+      "description": "Some contributing data is unknown or could not be read; what is missing is named rather than shown as zero.",
       "setup": {
         "route": "/week",
         "query": {
@@ -75,7 +71,7 @@
     },
     {
       "id": "stale",
-      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "description": "Displayed data is older than its freshness window; its age is shown next to it.",
       "setup": {
         "route": "/week",
         "query": {
@@ -84,28 +80,8 @@
       }
     },
     {
-      "id": "request-error",
-      "description": "The request failed; the reason and the next available action are stated.",
-      "setup": {
-        "route": "/week",
-        "query": {
-          "fixture": "request-error"
-        }
-      }
-    },
-    {
-      "id": "validation-error",
-      "description": "Input was rejected before submission; the offending field is identified next to it.",
-      "setup": {
-        "route": "/week",
-        "query": {
-          "fixture": "validation-error"
-        }
-      }
-    },
-    {
       "id": "saving",
-      "description": "A write is in flight; the affected control says why it is unavailable.",
+      "description": "A write is in flight; the affected control shows a busy state and says why it is unavailable, and success appears only after the durable save.",
       "setup": {
         "route": "/week",
         "query": {
@@ -114,8 +90,18 @@
       }
     },
     {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next action are stated, pending edits are kept, and nothing is edited against a fake empty account.",
+      "setup": {
+        "route": "/week",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
       "id": "offline",
-      "description": "The client cannot reach the API; read-only or queued behavior is explained.",
+      "description": "The client cannot reach the API; cached data, locally pending actions, and server-confirmed saves are distinguished and unsupported actions say why.",
       "setup": {
         "route": "/week",
         "query": {
@@ -124,314 +110,477 @@
       }
     },
     {
-      "id": "full-day-scope",
-      "description": "The plan is being read across all configured breakfast/lunch/dinner/snack slots rather than the dinner row alone.",
+      "id": "empty",
+      "description": "Nothing is planned for this week; Plan my week and Add a meal are offered, and empty slots are not counted as planned.",
       "setup": {
         "route": "/week",
         "query": {
-          "fixture": "full-day-scope"
+          "fixture": "empty"
         }
       }
     },
     {
-      "id": "replan-preview",
-      "description": "A replan draft is shown with changed, unchanged, and locked rows and a before/after summary, before anything is applied.",
+      "id": "view-nutrition",
+      "description": "The Nutrition view: per-day target summaries with scope, bounds, and completeness over the same occurrences.",
       "setup": {
         "route": "/week",
         "query": {
-          "fixture": "replan-preview"
+          "view": "nutrition"
         }
       }
     },
     {
-      "id": "stale-inputs",
-      "description": "A profile, price, recipe, stock, or plan input changed since the preview was generated, so the preview must be rebuilt.",
+      "id": "view-time-cost",
+      "description": "The Time & cost view: active and elapsed time, shared prep counted once, portion cost versus checkout with coverage.",
       "setup": {
         "route": "/week",
         "query": {
-          "fixture": "stale-inputs"
+          "view": "time-cost"
         }
       }
     },
     {
-      "id": "rule-conflict",
-      "description": "A required rule, appliance, or lock makes a requested occurrence infeasible; the rule is named and required constraints are not relaxed.",
+      "id": "all-week",
+      "description": "The phone All week display: seven compact day sections with meal titles.",
       "setup": {
         "route": "/week",
         "query": {
-          "fixture": "rule-conflict"
+          "display": "all-week"
         }
       }
     },
     {
-      "id": "replan-applied",
-      "description": "The selected preview has been applied against its captured input revision and the plan reflects it.",
+      "id": "occurrence-open",
+      "description": "An occurrence panel (a sheet on phones) with recipe summary, nutrition, ingredients, notes, and actions.",
       "setup": {
         "route": "/week",
         "query": {
-          "fixture": "replan-applied"
+          "fixture": "occurrence-open"
+        }
+      }
+    },
+    {
+      "id": "move-target",
+      "description": "Move is choosing a date and slot; an occupied target asks whether to swap, add alongside, or replace.",
+      "setup": {
+        "route": "/week",
+        "query": {
+          "fixture": "move-target"
+        }
+      }
+    },
+    {
+      "id": "plan-preview",
+      "description": "Plan my week produced a preview listing changed, unchanged, and locked slots with a before-and-after summary.",
+      "setup": {
+        "route": "/week",
+        "query": {
+          "fixture": "plan-preview"
+        }
+      }
+    },
+    {
+      "id": "stale-proposal",
+      "description": "The preview's inputs changed after it was generated; it is revalidated instead of applied.",
+      "setup": {
+        "route": "/week",
+        "query": {
+          "fixture": "stale-proposal"
+        }
+      }
+    },
+    {
+      "id": "leftover-conflict",
+      "description": "Moving or removing a producing meal would strand a leftover; affected consumers are previewed with a repair.",
+      "setup": {
+        "route": "/week",
+        "query": {
+          "fixture": "leftover-conflict"
         }
       }
     }
   ],
   "elements": [
     {
-      "id": "week-range",
-      "role": "status",
-      "description": "The actual local date range and the active meal scope."
+      "id": "primary-navigation",
+      "role": "navigation",
+      "name": "Primary",
+      "description": "The five destinations with Week marked current."
     },
     {
-      "id": "week-nav",
+      "id": "week-heading",
+      "role": "heading",
+      "name": "Your week",
+      "description": "Your week with the local date range."
+    },
+    {
+      "id": "week-range-nav",
       "role": "group",
-      "description": "Previous and next week navigation that preserves the selected week across refresh."
-    },
-    {
-      "id": "slot-scope-toggle",
-      "role": "tab",
-      "description": "Switches between the dinner row and the full configured day without changing the plan."
-    },
-    {
-      "id": "day-list",
-      "role": "list",
-      "name": "Days",
-      "description": "The readable day-grouped occurrence list, preferred over a desktop matrix on small screens."
-    },
-    {
-      "id": "day-group",
-      "role": "group",
-      "description": "One local date with its slots and occurrences."
-    },
-    {
-      "id": "occurrence-row",
-      "role": "listitem",
-      "description": "Date/slot, meal, servings, metrics, status, and lock state."
-    },
-    {
-      "id": "lock-indicator",
-      "role": "status",
-      "description": "A visible lock marker with a text label, not a colour-only cue."
+      "name": "Week",
+      "description": "Previous week, next week, and this week controls."
     },
     {
       "id": "week-summary",
-      "role": "table",
-      "name": "Week summary",
-      "description": "Known portion cost, estimated checkout, active prep, and variety with their denominator."
+      "role": "status",
+      "description": "Planned days or slots with their scope, active time, priced subtotal coverage, and missing-data counts."
     },
     {
-      "id": "unknown-summary-note",
-      "role": "note",
-      "description": "States which summary contributors are unknown or missing so an average is not read as complete."
-    },
-    {
-      "id": "replan-action",
+      "id": "plan-week-action",
       "role": "button",
-      "name": "Replan",
-      "description": "Requests a draft for the selected week's unlocked future occurrences."
+      "name": "Plan my week",
+      "description": "Generates a preview for unlocked future slots."
     },
     {
-      "id": "replan-dialog",
-      "role": "dialog",
-      "name": "Replan preview",
-      "description": "Changed, unchanged, and locked rows with a before/after summary."
+      "id": "review-groceries-link",
+      "role": "link",
+      "name": "Review groceries",
+      "description": "Opens Groceries for this week's plan."
     },
     {
-      "id": "changed-rows",
+      "id": "view-selector",
+      "role": "tablist",
+      "name": "Week view",
+      "description": "Meals, Nutrition, and Time & cost lenses over the same week."
+    },
+    {
+      "id": "week-board",
       "role": "table",
-      "description": "Per-row change classification for the pending draft."
+      "name": "Week board",
+      "description": "Seven local-date columns and configured slot rows, including snacks, custom slots, and routine rows."
     },
     {
-      "id": "stale-inputs-alert",
+      "id": "slot-card",
+      "role": "button",
+      "description": "A planned occurrence with thumbnail, name, time, servings when useful, and status labels such as Leftovers, Prep ahead, Eating out, or Locked."
+    },
+    {
+      "id": "empty-slot-action",
+      "role": "button",
+      "description": "Add breakfast, Add lunch, or Add dinner; opens Meals or Explore with the slot as context."
+    },
+    {
+      "id": "open-slot-label",
+      "role": "note",
+      "description": "Marks an intentionally open or social slot, distinct from an unassigned one."
+    },
+    {
+      "id": "leftover-badge",
+      "role": "note",
+      "description": "For Tue lunch on the producer and From Mon on the consumer, each linking to the other side."
+    },
+    {
+      "id": "unknown-time-note",
+      "role": "note",
+      "description": "Time not set for an occurrence without a known duration."
+    },
+    {
+      "id": "occurrence-panel",
+      "role": "dialog",
+      "name": "Meal details",
+      "description": "Details and actions for the selected occurrence."
+    },
+    {
+      "id": "move-action",
+      "role": "button",
+      "name": "Move",
+      "description": "Moves or copies an occurrence through a date and slot picker; the keyboard and touch alternative to dragging."
+    },
+    {
+      "id": "prep-panel",
+      "role": "region",
+      "name": "Prep for the week",
+      "description": "Grouped preparation tasks linked to their contributing meals."
+    },
+    {
+      "id": "schedule-prep-action",
+      "role": "button",
+      "name": "Schedule prep",
+      "description": "Proposes a time block through the calendar adapter without marking the task done."
+    },
+    {
+      "id": "day-selector",
+      "role": "tablist",
+      "name": "Days",
+      "description": "The seven days on phones; the selected day is marked by more than colour."
+    },
+    {
+      "id": "display-toggle",
+      "role": "radiogroup",
+      "name": "Display",
+      "description": "Day or All week on phones."
+    },
+    {
+      "id": "day-agenda",
+      "role": "list",
+      "description": "The selected day's slot cards stacked in slot order."
+    },
+    {
+      "id": "plan-preview",
+      "role": "dialog",
+      "name": "Plan my week preview",
+      "description": "Changed, unchanged, and locked slots with Apply to my week, Keep current plan, and Try another draft."
+    },
+    {
+      "id": "stale-note",
       "role": "alert",
-      "description": "Names the material input that changed and requires a rebuilt preview before apply."
+      "description": "Says the preview is out of date and offers Revalidate."
     },
     {
-      "id": "conflict-note",
-      "role": "note",
-      "description": "Names the rule or lock that makes an occurrence infeasible and the action that would resolve it."
+      "id": "nutrition-view",
+      "role": "region",
+      "name": "Nutrition",
+      "description": "Per-day target rows with nutrient, amount or known subtotal, bounds, period, and completeness."
     },
     {
-      "id": "open-slot-note",
-      "role": "note",
-      "description": "Marks an intentionally open or unrecorded slot as unknown future intake."
+      "id": "time-cost-view",
+      "role": "region",
+      "name": "Time and cost",
+      "description": "Active and elapsed time per meal and day, and portion cost versus checkout with coverage and currency."
     }
   ],
   "claims": [
     {
-      "id": "week-shows-actual-dates",
-      "type": "element-present",
-      "statement": "The week page states its actual local date range and active meal scope before the rows.",
+      "id": "plan-my-week-dominant",
+      "type": "single-dominant-action",
+      "statement": "Plan my week is the one visually dominant action; Review groceries is a secondary link.",
       "tier": "aspirational",
       "elements": [
-        "week-range",
-        "slot-scope-toggle"
+        "plan-week-action",
+        "review-groceries-link"
       ]
     },
     {
-      "id": "locks-are-labeled",
+      "id": "views-share-occurrences",
       "type": "element-present",
-      "statement": "Every locked occurrence carries a visible lock label rather than a colour-only marker.",
+      "statement": "Switching between Meals, Nutrition, and Time & cost keeps the same date range and occurrences.",
       "tier": "aspirational",
       "elements": [
-        "lock-indicator",
-        "occurrence-row"
-      ]
-    },
-    {
-      "id": "locks-survive-preview",
-      "type": "element-present",
-      "statement": "A replan preview preserves locked occurrences unchanged and shows them distinctly from changed rows.",
-      "tier": "aspirational",
-      "elements": [
-        "replan-dialog",
-        "lock-indicator",
-        "changed-rows"
-      ],
-      "states": [
-        "replan-preview"
-      ]
-    },
-    {
-      "id": "stale-preview-must-rebuild",
-      "type": "element-present",
-      "statement": "When a material input changed, the page states which input is stale and requires a rebuilt preview instead of applying the old one.",
-      "tier": "aspirational",
-      "elements": [
-        "stale-inputs-alert",
-        "replan-dialog"
-      ],
-      "states": [
-        "stale-inputs"
-      ]
-    },
-    {
-      "id": "summary-names-its-denominator",
-      "type": "element-present",
-      "statement": "The week summary labels the denominator and missing-data status of every average it shows.",
-      "tier": "aspirational",
-      "elements": [
-        "week-summary",
-        "unknown-summary-note"
-      ]
-    },
-    {
-      "id": "conflict-names-the-rule",
-      "type": "element-present",
-      "statement": "An infeasible occurrence names the required rule or lock that blocks it and never trades that rule against cost, effort, or variety.",
-      "tier": "aspirational",
-      "elements": [
-        "conflict-note"
-      ],
-      "states": [
-        "rule-conflict"
-      ]
-    },
-    {
-      "id": "open-slot-is-unknown",
-      "type": "element-present",
-      "statement": "An open or unrecorded slot is shown as unknown future intake rather than zero or assumed compliance.",
-      "tier": "aspirational",
-      "elements": [
-        "open-slot-note",
-        "occurrence-row"
-      ]
-    },
-    {
-      "id": "scope-change-is-perceivable",
-      "type": "state-distinct",
-      "statement": "Switching from the dinner row to the full configured day is perceivably different and does not silently alter the plan.",
-      "tier": "aspirational",
-      "elements": [
-        "slot-scope-toggle",
-        "day-list"
+        "view-selector",
+        "week-summary"
       ],
       "states": [
         "default",
-        "full-day-scope"
+        "view-nutrition",
+        "view-time-cost"
       ]
     },
     {
-      "id": "replan-has-one-dominant-action",
-      "type": "single-dominant-action",
-      "statement": "In the preview, applying the draft is the one dominant action with keeping the current plan subordinate.",
-      "tier": "aspirational",
-      "elements": [
-        "replan-action",
-        "replan-dialog"
-      ],
-      "states": [
-        "replan-preview"
-      ]
-    },
-    {
-      "id": "week-no-horizontal-overflow",
-      "type": "no-document-horizontal-overflow",
-      "statement": "The day-grouped week never scrolls the whole document sideways; wide content is confined to its own region.",
-      "tier": "aspirational",
-      "elements": [
-        "day-list"
-      ]
-    },
-    {
-      "id": "applied-week-reflects-draft",
+      "id": "phone-uses-agenda",
       "type": "element-present",
-      "statement": "After apply, the day list and summary reflect the applied draft so a successful apply cannot be mistaken for a no-op.",
+      "statement": "On phones the week is a day selector, a Day or All week toggle, and stacked slot cards, never seven narrow columns.",
       "tier": "aspirational",
       "elements": [
-        "replan-action",
-        "week-summary",
-        "day-list"
+        "day-selector",
+        "display-toggle",
+        "day-agenda"
       ],
       "states": [
-        "replan-applied"
+        "default",
+        "all-week"
+      ],
+      "viewports": [
+        "mobile"
+      ]
+    },
+    {
+      "id": "board-never-overflows-page",
+      "type": "no-document-horizontal-overflow",
+      "statement": "The board appears only when each day gets a readable width; otherwise the agenda is used and the page never scrolls sideways.",
+      "tier": "aspirational",
+      "elements": [
+        "week-board",
+        "day-agenda"
+      ]
+    },
+    {
+      "id": "drag-has-alternatives",
+      "type": "affordance-present",
+      "statement": "Every move or copy available by dragging is also available through Move and the occurrence panel.",
+      "tier": "aspirational",
+      "elements": [
+        "move-action",
+        "occurrence-panel"
+      ],
+      "states": [
+        "occurrence-open",
+        "move-target"
+      ]
+    },
+    {
+      "id": "occupied-drop-asks",
+      "type": "element-present",
+      "statement": "Moving onto an occupied slot asks whether to swap, add alongside, or replace; nothing is destroyed by an accidental drop.",
+      "tier": "aspirational",
+      "elements": [
+        "move-action"
+      ],
+      "states": [
+        "move-target"
+      ]
+    },
+    {
+      "id": "leftovers-link-both-sides",
+      "type": "element-present",
+      "statement": "A leftover shows For on its producer and From on its consumer, and each links to the other.",
+      "tier": "aspirational",
+      "elements": [
+        "leftover-badge"
+      ]
+    },
+    {
+      "id": "preview-before-apply",
+      "type": "affordance-present",
+      "statement": "Plan my week never changes the plan without a preview that lists changed, unchanged, and locked slots.",
+      "tier": "aspirational",
+      "elements": [
+        "plan-preview"
+      ],
+      "states": [
+        "plan-preview"
+      ]
+    },
+    {
+      "id": "stale-preview-revalidated",
+      "type": "element-present",
+      "statement": "A preview whose inputs changed is revalidated rather than applied.",
+      "tier": "aspirational",
+      "elements": [
+        "stale-note"
+      ],
+      "states": [
+        "stale-proposal"
+      ]
+    },
+    {
+      "id": "unknown-time-not-zero",
+      "type": "state-distinct",
+      "statement": "An unknown duration reads Time not set and never 0 min.",
+      "tier": "aspirational",
+      "elements": [
+        "unknown-time-note"
+      ],
+      "states": [
+        "partial",
+        "default"
+      ]
+    },
+    {
+      "id": "open-slot-is-not-missing",
+      "type": "state-distinct",
+      "statement": "An intentionally open slot is labelled differently from an unassigned slot and contributes unknown intake, not zero.",
+      "tier": "aspirational",
+      "elements": [
+        "open-slot-label",
+        "empty-slot-action"
+      ]
+    },
+    {
+      "id": "summary-names-scope",
+      "type": "element-present",
+      "statement": "Summary counts name their scope; one dinner never makes a day fully planned.",
+      "tier": "aspirational",
+      "elements": [
+        "week-summary"
+      ]
+    },
+    {
+      "id": "week-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Week navigation, the view selector, every slot card, Add actions, Move, and Plan my week are keyboard reachable.",
+      "tier": "aspirational",
+      "elements": [
+        "week-range-nav",
+        "view-selector",
+        "slot-card",
+        "empty-slot-action",
+        "move-action",
+        "plan-week-action"
+      ]
+    },
+    {
+      "id": "appearance-parity",
+      "type": "dark-parity",
+      "statement": "Light and Evening change palette and artwork only; the recipe, servings, dates, occurrences, layout, and actions are identical.",
+      "tier": "aspirational",
+      "elements": [
+        "week-board",
+        "plan-week-action"
       ]
     }
   ],
   "bindings": {
     "elements": {
-      "week-range": {
-        "testid": "week-week-range"
+      "primary-navigation": {
+        "testid": "week-primary-navigation"
       },
-      "week-nav": {
-        "testid": "week-week-nav"
+      "week-heading": {
+        "testid": "week-week-heading"
       },
-      "slot-scope-toggle": {
-        "testid": "week-slot-scope-toggle"
-      },
-      "day-list": {
-        "testid": "week-day-list"
-      },
-      "day-group": {
-        "testid": "week-day-group"
-      },
-      "occurrence-row": {
-        "testid": "week-occurrence-row"
-      },
-      "lock-indicator": {
-        "testid": "week-lock-indicator"
+      "week-range-nav": {
+        "testid": "week-week-range-nav"
       },
       "week-summary": {
         "testid": "week-week-summary"
       },
-      "unknown-summary-note": {
-        "testid": "week-unknown-summary-note"
+      "plan-week-action": {
+        "testid": "week-plan-week-action"
       },
-      "replan-action": {
-        "testid": "week-replan-action"
+      "review-groceries-link": {
+        "testid": "week-review-groceries-link"
       },
-      "replan-dialog": {
-        "testid": "week-replan-dialog"
+      "view-selector": {
+        "testid": "week-view-selector"
       },
-      "changed-rows": {
-        "testid": "week-changed-rows"
+      "week-board": {
+        "testid": "week-week-board"
       },
-      "stale-inputs-alert": {
-        "testid": "week-stale-inputs-alert"
+      "slot-card": {
+        "testid": "week-slot-card"
       },
-      "conflict-note": {
-        "testid": "week-conflict-note"
+      "empty-slot-action": {
+        "testid": "week-empty-slot-action"
       },
-      "open-slot-note": {
-        "testid": "week-open-slot-note"
+      "open-slot-label": {
+        "testid": "week-open-slot-label"
+      },
+      "leftover-badge": {
+        "testid": "week-leftover-badge"
+      },
+      "unknown-time-note": {
+        "testid": "week-unknown-time-note"
+      },
+      "occurrence-panel": {
+        "testid": "week-occurrence-panel"
+      },
+      "move-action": {
+        "testid": "week-move-action"
+      },
+      "prep-panel": {
+        "testid": "week-prep-panel"
+      },
+      "schedule-prep-action": {
+        "testid": "week-schedule-prep-action"
+      },
+      "day-selector": {
+        "testid": "week-day-selector"
+      },
+      "display-toggle": {
+        "testid": "week-display-toggle"
+      },
+      "day-agenda": {
+        "testid": "week-day-agenda"
+      },
+      "plan-preview": {
+        "testid": "week-plan-preview"
+      },
+      "stale-note": {
+        "testid": "week-stale-note"
+      },
+      "nutrition-view": {
+        "testid": "week-nutrition-view"
+      },
+      "time-cost-view": {
+        "testid": "week-time-cost-view"
       }
     }
   }

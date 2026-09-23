@@ -1,10 +1,11 @@
 {
   "_metadata": {
-    "module": "jobs-and-recurring",
     "description": "Persisted background job states, budgets, cancellation, and opt-in recurring draft generation with quiet notifications.",
+    "module": "jobs-and-recurring",
     "prd_ref": "PRD.md",
     "priority": "P1",
-    "schema_version": "1.0.0"
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
   },
   "requirements": [
     {
@@ -14,7 +15,7 @@
       "prd_ref": "OT-P1-004",
       "category": "automation",
       "criticality": "P1",
-      "description": "The scenario should persist jobs in queued, running, waiting_for_review, succeeded, failed, or canceled states, recording workspace, type, deduplication key, input revisions, attempts, provider, budget, result reference, and a safe error code.",
+      "description": "The scenario should persist jobs in queued, running, waiting_for_review, succeeded, failed, or canceled states, recording workspace, type, deduplication key, input revisions, attempts, provider, budget, result reference, and a safe error code, and a server-side worker shall execute queued jobs rather than relying on clients to drive state transitions.",
       "tags": [
         "jobs",
         "states",
