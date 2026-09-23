@@ -11,7 +11,7 @@ func TestSkipDir_ExplicitNames(t *testing.T) {
 		// Dependencies
 		"node_modules", "vendor",
 		// Runtime data
-		"data", "logs", "coverage", "playwright-driver",
+		"data", "logs", "coverage",
 		// Language caches
 		"__pycache__", "target", "obj",
 		// Temporary
@@ -49,7 +49,7 @@ func TestSkipDir_SourceDirsNotSkipped(t *testing.T) {
 		"api", "ui", "cli", "bas", "docs",
 		"requirements", "test", "tests", "prompts", "scripts",
 		"chore", "execute", "fix", "ideas", "research", "captures",
-		"src", "sidecar", "schemas", "config", "support-agent-docs",
+		"src", "sidecar", "playwright-driver", "automation-worker", "schemas", "config", "support-agent-docs",
 	}
 	for _, name := range names {
 		if SkipDir(name) {

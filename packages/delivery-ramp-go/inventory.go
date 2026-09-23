@@ -136,6 +136,7 @@ type inventoryTarget struct {
 	Descriptor   inventoryDescriptor `json:"descriptor"`
 	Kind         TransportKind       `json:"kind"`
 	NodeID       string              `json:"node_id,omitempty"`
+	Platform     string              `json:"platform"`
 	OS           string              `json:"os"`
 	Architecture string              `json:"architecture"`
 	Mode         string              `json:"mode"`
@@ -145,11 +146,13 @@ type inventoryTarget struct {
 }
 
 type inventoryDescriptor struct {
-	TargetID     string `json:"target_id"`
-	DisplayName  string `json:"display_name"`
-	Capabilities []int  `json:"capabilities,omitempty"`
-	Available    bool   `json:"available"`
-	Reason       string `json:"reason,omitempty"`
+	TargetID          string `json:"target_id"`
+	DisplayName       string `json:"display_name"`
+	Capabilities      []int  `json:"capabilities,omitempty"`
+	Available         bool   `json:"available"`
+	Reason            string `json:"reason,omitempty"`
+	MissingCapability string `json:"missing_capability,omitempty"`
+	NextAction        string `json:"next_action,omitempty"`
 }
 
 func inventoryResponse(inventory Inventory) inventoryHTTPResponse {
@@ -158,9 +161,9 @@ func inventoryResponse(inventory Inventory) inventoryHTTPResponse {
 		response.Targets = append(response.Targets, inventoryTarget{
 			Descriptor: inventoryDescriptor{
 				TargetID: target.ID, DisplayName: target.Label, Capabilities: capabilityNumbers(target.Capabilities),
-				Available: target.Available, Reason: target.Reason,
+				Available: target.Available, Reason: target.Reason, MissingCapability: target.MissingCapability, NextAction: target.NextAction,
 			},
-			Kind: target.Transport.Kind, NodeID: target.NodeID, OS: target.OS, Architecture: target.Architecture,
+			Kind: target.Transport.Kind, NodeID: target.NodeID, Platform: target.Platform, OS: target.OS, Architecture: target.Architecture,
 			Mode: target.Mode, Reason: target.Reason, Health: target.Health, BridgeTrust: target.BridgeTrust,
 		})
 	}

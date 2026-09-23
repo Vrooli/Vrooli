@@ -96,3 +96,58 @@ func TestResolveScenarioPortShadowOtherErrorDoesNotFallBack(t *testing.T) {
 		t.Fatalf("expected no live fallback for non-not-running error, got %d calls", calls)
 	}
 }
+
+// TestResolveScenarioPortVariantDependencyNeverFallsBackToLive covers a
+// presentation instance: a dependency it follows at its own variant must fail
+// loudly when that instance is not running. Falling back to live would answer
+// with the operator's real data — the leak the follow list exists to prevent.
+func TestResolveScenarioPortVariantDependencyNeverFallsBackToLive(t *testing.T) {
+	t.Setenv(cliutil.EnvInstanceVariant, "presentation")
+	t.Setenv(cliutil.EnvVariantDependencies, "vrooli-bridge, audio-tools")
+	cliutil.ResetShadowFallbackWarning("vrooli-bridge")
+
+	var targets []string
+	runner := func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		target := args[2]
+		targets = append(targets, target)
+		if target == "vrooli-bridge@presentation" {
+			return []byte("scenario not running"), errors.New("exit status 1")
+		}
+		return []byte("20002\n"), nil
+	}
+
+	resolver := NewResolver(ResolverConfig{CommandRunner: runner})
+	_, err := resolver.ResolveScenarioPort(context.Background(), "vrooli-bridge", "API_PORT")
+	if err == nil {
+		t.Fatal("variant dependency fell back to live instead of failing closed")
+	}
+	var discoveryErr *Error
+	if !errors.As(err, &discoveryErr) || discoveryErr.Kind != ErrScenarioNotRunning {
+		t.Fatalf("expected ErrScenarioNotRunning, got %v", err)
+	}
+	if len(targets) != 1 || targets[0] != "vrooli-bridge@presentation" {
+		t.Fatalf("expected exactly one variant-targeted lookup, got %v", targets)
+	}
+}
+
+// TestResolveScenarioPortUnlistedDependencyStaysLive proves the follow list is
+// opt-in per dependency: anything not named still resolves live.
+func TestResolveScenarioPortUnlistedDependencyStaysLive(t *testing.T) {
+	t.Setenv(cliutil.EnvInstanceVariant, "presentation")
+	t.Setenv(cliutil.EnvVariantDependencies, "vrooli-bridge")
+
+	var targets []string
+	runner := func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		targets = append(targets, args[2])
+		return []byte("20003\n"), nil
+	}
+
+	resolver := NewResolver(ResolverConfig{CommandRunner: runner})
+	port, err := resolver.ResolveScenarioPort(context.Background(), "integration-hub", "API_PORT")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if port != 20003 || len(targets) != 1 || targets[0] != "integration-hub" {
+		t.Fatalf("unlisted dependency did not resolve live: port=%d targets=%v", port, targets)
+	}
+}

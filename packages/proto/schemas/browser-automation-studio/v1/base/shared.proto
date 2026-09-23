@@ -612,6 +612,29 @@ message AssertionResult {
 // EVENT CONTEXT (UNIFIED RECORDING/EXECUTION)
 // =============================================================================
 
+// ConditionOutcome captures the result of evaluating a branch condition.
+//
+message ConditionOutcome {
+  // Condition type (e.g., "element_exists", "variable_equals").
+  optional string type = 1;
+  // Whether the condition evaluated to true.
+  bool outcome = 2;
+  // Whether the condition was negated.
+  bool negated = 3;
+  // Comparison operator used.
+  optional string operator = 4;
+  // Variable name if condition involves a variable.
+  optional string variable = 5;
+  // Selector if condition involves an element.
+  optional string selector = 6;
+  // JavaScript expression if applicable.
+  optional string expression = 7;
+  // Actual value observed.
+  optional common.v1.JsonValue actual = 8;
+  // Expected value for comparison.
+  optional common.v1.JsonValue expected = 9;
+}
+
 // EventContext captures the origin and outcome of a timeline entry.
 // This type unifies what was previously RecordingContext and ExecutionContext,
 // reflecting the fact that recording and execution capture the same data.
@@ -659,6 +682,9 @@ message EventContext {
   // === ASSERTION RESULT ===
   // Assertion result (for assert actions only).
   optional AssertionResult assertion = 25;
+
+  // Completed conditional evaluation; absent on an evaluator failure.
+  optional ConditionOutcome condition = 26;
 
   // === EXTRACTED DATA ===
   // Extracted data from evaluate actions (variable name -> value).

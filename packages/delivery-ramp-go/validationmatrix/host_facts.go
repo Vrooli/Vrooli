@@ -34,6 +34,7 @@ const HostFactsTTL = 5 * time.Minute
 // hostProbeVerb and hostProbeArgs must stay within the node's allowlist. They
 // name a read-only control-plane probe; nothing here mutates remote state.
 const hostProbeVerb = "host inventory"
+const hostProbeScenario = "vrooli"
 
 var hostProbeArgs = []string{"--json"}
 
@@ -98,7 +99,7 @@ func (p *nodeHostProber) ProbeHost(ctx context.Context, nodeID string) (HostFact
 	if cached, ok := p.cached(nodeID); ok {
 		return cached.facts, cached.err
 	}
-	response, err := p.client.Call(ctx, nodereach.CallRequest{NodeID: nodeID, Command: hostProbeVerb, Args: hostProbeArgs, Timeout: 120 * time.Second})
+	response, err := p.client.Call(ctx, nodereach.CallRequest{NodeID: nodeID, Scenario: hostProbeScenario, Command: hostProbeVerb, Args: hostProbeArgs, Timeout: 120 * time.Second})
 	if err == nil && response.Outcome != 1 {
 		err = fmt.Errorf("host probe failed: %s", response.Reason)
 	}
@@ -198,6 +199,7 @@ func (p *dispatchHostProber) probe(ctx context.Context, nodeID string) (HostFact
 func dispatchProbeJob(ctx context.Context, dispatcher Dispatcher, nodeID string) (string, error) {
 	dispatched, err := dispatcher.DispatchJob(ctx, connect.NewRequest(&dispatchv1.DispatchJobRequest{
 		NodeId:         nodeID,
+		Scenario:       hostProbeScenario,
 		Verb:           hostProbeVerb,
 		Args:           append([]string(nil), hostProbeArgs...),
 		TimeoutSeconds: 120,

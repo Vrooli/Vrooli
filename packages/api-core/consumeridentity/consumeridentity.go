@@ -49,6 +49,7 @@ type Claims struct {
 	UserID    string `json:"uid"`
 	Email     string `json:"email"`
 	SessionID string `json:"sid"`
+	AuthTime  int64  `json:"auth_time,omitempty"`
 }
 
 type PublicKey struct {

@@ -299,3 +299,23 @@ Every durable scenario document should be registered in
 - [`../internal/ERROR-HANDLING.md`](../internal/ERROR-HANDLING.md) — error semantics
 - [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) — known issues / tech debt
 - [`../internal/PROGRESS.md`](../internal/PROGRESS.md) — lifecycle log
+
+### Declared workload evidence (BAS capture qualification target090)
+
+Extend the existing out-of-band SweepService to invoke a scenario-declared,
+bounded performance producer and retain its complete receipt. A request selects
+only scenario and workload; commands, source paths, expected sample denominator,
+contract path and latency budget are repository declarations, never caller input.
+The owner records the actual command, producer/config/contract identities and
+managed build identity, retains failed attempts, and derives percentiles from
+verified first-attempt samples. A missing or malformed measurement stays unknown.
+The legacy reserved p95 field numbers remain reserved; workload latency has its
+own typed result and provenance.
+
+The existing validation handler checks retained workload evidence without running
+a browser or restarting the target. The latest attempt must match the deployed
+candidate, current producer/configuration and contract and its declared freshness
+window. It must not fall back to an older passing receipt after a newer failure.
+Test Genie owns the performance-phase admission and evidence as before. BAS's
+governed setpoint read consumes this owner verdict; it cannot certify a local file
+or accept a caller pass flag. Other performance axes retain their current owners.

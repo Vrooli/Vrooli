@@ -405,6 +405,51 @@
       ]
     },
     {
+      "id": "sweep_run_workload",
+      "path": "/vrooli.performance_health.v1.sweep.SweepService/RunWorkload",
+      "method": "POST",
+      "summary": "Run one declared performance workload",
+      "description": "",
+      "category": "sweep",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string",
+          "workload": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "outcome": "WorkloadOutcome",
+          "receipt_path": "string"
+        }
+      }
+    },
+    {
+      "id": "sweep_get_workload",
+      "path": "/vrooli.performance_health.v1.sweep.SweepService/GetWorkload",
+      "method": "POST",
+      "summary": "Read applicable evidence for a declared workload",
+      "description": "",
+      "category": "sweep",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string",
+          "workload": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "outcome": "WorkloadOutcome",
+          "p95_ms": "double",
+          "within_budget": "bool"
+        }
+      }
+    },
+    {
       "id": "sweep_run_sweep",
       "path": "/vrooli.performance_health.v1.sweep.SweepService/RunSweep",
       "method": "POST",
@@ -470,6 +515,14 @@
           "description": "Trend read failure"
         }
       ]
+    },
+    {
+      "id": "validation_validate_target",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateTarget",
+      "method": "POST",
+      "summary": "Validate a first-class repository target",
+      "description": "",
+      "category": "validation"
     },
     {
       "id": "readiness_validate_readiness",
@@ -597,6 +650,34 @@
           "status": 400,
           "code": "invalid_argument",
           "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    },
+    {
+      "id": "validation_describe_provider",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/DescribeProvider",
+      "method": "POST",
+      "summary": "Describe this provider's identity and contract",
+      "description": "Reports provider identity, backed phase, maturity spec version, contract, build provenance, and capabilities. Inspects no target, so readiness consumers can confirm this provider is live and current without paying for a full validation run.",
+      "category": "validation",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "build": "scenario_validation.v1.ProviderBuild",
+          "capabilities": "scenario_validation.v1.ProviderCapabilities",
+          "contract": "string",
+          "phase": "string",
+          "provider": "string",
+          "spec_version": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Describe provider",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/DescribeProvider -H 'Content-Type: application/json' -d '{}'"
         }
       ]
     },

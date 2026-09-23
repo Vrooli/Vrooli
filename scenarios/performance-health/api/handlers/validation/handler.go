@@ -25,6 +25,7 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	readinessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/readiness"
 	readinessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/readiness/readiness_v1connect"
+	sweepv1 "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/sweep"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
@@ -45,6 +46,12 @@ type BudgetChecker interface {
 	FlowFindings(ctx context.Context, scenario string) ([]assessment.Finding, error)
 }
 
+// WorkloadReader only checks already-retained measurements. A performance gate
+// never invokes a browser workload or restarts its target.
+type WorkloadReader interface {
+	ReadAll(context.Context, string) ([]*sweepv1.WorkloadReading, error)
+}
+
 // Deps are the handler's collaborators.
 type Deps struct {
 	Readiness    *readiness.Service
@@ -61,6 +68,7 @@ type Deps struct {
 	// execution-mode validation (include_execution=true). Optional (nil =>
 	// execution mode degrades to readiness + budget-on-existing-trend).
 	Execution ExecutionRunner
+	Workloads WorkloadReader
 }
 
 // Handler implements the generated native ReadinessServiceHandler.
@@ -74,6 +82,7 @@ type Handler struct {
 	repoRoot  string
 	env       *commonv1.CaptureEnvironment
 	execution ExecutionRunner
+	workloads WorkloadReader
 }
 
 // NewHandlerWithDeps builds a Handler, defaulting nil collaborators.
@@ -90,6 +99,7 @@ func NewHandlerWithDeps(deps Deps) *Handler {
 		repoRoot:  deps.RepoRoot,
 		env:       deps.Environment,
 		execution: deps.Execution,
+		workloads: deps.Workloads,
 	}
 }
 
@@ -136,6 +146,8 @@ func (h *Handler) validate(ctx context.Context, scenario, path string, includeEx
 	}
 	budgetFindings := h.budgetFindings(ctx, res.Scenario)
 	extraFindings := append(executionFindings, budgetFindings...)
+	workloads, workloadFindings, workloadUnknown := h.workloadFindings(ctx, res.Scenario)
+	extraFindings = append(extraFindings, workloadFindings...)
 	maturity, err := buildAssessment(res, extraFindings, h.spec)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build maturity assessment: %w", err))
@@ -149,9 +161,19 @@ func (h *Handler) validate(ctx context.Context, scenario, path string, includeEx
 		Assessment:       maturity,
 		AutofixableCount: int32(res.AutofixableCount()),
 		DegradedReason:   res.DegradedReason,
+		Workloads:        workloads,
 	}
 	if out.Status == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED {
 		out.Status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
+	}
+	// A workload's failed assertion or measured breach cannot disappear if the
+	// optional maturity classification metadata is unavailable.
+	if len(workloadFindings) > 0 {
+		out.Status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
+	}
+	if workloadUnknown != "" && out.Status == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
+		out.Status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED
+		out.DegradedReason = firstNonEmpty(out.DegradedReason, workloadUnknown)
 	}
 	if executionDegradedReason != "" && out.Status == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
 		out.Status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED
@@ -162,13 +184,38 @@ func (h *Handler) validate(ctx context.Context, scenario, path string, includeEx
 	// UI — and nothing failed, the gated axes measured NOTHING. Reporting PASSED
 	// would make a skipped run indistinguishable from a real pass, so emit
 	// SKIPPED instead. A genuine failure (FAILED) is never downgraded.
-	if executed && !measured &&
+	if executed && !measured && len(workloads) == 0 &&
 		out.Status == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
 		out.Status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_SKIPPED
 		out.DegradedReason = strings.TrimSpace(firstNonEmpty(out.DegradedReason,
 			"performance gate measured no surface (no buildable api/ or ui/, or no toolchain/UI available); axes are gated continuously out-of-band"))
 	}
 	return connect.NewResponse(out), nil
+}
+
+func (h *Handler) workloadFindings(ctx context.Context, scenario string) ([]*sweepv1.WorkloadReading, []phassessment.Finding, string) {
+	if h.workloads == nil {
+		return nil, nil, ""
+	}
+	readings, err := h.workloads.ReadAll(ctx, scenario)
+	if err != nil {
+		return nil, nil, "declared workload evidence unavailable: " + err.Error()
+	}
+	var findings []phassessment.Finding
+	var unavailable string
+	for _, r := range readings {
+		switch r.GetOutcome() {
+		case sweepv1.WorkloadOutcome_WORKLOAD_OUTCOME_MEASURED:
+			if !r.WithinBudget {
+				findings = append(findings, phassessment.Finding{Code: "PERF_WORKLOAD_BREACH_" + strings.ToUpper(r.Workload), Severity: "error", Title: "Declared workload exceeds latency budget", Message: fmt.Sprintf("%s: service p95 %.3fms, wall p95 %.3fms, budget %.3fms; owner receipt %s", r.Workload, r.P95Ms, r.WallP95Ms, r.BudgetMs, r.OperationId)})
+			}
+		case sweepv1.WorkloadOutcome_WORKLOAD_OUTCOME_FAILED:
+			findings = append(findings, phassessment.Finding{Code: "PERF_WORKLOAD_FAILED_" + strings.ToUpper(r.Workload), Severity: "error", Title: "Declared workload failed", Message: r.Reason + "; owner receipt " + r.OperationId})
+		default:
+			unavailable = firstNonEmpty(unavailable, r.Workload+": "+r.Reason)
+		}
+	}
+	return readings, findings, unavailable
 }
 
 // PreviewReadinessFix returns the format-preserving edits readiness could apply,

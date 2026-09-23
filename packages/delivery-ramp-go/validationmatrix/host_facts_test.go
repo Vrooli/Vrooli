@@ -130,6 +130,9 @@ func TestDispatchHostProberReadsFactsFromRunEvents(t *testing.T) {
 	if dispatcher.request.Verb != hostProbeVerb {
 		t.Fatalf("probe verb = %q, want %q", dispatcher.request.Verb, hostProbeVerb)
 	}
+	if dispatcher.request.Scenario != hostProbeScenario {
+		t.Fatalf("probe scenario = %q, want %q", dispatcher.request.Scenario, hostProbeScenario)
+	}
 	if strings.Join(dispatcher.request.Args, " ") != strings.Join(hostProbeArgs, " ") {
 		t.Fatalf("probe args = %v", dispatcher.request.Args)
 	}

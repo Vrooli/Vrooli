@@ -4,14 +4,17 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	internalbudgets "performance-health/internal/budgets"
 	"performance-health/internal/modules"
 	"performance-health/internal/server"
 	"performance-health/internal/trend"
+	"performance-health/internal/workload"
 
 	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/api-core/storage"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -75,6 +78,15 @@ func main() {
 	// (analysis, benchmark, startup) and the budgets measurement source — so
 	// those domains depend on narrow seams, never on the trend domain itself.
 	trendStore := trend.NewStore(db.Primary())
+	storageResolver, err := storage.NewResolver(storage.ResolverConfig{})
+	if err != nil {
+		log.Fatalf("workload storage resolver: %v", err)
+	}
+	paths, err := storageResolver.Resolve(storage.Options{ScenarioID: "performance-health"})
+	if err != nil {
+		log.Fatalf("workload storage: %v", err)
+	}
+	workloads := workload.NewService(repoRoot, filepath.Join(paths.TestRunsDir, "workloads"), workload.NewStore(db.Primary()))
 
 	// The capture-sweep gate is a budgets service over the same config store +
 	// flow-tagged sample source: it enumerates declared per-flow budgets and
@@ -95,9 +107,9 @@ func main() {
 		fleetH.Module(logger, repoRoot, db.Primary()),
 		lighthouseH.Module(logger, repoRoot),
 		startupH.Module(logger, db.Primary(), trendStore),
-		sweepH.Module(logger, repoRoot, trendStore, sweepGate),
+		sweepH.Module(logger, repoRoot, trendStore, sweepGate, workloads),
 		trendH.Module(logger, db.Primary()),
-		validationH.Module(logger, repoRoot, db.Primary()),
+		validationH.Module(logger, repoRoot, db.Primary(), workloads),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

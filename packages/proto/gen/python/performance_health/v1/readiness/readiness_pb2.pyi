@@ -1,5 +1,6 @@
 from common.v1 import maturity_pb2 as _maturity_pb2
 from common.v1 import metrics_pb2 as _metrics_pb2
+from performance_health.v1.sweep import sweep_pb2 as _sweep_pb2
 from scenario_validation.v1 import validation_pb2 as _validation_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
@@ -30,7 +31,7 @@ class ValidateReadinessRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ...) -> None: ...
 
 class ValidateReadinessResponse(_message.Message):
-    __slots__ = ("scenario", "status", "tier", "ui_framework", "surfaces", "assessment", "autofixable_count", "degraded_reason", "metrics")
+    __slots__ = ("scenario", "status", "tier", "ui_framework", "surfaces", "assessment", "autofixable_count", "degraded_reason", "metrics", "workloads")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     TIER_FIELD_NUMBER: _ClassVar[int]
@@ -40,6 +41,7 @@ class ValidateReadinessResponse(_message.Message):
     AUTOFIXABLE_COUNT_FIELD_NUMBER: _ClassVar[int]
     DEGRADED_REASON_FIELD_NUMBER: _ClassVar[int]
     METRICS_FIELD_NUMBER: _ClassVar[int]
+    WORKLOADS_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     status: _validation_pb2.ValidationStatus
     tier: CaptureTier
@@ -49,7 +51,8 @@ class ValidateReadinessResponse(_message.Message):
     autofixable_count: int
     degraded_reason: str
     metrics: _metrics_pb2.ExecutionMetrics
-    def __init__(self, scenario: _Optional[str] = ..., status: _Optional[_Union[_validation_pb2.ValidationStatus, str]] = ..., tier: _Optional[_Union[CaptureTier, str]] = ..., ui_framework: _Optional[str] = ..., surfaces: _Optional[_Iterable[str]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ..., autofixable_count: _Optional[int] = ..., degraded_reason: _Optional[str] = ..., metrics: _Optional[_Union[_metrics_pb2.ExecutionMetrics, _Mapping]] = ...) -> None: ...
+    workloads: _containers.RepeatedCompositeFieldContainer[_sweep_pb2.WorkloadReading]
+    def __init__(self, scenario: _Optional[str] = ..., status: _Optional[_Union[_validation_pb2.ValidationStatus, str]] = ..., tier: _Optional[_Union[CaptureTier, str]] = ..., ui_framework: _Optional[str] = ..., surfaces: _Optional[_Iterable[str]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ..., autofixable_count: _Optional[int] = ..., degraded_reason: _Optional[str] = ..., metrics: _Optional[_Union[_metrics_pb2.ExecutionMetrics, _Mapping]] = ..., workloads: _Optional[_Iterable[_Union[_sweep_pb2.WorkloadReading, _Mapping]]] = ...) -> None: ...
 
 class ReadinessFixRequest(_message.Message):
     __slots__ = ("scenario", "path", "rule_ids")

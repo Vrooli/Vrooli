@@ -4,6 +4,7 @@ package vrooli.performance_health.v1.readiness;
 
 import "common/v1/maturity.proto";
 import "common/v1/metrics.proto";
+import "performance-health/v1/sweep/sweep.proto";
 import "scenario-validation/v1/validation.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/readiness;readiness_v1";
@@ -79,6 +80,9 @@ message ValidateReadinessResponse {
   string degraded_reason = 8;
   // Optional metrics for the validation.
   common.v1.ExecutionMetrics metrics = 9;
+  // Applicable out-of-band workload evidence checked by this validation call.
+  // Missing/stale evidence remains explicit; the gate never launches a capture.
+  repeated sweep.WorkloadReading workloads = 10;
 }
 
 message ReadinessFixRequest {

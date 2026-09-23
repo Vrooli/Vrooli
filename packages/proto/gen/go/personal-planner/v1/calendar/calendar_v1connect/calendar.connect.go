@@ -42,6 +42,18 @@ const (
 	// CalendarServiceCreateAllocationProcedure is the fully-qualified name of the CalendarService's
 	// CreateAllocation RPC.
 	CalendarServiceCreateAllocationProcedure = "/vrooli.personal_planner.v1.calendar.CalendarService/CreateAllocation"
+	// CalendarServicePreviewAllocationProcedure is the fully-qualified name of the CalendarService's
+	// PreviewAllocation RPC.
+	CalendarServicePreviewAllocationProcedure = "/vrooli.personal_planner.v1.calendar.CalendarService/PreviewAllocation"
+	// CalendarServiceApplyAllocationProposalProcedure is the fully-qualified name of the
+	// CalendarService's ApplyAllocationProposal RPC.
+	CalendarServiceApplyAllocationProposalProcedure = "/vrooli.personal_planner.v1.calendar.CalendarService/ApplyAllocationProposal"
+	// CalendarServicePreviewScheduleProcedure is the fully-qualified name of the CalendarService's
+	// PreviewSchedule RPC.
+	CalendarServicePreviewScheduleProcedure = "/vrooli.personal_planner.v1.calendar.CalendarService/PreviewSchedule"
+	// CalendarServiceApplyScheduleProposalProcedure is the fully-qualified name of the
+	// CalendarService's ApplyScheduleProposal RPC.
+	CalendarServiceApplyScheduleProposalProcedure = "/vrooli.personal_planner.v1.calendar.CalendarService/ApplyScheduleProposal"
 	// CalendarServiceCarryForwardAllocationProcedure is the fully-qualified name of the
 	// CalendarService's CarryForwardAllocation RPC.
 	CalendarServiceCarryForwardAllocationProcedure = "/vrooli.personal_planner.v1.calendar.CalendarService/CarryForwardAllocation"
@@ -68,6 +80,10 @@ type CalendarServiceClient interface {
 	ListTodayAllocations(context.Context, *connect.Request[calendar.ListTodayAllocationsRequest]) (*connect.Response[calendar.ListTodayAllocationsResponse], error)
 	ListAllocations(context.Context, *connect.Request[calendar.ListAllocationsRequest]) (*connect.Response[calendar.ListAllocationsResponse], error)
 	CreateAllocation(context.Context, *connect.Request[calendar.CreateAllocationRequest]) (*connect.Response[calendar.CreateAllocationResponse], error)
+	PreviewAllocation(context.Context, *connect.Request[calendar.PreviewAllocationRequest]) (*connect.Response[calendar.PreviewAllocationResponse], error)
+	ApplyAllocationProposal(context.Context, *connect.Request[calendar.ApplyAllocationProposalRequest]) (*connect.Response[calendar.ApplyAllocationProposalResponse], error)
+	PreviewSchedule(context.Context, *connect.Request[calendar.PreviewScheduleRequest]) (*connect.Response[calendar.PreviewScheduleResponse], error)
+	ApplyScheduleProposal(context.Context, *connect.Request[calendar.ApplyScheduleProposalRequest]) (*connect.Response[calendar.ApplyScheduleProposalResponse], error)
 	CarryForwardAllocation(context.Context, *connect.Request[calendar.CarryForwardAllocationRequest]) (*connect.Response[calendar.CarryForwardAllocationResponse], error)
 	ListRoutines(context.Context, *connect.Request[calendar.ListRoutinesRequest]) (*connect.Response[calendar.ListRoutinesResponse], error)
 	CreateRoutine(context.Context, *connect.Request[calendar.CreateRoutineRequest]) (*connect.Response[calendar.CreateRoutineResponse], error)
@@ -104,6 +120,30 @@ func NewCalendarServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+CalendarServiceCreateAllocationProcedure,
 			connect.WithSchema(calendarServiceMethods.ByName("CreateAllocation")),
+			connect.WithClientOptions(opts...),
+		),
+		previewAllocation: connect.NewClient[calendar.PreviewAllocationRequest, calendar.PreviewAllocationResponse](
+			httpClient,
+			baseURL+CalendarServicePreviewAllocationProcedure,
+			connect.WithSchema(calendarServiceMethods.ByName("PreviewAllocation")),
+			connect.WithClientOptions(opts...),
+		),
+		applyAllocationProposal: connect.NewClient[calendar.ApplyAllocationProposalRequest, calendar.ApplyAllocationProposalResponse](
+			httpClient,
+			baseURL+CalendarServiceApplyAllocationProposalProcedure,
+			connect.WithSchema(calendarServiceMethods.ByName("ApplyAllocationProposal")),
+			connect.WithClientOptions(opts...),
+		),
+		previewSchedule: connect.NewClient[calendar.PreviewScheduleRequest, calendar.PreviewScheduleResponse](
+			httpClient,
+			baseURL+CalendarServicePreviewScheduleProcedure,
+			connect.WithSchema(calendarServiceMethods.ByName("PreviewSchedule")),
+			connect.WithClientOptions(opts...),
+		),
+		applyScheduleProposal: connect.NewClient[calendar.ApplyScheduleProposalRequest, calendar.ApplyScheduleProposalResponse](
+			httpClient,
+			baseURL+CalendarServiceApplyScheduleProposalProcedure,
+			connect.WithSchema(calendarServiceMethods.ByName("ApplyScheduleProposal")),
 			connect.WithClientOptions(opts...),
 		),
 		carryForwardAllocation: connect.NewClient[calendar.CarryForwardAllocationRequest, calendar.CarryForwardAllocationResponse](
@@ -150,6 +190,10 @@ type calendarServiceClient struct {
 	listTodayAllocations        *connect.Client[calendar.ListTodayAllocationsRequest, calendar.ListTodayAllocationsResponse]
 	listAllocations             *connect.Client[calendar.ListAllocationsRequest, calendar.ListAllocationsResponse]
 	createAllocation            *connect.Client[calendar.CreateAllocationRequest, calendar.CreateAllocationResponse]
+	previewAllocation           *connect.Client[calendar.PreviewAllocationRequest, calendar.PreviewAllocationResponse]
+	applyAllocationProposal     *connect.Client[calendar.ApplyAllocationProposalRequest, calendar.ApplyAllocationProposalResponse]
+	previewSchedule             *connect.Client[calendar.PreviewScheduleRequest, calendar.PreviewScheduleResponse]
+	applyScheduleProposal       *connect.Client[calendar.ApplyScheduleProposalRequest, calendar.ApplyScheduleProposalResponse]
 	carryForwardAllocation      *connect.Client[calendar.CarryForwardAllocationRequest, calendar.CarryForwardAllocationResponse]
 	listRoutines                *connect.Client[calendar.ListRoutinesRequest, calendar.ListRoutinesResponse]
 	createRoutine               *connect.Client[calendar.CreateRoutineRequest, calendar.CreateRoutineResponse]
@@ -172,6 +216,28 @@ func (c *calendarServiceClient) ListAllocations(ctx context.Context, req *connec
 // CreateAllocation calls vrooli.personal_planner.v1.calendar.CalendarService.CreateAllocation.
 func (c *calendarServiceClient) CreateAllocation(ctx context.Context, req *connect.Request[calendar.CreateAllocationRequest]) (*connect.Response[calendar.CreateAllocationResponse], error) {
 	return c.createAllocation.CallUnary(ctx, req)
+}
+
+// PreviewAllocation calls vrooli.personal_planner.v1.calendar.CalendarService.PreviewAllocation.
+func (c *calendarServiceClient) PreviewAllocation(ctx context.Context, req *connect.Request[calendar.PreviewAllocationRequest]) (*connect.Response[calendar.PreviewAllocationResponse], error) {
+	return c.previewAllocation.CallUnary(ctx, req)
+}
+
+// ApplyAllocationProposal calls
+// vrooli.personal_planner.v1.calendar.CalendarService.ApplyAllocationProposal.
+func (c *calendarServiceClient) ApplyAllocationProposal(ctx context.Context, req *connect.Request[calendar.ApplyAllocationProposalRequest]) (*connect.Response[calendar.ApplyAllocationProposalResponse], error) {
+	return c.applyAllocationProposal.CallUnary(ctx, req)
+}
+
+// PreviewSchedule calls vrooli.personal_planner.v1.calendar.CalendarService.PreviewSchedule.
+func (c *calendarServiceClient) PreviewSchedule(ctx context.Context, req *connect.Request[calendar.PreviewScheduleRequest]) (*connect.Response[calendar.PreviewScheduleResponse], error) {
+	return c.previewSchedule.CallUnary(ctx, req)
+}
+
+// ApplyScheduleProposal calls
+// vrooli.personal_planner.v1.calendar.CalendarService.ApplyScheduleProposal.
+func (c *calendarServiceClient) ApplyScheduleProposal(ctx context.Context, req *connect.Request[calendar.ApplyScheduleProposalRequest]) (*connect.Response[calendar.ApplyScheduleProposalResponse], error) {
+	return c.applyScheduleProposal.CallUnary(ctx, req)
 }
 
 // CarryForwardAllocation calls
@@ -214,6 +280,10 @@ type CalendarServiceHandler interface {
 	ListTodayAllocations(context.Context, *connect.Request[calendar.ListTodayAllocationsRequest]) (*connect.Response[calendar.ListTodayAllocationsResponse], error)
 	ListAllocations(context.Context, *connect.Request[calendar.ListAllocationsRequest]) (*connect.Response[calendar.ListAllocationsResponse], error)
 	CreateAllocation(context.Context, *connect.Request[calendar.CreateAllocationRequest]) (*connect.Response[calendar.CreateAllocationResponse], error)
+	PreviewAllocation(context.Context, *connect.Request[calendar.PreviewAllocationRequest]) (*connect.Response[calendar.PreviewAllocationResponse], error)
+	ApplyAllocationProposal(context.Context, *connect.Request[calendar.ApplyAllocationProposalRequest]) (*connect.Response[calendar.ApplyAllocationProposalResponse], error)
+	PreviewSchedule(context.Context, *connect.Request[calendar.PreviewScheduleRequest]) (*connect.Response[calendar.PreviewScheduleResponse], error)
+	ApplyScheduleProposal(context.Context, *connect.Request[calendar.ApplyScheduleProposalRequest]) (*connect.Response[calendar.ApplyScheduleProposalResponse], error)
 	CarryForwardAllocation(context.Context, *connect.Request[calendar.CarryForwardAllocationRequest]) (*connect.Response[calendar.CarryForwardAllocationResponse], error)
 	ListRoutines(context.Context, *connect.Request[calendar.ListRoutinesRequest]) (*connect.Response[calendar.ListRoutinesResponse], error)
 	CreateRoutine(context.Context, *connect.Request[calendar.CreateRoutineRequest]) (*connect.Response[calendar.CreateRoutineResponse], error)
@@ -245,6 +315,30 @@ func NewCalendarServiceHandler(svc CalendarServiceHandler, opts ...connect.Handl
 		CalendarServiceCreateAllocationProcedure,
 		svc.CreateAllocation,
 		connect.WithSchema(calendarServiceMethods.ByName("CreateAllocation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	calendarServicePreviewAllocationHandler := connect.NewUnaryHandler(
+		CalendarServicePreviewAllocationProcedure,
+		svc.PreviewAllocation,
+		connect.WithSchema(calendarServiceMethods.ByName("PreviewAllocation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	calendarServiceApplyAllocationProposalHandler := connect.NewUnaryHandler(
+		CalendarServiceApplyAllocationProposalProcedure,
+		svc.ApplyAllocationProposal,
+		connect.WithSchema(calendarServiceMethods.ByName("ApplyAllocationProposal")),
+		connect.WithHandlerOptions(opts...),
+	)
+	calendarServicePreviewScheduleHandler := connect.NewUnaryHandler(
+		CalendarServicePreviewScheduleProcedure,
+		svc.PreviewSchedule,
+		connect.WithSchema(calendarServiceMethods.ByName("PreviewSchedule")),
+		connect.WithHandlerOptions(opts...),
+	)
+	calendarServiceApplyScheduleProposalHandler := connect.NewUnaryHandler(
+		CalendarServiceApplyScheduleProposalProcedure,
+		svc.ApplyScheduleProposal,
+		connect.WithSchema(calendarServiceMethods.ByName("ApplyScheduleProposal")),
 		connect.WithHandlerOptions(opts...),
 	)
 	calendarServiceCarryForwardAllocationHandler := connect.NewUnaryHandler(
@@ -291,6 +385,14 @@ func NewCalendarServiceHandler(svc CalendarServiceHandler, opts ...connect.Handl
 			calendarServiceListAllocationsHandler.ServeHTTP(w, r)
 		case CalendarServiceCreateAllocationProcedure:
 			calendarServiceCreateAllocationHandler.ServeHTTP(w, r)
+		case CalendarServicePreviewAllocationProcedure:
+			calendarServicePreviewAllocationHandler.ServeHTTP(w, r)
+		case CalendarServiceApplyAllocationProposalProcedure:
+			calendarServiceApplyAllocationProposalHandler.ServeHTTP(w, r)
+		case CalendarServicePreviewScheduleProcedure:
+			calendarServicePreviewScheduleHandler.ServeHTTP(w, r)
+		case CalendarServiceApplyScheduleProposalProcedure:
+			calendarServiceApplyScheduleProposalHandler.ServeHTTP(w, r)
 		case CalendarServiceCarryForwardAllocationProcedure:
 			calendarServiceCarryForwardAllocationHandler.ServeHTTP(w, r)
 		case CalendarServiceListRoutinesProcedure:
@@ -322,6 +424,22 @@ func (UnimplementedCalendarServiceHandler) ListAllocations(context.Context, *con
 
 func (UnimplementedCalendarServiceHandler) CreateAllocation(context.Context, *connect.Request[calendar.CreateAllocationRequest]) (*connect.Response[calendar.CreateAllocationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.personal_planner.v1.calendar.CalendarService.CreateAllocation is not implemented"))
+}
+
+func (UnimplementedCalendarServiceHandler) PreviewAllocation(context.Context, *connect.Request[calendar.PreviewAllocationRequest]) (*connect.Response[calendar.PreviewAllocationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.personal_planner.v1.calendar.CalendarService.PreviewAllocation is not implemented"))
+}
+
+func (UnimplementedCalendarServiceHandler) ApplyAllocationProposal(context.Context, *connect.Request[calendar.ApplyAllocationProposalRequest]) (*connect.Response[calendar.ApplyAllocationProposalResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.personal_planner.v1.calendar.CalendarService.ApplyAllocationProposal is not implemented"))
+}
+
+func (UnimplementedCalendarServiceHandler) PreviewSchedule(context.Context, *connect.Request[calendar.PreviewScheduleRequest]) (*connect.Response[calendar.PreviewScheduleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.personal_planner.v1.calendar.CalendarService.PreviewSchedule is not implemented"))
+}
+
+func (UnimplementedCalendarServiceHandler) ApplyScheduleProposal(context.Context, *connect.Request[calendar.ApplyScheduleProposalRequest]) (*connect.Response[calendar.ApplyScheduleProposalResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.personal_planner.v1.calendar.CalendarService.ApplyScheduleProposal is not implemented"))
 }
 
 func (UnimplementedCalendarServiceHandler) CarryForwardAllocation(context.Context, *connect.Request[calendar.CarryForwardAllocationRequest]) (*connect.Response[calendar.CarryForwardAllocationResponse], error) {

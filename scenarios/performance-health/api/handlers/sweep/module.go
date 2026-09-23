@@ -7,6 +7,7 @@ import (
 	"performance-health/internal/capture"
 	"performance-health/internal/module"
 	"performance-health/internal/readiness"
+	"performance-health/internal/workload"
 
 	"github.com/gorilla/mux"
 	sweepv1 "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/sweep"
@@ -25,7 +26,7 @@ const DefaultCommitBudgetMs = 8.0
 // budgets service are injected from the composition root (they own the
 // flow-tagged samples + per-flow budget config). A nil sample writer disables
 // persistence.
-func Module(logger *log.Logger, repoRoot string, trendWriter SampleWriter, gate FlowGate) module.Module {
+func Module(logger *log.Logger, repoRoot string, trendWriter SampleWriter, gate FlowGate, workloads *workload.Service) module.Module {
 	captureSvc := capture.NewService(&capture.BASConnectClient{}, &capture.CLIBuildController{}).
 		WithFlowResolver(&capture.FileFlowResolver{RepoRoot: repoRoot})
 	analyzer := internalanalysis.NewService(internalanalysis.FileTraceLoader{
@@ -34,6 +35,7 @@ func Module(logger *log.Logger, repoRoot string, trendWriter SampleWriter, gate 
 	})
 	tierer := readiness.NewService(readiness.NewCodeFactsClient(repoRoot))
 	handler := NewHandler(captureSvc, analyzer, trendWriter, gate, tierer, logger)
+	handler.workloads = workloads
 	path, connectHandler := sweepconnect.NewSweepServiceHandler(handler)
 	return module.Module{
 		Name: "sweep",
@@ -44,12 +46,16 @@ func Module(logger *log.Logger, repoRoot string, trendWriter SampleWriter, gate 
 	}
 }
 
-// Schema returns the empty schema: sweep owns no database tables (it writes
-// through the shared trend store).
-func Schema() string { return "" }
+// Flow samples use the trend store; declared workload receipts have their own
+// schema and repository under the workload measurement domain.
+func Schema() string { return workload.Schema() }
 
 // Endpoints is the static endpoint metadata for codegen and the parity test.
 var Endpoints = []module.EndpointDescriptor{
+	{ID: "sweep_run_workload", Path: sweepconnect.SweepServiceRunWorkloadProcedure, Method: "POST", Summary: "Run one declared performance workload", Category: "sweep",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "workload": "string"}}, Response: &module.Schema{Type: "object", Properties: map[string]string{"outcome": "WorkloadOutcome", "receipt_path": "string"}}},
+	{ID: "sweep_get_workload", Path: sweepconnect.SweepServiceGetWorkloadProcedure, Method: "POST", Summary: "Read applicable evidence for a declared workload", Category: "sweep",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "workload": "string"}}, Response: &module.Schema{Type: "object", Properties: map[string]string{"outcome": "WorkloadOutcome", "p95_ms": "double", "within_budget": "bool"}}},
 	{
 		ID:          "sweep_run_sweep",
 		Path:        sweepconnect.SweepServiceRunSweepProcedure,

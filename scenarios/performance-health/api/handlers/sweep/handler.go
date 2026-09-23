@@ -20,6 +20,7 @@ import (
 	"performance-health/internal/capture"
 	"performance-health/internal/perfsample"
 	"performance-health/internal/readiness"
+	"performance-health/internal/workload"
 
 	sweepv1 "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/sweep"
 	sweepconnect "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/sweep/sweep_v1connect"
@@ -57,12 +58,13 @@ type Tierer interface {
 // Handler implements the generated SweepServiceHandler.
 type Handler struct {
 	sweepconnect.UnimplementedSweepServiceHandler
-	auditor  Auditor
-	analyzer Analyzer
-	trend    SampleWriter
-	budgets  FlowGate
-	tierer   Tierer
-	logger   *log.Logger
+	auditor   Auditor
+	analyzer  Analyzer
+	trend     SampleWriter
+	budgets   FlowGate
+	tierer    Tierer
+	logger    *log.Logger
+	workloads *workload.Service
 }
 
 // NewHandler builds a sweep Handler.

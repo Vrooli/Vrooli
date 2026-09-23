@@ -185,6 +185,64 @@ func TestNewResolverRejectsBadAppID(t *testing.T) {
 	}
 }
 
+// TestResolveNonLiveInstanceOwnsClassDirs proves a non-live instance cannot
+// read or write its live sibling's files. A presentation instance of
+// web-console that resolved live's state directory used live's tmux socket.
+func TestResolveNonLiveInstanceOwnsClassDirs(t *testing.T) {
+	t.Parallel()
+
+	variantEnv := map[string]string{
+		EnvScenario:         "demo",
+		EnvVariant:          "presentation",
+		EnvStorageNamespace: "demo_presentation",
+	}
+	resolver := mustResolver(t, ResolverConfig{AppID: "vrooli", EnvGet: mapEnv(variantEnv)})
+	liveResolver := mustResolver(t, ResolverConfig{AppID: "vrooli", EnvGet: mapEnv(map[string]string{EnvScenario: "demo"})})
+
+	own, err := resolver.Resolve(Options{ScenarioID: "demo", RootOverride: "/ro"})
+	if err != nil {
+		t.Fatalf("Resolve(own variant) error = %v", err)
+	}
+	live, err := liveResolver.Resolve(Options{ScenarioID: "demo", RootOverride: "/ro"})
+	if err != nil {
+		t.Fatalf("Resolve(live) error = %v", err)
+	}
+	for class, pair := range map[string][2]string{
+		"config": {own.ConfigDir, live.ConfigDir},
+		"data":   {own.DataDir, live.DataDir},
+		"cache":  {own.CacheDir, live.CacheDir},
+		"logs":   {own.LogsDir, live.LogsDir},
+		"state":  {own.StateDir, live.StateDir},
+	} {
+		if pair[0] == pair[1] {
+			t.Errorf("%s: variant and live share %q", class, pair[0])
+		}
+		if filepath.Base(pair[0]) != "demo_presentation" || filepath.Base(pair[1]) != "demo" {
+			t.Errorf("%s: variant=%q live=%q", class, pair[0], pair[1])
+		}
+	}
+
+	other, err := resolver.Resolve(Options{ScenarioID: "other", RootOverride: "/ro"})
+	if err != nil {
+		t.Fatalf("Resolve(other scenario) error = %v", err)
+	}
+	if filepath.Base(other.StateDir) != "other" {
+		t.Errorf("another scenario's paths followed this process's variant: %q", other.StateDir)
+	}
+}
+
+// TestResolveFailsLoudOnVariantWithoutNamespace keeps the SQLite guard for
+// class directories: a non-live variant with no injected namespace must not
+// fall back onto live's directories.
+func TestResolveFailsLoudOnVariantWithoutNamespace(t *testing.T) {
+	t.Parallel()
+
+	resolver := mustResolver(t, ResolverConfig{AppID: "vrooli", EnvGet: mapEnv(map[string]string{EnvVariant: "presentation"})})
+	if _, err := resolver.Resolve(Options{ScenarioID: "demo", RootOverride: "/ro"}); err == nil {
+		t.Fatal("expected a non-live variant with no namespace root to fail loudly")
+	}
+}
+
 func mustResolver(t *testing.T, cfg ResolverConfig) *Resolver {
 	t.Helper()
 	r, err := NewResolver(cfg)

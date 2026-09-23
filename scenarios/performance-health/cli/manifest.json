@@ -726,6 +726,74 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "workload-run",
+          "description": "Run one repository-declared native performance workload and retain every attempt.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            },
+            {
+              "name": "workload",
+              "required": true,
+              "description": "Declared workload name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SweepService",
+            "method": "RunWorkload"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "workload-get",
+          "description": "Read the latest workload evidence, checking current candidate, producer, contract, freshness and retained artifacts.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            },
+            {
+              "name": "workload",
+              "required": true,
+              "description": "Declared workload name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SweepService",
+            "method": "GetWorkload"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     }
@@ -748,6 +816,16 @@
       "service": "ScenarioValidationService",
       "method": "ApplyFix",
       "reason": "Shared cross-scenario fix-apply surface for test-genie delegation; the developer CLI uses `readiness apply`, which targets the scenario-native ReadinessService."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "DescribeProvider",
+      "reason": "Shared provider descriptor used by Test Genie; the developer CLI uses native readiness commands."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "ValidateTarget",
+      "reason": "Shared first-class target validation used by Test Genie; the developer CLI uses the native ReadinessService."
     }
   ]
 }

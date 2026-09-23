@@ -96,6 +96,8 @@ type MatrixSelection struct {
 	CommandArgs         []string                                `json:"command_args,omitempty"`
 	ArtifactDigest      string                                  `json:"artifact_digest"`
 	ArtifactPath        string                                  `json:"artifact_path,omitempty"`
+	ArtifactPaths       map[string]string                       `json:"artifact_paths,omitempty"`
+	ArtifactDigests     map[string]string                       `json:"artifact_digests,omitempty"`
 	DeploymentMode      string                                  `json:"deployment_mode,omitempty"`
 	ReleaseProfile      string                                  `json:"release_profile,omitempty"`
 	IdempotencyKey      string                                  `json:"idempotency_key,omitempty"`

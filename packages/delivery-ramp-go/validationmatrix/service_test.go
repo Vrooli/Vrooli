@@ -249,18 +249,22 @@ func TestComputeApplicabilityTruthTable(t *testing.T) {
 		required    []domainv1.ValidationTargetCapability
 		profile     domainv1.ValidationEnvironmentProfile
 		disposition domainv1.ValidationDisposition
+		reason      string
 	}{
-		{"eligible", target, []domainv1.ValidationTargetCapability{capability}, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_NORMAL, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSPECIFIED},
-		{"missing capability", &domainv1.ValidationTargetDescriptor{TargetId: "local", Available: true}, []domainv1.ValidationTargetCapability{capability}, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_NORMAL, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSUPPORTED},
-		{"unavailable", &domainv1.ValidationTargetDescriptor{TargetId: "remote", Available: false}, nil, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_NORMAL, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE},
-		{"offline unsupported until adapter exists", target, nil, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_OFFLINE, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSUPPORTED},
-		{"unspecified profile", target, nil, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_UNSPECIFIED, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_NOT_RUN},
+		{"eligible", target, []domainv1.ValidationTargetCapability{capability}, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_NORMAL, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSPECIFIED, ""},
+		{"missing capability", &domainv1.ValidationTargetDescriptor{TargetId: "local", Available: true}, []domainv1.ValidationTargetCapability{capability}, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_NORMAL, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSUPPORTED, ""},
+		{"unavailable", &domainv1.ValidationTargetDescriptor{TargetId: "remote", Available: false, Reason: stringPtr("start or auto-login an interactive GUI session")}, nil, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_NORMAL, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, "start or auto-login"},
+		{"offline unsupported until adapter exists", target, nil, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_OFFLINE, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSUPPORTED, ""},
+		{"unspecified profile", target, nil, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_UNSPECIFIED, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_NOT_RUN, ""},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			applicable, disposition, _ := ComputeApplicability(test.target, test.required, test.profile)
+			applicable, disposition, reason := ComputeApplicability(test.target, test.required, test.profile)
 			if !applicable || disposition != test.disposition {
 				t.Fatalf("ComputeApplicability() = %v, %v; want true, %v", applicable, disposition, test.disposition)
+			}
+			if test.reason != "" && (reason == nil || !strings.Contains(*reason, test.reason)) {
+				t.Fatalf("ComputeApplicability() reason = %v; want substring %q", reason, test.reason)
 			}
 		})
 	}

@@ -89,6 +89,126 @@ class CreateAllocationResponse(_message.Message):
     allocation: Allocation
     def __init__(self, allocation: _Optional[_Union[Allocation, _Mapping]] = ...) -> None: ...
 
+class PreviewAllocationRequest(_message.Message):
+    __slots__ = ("work_item_id", "local_date", "start_minutes", "duration_minutes")
+    WORK_ITEM_ID_FIELD_NUMBER: _ClassVar[int]
+    LOCAL_DATE_FIELD_NUMBER: _ClassVar[int]
+    START_MINUTES_FIELD_NUMBER: _ClassVar[int]
+    DURATION_MINUTES_FIELD_NUMBER: _ClassVar[int]
+    work_item_id: str
+    local_date: str
+    start_minutes: int
+    duration_minutes: int
+    def __init__(self, work_item_id: _Optional[str] = ..., local_date: _Optional[str] = ..., start_minutes: _Optional[int] = ..., duration_minutes: _Optional[int] = ...) -> None: ...
+
+class PlacementProposal(_message.Message):
+    __slots__ = ("id", "work_item_id", "local_date", "start_minutes", "duration_minutes", "state", "reason", "base_revision")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    WORK_ITEM_ID_FIELD_NUMBER: _ClassVar[int]
+    LOCAL_DATE_FIELD_NUMBER: _ClassVar[int]
+    START_MINUTES_FIELD_NUMBER: _ClassVar[int]
+    DURATION_MINUTES_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    BASE_REVISION_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    work_item_id: str
+    local_date: str
+    start_minutes: int
+    duration_minutes: int
+    state: str
+    reason: str
+    base_revision: int
+    def __init__(self, id: _Optional[str] = ..., work_item_id: _Optional[str] = ..., local_date: _Optional[str] = ..., start_minutes: _Optional[int] = ..., duration_minutes: _Optional[int] = ..., state: _Optional[str] = ..., reason: _Optional[str] = ..., base_revision: _Optional[int] = ...) -> None: ...
+
+class PreviewAllocationResponse(_message.Message):
+    __slots__ = ("proposal",)
+    PROPOSAL_FIELD_NUMBER: _ClassVar[int]
+    proposal: PlacementProposal
+    def __init__(self, proposal: _Optional[_Union[PlacementProposal, _Mapping]] = ...) -> None: ...
+
+class ApplyAllocationProposalRequest(_message.Message):
+    __slots__ = ("proposal_id", "expected_revision", "idempotency_key")
+    PROPOSAL_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_REVISION_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    proposal_id: str
+    expected_revision: int
+    idempotency_key: str
+    def __init__(self, proposal_id: _Optional[str] = ..., expected_revision: _Optional[int] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
+
+class ApplyAllocationProposalResponse(_message.Message):
+    __slots__ = ("allocation",)
+    ALLOCATION_FIELD_NUMBER: _ClassVar[int]
+    allocation: Allocation
+    def __init__(self, allocation: _Optional[_Union[Allocation, _Mapping]] = ...) -> None: ...
+
+class PreviewScheduleRequest(_message.Message):
+    __slots__ = ("local_date", "start_minutes", "work_item_ids")
+    LOCAL_DATE_FIELD_NUMBER: _ClassVar[int]
+    START_MINUTES_FIELD_NUMBER: _ClassVar[int]
+    WORK_ITEM_IDS_FIELD_NUMBER: _ClassVar[int]
+    local_date: str
+    start_minutes: int
+    work_item_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, local_date: _Optional[str] = ..., start_minutes: _Optional[int] = ..., work_item_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ProposedPlacement(_message.Message):
+    __slots__ = ("work_item_id", "title", "local_date", "start_minutes", "duration_minutes", "state", "reason")
+    WORK_ITEM_ID_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    LOCAL_DATE_FIELD_NUMBER: _ClassVar[int]
+    START_MINUTES_FIELD_NUMBER: _ClassVar[int]
+    DURATION_MINUTES_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    work_item_id: str
+    title: str
+    local_date: str
+    start_minutes: int
+    duration_minutes: int
+    state: str
+    reason: str
+    def __init__(self, work_item_id: _Optional[str] = ..., title: _Optional[str] = ..., local_date: _Optional[str] = ..., start_minutes: _Optional[int] = ..., duration_minutes: _Optional[int] = ..., state: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class ScheduleProposal(_message.Message):
+    __slots__ = ("id", "local_date", "base_revision", "state", "reason", "placements")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    LOCAL_DATE_FIELD_NUMBER: _ClassVar[int]
+    BASE_REVISION_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    PLACEMENTS_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    local_date: str
+    base_revision: int
+    state: str
+    reason: str
+    placements: _containers.RepeatedCompositeFieldContainer[ProposedPlacement]
+    def __init__(self, id: _Optional[str] = ..., local_date: _Optional[str] = ..., base_revision: _Optional[int] = ..., state: _Optional[str] = ..., reason: _Optional[str] = ..., placements: _Optional[_Iterable[_Union[ProposedPlacement, _Mapping]]] = ...) -> None: ...
+
+class PreviewScheduleResponse(_message.Message):
+    __slots__ = ("proposal",)
+    PROPOSAL_FIELD_NUMBER: _ClassVar[int]
+    proposal: ScheduleProposal
+    def __init__(self, proposal: _Optional[_Union[ScheduleProposal, _Mapping]] = ...) -> None: ...
+
+class ApplyScheduleProposalRequest(_message.Message):
+    __slots__ = ("proposal_id", "expected_revision", "idempotency_key")
+    PROPOSAL_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_REVISION_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    proposal_id: str
+    expected_revision: int
+    idempotency_key: str
+    def __init__(self, proposal_id: _Optional[str] = ..., expected_revision: _Optional[int] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
+
+class ApplyScheduleProposalResponse(_message.Message):
+    __slots__ = ("allocations",)
+    ALLOCATIONS_FIELD_NUMBER: _ClassVar[int]
+    allocations: _containers.RepeatedCompositeFieldContainer[Allocation]
+    def __init__(self, allocations: _Optional[_Iterable[_Union[Allocation, _Mapping]]] = ...) -> None: ...
+
 class CarryForwardAllocationRequest(_message.Message):
     __slots__ = ("allocation_id", "target_local_date", "start_minutes")
     ALLOCATION_ID_FIELD_NUMBER: _ClassVar[int]

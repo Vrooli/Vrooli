@@ -1351,6 +1351,124 @@ func (x *AssertionResult) GetMessage() string {
 	return ""
 }
 
+// ConditionOutcome captures the result of evaluating a branch condition.
+type ConditionOutcome struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Condition type (e.g., "element_exists", "variable_equals").
+	Type *string `protobuf:"bytes,1,opt,name=type,proto3,oneof" json:"type,omitempty"`
+	// Whether the condition evaluated to true.
+	Outcome bool `protobuf:"varint,2,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	// Whether the condition was negated.
+	Negated bool `protobuf:"varint,3,opt,name=negated,proto3" json:"negated,omitempty"`
+	// Comparison operator used.
+	Operator *string `protobuf:"bytes,4,opt,name=operator,proto3,oneof" json:"operator,omitempty"`
+	// Variable name if condition involves a variable.
+	Variable *string `protobuf:"bytes,5,opt,name=variable,proto3,oneof" json:"variable,omitempty"`
+	// Selector if condition involves an element.
+	Selector *string `protobuf:"bytes,6,opt,name=selector,proto3,oneof" json:"selector,omitempty"`
+	// JavaScript expression if applicable.
+	Expression *string `protobuf:"bytes,7,opt,name=expression,proto3,oneof" json:"expression,omitempty"`
+	// Actual value observed.
+	Actual *v1.JsonValue `protobuf:"bytes,8,opt,name=actual,proto3,oneof" json:"actual,omitempty"`
+	// Expected value for comparison.
+	Expected      *v1.JsonValue `protobuf:"bytes,9,opt,name=expected,proto3,oneof" json:"expected,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConditionOutcome) Reset() {
+	*x = ConditionOutcome{}
+	mi := &file_browser_automation_studio_v1_base_shared_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConditionOutcome) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConditionOutcome) ProtoMessage() {}
+
+func (x *ConditionOutcome) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_base_shared_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConditionOutcome.ProtoReflect.Descriptor instead.
+func (*ConditionOutcome) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_base_shared_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ConditionOutcome) GetType() string {
+	if x != nil && x.Type != nil {
+		return *x.Type
+	}
+	return ""
+}
+
+func (x *ConditionOutcome) GetOutcome() bool {
+	if x != nil {
+		return x.Outcome
+	}
+	return false
+}
+
+func (x *ConditionOutcome) GetNegated() bool {
+	if x != nil {
+		return x.Negated
+	}
+	return false
+}
+
+func (x *ConditionOutcome) GetOperator() string {
+	if x != nil && x.Operator != nil {
+		return *x.Operator
+	}
+	return ""
+}
+
+func (x *ConditionOutcome) GetVariable() string {
+	if x != nil && x.Variable != nil {
+		return *x.Variable
+	}
+	return ""
+}
+
+func (x *ConditionOutcome) GetSelector() string {
+	if x != nil && x.Selector != nil {
+		return *x.Selector
+	}
+	return ""
+}
+
+func (x *ConditionOutcome) GetExpression() string {
+	if x != nil && x.Expression != nil {
+		return *x.Expression
+	}
+	return ""
+}
+
+func (x *ConditionOutcome) GetActual() *v1.JsonValue {
+	if x != nil {
+		return x.Actual
+	}
+	return nil
+}
+
+func (x *ConditionOutcome) GetExpected() *v1.JsonValue {
+	if x != nil {
+		return x.Expected
+	}
+	return nil
+}
+
 // EventContext captures the origin and outcome of a timeline entry.
 // This type unifies what was previously RecordingContext and ExecutionContext,
 // reflecting the fact that recording and execution capture the same data.
@@ -1392,6 +1510,8 @@ type EventContext struct {
 	// === ASSERTION RESULT ===
 	// Assertion result (for assert actions only).
 	Assertion *AssertionResult `protobuf:"bytes,25,opt,name=assertion,proto3,oneof" json:"assertion,omitempty"`
+	// Completed conditional evaluation; absent on an evaluator failure.
+	Condition *ConditionOutcome `protobuf:"bytes,26,opt,name=condition,proto3,oneof" json:"condition,omitempty"`
 	// === EXTRACTED DATA ===
 	// Extracted data from evaluate actions (variable name -> value).
 	ExtractedData map[string]*v1.JsonValue `protobuf:"bytes,30,rep,name=extracted_data,json=extractedData,proto3" json:"extracted_data,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
@@ -1401,7 +1521,7 @@ type EventContext struct {
 
 func (x *EventContext) Reset() {
 	*x = EventContext{}
-	mi := &file_browser_automation_studio_v1_base_shared_proto_msgTypes[3]
+	mi := &file_browser_automation_studio_v1_base_shared_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1413,7 +1533,7 @@ func (x *EventContext) String() string {
 func (*EventContext) ProtoMessage() {}
 
 func (x *EventContext) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_base_shared_proto_msgTypes[3]
+	mi := &file_browser_automation_studio_v1_base_shared_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1426,7 +1546,7 @@ func (x *EventContext) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EventContext.ProtoReflect.Descriptor instead.
 func (*EventContext) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_base_shared_proto_rawDescGZIP(), []int{3}
+	return file_browser_automation_studio_v1_base_shared_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *EventContext) GetOrigin() isEventContext_Origin {
@@ -1503,6 +1623,13 @@ func (x *EventContext) GetAssertion() *AssertionResult {
 	return nil
 }
 
+func (x *EventContext) GetCondition() *ConditionOutcome {
+	if x != nil {
+		return x.Condition
+	}
+	return nil
+}
+
 func (x *EventContext) GetExtractedData() map[string]*v1.JsonValue {
 	if x != nil {
 		return x.ExtractedData
@@ -1563,7 +1690,26 @@ const file_browser_automation_studio_v1_base_shared_proto_rawDesc = "" +
 	"\t_expectedB\t\n" +
 	"\a_actualB\n" +
 	"\n" +
-	"\b_message\"\x85\x06\n" +
+	"\b_message\"\xa8\x03\n" +
+	"\x10ConditionOutcome\x12\x17\n" +
+	"\x04type\x18\x01 \x01(\tH\x00R\x04type\x88\x01\x01\x12\x18\n" +
+	"\aoutcome\x18\x02 \x01(\bR\aoutcome\x12\x18\n" +
+	"\anegated\x18\x03 \x01(\bR\anegated\x12\x1f\n" +
+	"\boperator\x18\x04 \x01(\tH\x01R\boperator\x88\x01\x01\x12\x1f\n" +
+	"\bvariable\x18\x05 \x01(\tH\x02R\bvariable\x88\x01\x01\x12\x1f\n" +
+	"\bselector\x18\x06 \x01(\tH\x03R\bselector\x88\x01\x01\x12#\n" +
+	"\n" +
+	"expression\x18\a \x01(\tH\x04R\n" +
+	"expression\x88\x01\x01\x121\n" +
+	"\x06actual\x18\b \x01(\v2\x14.common.v1.JsonValueH\x05R\x06actual\x88\x01\x01\x125\n" +
+	"\bexpected\x18\t \x01(\v2\x14.common.v1.JsonValueH\x06R\bexpected\x88\x01\x01B\a\n" +
+	"\x05_typeB\v\n" +
+	"\t_operatorB\v\n" +
+	"\t_variableB\v\n" +
+	"\t_selectorB\r\n" +
+	"\v_expressionB\t\n" +
+	"\a_actualB\v\n" +
+	"\t_expected\"\xe6\x06\n" +
 	"\fEventContext\x12\x1f\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tH\x00R\tsessionId\x12#\n" +
@@ -1576,7 +1722,8 @@ const file_browser_automation_studio_v1_base_shared_proto_rawDesc = "" +
 	"\n" +
 	"error_code\x18\f \x01(\tH\x05R\terrorCode\x88\x01\x01\x12Q\n" +
 	"\fretry_status\x18\x14 \x01(\v2).browser_automation_studio.v1.RetryStatusH\x06R\vretryStatus\x88\x01\x01\x12P\n" +
-	"\tassertion\x18\x19 \x01(\v2-.browser_automation_studio.v1.AssertionResultH\aR\tassertion\x88\x01\x01\x12d\n" +
+	"\tassertion\x18\x19 \x01(\v2-.browser_automation_studio.v1.AssertionResultH\aR\tassertion\x88\x01\x01\x12Q\n" +
+	"\tcondition\x18\x1a \x01(\v2..browser_automation_studio.v1.ConditionOutcomeH\bR\tcondition\x88\x01\x01\x12d\n" +
 	"\x0eextracted_data\x18\x1e \x03(\v2=.browser_automation_studio.v1.EventContext.ExtractedDataEntryR\rextractedData\x1aV\n" +
 	"\x12ExtractedDataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
@@ -1590,7 +1737,9 @@ const file_browser_automation_studio_v1_base_shared_proto_rawDesc = "" +
 	"\v_error_codeB\x0f\n" +
 	"\r_retry_statusB\f\n" +
 	"\n" +
-	"_assertion*\xcc\x01\n" +
+	"_assertionB\f\n" +
+	"\n" +
+	"_condition*\xcc\x01\n" +
 	"\x0fExecutionStatus\x12 \n" +
 	"\x1cEXECUTION_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18EXECUTION_STATUS_PENDING\x10\x01\x12\x1c\n" +
@@ -1716,44 +1865,48 @@ func file_browser_automation_studio_v1_base_shared_proto_rawDescGZIP() []byte {
 }
 
 var file_browser_automation_studio_v1_base_shared_proto_enumTypes = make([]protoimpl.EnumInfo, 14)
-var file_browser_automation_studio_v1_base_shared_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_browser_automation_studio_v1_base_shared_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_browser_automation_studio_v1_base_shared_proto_goTypes = []any{
-	(ExecutionStatus)(0),    // 0: browser_automation_studio.v1.ExecutionStatus
-	(TriggerType)(0),        // 1: browser_automation_studio.v1.TriggerType
-	(StepStatus)(0),         // 2: browser_automation_studio.v1.StepStatus
-	(LogLevel)(0),           // 3: browser_automation_studio.v1.LogLevel
-	(ArtifactType)(0),       // 4: browser_automation_studio.v1.ArtifactType
-	(ExportStatus)(0),       // 5: browser_automation_studio.v1.ExportStatus
-	(SelectorType)(0),       // 6: browser_automation_studio.v1.SelectorType
-	(NetworkEventType)(0),   // 7: browser_automation_studio.v1.NetworkEventType
-	(RecordingSource)(0),    // 8: browser_automation_studio.v1.RecordingSource
-	(WorkflowEdgeType)(0),   // 9: browser_automation_studio.v1.WorkflowEdgeType
-	(ValidationSeverity)(0), // 10: browser_automation_studio.v1.ValidationSeverity
-	(ChangeSource)(0),       // 11: browser_automation_studio.v1.ChangeSource
-	(AssertionMode)(0),      // 12: browser_automation_studio.v1.AssertionMode
-	(HighlightColor)(0),     // 13: browser_automation_studio.v1.HighlightColor
-	(*RetryAttempt)(nil),    // 14: browser_automation_studio.v1.RetryAttempt
-	(*RetryStatus)(nil),     // 15: browser_automation_studio.v1.RetryStatus
-	(*AssertionResult)(nil), // 16: browser_automation_studio.v1.AssertionResult
-	(*EventContext)(nil),    // 17: browser_automation_studio.v1.EventContext
-	nil,                     // 18: browser_automation_studio.v1.EventContext.ExtractedDataEntry
-	(*v1.JsonValue)(nil),    // 19: common.v1.JsonValue
+	(ExecutionStatus)(0),     // 0: browser_automation_studio.v1.ExecutionStatus
+	(TriggerType)(0),         // 1: browser_automation_studio.v1.TriggerType
+	(StepStatus)(0),          // 2: browser_automation_studio.v1.StepStatus
+	(LogLevel)(0),            // 3: browser_automation_studio.v1.LogLevel
+	(ArtifactType)(0),        // 4: browser_automation_studio.v1.ArtifactType
+	(ExportStatus)(0),        // 5: browser_automation_studio.v1.ExportStatus
+	(SelectorType)(0),        // 6: browser_automation_studio.v1.SelectorType
+	(NetworkEventType)(0),    // 7: browser_automation_studio.v1.NetworkEventType
+	(RecordingSource)(0),     // 8: browser_automation_studio.v1.RecordingSource
+	(WorkflowEdgeType)(0),    // 9: browser_automation_studio.v1.WorkflowEdgeType
+	(ValidationSeverity)(0),  // 10: browser_automation_studio.v1.ValidationSeverity
+	(ChangeSource)(0),        // 11: browser_automation_studio.v1.ChangeSource
+	(AssertionMode)(0),       // 12: browser_automation_studio.v1.AssertionMode
+	(HighlightColor)(0),      // 13: browser_automation_studio.v1.HighlightColor
+	(*RetryAttempt)(nil),     // 14: browser_automation_studio.v1.RetryAttempt
+	(*RetryStatus)(nil),      // 15: browser_automation_studio.v1.RetryStatus
+	(*AssertionResult)(nil),  // 16: browser_automation_studio.v1.AssertionResult
+	(*ConditionOutcome)(nil), // 17: browser_automation_studio.v1.ConditionOutcome
+	(*EventContext)(nil),     // 18: browser_automation_studio.v1.EventContext
+	nil,                      // 19: browser_automation_studio.v1.EventContext.ExtractedDataEntry
+	(*v1.JsonValue)(nil),     // 20: common.v1.JsonValue
 }
 var file_browser_automation_studio_v1_base_shared_proto_depIdxs = []int32{
 	14, // 0: browser_automation_studio.v1.RetryStatus.history:type_name -> browser_automation_studio.v1.RetryAttempt
 	12, // 1: browser_automation_studio.v1.AssertionResult.mode:type_name -> browser_automation_studio.v1.AssertionMode
-	19, // 2: browser_automation_studio.v1.AssertionResult.expected:type_name -> common.v1.JsonValue
-	19, // 3: browser_automation_studio.v1.AssertionResult.actual:type_name -> common.v1.JsonValue
-	8,  // 4: browser_automation_studio.v1.EventContext.source:type_name -> browser_automation_studio.v1.RecordingSource
-	15, // 5: browser_automation_studio.v1.EventContext.retry_status:type_name -> browser_automation_studio.v1.RetryStatus
-	16, // 6: browser_automation_studio.v1.EventContext.assertion:type_name -> browser_automation_studio.v1.AssertionResult
-	18, // 7: browser_automation_studio.v1.EventContext.extracted_data:type_name -> browser_automation_studio.v1.EventContext.ExtractedDataEntry
-	19, // 8: browser_automation_studio.v1.EventContext.ExtractedDataEntry.value:type_name -> common.v1.JsonValue
-	9,  // [9:9] is the sub-list for method output_type
-	9,  // [9:9] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	20, // 2: browser_automation_studio.v1.AssertionResult.expected:type_name -> common.v1.JsonValue
+	20, // 3: browser_automation_studio.v1.AssertionResult.actual:type_name -> common.v1.JsonValue
+	20, // 4: browser_automation_studio.v1.ConditionOutcome.actual:type_name -> common.v1.JsonValue
+	20, // 5: browser_automation_studio.v1.ConditionOutcome.expected:type_name -> common.v1.JsonValue
+	8,  // 6: browser_automation_studio.v1.EventContext.source:type_name -> browser_automation_studio.v1.RecordingSource
+	15, // 7: browser_automation_studio.v1.EventContext.retry_status:type_name -> browser_automation_studio.v1.RetryStatus
+	16, // 8: browser_automation_studio.v1.EventContext.assertion:type_name -> browser_automation_studio.v1.AssertionResult
+	17, // 9: browser_automation_studio.v1.EventContext.condition:type_name -> browser_automation_studio.v1.ConditionOutcome
+	19, // 10: browser_automation_studio.v1.EventContext.extracted_data:type_name -> browser_automation_studio.v1.EventContext.ExtractedDataEntry
+	20, // 11: browser_automation_studio.v1.EventContext.ExtractedDataEntry.value:type_name -> common.v1.JsonValue
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_base_shared_proto_init() }
@@ -1763,7 +1916,8 @@ func file_browser_automation_studio_v1_base_shared_proto_init() {
 	}
 	file_browser_automation_studio_v1_base_shared_proto_msgTypes[0].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_base_shared_proto_msgTypes[2].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_base_shared_proto_msgTypes[3].OneofWrappers = []any{
+	file_browser_automation_studio_v1_base_shared_proto_msgTypes[3].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_base_shared_proto_msgTypes[4].OneofWrappers = []any{
 		(*EventContext_SessionId)(nil),
 		(*EventContext_ExecutionId)(nil),
 	}
@@ -1773,7 +1927,7 @@ func file_browser_automation_studio_v1_base_shared_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_base_shared_proto_rawDesc), len(file_browser_automation_studio_v1_base_shared_proto_rawDesc)),
 			NumEnums:      14,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

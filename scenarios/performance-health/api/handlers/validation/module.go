@@ -37,7 +37,7 @@ var (
 // The readiness engine reads surfaces + UI framework through the Code Facts
 // intake seam (CodeFactsClient), which degrades to a filesystem scan when Code
 // Facts is unavailable.
-func Module(logger *log.Logger, repoRoot string, db *sql.DB) module.Module {
+func Module(logger *log.Logger, repoRoot string, db *sql.DB, workloads WorkloadReader) module.Module {
 	readinessSvc := readiness.NewService(readiness.NewCodeFactsClient(repoRoot))
 	autofixSvc := autofix.NewService()
 
@@ -95,6 +95,7 @@ func Module(logger *log.Logger, repoRoot string, db *sql.DB) module.Module {
 		RepoRoot:     repoRoot,
 		Environment:  environment,
 		Execution:    execution,
+		Workloads:    workloads,
 	})
 	connectPath, connectHandler := readinessconnect.NewReadinessServiceHandler(handler)
 	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(NewSharedHandler(handler), describer))

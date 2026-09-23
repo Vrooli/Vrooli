@@ -139,6 +139,21 @@ func TestExchangeLocalMachinePrincipalResponses(t *testing.T) {
 	}
 }
 
+func TestExchangeLocalMachinePrincipalForResourceSendsResource(t *testing.T) {
+	isolatedExchangeDir(t)
+	seen := ""
+	serveLocalExchange(t, DefaultLocalAuthenticatorSocket(), localExchangeFixture{exchange: func(_ context.Context, req *connect.Request[accountsv1.ExchangeMachinePrincipalRequest]) (*connect.Response[accountsv1.LoginResponse], error) {
+		seen = req.Msg.GetResource()
+		return connect.NewResponse(&accountsv1.LoginResponse{Tokens: &accountsv1.TokenPair{AccessToken: "resource-access"}}), nil
+	}})
+	if _, err := ExchangeLocalMachinePrincipalForResource(context.Background(), "device-sync-hub"); err != nil {
+		t.Fatal(err)
+	}
+	if seen != "device-sync-hub" {
+		t.Fatalf("resource = %q, want device-sync-hub", seen)
+	}
+}
+
 func TestExchangeLocalMachinePrincipalUnavailableAndCanceled(t *testing.T) {
 	dir := isolatedExchangeDir(t)
 	t.Setenv("VROOLI_AUTH_SOCKET", filepath.Join(dir, "absent.sock"))

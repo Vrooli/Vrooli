@@ -61,3 +61,26 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 		Results:        results,
 	})
 }
+
+func (h *handlers) runWorkload(ctx cliapp.RunContext) error {
+	r, err := h.client.RunWorkload(context.Background(), connect.NewRequest(&sweepv1.WorkloadRequest{Scenario: ctx.Positional("scenario"), Workload: ctx.Positional("workload")}))
+	if err != nil {
+		return cliapp.WrapAPIError("run declared workload", err, nil)
+	}
+	return renderWorkload(ctx, r.Msg)
+}
+
+func (h *handlers) getWorkload(ctx cliapp.RunContext) error {
+	r, err := h.client.GetWorkload(context.Background(), connect.NewRequest(&sweepv1.WorkloadRequest{Scenario: ctx.Positional("scenario"), Workload: ctx.Positional("workload")}))
+	if err != nil {
+		return cliapp.WrapAPIError("read declared workload", err, nil)
+	}
+	return renderWorkload(ctx, r.Msg)
+}
+
+func renderWorkload(ctx cliapp.RunContext, r *sweepv1.WorkloadReading) error {
+	return cliapp.RenderProtoList(ctx, r, cliapp.ListReport{Summary: []string{fmt.Sprintf("%s/%s: %s", r.Scenario, r.Workload, r.Outcome)}, Results: []string{
+		fmt.Sprintf("p95: service %.3fms, wall %.3fms; budget %.3fms; within budget: %t", r.P95Ms, r.WallP95Ms, r.BudgetMs, r.WithinBudget),
+		fmt.Sprintf("owner operation: %s; %s", r.OperationId, r.Reason), r.ReceiptPath,
+	}})
+}

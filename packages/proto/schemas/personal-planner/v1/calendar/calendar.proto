@@ -12,6 +12,10 @@ service CalendarService {
   rpc ListTodayAllocations(ListTodayAllocationsRequest) returns (ListTodayAllocationsResponse);
   rpc ListAllocations(ListAllocationsRequest) returns (ListAllocationsResponse);
   rpc CreateAllocation(CreateAllocationRequest) returns (CreateAllocationResponse);
+  rpc PreviewAllocation(PreviewAllocationRequest) returns (PreviewAllocationResponse);
+  rpc ApplyAllocationProposal(ApplyAllocationProposalRequest) returns (ApplyAllocationProposalResponse);
+  rpc PreviewSchedule(PreviewScheduleRequest) returns (PreviewScheduleResponse);
+  rpc ApplyScheduleProposal(ApplyScheduleProposalRequest) returns (ApplyScheduleProposalResponse);
   rpc CarryForwardAllocation(CarryForwardAllocationRequest) returns (CarryForwardAllocationResponse);
   rpc ListRoutines(ListRoutinesRequest) returns (ListRoutinesResponse);
   rpc CreateRoutine(CreateRoutineRequest) returns (CreateRoutineResponse);
@@ -63,6 +67,62 @@ message CreateAllocationRequest {
 }
 
 message CreateAllocationResponse { Allocation allocation = 1; }
+
+message PreviewAllocationRequest {
+  string work_item_id = 1;
+  string local_date = 2;
+  int32 start_minutes = 3;
+  int32 duration_minutes = 4;
+}
+message PlacementProposal {
+  string id = 1;
+  string work_item_id = 2;
+  string local_date = 3;
+  int32 start_minutes = 4;
+  int32 duration_minutes = 5;
+  string state = 6;
+  string reason = 7;
+  int64 base_revision = 8;
+}
+message PreviewAllocationResponse { PlacementProposal proposal = 1; }
+
+message ApplyAllocationProposalRequest {
+  string proposal_id = 1;
+  int64 expected_revision = 2;
+  string idempotency_key = 3;
+}
+message ApplyAllocationProposalResponse { Allocation allocation = 1; }
+
+message PreviewScheduleRequest {
+  string local_date = 1;
+  int32 start_minutes = 2;
+  repeated string work_item_ids = 3;
+}
+message ProposedPlacement {
+  string work_item_id = 1;
+  string title = 2;
+  string local_date = 3;
+  int32 start_minutes = 4;
+  int32 duration_minutes = 5;
+  string state = 6;
+  string reason = 7;
+}
+message ScheduleProposal {
+  string id = 1;
+  string local_date = 2;
+  int64 base_revision = 3;
+  string state = 4;
+  string reason = 5;
+  repeated ProposedPlacement placements = 6;
+}
+message PreviewScheduleResponse { ScheduleProposal proposal = 1; }
+
+message ApplyScheduleProposalRequest {
+  string proposal_id = 1;
+  int64 expected_revision = 2;
+  string idempotency_key = 3;
+}
+message ApplyScheduleProposalResponse { repeated Allocation allocations = 1; }
 
 message CarryForwardAllocationRequest {
   string allocation_id = 1;

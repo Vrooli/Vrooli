@@ -73,6 +73,13 @@ func maxUnixSocketPath(goos string) int {
 // agent-to-owner fallback. It never persists or prints credentials and never
 // falls back to TCP or token files. Callers must not log the returned tokens.
 func ExchangeLocalMachinePrincipal(ctx context.Context) (*accountsv1.LoginResponse, error) {
+	return ExchangeLocalMachinePrincipalForResource(ctx, "")
+}
+
+// ExchangeLocalMachinePrincipalForResource exchanges the current process'
+// Unix peer credential for a session scoped to a registered authenticator
+// resource. An empty resource preserves the default realm audience.
+func ExchangeLocalMachinePrincipalForResource(ctx context.Context, resource string) (*accountsv1.LoginResponse, error) {
 	socketPath := strings.TrimSpace(os.Getenv("VROOLI_AUTH_SOCKET"))
 	if socketPath == "" {
 		socketPath = DefaultLocalAuthenticatorSocket()
@@ -88,7 +95,7 @@ func ExchangeLocalMachinePrincipal(ctx context.Context) (*accountsv1.LoginRespon
 	}
 	defer transport.CloseIdleConnections()
 	client := accountsconnect.NewAccountsServiceClient(&http.Client{Transport: transport, Timeout: 5 * time.Second}, "http://local-authenticator")
-	resp, err := client.ExchangeMachinePrincipal(ctx, connect.NewRequest(&accountsv1.ExchangeMachinePrincipalRequest{MachineId: machineID}))
+	resp, err := client.ExchangeMachinePrincipal(ctx, connect.NewRequest(&accountsv1.ExchangeMachinePrincipalRequest{MachineId: machineID, Resource: strings.TrimSpace(resource)}))
 	if err != nil {
 		return nil, err
 	}

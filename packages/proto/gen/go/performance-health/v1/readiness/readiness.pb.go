@@ -8,6 +8,7 @@ package readiness_v1
 
 import (
 	v11 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	sweep "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/sweep"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -149,7 +150,10 @@ type ValidateReadinessResponse struct {
 	// Non-empty when readiness ran in a degraded mode (e.g. Code Facts down).
 	DegradedReason string `protobuf:"bytes,8,opt,name=degraded_reason,json=degradedReason,proto3" json:"degraded_reason,omitempty"`
 	// Optional metrics for the validation.
-	Metrics       *v11.ExecutionMetrics `protobuf:"bytes,9,opt,name=metrics,proto3" json:"metrics,omitempty"`
+	Metrics *v11.ExecutionMetrics `protobuf:"bytes,9,opt,name=metrics,proto3" json:"metrics,omitempty"`
+	// Applicable out-of-band workload evidence checked by this validation call.
+	// Missing/stale evidence remains explicit; the gate never launches a capture.
+	Workloads     []*sweep.WorkloadReading `protobuf:"bytes,10,rep,name=workloads,proto3" json:"workloads,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -243,6 +247,13 @@ func (x *ValidateReadinessResponse) GetDegradedReason() string {
 func (x *ValidateReadinessResponse) GetMetrics() *v11.ExecutionMetrics {
 	if x != nil {
 		return x.Metrics
+	}
+	return nil
+}
+
+func (x *ValidateReadinessResponse) GetWorkloads() []*sweep.WorkloadReading {
+	if x != nil {
+		return x.Workloads
 	}
 	return nil
 }
@@ -380,10 +391,10 @@ var File_performance_health_v1_readiness_readiness_proto protoreflect.FileDescri
 
 const file_performance_health_v1_readiness_readiness_proto_rawDesc = "" +
 	"\n" +
-	"/performance-health/v1/readiness/readiness.proto\x12&vrooli.performance_health.v1.readiness\x1a\x18common/v1/maturity.proto\x1a\x17common/v1/metrics.proto\x1a'scenario-validation/v1/validation.proto\"J\n" +
+	"/performance-health/v1/readiness/readiness.proto\x12&vrooli.performance_health.v1.readiness\x1a\x18common/v1/maturity.proto\x1a\x17common/v1/metrics.proto\x1a'performance-health/v1/sweep/sweep.proto\x1a'scenario-validation/v1/validation.proto\"J\n" +
 	"\x18ValidateReadinessRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
-	"\x04path\x18\x02 \x01(\tR\x04path\"\xd4\x03\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\"\xa7\x04\n" +
 	"\x19ValidateReadinessResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12G\n" +
 	"\x06status\x18\x02 \x01(\x0e2/.vrooli.scenario_validation.v1.ValidationStatusR\x06status\x12G\n" +
@@ -395,7 +406,9 @@ const file_performance_health_v1_readiness_readiness_proto_rawDesc = "" +
 	"assessment\x12+\n" +
 	"\x11autofixable_count\x18\a \x01(\x05R\x10autofixableCount\x12'\n" +
 	"\x0fdegraded_reason\x18\b \x01(\tR\x0edegradedReason\x125\n" +
-	"\ametrics\x18\t \x01(\v2\x1b.common.v1.ExecutionMetricsR\ametrics\"`\n" +
+	"\ametrics\x18\t \x01(\v2\x1b.common.v1.ExecutionMetricsR\ametrics\x12Q\n" +
+	"\tworkloads\x18\n" +
+	" \x03(\v23.vrooli.performance_health.v1.sweep.WorkloadReadingR\tworkloads\"`\n" +
 	"\x13ReadinessFixRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x19\n" +
@@ -440,25 +453,27 @@ var file_performance_health_v1_readiness_readiness_proto_goTypes = []any{
 	(v1.ValidationStatus)(0),          // 5: vrooli.scenario_validation.v1.ValidationStatus
 	(*v11.MaturityAssessment)(nil),    // 6: common.v1.MaturityAssessment
 	(*v11.ExecutionMetrics)(nil),      // 7: common.v1.ExecutionMetrics
-	(*v1.FixCandidate)(nil),           // 8: vrooli.scenario_validation.v1.FixCandidate
+	(*sweep.WorkloadReading)(nil),     // 8: vrooli.performance_health.v1.sweep.WorkloadReading
+	(*v1.FixCandidate)(nil),           // 9: vrooli.scenario_validation.v1.FixCandidate
 }
 var file_performance_health_v1_readiness_readiness_proto_depIdxs = []int32{
 	5, // 0: vrooli.performance_health.v1.readiness.ValidateReadinessResponse.status:type_name -> vrooli.scenario_validation.v1.ValidationStatus
 	0, // 1: vrooli.performance_health.v1.readiness.ValidateReadinessResponse.tier:type_name -> vrooli.performance_health.v1.readiness.CaptureTier
 	6, // 2: vrooli.performance_health.v1.readiness.ValidateReadinessResponse.assessment:type_name -> common.v1.MaturityAssessment
 	7, // 3: vrooli.performance_health.v1.readiness.ValidateReadinessResponse.metrics:type_name -> common.v1.ExecutionMetrics
-	8, // 4: vrooli.performance_health.v1.readiness.ReadinessFixResponse.candidates:type_name -> vrooli.scenario_validation.v1.FixCandidate
-	1, // 5: vrooli.performance_health.v1.readiness.ReadinessService.ValidateReadiness:input_type -> vrooli.performance_health.v1.readiness.ValidateReadinessRequest
-	3, // 6: vrooli.performance_health.v1.readiness.ReadinessService.PreviewReadinessFix:input_type -> vrooli.performance_health.v1.readiness.ReadinessFixRequest
-	3, // 7: vrooli.performance_health.v1.readiness.ReadinessService.ApplyReadinessFix:input_type -> vrooli.performance_health.v1.readiness.ReadinessFixRequest
-	2, // 8: vrooli.performance_health.v1.readiness.ReadinessService.ValidateReadiness:output_type -> vrooli.performance_health.v1.readiness.ValidateReadinessResponse
-	4, // 9: vrooli.performance_health.v1.readiness.ReadinessService.PreviewReadinessFix:output_type -> vrooli.performance_health.v1.readiness.ReadinessFixResponse
-	4, // 10: vrooli.performance_health.v1.readiness.ReadinessService.ApplyReadinessFix:output_type -> vrooli.performance_health.v1.readiness.ReadinessFixResponse
-	8, // [8:11] is the sub-list for method output_type
-	5, // [5:8] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	8, // 4: vrooli.performance_health.v1.readiness.ValidateReadinessResponse.workloads:type_name -> vrooli.performance_health.v1.sweep.WorkloadReading
+	9, // 5: vrooli.performance_health.v1.readiness.ReadinessFixResponse.candidates:type_name -> vrooli.scenario_validation.v1.FixCandidate
+	1, // 6: vrooli.performance_health.v1.readiness.ReadinessService.ValidateReadiness:input_type -> vrooli.performance_health.v1.readiness.ValidateReadinessRequest
+	3, // 7: vrooli.performance_health.v1.readiness.ReadinessService.PreviewReadinessFix:input_type -> vrooli.performance_health.v1.readiness.ReadinessFixRequest
+	3, // 8: vrooli.performance_health.v1.readiness.ReadinessService.ApplyReadinessFix:input_type -> vrooli.performance_health.v1.readiness.ReadinessFixRequest
+	2, // 9: vrooli.performance_health.v1.readiness.ReadinessService.ValidateReadiness:output_type -> vrooli.performance_health.v1.readiness.ValidateReadinessResponse
+	4, // 10: vrooli.performance_health.v1.readiness.ReadinessService.PreviewReadinessFix:output_type -> vrooli.performance_health.v1.readiness.ReadinessFixResponse
+	4, // 11: vrooli.performance_health.v1.readiness.ReadinessService.ApplyReadinessFix:output_type -> vrooli.performance_health.v1.readiness.ReadinessFixResponse
+	9, // [9:12] is the sub-list for method output_type
+	6, // [6:9] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_performance_health_v1_readiness_readiness_proto_init() }

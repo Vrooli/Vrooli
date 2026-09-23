@@ -7,13 +7,19 @@
 package validationmatrix
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -21,6 +27,8 @@ import (
 	"github.com/vrooli/api-core/nodereach"
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
+	artifactsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/artifacts"
+	artifactsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/artifacts/artifacts_v1connect"
 	dispatchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
@@ -42,6 +50,18 @@ type Runs interface {
 	GetRun(context.Context, *connect.Request[runsv1.GetRunRequest]) (*connect.Response[runsv1.GetRunResponse], error)
 }
 
+// ArtifactPlacer places a local artifact on a target node and returns the
+// destination path that the dispatched validator must consume.
+type ArtifactPlacer interface {
+	Place(context.Context, string, CellRequest) (string, error)
+}
+
+type artifactPlacerFunc func(context.Context, string, CellRequest) (string, error)
+
+func (f artifactPlacerFunc) Place(ctx context.Context, nodeID string, request CellRequest) (string, error) {
+	return f(ctx, nodeID, request)
+}
+
 type Client struct {
 	// node is the production transport. The legacy seams below remain only for
 	// focused tests that exercise the matrix without a live Bridge.
@@ -51,8 +71,10 @@ type Client struct {
 	runs       Runs
 	// platform scopes discovery to one ramp's targets. A single probed node may
 	// serve several platforms, and each ramp must see only its own.
-	platform   string
-	hostProber HostProber
+	platform       string
+	hostProber     HostProber
+	tokenProvider  func(context.Context) (string, error)
+	artifactPlacer ArtifactPlacer
 }
 
 // ClientOption configures optional discovery behaviour without widening the
@@ -71,13 +93,28 @@ func WithHostProber(prober HostProber) ClientOption {
 	return func(c *Client) { c.hostProber = prober }
 }
 
+// WithTokenProvider supplies a short-lived owner credential when the static
+// bridge token is absent or expired.
+func WithTokenProvider(provider func(context.Context) (string, error)) ClientOption {
+	return func(c *Client) { c.tokenProvider = provider }
+}
+
+// WithArtifactPlacer replaces Bridge's production artifact service in tests.
+func WithArtifactPlacer(placer ArtifactPlacer) ClientOption {
+	return func(c *Client) { c.artifactPlacer = placer }
+}
+
 func NewClient(baseURL, token string, httpClient *http.Client, options ...ClientOption) *Client {
-	client := &Client{node: nodereach.New(nodereach.Config{HTTPClient: httpClient, BridgeURL: baseURL, Token: token})}
+	client := &Client{}
 	for _, option := range options {
 		option(client)
 	}
+	client.node = nodereach.New(nodereach.Config{HTTPClient: httpClient, BridgeURL: baseURL, Token: token, TokenProvider: client.tokenProvider})
 	if client.hostProber == nil {
 		client.hostProber = newNodeHostProber(client.node)
+	}
+	if client.artifactPlacer == nil {
+		client.artifactPlacer = artifactPlacerFunc(client.distributeArtifact)
 	}
 	return client
 }
@@ -176,10 +213,14 @@ func (c *Client) Execute(ctx context.Context, request CellRequest) CellResult {
 	if command == "" {
 		command = DefaultCommand
 	}
+	dispatchScenario := request.Cell.GetScenarioName()
+	if command == "scenario-to-desktop validate-artifact" {
+		dispatchScenario = "scenario-to-desktop"
+	}
 	dispatched, err := c.dispatcher.DispatchJob(ctx, connect.NewRequest(&dispatchv1.DispatchJobRequest{
 		NodeId:   nodeID,
 		Verb:     command,
-		Scenario: request.Cell.GetScenarioName(),
+		Scenario: dispatchScenario,
 		Args:     append([]string(nil), request.Args...),
 	}))
 	if err != nil {
@@ -211,6 +252,87 @@ func (c *Client) Execute(ctx context.Context, request CellRequest) CellResult {
 	}
 }
 
+func (c *Client) retrieveEvidenceBundle(ctx context.Context, runID string) (map[string][]byte, error) {
+	baseURL, err := c.node.ResolveURL(ctx)
+	if err != nil {
+		return nil, err
+	}
+	client := artifactsconnect.NewArtifactsServiceClient(c.node.ConnectTransport(ctx, baseURL), baseURL)
+	response, err := client.GetRunArtifact(ctx, connect.NewRequest(&artifactsv1.GetRunArtifactRequest{RunId: runID, Name: "evidence-bundle.tar.gz"}))
+	if err != nil {
+		return nil, err
+	}
+	if response == nil || response.Msg == nil || len(response.Msg.Data) == 0 {
+		return nil, fmt.Errorf("run %s has no evidence-bundle.tar.gz output", runID)
+	}
+	return readEvidenceBundle(response.Msg.Data)
+}
+
+func readEvidenceBundle(data []byte) (map[string][]byte, error) {
+	gz, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("open gzip archive: %w", err)
+	}
+	defer gz.Close()
+	reader := tar.NewReader(gz)
+	members := make(map[string][]byte)
+	for {
+		header, nextErr := reader.Next()
+		if nextErr == io.EOF {
+			break
+		}
+		if nextErr != nil {
+			return nil, fmt.Errorf("read evidence archive: %w", nextErr)
+		}
+		if header == nil || header.Name == "" || header.Size < 0 || header.Size > 64<<20 {
+			return nil, fmt.Errorf("invalid evidence archive member")
+		}
+		payload, readErr := io.ReadAll(io.LimitReader(reader, header.Size+1))
+		if readErr != nil || int64(len(payload)) != header.Size {
+			return nil, fmt.Errorf("incomplete evidence archive member %q", header.Name)
+		}
+		members[header.Name] = payload
+	}
+	return members, nil
+}
+
+func expandEvidenceBundle(bundle map[string][]byte, nodeID, runID string, request CellRequest) ([]*domainv1.LayeredEvidence, error) {
+	items := []struct {
+		name string
+		kind domainv1.LayeredEvidence_Kind
+	}{
+		{"launch-trace.json", domainv1.LayeredEvidence_KIND_DESKTOP_RUNTIME},
+		{"machine-assertion.json", domainv1.LayeredEvidence_KIND_MACHINE_ASSERTION},
+	}
+	// The target command always records the declared journey, even for the
+	// platform launch mode. Platform mode changes the required capability
+	// predicate; it does not erase the target's workflow receipt.
+	items = append(items, struct {
+		name string
+		kind domainv1.LayeredEvidence_Kind
+	}{"journey-sidecar.json", domainv1.LayeredEvidence_KIND_BAS_WORKFLOW})
+	result := make([]*domainv1.LayeredEvidence, 0, len(items))
+	for _, item := range items {
+		data, ok := bundle[item.name]
+		if !ok || len(data) == 0 {
+			return result, fmt.Errorf("required member %q is absent", item.name)
+		}
+		var assertion struct {
+			Status string `json:"status"`
+		}
+		if err := json.Unmarshal(data, &assertion); err != nil {
+			return result, fmt.Errorf("member %q is not JSON: %w", item.name, err)
+		}
+		if !strings.EqualFold(strings.TrimSpace(assertion.Status), "passed") {
+			return result, fmt.Errorf("member %q has status %q", item.name, assertion.Status)
+		}
+		sum := sha256.Sum256(data)
+		mediaType := "application/json"
+		result = append(result, &domainv1.LayeredEvidence{Kind: item.kind, EvidenceId: fmt.Sprintf("%s-%s", strings.TrimSuffix(item.name, ".json"), runID), Uri: fmt.Sprintf("bridge://%s/runs/%s/artifacts/%s", nodeID, runID, url.PathEscape(item.name)), Sha256: "sha256:" + hex.EncodeToString(sum[:]), MediaType: &mediaType, Redacted: true})
+	}
+	return result, nil
+}
+
 func (c *Client) executeNode(ctx context.Context, request CellRequest) CellResult {
 	if request.Cell == nil || strings.TrimSpace(request.Cell.GetTargetId()) == "" {
 		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_REFUSED, Reason: "bridge cell has no target identity"}
@@ -219,11 +341,32 @@ func (c *Client) executeNode(ctx context.Context, request CellRequest) CellResul
 	if nodeID == "" {
 		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_REFUSED, Reason: "bridge target identity is malformed"}
 	}
+	if strings.TrimSpace(request.ArtifactPath) != "" {
+		if c.artifactPlacer == nil {
+			return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: "bridge artifact placement is not configured", Retryable: true}
+		}
+		destination, err := c.artifactPlacer.Place(ctx, nodeID, request)
+		if err != nil {
+			return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: "bridge artifact placement unavailable: " + err.Error(), Retryable: true}
+		}
+		request.Args = append([]string{"--artifact", destination, "--artifact-digest", request.ArtifactDigest}, request.Args...)
+	}
 	command := strings.TrimSpace(request.Command)
 	if command == "" {
 		command = DefaultCommand
 	}
-	dispatched, err := c.node.Dispatch(ctx, nodereach.DispatchRequest{NodeID: nodeID, Scenario: request.Cell.GetScenarioName(), Verb: command, Args: request.Args, Timeout: 120 * time.Second})
+	dispatchTimeout := 120 * time.Second
+	if command == "scenario-to-desktop validate-artifact" {
+		dispatchTimeout = 900 * time.Second
+	}
+	dispatchScenario := request.Cell.GetScenarioName()
+	if command == "scenario-to-desktop validate-artifact" {
+		// The cell scenario is the product being validated. Bridge's typed
+		// dispatch scenario is the installed CLI owner, which is separate from
+		// the product name and is also carried explicitly in request.Args.
+		dispatchScenario = "scenario-to-desktop"
+	}
+	dispatched, err := c.node.Dispatch(ctx, nodereach.DispatchRequest{NodeID: nodeID, Scenario: dispatchScenario, Verb: command, Args: request.Args, Timeout: dispatchTimeout})
 	if err != nil {
 		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: fmt.Sprintf("bridge dispatch unavailable: %v", err), Retryable: true}
 	}
@@ -244,13 +387,75 @@ func (c *Client) executeNode(ctx context.Context, request CellRequest) CellResul
 	}
 	switch run.Status {
 	case runsv1.RunStatus_RUN_STATUS_PASSED:
-		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: "bridge job passed, but bridge does not provide desktop evidence; target-owned evidence is required", Evidence: []*domainv1.LayeredEvidence{evidence}, Identity: identity}
+		bundle, bundleErr := c.retrieveEvidenceBundle(ctx, dispatched.RunID)
+		if bundleErr != nil {
+			return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: "bridge evidence retrieval failed: " + bundleErr.Error(), Evidence: []*domainv1.LayeredEvidence{evidence}, Identity: identity}
+		}
+		remoteEvidence, expandErr := expandEvidenceBundle(bundle, nodeID, dispatched.RunID, request)
+		if expandErr != nil {
+			return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: "bridge evidence bundle incomplete: " + expandErr.Error(), Evidence: append([]*domainv1.LayeredEvidence{evidence}, remoteEvidence...), Identity: identity}
+		}
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_PASS, Reason: "bridge validation and target-owned evidence completed", Evidence: append([]*domainv1.LayeredEvidence{evidence}, remoteEvidence...), Identity: identity}
 	case runsv1.RunStatus_RUN_STATUS_FAILED:
 		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_FAILED, Reason: fmt.Sprintf("bridge validation job failed (exit %d)", run.ExitCode), Evidence: []*domainv1.LayeredEvidence{evidence}, Identity: identity}
 	case runsv1.RunStatus_RUN_STATUS_ABORTED:
 		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_NOT_RUN, Reason: "bridge validation job was aborted", Evidence: []*domainv1.LayeredEvidence{evidence}, Identity: identity}
 	default:
 		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: "bridge wait returned a non-terminal run", Evidence: []*domainv1.LayeredEvidence{evidence}, Retryable: true, Identity: identity}
+	}
+}
+
+// distributeArtifact uses Bridge's existing device-sync-hub-backed artifact
+// service. The matrix never sends artifact bytes through the dispatch queue.
+func (c *Client) distributeArtifact(ctx context.Context, nodeID string, request CellRequest) (string, error) {
+	path, err := filepath.Abs(strings.TrimSpace(request.ArtifactPath))
+	if err != nil {
+		return "", fmt.Errorf("resolve artifact path: %w", err)
+	}
+	if _, err := os.Stat(path); err != nil {
+		return "", fmt.Errorf("read artifact %q: %w", path, err)
+	}
+	baseURL, err := c.node.ResolveURL(ctx)
+	if err != nil {
+		return "", err
+	}
+	client := artifactsconnect.NewArtifactsServiceClient(c.node.ConnectTransport(ctx, baseURL), baseURL)
+	destination := filepath.Join("/tmp", "vrooli-desktop-validation", request.RunID, filepath.Base(path))
+	fileRef := (&url.URL{Scheme: "file", Path: path}).String()
+	response, err := client.DistributeArtifact(ctx, connect.NewRequest(&artifactsv1.DistributeArtifactRequest{
+		NodeId: nodeID, Name: filepath.Base(path), SourceRef: fileRef, DestinationPath: destination,
+	}))
+	if err != nil {
+		return "", err
+	}
+	if response == nil || response.Msg == nil || strings.TrimSpace(response.Msg.DistributionId) == "" {
+		return "", fmt.Errorf("artifact service returned no distribution identity")
+	}
+	if response.Msg.Status == artifactsv1.DeliveryStatus_DELIVERY_STATUS_FAILED {
+		return "", fmt.Errorf("distribution %s failed", response.Msg.DistributionId)
+	}
+	if response.Msg.Status == artifactsv1.DeliveryStatus_DELIVERY_STATUS_DELIVERED {
+		return destination, nil
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return "", fmt.Errorf("wait distribution %s: %w", response.Msg.DistributionId, ctx.Err())
+		case <-time.After(250 * time.Millisecond):
+		}
+		status, getErr := client.GetDistribution(ctx, connect.NewRequest(&artifactsv1.GetDistributionRequest{Id: response.Msg.DistributionId}))
+		if getErr != nil {
+			return "", getErr
+		}
+		if status == nil || status.Msg == nil || status.Msg.Distribution == nil {
+			return "", fmt.Errorf("distribution %s returned no status", response.Msg.DistributionId)
+		}
+		switch status.Msg.Distribution.Status {
+		case artifactsv1.DeliveryStatus_DELIVERY_STATUS_DELIVERED:
+			return destination, nil
+		case artifactsv1.DeliveryStatus_DELIVERY_STATUS_FAILED:
+			return "", fmt.Errorf("distribution %s failed: %s", response.Msg.DistributionId, status.Msg.Distribution.Detail)
+		}
 	}
 }
 

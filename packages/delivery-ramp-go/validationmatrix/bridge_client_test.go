@@ -355,6 +355,25 @@ func TestExecuteCarriesAddressedCommandAndArguments(t *testing.T) {
 	}
 }
 
+func TestExecuteRoutesDesktopValidatorThroughOwningCLI(t *testing.T) {
+	dispatcher := &fakeDispatcher{}
+	client := NewClientForTesting(nil, dispatcher, fakeRuns{status: runsv1.RunStatus_RUN_STATUS_FAILED})
+	result := client.Execute(context.Background(), CellRequest{
+		Command: "scenario-to-desktop validate-artifact",
+		Args:    []string{"--scenario", "demo", "--journey", "desktop-smoke"},
+		Cell:    &domainv1.ValidationCell{ScenarioName: "demo", TargetId: "bridge:node-1"},
+	})
+	if result.Disposition != domainv1.ValidationDisposition_VALIDATION_DISPOSITION_FAILED {
+		t.Fatalf("disposition = %s, want failed", result.Disposition)
+	}
+	if dispatcher.request.GetScenario() != "scenario-to-desktop" {
+		t.Fatalf("typed dispatch scenario = %q, want scenario-to-desktop", dispatcher.request.GetScenario())
+	}
+	if dispatcher.request.GetVerb() != "scenario-to-desktop validate-artifact" {
+		t.Fatalf("typed dispatch verb = %q", dispatcher.request.GetVerb())
+	}
+}
+
 func TestExecuteMapsFailedAndAbortedRuns(t *testing.T) {
 	for _, tc := range []struct {
 		name   string

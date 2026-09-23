@@ -1,6 +1,8 @@
 package validationmatrix
 
 import (
+	"strings"
+
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 )
 
@@ -8,9 +10,11 @@ import (
 // The generic vocabulary lives in targetmodel; these extend it for iOS without
 // widening the shared model for a single ramp's benefit.
 const (
-	CapabilityXcode        = "xcodebuild"
-	CapabilitySimctl       = "simctl"
-	CapabilityIOSSimulator = "ios-simulator"
+	CapabilityXcode          = "xcodebuild"
+	CapabilitySimctl         = "simctl"
+	CapabilityIOSSimulator   = "ios-simulator"
+	CapabilityDesktopRuntime = "desktop-runtime"
+	CapabilityGUISession     = "gui-session"
 )
 
 // Probed runtime-tool names. These mirror the control plane's host-inventory
@@ -24,6 +28,9 @@ const (
 	toolADB        = "adb"
 	toolEmulator   = "emulator"
 	toolKVM        = "kvm"
+	toolNode       = "node"
+	toolElectron   = "electron"
+	toolXcrun      = "xcrun"
 )
 
 // platformClass is the coarse platform a probed node can serve. A node may
@@ -44,7 +51,10 @@ type platformClass struct {
 // vocabularies never intersect, so capability derived from the registry field
 // was empty for every node regardless of what the node could actually do.
 func classifyHost(facts HostFacts) []platformClass {
-	classes := make([]platformClass, 0, 2)
+	classes := make([]platformClass, 0, 3)
+	if desktop, ok := classifyDesktop(facts); ok {
+		classes = append(classes, desktop)
+	}
 	if apple, ok := classifyApple(facts); ok {
 		classes = append(classes, apple)
 	}
@@ -52,6 +62,50 @@ func classifyHost(facts HostFacts) []platformClass {
 		classes = append(classes, android)
 	}
 	return classes
+}
+
+// classifyDesktop reports a desktop class for a host with a runnable desktop
+// runtime and an observed graphical session. Missing facts remain actionable
+// and are never confused with a validation failure.
+func classifyDesktop(facts HostFacts) (platformClass, bool) {
+	class := platformClass{
+		Platform:   "desktop",
+		DeviceKind: "desktop",
+		Reason:     deliveryramp.ReasonBridgeAuthorizedDesktop,
+		NextAction: "install Node.js and Electron, then establish an interactive GUI session and probe again",
+	}
+	node, nodeProbed := facts.Tool(toolNode)
+	electron, electronProbed := facts.Tool(toolElectron)
+	macOSRuntime := facts.OS == "darwin" && facts.HasTool(toolXcrun)
+	if !nodeProbed && !electronProbed && !macOSRuntime && facts.SessionType == "" && !facts.DisplayAttached {
+		return platformClass{}, false
+	}
+	if macOSRuntime {
+		class.Capabilities = append(class.Capabilities, CapabilityDesktopRuntime)
+		if strings.TrimSpace(facts.SessionType) == "" {
+			class.Missing = CapabilityGUISession
+			class.NextAction = "start or auto-login an interactive GUI session on the node, then probe again"
+			return class, true
+		}
+		class.Capabilities = append(class.Capabilities, CapabilityGUISession)
+		return class, true
+	}
+	if !nodeProbed || !node.Present {
+		class.Missing = toolNode
+		return class, true
+	}
+	if !electronProbed || !electron.Present {
+		class.Missing = toolElectron
+		return class, true
+	}
+	class.Capabilities = append(class.Capabilities, CapabilityDesktopRuntime)
+	if !facts.DisplayAttached && strings.TrimSpace(facts.SessionType) == "" {
+		class.Missing = CapabilityGUISession
+		class.NextAction = "start or auto-login an interactive GUI session on the node, then probe again"
+		return class, true
+	}
+	class.Capabilities = append(class.Capabilities, CapabilityGUISession)
+	return class, true
 }
 
 // classifyApple reports an iOS class only when the node can actually build and

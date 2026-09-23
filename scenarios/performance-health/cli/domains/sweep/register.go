@@ -15,7 +15,9 @@ const GroupName = "sweep"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"SweepService.RunSweep": h.run,
+		"SweepService.RunSweep":    h.run,
+		"SweepService.RunWorkload": h.runWorkload,
+		"SweepService.GetWorkload": h.getWorkload,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

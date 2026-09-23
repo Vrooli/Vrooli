@@ -335,11 +335,27 @@ func (r *Resolver) resolvePortCached(ctx context.Context, scenarioSlug, portKey,
 func (r *Resolver) lookupPortWithFallback(ctx context.Context, scenarioSlug, portKey string) (int, *Error) {
 	target := cliutil.ResolveShadowTarget(scenarioSlug)
 	port, derr := r.lookupPortViaLadder(ctx, scenarioSlug, target, portKey)
-	if derr != nil && cliutil.IsNonLiveTarget(target) && derr.Kind == ErrScenarioNotRunning {
-		cliutil.WarnShadowFallback(scenarioSlug)
-		port, derr = r.lookupPortViaLadder(ctx, scenarioSlug, scenarioSlug, portKey)
+	if derr == nil || !cliutil.IsNonLiveTarget(target) || derr.Kind != ErrScenarioNotRunning {
+		return port, derr
 	}
-	return port, derr
+	// A dependency this instance follows at its own variant never falls back.
+	// The list exists so a non-live instance cannot answer with live data, and
+	// a fallback would deliver exactly that — on a presentation instance, into
+	// a recording.
+	if cliutil.IsVariantDependency(scenarioSlug) {
+		return 0, &Error{
+			Kind:     derr.Kind,
+			Scenario: derr.Scenario,
+			PortKey:  derr.PortKey,
+			Command:  derr.Command,
+			Node:     derr.Node,
+			Output: fmt.Sprintf("%s is resolved at this instance's own variant %q and is not running; start it or remove it from %s (no live fallback)",
+				cliutil.BareScenarioName(scenarioSlug), cliutil.OwnVariant(), cliutil.EnvVariantDependencies),
+			Err: derr.Err,
+		}
+	}
+	cliutil.WarnShadowFallback(scenarioSlug)
+	return r.lookupPortViaLadder(ctx, scenarioSlug, scenarioSlug, portKey)
 }
 
 func (r *Resolver) entryFor(key string) *cachedPort {

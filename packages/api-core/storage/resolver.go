@@ -49,6 +49,8 @@ func NewResolver(cfg ResolverConfig) (*Resolver, error) {
 // Resolve resolves all storage class directories for one scenario.
 //
 // Returned paths are absolute and class-scoped to "<class-root>/<app>/<scenario>".
+// A process launched as a non-live instance of ScenarioID resolves its own
+// directories to "<class-root>/<app>/<scenario>_<variant>" instead.
 // ScenarioID is validated before resolution.
 func (r *Resolver) Resolve(opts Options) (Paths, error) {
 	scenarioID := cleanScenarioID(opts.ScenarioID)
@@ -61,12 +63,23 @@ func (r *Resolver) Resolve(opts Options) (Paths, error) {
 		return Paths{}, err
 	}
 
+	// A non-live instance of this scenario owns its own class directories, just
+	// as it owns its own SQLite database. ownNamespace is the same rule
+	// SQLitePath applies: the injected namespace root counts only when it
+	// belongs to this scenario, so resolving another scenario's paths, or a
+	// live instance's own paths, is unchanged.
+	ns, err := ownNamespace(scenarioID, r.env.get)
+	if err != nil {
+		return Paths{}, fmt.Errorf("resolve %s storage namespace: %w", scenarioID, err)
+	}
+	instanceDir := ns.Root()
+
 	p := Paths{
-		ConfigDir:   filepath.Join(roots.config, r.appID, scenarioID),
-		DataDir:     filepath.Join(roots.data, r.appID, scenarioID),
-		CacheDir:    filepath.Join(roots.cache, r.appID, scenarioID),
-		LogsDir:     filepath.Join(roots.logs, r.appID, scenarioID),
-		StateDir:    filepath.Join(roots.state, r.appID, scenarioID),
+		ConfigDir:   filepath.Join(roots.config, r.appID, instanceDir),
+		DataDir:     filepath.Join(roots.data, r.appID, instanceDir),
+		CacheDir:    filepath.Join(roots.cache, r.appID, instanceDir),
+		LogsDir:     filepath.Join(roots.logs, r.appID, instanceDir),
+		StateDir:    filepath.Join(roots.state, r.appID, instanceDir),
 		TestRunsDir: filepath.Join(roots.testRuns, scenarioID),
 	}
 

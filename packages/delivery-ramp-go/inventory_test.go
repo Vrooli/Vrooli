@@ -80,7 +80,7 @@ func TestTargetInventoryHandlerPreservesOracleCapabilityNumbers(t *testing.T) {
 	}}}})
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/validation/targets", nil))
-	if recorder.Code != http.StatusOK || !containsAll(recorder.Body.String(), `"target_id":"local-linux-amd64"`, `"capabilities":[6,1,2]`) {
+	if recorder.Code != http.StatusOK || !containsAll(recorder.Body.String(), `"target_id":"local-linux-amd64"`, `"platform":"desktop"`, `"capabilities":[6,1,2]`) {
 		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
 	}
 }

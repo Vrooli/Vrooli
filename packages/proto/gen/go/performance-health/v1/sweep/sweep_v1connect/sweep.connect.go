@@ -35,14 +35,26 @@ const (
 const (
 	// SweepServiceRunSweepProcedure is the fully-qualified name of the SweepService's RunSweep RPC.
 	SweepServiceRunSweepProcedure = "/vrooli.performance_health.v1.sweep.SweepService/RunSweep"
+	// SweepServiceRunWorkloadProcedure is the fully-qualified name of the SweepService's RunWorkload
+	// RPC.
+	SweepServiceRunWorkloadProcedure = "/vrooli.performance_health.v1.sweep.SweepService/RunWorkload"
+	// SweepServiceGetWorkloadProcedure is the fully-qualified name of the SweepService's GetWorkload
+	// RPC.
+	SweepServiceGetWorkloadProcedure = "/vrooli.performance_health.v1.sweep.SweepService/GetWorkload"
 )
 
 // SweepServiceClient is a client for the vrooli.performance_health.v1.sweep.SweepService service.
 type SweepServiceClient interface {
 	// RunSweep audits every budgeted flow for one scenario and persists a
 	// flow-tagged sample per captured flow. The response is a per-flow summary;
-	// gating happens later via baseline-diff over the persisted samples.
+	// gating happens later in the performance phase over persisted samples.
 	RunSweep(context.Context, *connect.Request[sweep.RunSweepRequest]) (*connect.Response[sweep.RunSweepResponse], error)
+	// Invoke one repository-declared workload. Callers cannot supply commands,
+	// sample counts, budgets or uploaded receipts. Retains failed attempts too.
+	RunWorkload(context.Context, *connect.Request[sweep.WorkloadRequest]) (*connect.Response[sweep.WorkloadReading], error)
+	// Read the latest attempt, checking current producer/config/contract and
+	// deployed build identity. Never falls back to an older successful attempt.
+	GetWorkload(context.Context, *connect.Request[sweep.WorkloadRequest]) (*connect.Response[sweep.WorkloadReading], error)
 }
 
 // NewSweepServiceClient constructs a client for the vrooli.performance_health.v1.sweep.SweepService
@@ -62,12 +74,26 @@ func NewSweepServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(sweepServiceMethods.ByName("RunSweep")),
 			connect.WithClientOptions(opts...),
 		),
+		runWorkload: connect.NewClient[sweep.WorkloadRequest, sweep.WorkloadReading](
+			httpClient,
+			baseURL+SweepServiceRunWorkloadProcedure,
+			connect.WithSchema(sweepServiceMethods.ByName("RunWorkload")),
+			connect.WithClientOptions(opts...),
+		),
+		getWorkload: connect.NewClient[sweep.WorkloadRequest, sweep.WorkloadReading](
+			httpClient,
+			baseURL+SweepServiceGetWorkloadProcedure,
+			connect.WithSchema(sweepServiceMethods.ByName("GetWorkload")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // sweepServiceClient implements SweepServiceClient.
 type sweepServiceClient struct {
-	runSweep *connect.Client[sweep.RunSweepRequest, sweep.RunSweepResponse]
+	runSweep    *connect.Client[sweep.RunSweepRequest, sweep.RunSweepResponse]
+	runWorkload *connect.Client[sweep.WorkloadRequest, sweep.WorkloadReading]
+	getWorkload *connect.Client[sweep.WorkloadRequest, sweep.WorkloadReading]
 }
 
 // RunSweep calls vrooli.performance_health.v1.sweep.SweepService.RunSweep.
@@ -75,13 +101,29 @@ func (c *sweepServiceClient) RunSweep(ctx context.Context, req *connect.Request[
 	return c.runSweep.CallUnary(ctx, req)
 }
 
+// RunWorkload calls vrooli.performance_health.v1.sweep.SweepService.RunWorkload.
+func (c *sweepServiceClient) RunWorkload(ctx context.Context, req *connect.Request[sweep.WorkloadRequest]) (*connect.Response[sweep.WorkloadReading], error) {
+	return c.runWorkload.CallUnary(ctx, req)
+}
+
+// GetWorkload calls vrooli.performance_health.v1.sweep.SweepService.GetWorkload.
+func (c *sweepServiceClient) GetWorkload(ctx context.Context, req *connect.Request[sweep.WorkloadRequest]) (*connect.Response[sweep.WorkloadReading], error) {
+	return c.getWorkload.CallUnary(ctx, req)
+}
+
 // SweepServiceHandler is an implementation of the vrooli.performance_health.v1.sweep.SweepService
 // service.
 type SweepServiceHandler interface {
 	// RunSweep audits every budgeted flow for one scenario and persists a
 	// flow-tagged sample per captured flow. The response is a per-flow summary;
-	// gating happens later via baseline-diff over the persisted samples.
+	// gating happens later in the performance phase over persisted samples.
 	RunSweep(context.Context, *connect.Request[sweep.RunSweepRequest]) (*connect.Response[sweep.RunSweepResponse], error)
+	// Invoke one repository-declared workload. Callers cannot supply commands,
+	// sample counts, budgets or uploaded receipts. Retains failed attempts too.
+	RunWorkload(context.Context, *connect.Request[sweep.WorkloadRequest]) (*connect.Response[sweep.WorkloadReading], error)
+	// Read the latest attempt, checking current producer/config/contract and
+	// deployed build identity. Never falls back to an older successful attempt.
+	GetWorkload(context.Context, *connect.Request[sweep.WorkloadRequest]) (*connect.Response[sweep.WorkloadReading], error)
 }
 
 // NewSweepServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -97,10 +139,26 @@ func NewSweepServiceHandler(svc SweepServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(sweepServiceMethods.ByName("RunSweep")),
 		connect.WithHandlerOptions(opts...),
 	)
+	sweepServiceRunWorkloadHandler := connect.NewUnaryHandler(
+		SweepServiceRunWorkloadProcedure,
+		svc.RunWorkload,
+		connect.WithSchema(sweepServiceMethods.ByName("RunWorkload")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sweepServiceGetWorkloadHandler := connect.NewUnaryHandler(
+		SweepServiceGetWorkloadProcedure,
+		svc.GetWorkload,
+		connect.WithSchema(sweepServiceMethods.ByName("GetWorkload")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.performance_health.v1.sweep.SweepService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SweepServiceRunSweepProcedure:
 			sweepServiceRunSweepHandler.ServeHTTP(w, r)
+		case SweepServiceRunWorkloadProcedure:
+			sweepServiceRunWorkloadHandler.ServeHTTP(w, r)
+		case SweepServiceGetWorkloadProcedure:
+			sweepServiceGetWorkloadHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -112,4 +170,12 @@ type UnimplementedSweepServiceHandler struct{}
 
 func (UnimplementedSweepServiceHandler) RunSweep(context.Context, *connect.Request[sweep.RunSweepRequest]) (*connect.Response[sweep.RunSweepResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.performance_health.v1.sweep.SweepService.RunSweep is not implemented"))
+}
+
+func (UnimplementedSweepServiceHandler) RunWorkload(context.Context, *connect.Request[sweep.WorkloadRequest]) (*connect.Response[sweep.WorkloadReading], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.performance_health.v1.sweep.SweepService.RunWorkload is not implemented"))
+}
+
+func (UnimplementedSweepServiceHandler) GetWorkload(context.Context, *connect.Request[sweep.WorkloadRequest]) (*connect.Response[sweep.WorkloadReading], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.performance_health.v1.sweep.SweepService.GetWorkload is not implemented"))
 }

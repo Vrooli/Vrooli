@@ -121,6 +121,9 @@ func (s *Service) Create(selection MatrixSelection) (*MatrixRun, error) {
 		for _, target := range selection.Targets {
 			for _, profile := range selection.EnvironmentProfiles {
 				cell := newCell(selection.ScenarioName, selection.ArtifactDigest, journey, target.Descriptor, profile, now)
+				if digest := strings.TrimSpace(selection.ArtifactDigests[target.Descriptor.GetTargetId()]); digest != "" {
+					cell.ArtifactDigest = digest
+				}
 				run.Cells = append(run.Cells, &CellRecord{Cell: cell, RowID: stableID("row", journey.JourneyID), ColumnID: stableID("column", target.Descriptor.GetTargetId()), ProfileID: stableID("profile", fmt.Sprint(profile)), TargetKind: target.Kind, State: initialCellState(cell), UpdatedAt: now})
 				matrix.Cells = append(matrix.Cells, cell)
 			}
@@ -403,8 +406,8 @@ func (s *Service) executeCell(ctx context.Context, runID string, record *CellRec
 		MatrixID:       run.Matrix.GetMatrixId(),
 		Command:        run.Selection.Command,
 		Args:           append([]string(nil), run.Selection.CommandArgs...),
-		ArtifactDigest: run.Matrix.GetArtifactDigest(),
-		ArtifactPath:   run.Selection.ArtifactPath,
+		ArtifactDigest: record.Cell.GetArtifactDigest(),
+		ArtifactPath:   artifactPathForTarget(run.Selection, record.Cell.GetTargetId()),
 		Cell:           record.Cell,
 		Journey:        journeySelection(run.Selection.Journeys, record.Cell.GetJourneyId()),
 		Target:         targetSelection(run.Selection.Targets, record.Cell.GetTargetId()),
@@ -530,7 +533,11 @@ func newCell(scenarioName, digest string, journey JourneySelection, target *doma
 // failure instead of silently excluding the cell.
 func ComputeApplicability(target *domainv1.ValidationTargetDescriptor, required []domainv1.ValidationTargetCapability, profile domainv1.ValidationEnvironmentProfile) (bool, domainv1.ValidationDisposition, *string) {
 	if target == nil || !target.GetAvailable() {
-		return true, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, stringPtr("target is unavailable")
+		reason := strings.TrimSpace(target.GetReason())
+		if reason == "" {
+			reason = "target is unavailable"
+		}
+		return true, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, stringPtr(reason)
 	}
 	if contract, known := profileContract(profile); known {
 		required = append(append([]domainv1.ValidationTargetCapability(nil), required...), contract.RequiredCapabilities...)
@@ -610,6 +617,8 @@ func (s RerunSelector) valid() bool {
 func cloneSelection(selection MatrixSelection) MatrixSelection {
 	copy := selection
 	copy.CommandArgs = append([]string(nil), selection.CommandArgs...)
+	copy.ArtifactPaths = cloneStringMap(selection.ArtifactPaths)
+	copy.ArtifactDigests = cloneStringMap(selection.ArtifactDigests)
 	copy.Journeys = append([]JourneySelection(nil), selection.Journeys...)
 	copy.Targets = make([]TargetSelection, len(selection.Targets))
 	for i, target := range selection.Targets {
@@ -620,6 +629,13 @@ func cloneSelection(selection MatrixSelection) MatrixSelection {
 	}
 	copy.EnvironmentProfiles = append([]domainv1.ValidationEnvironmentProfile(nil), selection.EnvironmentProfiles...)
 	return copy
+}
+
+func artifactPathForTarget(selection MatrixSelection, targetID string) string {
+	if path := strings.TrimSpace(selection.ArtifactPaths[targetID]); path != "" {
+		return path
+	}
+	return selection.ArtifactPath
 }
 
 func cloneCellRecord(record *CellRecord) *CellRecord {

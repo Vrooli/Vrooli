@@ -2,6 +2,7 @@ import datetime
 
 from browser_automation_studio.v1.actions import action_pb2 as _action_pb2
 from browser_automation_studio.v1.base import geometry_pb2 as _geometry_pb2
+from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
 from browser_automation_studio.v1.domain import selectors_pb2 as _selectors_pb2
 from browser_automation_studio.v1.timeline import entry_pb2 as _entry_pb2
 from common.v1 import types_pb2 as _types_pb2
@@ -185,28 +186,6 @@ class CursorPosition(_message.Message):
     elapsed_ms: int
     def __init__(self, point: _Optional[_Union[_geometry_pb2.Point, _Mapping]] = ..., recorded_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., elapsed_ms: _Optional[int] = ...) -> None: ...
 
-class ConditionOutcome(_message.Message):
-    __slots__ = ("type", "outcome", "negated", "operator", "variable", "selector", "expression", "actual", "expected")
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    OUTCOME_FIELD_NUMBER: _ClassVar[int]
-    NEGATED_FIELD_NUMBER: _ClassVar[int]
-    OPERATOR_FIELD_NUMBER: _ClassVar[int]
-    VARIABLE_FIELD_NUMBER: _ClassVar[int]
-    SELECTOR_FIELD_NUMBER: _ClassVar[int]
-    EXPRESSION_FIELD_NUMBER: _ClassVar[int]
-    ACTUAL_FIELD_NUMBER: _ClassVar[int]
-    EXPECTED_FIELD_NUMBER: _ClassVar[int]
-    type: str
-    outcome: bool
-    negated: bool
-    operator: str
-    variable: str
-    selector: str
-    expression: str
-    actual: _types_pb2.JsonValue
-    expected: _types_pb2.JsonValue
-    def __init__(self, type: _Optional[str] = ..., outcome: _Optional[bool] = ..., negated: _Optional[bool] = ..., operator: _Optional[str] = ..., variable: _Optional[str] = ..., selector: _Optional[str] = ..., expression: _Optional[str] = ..., actual: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., expected: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
-
 class AssertionOutcome(_message.Message):
     __slots__ = ("mode", "selector", "expected", "actual", "success", "negated", "case_sensitive", "message")
     MODE_FIELD_NUMBER: _ClassVar[int]
@@ -305,7 +284,7 @@ class StepOutcome(_message.Message):
     network_events: _containers.RepeatedCompositeFieldContainer[DriverNetworkEvent]
     extracted_data: _containers.MessageMap[str, _types_pb2.JsonValue]
     assertion: AssertionOutcome
-    condition: ConditionOutcome
+    condition: _shared_pb2.ConditionOutcome
     probe_result: _containers.MessageMap[str, _types_pb2.JsonValue]
     element_bounding_box: _geometry_pb2.BoundingBox
     click_position: _geometry_pb2.Point
@@ -320,7 +299,7 @@ class StepOutcome(_message.Message):
     used_selector: str
     selector_confidence: float
     selector_match_count: int
-    def __init__(self, schema_version: _Optional[str] = ..., payload_version: _Optional[str] = ..., execution_id: _Optional[str] = ..., correlation_id: _Optional[str] = ..., step_index: _Optional[int] = ..., attempt: _Optional[int] = ..., node_id: _Optional[str] = ..., step_type: _Optional[str] = ..., instruction: _Optional[str] = ..., success: _Optional[bool] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., duration_ms: _Optional[int] = ..., final_url: _Optional[str] = ..., screenshot: _Optional[_Union[DriverScreenshot, _Mapping]] = ..., dom_snapshot: _Optional[_Union[DOMSnapshot, _Mapping]] = ..., console_logs: _Optional[_Iterable[_Union[DriverConsoleLogEntry, _Mapping]]] = ..., network_events: _Optional[_Iterable[_Union[DriverNetworkEvent, _Mapping]]] = ..., extracted_data: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., assertion: _Optional[_Union[AssertionOutcome, _Mapping]] = ..., condition: _Optional[_Union[ConditionOutcome, _Mapping]] = ..., probe_result: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., element_bounding_box: _Optional[_Union[_geometry_pb2.BoundingBox, _Mapping]] = ..., click_position: _Optional[_Union[_geometry_pb2.Point, _Mapping]] = ..., focused_element: _Optional[_Union[_entry_pb2.ElementFocus, _Mapping]] = ..., highlight_regions: _Optional[_Iterable[_Union[_selectors_pb2.HighlightRegion, _Mapping]]] = ..., mask_regions: _Optional[_Iterable[_Union[_selectors_pb2.MaskRegion, _Mapping]]] = ..., zoom_factor: _Optional[float] = ..., cursor_trail: _Optional[_Iterable[_Union[CursorPosition, _Mapping]]] = ..., notes: _Optional[_Mapping[str, str]] = ..., failure: _Optional[_Union[StepFailure, _Mapping]] = ..., element_snapshot: _Optional[_Union[_selectors_pb2.ElementMeta, _Mapping]] = ..., used_selector: _Optional[str] = ..., selector_confidence: _Optional[float] = ..., selector_match_count: _Optional[int] = ...) -> None: ...
+    def __init__(self, schema_version: _Optional[str] = ..., payload_version: _Optional[str] = ..., execution_id: _Optional[str] = ..., correlation_id: _Optional[str] = ..., step_index: _Optional[int] = ..., attempt: _Optional[int] = ..., node_id: _Optional[str] = ..., step_type: _Optional[str] = ..., instruction: _Optional[str] = ..., success: _Optional[bool] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., duration_ms: _Optional[int] = ..., final_url: _Optional[str] = ..., screenshot: _Optional[_Union[DriverScreenshot, _Mapping]] = ..., dom_snapshot: _Optional[_Union[DOMSnapshot, _Mapping]] = ..., console_logs: _Optional[_Iterable[_Union[DriverConsoleLogEntry, _Mapping]]] = ..., network_events: _Optional[_Iterable[_Union[DriverNetworkEvent, _Mapping]]] = ..., extracted_data: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., assertion: _Optional[_Union[AssertionOutcome, _Mapping]] = ..., condition: _Optional[_Union[_shared_pb2.ConditionOutcome, _Mapping]] = ..., probe_result: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., element_bounding_box: _Optional[_Union[_geometry_pb2.BoundingBox, _Mapping]] = ..., click_position: _Optional[_Union[_geometry_pb2.Point, _Mapping]] = ..., focused_element: _Optional[_Union[_entry_pb2.ElementFocus, _Mapping]] = ..., highlight_regions: _Optional[_Iterable[_Union[_selectors_pb2.HighlightRegion, _Mapping]]] = ..., mask_regions: _Optional[_Iterable[_Union[_selectors_pb2.MaskRegion, _Mapping]]] = ..., zoom_factor: _Optional[float] = ..., cursor_trail: _Optional[_Iterable[_Union[CursorPosition, _Mapping]]] = ..., notes: _Optional[_Mapping[str, str]] = ..., failure: _Optional[_Union[StepFailure, _Mapping]] = ..., element_snapshot: _Optional[_Union[_selectors_pb2.ElementMeta, _Mapping]] = ..., used_selector: _Optional[str] = ..., selector_confidence: _Optional[float] = ..., selector_match_count: _Optional[int] = ...) -> None: ...
 
 class StepTelemetryDirective(_message.Message):
     __slots__ = ("screenshot",)

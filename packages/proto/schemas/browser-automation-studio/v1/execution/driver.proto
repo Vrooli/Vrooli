@@ -4,6 +4,7 @@ package browser_automation_studio.v1;
 
 import "browser-automation-studio/v1/actions/action.proto";
 import "browser-automation-studio/v1/base/geometry.proto";
+import "browser-automation-studio/v1/base/shared.proto";
 import "browser-automation-studio/v1/domain/selectors.proto";
 import "browser-automation-studio/v1/timeline/entry.proto";
 import "common/v1/types.proto";
@@ -215,29 +216,6 @@ message CursorPosition {
   optional google.protobuf.Timestamp recorded_at = 2;
   // Milliseconds since step start (for ordering).
   optional int64 elapsed_ms = 3;
-}
-
-// ConditionOutcome captures the result of evaluating a branch condition.
-//
-message ConditionOutcome {
-  // Condition type (e.g., "element_exists", "variable_equals").
-  optional string type = 1;
-  // Whether the condition evaluated to true.
-  bool outcome = 2;
-  // Whether the condition was negated.
-  bool negated = 3;
-  // Comparison operator used.
-  optional string operator = 4;
-  // Variable name if condition involves a variable.
-  optional string variable = 5;
-  // Selector if condition involves an element.
-  optional string selector = 6;
-  // JavaScript expression if applicable.
-  optional string expression = 7;
-  // Actual value observed.
-  optional common.v1.JsonValue actual = 8;
-  // Expected value for comparison.
-  optional common.v1.JsonValue expected = 9;
 }
 
 // AssertionOutcome captures the result of an assertion step.
