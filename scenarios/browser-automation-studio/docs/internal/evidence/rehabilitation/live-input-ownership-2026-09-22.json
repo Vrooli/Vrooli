@@ -1,0 +1,185 @@
+{
+  "record": "BAS-WORK-052",
+  "issues": [
+    "BAS-RF-038",
+    "BAS-RF-020",
+    "BAS-RF-085"
+  ],
+  "status": "qualified_and_deployed",
+  "baseline": "/tmp/bas-before-052/manifest.json",
+  "source_sha256": {
+    "playwright-driver/src/routes/record-mode/recording-lifecycle.ts": "c710a496befd41d04cda5320971b461b3b5ccabfee3421131a911c44abdfce1d",
+    "playwright-driver/src/routes/record-mode/recording-input.ts": "d85631a0be7881e227197018c60d5444c456626b19666ac2cca806d7085f88bb",
+    "playwright-driver/src/routes/record-mode/types.ts": "357ebe07dbc9dcd4c2a9d8f2d687cd17b844c933e5525af4346f56e166e2eff1",
+    "api/automation/driver/client.go": "ea63a039e49615c8eb7eb6709eb648bf7cdb03a1faef241705ff0a2ff8e6905c",
+    "api/automation/session/session.go": "7d298d78dfff9bb9dde1500bc7f7094a990cb9ee3f227679092e664dc9f6b2e5",
+    "api/services/live-capture/service.go": "a530f0b0ba4eefc30b19ad5daa9f728478cc4913d33bcd3715b5fe7dd7bf0d47",
+    "api/handlers/handler.go": "8f5eda34589b354466173d0dd3544b812987c39df563090499d06187ac32b37f",
+    "api/handlers/record_mode.go": "aabf3a321533b457c36496956b6ec6c9aaaaa433d73330d7926ea5d9935731e4",
+    "api/handlers/testutil_mock_services.go": "cc4c9793f4e36e5fbdd42789d29d0c31bcf45fe92cc89cbfa26415d9125056f1",
+    "api/websocket/hub.go": "3fccc874d3af744f83a6b09fe4a996c14f42e9d0035c79d5f97f023da8ec7296",
+    "playwright-driver/tests/unit/routes/record-input.test.ts": "ca46250d6f6bb68adcb0c541d707fabe6d28b968d066bb01653826b198483421",
+    "api/automation/session/session_test.go": "988153966e311f375ef386e10bd97a2f00975b9e67aba457a15dba30f07b4bf1",
+    "api/automation/driver/client_payload_test.go": "955592659b5c1c2180301dd1268a3fa88f02c8314ed0091ef7b08d7a12c5c96f",
+    "api/services/live-capture/service_test.go": "0b8ff5276d59b8d827ed60fbb902768fdab0e4880e200a9ec6a93165f3edaff6",
+    "api/handlers/record_mode_test.go": "644df74c27cf9b197138ea51d228c42316d763ef7d433980f2ab7beff5aa4416",
+    "api/websocket/hub_test.go": "69366d1c7b73be74fabaa5eb1ae7ac3ad8aedcfce1cba7d56d16131d6fe46f18"
+  },
+  "runtime_lines": {
+    "playwright-driver/src/routes/record-mode/recording-lifecycle.ts": {
+      "before": 437,
+      "after": 437
+    },
+    "playwright-driver/src/routes/record-mode/recording-input.ts": {
+      "before": 179,
+      "after": 185
+    },
+    "playwright-driver/src/routes/record-mode/types.ts": {
+      "before": 402,
+      "after": 404
+    },
+    "api/automation/driver/client.go": {
+      "before": 1185,
+      "after": 1184
+    },
+    "api/automation/session/session.go": {
+      "before": 411,
+      "after": 411
+    },
+    "api/services/live-capture/service.go": {
+      "before": 822,
+      "after": 831
+    },
+    "api/handlers/handler.go": {
+      "before": 503,
+      "after": 504
+    },
+    "api/handlers/record_mode.go": {
+      "before": 1113,
+      "after": 1071
+    },
+    "api/websocket/hub.go": {
+      "before": 787,
+      "after": 795
+    }
+  },
+  "go_complexity": {
+    "before": {
+      "functions": 186,
+      "cyclomatic": 740,
+      "over15": [
+        {
+          "function": "(*Handler).CreateRecordingSession",
+          "complexity": 41
+        },
+        {
+          "function": "(*Client).readPump",
+          "complexity": 38
+        },
+        {
+          "function": "(*Service).CreateSession",
+          "complexity": 20
+        },
+        {
+          "function": "(*Handler).GenerateWorkflowFromRecording",
+          "complexity": 18
+        },
+        {
+          "function": "decodeStepOutcome",
+          "complexity": 18
+        }
+      ]
+    },
+    "after": {
+      "functions": 187,
+      "cyclomatic": 741,
+      "over15": [
+        {
+          "function": "(*Handler).CreateRecordingSession",
+          "complexity": 41
+        },
+        {
+          "function": "(*Client).handleSubscription",
+          "complexity": 29
+        },
+        {
+          "function": "(*Service).CreateSession",
+          "complexity": 20
+        },
+        {
+          "function": "(*Handler).GenerateWorkflowFromRecording",
+          "complexity": 18
+        },
+        {
+          "function": "decodeStepOutcome",
+          "complexity": 18
+        }
+      ]
+    }
+  },
+  "evidence": {
+    "native_red": "/tmp/bas-recording-input-wire-red-052.log",
+    "native_green": "/tmp/bas-recording-input-wire-green-052.log",
+    "actual_ws_red": "/tmp/bas-input-order-red-052.log",
+    "actual_ws_green": "/tmp/bas-input-order-green-052.log",
+    "driver_red": "/tmp/bas-input-driver-maintained-red-052.txt",
+    "go_red": "/tmp/bas-input-go-maintained-red-052.txt",
+    "driver_focused": "/tmp/bas-input-driver-focused-052.txt",
+    "driver_types": "/tmp/bas-input-driver-types-052.txt",
+    "driver_build": "/tmp/bas-input-driver-build-052.txt",
+    "go_race_initial_failed": "/tmp/bas-input-go-race-052.txt",
+    "go_race_final": "/tmp/bas-input-go-race-final-052.txt",
+    "go_build": "/tmp/bas-input-go-build-052.txt",
+    "driver_owner": "/tmp/bas-input-driver-owner-052.json"
+  },
+  "pending_operations": {},
+  "limitations": [
+    "Single-WebSocket received order only; cross-client/HTTP order, applied sequence acknowledgements, coalescing and reconnect key/button state remain RF020.",
+    "Other mutating routes remain RF038. Already-admitted effects cannot be undone by post-await rejection.",
+    "Transport still pools/drains using the existing Go client, with a preserved two-second WebSocket context deadline. DefaultTransport idle-per-host capacity differs from the removed private transport; no throughput parity measurement yet.",
+    "Full record/replay/crash/platform/performance qualification remains open.",
+    "Subscription dispatch extraction establishes one synchronized critical section; moving branches is not a complexity improvement. Existing large cohesive protocol switch remains above15. TypeScript complexity gap RF064 persists."
+  ],
+  "runtime_net_lines": -17,
+  "tidiness": {
+    "run_id": "20260922-222031-1f5b47d9",
+    "status": "failed",
+    "quiet_wait_consumed": true,
+    "summary": {
+      "totalFindings": 1123,
+      "longFiles": 104,
+      "complexity": 391,
+      "duplication": 609,
+      "coupling": 18,
+      "duplicationLineDebt": 32663
+    },
+    "interpretation": "Shared-tree duplication debt unchanged at32663 versus35603 baseline; long files104 unchanged, complexity findings+2, coupling18 down1. Private WebSocket HTTP transport removed; synchronization helper adds one Go branch, not a complexity reduction. Post-scan edits remove only an obsolete comment and a blank line; source code semantics are unchanged."
+  },
+  "board": {
+    "artifact": "/tmp/bas-board-052.txt",
+    "required": 17,
+    "unqualified": 17,
+    "product_qualified": false
+  },
+  "driver_owner": {
+    "run_id": "uh-20260922-221932-3fbe69da0f2156e9e51185e32472ffad",
+    "status": "passed",
+    "tests_passed": 1675,
+    "suites_passed": 124,
+    "tests_skipped": 2,
+    "suites_skipped": 1,
+    "duration_ms": 348210
+  },
+  "deployment": {
+    "build_identity": "sha256:3c0dbef7d4bebe647501cde6a4b263cb66175dafc708498c34106d3d398b49f2",
+    "managed_restart_shell": 50777,
+    "health": "/tmp/bas-live-health-052.json",
+    "native_live": "/tmp/bas-recording-live-052.json",
+    "live_checks_passed": 26,
+    "independent_clicks": 2,
+    "saved_profile_metadata": "/tmp/bas-profile-api-final-052.json",
+    "saved_profile_full_contents": "/tmp/bas-profile-final-052.txt",
+    "original_profile_preserved": true,
+    "sessions_after_cleanup": 0
+  }
+}

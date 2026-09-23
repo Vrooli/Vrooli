@@ -223,6 +223,7 @@ function createMockSessionManager(session?: unknown): SessionManager {
       if (owner !== mockSession.ownerExecutionId || lease !== mockSession.leaseId) throw new SessionNotFoundError(id);
       return mockSession;
     }),
+    updateActivity: jest.fn(),
     setSessionPhase: jest.fn(),
   } as unknown as SessionManager;
 }
@@ -253,7 +254,7 @@ describe('Record Mode Routes', () => {
       };
 
       const sessionManager = createMockSessionManager(mockSession);
-      const req = createMockRequest({ body: {} });
+      const req = createMockRequest({ body: { execution_id: 'record-owner', lease_id: 'record-lease' } });
       const res = createMockResponse();
 
       await handleRecordStart(req, res, sessionId, sessionManager, config);
@@ -276,7 +277,7 @@ describe('Record Mode Routes', () => {
       };
 
       const sessionManager = createMockSessionManager(mockSession);
-      const req = createMockRequest({ body: {} });
+      const req = createMockRequest({ body: { execution_id: 'record-owner', lease_id: 'record-lease' } });
       const res = createMockResponse();
 
       await handleRecordStart(req, res, sessionId, sessionManager, config);
@@ -300,7 +301,7 @@ describe('Record Mode Routes', () => {
       };
 
       const sessionManager = createMockSessionManager(mockSession);
-      const req = createMockRequest({ body: {} });
+      const req = createMockRequest({ body: { execution_id: 'record-owner', lease_id: 'record-lease' } });
       const res = createMockResponse();
 
       await handleRecordStart(req, res, sessionId, sessionManager, config);
@@ -324,7 +325,7 @@ describe('Record Mode Routes', () => {
       };
 
       const sessionManager = createMockSessionManager(mockSession);
-      const req = createMockRequest({});
+      const req = createMockRequest({ body: { execution_id: 'record-owner', lease_id: 'record-lease' } });
       const res = createMockResponse();
 
       await handleRecordStop(req, res, sessionId, sessionManager);
@@ -351,7 +352,7 @@ describe('Record Mode Routes', () => {
       };
 
       const sessionManager = createMockSessionManager(mockSession);
-      const req = createMockRequest({});
+      const req = createMockRequest({ body: { execution_id: 'record-owner', lease_id: 'record-lease' } });
       const res = createMockResponse();
 
       await handleRecordStop(req, res, sessionId, sessionManager);

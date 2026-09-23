@@ -936,32 +936,22 @@ type MockDriverClient struct {
 	mu sync.RWMutex
 
 	// Error injection
-	StopRecordingError              error
-	GetRecordingStatusError         error
-	GetRecordedActionsError         error
-	AcknowledgeRecordedActionsError error
-	NavigateError                   error
-	ReloadError                     error
-	GoBackError                     error
-	GoForwardError                  error
-	GetNavigationStateError         error
-	GetNavigationStackError         error
-	UpdateViewportError             error
-	UpdateStreamSettingsError       error
-	ValidateSelectorError           error
-	ReplayPreviewError              error
-	CaptureScreenshotError          error
-	GetFrameError                   error
-	ForwardInputError               error
+
+	GetRecordingStatusError   error
+	GetRecordedActionsError   error
+	GetNavigationStateError   error
+	GetNavigationStackError   error
+	UpdateViewportError       error
+	UpdateStreamSettingsError error
+	ValidateSelectorError     error
+	ReplayPreviewError        error
+	CaptureScreenshotError    error
+	GetFrameError             error
 
 	// Response overrides
-	StopRecordingResponse    *driver.StopRecordingResponse
+
 	RecordingStatusResponse  *driver.RecordingStatusResponse
 	RecordedActionsResponse  *driver.GetActionsResponse
-	NavigateResponse         *driver.NavigateResponse
-	ReloadResponse           *driver.ReloadResponse
-	GoBackResponse           *driver.GoBackResponse
-	GoForwardResponse        *driver.GoForwardResponse
 	NavigationStateResponse  *driver.NavigationStateResponse
 	NavigationStackResponse  *driver.NavigationStackResponse
 	UpdateViewportResponse   *driver.UpdateViewportResponse
@@ -972,12 +962,10 @@ type MockDriverClient struct {
 	FrameResponse            *driver.GetFrameResponse
 
 	// Call tracking
-	StopRecordingCalled      bool
+
 	GetRecordedActionsCalled bool
-	AcknowledgedEntryIDs     []string
-	ForwardInputCalled       bool
-	LastSessionID            string
-	LastForwardInputBody     []byte
+
+	LastSessionID string
 }
 
 // NewMockDriverClient creates a new MockDriverClient.
@@ -985,7 +973,7 @@ func NewMockDriverClient() *MockDriverClient {
 	return &MockDriverClient{}
 }
 
-func (m *MockDriverClient) StopRecording(ctx context.Context, sessionID string) (*driver.StopRecordingResponse, error) {
+func (m *MockRecordModeService) StopRecording(ctx context.Context, sessionID string) (*driver.StopRecordingResponse, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.StopRecordingCalled = true
@@ -999,7 +987,7 @@ func (m *MockDriverClient) StopRecording(ctx context.Context, sessionID string) 
 	}
 	return &driver.StopRecordingResponse{
 		SessionID:   sessionID,
-		IsRecording: false,
+		RecordingID: "recording-fixture",
 		ActionCount: 5,
 		StoppedAt:   time.Now().UTC().Format(time.RFC3339),
 	}, nil
@@ -1039,81 +1027,6 @@ func (m *MockDriverClient) GetRecordedActions(ctx context.Context, sessionID str
 		SessionID:   sessionID,
 		IsRecording: false,
 		Actions:     []driver.RecordedAction{},
-	}, nil
-}
-
-func (m *MockDriverClient) AcknowledgeRecordedActions(ctx context.Context, sessionID string, ids []string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.AcknowledgedEntryIDs = append([]string{}, ids...)
-	return m.AcknowledgeRecordedActionsError
-}
-
-func (m *MockDriverClient) Navigate(ctx context.Context, sessionID string, req *driver.NavigateRequest) (*driver.NavigateResponse, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if m.NavigateError != nil {
-		return nil, m.NavigateError
-	}
-	if m.NavigateResponse != nil {
-		return m.NavigateResponse, nil
-	}
-	return &driver.NavigateResponse{
-		URL:        req.URL,
-		Title:      "Test Page",
-		StatusCode: 200,
-	}, nil
-}
-
-func (m *MockDriverClient) Reload(ctx context.Context, sessionID string, req *driver.ReloadRequest) (*driver.ReloadResponse, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if m.ReloadError != nil {
-		return nil, m.ReloadError
-	}
-	if m.ReloadResponse != nil {
-		return m.ReloadResponse, nil
-	}
-	return &driver.ReloadResponse{
-		SessionID: sessionID,
-		URL:       "https://example.com",
-		Title:     "Reloaded Page",
-	}, nil
-}
-
-func (m *MockDriverClient) GoBack(ctx context.Context, sessionID string, req *driver.GoBackRequest) (*driver.GoBackResponse, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if m.GoBackError != nil {
-		return nil, m.GoBackError
-	}
-	if m.GoBackResponse != nil {
-		return m.GoBackResponse, nil
-	}
-	return &driver.GoBackResponse{
-		SessionID: sessionID,
-		URL:       "https://example.com/previous",
-		Title:     "Previous Page",
-	}, nil
-}
-
-func (m *MockDriverClient) GoForward(ctx context.Context, sessionID string, req *driver.GoForwardRequest) (*driver.GoForwardResponse, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if m.GoForwardError != nil {
-		return nil, m.GoForwardError
-	}
-	if m.GoForwardResponse != nil {
-		return m.GoForwardResponse, nil
-	}
-	return &driver.GoForwardResponse{
-		SessionID: sessionID,
-		URL:       "https://example.com/next",
-		Title:     "Next Page",
 	}, nil
 }
 
@@ -1271,7 +1184,7 @@ func (m *MockDriverClient) GetFrame(ctx context.Context, sessionID, queryParams 
 	}, nil
 }
 
-func (m *MockDriverClient) ForwardInput(ctx context.Context, sessionID string, body []byte) error {
+func (m *MockRecordModeService) ForwardInput(ctx context.Context, sessionID string, body []byte) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.ForwardInputCalled = true
@@ -1291,7 +1204,14 @@ var _ driver.ClientInterface = (*MockDriverClient)(nil)
 // MockRecordModeService is a test mock for RecordModeService interface.
 // It implements the RecordModeService interface defined in handler.go.
 type MockRecordModeService struct {
-	mu sync.RWMutex
+	OwnedSessions         map[string]*autosession.Session
+	LastForwardInputBody  []byte
+	ForwardInputCalled    bool
+	ForwardInputError     error
+	StopRecordingCalled   bool
+	StopRecordingResponse *driver.StopRecordingResponse
+	StopRecordingError    error
+	mu                    sync.RWMutex
 
 	// Session tracking
 	Sessions map[string]*livecapture.SessionResult
@@ -1307,8 +1227,9 @@ type MockRecordModeService struct {
 	GenerateWorkflowError error
 
 	// Response overrides
-	GeneratedWorkflow *livecapture.GenerateWorkflowResult
-	StorageState      json.RawMessage
+	StartRecordingResponse *driver.StartRecordingResponse
+	GeneratedWorkflow      *livecapture.GenerateWorkflowResult
+	StorageState           json.RawMessage
 
 	// Call tracking
 	CreateSessionCalled    bool
@@ -1392,9 +1313,12 @@ func (m *MockRecordModeService) StartRecording(ctx context.Context, sessionID st
 		return nil, m.StartRecordingError
 	}
 
+	if m.StartRecordingResponse != nil {
+		return m.StartRecordingResponse, nil
+	}
 	return &driver.StartRecordingResponse{
 		SessionID:   sessionID,
-		IsRecording: true,
+		RecordingID: "recording-fixture",
 		StartedAt:   time.Now().UTC().Format(time.RFC3339),
 	}, nil
 }
@@ -1425,8 +1349,8 @@ func (m *MockRecordModeService) GenerateWorkflow(ctx context.Context, sessionID 
 func (m *MockRecordModeService) GetSession(sessionID string) (*autosession.Session, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	// Return nil session for testing - tests should use full mock if needed
-	return nil, false
+	session, ok := m.OwnedSessions[sessionID]
+	return session, ok
 }
 
 func (m *MockRecordModeService) GetPages(sessionID string) (*livecapture.PageListResult, error) {

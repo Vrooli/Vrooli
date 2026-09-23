@@ -10,11 +10,13 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/domain"
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"github.com/vrooli/browser-automation-studio/performance"
@@ -316,11 +318,11 @@ func TestStopLiveRecording_Success(t *testing.T) {
 		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
 	}
 
-	if !mockService.MockClient().StopRecordingCalled {
+	if !mockService.StopRecordingCalled {
 		t.Fatal("expected StopRecording to be called")
 	}
 
-	var response StopRecordingResponse
+	var response driver.StopRecordingResponse
 	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
 		t.Fatalf("failed to parse response: %v", err)
 	}
@@ -351,7 +353,7 @@ func TestStopLiveRecording_NotFound(t *testing.T) {
 	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
 	defer os.RemoveAll(tempDir)
 
-	mockService.MockClient().StopRecordingError = &driver.Error{Status: 404, Message: "no recording"}
+	mockService.StopRecordingError = &driver.Error{Status: 404, Message: "no recording"}
 
 	sessionID := "nonexistent-session"
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/"+sessionID+"/stop", nil)
@@ -396,7 +398,7 @@ func TestGetRecordingStatus_Success(t *testing.T) {
 		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
 	}
 
-	var response RecordingStatusResponse
+	var response driver.RecordingStatusResponse
 	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
 		t.Fatalf("failed to parse response: %v", err)
 	}
@@ -461,7 +463,7 @@ func TestGetRecordedActions_Success(t *testing.T) {
 	}
 }
 
-func TestGetRecordedActions_WithClear(t *testing.T) {
+func TestGetRecordedActions_WithClearRequiresOwnedSession(t *testing.T) {
 	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
 	defer os.RemoveAll(tempDir)
 
@@ -474,12 +476,12 @@ func TestGetRecordedActions_WithClear(t *testing.T) {
 
 	handler.GetRecordedActions(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404 for unowned clear, got %d: %s", rr.Code, rr.Body.String())
 	}
 
-	if !mockService.MockClient().GetRecordedActionsCalled {
-		t.Fatal("expected GetRecordedActions to be called")
+	if mockService.MockClient().GetRecordedActionsCalled {
+		t.Fatal("unowned destructive pull must be rejected before reading entries")
 	}
 }
 
@@ -532,10 +534,16 @@ func TestValidateSelector_MissingSelector(t *testing.T) {
 // ============================================================================
 
 func TestNavigateRecordingSession_Success(t *testing.T) {
-	handler, _, tempDir, _ := createTestHandlerWithRecordMode(t)
+	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
 	defer os.RemoveAll(tempDir)
 
 	sessionID := "test-session-123"
+	owned := createOwnedNavigationSession(t, sessionID, &driver.NavigateResponse{URL: "https://example.com"}, func(r *http.Request, body map[string]any) {
+		if r.URL.Path != "/session/"+sessionID+"/record/navigate" || body["url"] != "https://example.com" {
+			t.Errorf("wrong navigation request: %s %v", r.URL.Path, body)
+		}
+	})
+	mockService.OwnedSessions = map[string]*autosession.Session{sessionID: owned}
 	body := `{"url": "https://example.com"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/"+sessionID+"/navigate", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -647,12 +655,12 @@ func TestForwardRecordingInput_Success(t *testing.T) {
 		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
 	}
 
-	if !mockService.MockClient().ForwardInputCalled {
+	if !mockService.ForwardInputCalled {
 		t.Fatal("expected ForwardInput to be called")
 	}
 
-	if mockService.MockClient().LastSessionID != sessionID {
-		t.Fatalf("expected session ID %q, got %q", sessionID, mockService.MockClient().LastSessionID)
+	if mockService.LastSessionID != sessionID {
+		t.Fatalf("expected session ID %q, got %q", sessionID, mockService.LastSessionID)
 	}
 }
 
@@ -985,5 +993,110 @@ func TestRecordingProfileCommit(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// [REQ:BAS-RH-J24] Driver receipts retain identity and time through the public API.
+func TestRecordingLifecycle_PreservesDriverReceipt(t *testing.T) {
+	const wire = `{"session_id":"receipt-session","recording_id":"9c45d4a0-5333-4b36-8197-bdba6b6c8f36","action_count":7,"is_recording":true,"started_at":"2026-09-22T12:00:00.123Z","stopped_at":"2026-09-22T12:01:00.456Z"}`
+	for _, operation := range []string{"start", "stop", "status"} {
+		t.Run(operation, func(t *testing.T) {
+			h, service, tempDir, _ := createTestHandlerWithRecordMode(t)
+			defer os.RemoveAll(tempDir)
+			var start driver.StartRecordingResponse
+			var stop driver.StopRecordingResponse
+			var status driver.RecordingStatusResponse
+			if err := json.Unmarshal([]byte(wire), &start); err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal([]byte(wire), &stop); err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal([]byte(wire), &status); err != nil {
+				t.Fatal(err)
+			}
+			service.StartRecordingResponse = &start
+			service.StopRecordingResponse = &stop
+			service.MockClient().RecordingStatusResponse = &status
+			req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"session_id":"receipt-session"}`))
+			rc := chi.NewRouteContext()
+			rc.URLParams.Add("sessionId", "receipt-session")
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
+			rr := httptest.NewRecorder()
+			switch operation {
+			case "start":
+				h.StartLiveRecording(rr, req)
+			case "stop":
+				h.StopLiveRecording(rr, req)
+			case "status":
+				h.GetRecordingStatus(rr, req)
+			}
+			if rr.Code != http.StatusOK {
+				t.Fatalf("status %d: %s", rr.Code, rr.Body)
+			}
+			var got map[string]any
+			if err := json.Unmarshal(rr.Body.Bytes(), &got); err != nil {
+				t.Fatal(err)
+			}
+			if got["recording_id"] != "9c45d4a0-5333-4b36-8197-bdba6b6c8f36" {
+				t.Errorf("driver identity lost or replaced: %s", rr.Body)
+			}
+			field, want := "started_at", "2026-09-22T12:00:00.123Z"
+			if operation == "stop" {
+				field, want = "completed_at", "2026-09-22T12:01:00.456Z"
+			}
+			if got[field] != want {
+				t.Errorf("%s lost: %s", field, rr.Body)
+			}
+		})
+	}
+}
+
+type inputForwardingService struct {
+	RecordModeService
+	forward func(context.Context, string, []byte) error
+}
+
+func (s inputForwardingService) ForwardInput(ctx context.Context, id string, body []byte) error {
+	return s.forward(ctx, id, body)
+}
+
+func TestWebSocketInputForwarderUsesOwnedServiceAndDeadline(t *testing.T) {
+	h, service, dir, _ := createTestHandlerWithRecordMode(t)
+	defer os.RemoveAll(dir)
+	sentinel := errors.New("input rejected by owner")
+	var seenContext context.Context
+	calls := 0
+	h.recordModeService = inputForwardingService{RecordModeService: service, forward: func(ctx context.Context, id string, body []byte) error {
+		calls++
+		seenContext = ctx
+		if id != "owned-input" {
+			t.Errorf("wrong session: %s", id)
+		}
+		deadline, ok := ctx.Deadline()
+		if !ok || time.Until(deadline) <= 0 || time.Until(deadline) > 2*time.Second {
+			t.Errorf("missing or changed input deadline: %v", deadline)
+		}
+		var payload map[string]any
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Error(err)
+		}
+		if payload["type"] != "pointer" || payload["x"] != float64(12) {
+			t.Errorf("changed input: %v", payload)
+		}
+		return sentinel
+	}}
+	forward := h.CreateInputForwarder()
+	if err := forward("owned-input", map[string]any{"type": "pointer", "x": 12}); !errors.Is(err, sentinel) {
+		t.Errorf("owner rejection lost: %v", err)
+	}
+	if calls != 1 || seenContext == nil || seenContext.Err() != context.Canceled {
+		t.Fatal("forwarding or deadline cleanup missing")
+	}
+	if err := forward("owned-input", map[string]any{"invalid": make(chan int)}); err == nil {
+		t.Error("accepted unencodable input")
+	}
+	if calls != 1 {
+		t.Error("invalid input reached the session owner")
 	}
 }

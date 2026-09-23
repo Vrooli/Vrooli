@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
@@ -86,16 +87,20 @@ func TestRecordingPullTransportRequiresMatchingAcknowledgement(t *testing.T) {
 				require.Equal(t, http.MethodPost, r.Method)
 				require.Equal(t, "/session/session/record/actions/ack", r.URL.Path)
 				var request struct {
-					EntryIDs []string `json:"entry_ids"`
+					EntryIDs    []string `json:"entry_ids"`
+					ExecutionID string   `json:"execution_id"`
+					LeaseID     string   `json:"lease_id"`
 				}
 				require.NoError(t, json.NewDecoder(r.Body).Decode(&request))
 				require.Equal(t, []string{"entry"}, request.EntryIDs)
+				assert.Equal(t, "owner", request.ExecutionID)
+				assert.Equal(t, "lease", request.LeaseID)
 				_, _ = w.Write([]byte(response))
 			}))
 			defer server.Close()
 			client, err := NewClientWithURL(server.URL)
 			require.NoError(t, err)
-			err = client.AcknowledgeRecordedActions(context.Background(), "session", []string{"entry"})
+			err = client.AcknowledgeRecordedActions(context.Background(), "session", "owner", "lease", []string{"entry"})
 			if response == `{"entry_ids":["entry"]}` {
 				require.NoError(t, err)
 			} else {
@@ -116,4 +121,59 @@ func TestRecordingPullRejectsMalformedTimelineWithoutDestructiveRead(t *testing.
 	require.NoError(t, err)
 	_, err = client.GetRecordedActions(context.Background(), "session")
 	require.ErrorContains(t, err, "parse recorded entry")
+}
+
+func TestRecordingCommandsRejectMissingOwnershipBeforeHTTP(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++; w.WriteHeader(http.StatusOK) }))
+	defer srv.Close()
+	client, err := NewClientWithURL(srv.URL, WithoutCircuitBreaker())
+	require.NoError(t, err)
+	for _, identity := range [][2]string{{"", "lease"}, {"owner", " "}} {
+		_, err = client.StartRecording(context.Background(), "session", identity[0], identity[1], &StartRecordingRequest{})
+		require.Error(t, err)
+		_, err = client.StopRecording(context.Background(), "session", identity[0], identity[1])
+		require.Error(t, err)
+		err = client.AcknowledgeRecordedActions(context.Background(), "session", identity[0], identity[1], []string{"entry"})
+		require.Error(t, err)
+	}
+	_, err = client.StartRecording(context.Background(), "session", "owner", "lease", nil)
+	require.Error(t, err)
+	require.Zero(t, calls)
+}
+
+func TestInputRejectsInvalidEnvelopesBeforeHTTP(t *testing.T) {
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++; w.WriteHeader(http.StatusOK) }))
+	defer server.Close()
+	client, err := NewClientWithURL(server.URL, WithoutCircuitBreaker())
+	require.NoError(t, err)
+	for _, identity := range [][2]string{{"", "lease"}, {"owner", " "}} {
+		require.Error(t, client.ForwardInput(context.Background(), "s", identity[0], identity[1], []byte(`{"type":"pointer"}`)))
+	}
+	for _, body := range []string{"null", "[]", "invalid"} {
+		require.Error(t, client.ForwardInput(context.Background(), "s", "owner", "lease", []byte(body)))
+	}
+	require.Zero(t, calls)
+}
+
+func TestNavigationCommandsRejectUnownedOrUnsupportedRequestsBeforeHTTP(t *testing.T) {
+	calls := make(chan struct{}, 8)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls <- struct{}{}; w.WriteHeader(200) }))
+	defer server.Close()
+	client, err := NewClientWithURL(server.URL, WithoutCircuitBreaker())
+	require.NoError(t, err)
+	for _, identity := range [][2]string{{"", "lease"}, {"owner", " "}} {
+		_, err = client.Navigate(context.Background(), "session", identity[0], identity[1], &NavigateRequest{URL: "https://fixture.test"})
+		require.Error(t, err)
+		_, err = client.NavigateHistory(context.Background(), "session", identity[0], identity[1], HistoryReload, &HistoryNavigationRequest{})
+		require.Error(t, err)
+	}
+	_, err = client.Navigate(context.Background(), "session", "owner", "lease", nil)
+	require.Error(t, err)
+	_, err = client.NavigateHistory(context.Background(), "session", "owner", "lease", HistoryBack, nil)
+	require.Error(t, err)
+	_, err = client.NavigateHistory(context.Background(), "session", "owner", "lease", "../../close", &HistoryNavigationRequest{})
+	require.ErrorContains(t, err, "unsupported history navigation")
+	require.Empty(t, calls)
 }

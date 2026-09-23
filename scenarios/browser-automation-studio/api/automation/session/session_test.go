@@ -379,6 +379,11 @@ func TestSession_StartRecording_Success(t *testing.T) {
 
 	handler := http.NewServeMux()
 	handler.HandleFunc("/session/rec-session/record/start", func(w http.ResponseWriter, r *http.Request) {
+		var envelope map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&envelope)
+		if envelope["execution_id"] != "record-owner" || envelope["lease_id"] != "record-lease" {
+			t.Errorf("recording mutation lacks immutable ownership: %v", envelope)
+		}
 		_ = r.Body.Close()
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"success": true,
@@ -394,16 +399,18 @@ func TestSession_StartRecording_Success(t *testing.T) {
 	}
 
 	sess := &Session{
-		id:     "rec-session",
-		mode:   ModeRecording,
-		client: client,
+		id:          "rec-session",
+		executionID: "record-owner",
+		leaseID:     "record-lease",
+		mode:        ModeRecording,
+		client:      client,
 	}
 
-	err = sess.StartRecording(context.Background(), RecordingConfig{
-		ActionCallbackURL: "http://localhost:8080/callback",
-		FrameCallbackURL:  "http://localhost:8080/frame",
-		Quality:           80,
-		FPS:               10,
+	_, err = sess.StartRecording(context.Background(), &driver.StartRecordingRequest{
+		CallbackURL:      "http://localhost:8080/callback",
+		FrameCallbackURL: "http://localhost:8080/frame",
+		FrameQuality:     80,
+		FrameFPS:         10,
 	})
 	if err != nil {
 		t.Fatalf("StartRecording failed: %v", err)
@@ -418,7 +425,7 @@ func TestSession_StartRecording_RejectsExecutionMode(t *testing.T) {
 		mode: ModeExecution,
 	}
 
-	err := sess.StartRecording(context.Background(), RecordingConfig{})
+	_, err := sess.StartRecording(context.Background(), &driver.StartRecordingRequest{})
 
 	if err == nil {
 		t.Error("expected error when starting recording in execution mode")
@@ -438,7 +445,7 @@ func TestSession_StartRecording_RejectsClosedSession(t *testing.T) {
 		terminal: completedTerminal(),
 	}
 
-	err := sess.StartRecording(context.Background(), RecordingConfig{})
+	_, err := sess.StartRecording(context.Background(), &driver.StartRecordingRequest{})
 
 	if err == nil {
 		t.Error("expected error when starting recording on closed session")
@@ -454,6 +461,11 @@ func TestSession_StopRecording_Success(t *testing.T) {
 
 	handler := http.NewServeMux()
 	handler.HandleFunc("/session/rec-session/record/stop", func(w http.ResponseWriter, r *http.Request) {
+		var envelope map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&envelope)
+		if envelope["execution_id"] != "record-owner" || envelope["lease_id"] != "record-lease" {
+			t.Errorf("recording mutation lacks immutable ownership: %v", envelope)
+		}
 		_ = r.Body.Close()
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"success": true,
@@ -469,12 +481,14 @@ func TestSession_StopRecording_Success(t *testing.T) {
 	}
 
 	sess := &Session{
-		id:     "rec-session",
-		mode:   ModeRecording,
-		client: client,
+		id:          "rec-session",
+		executionID: "record-owner",
+		leaseID:     "record-lease",
+		mode:        ModeRecording,
+		client:      client,
 	}
 
-	err = sess.StopRecording(context.Background())
+	_, err = sess.StopRecording(context.Background())
 	if err != nil {
 		t.Fatalf("StopRecording failed: %v", err)
 	}
@@ -489,11 +503,32 @@ func TestSession_StopRecording_RejectsClosedSession(t *testing.T) {
 		terminal: completedTerminal(),
 	}
 
-	err := sess.StopRecording(context.Background())
+	_, err := sess.StopRecording(context.Background())
 
 	if err == nil {
 		t.Error("expected error when stopping recording on closed session")
 	}
+}
+
+// [REQ:BAS-RH-J17] Committed entries are acknowledged only under this Session's lease.
+func TestSession_AcknowledgeRecordedActions_Ownership(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		require.Equal(t, "/session/session/record/actions/ack", r.URL.Path)
+		var body map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		require.Equal(t, map[string]any{"execution_id": "owner", "lease_id": "lease", "entry_ids": []any{"committed"}}, body)
+		_, _ = w.Write([]byte(`{"entry_ids":["committed"]}`))
+	}))
+	defer server.Close()
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	sess := &Session{id: "session", executionID: "owner", leaseID: "lease", client: client, mode: ModeRecording}
+	require.NoError(t, sess.AcknowledgeRecordedActions(context.Background(), []string{"committed"}))
+	sess.terminal = completedTerminal()
+	require.EqualError(t, sess.AcknowledgeRecordedActions(context.Background(), []string{"committed"}), "session closed")
+	require.Equal(t, int32(1), calls.Load())
 }
 
 func TestSession_GetRecordingStatus_Success(t *testing.T) {
@@ -1387,6 +1422,70 @@ func TestRunAmbiguousResponseCannotAuthorizeNewAttempt(t *testing.T) {
 			require.False(t, outcome.Failure.Retryable)
 			require.Equal(t, "INSTRUCTION_OUTCOME_UNCERTAIN", outcome.Failure.Code)
 			require.Equal(t, 1, effects)
+		})
+	}
+}
+
+// [REQ:BAS-RH-J17] Live input carries the immutable lease already held by Session.
+func TestSession_ForwardInputCarriesOwnership(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var input map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			t.Error(err)
+		}
+		if input["execution_id"] != "input-owner" || input["lease_id"] != "input-lease" {
+			t.Errorf("input lacks immutable ownership: %v", input)
+		}
+		if input["type"] != "pointer" || input["action"] != "click" || input["x"] != float64(12) {
+			t.Errorf("input payload changed: %v", input)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sess := &Session{id: "input-session", executionID: "input-owner", leaseID: "input-lease", mode: ModeRecording, client: client}
+	if err := sess.ForwardInput(context.Background(), []byte(`{"type":"pointer","action":"click","x":12}`)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// [REQ:BAS-RH-J17] All navigation commands retain the same immutable Session authority.
+func TestSessionNavigationCarriesImmutableLease(t *testing.T) {
+	for _, operation := range []driver.HistoryNavigation{"navigate", driver.HistoryReload, driver.HistoryBack, driver.HistoryForward} {
+		t.Run(string(operation), func(t *testing.T) {
+			var calls atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls.Add(1)
+				require.Equal(t, "/session/owned/record/"+string(operation), r.URL.Path)
+				var body map[string]any
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+				expected := map[string]any{"execution_id": "owner", "lease_id": "lease", "wait_until": "domcontentloaded", "timeout_ms": float64(1234)}
+				if operation == "navigate" {
+					expected["url"] = "https://fixture.test"
+					expected["capture"] = true
+				}
+				require.Equal(t, expected, body)
+				_, _ = w.Write([]byte(`{"session_id":"owned","url":"https://fixture.test","title":"fixture","can_go_back":true,"can_go_forward":false}`))
+			}))
+			defer server.Close()
+			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+			require.NoError(t, err)
+			session := &Session{id: "owned", executionID: "owner", leaseID: "lease", mode: ModeRecording, client: client}
+			invoke := func() error {
+				if operation == "navigate" {
+					_, err := session.Navigate(context.Background(), "https://fixture.test", WithWaitUntil("domcontentloaded"), WithNavigateTimeout(1234), WithCapture(true))
+					return err
+				}
+				_, err := session.NavigateHistory(context.Background(), operation, &driver.HistoryNavigationRequest{WaitUntil: "domcontentloaded", TimeoutMs: 1234})
+				return err
+			}
+			require.NoError(t, invoke())
+			session.terminal = completedTerminal()
+			require.EqualError(t, invoke(), "session closed")
+			require.Equal(t, int32(1), calls.Load())
 		})
 	}
 }

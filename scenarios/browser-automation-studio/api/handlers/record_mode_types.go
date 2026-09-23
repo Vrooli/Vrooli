@@ -106,31 +106,6 @@ type StartRecordingRequest struct {
 	FrameFPS *int `json:"frame_fps,omitempty"`
 }
 
-// StartRecordingResponse is the response after starting recording.
-type StartRecordingResponse struct {
-	RecordingID string `json:"recording_id"`
-	SessionID   string `json:"session_id"`
-	StartedAt   string `json:"started_at"`
-}
-
-// StopRecordingResponse is the response after stopping recording.
-type StopRecordingResponse struct {
-	RecordingID string `json:"recording_id"`
-	SessionID   string `json:"session_id"`
-	ActionCount int    `json:"action_count"`
-	StoppedAt   string `json:"stopped_at"`
-}
-
-// RecordingStatusResponse is the response for recording status.
-type RecordingStatusResponse struct {
-	SessionID   string `json:"session_id"`
-	IsRecording bool   `json:"is_recording"`
-	RecordingID string `json:"recording_id,omitempty"`
-	ActionCount int    `json:"action_count"`
-	FrameCount  int    `json:"frame_count,omitempty"`
-	StartedAt   string `json:"started_at,omitempty"`
-}
-
 // =============================================================================
 // Recorded Actions Types
 // =============================================================================
@@ -231,51 +206,6 @@ type NavigateRecordingResponse struct {
 	CanGoForward bool   `json:"can_go_forward"`
 	StatusCode   int    `json:"status_code,omitempty"`
 	Screenshot   string `json:"screenshot,omitempty"`
-}
-
-// ReloadRecordingRequest is the request body for reloading the current page.
-type ReloadRecordingRequest struct {
-	WaitUntil string `json:"wait_until,omitempty"`
-	TimeoutMs int    `json:"timeout_ms,omitempty"`
-}
-
-// ReloadRecordingResponse is the response from reloading the page.
-type ReloadRecordingResponse struct {
-	SessionID    string `json:"session_id"`
-	URL          string `json:"url"`
-	Title        string `json:"title"`
-	CanGoBack    bool   `json:"can_go_back"`
-	CanGoForward bool   `json:"can_go_forward"`
-}
-
-// GoBackRecordingRequest is the request body for navigating back in history.
-type GoBackRecordingRequest struct {
-	WaitUntil string `json:"wait_until,omitempty"`
-	TimeoutMs int    `json:"timeout_ms,omitempty"`
-}
-
-// GoBackRecordingResponse is the response from navigating back.
-type GoBackRecordingResponse struct {
-	SessionID    string `json:"session_id"`
-	URL          string `json:"url"`
-	Title        string `json:"title"`
-	CanGoBack    bool   `json:"can_go_back"`
-	CanGoForward bool   `json:"can_go_forward"`
-}
-
-// GoForwardRecordingRequest is the request body for navigating forward in history.
-type GoForwardRecordingRequest struct {
-	WaitUntil string `json:"wait_until,omitempty"`
-	TimeoutMs int    `json:"timeout_ms,omitempty"`
-}
-
-// GoForwardRecordingResponse is the response from navigating forward.
-type GoForwardRecordingResponse struct {
-	SessionID    string `json:"session_id"`
-	URL          string `json:"url"`
-	Title        string `json:"title"`
-	CanGoBack    bool   `json:"can_go_back"`
-	CanGoForward bool   `json:"can_go_forward"`
 }
 
 // NavigationStateResponse is the response for getting current navigation state.

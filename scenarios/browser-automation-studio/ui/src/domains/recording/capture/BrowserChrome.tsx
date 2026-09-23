@@ -27,7 +27,7 @@ import { useRecordingFrameStats, useRecordingPageTitle } from '../stores/session
 export interface NavigationStackEntry {
   url: string;
   title: string;
-  timestamp: string;
+  timestamp?: string;
 }
 
 /** Navigation stack data from the driver */

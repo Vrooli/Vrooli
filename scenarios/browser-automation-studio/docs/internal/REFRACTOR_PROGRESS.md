@@ -10,53 +10,63 @@ current-state section, then append dated records without erasing prior evidence.
 
 Active unlimited continuous goal BAS-FB-008. File tracking only; no plans or
 external journal. Green checks trigger fresh investigation, never completion.
+Feedback FB012 repeats the overall-status request and says continue; captured
+verbatim and answered. No goal-completion percentage or launch date claimed.
 
-- Live BAS through 049 is healthy: build
-  `4d7371aa74718651752a1756d800a60868f223f8ca1d2f15fe73be0260a1050c`.
-  API 17116 / driver 24485 / UI 21794. Managed restart 1852 and profile check
-  13569 consumed. Metadata matches 048; three full reads preserve the original
-  rollback. BAS-FB-010 authorizes restarting this engagement's active browsers.
-- Latest full driver owner `uh-20260922-204804-a3e358bda829000613649d4a051355ca`
-  passed: 1,649 tests / 124 suites, 2 tests / 1 suite skipped, 405.005 seconds.
-  Types/build passed. All 049 operations consumed. Effective quality/FPS/headers
-  and measured-FPS receipts are deployed. Native strategy/settings-route controls
-  pass; full release performance remains unqualified. Runtime net +41 lines in
-  048; recent capture/callback repairs 045–048 total -285 lines.
-- Device-scale repair 049 is deployed: native DPR 2 receives 640×480 physical
-  pixels; CSS remains 320×240. Existing SDK capture owns device fidelity. Two
-  runtime files add 3 lines. Small native cost probe shows physical-pixel overhead
-  and possible DPR 1 cost; release performance remains unqualified.
-- Source 050 addresses RF082 stopped-preview resurrection and local RF038 async
-  ownership. Native HTTP/SDK reproduction: Stop 200 then old Start 200 and a new
-  frame. Ten maintained regressions, including the real recording pipeline, fail
-  before repair and pass after (1.230 seconds). Removed duplicate DOM wait; reuse
-  existing pipeline generation and immutable lease for continuations/page providers.
-  Final focused: 139 tests / 6 suites pass in 16.932 seconds; types/build pass.
-  Driver 99381 consumed failed: 1,658 passed / 3 failed. Existing route
-  integration doubles lack lease lookup/generation/capture transitions; fixture
-  repair passed scoped checks/types. Final requalification will include 051
-  caller-lease/receipt work on the same route; no pending owner operation. Tidiness 20260922-210754-5fae9158 failed;
-  quiet wait consumed. Board 050 still has 17 unqualified outcomes. No 050 deployment.
-  Full caller lease transport on remaining mutations is still open RF038 work.
-- Shared Test Genie source/artifact-root repair 042 is deployed and healthy,
-  build `25e2b598c0417ea7ac23ab7c501c93f4340e70bf0c0aabef1c5d578cf1029e4f`.
-  Scoped tests/races/build passed. Full API qualification remains unknown after
-  provider-conformance/CodeFacts timeout; no waiver.
-- Latest tidiness `20260922-210754-5fae9158` failed; one quiet wait consumed:
-  1,118 findings / 104 long files / 387 complexity / 608 duplication / 18 coupling;
-  duplication debt 32,643 versus expanded original 35,603. Shared-tree deltas are
-  not solely attributable to one cycle. Affected Go cyclomatic cumulative -248;
+- Deployed056 is healthy: build
+  `f635a2dd3f9c883948b789dacc02729e341e463d1fb6f68d499e0d080f6b73c9`.
+  API17116 / driver24485 / UI21794 all200; managed79365 consumed. Native workflow
+  44358 passes12checks/3independent effects, including invalid ACK rejection,
+  fresh-context replay, saved workflow execution, exact timeline and cleanup.
+  Artifact /tmp/bas-recording-e2e-BPR5bm. Native API41324 passes35checks/2effects,
+  including leased clear after journal commit and identical retained journal.
+  Temporary sessions/profile/project/workflow/execution/artifacts cleaned.
+- Profile74915 consumed: metadata matches055 and three complete reads match the
+  original rollback. Receipt /tmp/bas-profile-final-056.txt. Existing FB010 grants
+  managed restart authority; preserve profiles and verify health afterward.
+  Global session counts may include later traffic; use scoped cleanup evidence.
+- Full driver37095 passes: uh-20260922-233411-e41c7817d38372d572afccbbc5b3eafc,
+  1685tests/124suites,2tests/1suite skipped,377.933s owner/377.130s Jest. Initial
+  full run failed1 obsolete unowned ACK fixture; it was converted, original
+  assertions retained and full rerun passed. Red receipts remain preserved.
+  Focused50driver tests/3suites,16harness contract tests, whole driver types,
+  three affected Go race packages and API build pass. UI unchanged from prior
+  593-test/types qualification. Frozen hashes /tmp/bas-frozen-056.json match.
+- 056 retains the original Go Session through pull/commit/ACK and rejects
+  invalid driver leases before synchronous buffer mutation. Raw unowned ACK
+  interface/mock removed. Runtime+17lines; affectedGo115/445->116/452 functions/
+  complexity (+7), cumulative affectedGo reduction219. No debt-reduction claim
+  for this guard cost. Receipt recording-ack-ownership-2026-09-22.json is
+  qualified_and_deployed. No pending operations.
+- 052 repaired live input leases across HTTP/WS and single-WebSocket order;
+  existing Hub lock now owns membership/subscription/channel lifetime. 053/054
+  repaired false-green harness behavior and qualified one basic saved-workflow
+  case. 055 removed recorder-generated console noise while preserving real
+  errors, readiness and capture. All these changes remain deployed in056.
+- Latest tidiness20260922-232924-3e1f0c18 failed; single quiet wait/artifact decode
+  consumed:1126findings/104long/393complexity/609duplication/19coupling;
+  duplication debt32663 versus expanded original35603. Test fixture complexity
+  and imports are included. Shared-tree deltas are not solely one cycle's work;
   RF064 TypeScript/JavaScript measurement gaps persist. Ratchets unchanged.
-- Board 050: 17 required / 17 unqualified / product_qualified=false. No product
-  readiness, native OS or monetization date claim. Full UI coverage remains
-  28.59/30.34/65.15/28.59 versus 85. Security/package warnings, durability/crash/
-  overflow/full record-replay, native platform/soak and UX evidence remain.
-  RF038 mutation leases, RF042 clean-profile reuse, RF043 secondary capture,
-  RF047 scale/performance and RF055 historical orphans remain open boundaries.
-- Original HEAD `7d1c7531d057c061c5ad5a67fbecb97ebe2eb194`; original 121 isolated
-  probes: 33 met / 88 failed. History and dated receipts remain below and in
-  `internal/evidence/rehabilitation/`. Pending operations are listed above;
-  historical pending IDs below are not current and must not be re-admitted.
+- Board056:17required/17unqualified/product_qualified=false. Still core reliability
+  work, not production or monetization readiness. Full UI coverage remains
+  28.59/30.34/65.15/28.59 versus85. Security/package warnings, full record/replay,
+  crash/overflow/durability, sustained performance/soak, native platforms and UX
+  evidence remain. RF020 cross-client order/reconnect, RF038 other mutations,
+  RF042 clean-profile reuse, RF043 secondary capture, RF047 scale/performance,
+  and RF055 historical execution orphans remain open.
+- Active057 source repair: immutable Go Session navigation and one driver
+  completion path implemented; five Go race packages/build and focused driver
+  checks pass. Not deployed or fully qualified. New native RF087 proves Back
+  reports failure after successful hash movement and incorrectly disables
+  Forward. Extend to browser-owned per-page history and popup consumer parsing.
+  No current pending operations. Deployed056 remains the last qualified build.
+- Shared Test Genie042 repair remains deployed build25e2b598c0417ea7ac23ab7c501c93f4340e70bf0c0aabef1c5d578cf1029e4f.
+  Scoped tests/races/build passed; full API qualification remains unknown after
+  provider-conformance/CodeFacts timeout, with recheck on owner/runtime changes.
+- Original HEAD7d1c7531d057c061c5ad5a67fbecb97ebe2eb194; original121isolated
+  probes:33met/88failed. Dated receipts and append-only history remain below;
+  historical pending IDs are not current and must not be re-admitted.
 
 ## Record format
 
@@ -3627,3 +3637,592 @@ BAS-FB-011 captured and answered at goal level: improved reliability and measure
 debt, healthydeployed049, still core functional work and17unqualified release
 outcomes; no percent/dateclaim. Continuous work proceeds into recording ownership
 and complete journey/recovery evidence. No pending owner operations.
+
+
+051 design selected before source edits: RF038/J17 recording start/stop caller
+lease and RF083/J24 receipt fidelity. Baseline /tmp/bas-before-051/manifest.json.
+Convert raw live-capture/client calls to existing owned Go Session; remove its
+duplicate RecordingConfig mapping, carry owner/lease in driver envelopes, validate
+after body parsing before effects, and fence stop continuations by existing
+generation. Typed driver-to-proto receipts preserve identity/time; delete random
+handler IDs, duplicate response structs and untyped success fallbacks. Scope
+existing BAS driver/session/service/handler/converter owners plus maintained tests.
+No new service, lease cache, schema or dependency. Broader mutation/operation
+identity remains open. Maintained red tests precede implementation; final scoped
+Go/driver and full driver owner qualify combined050+051 before one restart.
+
+
+051 maintained red: five driver cases fail in1.040s; actualGo Session start/stop
+wire fails ownership, three handler cases fail identity (stop also loses terminal
+time). Source repair now carries leases through ownedSession, fences both stop
+awaits, maps typed receipts, deletes handler response copies/untyped fallbacks.
+First scopedGo fivepackages pass; driver72pass/1fail was an existing retry fixture
+missing its now-required wirelease, corrected without changing the200 assertion.
+Caller audit finds UI schema still requiresstopped_at while canonicalproto returns
+completed_at; UI also manufactures identity/time for every409, even unknown errors.
+Necessary same-receipt scope extension: existing UI API/schema/types owners and
+focused API regression. Replace synthetic409 recovery with one authoritative
+status read only for RECORDING_IN_PROGRESS; preserve actualID/time or fail. Use
+canonicalcompleted_at throughout, no compatibilityalias. Baseline expanded before
+UI edits; no new dependency or protocolschema. This closes the caller replacement
+boundary; full releaseUI/record-replay remains unqualified.
+
+
+051 focused/native verification: driver74tests/4suites pass16.571s; actualHTTP
+8lease cases pass with zero rejected effects. FiveGo packages pass normal and
+race checks; wholeAPIbuild passes. UI9red->9green, fullrecord-mode project and
+UItypes pass. Drivertypes/build, contract/inventory pass. Source frozen for owner
+4928; receipt recording-wire-receipts-2026-09-22.json records final source hashes.
+UI scope includes publicindex reexports from canonicalZod types; duplicate
+Start/Stop interface copies deleted. Runtime net-9lines excluding testhelper.
+AffectedGo155->157functions/481->502cyclomatic(+21), reflecting added validation;
+no new >15function. Prior cumulative-248 is now-227, not claimed as per-cycle
+complexity reduction. Existing >15CreateSession/decodeStepOutcome untouched.
+Tidiness92714 consumedfailed20260922-213405-21384775; onequietwait admitted,
+artifactdetailpending. Board67180 consumed17unqualified/productfalse. UI86431
+consumedpass. Driver4928 pending; no deployment or completion claim.
+
+
+051tidiness finaldetail:1122findings/104long/389complexity/609duplication/19coupling;
+debt32663(+20versus050, still2940below expandedbaseline35603). Onequietwait and
+artifactdecode consumed. New complexity findings are two tests at13; coupling
+21imports is live-capture test with actualJSONwire validation. Production pattern
+findings overlap existing proto conversion boilerplate/optional timestamp logic;
+no wrapper extraction or suppression to lower metrics. Touched runtimefunctions
+remain<=15; preexistinglarge client/session/service modules retain currentowners.
+WholeUIrecord-mode457passes9.0s. While4928qualifies frozen source, prepared bounded
+liveAPI/native fixture with independentclickcounter, dedicatedtemporaryprofile,
+start/status/conflict/rejectedwire/stop/retry receipts and cleanup; run only after
+qualified manageddeploy. No saveduserprofile used for fixture. Next investigation
+will extend completejourney/recovery evidence rather than claimboardqualification.
+
+
+051first fullowner4928 consumedfailed: uh-20260922-213400-0c9c8b29cc4e9b10fdee494372853340,
+1666passed/1failed,123suitespass/1fail,2tests/1suiteskipped,379.053sowner/378.112sJest.
+Only failure is preexistingunit/routes/record-mode terminal-retry fixture missing
+wirelease/generation. Original200/retainedreceipt assertion stays; convertfixture.
+Adversarial admission review found a regression in051: removing getSession's
+prevalidation side effect also stopped refreshing valid caller activity. A long
+recording Stop can leave readybrowser immediately idle. Maintainedcleanup-owner
+regression fails before repair (/tmp/bas-recording-activity-red-051.txt). Preserve
+existing SessionManager.updateActivity after successful ownership admission only;
+rejected calls must not touch activity. No newfield/owner. No051deployment yet.
+
+
+051activity repair/fixture conversion1781 consumedpass:81tests/5suites15.960s;
+types/buildpass. FinalactualHTTP8wirecases pass after adding onlyactivitymethod
+to controlledmanagerdouble. Source/test hashes refreshed and frozen for70689
+fullowner; firstfailedowner remains immutable. Runtime net-7lines excludingtesthelper.
+No other pending owner operation. Next livefixture after qualifiedmanagedrestart.
+
+
+### BAS-WORK-052 — next journey/ownership investigation, source untouched
+
+Recall native recording/replay qualification: search-hub53689 consumed, combined
+smoke-flow program/skill72153 read. Saved-workflow smoke is suitable once a
+representative exact workflow exists; it is not a recording-admission oracle.
+Prepared051liveAPI/nativeclick/receipt fixture first. Read-only caller audit for
+remainingRF038input reveals three unowned paths: GoSession.ForwardInput omits
+its lease, HTTP handler bypassesSession, and WebSocketCreateInputForwarder has
+a separate50-lineHTTPtransport bypassing existingdriverclient/session ownership.
+Next discriminating probe /tmp/browser-automation-studio/recording-input-wire-052.ts
+uses actualHTTProute and nativepage independentclickcounter for missing/stale/
+released/current leases. Prepared, not yet run; no052product/test-source changes
+while051owner70689 qualifies. Remove duplicateWebSocket transport only after
+showing existing sharedclient preserves timeout/connection behavior and authority.
+
+
+052nativeHTTP/SDK probe confirms remainingRF038input mutation: missing/stale/
+released leases each return200 and click the independent nativefixture counter
+once; currentowner controlpasses. /tmp/bas-recording-input-wire-red-052.log.
+Each case used its own nativecontext and closed it; no userprofile or external
+site. No052production edits. Additional source-only question: websocket Hub
+launches an independent goroutine per input, so orderedtransport does not prove
+ordered browser effects. Verify separately before extending repair into input
+serialization; existing HTTPclient already pools and drains responses, and the
+forwarder can preserve its2sdeadline through normalcontext instead of private
+transport. Driver70689 remains the only pending owner operation.
+
+
+052 RF020 confirmed with actual GoHub/WebSocket transport and an independent
+forwarder-effect log: send1, wait until its handler is admitted and held, then
+send2; observed effects[2,1] and overlaptrue. /tmp/bas-input-order-red-052.log.
+This is stronger than source-only inference but not fullbrowser/OS gesture
+qualification. Both commands belong to one websocket and one fixture session;
+no saveddata. Current readPump spawns one goroutine per input; no inputcoordinator
+found in driver source. Select ownership/ordering repair after051nativejourney,
+with boundedbackpressure, exactlease and errorreceipts still requiring design.
+No052source/test edits.
+
+
+051fullowner70689 consumedpass:uh-20260922-214339-29c7eefe3ef57778e98b523e71bf09fd,
+1668tests/124suites,2tests/1suiteskipped,363.586sowner/362.562sJest. Finalsource/test
+hashes match frozenreceipt. Managedrestart admittedunderFB010; no052source/test
+changes until deployment completes. Priorfailedreceipts retained.
+
+
+051post-qualification caller review found a zero-count edge before managed51012
+finished: canonicalprotoJSON omits scalar action_count=0 (sharedrespondProto uses
+EmitUnpopulated:false); UI Stop schema still requires thefield. Actualproto
+serialization plus actualZodschema fails /tmp/bas-recording-zero-red-051.log.
+No source mutation while managedbuildruns. After51012 settles, add maintained
+zero-count regression and honor canonicalproto default in schema; preserve
+explicit invalidcount rejection. If Zodinput/output types differ, adjust existing
+validation helper type signatures without changing runtimepolicy. FinalUIchecks
+and another managedbuild will be required; do not mark051fullydelivered yet.
+
+
+051managed31664 consumed0; API/driver/UI200, originalprofilemetadata preserved.
+LiveAPI/nativefixture passes23checks including independentclick, exactstart/status/
+stop ID/time, known409, missing/stale rawdriver rejection, retainedstopretry and
+owned session/temp-profile cleanup. /tmp/bas-recording-live-051.json. No fullrecord/replay/recovery qualificationclaim.
+Zero-count maintainedUIred39462 confirms protocoldefaultedge. Extend existing
+UIvalidation type signatures (RecordingApiService.validate/sharedsafeParse) to
+allow distinct parsedinput/output for Zod.default; runtimepolicyunchanged. Baseline
+sharedsafeParse captured before edit. Repairzero count, then fullrecord-modeUI/
+types and finalmanagedrestart; driver/Go source unchanged, existingreceiptsretain
+applicability without repeating full driver.
+
+
+051zero-count repair verified: canonicalprotoJSON->Zod probe now preserves0;
+593UItests pass (458record-mode+135shared)12.7s, wholeUItypespass. The selected
+red had one actualfailedassertion; reporter misleadingly labelled all10cases
+failed when9were filtered, so no10-failurebehaviorclaim. Final fullproject run
+executes themall. Existing parsed-input/output type signatures now allow canonical
+Zoddefault; no shared runtimevalidationpolicychanged. Driver/Go sources unchanged
+from qualified1668suite and fivepackage/race/build receipts. Fullprofile51465
+preserves3reads against originalrollback. Firstdeployedbackendbuild
+de50c2f729c628409d2385346b306b0935b5ef9c2ae3c34e3b71d2672de27718.
+Finalsourcehashes updated forUIedge; managedrestart nextunderFB010.
+
+
+051finalmanaged31664/profile40361 consumed0: API/driver/UI200,0sessions/recordings,
+finalbuildbdf9f35ac1782b71c71f9270dae0d657c814fcf990f69b7b0a6ab01a3f1392b0.
+Metadata equals049 (temporaryfixture deleted); three completeprofile reads still
+match originalrollback. Finalsource/test hashes match; contract/inventorypass.
+050+051 receipts marked qualified/deployed, no pending operations. Source/runtime
+net-6excludingtesthelper; priorfailedruns remainretained. RF038 start/stop and
+RF082/RF083 observedbounds repaired; broader inputleases/order/fulljourneys remain.
+Proceed052using proven nativelease and actualWebSocketordering red cases.
+
+
+052 feedback reread; no pending operations. Scope selected beforeimplementation:
+RF038input caller lease and demonstratedRF020single-WebSocket ordering. Baseline
+/tmp/bas-before-052/manifest.json records10existing runtimeowners. ConvertSession/
+live-capture/HTTP/WebSocket callerchain; remove private50-lineHTTPforwarder and
+unusedpostRaw helper, preserve2scontextdeadline and sharedpooling. Reuse recording
+leasehelper, refresh admittedactivity and fence browser sub-operations. Serialize
+forwarding in existingWSreadloop for boundedreceivedorder, without newqueueframework.
+Cross-client/HTTP appliedsequence/coalescing/reconnect remain explicitRF020 scope.
+Maintainedred tests must precede edits; native052red andactualWSred are retained.
+Caller audit also found registered test:e2e:record-mode mjs harness still uses
+pre-lease sessions/actions and is not covered by driverJest. ActualnegativeHTTP
+fixture proves its exit0/11passes despite two500clickresponses,500actionread and
+500workflowgeneration. /tmp/bas-recording-harness-oracle-red-052.log. RegisterRF084;
+it cannot substantiate nativequalification. Repair its caller/contracts/oracles
+after inputcontract stabilizes; do not treat priorowner1668pass as coverage ofit.
+
+
+052implemented existingowners: GoSession->driver carriesimmutablelease, live-capture
+service owns bothHTTP/WSforwarding, privateWebSockettransport andunusedpostRaw
+removed. SharedrecordingOwner reused for driverinput; parsesbeforelookup, updates
+onlyadmittedactivity, revalidates between pointermove/down/up andbefore200. WS
+readPump awaitsinput with existingbackpressure, no newqueueframework. Driver
+maintainedred3fail/1control->4pass; GoSessionandWSred->green. Extra body-read/
+pointersuboperation handoff tests pass. Focused59826=57tests/4suites1.336s+types;
+13041=fiveGo packagespass;59366=native4casespass. GoHub actualwire green[1,2].
+All operations consumed; no052deployment. Runtime-24lines; Go186/740unchanged
+against /tmp/bas-before-052. Need caller/deadline tests, scopedraces/build, final
+owner qualification andmeasurement. No sourcefreeze until thoseadmitted.
+
+
+052 resumed qualification: /tmp/bas-input-go-race-052.txt completed with actual
+race failures in four WebSocket tests; driver/session/live-capture/handlers race
+checks pass. Chained API build was not executed. Driver bundle build succeeded
+(/tmp/bas-input-driver-build-052.txt). No shell/owner process remains pending.
+Recall search72365 consumed; returned BAS usage already read and no narrower
+hub repair owner. Extend existing052 hub boundary for RF085 before final freeze:
+Run deletes clients under RLock, and readPump changes subscription fields and
+sends confirmations without the hub lock. These can race readers and closed Send
+channels. Use existing hub mutex for membership, subscription updates and channel
+lifetime; do not hold it during browser input HTTP. No new transport/queue owner.
+Existing failing race tests are retained before repair. Latest overall status
+reported deployed1668-driver/593UI, preserved profiles, duplication debt-2940,
+17unqualified outcomes; no percentage/date or readiness claim.
+
+
+052 RF085 repair9858 consumed0: fiveGo packages pass -race and wholeAPIbuild
+passes. Existing hub mutex now protects registration/welcome/drop/subscription/
+confirmation channel lifetime; execution broadcasts use exclusive lock when they
+can remove clients. Subscription dispatch moved under one locked method with
+membership check; input waits remain outside it. Existing race failures repaired;
+new disconnect and blocked-input/global-hub tests pass. No framework/extra locks.
+Driver source/tests frozen for fullowner92634; baseline/final hashes and measured
+deltas retained in live-input-ownership-2026-09-22.json. Scope remains perconnection
+order, not fullRF020. Tidiness/board admission in progress; consume IDs next.
+
+
+052 tidiness and board consumed. Test Genie 20260922-222031-1f5b47d9 failed
+the unchanged duplication budget; its single quiet wait and native artifact
+decode are complete. Findings: 1123 total, 104 long files, 391 complexity,
+609 duplication, 18 coupling. Duplication debt remains 32663 (-2940 from the
+expanded original baseline). The synchronized hub adds one measured Go branch
+(740 -> 741 across affected runtime owners); cumulative reduction is now226.
+Runtime net-17 lines after removing the obsolete interface comment. Existing
+large hub subscription switch is one cohesive wire-protocol dispatcher under
+the shared lock; splitting it does not count as reduced complexity. All source
+hashes refreshed; final driver owner92634 remains pending. Contract and inventory
+checks pass; board71023 reports17unqualified/productfalse. Prepared post-deploy
+live fixture with stale/missing input rejection and independent HTTP/WS clicks.
+
+
+052 full driver owner92634 consumed with exit0. Exact owner verdict/counts are
+retained in /tmp/bas-input-driver-owner-052.json. Frozen relevant source/test
+hashes match the receipt; tidiness budget still fails and release rows remain
+unqualified. Managed deployment under FB010 is next. Do not change relevant
+product/test source until that build and live checks complete.
+
+
+052 owner details: uh-20260922-221932-3fbe69da0f2156e9e51185e32472ffad passes
+1675 tests / 124 suites, 2 tests and 1 suite skipped; 348.210 seconds owner,
+347.344 seconds Jest. Managed restart50777 is the only pending operation.
+Source is frozen. Existing FB010 authorizes this restart; saved profiles must
+match original rollback after health and live input checks.
+
+
+Next bounded RF084 repair design, no product/test edits while052 deploys:
+replace the obsolete registered harness calls in place, using current session
+lease/operation envelopes and typed TimelineEntry actions. A local fixture owns
+its independent click counter. Stop must flush capture, retrieval must validate
+entries/count and explicit ACK, then replay into a fresh context must increment
+the independent counter. Current optional API generation also omits required
+project_id and downgrades all errors; selected API coverage must create an owned
+temporary project, persist a workflow, verify it, and delete workflow/project.
+An unavailable optional API remains an explicit skipped/unqualified scope; an
+API selected as available cannot silently downgrade later failures. Cleanup
+failures affect exit status. Preserve original false-green negative evidence.
+
+
+052 delivered. Restart50777 consumed0; API/driver/UI are healthy on build
+3c0dbef7d4bebe647501cde6a4b263cb66175dafc708498c34106d3d398b49f2. Native live
+fixture96017 passes26 checks with exactly two independent clicks (HTTP and WS).
+Rejected missing/stale raw input adds no effect. Session/temp profile cleanup
+succeeds and no browsers remain. Metadata equals051; full profile94534 matches
+original rollback across three reads. Source/test hashes match. RF085 observed
+races repaired and deployed; bounded RF038 input/RF020 order repairs qualified,
+not their whole release journeys. No pending operations. Continue RF084 harness.
+
+
+### BAS-WORK-053 — RF084 recording E2E harness
+
+Feedback reread; continuous scope and restart authority unchanged. No pending
+operations. Reuse native-journey recall and BAS smoke-flow guidance already read
+in052; exact saved-workflow program is available once a fixture workflow exists.
+Baseline /tmp/bas-before-053/manifest.json captures the existing registered
+harness and package scripts before editing. Original negative fixture proves
+exit0/11passes despite rejected clicks/read/generation and zero effects. Replace
+that producer in place: bounded strict requests, current ownership and typed
+actions, independent local fixture, recording/ACK/fresh-context replay, selected
+API persistence and cleanup. Add maintained producer-adversary checks through
+the native Node test runner; no dependency installation or production runtime
+changes are needed unless a real native assertion exposes an owner defect.
+
+
+053 implemented. Six maintained producer tests failed against the original
+harness (52667,5.826s) and passed after strict request/outcome/cleanup handling.
+Initial native run96579 passed9 checks, but adversarial review found the new
+fixture replaced identity cookies on every visit. A reused-context producer
+regression then correctly exposed false qualification (identity-red artifact).
+Fixture now retains existing identity, so reuse cannot masquerade as fresh.
+Contract14499 passed9 tests/0.891s and native final passed9 checks with two
+independent effects, distinct retained context identities and owned cleanup.
+Committed entries are fsynced before ACK; generation failure also acknowledges
+already-saved entries during cleanup. Added two further fault cases for200/failed
+replay outcomes and malformed recording JSON; final contract pending. API/driver
+have0sessions/recordings after native cleanup. No backend source changes/restart.
+Receipt recording-harness-2026-09-22.json records hashes and exact test scope;
+Full saved-workflow execution was the next qualification gap selected for054.
+
+
+053 qualified registered harness. Final contract13161 passes11 tests/1.039s;
+native final14499 passes9 checks with two independent effects and all owned
+cleanup. Result/committed entries are retained in /tmp/bas-recording-e2e-9MbmTr.
+Harness253 ->225 lines (-28); new contract fixture161 lines and one script
+registration are test infrastructure, not runtime debt reductions. Production
+source is unchanged and052's1675-driver/five-Go/race/build receipts remain valid.
+Tidiness20260922-224342-f9d0a473 failed its unchanged debt budget; one quiet wait
+and native artifact decode consumed. Board38241 still17unqualified/productfalse.
+Metadata matches052; native driver has0sessions/recordings. No pending operations.
+
+Next investigation: execute the saved generated workflow through its actual API
+owner and compare the fixture's independent effects. Existing smoke-flow was
+read (052 combined read plus local current contract); it writes mandatory Memory
+learning feedback/preference/avoid records with no declared opt-out, conflicting
+with this engagement's file-only tracking. Use its existing underlying public
+WorkflowsService.ExecuteWorkflow with wait_for_completion=true for the bounded
+fixture test; do not add a second production execution/wait implementation or
+weaken the owner's outcome checks. Native effect/cookie proof remains scoped.
+
+
+### BAS-WORK-054 — saved recording execution investigation
+
+Feedback reread, no pending operations. Reuse053's native local fixture and
+current owned API contracts. Baseline /tmp/bas-before-054/manifest.json preserves
+harness/test sources. No product or maintained test edits yet. Temporary probe
+/tmp/browser-automation-studio/recording-workflow-054.mjs adds exact-revision
+ExecuteWorkflow with the owner's wait, one further independent effect and
+timeline receipt. Its cleanup previews retention using both unique fixture
+project/workflow filters and checks the exact execution before confirmed removal.
+Keep owner evidence in the fixture artifact directory. The smoke-flow program's
+mandatory learning writes make it unsuitable for this file-only engagement;
+the same authoritative public execution owner remains in use.
+
+
+054 temporary native probe3267 passes11 checks. Execution
+5bcd9d8c-95bb-4e9d-bbc4-9e35cf71ff3c completed through the API, with three
+independent effects total and three completed timeline steps (navigation,
+generated wait, click). Evidence /tmp/bas-recording-e2e-biYej9 retains execution,
+timeline and scoped retention receipts before deletion. Retention removed only
+that execution; driver ends with0sessions/recordings. Promote the existing
+producer in place, with exact workflow revision and node/step evidence checks.
+Five maintained added execution/retention tests fail before promotion; original
+full API execution was not claimed by053. Source now includes native owner calls
+and adversarial test cases. Final contract/native shell40194 is pending.
+No backend/runtime code has changed. Read-only next angle: successful execution
+timeline contains recorder-generated console.error diagnostic messages on an
+otherwise quiet fixture page; inspect configuration and owner before naming a
+new defect or changing instrumentation behavior.
+
+
+054 qualified maintained producer40194:15 contract tests pass6.491s; native
+11 checks pass with3 independent effects. Exact saved revision executes as
+navigation/wait/click; every expected node has completed/successful timeline
+evidence. Execution63257377-f05d-48f7-8bc2-dca1ea41cda1 and only its artifacts
+were removed by scoped retention after JSON evidence was retained. Fixture
+project/workflow and both direct sessions were cleaned. Receipt
+saved-recording-workflow-2026-09-22.json; artifact dir /tmp/bas-recording-e2e-nmZrN6.
+Tidiness20260922-225019-d7a9c1a5 failed unchanged debt budget, single wait/decode
+consumed. Board60334 still17unqualified. Production source unchanged; existing
+052 runtime checks remain applicable. No pending operations. This qualifies a
+basic generated workflow case, not the full24-journey/release matrix.
+
+
+### BAS-WORK-055 — RF086 truthful console evidence
+
+Recall73086 consumed; BAS improve/usage guidance already loaded. No relevant
+prior console-diagnostic repair found. Native054 timeline plus source establishes
+routine recorder diagnostics polluting application console, including false
+error severity. Baseline /tmp/bas-before-055/manifest.json captures the sole
+runtime file. Structured readiness and event/delivery diagnostics already exist;
+remove redundant routine console output rather than filter telemetry. Preserve
+actual application errors and the script's real fatal-initialization report.
+Add native passive/active regressions before editing the injected script.
+
+Post054 profile metadata matches053. A later zero-session assertion failed:
+observability shows10 recent executing sessions for workflow99f8ccb9-46ff-405c-
+ab7d-a41f85cf74e4, distinct from054's already-cleaned fixture workflow
+87f0cf72-21a6-4b91-9b19-2a40fa83f57d. One owner execution already completed by
+the subsequent read; origin of this new traffic is unverified. Do not attribute
+it to a054 leak or claim the service is globally idle. Continue isolated SDK
+qualification; FB010 remains the existing restart authority, without a new
+permission request. /tmp/bas-session-observation-055.json retains the observation.
+
+
+055 maintained native red42103: passive and active cases both fail only the
+quiet-console assertion; real application error sentinel, readiness/event
+telemetry and active click capture all pass first. /tmp/bas-console-native-red-055.txt,
+2 failures/29 skipped,1.890s. Remove15 unconditional routine console statements
+from the injected script. Keep genuine fatal initialization reporting and all
+structured diagnostics unchanged. No collector filter, replacement logger,
+wrapper or dependency. Focused capture/telemetry tests, types/build are next.
+
+
+055 focused67825 consumed0:56 tests/3 suites pass17.360s, whole driver types
+and build pass. The native passive/active console controls now pass while
+application-error sentinel, readiness/event telemetry and click capture remain
+intact. Before source repair,054 API timeline retained13 recorder console entries,
+including3 false errors. Source is frozen for full driver owner and tidiness/board
+admitted next; record shell IDs from their admission output. No055 deployment
+yet. Receipt recording-console-evidence-2026-09-22.json captures source/test
+hashes and injected byte/line reductions; Go unchanged, JS complexity unknown.
+
+
+055 tidiness/board consumed: run20260922-230018-5c4ce09a failed unchanged
+duplication budget; single wait and native decode complete. Board13449 remains
+17unqualified. Full driver90898 remains pending. No product source edits.
+Read-only remaining mutation audit finds unowned raw driver calls for ACK,
+navigation, viewport/stream settings and replay, including a Connect recording
+caller. Prepared actual HTTP/real-buffer ACK probe056 (controlled session owner)
+for missing/stale/released/current envelopes. No056 runtime or maintained tests
+changed while055 qualifies. Next scope should repair the remaining interactive
+control ownership boundary coherently, with data-loss ACK admission first.
+
+
+055 full driver90898 consumed0, owner receipt passed and relevant frozen hashes
+match. Managed deployment under existing FB010 authority follows; no056 source
+changes until build/live checks finish. The new056 actual HTTP/real-buffer probe
+confirms RF038 ACK loss: missing, stale and released envelopes all return200
+and hide the pending entry; current-owner control also returns200 as expected.
+/tmp/bas-ack-wire-red-056.txt. This is a real buffer/HTTP result with controlled
+session ownership, not native browser or full durability qualification.
+
+
+055 delivered: managed86971 consumed0, all three health endpoints200 on build
+dcdb9940abc520d41d7808af27069f6869e3275cd07320b1d47517a4a9e01c5b. Native
+workflow14129 passes11 checks/3 effects; comparable timeline recorder console
+entries13 (3 errors) ->0. Application errors remain observable in maintained
+native passive/active controls. Metadata matches054; profile30735 confirms three
+complete reads against original rollback. Full driver1677 tests passes. Runtime
+-15 lines/-1158 injected bytes, no added abstraction or collector suppression.
+RF086 resolved for this demonstrated boundary. No pending operations. Proceed
+RF038 remaining interactive mutation ownership with preserved056 ACK red proof.
+
+### BAS-WORK-056 — RF038 leased recording acknowledgement
+
+Feedback reread; latest overall-status request remains resolved, continuous goal
+and restart authority unchanged. Recall search returned no relevant new repair
+program; source-ledger recall timed out while other providers returned results.
+Reuse existing Session authority, recordingOwner and registered native harness.
+Actual HTTP/real-buffer red proof /tmp/bas-ack-wire-red-056.txt: missing, stale
+and released callers all return200 and hide the unacknowledged entry; current
+owner is the positive control. This is controlled ownership, not native browser
+qualification. Four runtime files frozen into /tmp/bas-before-056/manifest.json
+before edits; Go complexity baseline /tmp/bas-go-complexity-before-056.txt.
+
+Target: retain the Go Session selected before pull/commit; ACK only through that
+immutable lease. Remove raw-interface/mocked unowned ACK path; preserve durable
+commit-before-ACK and exact receipt checking. Driver admits after full body parse
+and performs synchronous buffer acknowledgement only while operational. Reuse
+existing lifecycle helper, with no lease cache or transport abstraction. Add
+real-buffer owner rejection/body-handoff and valid selective/retry controls,
+Go wire/closed-owner/unknown-owner checks and real HTTP ACK in journal fault
+regressions. Validate scoped owners/races/build, native live workflow, tidiness,
+board, managed lifecycle and preserved profiles. Broader interactive routes,
+post-admission browser effects and full release outcomes remain unqualified.
+
+056 red/repair qualification: maintained driver76436 failed8 cases (7 ownership
+rejections plus accepted-call activity); Go wire red failed for omitted owner and
+lease. Deployed055 native fixture also fails exactly the new owner-negative
+assertion, HTTP200 for missing owner, and cleans its temporary data:
+/tmp/bas-ack-native-red-056.txt, /tmp/bas-recording-e2e-lLOvsu. New source passes
+actual HTTP/real-buffer missing/stale/released/current cases. Focused75326 passes
+44tests/2suites0.877s plus whole-driver types; harness23542 passes16 contract
+tests6.591s. Go47929 consumed0: three affected package race tests and whole API
+build pass. Journal fault tests now send a real HTTP ACK, verify commit-first,
+retain exact IDs and prove a Session replaced during commit cannot supply the
+new owner's authority. Unknown destructive pull is rejected before any read.
+Closed Go Session cannot send an ACK; malformed ownership is rejected before HTTP.
+
+Runtime changes: four existing files, +21 lines. Raw ClientInterface ACK and its
+mock removed; no new authority cache/transport/adapter. Affected Go115/445->116/451
+functions/complexity (+6), cumulative reduction now220. This is necessary
+correctness cost, not complexity reduction. Frozen hashes /tmp/bas-frozen-056.json.
+Driver owner17226, tidiness admission42587 and board70165 pending; no managed
+restart yet. Receipt recording-ack-ownership-2026-09-22.json records current scope.
+
+056 tidiness initial run20260922-232613-643fe005 and one quiet wait consumed:
+failed,1126 findings/104long/392complexity/609dup/20coupling, debt32663 unchanged.
+Review attributes new findings to the API owner type import and stronger journal
+fault-test matrix (complexity14,21imports). Simplified API owner resolution to the
+existing side-effect-free GetSession call with inferred type, eliminating that
+extra import and nested declaration. Read-only pulls still accept absent API
+ownership; destructive pulls require a nonnil admitted owner. This reduces runtime
+lines without moving code. Final Go race/build running in shell21119.
+Driver source/tests unchanged during driver owner17226. Board70165 consumed:
+17unqualified/productfalse. Test matrix complexity remains an explicit test cost;
+no extraction to hide it. Re-run tidiness once for the changed Go source.
+
+056 final Go21119 consumed0; three affected race packages and whole API build
+pass. Final tidiness12953 run20260922-232924-3e1f0c18/quiet wait/artifact decode
+consumedfailed:1126/104long/393complexity/609dup/19coupling, debt32663. Runtime
+net+17 lines; affectedGo115/445->116/452, cumulative reduction219. Both new
+complexity findings and test import count are disclosed; no threshold changes.
+
+Full driver17226 failed1 old fixture assertion (HTTP200 expected for unowned
+ACK),1684passed/2skipped. Owner uh-20260922-232608-d9db78ed7f5ef0409e8c5ef63f15937b,
+388.519s owner/387.357s Jest, retained receipt. Converted both ACK/retry calls in
+existing tests/unit/routes/record-mode.test.ts to an owned Session and asserted
+lease identity; original non-destructive-read/exact-ACK/retry oracles preserved.
+Focused37259 consumed0:50tests/3suites1.183s and types pass. No product source
+changes. Refrozen hashes include the converted test. Full owner37095 and managed
+restart79365 now pending; run concurrently on frozen source after all remaining
+1684 tests and repaired focused fixture pass. Existing FB010 authority applies.
+Prepared /tmp/browser-automation-studio/recording-live-056.py adds native API
+clear/ACK/journal-preservation checks to the prior052 fixture; execute after restart.
+
+056 delivered: managed79365 consumed0. Build
+f635a2dd3f9c883948b789dacc02729e341e463d1fb6f68d499e0d080f6b73c9,
+API/driver/UI all200. Native workflow44358 passes12checks/3independent effects,
+including missing/stale ACK rejection and preserved driver entries; saved workflow
+execution/timeline/scoped cleanup remain qualified. Artifact /tmp/bas-recording-e2e-BPR5bm.
+Native API41324 passes35checks/2effects: destructive pull carries ownership and
+leaves the already-committed journal identical, while hiding driver entries.
+Owned session/profile cleanup passes. Profile74915 consumed0: metadata matches055
+and three full contents match original rollback. Full driver37095 consumed0:
+uh-20260922-233411-e41c7817d38372d572afccbbc5b3eafc,1685tests/124suites,
+2tests/1suite skipped,377.933s owner/377.130s Jest. Frozen hashes match. Receipt
+recording-ack-ownership-2026-09-22.json is qualified_and_deployed. No pending056
+operations. RF038 remains open for other interactive controls and later effects.
+
+Next adversarial pass057: feedback reread. Native managed-driver navigation probe
+confirms missing and stale ownership both return200 and load the fixture once;
+current owner is the positive control. Three scoped native sessions all close200.
+/tmp/bas-navigation-native-red-057.json retains independent HTTP requests, with
+/tmp/browser-automation-studio/recording-navigation-057.py as producer. No057
+production edits yet. Inspect navigation caller and history ownership across HTTP,
+Connect and Go Session; repair all four navigation mutations coherently and
+remove duplicated route completion policy where the behavior supports it.
+
+### BAS-WORK-057 — RF038 owned navigation and shared completion
+
+FB012 captured verbatim before action and answered with overall goal status;
+continuous work explicitly reaffirmed. Native056-build probe proves unauthorized
+navigation effects; no missing capability or approval. Existing Session and
+recordingOwner are the chosen owners. Baseline /tmp/bas-before-057/manifest.json
+captures12 runtime files before edits, including callers/types on both runtimes;
+Go baseline /tmp/bas-go-complexity-before-057.txt. Architecture target updated.
+
+Repair URL navigate, reload, back and forward coherently. Convert Go HTTP, history
+Connect and first saved-tab restoration callers; remove unowned ClientInterface
+methods/mocks. Share the identical history-navigation request/response/commit
+policy without aliases. Driver lease+page fencing follows all awaited completion
+steps and precedes history/cache/callback/success publication; retain supported
+wait/timeout/capture/history semantics. Browser effects already admitted while
+owned are not reversible and remain a separate interruption/reconciliation gap.
+Maintained adversarial cases must cover missing/stale/released/non-operational
+owners, body handoff, delayed navigation/title/page replacement, valid bounds,
+exact options and history outcomes. Scope tests to changed driver/Go callers,
+then relevant owner/tidiness/board/native fixtures and managed/profile checks.
+
+057 implementation checkpoint:12 runtime files changed; shared driver navigation
+completion now fences lease and page after awaited navigation/verification/title/
+screenshot/thumbnail before history/cache/callback/success. Maintained red94166
+has32failed adverse cases and4passed owned controls (the earlier fixture did not
+model legacy getSession activity; corrected before production edits). Source
+passes36 corresponding cases; whole-driver types pass. Existing unowned navigate
+fixture converted; focused47953 passes86tests/3suites1.402s. Added four history
+bounds/null-result controls afterward; their focused/types shell is pending.
+
+Go now has one owned NavigateHistory request/response/client/Session path instead
+of three unowned copies. API history controls share decode/ownership/commit/response
+policy; URL controls, Connect history navigation and first-tab restore carry the
+immutable Session. Removed old raw-interface methods and unowned mocks; preserved
+public endpoint/JSON shapes and navigation journal/page broadcast assertions.
+Go32599 passes all five affected race packages and whole API build. Wire controls
+cover four Session commands, closed/unknown owners, missing lease/options, invalid
+history operation, Connect path, history journal failures and saved first-tab
+restoration. No057 deployment/full owner/tidiness admission yet. Deployed056 is
+still healthy. Source restoration and additional-tab/page/preview ownership remain
+RF038 scope; no whole-boundary closure claim.
+
+057 scope extension, 2026-09-22: native RF087 history probe consumed1 with two
+real failures and successful cleanup; /tmp/bas-history-native-red-057.{txt,json}.
+The just-added null-result unit oracle was wrong for same-document movement;
+replace it with browser-entry movement/no-movement assertions. Browser CDP
+history replaces the divergent private map, with short-lived attachment cleanup
+and existing lease/page guards. Extend baseline before edits to server.ts async
+route and UI useBrowserNavigation/BrowserChrome (15 runtime paths total). API
+NavigationStackEntry timestamp becomes optional; UI popup stops requiring it
+or a nonempty title. Add scoped UI hook checks and types plus native browser
+history cases. Architecture updated before extension. Previous final bounds
+94818 consumed0 (46tests/types) is interim evidence, not RF087 qualification.

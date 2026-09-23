@@ -59,6 +59,7 @@
     "test:coverage": "jest --coverage",
     "test:e2e:pipeline": "jest tests/integration/pipeline-e2e.test.ts --runInBand",
     "test:e2e:record-mode": "node tests/e2e/record-mode-e2e.mjs",
+    "test:e2e:record-mode:contract": "node --test tests/e2e/record-mode-e2e.test.mjs",
     "test:integration": "jest tests/integration",
     "test:recording": "jest tests/unit/recording tests/integration/record-mode.test.ts tests/integration/timeline-validation.test.ts tests/integration/pipeline-e2e.test.ts",
     "test:selectors": "playwright test src/recording/validation/selectors.test.ts",

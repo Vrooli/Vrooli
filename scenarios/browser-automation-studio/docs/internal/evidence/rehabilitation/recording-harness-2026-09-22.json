@@ -1,0 +1,128 @@
+{
+  "record": "BAS-WORK-053",
+  "issues": [
+    "BAS-RF-084"
+  ],
+  "status": "qualified_registered_harness",
+  "baseline": "/tmp/bas-before-053/manifest.json",
+  "source_sha256": {
+    "playwright-driver/tests/e2e/record-mode-e2e.mjs": "12a2944ac27b858284edbbdcda38c27fe3a30771e68329df14f15bf601123141",
+    "playwright-driver/package.json": "5e9bf806b8ee11137fb674578b7fb6b9e38398f49dd12df8052b79caf0421764",
+    "playwright-driver/tests/e2e/record-mode-e2e.test.mjs": "4bc3b948c95003f3081f3a569f7bcdcce844e8c3474b8aa6170dbad9722df16b"
+  },
+  "lines": {
+    "playwright-driver/tests/e2e/record-mode-e2e.mjs": {
+      "before": 253,
+      "after": 225
+    },
+    "playwright-driver/package.json": {
+      "before": 71,
+      "after": 72
+    },
+    "playwright-driver/tests/e2e/record-mode-e2e.test.mjs": {
+      "before": 0,
+      "after": 161
+    }
+  },
+  "runtime_delta": 0,
+  "evidence": {
+    "original_false_green": "/tmp/bas-recording-harness-oracle-red-052.log",
+    "maintained_red": "/tmp/bas-harness-maintained-red-053.txt",
+    "initial_green": "/tmp/bas-harness-green-053.txt",
+    "fixture_identity_red": "/tmp/bas-harness-identity-red-053.txt",
+    "contract_final": "/tmp/bas-harness-contract-final-053.txt",
+    "native_initial": "/tmp/bas-harness-native-first-053.txt",
+    "native_final": "/tmp/bas-harness-native-final-053.txt"
+  },
+  "native_result": {
+    "cases": [
+      {
+        "name": "driver prerequisite",
+        "status": "passed"
+      },
+      {
+        "name": "owned recording captures the independent fixture click",
+        "status": "passed"
+      },
+      {
+        "name": "API persists and reads the generated workflow",
+        "status": "passed"
+      },
+      {
+        "name": "committed entries receive an exact acknowledgement",
+        "status": "passed"
+      },
+      {
+        "name": "captured typed actions replay in a fresh browser context",
+        "status": "passed"
+      },
+      {
+        "name": "close owned session 8170035c-c93e-4524-be6f-9fa43cab0283",
+        "status": "passed"
+      },
+      {
+        "name": "close owned session 72420e17-1f77-4d62-9c31-a95a42ba6363",
+        "status": "passed"
+      },
+      {
+        "name": "delete fixture workflow",
+        "status": "passed"
+      },
+      {
+        "name": "delete fixture project and files",
+        "status": "passed"
+      }
+    ],
+    "effects": [
+      {
+        "sequence": 1,
+        "context": "fixture_context=83c9a016-eeda-4816-9ac2-cbcfe7ab4adc",
+        "received_at": "2026-09-22T22:41:11.019Z"
+      },
+      {
+        "sequence": 2,
+        "context": "fixture_context=8f3548b6-6216-4502-a961-4938857c2e6a",
+        "received_at": "2026-09-22T22:41:11.271Z"
+      }
+    ],
+    "artifact_dir": "/tmp/bas-recording-e2e-9MbmTr",
+    "api_selected": true,
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0
+  },
+  "native_recording_sha256": "fab99af2ee4ac2b0b9d858d365c64cef3c9e7f38121310ade95e67ef85b577dc",
+  "backend_build": "sha256:3c0dbef7d4bebe647501cde6a4b263cb66175dafc708498c34106d3d398b49f2",
+  "limitations": [
+    "Local driver/API fixture only; no native OS or remote-host qualification.",
+    "One navigation and one click recorded/replayed in a fresh context, plus API workflow generation/persistence. Does not prove the saved workflow through the API executor, full UI editing, broader input/tab/frame cases, recovery, load or soak.",
+    "Fixture counter is an independent effect oracle, not correlated painted-frame latency.",
+    "Only test harness/script registration changed; production driver/Go/UI qualification from052 remains applicable. No runtime complexity reduction claimed."
+  ],
+  "contract_tests": {
+    "passed": 11,
+    "failed": 0,
+    "duration_ms": 1039.215831
+  },
+  "tidiness": {
+    "run_id": "20260922-224342-f9d0a473",
+    "status": "failed",
+    "quiet_wait_consumed": true,
+    "summary": {
+      "totalFindings": 1123,
+      "longFiles": 104,
+      "complexity": 391,
+      "duplication": 609,
+      "coupling": 18,
+      "duplicationLineDebt": 32663
+    }
+  },
+  "board": {
+    "required": 17,
+    "unqualified": 17,
+    "product_qualified": false,
+    "artifact": "/tmp/bas-board-053.txt"
+  },
+  "pending_operations": {},
+  "saved_profile_metadata_unchanged": "/tmp/bas-profile-api-final-053.json"
+}

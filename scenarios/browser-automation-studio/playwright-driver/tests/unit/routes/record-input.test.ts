@@ -1,6 +1,7 @@
 import { handleRecordInput, handleRecordViewport } from '../../../src/routes/record-mode/recording-input';
 import { createMockHttpRequest, createMockHttpResponse, createMockPage, createTestConfig } from '../../helpers';
 import type { SessionManager } from '../../../src/session';
+import { SessionNotFoundError } from '../../../src/utils';
 
 jest.mock('../../../src/frame-streaming', () => ({
   updateFrameStreamViewport: jest.fn().mockResolvedValue({ success: true }),
@@ -9,7 +10,7 @@ jest.mock('../../../src/frame-streaming', () => ({
 describe('recording input routes', () => {
   const config = createTestConfig();
   let mockPage: ReturnType<typeof createMockPage>;
-  let sessionManager: Pick<SessionManager, 'getSession'>;
+  let sessionManager: Pick<SessionManager, 'getSession' | 'getSessionForLease' | 'updateActivity'>;
 
   beforeEach(() => {
     mockPage = createMockPage({
@@ -27,16 +28,64 @@ describe('recording input routes', () => {
       setViewportSize: jest.fn().mockResolvedValue(undefined),
       viewportSize: jest.fn().mockReturnValue({ width: 800, height: 600 }),
     });
+    const session = { phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease', page: mockPage } as ReturnType<SessionManager['getSession']>;
     sessionManager = {
-      getSession: () => ({ page: mockPage } as ReturnType<SessionManager['getSession']>),
+      getSession: () => session,
+      getSessionForLease: (id, owner, lease) => {
+        if (owner !== session.ownerExecutionId || lease !== session.leaseId) throw new SessionNotFoundError(id);
+        return session;
+      },
+      updateActivity: jest.fn(),
     };
+  });
+
+  it.each(['missing', 'stale', 'released', 'current'])('admits only the current caller lease before input effects: %s [REQ:BAS-RH-J17]', async (envelope) => {
+    const session = { phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease', page: mockPage };
+    const manager = {
+      getSession: jest.fn(() => session),
+      getSessionForLease: (_id: string, owner: string, lease: string) => {
+        if (owner !== session.ownerExecutionId || lease !== session.leaseId || envelope === 'released') throw new SessionNotFoundError('input');
+        return session;
+      },
+      updateActivity: jest.fn(),
+    } as unknown as SessionManager;
+    const lease = envelope === 'missing' ? {} : envelope === 'stale'
+      ? { execution_id: 'old-owner', lease_id: 'old-lease' } : { execution_id: 'owner', lease_id: 'lease' };
+    const res = createMockHttpResponse();
+    await handleRecordInput(createMockHttpRequest({ method: 'POST', body: { ...lease, type: 'pointer', action: 'click', x: 12, y: 34 } }), res, 'input', manager, config);
+    expect(res.statusCode).toBe(envelope === 'current' ? 200 : envelope === 'missing' ? 400 : 404);
+    expect(mockPage.mouse.click).toHaveBeenCalledTimes(envelope === 'current' ? 1 : 0);
+    if (envelope !== 'current') {
+      expect(manager.getSession).not.toHaveBeenCalled();
+      expect(manager.updateActivity).not.toHaveBeenCalled();
+    }
+  });
+
+  it.each(['down', 'up'] as const)('rejects a lease handoff before the second pointer %s operation', async (action) => {
+    const session = sessionManager.getSession('test');
+    jest.mocked(mockPage.mouse.move).mockImplementation(async () => { session.leaseId = 'replacement'; });
+    const res = createMockHttpResponse();
+    await handleRecordInput(createMockHttpRequest({ method: 'POST', body: { execution_id: 'owner', lease_id: 'lease', type: 'pointer', action, x: 12, y: 34 } }), res, 'test', sessionManager as SessionManager, config);
+    expect(res.statusCode).toBe(404);
+    expect(mockPage.mouse.down).not.toHaveBeenCalled();
+    expect(mockPage.mouse.up).not.toHaveBeenCalled();
+  });
+
+  it('rejects input when ownership changes while reading the body', async () => {
+    const res = createMockHttpResponse();
+    const pending = handleRecordInput(createMockHttpRequest({ method: 'POST', body: { execution_id: 'owner', lease_id: 'lease', type: 'pointer', action: 'click' } }), res, 'test', sessionManager as SessionManager, config);
+    sessionManager.getSession('test').leaseId = 'replacement';
+    await pending;
+    expect(res.statusCode).toBe(404);
+    expect(mockPage.mouse.click).not.toHaveBeenCalled();
+    expect(sessionManager.updateActivity).not.toHaveBeenCalled();
   });
 
   it('handles pointer move input', async () => {
     const req = createMockHttpRequest({
       method: 'POST',
       url: '/session/test/record/input',
-      body: { type: 'pointer', action: 'move', x: 10, y: 20 },
+      body: { execution_id: 'owner', lease_id: 'lease', type: 'pointer', action: 'move', x: 10, y: 20 },
     });
     const res = createMockHttpResponse();
 
@@ -50,7 +99,7 @@ describe('recording input routes', () => {
     const req = createMockHttpRequest({
       method: 'POST',
       url: '/session/test/record/input',
-      body: { type: 'pointer', action: 'tap', x: 1, y: 2 },
+      body: { execution_id: 'owner', lease_id: 'lease', type: 'pointer', action: 'tap', x: 1, y: 2 },
     });
     const res = createMockHttpResponse();
 
@@ -64,7 +113,7 @@ describe('recording input routes', () => {
     const req = createMockHttpRequest({
       method: 'POST',
       url: '/session/test/record/input',
-      body: { type: 'keyboard', text: 'hello' },
+      body: { execution_id: 'owner', lease_id: 'lease', type: 'keyboard', text: 'hello' },
     });
     const res = createMockHttpResponse();
 
@@ -78,7 +127,7 @@ describe('recording input routes', () => {
     const req = createMockHttpRequest({
       method: 'POST',
       url: '/session/test/record/input',
-      body: { type: 'keyboard', key: 'Enter', modifiers: ['Shift', 'Alt'] },
+      body: { execution_id: 'owner', lease_id: 'lease', type: 'keyboard', key: 'Enter', modifiers: ['Shift', 'Alt'] },
     });
     const res = createMockHttpResponse();
 
@@ -92,7 +141,7 @@ describe('recording input routes', () => {
     const req = createMockHttpRequest({
       method: 'POST',
       url: '/session/test/record/input',
-      body: { type: 'keyboard' },
+      body: { execution_id: 'owner', lease_id: 'lease', type: 'keyboard' },
     });
     const res = createMockHttpResponse();
 
@@ -106,7 +155,7 @@ describe('recording input routes', () => {
     const req = createMockHttpRequest({
       method: 'POST',
       url: '/session/test/record/input',
-      body: { type: 'wheel', delta_x: 5, delta_y: -3 },
+      body: { execution_id: 'owner', lease_id: 'lease', type: 'wheel', delta_x: 5, delta_y: -3 },
     });
     const res = createMockHttpResponse();
 

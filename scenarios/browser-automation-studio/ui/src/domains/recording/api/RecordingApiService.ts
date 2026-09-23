@@ -76,7 +76,7 @@ export class RecordingApiService {
    * Validate data with Zod schema, returning ApiResult.
    */
   private validate<T>(
-    schema: z.ZodSchema<T>,
+    schema: z.ZodType<T, z.ZodTypeDef, unknown>,
     data: unknown,
     context: string
   ): ApiResult<T> {
@@ -159,55 +159,19 @@ export class RecordingApiService {
 
       const payload = await this.parseJson(response, 'startRecording');
 
-      // Handle 409 Conflict: Recording already in progress
-      // This happens on page refresh - treat as successful state sync
+      // Recover refresh/retry only from the driver's actual active receipt.
       if (response.status === 409) {
-        // Backend returns error format {code, message} for 409, not StartRecordingResponse
-        // Check if it's the expected RECORDING_IN_PROGRESS error
-        const errorResult = schemas.ApiErrorResponseSchema.safeParse(payload);
-        if (errorResult.success && errorResult.data.code === 'RECORDING_IN_PROGRESS') {
-          // Recording is active - return synthetic success for session restoration
-          const data: schemas.StartRecordingResponse = {
-            recording_id: `restored-${sessionId}-${Date.now()}`,
-            session_id: sessionId,
-            started_at: new Date().toISOString(),
-          };
-          logger.info('Recording already in progress, syncing state', {
-            component: 'RecordingApiService',
-            recordingId: data.recording_id,
-          });
-          return { success: true, data };
+        const error = schemas.ApiErrorResponseSchema.safeParse(payload);
+        if (error.success && error.data.code === 'RECORDING_IN_PROGRESS') {
+          const current = await fetch(`${this.apiUrl}/recordings/live/${sessionId}/status`, { signal: options?.signal });
+          const statusPayload = await this.parseJson(current, 'recordingStatus');
+          if (!current.ok) return { success: false, error: this.extractErrorMessage(statusPayload, current.statusText) };
+          const status = this.validate(schemas.ActiveRecordingStatusSchema, statusPayload, 'ActiveRecordingStatus');
+          if (!status.success) return status;
+          if (status.data.session_id !== sessionId) return { success: false, error: 'Recording status belongs to another session' };
+          const { recording_id, session_id, started_at } = status.data;
+          return { success: true, data: { recording_id, session_id, started_at } };
         }
-
-        // Fallback: try parsing as relaxed StartRecordingResponse
-        const relaxedSchema = schemas.StartRecordingResponseSchema.extend({
-          recording_id: z.string().optional(),
-          session_id: z.string().optional(),
-          started_at: z.string().optional(),
-        });
-        const validated = this.validate(relaxedSchema, payload, 'StartRecording (409)');
-        if (validated.success) {
-          const data: schemas.StartRecordingResponse = {
-            recording_id: validated.data.recording_id ?? `restored-${sessionId}-${Date.now()}`,
-            session_id: validated.data.session_id ?? sessionId,
-            started_at: validated.data.started_at ?? new Date().toISOString(),
-          };
-          return { success: true, data };
-        }
-
-        // If all parsing fails, still treat as success since 409 means recording is active
-        logger.warn('409 response format unexpected, treating as active recording', {
-          component: 'RecordingApiService',
-          payload,
-        });
-        return {
-          success: true,
-          data: {
-            recording_id: `restored-${sessionId}-${Date.now()}`,
-            session_id: sessionId,
-            started_at: new Date().toISOString(),
-          },
-        };
       }
 
       if (!response.ok) {

@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/domain"
 )
 
@@ -67,15 +67,20 @@ func (h *Handler) NavigateRecordingSession(w http.ResponseWriter, r *http.Reques
 		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "url"}))
 		return
 	}
-	resp, err := h.recordModeService.DriverClient().Navigate(ctx, sessionID, &driver.NavigateRequest{URL: req.URL, WaitUntil: req.WaitUntil, TimeoutMs: req.TimeoutMs, Capture: req.Capture})
+	owner, ok := h.recordModeService.GetSession(sessionID)
+	if !ok || owner == nil {
+		h.respondError(w, ErrExecutionNotFound.WithMessage("Session not found"))
+		return
+	}
+	resp, err := owner.Navigate(ctx, req.URL, session.WithWaitUntil(req.WaitUntil), session.WithNavigateTimeout(req.TimeoutMs), session.WithCapture(req.Capture))
 	if err != nil {
 		h.log.WithError(err).Error("Failed to navigate recording session")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{"error": err.Error()}))
 		return
 	}
-	if session, ok := h.recordModeService.GetSession(sessionID); ok && session.Pages() != nil {
-		pageID := session.Pages().GetActivePageID()
-		session.Pages().UpdatePageInfo(pageID, resp.URL, resp.Title)
+	if owner.Pages() != nil {
+		pageID := owner.Pages().GetActivePageID()
+		owner.Pages().UpdatePageInfo(pageID, resp.URL, resp.Title)
 		h.wsHub.BroadcastPageEvent(sessionID, &domain.PageEvent{ID: uuid.New(), Type: domain.PageEventNavigated, PageID: pageID, URL: resp.URL, Title: resp.Title, Timestamp: time.Now()})
 	}
 	h.respondSuccess(w, http.StatusOK, NavigateRecordingResponse{URL: resp.URL, Title: resp.Title, CanGoBack: resp.CanGoBack, CanGoForward: resp.CanGoForward, StatusCode: resp.StatusCode, Screenshot: resp.Screenshot})

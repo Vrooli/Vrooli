@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -350,6 +349,11 @@ func (h *Handler) GetRecordedActions(w http.ResponseWriter, r *http.Request) {
 
 	// Check for clear query param
 	clearActions := r.URL.Query().Get("clear") == "true"
+	owner, owned := h.recordModeService.GetSession(sessionID)
+	if clearActions && (!owned || owner == nil) {
+		h.respondError(w, ErrExecutionNotFound.WithMessage("Session not found"))
+		return
+	}
 
 	// Read without mutation; acknowledgement follows journal commit.
 	resp, err := h.recordModeService.DriverClient().GetRecordedActions(ctx, sessionID)
@@ -371,7 +375,7 @@ func (h *Handler) GetRecordedActions(w http.ResponseWriter, r *http.Request) {
 			}
 			ids = append(ids, action.ID)
 		}
-		if err := h.recordModeService.DriverClient().AcknowledgeRecordedActions(ctx, sessionID, ids); err != nil {
+		if err := owner.AcknowledgeRecordedActions(ctx, ids); err != nil {
 			h.respondError(w, ErrServiceUnavailable.WithMessage("Recording committed but driver acknowledgement failed").WithDetails(map[string]string{"error": err.Error()}))
 			return
 		}
@@ -603,157 +607,58 @@ func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request
 	h.log.WithField("session_id", sessionID).Info("Driver frame stream disconnected")
 }
 
-// ReloadRecordingSession handles POST /api/v1/recordings/live/{sessionId}/reload
-// Reloads the current page in the recording session.
+// ReloadRecordingSession handles POST /api/v1/recordings/live/{sessionId}/reload.
 func (h *Handler) ReloadRecordingSession(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
-	defer cancel()
-
-	sessionID := chi.URLParam(r, "sessionId")
-	if sessionID == "" {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
-			"field": "sessionId",
-		}))
-		return
-	}
-
-	var req ReloadRecordingRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err.Error() != "EOF" {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
-			"error": "Invalid JSON body: " + err.Error(),
-		}))
-		return
-	}
-
-	// Delegate directly to driver client (no service-layer business logic needed)
-	resp, err := h.recordModeService.DriverClient().Reload(ctx, sessionID, &driver.ReloadRequest{
-		WaitUntil: req.WaitUntil,
-		TimeoutMs: req.TimeoutMs,
-	})
-	if err != nil {
-		h.log.WithError(err).Error("Failed to reload recording session")
-		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": err.Error(),
-		}))
-		return
-	}
-
-	if apiErr := h.recordCompletedNavigation(ctx, sessionID, "reload", resp.URL, resp.Title); apiErr != nil {
-		h.respondError(w, apiErr)
-		return
-	}
-
-	driverResp := ReloadRecordingResponse{
-		SessionID:    sessionID,
-		URL:          resp.URL,
-		Title:        resp.Title,
-		CanGoBack:    resp.CanGoBack,
-		CanGoForward: resp.CanGoForward,
-	}
-
-	h.respondSuccess(w, http.StatusOK, driverResp)
+	h.navigateRecordingHistory(w, r, driver.HistoryReload)
 }
 
-// GoBackRecordingSession handles POST /api/v1/recordings/live/{sessionId}/go-back
-// Navigates back in browser history.
+// GoBackRecordingSession handles POST /api/v1/recordings/live/{sessionId}/go-back.
 func (h *Handler) GoBackRecordingSession(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
-	defer cancel()
-
-	sessionID := chi.URLParam(r, "sessionId")
-	if sessionID == "" {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
-			"field": "sessionId",
-		}))
-		return
-	}
-
-	var req GoBackRecordingRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err.Error() != "EOF" {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
-			"error": "Invalid JSON body: " + err.Error(),
-		}))
-		return
-	}
-
-	// Delegate directly to driver client (no service-layer business logic needed)
-	resp, err := h.recordModeService.DriverClient().GoBack(ctx, sessionID, &driver.GoBackRequest{
-		WaitUntil: req.WaitUntil,
-		TimeoutMs: req.TimeoutMs,
-	})
-	if err != nil {
-		h.log.WithError(err).Error("Failed to go back in recording session")
-		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": err.Error(),
-		}))
-		return
-	}
-
-	if apiErr := h.recordCompletedNavigation(ctx, sessionID, "goBack", resp.URL, resp.Title); apiErr != nil {
-		h.respondError(w, apiErr)
-		return
-	}
-
-	driverResp := GoBackRecordingResponse{
-		SessionID:    sessionID,
-		URL:          resp.URL,
-		Title:        resp.Title,
-		CanGoBack:    resp.CanGoBack,
-		CanGoForward: resp.CanGoForward,
-	}
-
-	h.respondSuccess(w, http.StatusOK, driverResp)
+	h.navigateRecordingHistory(w, r, driver.HistoryBack)
 }
 
-// GoForwardRecordingSession handles POST /api/v1/recordings/live/{sessionId}/go-forward
-// Navigates forward in browser history.
+// GoForwardRecordingSession handles POST /api/v1/recordings/live/{sessionId}/go-forward.
 func (h *Handler) GoForwardRecordingSession(w http.ResponseWriter, r *http.Request) {
+	h.navigateRecordingHistory(w, r, driver.HistoryForward)
+}
+
+func (h *Handler) navigateRecordingHistory(w http.ResponseWriter, r *http.Request, operation driver.HistoryNavigation) {
 	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
 	defer cancel()
-
 	sessionID := chi.URLParam(r, "sessionId")
 	if sessionID == "" {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
-			"field": "sessionId",
-		}))
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "sessionId"}))
 		return
 	}
-
-	var req GoForwardRecordingRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err.Error() != "EOF" {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
-			"error": "Invalid JSON body: " + err.Error(),
-		}))
+	var req driver.HistoryNavigationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "Invalid JSON body: " + err.Error()}))
 		return
 	}
-
-	// Delegate directly to driver client (no service-layer business logic needed)
-	resp, err := h.recordModeService.DriverClient().GoForward(ctx, sessionID, &driver.GoForwardRequest{
-		WaitUntil: req.WaitUntil,
-		TimeoutMs: req.TimeoutMs,
-	})
+	owner, ok := h.recordModeService.GetSession(sessionID)
+	if !ok || owner == nil {
+		h.respondError(w, ErrExecutionNotFound.WithMessage("Session not found"))
+		return
+	}
+	resp, err := owner.NavigateHistory(ctx, operation, &req)
 	if err != nil {
-		h.log.WithError(err).Error("Failed to go forward in recording session")
-		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": err.Error(),
-		}))
+		h.log.WithError(err).Error("Failed to navigate recording history")
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{"error": err.Error()}))
 		return
 	}
-
-	if apiErr := h.recordCompletedNavigation(ctx, sessionID, "goForward", resp.URL, resp.Title); apiErr != nil {
+	actionType := "reload"
+	if operation == driver.HistoryBack {
+		actionType = "goBack"
+	}
+	if operation == driver.HistoryForward {
+		actionType = "goForward"
+	}
+	if apiErr := h.recordCompletedNavigation(ctx, sessionID, actionType, resp.URL, resp.Title); apiErr != nil {
 		h.respondError(w, apiErr)
 		return
 	}
-
-	driverResp := GoForwardRecordingResponse{
-		SessionID:    sessionID,
-		URL:          resp.URL,
-		Title:        resp.Title,
-		CanGoBack:    resp.CanGoBack,
-		CanGoForward: resp.CanGoForward,
-	}
-
-	h.respondSuccess(w, http.StatusOK, driverResp)
+	resp.SessionID = sessionID
+	h.respondSuccess(w, http.StatusOK, resp)
 }
 
 // CaptureRecordingScreenshot handles POST /api/v1/recordings/live/{sessionId}/screenshot
@@ -959,8 +864,8 @@ func (h *Handler) ForwardRecordingInput(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Delegate directly to driver client (no service-layer business logic needed)
-	err = h.recordModeService.DriverClient().ForwardInput(ctx, sessionID, bodyBytes)
+	// The service carries the immutable session lease for this mutation.
+	err = h.recordModeService.ForwardInput(ctx, sessionID, bodyBytes)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to forward recording input")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
@@ -1050,55 +955,14 @@ func (h *Handler) GetRecordingFrame(w http.ResponseWriter, r *http.Request) {
 // - Keep-alive connections reduce latency by avoiding TCP handshake per request
 // - Connection pool sized for concurrent input events across sessions
 func (h *Handler) CreateInputForwarder() func(sessionID string, input map[string]any) error {
-	// Shared HTTP client with connection pooling for all input forwarding.
-	// This dramatically reduces latency vs creating a new client per request.
-	// Keep-alive connections mean subsequent requests reuse existing TCP connections.
-	transport := &http.Transport{
-		MaxIdleConns:        100,              // Total pool size
-		MaxIdleConnsPerHost: 10,               // Per-driver connections (usually just one driver)
-		IdleConnTimeout:     90 * time.Second, // Keep connections warm
-		DisableKeepAlives:   false,            // Explicitly enable keep-alive
-	}
-	client := &http.Client{
-		Timeout:   5 * time.Second,
-		Transport: transport,
-	}
-
 	return func(sessionID string, input map[string]any) error {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second) // Tighter timeout for input
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-
-		driverBaseURL, err := getPlaywrightDriverURL()
-		if err != nil {
-			return fmt.Errorf("resolve Playwright driver: %w", err)
-		}
-		driverURL := fmt.Sprintf("%s/session/%s/record/input", driverBaseURL, sessionID)
-
-		jsonBody, err := json.Marshal(input)
+		body, err := json.Marshal(input)
 		if err != nil {
 			return fmt.Errorf("marshal input: %w", err)
 		}
-
-		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, bytes.NewReader(jsonBody))
-		if err != nil {
-			return fmt.Errorf("create request: %w", err)
-		}
-		httpReq.Header.Set("Content-Type", "application/json")
-
-		resp, err := client.Do(httpReq)
-		if err != nil {
-			return fmt.Errorf("forward input: %w", err)
-		}
-		defer resp.Body.Close()
-
-		// Drain the response body to enable connection reuse
-		_, _ = io.Copy(io.Discard, resp.Body)
-
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("driver returned %d", resp.StatusCode)
-		}
-
-		return nil
+		return h.recordModeService.ForwardInput(ctx, sessionID, body)
 	}
 }
 

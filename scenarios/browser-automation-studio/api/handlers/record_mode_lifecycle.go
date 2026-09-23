@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
@@ -46,12 +45,12 @@ func (h *Handler) StartLiveRecording(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{"error": err.Error()}))
 		return
 	}
-	payload := StartRecordingResponse{RecordingID: uuid.NewString(), SessionID: resp.SessionID, StartedAt: resp.StartedAt}
-	if pb, err := protoconv.StartRecordingToProto(payload); err == nil && pb != nil {
-		h.respondProto(w, http.StatusOK, pb)
+	pb, err := protoconv.StartRecordingToProto(resp)
+	if err != nil {
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{"error": err.Error()}))
 		return
 	}
-	h.respondSuccess(w, http.StatusOK, payload)
+	h.respondProto(w, http.StatusOK, pb)
 }
 
 func (h *Handler) StopLiveRecording(w http.ResponseWriter, r *http.Request) {
@@ -62,7 +61,7 @@ func (h *Handler) StopLiveRecording(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "sessionId"}))
 		return
 	}
-	resp, err := h.recordModeService.DriverClient().StopRecording(ctx, sessionID)
+	resp, err := h.recordModeService.StopRecording(ctx, sessionID)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to stop recording")
 		if driverErr, ok := err.(*driver.Error); ok && driverErr.Status == http.StatusNotFound {
@@ -75,12 +74,12 @@ func (h *Handler) StopLiveRecording(w http.ResponseWriter, r *http.Request) {
 	if err := h.persistSessionProfile(ctx, sessionID); err != nil {
 		h.log.WithError(err).WithField("session_id", sessionID).Warn("Failed to persist session profile after stop")
 	}
-	payload := StopRecordingResponse{SessionID: resp.SessionID, ActionCount: resp.ActionCount, StoppedAt: resp.StoppedAt}
-	if pb, err := protoconv.StopRecordingToProto(payload); err == nil && pb != nil {
-		h.respondProto(w, http.StatusOK, pb)
+	pb, err := protoconv.StopRecordingToProto(resp)
+	if err != nil {
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{"error": err.Error()}))
 		return
 	}
-	h.respondSuccess(w, http.StatusOK, payload)
+	h.respondProto(w, http.StatusOK, pb)
 }
 
 func (h *Handler) GetRecordingStatus(w http.ResponseWriter, r *http.Request) {
@@ -97,10 +96,10 @@ func (h *Handler) GetRecordingStatus(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{"error": err.Error()}))
 		return
 	}
-	payload := RecordingStatusResponse{SessionID: status.SessionID, IsRecording: status.IsRecording, ActionCount: status.ActionCount, StartedAt: status.StartedAt, FrameCount: status.FrameCount}
-	if pb, err := protoconv.RecordingStatusToProto(payload); err == nil && pb != nil {
-		h.respondProto(w, http.StatusOK, pb)
+	pb, err := protoconv.RecordingStatusToProto(status)
+	if err != nil {
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{"error": err.Error()}))
 		return
 	}
-	h.respondSuccess(w, http.StatusOK, payload)
+	h.respondProto(w, http.StatusOK, pb)
 }

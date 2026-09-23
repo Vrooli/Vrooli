@@ -1039,3 +1039,105 @@ func TestRecordingActionStreamingSequence(t *testing.T) {
 		}
 	})
 }
+
+// [REQ:BAS-RH-J13] Received button/key transitions must not overtake an admitted input.
+func TestRecordingInputPreservesConnectionOrder(t *testing.T) {
+	hub := newTestHubBase(t)
+	first, second, release := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	effects := make(chan int, 2)
+	hub.SetInputForwarder(func(_ string, input map[string]any) error {
+		n := int(input["sequence"].(float64))
+		if n == 1 {
+			close(first)
+			<-release
+		}
+		effects <- n
+		if n == 2 {
+			close(second)
+		}
+		return nil
+	})
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		hub.ServeWS(conn, nil)
+	}))
+	defer server.Close()
+	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	send := func(sequence int) {
+		t.Helper()
+		if err := conn.WriteJSON(map[string]any{"type": "recording_input", "session_id": "input-order", "input": map[string]any{"sequence": sequence}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	send(1)
+	select {
+	case <-first:
+	case <-time.After(time.Second):
+		close(release)
+		t.Fatal("first input not admitted")
+	}
+	// A blocked browser must not hold the global hub lock.
+	counted := make(chan int, 1)
+	go func() { counted <- hub.GetClientCount() }()
+	select {
+	case count := <-counted:
+		if count != 1 {
+			t.Errorf("client count %d, want 1", count)
+		}
+	case <-time.After(time.Second):
+		close(release)
+		t.Fatal("blocked browser input stalled the hub")
+	}
+	send(2)
+	overlap := false
+	select {
+	case <-second:
+		overlap = true
+	case <-time.After(150 * time.Millisecond):
+	}
+	close(release)
+	if overlap {
+		t.Error("second input overtook the first while it was still executing")
+	}
+	for want := 1; want <= 2; want++ {
+		select {
+		case got := <-effects:
+			if got != want {
+				t.Errorf("effect %d, want %d", got, want)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("input failed to finish")
+		}
+	}
+}
+
+func TestSubscriptionAfterDisconnectDoesNotSendOrResubscribe(t *testing.T) {
+	hub := newTestHub(t)
+	client := &Client{ID: uuid.New(), Send: make(chan any, 1), Hub: hub}
+	hub.register <- client
+	_ = waitForMessage(t, client.Send)
+	hub.unregister <- client
+	select {
+	case _, ok := <-client.Send:
+		if ok {
+			t.Fatal("expected disconnected send channel")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("client was not disconnected")
+	}
+	for _, kind := range []string{"subscribe", "subscribe_recording", "subscribe_execution_frames", "subscribe_driver_status", "subscribe_export"} {
+		client.handleSubscription(kind, map[string]any{"execution_id": uuid.NewString(), "session_id": "recording", "export_id": "export"})
+	}
+	if client.ExecutionID != nil || client.RecordingSessionID != nil || client.ExecutionFrameStreamID != nil || client.DriverStatusSubscribed || client.ExportSubscriptionID != nil {
+		t.Fatal("a disconnected client was resubscribed")
+	}
+}

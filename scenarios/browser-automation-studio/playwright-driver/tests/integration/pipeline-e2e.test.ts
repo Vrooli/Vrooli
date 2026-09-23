@@ -267,6 +267,35 @@ describe('Pipeline E2E Tests', () => {
       await context.close();
     });
 
+    it.each([false, true])('preserves application console evidence without recorder noise (capturing=%s)', async (capturing) => {
+      const consoleEvents: Array<{ type: string; text: string }> = [];
+      const observer = await context.newCDPSession(page);
+      observer.on('Runtime.consoleAPICalled', (event: { type: string; args: Array<{ value?: unknown }> }) => {
+        consoleEvents.push({ type: event.type, text: event.args.map(argument => String(argument.value)).join(' ') });
+      });
+      try {
+        await observer.send('Runtime.enable');
+        await page.goto(server.getUrl('/'));
+        if (capturing) await pipelineManager.startRecording({
+          sessionId: 'pipeline-e2e-test', onEntry: entry => { capturedEntries.push(entry); },
+        });
+        await page.click('#test-btn');
+        if (capturing) await pipelineManager.stopRecording();
+        expect(capturedEntries.filter(entry => getActionType(entry) === ActionType.CLICK)).toHaveLength(capturing ? 1 : 0);
+        const telemetry = await observer.send('Runtime.evaluate', {
+          expression: '({ready:window.__vrooli_recording_ready,detected:window.__vrooli_recording_telemetry.eventsDetected})',
+          returnByValue: true,
+        });
+        expect(telemetry.result.value).toMatchObject({ ready: true });
+        expect(telemetry.result.value.detected).toBeGreaterThan(0);
+        await observer.send('Runtime.evaluate', { expression: 'console.error("application-error-sentinel")' });
+        expect(consoleEvents).toContainEqual({ type: 'error', text: 'application-error-sentinel' });
+        expect(consoleEvents.filter(event => event.text !== 'application-error-sentinel')).toEqual([]);
+      } finally {
+        await observer.detach();
+      }
+    });
+
     it('starts native preview without a second DOM wait and keeps it stopped after delayed load completion [REQ:BAS-RH-J22]', async () => {
       await page.goto(server.getUrl('/'));
       await pipelineManager.verifyPipeline({ timeoutMs: 5000 });
@@ -286,6 +315,7 @@ describe('Pipeline E2E Tests', () => {
       const session = { id: 'pipeline-e2e-test', page, pipelineManager, phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease' };
       const manager = {
         getSession: () => session,
+        updateActivity: jest.fn(),
         getSessionForLease: (_id: string, owner: string, lease: string) => {
           if (owner !== session.ownerExecutionId || lease !== session.leaseId) throw new Error('Lease changed');
           return session;
@@ -297,6 +327,7 @@ describe('Pipeline E2E Tests', () => {
       let deadline: ReturnType<typeof setTimeout> | undefined;
       try {
         start = handleRecordStart(createMockHttpRequest({ method: 'POST', body: {
+          execution_id: 'owner', lease_id: 'lease',
           frame_callback_url: `http://127.0.0.1:${address.port}/frames`,
         } }), response, session.id, manager, createTestConfig());
         const first = await Promise.race([start.then(() => 'started'), entered.then(() => 'extra-dom-wait')]);
@@ -307,7 +338,7 @@ describe('Pipeline E2E Tests', () => {
           clearTimeout(deadline);
         }
         const stopped = createMockHttpResponse();
-        await handleRecordStop(createMockHttpRequest(), stopped, session.id, manager);
+        await handleRecordStop(createMockHttpRequest({ method: 'POST', body: { execution_id: 'owner', lease_id: 'lease' } }), stopped, session.id, manager);
         releaseDom(); await start;
         expect(stopped.statusCode).toBe(200);
         expect(first).toBe('started');

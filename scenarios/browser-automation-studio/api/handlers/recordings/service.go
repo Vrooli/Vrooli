@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 
 	autodriver "github.com/vrooli/browser-automation-studio/automation/driver"
+	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	recordingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/recordings"
 )
@@ -490,11 +491,11 @@ func (s *service) NavigateToHistoryURL(
 	if sessionID == "" {
 		return nil, connect.NewError(connect.CodeNotFound, errNoActiveSession)
 	}
-	resp, err := s.deps.RecordMode.DriverClient().Navigate(ctx, sessionID, &autodriver.NavigateRequest{
-		URL:       url,
-		WaitUntil: req.Msg.GetWaitUntil(),
-		TimeoutMs: int(req.Msg.GetTimeoutMs()),
-	})
+	owner, ok := s.deps.RecordMode.GetSession(sessionID)
+	if !ok || owner == nil {
+		return nil, connect.NewError(connect.CodeNotFound, errNoActiveSession)
+	}
+	resp, err := owner.Navigate(ctx, url, autosession.WithWaitUntil(req.Msg.GetWaitUntil()), autosession.WithNavigateTimeout(int(req.Msg.GetTimeoutMs())))
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

@@ -204,21 +204,22 @@ type StartRecordingRequest struct {
 
 // StartRecordingResponse is the response from starting recording.
 type StartRecordingResponse struct {
+	RecordingID string `json:"recording_id"`
 	SessionID   string `json:"session_id"`
-	IsRecording bool   `json:"is_recording"`
 	StartedAt   string `json:"started_at"`
 }
 
 // StopRecordingResponse is the response from stopping recording.
 type StopRecordingResponse struct {
+	RecordingID string `json:"recording_id"`
 	SessionID   string `json:"session_id"`
-	IsRecording bool   `json:"is_recording"`
 	ActionCount int    `json:"action_count"`
 	StoppedAt   string `json:"stopped_at"`
 }
 
 // RecordingStatusResponse is the response from getting recording status.
 type RecordingStatusResponse struct {
+	RecordingID string `json:"recording_id"`
 	SessionID   string `json:"session_id"`
 	IsRecording bool   `json:"is_recording"`
 	ActionCount int    `json:"action_count"`
@@ -303,44 +304,23 @@ type NavigateResponse struct {
 	Screenshot   string `json:"screenshot,omitempty"`
 }
 
-// ReloadRequest is the request to reload the current page.
-type ReloadRequest struct {
+// HistoryNavigation identifies a supported browser history operation.
+type HistoryNavigation string
+
+const (
+	HistoryReload  HistoryNavigation = "reload"
+	HistoryBack    HistoryNavigation = "go-back"
+	HistoryForward HistoryNavigation = "go-forward"
+)
+
+// HistoryNavigationRequest carries options shared by reload, back and forward.
+type HistoryNavigationRequest struct {
 	WaitUntil string `json:"wait_until,omitempty"`
 	TimeoutMs int    `json:"timeout_ms,omitempty"`
 }
 
-// ReloadResponse is the response from page reload.
-type ReloadResponse struct {
-	SessionID    string `json:"session_id"`
-	URL          string `json:"url"`
-	Title        string `json:"title"`
-	CanGoBack    bool   `json:"can_go_back"`
-	CanGoForward bool   `json:"can_go_forward"`
-}
-
-// GoBackRequest is the request to navigate back in browser history.
-type GoBackRequest struct {
-	WaitUntil string `json:"wait_until,omitempty"`
-	TimeoutMs int    `json:"timeout_ms,omitempty"`
-}
-
-// GoBackResponse is the response from navigating back.
-type GoBackResponse struct {
-	SessionID    string `json:"session_id"`
-	URL          string `json:"url"`
-	Title        string `json:"title"`
-	CanGoBack    bool   `json:"can_go_back"`
-	CanGoForward bool   `json:"can_go_forward"`
-}
-
-// GoForwardRequest is the request to navigate forward in browser history.
-type GoForwardRequest struct {
-	WaitUntil string `json:"wait_until,omitempty"`
-	TimeoutMs int    `json:"timeout_ms,omitempty"`
-}
-
-// GoForwardResponse is the response from navigating forward.
-type GoForwardResponse struct {
+// HistoryNavigationResponse is the resulting browser location and history state.
+type HistoryNavigationResponse struct {
 	SessionID    string `json:"session_id"`
 	URL          string `json:"url"`
 	Title        string `json:"title"`
@@ -361,7 +341,7 @@ type NavigationStateResponse struct {
 type NavigationStackEntry struct {
 	URL       string `json:"url"`
 	Title     string `json:"title"`
-	Timestamp string `json:"timestamp"`
+	Timestamp string `json:"timestamp,omitempty"`
 }
 
 // NavigationStackResponse is the response containing the navigation history stack.

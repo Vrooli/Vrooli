@@ -24,13 +24,8 @@ export type {
   ReplayPreviewRequest,
   ReplayPreviewResponse,
   NavigateRequest,
-  NavigateResponse,
-  ReloadRequest,
-  ReloadResponse,
-  GoBackRequest,
-  GoBackResponse,
-  GoForwardRequest,
-  GoForwardResponse,
+  NavigationResponse,
+  HistoryNavigationRequest,
   NavigationStateResponse,
   ScreenshotRequest,
   ScreenshotResponse,
@@ -77,7 +72,6 @@ export {
   handleRecordGoForward,
   handleRecordNavigationState,
   handleRecordNavigationStack,
-  clearNavigationState,
 } from './recording-navigation';
 
 // Recording frame handlers
@@ -103,13 +97,11 @@ export {
 // Cleanup utility
 import { removeRecordingBuffer } from '../../recording';
 import { clearFrameCache } from './recording-frames';
-import { clearNavigationState } from './recording-navigation';
 
 /**
- * Clean up recording buffer, frame cache, and navigation state for a session
+ * Clean up recording buffer and frame cache for a session
  */
 export function cleanupSessionRecording(sessionId: string): void {
   removeRecordingBuffer(sessionId);
   clearFrameCache(sessionId);
-  clearNavigationState(sessionId);
 }

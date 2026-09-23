@@ -502,7 +502,7 @@ C = later product extension. These letters are not PRD release tiers.
 | BAS-RF-035 | A / actual retention service with in-memory index/filesystem | keep_latest is recalculated inside bounded/preview subsets, repeatedly protecting old evidence and blocking cleanup | BAS evidence retention | Global per-workflow protection survives bounded batches and preview application; repeated sweeps progress; active evidence stays protected. |
 | BAS-RF-036 | A / actual driver close composition and Go executor fault probes | Driver hides close/flush failures and removes ownership; Go executor also returns success when its engine reports a close error | BAS session finalization/evidence | Structured close and artifact outcomes across both owners, bounded recovery ownership, validated references and full-workflow fault qualification. |
 | BAS-RF-037 | A / actual run route and manager phase methods | Instructions execute during initializing/resetting/closing because rejected phase transition is ignored | BAS instruction admission/state coordinator | Atomic phase admission rejects every disallowed state; delayed reset/close races cannot admit browser effects; recording/executing controls preserved. |
-| BAS-RF-038 | A / actual Go wire and driver route probes | Run omits lease ownership; explicitly expired owner/lease request still executes | BAS operation ownership/protocol | All mutating commands carry and validate lease/generation before caches or effects; delayed old-owner and handoff fixtures pass. |
+| BAS-RF-038 | A / run/start/stop/input/ACK repaired; navigation057 in progress | Remaining navigation/page/preview controls bypass immutable Session leases; full handoff fencing remains open | BAS operation ownership/protocol | All mutating commands carry and validate lease/generation before caches or effects; delayed old-owner and handoff fixtures pass. |
 | BAS-RF-039 | A / repaired public HTTP + native browser oracles; deployed027 | Distinct loop/retry operations, immutable lease/payload receipts and nonretryable uncertain outcomes now preserve effect counts. Restart and effect reconciliation remain unqualified | BAS invocation/retry/idempotency contract | Retain eviction/reset/handoff and post-effect exception controls; qualify broader interruption/reconciliation. Receipt: internal/evidence/rehabilitation/instruction-operation-2026-09-22.json. |
 | BAS-RF-040 | A / public executor with cancelling engine and context-sensitive writer | Graph cancellation persists the step through a cancelled context and loses its terminal outcome; linear control saves it | BAS graph/linear execution finalization | Bounded cancellation-independent persistence for all execution shapes; terminal step evidence and cancellation cause survive real storage faults. |
 | BAS-RF-041 | A / actual instruction pipeline and telemetry collectors | Unexpected handler throw disposes collected console context without failure capture;027 now retains a nonretryable uncertain outcome but still loses diagnostics | BAS instruction failure/evidence pipeline | Preserve available diagnostics and bounded failure captures before disposal; distinguish ordinary returned failure, thrown exception, crash and uncertain effects. |
@@ -1498,3 +1498,164 @@ Canonical proto already has recording_id for all three receipts. Own the repair
 in driver wire types, GoSession and existing handler/proto mapping; remove the
 unrelated UUID and lossy JSON-any roundtrip for these receipts. Timestamp mapping
 also needs an independent converter reproduction before any completed_at claim.
+
+
+2026-09-22 RF038/RF082/RF083 combined050+051 source repaired; qualification pending.
+Start/stop now carry exact caller lease through ownedGoSession and reject missing,
+stale and released ownership before effects. Stop continuations retain generation
+fences across pipeline/frame disposal. Typed receipts preserve actualIDs/timestamps;
+UI consumescompleted_at and verifies active status for a known409 instead of
+manufacturingID/time. Five maintaineddriver red cases, Go wire/handler red cases
+and nineUI red cases pass after repair. Focused74driver/native and457UI tests,
+fiveGo packages/race and types/build pass. Live049 until fullowner4928 settles.
+Receipt internal/evidence/rehabilitation/recording-wire-receipts-2026-09-22.json.
+Other mutations/retry identity remain RF038; fulljourney qualification still open.
+
+
+2026-09-22 RF038 remaininginput native reproduction052: actualHTTPrecord/input
+route and nativeChromiumpage accept missing/stale/released envelopes, each causing
+one independentDOMclick effect. Currentownercontrolpasses. Evidence
+/tmp/bas-recording-input-wire-red-052.log. GoSessionForwardInput and HTTPforwarder
+omit callerlease; WebSocketforwarder additionally bypasses sharedclient with its
+owntransport. Repair must convert all callers and preserve inputdeadline/ordering,
+not merely add a driverguard. Source unchanged pending051qualification/deployment.
+
+
+2026-09-22 RF020 actualWebSocket reproduction052: orderedmessages1,2 on one
+connection/session yield independentforwarder effects2,1 when first execution
+is held. Hub.readPump spawns independentgoroutines, bypassing transportorder.
+/tmp/bas-input-order-red-052.log. This corroborates originalinterleaving finding;
+fullnativegesture/applied-sequence/overflow/reconnect corpus remains required.
+
+
+2026-09-22 RF083 zero-count receipt edge confirmed: actualcanonicalStopprotoJSON
+omits action_count=0; UI rejects the otherwise validreceipt as missingrequired
+field. /tmp/bas-recording-zero-red-051.log. Preserve proto3 default semantics in
+UIvalidation; no alternative responsefallback or changedglobalmarshaler. Source
+remainsfrozen while managed051build finishes.
+
+
+2026-09-22 RF082/RF083 observed recording-lifetime/receipt defects qualified and
+deployed with RF038start/stop envelope boundary in finalbuild
+bdf9f35ac1782b71c71f9270dae0d657c814fcf990f69b7b0a6ab01a3f1392b0. Driver1668pass;
+Go fivepackages/races/build; UI593pass/types; nativeAPI23checks including actual
+click/identity/time/stopretry/lease rejection; zero-countprotoJSON preserved.
+Healthall200/0sessions; originalprofilemetadata andthreefullreads preserved.
+Receipts internal/evidence/rehabilitation/{record-start-lifetime,recording-wire-receipts}-2026-09-22.json.
+No fullreleasequalificationclaim; RF038input/othermutations andRF020ordering remain.
+
+
+### BAS-RF-084 — registered recording E2E harness reports false success
+
+2026-09-22 actualregistered test:e2e:record-mode harness against controlledHTTP
+negativefixture: two clickcommands500, recorded-actionsread500, workflowgeneration
+500, zero browser effects; process exits0 and prints11passed/0failed. Evidence
+/tmp/bas-recording-harness-oracle-red-052.log and retainedfulloutput. Source
+playwright-driver/tests/e2e/record-mode-e2e.mjs also uses obsoleteunleased session/
+action/start/stop/close contracts, arbitrary capture sleeps and warning-only
+workflowfailure. This harness is outside currentJestowner; no fullE2Equalification
+claim was supported byit. Owner: existingharness/driver/publicAPI contracts.
+Expected: a refusedeffect/read/generation or failedcleanup fails qualification;
+localindependentfixture proves captured/replayed effects, all drivercalls carry
+currentownership and explicitACK, and createddata is removed. Missingoptional
+APIcoverage remains visible/unqualified. Repair after052inputcontract stabilizes.
+
+
+### BAS-RF-085 — WebSocket membership and subscription data races
+
+2026-09-22, open. Scoped052 Go race validation reports concurrent map deletion
+under a shared hub lock and unsynchronized execution/recording subscription
+writes. Four existing tests fail; /tmp/bas-input-go-race-052.txt retains stacks.
+Review also finds confirmation sends can overlap Send-channel closure. Owner:
+api/websocket/hub.go. Expected: hub mutex consistently owns membership, mutable
+subscription state and Send lifetime, including registration/drop and replies;
+browser input network waits never hold the global lock. Preserve filtering and
+client backpressure. Existing race assertions plus disconnect and concurrent
+subscription/broadcast cases must pass before deployment.
+
+
+2026-09-22 052 qualified/deployed: RF085 observed hub races and closed-channel
+subscription hazard repaired under the existing hub mutex. RF038 live-input
+wire leases and RF020 single-WebSocket received ordering repaired. Full driver
+1675 tests, five Go packages with race detector, API/driver builds pass. Live
+API/native26 checks verify rejected raw input, independent HTTP/WS clicks and
+cleanup. Original saved profiles match metadata and three complete reads.
+Build3c0dbef7d4bebe647501cde6a4b263cb66175dafc708498c34106d3d398b49f2; receipt
+internal/evidence/rehabilitation/live-input-ownership-2026-09-22.json. RF085
+resolved for demonstrated boundary; broader RF020/RF038 remain open.
+
+
+2026-09-22 RF084 registered harness repaired and qualified in053: current leased
+session/action contracts, strict HTTP/JSON/outcome assertions, independent local
+effects, durable entries before exact ACK, fresh-context replay, required API
+generation/persistence, and cleanup failures in the final verdict. Eleven
+maintained producer cases pass; native driver/API nine checks pass with two
+effects and owned cleanup. Initial fixture identity oracle flaw was reproduced
+and repaired before final qualification. Receipt internal/evidence/rehabilitation/
+recording-harness-2026-09-22.json. Resolved demonstrated false-green producer;
+full UI, saved-workflow execution, broad input/frame/recovery/load/OS journeys
+remain unqualified, with all17 release outcomes still unknown.
+
+
+### BAS-RF-086 — Recorder diagnostics contaminate application console evidence
+
+2026-09-22, confirmed native/source. The successful054 generated-workflow timeline
+contains console.error messages for recorder initialization and ordinary clicks
+on a fixture whose page never calls console. Source recording-script.js writes
+fifteen routine console messages, including two error-level diagnostics, without
+a debug setting. The error at an inactive click explicitly reports isActive=false.
+Owner: recording/capture/browser-scripts/recording-script.js. Evidence:
+/tmp/bas-recording-e2e-nmZrN6/execution-timeline.json. Expected: quiet pages remain
+quiet while recorder state/event/delivery telemetry and genuine application or
+initialization failures remain observable; never hide evidence with a collector
+filter. Native passive/active controls must distinguish application error output.
+
+
+2026-09-22 RF038 ACK reproduction056: actual HTTP handler plus real recording
+buffer accepts missing/stale/released ownership, returns200 and hides an
+unacknowledged entry. Current owner is the positive control. Receipt
+/tmp/bas-ack-wire-red-056.txt; controlled SessionManager, no user profile or live
+browser mutation. Remaining interactive control callers also bypass Session
+leases. Repair this ownership boundary after055 deployment; do not claim RF038
+closed from the earlier start/stop/input fixes.
+
+
+2026-09-22 RF086 resolved/deployed055: remove15 unconditional routine recorder
+console statements at their source. Native passive/active tests preserve real
+application errors, readiness/event telemetry and capture; full driver1677 tests
+pass. The same native saved-workflow fixture's console evidence drops from13
+recorder entries/3 false errors to0, while all11 workflow checks pass. Genuine
+initialization failures remain reported. Source-15 lines/-1158 injected bytes;
+no collector filtering. Builddcdb9940abc520d41d7808af27069f6869e3275cd07320b1d47517a4a9e01c5b;
+receipt internal/evidence/rehabilitation/recording-console-evidence-2026-09-22.json.
+Original profile metadata and full contents preserved.
+
+2026-09-22 RF038 acknowledgement boundary repaired/deployed056: Go destructive
+pull retains its original Session through journal commit and exact ACK. Driver
+requires the immutable lease after parsing and preserves entries for missing,
+stale, released and non-operational callers. Raw unowned interface/mocks removed.
+Native recorded-action probe fails on055 and passes on056; API clear preserves
+committed journal;1685driver tests and three Go race packages pass. Profiles
+preserved. Receipt internal/evidence/rehabilitation/recording-ack-ownership-2026-09-22.json.
+RF038 remains open: subsequent native057 missing/stale navigate requests each
+load the local fixture and return200. Evidence /tmp/bas-navigation-native-red-057.json;
+all three owned fixture sessions closed. HTTP/Connect raw navigation callers and
+unfenced navigation continuations need the next coherent repair.
+
+### BAS-RF-087 — Browser history diverges from BAS navigation counters
+
+Status: open, reproduced 2026-09-22 against deployed056. A native owned session
+visits the same fixture at #one then #two. Back returns400/CANNOT_GO_BACK while
+the browser moves to #one; Forward returns400/CANNOT_GO_FORWARD and stays there.
+/tmp/bas-history-native-red-057.json retains responses and independent URL reads;
+all owned cleanup succeeds. The SDK returns null for this successful same-document
+move, but BAS treats null as failure and leaves its private index stale. That
+session-level map also cannot represent active-tab/browser-created history.
+
+Owner: driver recording navigation; consumers: API history response and UI popup.
+Repair by reading browser history with bounded CDP attachment ownership and
+lease/page fencing, deleting the divergent map. Test same-document success,
+no actual movement, browser-created and per-tab entries, bounds, short-lived
+attachment cleanup and delayed ownership loss. UI must retain untitled entries
+without invented timestamps. Native oracle and maintained regressions qualify
+the change; a fake null-result test cannot override observed browser behavior.

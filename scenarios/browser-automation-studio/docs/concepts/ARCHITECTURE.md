@@ -879,13 +879,134 @@ RecordingPipelineManager owns readiness, document activation and the monotonic
 recording generation. The HTTP start route must not add a second DOM-load wait
 after that owner has acknowledged capture startup. Admit preview immediately
 through the existing frame coordinator so Stop can dispose the same owned stream.
-Snapshot the current execution/lease at route admission and validate it after
-body parsing and every subsequent asynchronous boundary. Bind the start operation
+Validate the caller execution/lease after body parsing and retain it across
+every subsequent asynchronous boundary. Bind the start operation
 and its frame page provider to the pipeline's next recording generation; a stop,
 restart with the same public recording ID, pipeline replacement, reset or lease
 handoff must invalidate the older operation. A superseded start cannot return a
 successful current-recording receipt or attach new preview/page callbacks. Use
 the existing generation and cleanup owners; add no parallel lifecycle registry.
-This local continuation boundary does not authenticate a transport request that
-omits its caller lease. RF038 still requires explicit envelopes on remaining
-mutating commands and their callers.
+Start/stop now authenticate explicit caller leases as specified below. RF038
+still requires explicit envelopes on the other mutating commands and their callers.
+
+
+### Recording caller ownership and receipt fidelity (051 target)
+
+Pull acknowledgement uses the same immutable Session authority (056 target).
+The API resolves that Session before reading or committing a destructive pull,
+and retains it through journal commit and exact-ID acknowledgement. The raw
+driver interface cannot acknowledge entries without an execution/lease pair.
+The driver parses the complete request before admitting that pair; missing,
+stale, released or non-operational owners leave the buffer untouched. Accepted
+acknowledgement is synchronous after admission, and hides only the supplied
+committed identities. Retried acknowledgements retain their exact receipt.
+Navigation, preview and other interactive mutations remain separate RF038 work.
+
+Recording start and stop carry the immutable execution ID and lease held by the
+Go Session. Live capture resolves its owned Session; it must not guess a driver
+lease or bypass ownership through the raw client. The driver validates the wire
+lease after parsing and before activity, cached success or recording effects.
+Start and stop continuations also validate the admitted session and existing
+pipeline generation before mutating preview, callbacks or session phase. This
+replaces 050's server-snapshot admission; its continuation fences remain.
+
+Driver-issued recording IDs and start/stop timestamps survive Go decoding and
+typed proto conversion unchanged. The driver stopped_at maps explicitly to the
+canonical completed_at field. Remove handler-generated IDs, duplicate handler
+response types and silent untyped success fallbacks. The canonical proto is
+unchanged. Other mutating routes and operation-specific retry identity remain
+RF038 boundaries; this repair does not claim to reverse already admitted effects.
+
+UI recording responses consume canonical completed_at. A known recording-in-progress
+conflict may recover only through an authoritative active status receipt with the
+same session and actual recording ID/start time. Unknown conflicts or missing
+status evidence are errors; never fabricate a recording identity or current time.
+
+
+### Live-input caller ownership and transport order (052 target)
+
+HTTP and WebSocket live input must use the same live-capture service and immutable
+Go Session lease. Remove the WebSocket-specific HTTP transport and the driver's
+obsolete raw-post helper after caller conversion. Preserve the existing WebSocket
+2-second context deadline through the shared driver client, which already pools
+connections and drains responses. Unowned/malformed input must fail before HTTP.
+
+Reuse the recording route's lease admission/continuation helper for driver input;
+parse before ownership lookup, refresh activity only for admitted calls, and
+revalidate before any subsequent browser sub-operation and success receipt.
+The WebSocket reader must await forwarding in received order and use its existing
+read/backpressure boundary rather than spawn an unbounded goroutine per event.
+This fixes the demonstrated single-connection reorder. Cross-client/HTTP ordering,
+applied-sequence receipts, coalescing and reconnect/key-state guarantees remain
+RF020 obligations; this bounded repair must not claim to satisfy that entire row.
+
+
+The existing WebSocket hub mutex owns client membership, subscription fields and
+Send-channel lifetime (052 RF085 extension). All mutations and channel closure
+need its exclusive lock; broadcasts that cannot remove clients may share its
+read lock. Subscription handling must confirm membership before sending replies.
+Browser input forwarding stays outside that critical section, with the existing
+per-connection read loop owning input order and the forwarder owning its deadline.
+
+
+### Recording harness qualification (053 target)
+
+The registered recording E2E harness must use the current owned session and typed
+action contracts. Its own temporary HTTP fixture supplies the independent effect
+counter; recorder entries cannot be the oracle for their own correctness. Stop
+flushes capture before entries are inspected and explicitly acknowledged; replay
+uses a fresh session and must reproduce the fixture effect. HTTP/JSON/action
+errors and failed cleanup produce a nonzero result. Requests have finite deadlines.
+Optional API coverage is selected at prerequisite inspection and remains visibly
+unqualified if absent. Once selected, generation/persistence/read/cleanup failures
+fail the run. Temporary projects/workflows belong to the harness and must be
+removed. Do not loosen production lease contracts to accommodate old test calls.
+
+
+### Saved recording execution evidence (054 investigation)
+
+The next qualification boundary is the existing WorkflowsService.ExecuteWorkflow
+owner, with the exact persisted revision and wait_for_completion=true. The local
+recording fixture must observe one additional effect and the execution owner must
+return completed state and timeline evidence. Keep native receipts before any
+cleanup. Retention preview/run must be restricted to the unique temporary project
+and workflow and must select only the fixture execution; do not sweep shared
+history. No new production execution or wait policy is authorized by this test.
+
+
+### Recording diagnostics and application console evidence (055 target)
+
+Routine recorder initialization, activation and capture must not write to the
+page console. The injected script already exposes readiness markers, handler
+counts and event/delivery/error telemetry for driver diagnostics. Remove routine
+console statements at their source; do not filter application console evidence.
+Preserve genuine initialization failure reporting and real application errors.
+Native console observations must cover both passive and active recording, with
+an independent application-error sentinel and unchanged click capture/telemetry.
+
+### Recording navigation ownership (057 target)
+
+URL navigation, reload, back and forward carry the Go Session's immutable lease.
+HTTP recording controls, history Connect navigation and first-tab restoration
+resolve that owner before the command. Remove unowned raw-client navigation
+methods and their mocks. Reload/back/forward share their request, response and
+commit policy; preserve the existing public endpoints and JSON shapes without
+retaining duplicate types or compatibility aliases.
+
+The driver admits after full body parsing and binds its continuation to both the
+Session lease and the originally selected page. Check that authority after every
+await before navigation-history, frame-cache, callback or successful response
+publication. Shared completion owns that policy across the four operations.
+Preserve timeouts/wait conditions, optional screenshot and successful navigation
+recording/page broadcasts. The active browser page owns history: read its CDP
+entries/index with a short-lived attachment, detached on every completion/error.
+Remove the session-scoped history map and its cleanup/export paths. Browser
+history determines bounds and movement, including same-document transitions
+whose Playwright response is null and entries created by page scripts or links.
+Navigation-state and popup reads bind the original Session/page throughout
+awaited reads. Popup entries carry URL/title; visit timestamps are unavailable
+from the browser and must not be fabricated or required by the UI. Empty titles
+remain valid. The Go JSON timestamp is optional for compatibility with consumers
+that can supply one; this driver does not synthesize it.
+A browser navigation already admitted while owned may have external effects;
+post-admission interruption/reconciliation remains an explicit RF038 boundary.

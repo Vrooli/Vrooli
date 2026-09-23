@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -207,5 +208,38 @@ func TestConvertAssertion_WithExpectedActual(t *testing.T) {
 	}
 	if result.Actual == nil {
 		t.Fatalf("expected Actual to be set")
+	}
+}
+
+// [REQ:BAS-RH-J24] Malformed receipts must not become successful public responses.
+func TestRecordingReceiptValidation(t *testing.T) {
+	for _, stamp := range []string{"", "invalid", "2026-09-22T12:00:00+25:00"} {
+		if _, err := StartRecordingToProto(&driver.StartRecordingResponse{SessionID: "s", RecordingID: "r", StartedAt: stamp}); err == nil {
+			t.Errorf("accepted start timestamp %q", stamp)
+		}
+		if _, err := StopRecordingToProto(&driver.StopRecordingResponse{SessionID: "s", RecordingID: "r", StoppedAt: stamp}); err == nil {
+			t.Errorf("accepted stop timestamp %q", stamp)
+		}
+	}
+	if _, err := StartRecordingToProto(nil); err == nil {
+		t.Error("accepted nil start")
+	}
+	if _, err := StopRecordingToProto(nil); err == nil {
+		t.Error("accepted nil stop")
+	}
+	if _, err := RecordingStatusToProto(nil); err == nil {
+		t.Error("accepted nil status")
+	}
+	for _, count := range []int{-1, 2147483648} {
+		if _, err := StopRecordingToProto(&driver.StopRecordingResponse{SessionID: "s", RecordingID: "r", StoppedAt: "2026-09-22T12:00:00Z", ActionCount: count}); err == nil {
+			t.Errorf("accepted stop count %d", count)
+		}
+		if _, err := RecordingStatusToProto(&driver.RecordingStatusResponse{SessionID: "s", ActionCount: count}); err == nil {
+			t.Errorf("accepted status count %d", count)
+		}
+	}
+	idle, err := RecordingStatusToProto(&driver.RecordingStatusResponse{SessionID: "s"})
+	if err != nil || idle.GetStartedAt() != nil || idle.GetIsRecording() {
+		t.Fatalf("idle receipt not preserved: %v, %v", idle, err)
 	}
 }

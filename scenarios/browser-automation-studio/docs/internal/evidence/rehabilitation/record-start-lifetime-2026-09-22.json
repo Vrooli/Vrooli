@@ -4,7 +4,7 @@
     "BAS-RF-082",
     "BAS-RF-038"
   ],
-  "status": "focused_passed_combined_051_qualification_pending",
+  "status": "qualified_and_deployed_in_combined_051",
   "controlled_native_red": {
     "receipt": "/tmp/bas-record-start-red2-050.log",
     "scope": "Actual HTTP routes, native Chromium/frame manager/local WebSocket; pipeline and DOM delay controlled",
@@ -50,7 +50,7 @@
     "playwright-driver/tests/integration/pipeline-e2e.test.ts": "780fccc5e2c47f8f96546f520fbbd6c8762e68a796daf7561e7dca610257db9f",
     "playwright-driver/tests/integration/record-mode.test.ts": "d39c0da0e35885864a27f5ea65c06b6e1110de8cc7a9ecfca35b0679b2300ca5"
   },
-  "pending_operations": [],
+  "pending_operations": {},
   "limitations": [
     "RF038 caller lease envelopes remain absent on recording start/stop and other mutating routes. Local captured lease only fences work admitted during this request.",
     "Already-admitted pipeline or remote callback effects cannot be undone by a later continuation rejection.",
@@ -95,5 +95,15 @@
     "receipt": "/tmp/bas-record-start-owner-fix-050.txt",
     "types": "passed",
     "final_qualification": "Will be linked from combined051owner; no successful finalowner claim yet"
+  },
+  "combined_qualification": "recording-wire-receipts-2026-09-22.json",
+  "final_full_driver": {
+    "run_id": "uh-20260922-214339-29c7eefe3ef57778e98b523e71bf09fd",
+    "passed": 1668,
+    "failed": 0
+  },
+  "deployment": {
+    "build_identity": "sha256:bdf9f35ac1782b71c71f9270dae0d657c814fcf990f69b7b0a6ab01a3f1392b0",
+    "combined_receipt": "recording-wire-receipts-2026-09-22.json"
   }
 }

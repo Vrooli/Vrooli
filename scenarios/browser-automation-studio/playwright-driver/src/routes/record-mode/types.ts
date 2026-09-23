@@ -11,6 +11,8 @@ import type { TimelineEntry } from '../../proto/recording';
  * POST /session/:id/record/start
  */
 export interface StartRecordingRequest {
+  execution_id: string;
+  lease_id: string;
   /**
    * Optional recording ID to use for this recording.
    * If provided and recording is already active with this ID, the request is
@@ -124,71 +126,26 @@ export interface ReplayPreviewResponse {
   stopped_early: boolean;
 }
 
-/**
- * POST /session/:id/record/navigate
- */
-export interface NavigateRequest {
-  url: string;
+/** Owned options shared by reload, back, forward and URL navigation. */
+export interface HistoryNavigationRequest {
+  execution_id: string;
+  lease_id: string;
   wait_until?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
   timeout_ms?: number;
+}
+
+export interface NavigateRequest extends HistoryNavigationRequest {
+  url: string;
   capture?: boolean;
 }
 
-export interface NavigateResponse {
+export interface NavigationResponse {
   session_id: string;
   url: string;
   title: string;
   can_go_back: boolean;
   can_go_forward: boolean;
   screenshot?: string;
-}
-
-/**
- * POST /session/:id/record/reload
- */
-export interface ReloadRequest {
-  wait_until?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
-  timeout_ms?: number;
-}
-
-export interface ReloadResponse {
-  session_id: string;
-  url: string;
-  title: string;
-  can_go_back: boolean;
-  can_go_forward: boolean;
-}
-
-/**
- * POST /session/:id/record/go-back
- */
-export interface GoBackRequest {
-  wait_until?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
-  timeout_ms?: number;
-}
-
-export interface GoBackResponse {
-  session_id: string;
-  url: string;
-  title: string;
-  can_go_back: boolean;
-  can_go_forward: boolean;
-}
-
-/**
- * POST /session/:id/record/go-forward
- */
-export interface GoForwardRequest {
-  wait_until?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
-  timeout_ms?: number;
-}
-
-export interface GoForwardResponse {
-  session_id: string;
-  url: string;
-  title: string;
-  can_go_back: boolean;
-  can_go_forward: boolean;
 }
 
 /**
@@ -222,6 +179,8 @@ export type PointerAction = 'move' | 'down' | 'up' | 'click';
 export type InputType = 'pointer' | 'keyboard' | 'wheel';
 
 export interface InputRequest {
+  execution_id: string;
+  lease_id: string;
   type: InputType;
   session_id?: string;
   // Pointer

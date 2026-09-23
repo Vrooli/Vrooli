@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 
 	autodriver "github.com/vrooli/browser-automation-studio/automation/driver"
+	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	recordingsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/recordings/recordingsconnect"
@@ -49,7 +50,7 @@ type RecordModeService interface {
 	GetServiceWorkers(ctx context.Context, sessionID string) (*autodriver.GetServiceWorkersResponse, error)
 	UnregisterAllServiceWorkers(ctx context.Context, sessionID string) (*autodriver.UnregisterServiceWorkersResponse, error)
 	UnregisterServiceWorker(ctx context.Context, sessionID, scopeURL string) (*autodriver.UnregisterServiceWorkerResponse, error)
-	DriverClient() autodriver.ClientInterface
+	GetSession(sessionID string) (*autosession.Session, bool)
 }
 
 // Deps wires the recordings handler. All four are required: a missing dep

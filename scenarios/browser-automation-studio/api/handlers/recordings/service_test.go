@@ -12,10 +12,12 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
 	autodriver "github.com/vrooli/browser-automation-studio/automation/driver"
+	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	recordingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/recordings"
@@ -188,19 +190,12 @@ func (f *fakeRepo) SaveOpenTabs(id sessionprofilepersistence.ProfileID, tabs []s
 }
 
 type fakeRecordMode struct {
-	swResp        *autodriver.GetServiceWorkersResponse
-	swErr         error
-	clearResp     *autodriver.UnregisterServiceWorkersResponse
-	deleteResp    *autodriver.UnregisterServiceWorkerResponse
-	deleteErr     error
-	navigateResp  *autodriver.NavigateResponse
-	navigateErr   error
-	navigateCalls []navCall
-}
-
-type navCall struct {
-	sessionID string
-	req       *autodriver.NavigateRequest
+	session    *autosession.Session
+	swResp     *autodriver.GetServiceWorkersResponse
+	swErr      error
+	clearResp  *autodriver.UnregisterServiceWorkersResponse
+	deleteResp *autodriver.UnregisterServiceWorkerResponse
+	deleteErr  error
 }
 
 func (f *fakeRecordMode) GetServiceWorkers(_ context.Context, _ string) (*autodriver.GetServiceWorkersResponse, error) {
@@ -227,24 +222,8 @@ func (f *fakeRecordMode) UnregisterServiceWorker(_ context.Context, sessionID, s
 	return f.deleteResp, nil
 }
 
-func (f *fakeRecordMode) DriverClient() autodriver.ClientInterface {
-	return &fakeDriverClient{parent: f}
-}
-
-type fakeDriverClient struct {
-	autodriver.ClientInterface
-	parent *fakeRecordMode
-}
-
-func (c *fakeDriverClient) Navigate(_ context.Context, sessionID string, req *autodriver.NavigateRequest) (*autodriver.NavigateResponse, error) {
-	c.parent.navigateCalls = append(c.parent.navigateCalls, navCall{sessionID: sessionID, req: req})
-	if c.parent.navigateErr != nil {
-		return nil, c.parent.navigateErr
-	}
-	if c.parent.navigateResp != nil {
-		return c.parent.navigateResp, nil
-	}
-	return &autodriver.NavigateResponse{URL: req.URL, Title: "ok", CanGoBack: true}, nil
+func (f *fakeRecordMode) GetSession(string) (*autosession.Session, bool) {
+	return f.session, f.session != nil
 }
 
 // =============================================================================
@@ -673,8 +652,25 @@ func TestUpdateHistorySettings_MissingSettings(t *testing.T) {
 func TestNavigateToHistoryURL_HappyPath(t *testing.T) {
 	repo := newFakeRepo()
 	repo.sessions["p"] = "sess-1"
-	rm := &fakeRecordMode{navigateResp: &autodriver.NavigateResponse{URL: "https://x", Title: "X", CanGoBack: true}}
-	client, cleanup := newTestServer(t, repo, rm)
+	owner := uuid.New()
+	requests := make(chan map[string]any, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/session/start" {
+			_, _ = w.Write([]byte(`{"session_id":"sess-1","lease_id":"history-lease"}`))
+			return
+		}
+		require.Equal(t, "/session/sess-1/record/navigate", r.URL.Path)
+		var body map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		requests <- body
+		_, _ = w.Write([]byte(`{"url":"https://x","title":"X","can_go_back":true}`))
+	}))
+	defer server.Close()
+	driverClient, err := autodriver.NewClientWithURL(server.URL, autodriver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	session, err := autosession.NewManagerWithClient(driverClient).Create(context.Background(), autosession.Spec{ExecutionID: owner, Mode: autosession.ModeRecording})
+	require.NoError(t, err)
+	client, cleanup := newTestServer(t, repo, &fakeRecordMode{session: session})
 	defer cleanup()
 	resp, err := client.NavigateToHistoryURL(context.Background(), connect.NewRequest(&recordingsv1.NavigateToHistoryURLRequest{
 		ProfileId: "p", Url: "https://x", WaitUntil: "load", TimeoutMs: 1000,
@@ -682,19 +678,22 @@ func TestNavigateToHistoryURL_HappyPath(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "X", resp.Msg.GetTitle())
 	require.True(t, resp.Msg.GetCanGoBack())
-	require.Len(t, rm.navigateCalls, 1)
-	require.Equal(t, "sess-1", rm.navigateCalls[0].sessionID)
-	require.Equal(t, "https://x", rm.navigateCalls[0].req.URL)
-	require.Equal(t, "load", rm.navigateCalls[0].req.WaitUntil)
+	require.Len(t, requests, 1)
+	require.Equal(t, map[string]any{"execution_id": owner.String(), "lease_id": "history-lease", "url": "https://x", "wait_until": "load", "timeout_ms": float64(1000)}, <-requests)
 }
 
 func TestNavigateToHistoryURL_NoSession(t *testing.T) {
-	repo := newFakeRepo()
-	client, cleanup := newTestServer(t, repo, nil)
-	defer cleanup()
-	_, err := client.NavigateToHistoryURL(context.Background(), connect.NewRequest(&recordingsv1.NavigateToHistoryURLRequest{ProfileId: "p", Url: "https://x"}))
-	require.Error(t, err)
-	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+	for _, id := range []string{"", "orphaned-profile-binding"} {
+		t.Run(id, func(t *testing.T) {
+			repo := newFakeRepo()
+			repo.sessions["p"] = id
+			client, cleanup := newTestServer(t, repo, nil)
+			defer cleanup()
+			_, err := client.NavigateToHistoryURL(context.Background(), connect.NewRequest(&recordingsv1.NavigateToHistoryURLRequest{ProfileId: "p", Url: "https://x"}))
+			require.Error(t, err)
+			require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+		})
+	}
 }
 
 func TestNavigateToHistoryURL_MissingURL(t *testing.T) {

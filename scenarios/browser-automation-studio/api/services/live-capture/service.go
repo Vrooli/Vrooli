@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -304,6 +305,11 @@ type RecordingConfig struct {
 
 // StartRecording starts recording user actions.
 func (s *Service) StartRecording(ctx context.Context, sessionID string, cfg *RecordingConfig) (*driver.StartRecordingResponse, error) {
+	owned, ok := s.sessions.Get(sessionID)
+	if !ok {
+		return nil, &driver.Error{Status: http.StatusNotFound, Message: "Recording session is not owned by this API"}
+	}
+
 	apiHost := cfg.APIHost
 	if apiHost == "" {
 		apiHost = "127.0.0.1"
@@ -340,7 +346,25 @@ func (s *Service) StartRecording(ctx context.Context, sessionID string, cfg *Rec
 		FrameFPS:         frameFPS,
 	}
 
-	return s.sessions.Client().StartRecording(ctx, sessionID, req)
+	return owned.StartRecording(ctx, req)
+}
+
+// StopRecording uses the same owned session as recording start.
+func (s *Service) StopRecording(ctx context.Context, sessionID string) (*driver.StopRecordingResponse, error) {
+	owned, ok := s.sessions.Get(sessionID)
+	if !ok {
+		return nil, &driver.Error{Status: http.StatusNotFound, Message: "Recording session is not owned by this API"}
+	}
+	return owned.StopRecording(ctx)
+}
+
+// ForwardInput shares session ownership across HTTP and WebSocket transports.
+func (s *Service) ForwardInput(ctx context.Context, sessionID string, input []byte) error {
+	owned, ok := s.sessions.Get(sessionID)
+	if !ok {
+		return &driver.Error{Status: http.StatusNotFound, Message: "Recording session is not owned by this API"}
+	}
+	return owned.ForwardInput(ctx, input)
 }
 
 // GenerateWorkflowConfig configures workflow generation.
@@ -523,7 +547,8 @@ type TabRestorationResult struct {
 // RestoreTabs creates tabs from saved tab state.
 // Returns info about the tabs that were restored, including the initial URL.
 func (s *Service) RestoreTabs(ctx context.Context, sessionID string, tabs []sessionprofilepersistence.TabState) (*TabRestorationResult, error) {
-	if _, ok := s.sessions.Get(sessionID); !ok {
+	sess, ok := s.sessions.Get(sessionID)
+	if !ok {
 		return nil, fmt.Errorf("session not found: %s", sessionID)
 	}
 
@@ -551,8 +576,7 @@ func (s *Service) RestoreTabs(ctx context.Context, sessionID string, tabs []sess
 					"session_id": sessionID,
 					"url":        tab.URL,
 				}).Info("RestoreTabs: navigating initial page to first tab URL")
-				navReq := &driver.NavigateRequest{URL: tab.URL}
-				resp, err := s.sessions.Client().Navigate(ctx, sessionID, navReq)
+				resp, err := sess.Navigate(ctx, tab.URL)
 				if err != nil {
 					s.log.WithError(err).WithField("url", tab.URL).Warn("RestoreTabs: failed to navigate initial page to saved URL")
 				} else {

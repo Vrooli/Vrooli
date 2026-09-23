@@ -15,6 +15,7 @@ import { parseJsonBody, sendJson, sendError } from '../../middleware';
 import { logger } from '../../utils';
 import { updateFrameStreamViewport } from '../../frame-streaming';
 import type { InputRequest, PointerAction, ViewportRequest, ViewportResponse } from './types';
+import { recordingOwner } from './recording-lifecycle';
 
 // =============================================================================
 // Input Handlers
@@ -33,7 +34,6 @@ export async function handleRecordInput(
   config: Config
 ): Promise<void> {
   try {
-    const session = sessionManager.getSession(sessionId);
     const body = await parseJsonBody(req, config);
     const request = body as unknown as InputRequest;
 
@@ -45,6 +45,9 @@ export async function handleRecordInput(
       return;
     }
 
+    const ownedSession = recordingOwner(body, sessionId, sessionManager);
+    const session = ownedSession();
+    sessionManager.updateActivity(sessionId);
     const page = session.page;
     const modifiers = request.modifiers || [];
 
@@ -59,9 +62,11 @@ export async function handleRecordInput(
           await page.mouse.move(x, y);
         } else if (action === 'down') {
           await page.mouse.move(x, y);
+          ownedSession();
           await page.mouse.down({ button });
         } else if (action === 'up') {
           await page.mouse.move(x, y);
+          ownedSession();
           await page.mouse.up({ button });
         } else if (action === 'click') {
           await page.mouse.click(x, y, { button });
@@ -101,6 +106,7 @@ export async function handleRecordInput(
         return;
     }
 
+    ownedSession();
     sendJson(res, 200, {
       status: 'ok',
     });

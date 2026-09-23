@@ -14,7 +14,7 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import { isOperational, type SessionManager } from '../../session';
 import type { Config } from '../../config';
 import { parseJsonBody, sendJson, sendError } from '../../middleware';
-import { logger, metrics, scopedLog, LogContext, SessionNotFoundError } from '../../utils';
+import { logger, metrics, scopedLog, LogContext, SessionNotFoundError, InvalidInstructionError } from '../../utils';
 import {
   getTimelineEntries,
   getTimelineEntryCount,
@@ -37,6 +37,19 @@ import { setupPageLifecycleListeners, pageEventCircuitBreaker } from './page-eve
 // =============================================================================
 // Recording Lifecycle Handlers
 // =============================================================================
+
+export function recordingOwner(body: Record<string, unknown>, sessionId: string, manager: SessionManager) {
+  const { execution_id: executionId, lease_id: leaseId } = body;
+  if (typeof executionId !== 'string' || !executionId.trim() || typeof leaseId !== 'string' || !leaseId.trim()) {
+    throw new InvalidInstructionError('execution_id and lease_id are required for recording mutations');
+  }
+  const session = manager.getSessionForLease(sessionId, executionId, leaseId);
+  return () => {
+    const current = manager.getSessionForLease(sessionId, executionId, leaseId);
+    if (current !== session || !isOperational(current.phase)) throw new SessionNotFoundError(sessionId);
+    return current;
+  };
+}
 
 /**
  * Start recording endpoint
@@ -63,15 +76,10 @@ export async function handleRecordStart(
 ): Promise<void> {
   const superseded = new Error('Recording start was superseded by a stop or a newer recording');
   try {
-    const session = sessionManager.getSession(sessionId);
-    const { ownerExecutionId, leaseId } = session;
-    const ownedSession = () => {
-      const current = sessionManager.getSessionForLease(sessionId, ownerExecutionId, leaseId);
-      if (current !== session || !isOperational(current.phase)) throw new SessionNotFoundError(sessionId);
-      return current;
-    };
     const body = await parseJsonBody(req, config);
-    ownedSession();
+    const ownedSession = recordingOwner(body, sessionId, sessionManager);
+    const session = ownedSession();
+    sessionManager.updateActivity(sessionId);
     const request = body as unknown as StartRecordingRequest;
 
     // Get pipeline manager (single source of truth for recording state)
@@ -216,7 +224,7 @@ export async function handleRecordStart(
     const response: StartRecordingResponse = {
       recording_id: recordingId,
       session_id: sessionId,
-      started_at: new Date().toISOString(),
+      started_at: pipelineManager.getRecordingData()?.startedAt ?? new Date().toISOString(),
       verification: verificationData
         ? {
             script_loaded: verificationData.scriptLoaded,
@@ -254,13 +262,17 @@ export async function handleRecordStart(
  * - Calling stop twice is safe and produces consistent results
  */
 export async function handleRecordStop(
-  _req: IncomingMessage,
+  req: IncomingMessage,
   res: ServerResponse,
   sessionId: string,
   sessionManager: SessionManager
 ): Promise<void> {
+  const superseded = new Error('Recording stop was superseded by a newer recording');
   try {
-    const session = sessionManager.getSession(sessionId);
+    const body = await parseJsonBody(req, {});
+    const ownedSession = recordingOwner(body, sessionId, sessionManager);
+    const session = ownedSession();
+    sessionManager.updateActivity(sessionId);
 
     // Get pipeline manager (single source of truth for recording state)
     const pipelineManager = session.pipelineManager;
@@ -269,13 +281,19 @@ export async function handleRecordStop(
     }
 
     const recordingId = pipelineManager.getRecordingId();
+    const generation = pipelineManager.getGeneration();
+    const stoppedSession = () => {
+      if (ownedSession().pipelineManager !== pipelineManager || pipelineManager.getGeneration() !== generation) throw superseded;
+    };
     const prior = pipelineManager.getRecordingData();
     const result = pipelineManager.isRecording()
       ? await pipelineManager.stopRecording()
       : { recordingId: recordingId || 'unknown', actionCount: prior?.actionCount ?? 0 };
 
+    stoppedSession();
     // Stop frame streaming if active
     await stopFrameStreaming(sessionId);
+    stoppedSession();
 
     // Clean up page lifecycle listeners if set up
     if (session.pageLifecycleCleanup) {
@@ -309,6 +327,10 @@ export async function handleRecordStop(
 
     sendJson(res, 200, response);
   } catch (error) {
+    if (error === superseded) {
+      sendJson(res, 409, { error: 'RECORDING_STOP_SUPERSEDED', message: superseded.message });
+      return;
+    }
     sendError(res, error as Error, `/session/${sessionId}/record/stop`);
   }
 }
@@ -401,12 +423,13 @@ export async function handleRecordActionsAck(
   config: Config
 ): Promise<void> {
   try {
-    sessionManager.getSession(sessionId);
     const body = await parseJsonBody(req, config);
+    recordingOwner(body, sessionId, sessionManager)();
     const ids = body.entry_ids;
     if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string' || !id)) {
       throw new Error('entry_ids must be an array of nonempty entry identities');
     }
+    sessionManager.updateActivity(sessionId);
     acknowledgeTimelineEntries(sessionId, ids, true);
     sendJson(res, 200, { entry_ids: ids });
   } catch (error) {

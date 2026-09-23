@@ -2,6 +2,7 @@ package livecapture
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/services/recording"
 	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
+	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -344,4 +346,96 @@ func TestCreateSessionJournalFailureReleasesBrowser(t *testing.T) {
 			}
 		})
 	}
+}
+
+// [REQ:BAS-RH-J17] No recording mutation may bypass the Session that owns its lease.
+func TestService_RecordingUsesOwnedSession(t *testing.T) {
+	const owner = "a0d790ac-1ea8-41cf-8b60-82d02c4d087b"
+	const lease = "record-lease"
+	const recordingID = "9c45d4a0-5333-4b36-8197-bdba6b6c8f36"
+	var effects atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/session/start" {
+			_ = json.NewEncoder(w).Encode(map[string]any{"session_id": "record-session", "lease_id": lease})
+			return
+		}
+		var envelope map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&envelope); err != nil {
+			t.Error(err)
+		}
+		if envelope["execution_id"] != owner || envelope["lease_id"] != lease {
+			t.Errorf("lost session ownership: %v", envelope)
+		}
+		if r.URL.Path == "/session/record-session/record/start" {
+			for field, suffix := range map[string]string{"callback_url": "action", "frame_callback_url": "frame", "page_callback_url": "page-event"} {
+				if envelope[field] != "http://fixture.invalid:9999/api/v1/recordings/live/record-session/"+suffix {
+					t.Errorf("lost callback %s: %v", field, envelope[field])
+				}
+			}
+			if envelope["frame_quality"] != float64(73) || envelope["frame_fps"] != float64(12) {
+				t.Errorf("lost controls: %v", envelope)
+			}
+		}
+		effects.Add(1)
+		_ = json.NewEncoder(w).Encode(map[string]any{"session_id": "record-session", "recording_id": recordingID, "action_count": 7, "started_at": "2026-09-22T12:00:00.123Z", "stopped_at": "2026-09-22T12:01:00.456Z"})
+	}))
+	defer srv.Close()
+	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	manager := autosession.NewManagerWithClient(client)
+	_, err = manager.Create(context.Background(), autosession.Spec{ExecutionID: uuid.MustParse(owner), Mode: autosession.ModeRecording})
+	require.NoError(t, err)
+	service := NewServiceWithManager(manager, logrus.New(), nil)
+	cfg := &RecordingConfig{APIHost: "fixture.invalid", APIPort: "9999", FrameQuality: 73, FrameFPS: 12}
+	start, err := service.StartRecording(context.Background(), "record-session", cfg)
+	require.NoError(t, err)
+	require.Equal(t, recordingID, start.RecordingID)
+	stop, err := service.StopRecording(context.Background(), "record-session")
+	require.NoError(t, err)
+	require.Equal(t, recordingID, stop.RecordingID)
+	require.Equal(t, "2026-09-22T12:01:00.456Z", stop.StoppedAt)
+	require.NoError(t, service.ForwardInput(context.Background(), "record-session", []byte(`{"type":"pointer","action":"click","x":12}`)))
+	require.Equal(t, int32(3), effects.Load())
+	_, err = service.StartRecording(context.Background(), "unknown-session", cfg)
+	require.Error(t, err)
+	_, err = service.StopRecording(context.Background(), "unknown-session")
+	require.Error(t, err)
+	require.Error(t, service.ForwardInput(context.Background(), "unknown-session", []byte(`{"type":"pointer","action":"click"}`)))
+	require.Equal(t, int32(3), effects.Load(), "unknown owner must not reach the driver")
+}
+
+// [REQ:BAS-RH-J17] Restoring the initial saved tab must use its owned Go Session.
+func TestRestoreTabsInitialNavigationCarriesOwnership(t *testing.T) {
+	owner := uuid.New()
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/session/start" {
+			_, _ = w.Write([]byte(`{"session_id":"restored","lease_id":"saved-tab-lease"}`))
+			return
+		}
+		calls.Add(1)
+		require.Equal(t, "/session/restored/record/navigate", r.URL.Path)
+		var body map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		require.Equal(t, map[string]any{"execution_id": owner.String(), "lease_id": "saved-tab-lease", "url": "https://saved.test"}, body)
+		_, _ = w.Write([]byte(`{"url":"https://saved.test","title":"saved tab"}`))
+	}))
+	defer server.Close()
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	manager := autosession.NewManagerWithClient(client)
+	_, err = manager.Create(context.Background(), autosession.Spec{ExecutionID: owner, Mode: autosession.ModeRecording})
+	require.NoError(t, err)
+	service := NewServiceWithManager(manager, logrus.New(), nil)
+	tabs := []sessionprofilepersistence.TabState{{URL: "https://saved.test", IsActive: true}}
+	restored, err := service.RestoreTabs(context.Background(), "restored", tabs)
+	require.NoError(t, err)
+	require.Equal(t, "https://saved.test", restored.InitialURL)
+	require.Equal(t, []HistoryEntryInfo{{URL: "https://saved.test", Title: "saved tab"}}, restored.HistoryEntries)
+	_, err = service.RestoreTabs(context.Background(), "unknown", tabs)
+	require.Error(t, err)
+	_, err = service.RestoreTabs(context.Background(), "restored", []sessionprofilepersistence.TabState{{URL: "about:blank"}})
+	require.NoError(t, err)
+	require.Equal(t, int32(1), calls.Load())
 }

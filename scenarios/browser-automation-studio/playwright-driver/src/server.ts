@@ -588,13 +588,12 @@ function setupRoutes(
     }
     await routes.handleRecordNavigationState(req, res, sessionId, sessionManager, config);
   });
-  router.get('/session/:id/record/navigation-stack', (req, res, params) => {
+  router.get('/session/:id/record/navigation-stack', async (req, res, params) => {
     const sessionId = requireRouteParam(res, params, 'id');
     if (!sessionId) {
-      return Promise.resolve();
+      return;
     }
-    routes.handleRecordNavigationStack(req, res, sessionId, sessionManager, config);
-    return Promise.resolve();
+    await routes.handleRecordNavigationStack(req, res, sessionId, sessionManager, config);
   });
   router.post('/session/:id/record/screenshot', async (req, res, params) => {
     const sessionId = requireRouteParam(res, params, 'id');

@@ -40,7 +40,6 @@
   if (typeof window.__vrooli_recording_cleanup === 'function') {
     try {
       window.__vrooli_recording_cleanup();
-      console.log('[Recording] Previous instance cleaned up');
     } catch (e) {
       throw e;
     }
@@ -56,7 +55,6 @@
   // Skip if already initialized with the same page load ID
   if (window.__recordingInitialized &&
       window.__vrooli_recording_page_load_id === document.__vrooli_page_load_id) {
-    console.log('[Recording] Already initialized for this page load, skipping');
     return;
   }
 
@@ -218,13 +216,11 @@
   }
 
   window.__recordingInitialized = true;
-  console.log('[Recording] Init script loaded');
 
   // Capture starts only after the owning pipeline acknowledges activation.
   var isActive = false;
   var sessionId = null;
 
-  console.log('[Recording] Awaiting activation');
 
   // ============================================================================
   // SECTION 2: Configuration (injected from selector-config.ts)
@@ -857,7 +853,6 @@
       payload: payload,
     };
 
-    console.log('[Recording] Event captured:', type, 'active:', isActive);
 
     // Retain the observation until the event route acknowledges delivery.
     sendEvent(action);
@@ -873,7 +868,6 @@
   function handleClick(e) {
     // Track that DOM event handler fired
     window.__vrooli_recording_telemetry.eventsDetected++;
-    console.error('[Recording] DIAGNOSTIC: Click detected, isActive=' + isActive + ', eventsDetected=' + window.__vrooli_recording_telemetry.eventsDetected);
     captureAction('click', e.target, e, {
       button: e.button === 0 ? 'left' : e.button === 2 ? 'right' : 'middle',
       modifiers: getModifiers(e),
@@ -1241,25 +1235,21 @@
     // Focus handlers - register if enabled
     if (isCategoryEnabled('focus')) {
       registerFocusHandlers();
-      console.log('[Recording] Focus handlers registered');
     }
 
     // Hover handlers - register if enabled
     if (isCategoryEnabled('hover')) {
       registerHoverHandlers();
-      console.log('[Recording] Hover handlers registered');
     }
 
     // Drag/drop handlers - register if enabled
     if (isCategoryEnabled('dragDrop')) {
       registerDragDropHandlers();
-      console.log('[Recording] Drag/drop handlers registered');
     }
 
     // Gesture handlers - register if enabled
     if (isCategoryEnabled('gesture')) {
       registerGestureHandlers();
-      console.log('[Recording] Gesture handlers registered');
     }
   }
 
@@ -1302,7 +1292,6 @@
       },
     };
 
-    console.log('[Recording] Navigation captured:', cause, targetUrl.slice(0, 50));
 
     // Navigation uses the same retained delivery owner as other observations.
     sendEvent(action);
@@ -1395,7 +1384,6 @@
     var data = event.data;
     if (!data || data.type !== MESSAGE_TYPE) return;
 
-    console.log('[Recording] Received control message:', data.action, 'source:', event.source === window ? 'window' : 'other');
 
     var reply = event.ports && event.ports[0];
     var operation;
@@ -1495,7 +1483,6 @@
     window.__vrooli_recording_ready = false;
     isActive = false;
 
-    console.log('[Recording] Cleanup complete');
   };
 
   // ============================================================================
@@ -1506,8 +1493,6 @@
   window.__vrooli_recording_ready = true;
   window.__vrooli_recording_handlers_count = registeredListeners.length;
 
-  console.log('[Recording] Event listeners attached (' + registeredListeners.length + ' handlers)');
-  console.error('[Recording] DIAGNOSTIC: Script loaded and initialized');
 
   } catch (e) {
     console.error('[Recording] FATAL ERROR during initialization:', e.message, e.stack);

@@ -65,8 +65,10 @@ type RecordModeService interface {
 	CloseSession(ctx context.Context, sessionID string) error
 	GetStorageState(ctx context.Context, sessionID string) (json.RawMessage, error)
 
-	// Recording lifecycle (has business logic for callback URL construction)
+	// Recording lifecycle carries the owned session lease and constructs callbacks.
 	StartRecording(ctx context.Context, sessionID string, cfg *livecapture.RecordingConfig) (*autodriver.StartRecordingResponse, error)
+	StopRecording(ctx context.Context, sessionID string) (*autodriver.StopRecordingResponse, error)
+	ForwardInput(ctx context.Context, sessionID string, input []byte) error
 
 	// Workflow generation (has business logic for action conversion)
 	GenerateWorkflow(ctx context.Context, sessionID string, cfg *livecapture.GenerateWorkflowConfig) (*livecapture.GenerateWorkflowResult, error)

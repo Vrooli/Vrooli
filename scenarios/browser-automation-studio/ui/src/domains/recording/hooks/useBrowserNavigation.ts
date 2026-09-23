@@ -34,8 +34,8 @@ const parseNavigationStackData = (value: unknown): NavigationStackData | null =>
     if (!isRecord(entry)) return null;
     const url = typeof entry.url === 'string' ? entry.url : null;
     const title = typeof entry.title === 'string' ? entry.title : null;
-    const timestamp = typeof entry.timestamp === 'string' ? entry.timestamp : null;
-    if (!url || !title || !timestamp) return null;
+    const timestamp = typeof entry.timestamp === 'string' ? entry.timestamp : undefined;
+    if (!url || title === null) return null;
     return { url, title, timestamp };
   };
 

@@ -90,42 +90,27 @@ func (s *Session) ForwardInput(ctx context.Context, input []byte) error {
 	if s.isClosed() {
 		return errors.New("session closed")
 	}
-	return s.client.ForwardInput(ctx, s.id, input)
+	return s.client.ForwardInput(ctx, s.id, s.executionID, s.leaseID, input)
 }
 
-// RecordingConfig configures recording start.
-type RecordingConfig struct {
-	ActionCallbackURL string
-	FrameCallbackURL  string
-	Quality           int
-	FPS               int
-}
-
-// StartRecording starts recording user actions.
+// StartRecording starts recording under this session's immutable lease.
 // Only available in ModeRecording and ModeHybrid.
-func (s *Session) StartRecording(ctx context.Context, cfg RecordingConfig) error {
+func (s *Session) StartRecording(ctx context.Context, req *driver.StartRecordingRequest) (*driver.StartRecordingResponse, error) {
 	if s.mode == ModeExecution {
-		return errors.New("cannot start recording in execution-only mode")
+		return nil, errors.New("cannot start recording in execution-only mode")
 	}
 	if s.isClosed() {
-		return errors.New("session closed")
+		return nil, errors.New("session closed")
 	}
-	_, err := s.client.StartRecording(ctx, s.id, &driver.StartRecordingRequest{
-		CallbackURL:      cfg.ActionCallbackURL,
-		FrameCallbackURL: cfg.FrameCallbackURL,
-		FrameQuality:     cfg.Quality,
-		FrameFPS:         cfg.FPS,
-	})
-	return err
+	return s.client.StartRecording(ctx, s.id, s.executionID, s.leaseID, req)
 }
 
-// StopRecording stops recording user actions.
-func (s *Session) StopRecording(ctx context.Context) error {
+// StopRecording returns the terminal receipt from this session's recording owner.
+func (s *Session) StopRecording(ctx context.Context) (*driver.StopRecordingResponse, error) {
 	if s.isClosed() {
-		return errors.New("session closed")
+		return nil, errors.New("session closed")
 	}
-	_, err := s.client.StopRecording(ctx, s.id)
-	return err
+	return s.client.StopRecording(ctx, s.id, s.executionID, s.leaseID)
 }
 
 // GetRecordedActions retrieves recorded actions for this session.
@@ -138,6 +123,14 @@ func (s *Session) GetRecordedActions(ctx context.Context) ([]driver.RecordedActi
 		return nil, err
 	}
 	return resp.Actions, nil
+}
+
+// AcknowledgeRecordedActions acknowledges durably committed entries under this lease.
+func (s *Session) AcknowledgeRecordedActions(ctx context.Context, ids []string) error {
+	if s.isClosed() {
+		return errors.New("session closed")
+	}
+	return s.client.AcknowledgeRecordedActions(ctx, s.id, s.executionID, s.leaseID, ids)
 }
 
 // GetRecordingStatus gets the current recording status.
@@ -177,7 +170,15 @@ func (s *Session) Navigate(ctx context.Context, url string, opts ...NavigateOpti
 	for _, opt := range opts {
 		opt(req)
 	}
-	return s.client.Navigate(ctx, s.id, req)
+	return s.client.Navigate(ctx, s.id, s.executionID, s.leaseID, req)
+}
+
+// NavigateHistory applies reload/back/forward under this Session's immutable lease.
+func (s *Session) NavigateHistory(ctx context.Context, operation driver.HistoryNavigation, req *driver.HistoryNavigationRequest) (*driver.HistoryNavigationResponse, error) {
+	if s.isClosed() {
+		return nil, errors.New("session closed")
+	}
+	return s.client.NavigateHistory(ctx, s.id, s.executionID, s.leaseID, operation, req)
 }
 
 // UpdateViewport updates the viewport dimensions.

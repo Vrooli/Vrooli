@@ -242,9 +242,9 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
     } as unknown as typeof f.session.pipelineManager;
     const title = deferred<string>(); const reading = deferred<void>();
     jest.mocked(f.page.title).mockImplementation(() => { reading.resolve(); return title.promise; });
-    const manager = { getSession: () => f.session, getSessionForLease: () => f.session, setSessionPhase: jest.fn() } as unknown as SessionManager;
+    const manager = { getSession: () => f.session, getSessionForLease: () => f.session, updateActivity: jest.fn(), setSessionPhase: jest.fn() } as unknown as SessionManager;
     const response = createMockHttpResponse();
-    const start = handleRecordStart(createMockHttpRequest({ method: 'POST', body: { page_callback_url: 'http://callback' } }),
+    const start = handleRecordStart(createMockHttpRequest({ method: 'POST', body: { execution_id: 'owner', lease_id: 'lease', page_callback_url: 'http://callback' } }),
       response, 'owned-tabs', manager, config);
     await reading.promise;
     f.session.pageLifecycleCleanup?.();

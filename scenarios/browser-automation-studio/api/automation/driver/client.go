@@ -58,16 +58,10 @@ var _ HTTPDoer = (*http.Client)(nil)
 // handlers to call driver methods directly without service-layer indirection.
 type ClientInterface interface {
 	// Recording operations
-	StopRecording(ctx context.Context, sessionID string) (*StopRecordingResponse, error)
 	GetRecordingStatus(ctx context.Context, sessionID string) (*RecordingStatusResponse, error)
 	GetRecordedActions(ctx context.Context, sessionID string) (*GetActionsResponse, error)
-	AcknowledgeRecordedActions(ctx context.Context, sessionID string, ids []string) error
 
 	// Navigation operations
-	Navigate(ctx context.Context, sessionID string, req *NavigateRequest) (*NavigateResponse, error)
-	Reload(ctx context.Context, sessionID string, req *ReloadRequest) (*ReloadResponse, error)
-	GoBack(ctx context.Context, sessionID string, req *GoBackRequest) (*GoBackResponse, error)
-	GoForward(ctx context.Context, sessionID string, req *GoForwardRequest) (*GoForwardResponse, error)
 	GetNavigationState(ctx context.Context, sessionID string) (*NavigationStateResponse, error)
 	GetNavigationStack(ctx context.Context, sessionID string) (*NavigationStackResponse, error)
 
@@ -82,9 +76,6 @@ type ClientInterface interface {
 	// Screenshot and frame operations
 	CaptureScreenshot(ctx context.Context, sessionID string, req *CaptureScreenshotRequest) (*CaptureScreenshotResponse, error)
 	GetFrame(ctx context.Context, sessionID, queryParams string) (*GetFrameResponse, error)
-
-	// Input forwarding
-	ForwardInput(ctx context.Context, sessionID string, body []byte) error
 }
 
 // Compile-time interface enforcement for ClientInterface
@@ -514,18 +505,31 @@ func (c *Client) ResetSession(ctx context.Context, sessionID, executionID, lease
 }
 
 // StartRecording starts recording user actions in a session.
-func (c *Client) StartRecording(ctx context.Context, sessionID string, req *StartRecordingRequest) (*StartRecordingResponse, error) {
+func (c *Client) StartRecording(ctx context.Context, sessionID, executionID, leaseID string, req *StartRecordingRequest) (*StartRecordingResponse, error) {
+	if req == nil || strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
+		return nil, errors.New("recording start requires options, execution ID and lease ID")
+	}
+	envelope := struct {
+		StartRecordingRequest
+		ExecutionID string `json:"execution_id"`
+		LeaseID     string `json:"lease_id"`
+	}{*req, executionID, leaseID}
 	var resp StartRecordingResponse
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/start", url.PathEscape(sessionID)), req, &resp); err != nil {
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/start", url.PathEscape(sessionID)), envelope, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // StopRecording stops recording user actions.
-func (c *Client) StopRecording(ctx context.Context, sessionID string) (*StopRecordingResponse, error) {
+func (c *Client) StopRecording(ctx context.Context, sessionID, executionID, leaseID string) (*StopRecordingResponse, error) {
+	if strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
+		return nil, errors.New("recording stop requires execution ID and lease ID")
+	}
 	var resp StopRecordingResponse
-	if err := c.postNoBody(ctx, fmt.Sprintf("/session/%s/record/stop", url.PathEscape(sessionID)), &resp); err != nil {
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/stop", url.PathEscape(sessionID)), map[string]string{
+		"execution_id": executionID, "lease_id": leaseID,
+	}, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
@@ -586,11 +590,16 @@ func (c *Client) GetRecordedActions(ctx context.Context, sessionID string) (*Get
 }
 
 // AcknowledgeRecordedActions removes only the entries already committed by the caller.
-func (c *Client) AcknowledgeRecordedActions(ctx context.Context, sessionID string, ids []string) error {
+func (c *Client) AcknowledgeRecordedActions(ctx context.Context, sessionID, executionID, leaseID string, ids []string) error {
+	if strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
+		return errors.New("recording acknowledgement requires execution ID and lease ID")
+	}
 	var receipt struct {
 		EntryIDs []string `json:"entry_ids"`
 	}
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/actions/ack", url.PathEscape(sessionID)), map[string]interface{}{"entry_ids": ids}, &receipt); err != nil {
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/actions/ack", url.PathEscape(sessionID)), map[string]interface{}{
+		"execution_id": executionID, "lease_id": leaseID, "entry_ids": ids,
+	}, &receipt); err != nil {
 		return err
 	}
 	if len(receipt.EntryIDs) != len(ids) {
@@ -604,37 +613,40 @@ func (c *Client) AcknowledgeRecordedActions(ctx context.Context, sessionID strin
 	return nil
 }
 
-// Navigate navigates the session to a URL (recording mode).
-func (c *Client) Navigate(ctx context.Context, sessionID string, req *NavigateRequest) (*NavigateResponse, error) {
+// Navigate navigates under the caller's immutable execution lease.
+func (c *Client) Navigate(ctx context.Context, sessionID, executionID, leaseID string, req *NavigateRequest) (*NavigateResponse, error) {
+	if req == nil || strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
+		return nil, errors.New("navigation requires options, execution ID and lease ID")
+	}
+	envelope := struct {
+		NavigateRequest
+		ExecutionID string `json:"execution_id"`
+		LeaseID     string `json:"lease_id"`
+	}{*req, executionID, leaseID}
 	var resp NavigateResponse
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/navigate", url.PathEscape(sessionID)), req, &resp); err != nil {
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/navigate", url.PathEscape(sessionID)), envelope, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
-// Reload reloads the current page (recording mode).
-func (c *Client) Reload(ctx context.Context, sessionID string, req *ReloadRequest) (*ReloadResponse, error) {
-	var resp ReloadResponse
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/reload", url.PathEscape(sessionID)), req, &resp); err != nil {
-		return nil, err
+// NavigateHistory applies one supported history operation under the caller's lease.
+func (c *Client) NavigateHistory(ctx context.Context, sessionID, executionID, leaseID string, operation HistoryNavigation, req *HistoryNavigationRequest) (*HistoryNavigationResponse, error) {
+	if req == nil || strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
+		return nil, errors.New("history navigation requires options, execution ID and lease ID")
 	}
-	return &resp, nil
-}
-
-// GoBack navigates back in browser history (recording mode).
-func (c *Client) GoBack(ctx context.Context, sessionID string, req *GoBackRequest) (*GoBackResponse, error) {
-	var resp GoBackResponse
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/go-back", url.PathEscape(sessionID)), req, &resp); err != nil {
-		return nil, err
+	switch operation {
+	case HistoryReload, HistoryBack, HistoryForward:
+	default:
+		return nil, fmt.Errorf("unsupported history navigation %q", operation)
 	}
-	return &resp, nil
-}
-
-// GoForward navigates forward in browser history (recording mode).
-func (c *Client) GoForward(ctx context.Context, sessionID string, req *GoForwardRequest) (*GoForwardResponse, error) {
-	var resp GoForwardResponse
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/go-forward", url.PathEscape(sessionID)), req, &resp); err != nil {
+	envelope := struct {
+		HistoryNavigationRequest
+		ExecutionID string `json:"execution_id"`
+		LeaseID     string `json:"lease_id"`
+	}{*req, executionID, leaseID}
+	var resp HistoryNavigationResponse
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/%s", url.PathEscape(sessionID), operation), envelope, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
@@ -717,8 +729,18 @@ func (c *Client) GetFrame(ctx context.Context, sessionID, queryParams string) (*
 }
 
 // ForwardInput forwards pointer/keyboard/wheel events to the driver.
-func (c *Client) ForwardInput(ctx context.Context, sessionID string, body []byte) error {
-	return c.postRaw(ctx, fmt.Sprintf("/session/%s/record/input", url.PathEscape(sessionID)), body, nil)
+func (c *Client) ForwardInput(ctx context.Context, sessionID, executionID, leaseID string, body []byte) error {
+	if strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
+		return errors.New("live input requires execution ID and lease ID")
+	}
+	var input map[string]json.RawMessage
+	if err := json.Unmarshal(body, &input); err != nil || input == nil {
+		return errors.New("live input requires a JSON object")
+	}
+	// The owned Session supplies authority; caller JSON cannot override it.
+	input["execution_id"], _ = json.Marshal(executionID)
+	input["lease_id"], _ = json.Marshal(leaseID)
+	return c.post(ctx, fmt.Sprintf("/session/%s/record/input", url.PathEscape(sessionID)), input, nil)
 }
 
 // SetActivePage switches the active page for frame streaming and input forwarding.
@@ -1073,15 +1095,6 @@ func (c *Client) postNoBody(ctx context.Context, path string, response interface
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
-	return c.doRequest(req, response, "POST "+path)
-}
-
-func (c *Client) postRaw(ctx context.Context, path string, body []byte, response interface{}) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
 	return c.doRequest(req, response, "POST "+path)
 }
 
