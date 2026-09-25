@@ -78,6 +78,11 @@ type WorkflowService struct {
 	readinessResolver readiness.Resolver
 }
 
+type executionControl struct {
+	cancel context.CancelFunc
+	done   <-chan struct{}
+}
+
 // SetReadinessResolver installs the declared-readiness resolver. Wiring is
 // separate from construction so a run works with or without Experience Manager,
 // which is the same posture the capture handler takes.

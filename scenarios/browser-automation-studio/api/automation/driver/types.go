@@ -199,6 +199,7 @@ type StartRecordingRequest struct {
 	CallbackURL      string `json:"callback_url"`
 	FrameCallbackURL string `json:"frame_callback_url"`
 	PageCallbackURL  string `json:"page_callback_url"`
+	RoutedTestMode   bool   `json:"routed_test_mode,omitempty"`
 	FrameQuality     int    `json:"frame_quality"`
 	FrameFPS         int    `json:"frame_fps"`
 }
@@ -244,6 +245,7 @@ type RecordedAction struct {
 	Payload     map[string]interface{} `json:"payload,omitempty"`
 	URL         string                 `json:"url"`
 	FrameID     string                 `json:"frameId,omitempty"`
+	FramePath   []string               `json:"framePath,omitempty"`
 	CursorPos   *contracts.Point       `json:"cursorPos,omitempty"`
 
 	// Multi-page support fields
@@ -423,15 +425,15 @@ type UpdateStreamSettingsRequest struct {
 
 // UpdateStreamSettingsResponse is the response from updating stream settings.
 type UpdateStreamSettingsResponse struct {
-	SessionID    string `json:"session_id"`
-	Quality      int    `json:"quality"`
-	FPS          int    `json:"fps"`
-	CurrentFPS   int    `json:"current_fps"`
-	Scale        string `json:"scale"`
-	IsStreaming  bool   `json:"is_streaming"`
-	Updated      bool   `json:"updated"`
-	ScaleWarning string `json:"scale_warning,omitempty"`
-	PerfMode     bool   `json:"perf_mode"`
+	SessionID    string  `json:"session_id"`
+	Quality      int     `json:"quality"`
+	FPS          int     `json:"fps"`
+	CurrentFPS   float64 `json:"current_fps"`
+	Scale        string  `json:"scale"`
+	IsStreaming  bool    `json:"is_streaming"`
+	Updated      bool    `json:"updated"`
+	ScaleWarning string  `json:"scale_warning,omitempty"`
+	PerfMode     bool    `json:"perf_mode"`
 }
 
 // CaptureScreenshotRequest is the request to capture a screenshot.

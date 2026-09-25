@@ -275,6 +275,28 @@ func TestStopExecution(t *testing.T) {
 	}
 }
 
+func TestStopExecutionReturnsOwnerUnavailableError(t *testing.T) {
+	t.Log("[REQ:BAS-RH-J07] stop with unavailable owner returns no stopped response")
+	exec := &stubExecutor{
+		stopFn: func(context.Context, uuid.UUID) error {
+			return errors.New("execution is running but this API process has no cancellation owner")
+		},
+	}
+	client, stop := newTestService(t, exec, nil)
+	defer stop()
+
+	resp, err := client.StopExecution(context.Background(), connect.NewRequest(&basapi.StopExecutionRequest{ExecutionId: uuid.NewString()}))
+	if err == nil {
+		t.Fatalf("StopExecution response = %+v, want owner-unavailable error", resp)
+	}
+	if resp != nil {
+		t.Fatalf("StopExecution response = %+v alongside error, want no stopped response", resp)
+	}
+	if got := connect.CodeOf(err); got != connect.CodeInternal {
+		t.Fatalf("StopExecution error code = %s, want internal error", got)
+	}
+}
+
 func TestResumeExecution_FailedPrecondition(t *testing.T) {
 	id := uuid.New()
 	exec := &stubExecutor{

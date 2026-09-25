@@ -21,6 +21,17 @@ func TestSessionAdmissionWaitsForCapacity(t *testing.T) {
 		t.Fatalf("capacity recovery: attempts=%d err=%v", attempts, err)
 	}
 }
+
+func TestSessionAdmissionRetryDelayStaysResponsive(t *testing.T) {
+	delay := 250 * time.Millisecond
+	for attempt, want := range []time.Duration{500 * time.Millisecond, 500 * time.Millisecond, 500 * time.Millisecond} {
+		delay = nextSessionAdmissionDelay(delay)
+		if delay != want {
+			t.Fatalf("retry delay after capacity rejection %d = %s, want %s", attempt+1, delay, want)
+		}
+	}
+}
+
 func TestSessionAdmissionNeverRetriesAmbiguousCreation(t *testing.T) {
 	for _, failure := range []error{errors.New("connection lost after dispatch"), &Error{Status: 500, Message: "Maximum concurrent sessions reached"}, &Error{Status: 429, Message: "other limit"}} {
 		attempts := 0
@@ -30,6 +41,7 @@ func TestSessionAdmissionNeverRetriesAmbiguousCreation(t *testing.T) {
 		}
 	}
 }
+
 func TestSessionAdmissionCancellationAndBudget(t *testing.T) {
 	rejection := &Error{Status: 429, Message: "Maximum concurrent sessions reached: 10"}
 	ctx, cancel := context.WithCancel(context.Background())

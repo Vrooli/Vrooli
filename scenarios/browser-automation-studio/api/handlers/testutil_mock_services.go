@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -904,10 +906,12 @@ func (m *MockStorage) StoreArtifact(ctx context.Context, objectName string, data
 	m.mu.Lock()
 	m.artifacts[objectName] = data
 	m.mu.Unlock()
+	digest := sha256.Sum256(data)
 
 	return &storage.ArtifactInfo{
 		ObjectName: objectName,
 		SizeBytes:  int64(len(data)),
+		SHA256:     hex.EncodeToString(digest[:]),
 	}, nil
 }
 
@@ -1107,7 +1111,7 @@ func (m *MockDriverClient) UpdateStreamSettings(ctx context.Context, sessionID s
 		SessionID:   sessionID,
 		Quality:     quality,
 		FPS:         fps,
-		CurrentFPS:  fps,
+		CurrentFPS:  float64(fps),
 		Scale:       req.Scale,
 		IsStreaming: true,
 		Updated:     true,
@@ -1189,14 +1193,17 @@ func (m *MockDriverClient) GetFrame(ctx context.Context, sessionID, queryParams 
 	}, nil
 }
 
-func (m *MockRecordModeService) ForwardInput(ctx context.Context, sessionID string, body []byte) error {
+func (m *MockRecordModeService) ForwardInput(ctx context.Context, sessionID string, body []byte) (*driver.ForwardInputResponse, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.ForwardInputCalled = true
 	m.LastSessionID = sessionID
 	m.LastForwardInputBody = body
 
-	return m.ForwardInputError
+	if m.ForwardInputError != nil {
+		return nil, m.ForwardInputError
+	}
+	return &driver.ForwardInputResponse{Status: "ok", AppliedSequence: 1}, nil
 }
 
 // Compile-time interface check

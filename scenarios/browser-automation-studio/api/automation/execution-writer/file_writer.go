@@ -13,6 +13,7 @@ import (
 	_ "image/png"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -25,6 +26,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
+	"github.com/vrooli/browser-automation-studio/services/evidence"
 	"github.com/vrooli/browser-automation-studio/storage"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
@@ -302,7 +304,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 
 	// Apply configurable limits during sanitization
 	outcome = r.sanitizeOutcomeWithConfig(outcome, cfg)
-	screenshotInfo, screenshotErr := r.prepareOutcomeScreenshot(ctx, plan, &outcome, cfg.CollectScreenshots)
+	screenshotInfo, screenshotStorageDuration, screenshotErr := r.prepareOutcomeScreenshot(ctx, plan, &outcome, cfg.CollectScreenshots)
 	defer func() {
 		err = errors.Join(err, screenshotErr)
 		if err != nil {
@@ -531,10 +533,11 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 			ThumbnailURL: screenshotInfo.ThumbnailURL,
 			SizeBytes:    &screenshotInfo.SizeBytes,
 			Payload: map[string]any{
-				"width":      outcome.Screenshot.Width,
-				"height":     outcome.Screenshot.Height,
-				"from_cache": outcome.Screenshot.FromCache,
-				"hash":       outcome.Screenshot.Hash,
+				"width":               outcome.Screenshot.Width,
+				"height":              outcome.Screenshot.Height,
+				"from_cache":          outcome.Screenshot.FromCache,
+				"hash":                outcome.Screenshot.Hash,
+				"storage_duration_ns": screenshotStorageDuration.Nanoseconds(),
 			},
 		}
 		// File and object-store locations are storage implementation details.
@@ -981,17 +984,23 @@ func (r *FileWriter) updateExecutionIndex(ctx context.Context, executionID uuid.
 
 // prepareOutcomeScreenshot keeps capture receipt policy before outcome projection.
 // Required failures remain readable in the core outcome even if no image survived.
-func (r *FileWriter) prepareOutcomeScreenshot(ctx context.Context, plan contracts.ExecutionPlan, outcome *contracts.StepOutcome, collect bool) (*storage.ScreenshotInfo, error) {
+func (r *FileWriter) prepareOutcomeScreenshot(ctx context.Context, plan contracts.ExecutionPlan, outcome *contracts.StepOutcome, collect bool) (*storage.ScreenshotInfo, time.Duration, error) {
 	if !collect {
-		return nil, nil
+		return nil, 0, nil
 	}
 	required := outcome.Success && strings.EqualFold(outcome.StepType, "screenshot")
 	if outcome.Screenshot == nil && !required {
-		return nil, nil
+		return nil, 0, nil
 	}
-	info, err := r.persistScreenshot(ctx, plan, plan.ExecutionID, *outcome)
+	info, duration, err := r.persistScreenshot(ctx, plan, plan.ExecutionID, outcome)
 	if err == nil {
-		return info, nil
+		return info, duration, nil
+	}
+	if duration > 0 {
+		if outcome.Notes == nil {
+			outcome.Notes = make(map[string]string, 2)
+		}
+		outcome.Notes["screenshot_storage_duration_ns"] = strconv.FormatInt(duration.Nanoseconds(), 10)
 	}
 	if reason := outcome.Notes["screenshot_omitted"]; reason != "" {
 		err = fmt.Errorf("screenshot omitted: %s", reason)
@@ -1002,38 +1011,40 @@ func (r *FileWriter) prepareOutcomeScreenshot(ctx context.Context, plan contract
 		if r.log != nil {
 			r.log.WithError(err).Warn("Optional screenshot unavailable")
 		}
-		return nil, nil
+		return nil, duration, nil
 	}
 	outcome.Success = false
 	outcome.Failure = &contracts.StepFailure{Kind: contracts.FailureKindInfra, Source: contracts.FailureSourceRecorder, Code: "SCREENSHOT_PERSISTENCE_FAILED", Message: err.Error()}
-	return nil, err
+	return nil, duration, err
 }
 
-func (r *FileWriter) persistScreenshot(ctx context.Context, plan contracts.ExecutionPlan, executionID uuid.UUID, outcome contracts.StepOutcome) (*storage.ScreenshotInfo, error) {
-	if outcome.Screenshot == nil || len(outcome.Screenshot.Data) == 0 {
-		return nil, errors.New("screenshot bytes unavailable")
+func (r *FileWriter) persistScreenshot(ctx context.Context, plan contracts.ExecutionPlan, executionID uuid.UUID, outcome *contracts.StepOutcome) (*storage.ScreenshotInfo, time.Duration, error) {
+	if outcome == nil || outcome.Screenshot == nil || len(outcome.Screenshot.Data) == 0 {
+		return nil, 0, errors.New("screenshot bytes unavailable")
 	}
-	decoded, format, err := image.Decode(bytes.NewReader(outcome.Screenshot.Data))
+	imageConfig, format, err := validateScreenshotImage(ctx, outcome.Screenshot.Data)
 	if err != nil {
-		return nil, fmt.Errorf("decode screenshot: %w", err)
+		return nil, 0, err
 	}
-	if (format != "png" && format != "jpeg") || decoded.Bounds().Empty() {
-		return nil, errors.New("screenshot is not a supported encoded image")
-	}
+	outcome.Screenshot.Width = imageConfig.Width
+	outcome.Screenshot.Height = imageConfig.Height
+	outcome.Screenshot.MediaType = "image/" + format
 	if r.storage == nil {
-		return nil, errors.New("screenshot storage unavailable")
+		return nil, 0, errors.New("screenshot storage unavailable")
 	}
-	info, err := r.storage.StoreScreenshot(ctx, executionID, buildScreenshotBaseName(plan, outcome), outcome.Screenshot.Data, "image/"+format)
+	storeStarted := time.Now()
+	info, err := r.storage.StoreScreenshot(ctx, executionID, buildScreenshotBaseName(plan, *outcome), outcome.Screenshot.Data, "image/"+format)
+	storeDuration := time.Since(storeStarted)
 	if err != nil {
-		return nil, fmt.Errorf("store screenshot: %w", err)
+		return nil, storeDuration, fmt.Errorf("store screenshot: %w", err)
 	}
 	if info == nil || strings.TrimSpace(info.ObjectName) == "" || strings.TrimSpace(info.URL) == "" {
-		return nil, errors.New("screenshot storage returned an incomplete receipt")
+		return nil, storeDuration, errors.New("screenshot storage returned an incomplete receipt")
 	}
 	if info.SizeBytes != int64(len(outcome.Screenshot.Data)) {
-		return nil, errors.New("screenshot storage size differs from captured bytes")
+		return nil, storeDuration, errors.New("screenshot storage size differs from captured bytes")
 	}
-	return info, nil
+	return info, storeDuration, nil
 }
 
 type telemetryArtifactRef struct {
@@ -1273,6 +1284,7 @@ func sanitizeOutcomeWithLimits(out contracts.StepOutcome, maxScreenshot, maxDOM,
 
 	out.ConsoleLogs = sanitizeConsoleWithLimit(out.ConsoleLogs, maxConsole)
 	out.Network = sanitizeNetworkWithLimit(out.Network, maxNetwork)
+	out.FinalURL = evidence.SanitizeNetworkURL(out.FinalURL, evidence.DefaultPolicy())
 
 	return out
 }
@@ -1303,8 +1315,14 @@ func sanitizeNetworkWithLimit(events []contracts.NetworkEvent, maxPreviewBytes i
 	if len(events) == 0 {
 		return events
 	}
+	policy := evidence.DefaultPolicy()
 	sanitized := make([]contracts.NetworkEvent, 0, len(events))
 	for idx, ev := range events {
+		ev.URL = evidence.SanitizeNetworkURL(ev.URL, policy)
+		ev.RequestHeaders = evidence.SanitizeNetworkHeaders(ev.RequestHeaders, policy)
+		ev.ResponseHeaders = evidence.SanitizeNetworkHeaders(ev.ResponseHeaders, policy)
+		ev.RequestBodyPreview = evidence.SanitizeNetworkPreview(ev.RequestBodyPreview, policy)
+		ev.ResponseBodyPreview = evidence.SanitizeNetworkPreview(ev.ResponseBodyPreview, policy)
 		if len(ev.RequestBodyPreview) > maxPreviewBytes {
 			ev.Truncated = true
 			ev.RequestBodyPreview = ev.RequestBodyPreview[:maxPreviewBytes]

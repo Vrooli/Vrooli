@@ -1,11 +1,20 @@
 package ai
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
+	"fmt"
+	"image"
+	"image/png"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
+	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -128,6 +137,102 @@ func TestExtractPageElements_Integration(t *testing.T) {
 		// Screenshot should be base64 encoded
 		assert.Contains(t, screenshot, "data:image")
 	})
+
+	t.Run("[REQ:BAS-RF-017] masks synthetic secret values before the AI screenshot", func(t *testing.T) {
+		var requestCount atomic.Int32
+		fixture := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/" {
+				http.NotFound(w, r)
+				return
+			}
+			variant := "ALPHA"
+			if requestCount.Add(1) == 2 {
+				variant = "BRAVO"
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = fmt.Fprintf(w, `<!doctype html><html><head><title>Local privacy fixture</title><style>
+				body { margin: 0; font: 16px sans-serif; }
+				input { width: 240px; height: 36px; font: inherit; }
+				</style></head><body>
+				<label for="otp">One-time code</label><input id="otp" type="text" autocomplete="one-time-code" data-token="SYNTHETIC_TOKEN_%s" value="SYNTHETIC_OTP_%s">
+				<label for="password">Password</label><input id="password" type="password" data-token="SYNTHETIC_TOKEN_%s" value="SYNTHETIC_PW_%s">
+				<label for="card">Card number</label><input id="card" type="text" autocomplete="cc-number" data-token="SYNTHETIC_TOKEN_%s" value="411111111111%s">
+				<label for="csc">Security code</label><input id="csc" type="text" autocomplete="cc-csc" data-token="SYNTHETIC_TOKEN_%s" value="%s">
+				<input id="hidden" type="hidden" data-token="SYNTHETIC_TOKEN_%s" value="SYNTHETIC_HID_%s">
+				<button type="button">Continue</button></body></html>`,
+				variant, variant, variant, variant,
+				variant, map[string]string{"ALPHA": "1111", "BRAVO": "4444"}[variant],
+				variant, map[string]string{"ALPHA": "123", "BRAVO": "987"}[variant],
+				variant, variant)
+		}))
+		defer fixture.Close()
+
+		firstElements, _, firstScreenshot, err := handler.extractPageElements(context.Background(), fixture.URL)
+		if err != nil {
+			t.Skipf("managed browser extraction unavailable: %v", err)
+		}
+		secondElements, _, secondScreenshot, err := handler.extractPageElements(context.Background(), fixture.URL)
+		if err != nil {
+			t.Skipf("managed browser extraction unavailable: %v", err)
+		}
+
+		sensitiveControls := func(elements []ElementInfo) []ElementInfo {
+			controls := make([]ElementInfo, 0, 4)
+			for _, id := range []string{"otp", "password", "card", "csc"} {
+				for _, element := range elements {
+					if element.Attributes["id"] == id {
+						controls = append(controls, element)
+						break
+					}
+				}
+			}
+			if len(controls) != 4 {
+				t.Fatalf("extraction returned %d of 4 visible synthetic sensitive controls", len(controls))
+			}
+			return controls
+		}
+		for _, element := range append(firstElements, secondElements...) {
+			assert.NotEqual(t, "hidden", element.Attributes["id"], "hidden control values must not be extracted")
+		}
+		for _, element := range append(sensitiveControls(firstElements), sensitiveControls(secondElements)...) {
+			for _, selector := range element.Selectors {
+				assert.NotEqual(t, "data-attr", selector.Type, "sensitive control selectors must not reveal data-* values")
+				assert.NotContains(t, selector.Selector, "SYNTHETIC_TOKEN_")
+			}
+		}
+
+		firstPixels, err := decodeScreenshotPixels(firstScreenshot)
+		require.NoError(t, err)
+		secondPixels, err := decodeScreenshotPixels(secondScreenshot)
+		require.NoError(t, err)
+		require.Equal(t, firstPixels.Bounds(), secondPixels.Bounds())
+		for y := firstPixels.Bounds().Min.Y; y < firstPixels.Bounds().Max.Y; y++ {
+			for x := firstPixels.Bounds().Min.X; x < firstPixels.Bounds().Max.X; x++ {
+				first := rgbaAt(firstPixels, x, y)
+				second := rgbaAt(secondPixels, x, y)
+				if first != second {
+					t.Fatalf("AI screenshots differ at (%d,%d) when only synthetic sensitive values change: %v != %v", x, y, first, second)
+				}
+			}
+		}
+	})
+}
+
+func decodeScreenshotPixels(dataURL string) (image.Image, error) {
+	encoded, ok := strings.CutPrefix(dataURL, "data:image/png;base64,")
+	if !ok {
+		return nil, fmt.Errorf("screenshot is not a PNG data URL")
+	}
+	data, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, err
+	}
+	return png.Decode(bytes.NewReader(data))
+}
+
+func rgbaAt(pixels image.Image, x, y int) [4]uint32 {
+	r, g, b, a := pixels.At(x, y).RGBA()
+	return [4]uint32{r, g, b, a}
 }
 
 func TestGenerateAISuggestions_Integration(t *testing.T) {

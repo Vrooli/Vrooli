@@ -20,18 +20,21 @@ export class ConsoleLogCollector {
   private disposing?: Promise<void>;
   private disposed = false;
 
-  constructor(private readonly page: Page, private readonly maxEntries: number = MAX_CONSOLE_ENTRIES) {}
+  constructor(
+    private readonly page: Page,
+    private readonly maxEntries: number = MAX_CONSOLE_ENTRIES
+  ) {}
 
   start(): Promise<void> {
     if (this.disposed) return Promise.reject(new Error('Console collector disposed'));
-    return this.starting ??= this.initialize();
+    return (this.starting ??= this.initialize());
   }
 
   private async initialize(): Promise<void> {
     const since = Date.now();
-    const session = this.session = await this.page.context().newCDPSession(this.page);
+    const session = (this.session = await this.page.context().newCDPSession(this.page));
     if (this.disposed) return;
-    const onConsole: Parameters<typeof session.on<'Runtime.consoleAPICalled'>>[1] = event => {
+    const onConsole: Parameters<typeof session.on<'Runtime.consoleAPICalled'>>[1] = (event) => {
       // Runtime.enable also replays console history; only this collection window
       // belongs to the instruction. Never evaluate remote objects/getters.
       if (this.disposed || event.timestamp < since) return;
@@ -39,20 +42,34 @@ export class ConsoleLogCollector {
       const frame = event.stackTrace?.callFrames[0];
       this.logs.push({
         type: normalizeConsoleLogType(event.type),
-        text: event.args.map(arg => arg.unserializableValue ?? (arg.value === undefined
-          ? arg.description ?? arg.type
-          : typeof arg.value === 'string' ? arg.value : JSON.stringify(arg.value))).join(' '),
+        text: event.args
+          .map(
+            (arg) =>
+              arg.unserializableValue ??
+              (arg.value === undefined
+                ? (arg.description ?? arg.type)
+                : typeof arg.value === 'string'
+                  ? arg.value
+                  : JSON.stringify(arg.value))
+          )
+          .join(' '),
         timestamp: new Date(event.timestamp).toISOString(),
         location: frame?.url ? `${frame.url}:${frame.lineNumber}:${frame.columnNumber}` : '',
       });
     };
     session.on('Runtime.consoleAPICalled', onConsole);
-    this.removeListener = () => session.off('Runtime.consoleAPICalled', onConsole);
+    this.removeListener = (): void => {
+      session.off('Runtime.consoleAPICalled', onConsole);
+    };
     await session.send('Runtime.enable');
   }
 
-  getLogs(): ConsoleLogEntry[] { return [...this.logs]; }
-  clear(): void { this.logs = []; }
+  getLogs(): ConsoleLogEntry[] {
+    return [...this.logs];
+  }
+  clear(): void {
+    this.logs = [];
+  }
   getAndClear(): ConsoleLogEntry[] {
     const logs = this.getLogs();
     this.clear();
@@ -60,7 +77,7 @@ export class ConsoleLogCollector {
   }
 
   dispose(): Promise<void> {
-    return this.disposing ??= this.close();
+    return (this.disposing ??= this.close());
   }
 
   private async close(): Promise<void> {
@@ -70,8 +87,11 @@ export class ConsoleLogCollector {
     if (this.session) {
       this.removeListener?.();
       this.removeListener = undefined;
-      try { await this.session.detach(); }
-      catch (error) { if (!this.page.isClosed()) throw error; }
+      try {
+        await this.session.detach();
+      } catch (error) {
+        if (!this.page.isClosed()) throw error;
+      }
       this.session = undefined;
     }
     this.logs = [];
@@ -84,11 +104,10 @@ export class ConsoleLogCollector {
  * Collects HTTP requests and responses during instruction execution
  */
 /**
- * Hardened assumptions:
- * - Multiple requests to the same URL+method can happen concurrently
- * - Playwright request objects have a unique internal ID we can use
- * - Responses may arrive out of order or not at all
- * - Request map entries may leak if responses never arrive (cleaned up on clear)
+ * Correlate each response/failure with the Request object emitted by the page.
+ * URL, method and string form are descriptive values, not unique identities.
+ * The pending map retains explicit capacity and age bounds for requests that
+ * never receive a terminal event.
  *
  * Temporal hardening:
  * - Request map has bounded size to prevent memory leaks from orphaned requests
@@ -99,9 +118,10 @@ export class NetworkCollector {
   private events: NetworkEvent[] = [];
   private maxEvents: number;
   private page: Page;
-  private requestMap: Map<string, { method: string; url: string; timestamp: string; createdAt: number }> = new Map();
-  /** Counter for generating unique request IDs when Playwright ID unavailable */
-  private requestCounter = 0;
+  private requestMap = new Map<
+    Request,
+    { method: string; url: string; timestamp: string; createdAt: number }
+  >();
   /** Maximum pending requests before evicting oldest */
   private static readonly MAX_PENDING_REQUESTS = 500;
   /** Maximum age for pending requests before considered stale (30 seconds) */
@@ -124,13 +144,12 @@ export class NetworkCollector {
     this.requestHandler = (request: Request): void => {
       // Guard: Don't process events after dispose
       if (this.disposed) return;
-      const id = this.getRequestId(request);
       const now = Date.now();
 
       // Evict stale entries before adding new one (prevents unbounded growth)
       this.evictStaleRequests(now);
 
-      this.requestMap.set(id, {
+      this.requestMap.set(request, {
         method: request.method(),
         url: request.url(),
         timestamp: new Date().toISOString(),
@@ -143,8 +162,8 @@ export class NetworkCollector {
     this.responseHandler = (response: Response): void => {
       // Guard: Don't process events after dispose
       if (this.disposed) return;
-      const id = this.getRequestId(response.request());
-      const requestData = this.requestMap.get(id);
+      const request = response.request();
+      const requestData = this.requestMap.get(request);
 
       if (!requestData) {
         logger.debug('Response received without matching request', { url: response.url() });
@@ -163,11 +182,11 @@ export class NetworkCollector {
         url: requestData.url,
         status: response.status(),
         ok: response.ok(),
-        resource_type: response.request().resourceType(),
+        resource_type: request.resourceType(),
       };
 
       this.events.push(event);
-      this.requestMap.delete(id);
+      this.requestMap.delete(request);
     };
     this.page.on('response', this.responseHandler);
 
@@ -175,8 +194,7 @@ export class NetworkCollector {
     this.requestFailedHandler = (request: Request): void => {
       // Guard: Don't process events after dispose
       if (this.disposed) return;
-      const id = this.getRequestId(request);
-      const requestData = this.requestMap.get(id);
+      const requestData = this.requestMap.get(request);
 
       if (!requestData) {
         return;
@@ -196,46 +214,9 @@ export class NetworkCollector {
       };
 
       this.events.push(event);
-      this.requestMap.delete(id);
+      this.requestMap.delete(request);
     };
     this.page.on('requestfailed', this.requestFailedHandler);
-  }
-
-  /**
-   * Get a unique identifier for a request.
-   *
-   * Hardened: Uses Playwright's internal request reference (via WeakMap pattern)
-   * instead of URL+method which is NOT unique for concurrent requests to same endpoint.
-   *
-   * For Playwright requests, we use the request object's string representation
-   * which includes an internal unique ID. This handles:
-   * - Multiple concurrent requests to same URL
-   * - Same URL called multiple times in sequence
-   * - Requests that share identical URL and method
-   */
-  private getRequestId(request: { url: () => string; method: () => string }): string {
-    // Playwright Request objects have a stable toString() that includes unique internal ID
-    // Format: "Request: <method> <url>" but importantly the object identity is unique
-    // We create a composite key using object reference via a counter when we first see the request
-    //
-    // Note: We still include method:url for debugging, but prefix with counter for uniqueness
-    const baseId = `${request.method()}:${request.url()}`;
-
-    // For response/failure lookups, we need to match back to the original request
-    // Playwright guarantees response.request() returns the same Request object
-    // so we can use object identity. However, since we can't use WeakMap with
-    // the request object directly (it's not the key), we use a simpler approach:
-    // For requests, we'll store with a sequence number that we can match on lookup.
-    //
-    // Actually, Playwright's response.request() returns the exact same Request object,
-    // so the simplest fix is to use the string representation which IS unique per request.
-    try {
-      // Use String() to get Playwright's internal representation which is unique
-      return String(request);
-    } catch {
-      // Fallback if String() fails for some reason
-      return `${this.requestCounter++}:${baseId}`;
-    }
   }
 
   /**
@@ -248,9 +229,9 @@ export class NetworkCollector {
    */
   private evictStaleRequests(now: number): void {
     // First pass: remove stale entries by age
-    for (const [id, data] of this.requestMap.entries()) {
+    for (const [request, data] of this.requestMap.entries()) {
       if (now - data.createdAt > NetworkCollector.MAX_REQUEST_AGE_MS) {
-        this.requestMap.delete(id);
+        this.requestMap.delete(request);
         logger.debug('Evicted stale pending request', {
           url: data.url.slice(0, 100),
           ageMs: now - data.createdAt,
@@ -260,12 +241,16 @@ export class NetworkCollector {
 
     // Second pass: if still over limit, evict oldest by creation time
     if (this.requestMap.size > NetworkCollector.MAX_PENDING_REQUESTS) {
-      const entries = Array.from(this.requestMap.entries())
-        .sort((a, b) => a[1].createdAt - b[1].createdAt);
+      const entries = Array.from(this.requestMap.entries()).sort(
+        (a, b) => a[1].createdAt - b[1].createdAt
+      );
 
-      const toEvict = entries.slice(0, this.requestMap.size - NetworkCollector.MAX_PENDING_REQUESTS);
-      for (const [id] of toEvict) {
-        this.requestMap.delete(id);
+      const toEvict = entries.slice(
+        0,
+        this.requestMap.size - NetworkCollector.MAX_PENDING_REQUESTS
+      );
+      for (const [request] of toEvict) {
+        this.requestMap.delete(request);
       }
 
       if (toEvict.length > 0) {
@@ -284,8 +269,6 @@ export class NetworkCollector {
   clear(): void {
     this.events = [];
     this.requestMap.clear();
-    // Reset counter to prevent overflow on very long sessions
-    this.requestCounter = 0;
   }
 
   getAndClear(): NetworkEvent[] {

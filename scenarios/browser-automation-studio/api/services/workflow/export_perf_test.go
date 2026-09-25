@@ -80,3 +80,31 @@ func TestExportPerformanceArtifacts_EmptyDataRootIsNoOp(t *testing.T) {
 	svc := &WorkflowService{executionDataRoot: ""}
 	require.NoError(t, svc.exportPerformanceArtifacts(context.Background(), uuid.New(), t.TempDir(), nil))
 }
+
+func TestExportVideoArtifacts_CopiesRecordings(t *testing.T) {
+	root := t.TempDir()
+	execID := uuid.New()
+	srcDir := filepath.Join(root, execID.String(), "artifacts", "videos")
+	require.NoError(t, os.MkdirAll(srcDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "page-1.webm"), []byte("webm bytes"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "trace.zip"), []byte("ignore"), 0o644))
+	outDir := t.TempDir()
+
+	svc := &WorkflowService{executionDataRoot: root}
+	require.NoError(t, svc.exportVideoArtifacts(context.Background(), execID, outDir, storage.NewMemoryStorage()))
+
+	data, err := os.ReadFile(filepath.Join(outDir, "videos", "page-1.webm"))
+	require.NoError(t, err)
+	require.Equal(t, []byte("webm bytes"), data)
+	_, err = os.Stat(filepath.Join(outDir, "videos", "trace.zip"))
+	require.True(t, os.IsNotExist(err))
+}
+
+func TestExportVideoArtifacts_MissingRecordingsIsNoOp(t *testing.T) {
+	execID := uuid.New()
+	outDir := t.TempDir()
+	svc := &WorkflowService{executionDataRoot: t.TempDir()}
+	require.NoError(t, svc.exportVideoArtifacts(context.Background(), execID, outDir, nil))
+	_, err := os.Stat(filepath.Join(outDir, "videos"))
+	require.True(t, os.IsNotExist(err))
+}

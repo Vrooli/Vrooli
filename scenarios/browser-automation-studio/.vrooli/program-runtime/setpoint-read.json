@@ -36,6 +36,8 @@
     "no binding with effect write or destructive is called",
     "no row set is materialized beyond evidence_sample rows; readings are count and filter",
     "a row whose sensor has no governed binding is reported unavailable with the reason, not computed by hand",
+    "passive-fidelity, profile-durability, cancellation-recovery, and resource-budget use their own provider maturity capability from the exact current rehabilitation phase",
+    "capture and rehabilitation owner readings must match the live managed BAS build identity",
     "the envelope is printed exactly once, on every path",
     "no setpoint row is computed by hand from files; a row without a governed sensor reads unavailable with the reason",
     "rehabilitation rows cover every required REFRACTOR_CONTRACT.json outcome",
@@ -76,6 +78,20 @@
       "id": "performance-health/sweep/workload-get",
       "effect": "read",
       "optional": true
+    },
+    {
+      "id": "test-genie/runs/list",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "test-genie/runs/findings",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "vrooli/scenario/status",
+      "effect": "read"
     }
   ],
   "outputs": {

@@ -656,13 +656,14 @@
         "argv": [
           "{{bin.api}}"
         ],
-        "env": {
-          "REQUEST_TIMEOUT_MS": "7200000",
-          "SESSION_IDLE_TIMEOUT_MS": "7200000",
-          "BAS_DRIVER_EXECUTION_TIMEOUT_MS": "7200000",
-          "BAS_EXECUTION_MAX_TIMEOUT_MS": "7200000",
-          "PLAYWRIGHT_DRIVER_URL": "http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}"
-        },
+      "env": {
+        "REQUEST_TIMEOUT_MS": "7200000",
+        "SESSION_IDLE_TIMEOUT_MS": "7200000",
+        "BAS_DRIVER_EXECUTION_TIMEOUT_MS": "7200000",
+        "BAS_EXECUTION_MAX_TIMEOUT_MS": "7200000",
+        "GOMEMLIMIT": "96MiB",
+        "PLAYWRIGHT_DRIVER_URL": "http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}"
+      },
         "port": "api",
         "data_dirs": [
           "data/executions",

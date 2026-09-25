@@ -1,11 +1,16 @@
 package recording
 
 import (
+	"bufio"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -155,6 +160,70 @@ func TestService_RecordAction(t *testing.T) {
 
 	if entry.Action.ActionType != "click" {
 		t.Errorf("expected action type click, got %s", entry.Action.ActionType)
+	}
+}
+
+func TestService_RedactsSensitiveActionsBeforeCommitAndOnLegacyRead(t *testing.T) {
+	const secret = "BAS_SYNTHETIC_JOURNAL_SECRET_9e6a"
+	repo := persistence.NewMockRepository()
+	svc := NewService(repo, ServiceConfig{})
+	ctx := context.Background()
+	session, err := svc.CreateSession(ctx, SessionConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pageID := uuid.New()
+
+	newAction := &driver.RecordedAction{
+		ID: uuid.NewString(), SessionID: session.ID, ActionType: "type",
+		Timestamp: time.Now().Format(time.RFC3339Nano),
+		ElementMeta: &driver.ElementMeta{TagName: "input", InnerText: secret, Attributes: map[string]string{
+			"type": "password", "value": secret, "data-token": secret,
+		}},
+		Payload: map[string]interface{}{"text": secret, "value": secret},
+	}
+	if err := svc.RecordAction(ctx, session.ID, newAction, pageID, ActionSourceManual); err != nil {
+		t.Fatal(err)
+	}
+	stored := repo.GetAllEntries(session.ID)
+	if len(stored) != 1 {
+		t.Fatalf("expected one committed action, got %d", len(stored))
+	}
+	if got := stored[0].Action.Payload["text"]; got != "" {
+		t.Fatalf("new secret reached durable journal: %v", got)
+	}
+	if got := stored[0].Action.ElementMeta.InnerText; got != "" {
+		t.Fatalf("new secret reached durable metadata: %q", got)
+	}
+
+	// Simulate a legacy row already on disk. The read API redacts its detached
+	// result, while the repository's original bytes stay unchanged.
+	legacy := &persistence.UnifiedTimelineEntry{
+		ID: uuid.New(), Type: persistence.TimelineEntryTypeAction, Timestamp: time.Now(),
+		SessionID: session.ID, PageID: pageID,
+		Action: &domain.RecordingAction{
+			ID: uuid.New(), SessionID: session.ID, PageID: pageID, ActionType: "type",
+			ElementMeta: &domain.ElementMeta{TagName: "input", InnerText: secret, Attributes: map[string]string{
+				"type": "password", "value": secret, "data-token": secret,
+			}},
+			Payload: map[string]interface{}{"text": secret, "value": secret},
+		},
+	}
+	if _, err := repo.AppendTimelineEntry(ctx, legacy); err != nil {
+		t.Fatal(err)
+	}
+	response, err := svc.GetTimeline(ctx, persistence.TimelineQuery{SessionID: session.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := response.Entries[1].Action.Payload["text"]; got != "" {
+		t.Fatalf("legacy read exposed secret: %v", got)
+	}
+	if got := response.Entries[1].Action.ElementMeta.InnerText; got != "" {
+		t.Fatalf("legacy read exposed metadata: %q", got)
+	}
+	if got := repo.GetAllEntries(session.ID)[1].Action.Payload["text"]; got != secret {
+		t.Fatalf("read redaction mutated the saved legacy value: %v", got)
 	}
 }
 
@@ -687,6 +756,155 @@ func journalAction(id string) *driver.RecordedAction {
 	return &driver.RecordedAction{ID: id, ActionType: "input", Timestamp: "2026-09-22T00:00:00Z", Payload: map[string]interface{}{"text": "original"}}
 }
 
+func TestJournalServiceProcessCrashHelper(t *testing.T) {
+	if os.Getenv("BAS_JOURNAL_CRASH_HELPER") != "1" {
+		return
+	}
+	svc, _ := openJournalFixture(t, os.Getenv("BAS_JOURNAL_DB"))
+	if err := svc.RecordAction(context.Background(), os.Getenv("BAS_JOURNAL_SESSION"), journalAction(os.Getenv("BAS_JOURNAL_ACTION")), uuid.Nil, ActionSourceAuto); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fmt.Fprintln(os.Stdout, "BAS_JOURNAL_COMMITTED_BEFORE_ACK"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Stdout.Sync(); err != nil {
+		t.Fatal(err)
+	}
+	select {}
+}
+
+func TestJournalSameIDRetryRecoversAcrossServiceProcessDeath(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "process-crash-journal.db")
+	svc, db := openJournalFixture(t, path)
+	session, err := svc.CreateSession(context.Background(), SessionConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const actionCount = 10000
+	expectedIDs := make([]string, actionCount)
+	for i := range expectedIDs {
+		expectedIDs[i] = uuid.NewString()
+		if err := svc.RecordAction(context.Background(), session.ID, journalAction(expectedIDs[i]), uuid.Nil, ActionSourceAuto); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	const actionID = "1f90c0a5-7b72-4a0e-a52d-73b218c27c49"
+	cmd := exec.Command(os.Args[0], "-test.v", "-test.run=^TestJournalServiceProcessCrashHelper$")
+	cmd.Env = append(os.Environ(),
+		"BAS_JOURNAL_CRASH_HELPER=1",
+		"BAS_JOURNAL_DB="+path,
+		"BAS_JOURNAL_SESSION="+session.ID,
+		"BAS_JOURNAL_ACTION="+actionID,
+	)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	committed := make(chan error, 1)
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			if strings.TrimSpace(scanner.Text()) == "BAS_JOURNAL_COMMITTED_BEFORE_ACK" {
+				committed <- nil
+				return
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			committed <- err
+			return
+		}
+		committed <- errors.New("journal helper exited before its committed-before-ack signal")
+	}()
+	select {
+	case err := <-committed:
+		if err != nil {
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
+			t.Fatal(err)
+		}
+	case <-time.After(10 * time.Second):
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		t.Fatal("journal helper did not commit within10s")
+	}
+	if err := cmd.Process.Kill(); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Wait(); err == nil {
+		t.Fatal("journal helper exited cleanly; expected abrupt process death")
+	}
+
+	recovered, _ := openJournalFixture(t, path)
+	ctx := context.Background()
+	page, err := recovered.GetTimeline(ctx, persistence.TimelineQuery{SessionID: session.ID, Offset: actionCount - 9, Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.TotalCount != actionCount+1 || len(page.Entries) != 10 || page.Entries[0].Sequence != actionCount-8 || page.Entries[9].Action.ID.String() != actionID || page.Entries[9].Sequence != actionCount+1 {
+		t.Fatalf("committed observation after process death: %+v", page)
+	}
+	if err := recovered.RecordAction(ctx, session.ID, journalAction(actionID), uuid.Nil, ActionSourceAuto); err != nil {
+		t.Fatalf("same-ID reconnect retry: %v", err)
+	}
+	page, err = recovered.GetTimeline(ctx, persistence.TimelineQuery{SessionID: session.ID, Offset: actionCount - 9, Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.TotalCount != actionCount+1 || len(page.Entries) != 10 || page.Entries[9].Sequence != actionCount+1 {
+		t.Fatalf("same-ID retry duplicated acknowledged journal data: %+v", page)
+	}
+	for offset := 0; offset < actionCount; offset += 100 {
+		page, err = recovered.GetTimeline(ctx, persistence.TimelineQuery{SessionID: session.ID, Offset: offset, Limit: 100})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(page.Entries) != 100 {
+			t.Fatalf("reopened page %d has %d entries", offset, len(page.Entries))
+		}
+		for i, entry := range page.Entries {
+			if entry.Action.ID.String() != expectedIDs[offset+i] || entry.Sequence != offset+i+1 {
+				t.Fatalf("reopened page %d entry %d lost journal order/identity", offset, i)
+			}
+		}
+	}
+	writePassiveFidelityCrashObservation(t, map[string]any{
+		"case":                          "recording-service-process-death",
+		"actionsBeforeCrash":           actionCount,
+		"committedBeforeAcknowledgment": true,
+		"childTerminatedAbruptly":       true,
+		"reopenedTotal":                 actionCount + 1,
+		"retriedSameEventId":            true,
+		"totalAfterRetry":               actionCount + 1,
+		"expectedPrefixIntactAndOrdered": true,
+	})
+}
+
+func writePassiveFidelityCrashObservation(t *testing.T, observation map[string]any) {
+	t.Helper()
+	path := strings.TrimSpace(os.Getenv("BAS_PASSIVE_FIDELITY_CRASH_OBSERVATION"))
+	if path == "" {
+		return
+	}
+	data, err := json.Marshal(observation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, append(data, '\n'), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestJournalFailedCommitIsNotAcknowledgedOrPublished(t *testing.T) {
 	svc, db := openJournalFixture(t, filepath.Join(t.TempDir(), "journal.db"))
 	ctx := context.Background()
@@ -722,8 +940,22 @@ func TestJournalHistorySurvivesPaginationReopenAndConcurrentWriters(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < 1001; i++ {
-		if err := svc.RecordAction(ctx, sess.ID, journalAction(uuid.NewString()), uuid.Nil, ActionSourceAuto); err != nil {
+	const actionCount = 10000
+	expectedIDs := make([]string, actionCount)
+	for i := 0; i < actionCount; i++ {
+		expectedIDs[i] = uuid.NewString()
+		if i == actionCount/2 {
+			if _, err := db.Exec("CREATE TRIGGER reject_one_journal_write BEFORE INSERT ON timeline_entries BEGIN SELECT RAISE(ABORT, 'synthetic transient journal failure'); END"); err != nil {
+				t.Fatal(err)
+			}
+			if err := svc.RecordAction(ctx, sess.ID, journalAction(expectedIDs[i]), uuid.Nil, ActionSourceAuto); err == nil {
+				t.Fatal("transiently rejected journal write was acknowledged")
+			}
+			if _, err := db.Exec("DROP TRIGGER reject_one_journal_write"); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := svc.RecordAction(ctx, sess.ID, journalAction(expectedIDs[i]), uuid.Nil, ActionSourceAuto); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -733,19 +965,27 @@ func TestJournalHistorySurvivesPaginationReopenAndConcurrentWriters(t *testing.T
 		if err != nil {
 			t.Fatal(err)
 		}
-		if result.TotalCount != 1001 || len(result.Entries) != 100 || result.Entries[0].Sequence != offset+1 || !result.HasMore {
-			t.Fatalf("page offset%d: total%d entries%d start%d more%v", offset, result.TotalCount, len(result.Entries), result.Entries[0].Sequence, result.HasMore)
+		wantMore := offset+len(result.Entries) < actionCount
+		if result.TotalCount != actionCount || len(result.Entries) != 100 || result.Entries[0].Sequence != offset+1 || result.HasMore != wantMore {
+			t.Fatalf("page offset%d: total%d entries%d start%d more%v wantMore%v", offset, result.TotalCount, len(result.Entries), result.Entries[0].Sequence, result.HasMore, wantMore)
+		}
+		for i, entry := range result.Entries {
+			if entry.Action.ID.String() != expectedIDs[offset+i] {
+				t.Fatalf("page offset%d entry%d: expected action %s, got %s", offset, i, expectedIDs[offset+i], entry.Action.ID)
+			}
 		}
 	}
-	assertPage(svc, 0)
-	assertPage(svc, 100)
+	for offset := 0; offset < actionCount; offset += 100 {
+		assertPage(svc, offset)
+	}
 	if err := db.Close(); err != nil {
 		t.Fatal(err)
 	}
 	first, _ := openJournalFixture(t, path)
 	second, _ := openJournalFixture(t, path)
-	assertPage(first, 0)
-	assertPage(first, 100)
+	for offset := 0; offset < actionCount; offset += 100 {
+		assertPage(first, offset)
+	}
 	var wg sync.WaitGroup
 	for _, s := range []*Service{first, second} {
 		wg.Add(1)
@@ -760,16 +1000,16 @@ func TestJournalHistorySurvivesPaginationReopenAndConcurrentWriters(t *testing.T
 		}(s)
 	}
 	wg.Wait()
-	result, err := first.GetTimeline(ctx, persistence.TimelineQuery{SessionID: sess.ID, Offset: 1000, Limit: 100})
+	result, err := first.GetTimeline(ctx, persistence.TimelineQuery{SessionID: sess.ID, Offset: actionCount - 1, Limit: 100})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.TotalCount != 1041 || len(result.Entries) != 41 || result.HasMore {
+	if result.TotalCount != actionCount+40 || len(result.Entries) != 41 || result.HasMore {
 		t.Fatalf("complete history: total%d entries%d more%v", result.TotalCount, len(result.Entries), result.HasMore)
 	}
 	for i, e := range result.Entries {
-		if e.Sequence != 1001+i {
-			t.Fatalf("journal sequence %d: want%d got%d", i, 1001+i, e.Sequence)
+		if e.Sequence != actionCount+i {
+			t.Fatalf("journal sequence %d: want%d got%d", i, actionCount+i, e.Sequence)
 		}
 	}
 }

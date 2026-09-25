@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -571,6 +572,59 @@ func TestBuildActionDefinition_Gesture(t *testing.T) {
 	assert.EqualValues(t, 40, gesture.GetSteps())
 	assert.EqualValues(t, 25, gesture.GetStepDelayMs())
 	assert.Equal(t, "graph-sustained-pan", gesture.GetTraceLabel())
+}
+
+func TestBuildActionDefinition_CoversEveryTypedActionBuilder(t *testing.T) {
+	tests := []struct {
+		stepType      string
+		actionType    basactions.ActionType
+		paramsVariant string
+	}{
+		{"navigate", basactions.ActionType_ACTION_TYPE_NAVIGATE, "ActionDefinition_Navigate"},
+		{"click", basactions.ActionType_ACTION_TYPE_CLICK, "ActionDefinition_Click"},
+		{"input", basactions.ActionType_ACTION_TYPE_INPUT, "ActionDefinition_Input"},
+		{"wait", basactions.ActionType_ACTION_TYPE_WAIT, "ActionDefinition_Wait"},
+		{"assert", basactions.ActionType_ACTION_TYPE_ASSERT, "ActionDefinition_Assert"},
+		{"scroll", basactions.ActionType_ACTION_TYPE_SCROLL, "ActionDefinition_Scroll"},
+		{"select", basactions.ActionType_ACTION_TYPE_SELECT, "ActionDefinition_SelectOption"},
+		{"evaluate", basactions.ActionType_ACTION_TYPE_EVALUATE, "ActionDefinition_Evaluate"},
+		{"keyboard", basactions.ActionType_ACTION_TYPE_KEYBOARD, "ActionDefinition_Keyboard"},
+		{"dragDrop", basactions.ActionType_ACTION_TYPE_DRAG_DROP, "ActionDefinition_DragDrop"},
+		{"hover", basactions.ActionType_ACTION_TYPE_HOVER, "ActionDefinition_Hover"},
+		{"screenshot", basactions.ActionType_ACTION_TYPE_SCREENSHOT, "ActionDefinition_Screenshot"},
+		{"focus", basactions.ActionType_ACTION_TYPE_FOCUS, "ActionDefinition_Focus"},
+		{"blur", basactions.ActionType_ACTION_TYPE_BLUR, "ActionDefinition_Blur"},
+		{"subflow", basactions.ActionType_ACTION_TYPE_SUBFLOW, "ActionDefinition_Subflow"},
+		{"extract", basactions.ActionType_ACTION_TYPE_EXTRACT, "ActionDefinition_Extract"},
+		{"shortcut", basactions.ActionType_ACTION_TYPE_SHORTCUT, "ActionDefinition_Shortcut"},
+		{"gesture", basactions.ActionType_ACTION_TYPE_GESTURE, "ActionDefinition_Gesture"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.stepType, func(t *testing.T) {
+			action, err := BuildActionDefinition(tc.stepType, map[string]any{})
+			require.NoError(t, err)
+			require.Equal(t, tc.actionType, action.Type)
+			require.NotNil(t, action.Params)
+			require.Equal(t, tc.paramsVariant, reflect.TypeOf(action.Params).Elem().Name())
+		})
+	}
+}
+
+func TestBuildActionDefinition_RejectsRecognizedActionsWithoutTypedBuilders(t *testing.T) {
+	for _, stepType := range []string{"set_variable", "loop", "conditional"} {
+		t.Run(stepType, func(t *testing.T) {
+			action, err := BuildActionDefinition(stepType, map[string]any{})
+			require.ErrorContains(t, err, "no params builder")
+			require.Nil(t, action)
+		})
+	}
+}
+
+func TestBuildActionDefinition_RejectsUnknownAction(t *testing.T) {
+	action, err := BuildActionDefinition("unknown", map[string]any{})
+	require.ErrorContains(t, err, `unknown action type: "unknown"`)
+	require.Nil(t, action)
 }
 
 func TestCompileWorkflow_EmptyStepTypeError(t *testing.T) {

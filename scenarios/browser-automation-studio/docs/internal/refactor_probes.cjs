@@ -73,20 +73,23 @@ async function poolProbe() {
   const successes = outcomes.filter(x => x.status === 'fulfilled').map(x => x.value.id);
   const closed = [];
   await pool.closeAll(async (_, browser) => closed.push(browser.id));
-  record('browser-pool-retry-coalescing', 'Waiting callers share one retry and every launched browser has an owner',
+  record('browser-pool-retry-coalescing', 'Waiting callers share one bounded retry and its browser is closed by the pool',
     { launchCount, successful_browser_ids: successes, closed_browser_ids: closed },
-    new Set(successes).size === 1 && closed.length === 1);
+    launchCount === 2 && successes.length === 3 && new Set(successes).size === 1 &&
+      closed.length === 1 && closed[0] === successes[0]);
 
   const shutdownPool = new BrowserPool();
   let finishLaunch;
   const inFlight = shutdownPool.getOrLaunch('late', () => new Promise(resolve => { finishLaunch = resolve; }));
-  let closedOnShutdown = 0;
-  await shutdownPool.closeAll(async () => { closedOnShutdown++; });
-  finishLaunch({ isConnected: () => true });
-  await inFlight;
+  const closedOnShutdown = [];
+  const shutdown = shutdownPool.closeAll(async (_, browser) => { closedOnShutdown.push(browser); });
+  const lateBrowser = { id: 'late', isConnected: () => true };
+  finishLaunch(lateBrowser);
+  const [requestOutcome] = await Promise.allSettled([inFlight]);
+  await shutdown;
   record('browser-pool-shutdown-during-launch', 'Shutdown owns and closes a concurrently completing launch',
-    { live_browser_after_close: !!shutdownPool.get('late'), closedOnShutdown }, !shutdownPool.get('late'));
-  await shutdownPool.closeAll(async () => {});
+    { request_status: requestOutcome.status, live_browser_after_close: !!shutdownPool.get('late'), closed_ids: closedOnShutdown.map(browser => browser.id) },
+    requestOutcome.status === 'rejected' && !shutdownPool.get('late') && closedOnShutdown.length === 1 && closedOnShutdown[0] === lateBrowser);
 }
 
 async function directFrameProbe() {

@@ -107,6 +107,21 @@ func TestBuildInstructionPayloadPreservesTypedActionVariants(t *testing.T) {
 	}
 }
 
+func TestUpdateStreamSettingsPreservesFractionalCurrentFPS(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodPost, r.Method)
+		require.Equal(t, "/session/session/record/stream-settings", r.URL.Path)
+		_, _ = w.Write([]byte(`{"session_id":"session","quality":65,"fps":30,"current_fps":22.28,"scale":"css","is_streaming":true}`))
+	}))
+	defer server.Close()
+
+	client, err := NewClientWithURL(server.URL)
+	require.NoError(t, err)
+	response, err := client.UpdateStreamSettings(context.Background(), "session", &UpdateStreamSettingsRequest{})
+	require.NoError(t, err)
+	assert.InDelta(t, 22.28, response.CurrentFPS, 0.001)
+}
+
 func TestRecordingPullTransportRequiresMatchingAcknowledgement(t *testing.T) {
 	for _, response := range []string{`{}`, `{"entry_ids":["different"]}`, `{"entry_ids":["entry"]}`} {
 		t.Run(response, func(t *testing.T) {
@@ -176,10 +191,12 @@ func TestInputRejectsInvalidEnvelopesBeforeHTTP(t *testing.T) {
 	client, err := NewClientWithURL(server.URL, WithoutCircuitBreaker())
 	require.NoError(t, err)
 	for _, identity := range [][2]string{{"", "lease"}, {"owner", " "}} {
-		require.Error(t, client.ForwardInput(context.Background(), "s", identity[0], identity[1], []byte(`{"type":"pointer"}`)))
+		_, err := client.ForwardInput(context.Background(), "s", identity[0], identity[1], []byte(`{"type":"pointer"}`))
+		require.Error(t, err)
 	}
 	for _, body := range []string{"null", "[]", "invalid"} {
-		require.Error(t, client.ForwardInput(context.Background(), "s", "owner", "lease", []byte(body)))
+		_, err := client.ForwardInput(context.Background(), "s", "owner", "lease", []byte(body))
+		require.Error(t, err)
 	}
 	require.Zero(t, calls)
 }
@@ -279,8 +296,14 @@ func TestGetFrameRejectsInvalidReceipts(t *testing.T) {
 		field string
 		value any
 	}{
-		{"image", ""}, {"mime", ""}, {"mime", "image/png"}, {"width", 0},
-		{"height", -1}, {"captured_at", ""}, {"session_id", "different"}, {"content_hash", ""},
+		{"image", ""},
+		{"mime", ""},
+		{"mime", "image/png"},
+		{"width", 0},
+		{"height", -1},
+		{"captured_at", ""},
+		{"session_id", "different"},
+		{"content_hash", ""},
 	} {
 		t.Run(tc.field+"_"+fmt.Sprint(tc.value), func(t *testing.T) {
 			frame := map[string]any{"session_id": "preview", "image": "data:image/jpeg;base64,/9j/2Q==", "mime": "image/jpeg", "width": 640, "height": 480, "captured_at": "2026-09-23T03:00:00Z", "content_hash": "fixture-hash"}

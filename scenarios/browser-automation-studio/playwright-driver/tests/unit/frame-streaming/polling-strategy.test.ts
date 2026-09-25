@@ -2,6 +2,7 @@ import { getEventListeners } from 'node:events';
 import type { Page } from 'rebrowser-playwright';
 import type { FrameStatsReporter, WebSocketProvider, StreamingStrategyConfig } from '../../../src/frame-streaming/strategies';
 import { PollingStrategy } from '../../../src/frame-streaming/strategies';
+import { MAX_QUEUED_FRAME_BYTES } from '../../../src/frame-streaming/types';
 
 const imageBytes = (packet: Buffer) => packet.subarray(4 + packet.readUInt32BE(0));
 
@@ -83,6 +84,21 @@ describe('PollingStrategy', () => {
 
     expect(onFrameSkipped).toHaveBeenCalledWith('ws_not_ready');
     expect(ws.send).not.toHaveBeenCalled();
+  });
+
+  it('skips polling delivery while the viewer transport queue is at its byte bound', async () => {
+    jest.useFakeTimers();
+    const screenshot = jest.fn().mockResolvedValue(Buffer.from('changing-frame'));
+    const page = { viewportSize: () => null, screenshot } as unknown as Page;
+    const socket = { readyState: 1, bufferedAmount: MAX_QUEUED_FRAME_BYTES, send: jest.fn() };
+    const stats: FrameStatsReporter = { onFrameSent: jest.fn(), onFrameSkipped: jest.fn() };
+    const handle = await new PollingStrategy().start(() => page, createConfig(),
+      { isReady: () => true, getWebSocket: () => socket }, stats);
+    try {
+      await jest.advanceTimersByTimeAsync(1);
+      expect(socket.send).not.toHaveBeenCalled();
+      expect(stats.onFrameSkipped).toHaveBeenCalledWith('ws_backpressure');
+    } finally { await handle.stop(); jest.useRealTimers(); }
   });
 
   it('sends frames and skips unchanged buffers', async () => {

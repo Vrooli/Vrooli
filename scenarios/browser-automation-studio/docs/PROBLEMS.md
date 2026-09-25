@@ -463,44 +463,71 @@ needed for safe work; B = performance/maintainability/platform qualification;
 C = later product extension. These letters are not PRD release tiers.
 “Code” establishes source behavior, not incidence on live accounts.
 
+### Current-candidate qualification — W189, 2026-09-24 UTC
+
+Managed BAS is healthy on `sha256:175afb776e50c07cf1f7e0894ee7776d7c70b5053bb84b6ffdb279c42bc2d816`; the governed setpoint now reads5/17 in-band,12 unavailable, `product_qualified=false`. RF-002 passive fidelity, RF-005 capture, profile durability, cancellation/recovery and resource budget all have clean current-candidate L1 evidence. Capture p95 is446ms (658.01ms wall) over100 samples plus one warmup. Resource budget passed62 idle samples over60,994ms at223,595KiB max API+driver PSS,0.33% average/1.00% p95 CPU, and429,555KiB fixture-plus-shell PSS; Windows private memory remains unmeasured. Exact phase `20260924-234946-3c5b1bc9` passed all four owner capabilities. The first59,988ms resource attempt remains rejected; the corrected62-point owner passes. Ten external preview sessions observed during one failed profile attempt released naturally; none were closed.
+Lifecycle hashes authored files under `docs/`, so the earlier wrappers there changed the next managed identity. Current owner outputs and provider globs now use ignored `.vrooli/runtime/rehabilitation-evidence/`, and a focused control-plane regression proves runtime receipts do not change build identity. A standalone profile seed attempt timed out while the driver was full, then passed on the current candidate after external sessions released.
+but the governed setpoint reads0/17 in-band. RF-002 passive-fidelity and the
+RF-005 current-candidate capture evidence qualified on W188 build `a74ff8d…`
+and are stale on this build; profile durability and cancellation receipts are
+also stale. The first W189 Linux resource sample measured59,988ms and failed the
+60,000ms evidence requirement, so its favorable PSS/CPU values earn no band
+credit. A corrected62-point owner and boundary regression are in place, but the
+owner has not rerun. The driver was full with10 external Experience
+Manager/React Component Library preview sessions during one failed owner, then
+returned to0 naturally; do not close external sessions to satisfy an idle gate.
+Lifecycle hashes authored files under `docs/`, so writing receipt wrappers there
+changed the next managed build identity. Current owner outputs and provider
+globs now use ignored `.vrooli/runtime/rehabilitation-evidence/`; focused
+validator tests pass. The source-path fix still needs one managed restart before
+it can qualify receipts.
+
 | ID | Priority / evidence | Issue | Owner | Closure evidence |
 | --- | --- | --- | --- | --- |
 | BAS-RF-001 | A / contract comparison | Browser-first outcomes missing from active contract; stale refactor-complete claims | BAS product/docs | Accepted PRD/requirement mapping and platform/preservation matrix; historical claims explicitly scoped. |
-| BAS-RF-002 | A / isolated reproduction | Recording database failure returns success and broadcasts an action | BAS recording service | Fault-injected save/restart test proves every durable acknowledgement survives and gaps are explicit. |
-| BAS-RF-003 | A / isolated HTTP-handler reproductions | Failed profile save returns persisted; close discards association after failed final save | BAS profile persistence/lifecycle | Failed/partial receipts; previous snapshot and retry/recovery state preserved when closing; one aggregate save owner. |
-| BAS-RF-004 | A / isolated reproductions | Full snapshots merge to wrong text; empty input and buffered edit on script stop omitted; page/frame identity lost | BAS recorder and workflow derivation | Independent record-to-replay fixture covers pauses, replace/delete/clear, stop, IME, and same selectors in different targets. |
-| BAS-RF-005 | A / actual manager with synthetic browser dependencies | maxConcurrent=1 admits two concurrent distinct-ID sessions; capacity excludes in-flight creation | BAS session coordinator | Concurrent distinct-ID test admits one; same-ID retries remain coalesced; cancellation/failure releases reservation; real browser cohort. |
-| BAS-RF-006 | A / code + isolated ownership failures | Pool retains distinct keys; failed launch waiters create competing browsers; late launch survives shutdown | BAS browser pool | Distinct-key soak plateaus; concurrent failure/retry/shutdown conserves ownership; all children close. |
-| BAS-RF-007 | A / viewer ownership and duplicate fanout repaired | Driver/API slow-reader, backpressure and broader performance matrices remain unqualified | BAS frame transport/UI | Slow-reader, slow-decoder and relay-outage tests prove bounded queues/decoding, current frames, and ordered input. |
+| BAS-RF-002 | A / current-build passive-fidelity L1 on `sha256:175afb…`; managed browser/driver loss remains open | Repository append commits before notification; failed commit returns an error, does not broadcast, and remains absent from history. Durable order/identity and reopened pagination use one repository authority. W179 verifies same-ID retry and page-reload persistence in Chromium; W180 verifies 10,000 expected IDs, rejected midpoint commit, same-ID retry, full pagination after database reopen and concurrent writers; W181 kills the recording-service subprocess before acknowledgement and proves same-ID retry leaves one committed copy. W188 joins current-build managed Chromium-to-journal evidence (10,000 effects, ordered journal IDs and applied-input receipts, isolated test storage), recording-service process-death recovery, and click/type/scroll/navigation semantics. W189 exact phase `20260924-234946-3c5b1bc9` verifies passive-fidelity L1/clean on `sha256:175afb…`; governed setpoint is5/17 with12 unavailable. | BAS recording service | Retain `TestJournalFailedCommitIsNotAcknowledgedOrPublished`, `TestJournalHistorySurvivesPaginationReopenAndConcurrentWriters`, `TestJournalSameIDRetryRecoversAcrossServiceProcessDeath`, `TestReceiveRecordingActionRequiresCommit`, and `TestPullRecordingActionsCommitBeforeAcknowledgement`; managed browser/driver process loss and the full supported event corpus remain unqualified. Evidence: `internal/evidence/rehabilitation/passive-fidelity-*-w188-2026-09-24.json`. |
+| BAS-RF-003 | A / resolved in source; focused handler fault matrix passes 2026-09-24 | Failed storage capture, tab capture, or profile save returns an error without replacing prior saved state or dropping the live profile association; retry commits storage and tabs together. | BAS profile persistence/lifecycle | Retain `TestRecordingProfileCommit` across persist/close and storage/tabs/save/close faults; abrupt interruption and shared-profile ownership remain unqualified. |
+| BAS-RF-004 | A / full-snapshot merge and target isolation repaired; empty-value flush deployed and reverified in W168; clear-and-stop replay verified in W169; cross-frame replay selector path now captured and emitted; W219 J02 Chromium capture covers pauses, replacement, deletion, paste fixture, emulated composition commit and stop-time clear; W225 managed API owner passes capture→workflow save→fresh driver replay→saved API execution for final input | Final input snapshots replace earlier values; merge boundaries include page, driver page, frame, URL and selector; empty final text is emitted on stop and replays over a prefilled field. A nonempty debounced edit flushes before stop acknowledgement. Cross-origin iframe capture now preserves a logical selector path into generated `FRAME_SWITCH` actions. | BAS recorder and workflow derivation | Retain `TestMergeSnapshotsPreservesHistoryAndTarget`, W225's focused initial-page/input/empty-payload regressions, real-Chromium replacement and clear replay cases, `captures a dynamically attached frame after recording has started`, and W219's `[REQ:BAS-RH-J02]` owner. The managed J02 owner now verifies the final value in both a fresh driver session and an API-saved workflow execution under independent fixture contexts; it uses a synthetic paste input event and emulated composition, not native OS IME. J02 and the 24-journey preservation row remain open pending native IME, broad tab/frame alternation and all other matrix cases. W170 source/test checks cover same-selector main↔child-frame derivation, not tab identity. |
+| BAS-RF-005 | A / admission behavior fixed in source and deployed on `sha256:175afb…`; queue wait measured, retry-spacing effect not isolated | maxConcurrent=1 previously admitted two concurrent distinct-ID sessions because capacity excluded in-flight creation. W136 received429 at attempt12 with10 sessions but could not attribute owners. W185 localizes the historical3.8–29.8s pre-first-step delay to `StartSession`; W186 fills all10 managed driver slots on `sha256:f6925a1…`, sees explicit429s, and measures5,800.5ms at saturation versus62.5ms at0 sessions. W187 caps Go-client retry spacing at500ms after the initial250ms check, retaining the30s bound, cancellation, and no retry on ambiguous creation; the focused policy group passes4/4. W188 deploys that source and measures one current-build full-capacity capture:10 driver slots held, one released after2,000ms, capture completes at3,109ms readiness duration, with approximately1,992ms estimated admission before navigation/readiness. Its fresh serial capture cohort remained in-band at423ms p95 on W188; W189 capture is446ms p95 /658.01ms wall p95 over100 samples plus warmup on `sha256:175afb…`. This confirms the queue cost under the controlled hold but does not isolate retry timestamps or attribute the historical f7 outliers. | BAS session coordinator | Retain the unit race regression, real Chromium same-owner/distinct-owner cohort, failure-release check, Go cancellation test and capacity-boundary regression. Capture retry timestamps across an otherwise comparable release trial to quantify the500ms policy; monitor sustained-load recovery separately. Historical f7 outlier attribution and browser cancellation timing remain unqualified. Evidence: `internal/evidence/rehabilitation/session-admission-capture-w188-2026-09-24.json`. |
+| BAS-RF-006 | A / retry and shutdown races repaired in source; pool retention/soak open | Actual-module probe reproduced three launches for one failed wave and a late launch outside closeAll. Maintained tests and the updated probe now prove one shared retry and close-before-shutdown; distinct-key retention/capacity still needs a soak. | BAS browser pool | Distinct-key soak plateaus; concurrent failure/retry/shutdown conserves ownership; all children close. |
+| BAS-RF-007 | A / W197 bounds CDP/polling sender backlog; W199 current-candidate real Chromium input-to-frame p95 is 34.86 ms and managed input-to-canvas p95 is 38.9 ms; W200 UI decoder tests pass 41/41 and keep one active decode plus newest pending frame. W201 adds a Go viewer relay byte ceiling (9,440,256 bytes admitted under 12,587,008; next frame dropped) and a managed 5-minute motion owner, which fails throughput at 6,649 unique/rendered frames (22.163 FPS); p95 frame age 23 ms, p95 decode 3.4 ms, maximum JPEG 6,899 bytes. W202's current-build probe confirmed 21.2 FPS and 49 ms median frame gap. W203 exposed CDP ACK RTT below 0.8 ms while compositor-event gaps remain 50–52 ms; decode stays about 3 ms. W204 verifies `--disable-gpu-vsync` on the managed Chromium command line, but the repeated five-second treatment returns 22.2 rendered FPS / 21.96 driver FPS against W203's 22.0 / 21.94 control; no meaningful gain. The temporary VSync flag was removed. W207 rules out fixture and capture cadence as the dominant cause; the configured driver limiter loses delivery cadence. W207 measures 9,029 fixture paint updates over 300.91 s (30.0056 FPS) against 8,753 rendered viewer frames over 300 s (29.1767 FPS); raising only the driver cap to 60 yields 150/150 frames at 30 FPS, isolating the deficit to the 30 FPS delivery limiter. A fake-timer test reproduces the limiter drift at 292/300 frames before fix; the phase-preserving deadline change passes the regression and 29/29 focused CDP tests, but is not yet deployed.| The full 5-minute 30 FPS band, slow-reader cohort, current-build motion receipt, remote latency and governed sensor remain unqualified | BAS capture / frame transport / viewer | Do not repeat VSync trials. W207 isolates the 30 FPS delivery limiter; deploy its phase-preserving pacing fix through the managed lifecycle, then rerun the five-minute motion/slow-reader owner and refresh build-bound receipts before an exact evidence phase. Evidence: `.vrooli/runtime/rehabilitation-evidence/motion-vsync-repeat-w204.json`, `.vrooli/runtime/rehabilitation-evidence/motion-ack-probe-w203.json`, `.vrooli/runtime/rehabilitation-evidence/motion-frame-profile-w203.json`, and prior W199 input/frame receipt.  Retain the 30 FPS and slow-reader bounds; remote latency and governed sensor remain unqualified.|
 | BAS-RF-008 | A / direct listener retired; API access matrix unqualified | Unscoped direct frame subscriber removed with its listener; replacement API authentication/origin qualification remains open | BAS frame transport/auth | Isolated unauthenticated/wrong/missing-session clients rejected; scoped subscriptions authorized. |
-| BAS-RF-009 | A / code, live reads, isolated accounting reproduction | Empty samples become zero; mixed cohorts/p95, mislabeled intervals and lifetime/ring mismatch obscure outcomes | BAS measures/observability | Empty/known/window-eviction fixtures; counts, cohort/window identity, percentile definition, real input-to-paint timing. |
-| BAS-RF-010 | A / observed; exact allocation attribution unknown | API reports 10.48–11.84 GiB allocated Go heap, ~10.3k goroutines and 9.42–9.75 GiB swap while healthy | BAS API/runtime performance | Runtime/source identity, heap/stack/PSS attribution and controlled soak; separate allocated/retained heap and swap. See RF-021/023 without assuming either explains all live memory. |
-| BAS-RF-011 | A / real Chromium capture/restore fixed; matrix incomplete | IndexedDB snapshot omission repaired with two independent identities; browser crash/checkpoint durability remains unknown; repository faults now RF-025–027 | BAS session-profile/runtime | Supported authentication-store and real interruption matrix, profile ownership/version conflict, explicit recovery window. |
+| BAS-RF-009 | A / W216 current managed build local full-stack cohort passes 1,000/1,000 receipt/pixel correlations at p50/p95/p99 36.7/39.7/55.2 ms; W216 adds opt-in retention of every sample with contract/test hashes and live build identity | Remote p95 and governed sensor remain missing; local evidence is diagnostic and receives no score credit | BAS measures and interactive transport | Preserve the source/build-bound local receipt, obtain a comparable remote cohort through an authorized owner, and connect both measurements to the governed sensor. W216 receipt: `.vrooli/runtime/rehabilitation-evidence/interactive-feedback-local-w216.json`; producer protocol: `docs/internal/TESTING.md`. |
+| BAS-RF-010 | A / historical multi-GiB report not reproduced; W189 Linux resource budget verified, Windows and soak remain unqualified | The historical healthy-process report recorded 10.48–11.84 GiB allocated Go heap, ~10.3k goroutines and 9.42–9.75 GiB swap, on an older dirty build. W166 sampled current managed `d8694c89…`: idle API PSS42,793–43,168KiB/swap3,260–3,292KiB; driver PSS44,762–45,606KiB/swap34,436–34,476KiB; API health heap11.39→12.16MiB and goroutines32→33 over60s. A current 100-capture owner cohort then passed at437ms p95 (639.845ms wall p95); API/driver PSS peaked at82,324/98,381KiB and after60s recovery held at82,260–82,269/98,116–98,134KiB (about176.2MiB combined), below the300MiB idle bound. No multi-GiB condition reproduced. W189 resource budget on `sha256:175afb…` passed62 idle samples over60,994ms at223,595KiB API+driver PSS and429,555KiB fixture-plus-shell PSS; Windows private memory and controlled soak remain unmeasured. The stable post-workload increase versus the earlier idle snapshot does not establish a leak; active fixture-browser memory, controlled long soak and historical heap/stack attribution remain unknown. | BAS API/runtime performance | Retain process/build-bound evidence; qualify idle and workload budgets through the governed producer, then measure controlled recovery/soak and fixture-browser memory. Separate allocated/retained heap, PSS and per-process swap. See RF-021/023 without assuming either explains all live memory. Evidence: `internal/evidence/rehabilitation/runtime-memory-idle-2026-09-24.json`. |
+| BAS-RF-011 | A / profile durability and cancellation/recovery verified L1 on current managed candidate | W170 refreshed all build-bound owners on `sha256:5e3e5845578efcfe5c24fd8071697bef9503f519a276a21d2f7503ac83dbcefd`. Profile cohort: five seed checks, checkpoint at389.730ms, alpha/beta isolation, two post-restart checks and cleanup of both profiles. J07: five owner cases each retained one independent effect, cleaned resources1→0, retained uncertainty and denied retry; managed restart cleanup50ms/recovery4.712s. Two earlier runs exceeded the10s recovery band because the owner began observing terminal state only after the managed health gate; W170 now observes concurrently and measures the terminal result at first availability. Exact provider run `20260924-161818-3707bbd7` passed L1 for both capabilities. Capture operation `d1bd6089e324a8ff6a2310f043f8bd82` passed100 samples plus one warmup at432ms p95 against2000ms. Setpoint `prog_23ce499e-05b8-44b8-8f3d-1453eee73725` is3/17 in-band,14 unavailable, product not qualified. Evidence tier is degraded because the shared checkout is dirty; owner assertions and the narrow provider phase passed. | BAS profile/runtime and cancellation owners | Verify abrupt process interruption, shared-profile ownership conflicts and non-Linux candidates. Advance other pending setpoint rows with direct measurements; avoid broad suites where a focused owner is sufficient. Evidence: W170 receipts under `docs/internal/evidence/rehabilitation/` and raw payloads under ignored `.vrooli/runtime/rehabilitation-evidence/`. W185 refreshes profile and cancellation/recovery at clean L1 on `sha256:f6925a1…`: five profile seed checks, two post-restart checks with cleanup, and all five cancellation cases pass; exact phase `20260924-213254-caad34ce` is current. Setpoint remains3/17 with14 unavailable. |
 | BAS-RF-012 | B / artifact inspection; platform behavior unknown | Bundle/platform inventory and profile encryption-key provisioning not qualified | BAS integration + scenario-to-desktop owners | Native OS/arch install/use/update/rollback/cleanup receipts; packaged dependencies and secure key provisioning/recovery, with sign-in continuity. |
-| BAS-RF-013 | A / code + isolated public executor reproduction | Capture VIDEO/DOM unavailable; target support varies; explicit failed screenshot becomes successful step/workflow with a non-fatal note | BAS evidence + target owners | Published capability matrix; required vs optional capture policy governs terminal verdict; verified artifacts and joined device video. |
-| BAS-RF-014 | A / owner driver passes, locally deployed | Driver required role/shared surface discovery repaired;125suites/1468tests pass with natural exit; UI coverage debt remains | BAS validation/measure program | Current scoped receipts include driver, behavioral corpus and readable truthful board; unavailable remains unknown. |
-| BAS-RF-015 | B / measured size, historical complexity | Responsibility concentration and duplicate policy remain | BAS module owners | Reduced comparable debt/dependencies and preserved behaviors for each extraction; no cosmetic size-only closure. |
+| BAS-RF-013 | A / DOM, DOM_TREE and browser VIDEO artifact generation repaired in source with focused handler coverage; joined device video remains open | DOM capture now evaluates and publishes bounded `dom.html`; DOM_TREE capture uses a distinct evaluate action and publishes `dom-tree.json`. Finalized `.webm` files now copy from the execution artifact root into folder exports and the VIDEO producer exposes each file. Missing captures remain explicitly unavailable; DOM truncation is marked. Explicit screenshot failures remain failed steps; workflow continuation follows the declared `continueOnError` policy. These changes are source-only and not yet qualified on a managed build. Target-specific device video support remains unavailable. | BAS capture API and target owners | Verify DOM, DOM_TREE and browser VIDEO on managed targets; publish the capability matrix and join device video evidence. |
+| BAS-RF-014 | A / owner driver passes, locally deployed; UI unit gate remains below floor | Driver required role/shared surface discovery repaired; 125 suites/1468 tests pass with natural exit; current UI aggregate coverage is 31.4% against the unchanged 85% floor | BAS validation/measure program | Current scoped receipts include driver, behavioral corpus and readable truthful board; unavailable remains unknown. |
+| BAS-RF-015 | B / W217 removes branch-heavy typed-action dispatch from `BuildActionDefinition`; domain-wide target remains open | W211 split `ValidateBrowserProfile` (historical complexity 62) along its policy responsibilities. W217 replaced the 21-branch typed-action switch with an explicit enum-to-builder table and added typed-oneof coverage for all 18 supported actions plus unsupported recognized types. Targeted and full compiler package tests pass; the refreshed Tidiness scan no longer reports a finding in `action_definition_builder.go`. Overall Tidiness remains L2 with 1,227 findings, 289 unknowns and `TIDINESS_BUDGET_EXCEEDED`; domain score stays 65.2/100 and 200 violations. Source is not deployed; no domain-wide debt reduction or band pass is claimed. | BAS module owners | Continue measured simplification across remaining hotspots; prove domain-wide complexity/duplication/coupling reduction and preserve behavior. |
 | BAS-RF-016 | B / DPR and passive capture duplication repaired | DPR1 request yields 2× pixels; four PNGs for one-page capture | BAS capture/compiler/driver | DPR1/2 fixture dimensions and selected artifact policy honored; measured byte/cost improvement. |
-| BAS-RF-017 | A / isolated raw-transport disclosure | Synthetic password sent literally by passive recorder; downstream redaction unqualified | BAS recording/evidence | Synthetic secret absent from unprotected events, storage, exports and AI attachments; intended secret-use still works. |
+| BAS-RF-017 | A / capture, API ingress/read and managed synthetic secret screenshots repaired; history, exports and credential-use remain unqualified | New passive values are removed before persistence; live reads redact legacy copies; AI extraction omits sensitive-field data selectors and screenshot text. Managed Chromium comparisons across password, OTP, cc-number, cc-csc and hidden inputs produce pixel-identical screenshots when synthetic values change; hidden input is omitted. | BAS recording/evidence | Synthetic secret absent from every storage/export/screenshot/AI path; historical data safely handled and intended credential-use behavior qualified. |
 | BAS-RF-018 | B / compatibility unknown | Provider comments overpromise detection compatibility; injection changes page behavior | BAS runtime/provider | Versioned site/fixture compatibility results, challenge/human recovery and persistent-profile evidence; bounded claims. |
-| BAS-RF-019 | A / isolated reproduction with installed Request prototype | Concurrent requests collide by string identity, corrupting URL/status attribution and dropping responses | BAS driver network evidence | Request-identity fixtures preserve concurrent same/different URLs, redirects and failures; explicit eviction gaps. |
-| BAS-RF-020 | A / code + isolated handler interleaving | Concurrent live input can apply mouse up before preceding down | BAS session input coordinator | Ordered applied-sequence receipts, bounded motion coalescing, correct key/button state across delay/cancellation/reconnect. |
+| BAS-RF-019 | A / installed Request-prototype reproduction repaired in source and maintained tests | String identity collapsed distinct requests to `[object Object]`, misattributing one status and dropping the other event. The collector now keys pending entries by Request object; overlapping response attribution passes its owner regression and actual-module probe. | BAS driver network evidence | Same/different URL and method, redirect, failure, and eviction cases retain correct identity with no evidence loss. |
+| BAS-RF-020 | A / driver order repaired; input receipts and reconnect replay now covered by focused owner tests | Concurrent live input could apply mouse up before preceding down. Per-page driver FIFO returns monotonic applied-sequence receipts through HTTP and WebSocket; adjacent pending motion coalesces and queued work is capped. Stable input IDs deduplicate transport retries and reject payload conflicts within a bounded per-page receipt cache. The UI tracks WebSocket inputs until receipt and replays pending inputs over HTTP in order before releasing held pointers after disconnect. | BAS session input coordinator | Retain delayed down/up ordering, coalescing/bound, same-ID duplicate/conflict and reconnect replay regressions. Full UI reload, server-side session cancellation, key/button recovery beyond tracked UI buttons and retries after receipt eviction remain unqualified. |
 | BAS-RF-021 | A / isolated reproductions + deployed binary inspection | UX wrapper bypasses queue cleanup; closing underlying sink discards accepted terminal events | BAS execution/event lifecycle | Wrapped/unwrapped success/failure/cancel paths drain terminal evidence then release queues; controlled cohort/stack attribution and bounded resource counts. |
-| BAS-RF-022 | A / full-script VM reproductions | HTTP error counts as event success; timestamp collision acknowledges multiple pending events | BAS recording delivery/journal | Unique event identity, explicit commit receipt, idempotent retry and preserved pending events under same-tick events/rejection/navigation. |
-| BAS-RF-023 | A / real writer and disk-store retained-heap cohorts; lifecycle fault tests | Shared execution writer keeps result/timeline accumulators after per-execution settings cleanup | BAS execution writer | Durable finalization releases all accumulators on each exit path; bounded retention, readable persisted history, late-writer handling and heap evidence. |
-| BAS-RF-024 | A / isolated service reproduction | Active-session tail cache hides full history count and ignores pagination offset | BAS recording journal/query | 1,001+ event fixture preserves complete total, distinct pages and old-action selection while recording and after restart. |
+| BAS-RF-022 | A / prior full-script VM reproductions; current driver/API owner regressions pass | Repaired: callback success requires a matching committed event ID; pending observations use unique IDs and survive delivery rejection, retry and navigation until exact-ID acknowledgement. Same-sequence events remain distinct. | BAS recording delivery/journal | Keep the callback receipt, retry/pending-retention and navigation regressions; qualify production incidence through a maintained full-script owner. |
+| BAS-RF-023 | A / terminal cleanup owner tests; 16- and 64-execution retained-heap cohorts | Repaired: `ForgetExecution` releases result, timeline and per-execution settings; archive ingestion defers release after its final write on success, write failure or cancellation. Current race-tested owners preserve durable history and unrelated active execution state. Active-run bounds and late-writer handling remain unqualified. | BAS execution writer | Retain terminal cleanup on every exit, bounded active accumulation, readable persisted history and late-writer handling; repeat retained-heap evidence on the current candidate. |
+| BAS-RF-024 | A / resolved in source; 1,001-entry reopen/concurrent-writer race regression passes 2026-09-24 | Recording-service reads use the durable journal as the sole authority; active-session tail state no longer masks total count or query offset. | BAS recording journal/query | `TestJournalHistorySurvivesPaginationReopenAndConcurrentWriters` checks exact totals and offsets before and after reopening, then concurrent appends and complete history ordering; UI old-action selection remains covered by workspace journey qualification. |
 | BAS-RF-025 | A / repaired owner faults; physical interruption unqualified | Single encrypted snapshot now uses shared atomic publication; rejected write/rename preserves prior identity. Physical crash/native filesystem proof remains open | BAS profile repository | Retain atomic fault regression and offline-conversion receipts; qualify power-loss durability on supported targets. |
-| BAS-RF-026 | A / owner transactions repaired in tests; browser ownership open | Serialized field updates preserve acknowledged storage/tabs and prevent stale-save resurrection after Delete; browser-session ownership/conflict policy remains unqualified | BAS profile aggregate/concurrency | Retain cross-instance mutation/failure regressions; qualify writable browser-session ownership/fork/conflict policy and supported native locks. |
+| BAS-RF-026 | A / fail-closed profile routing deployed and targeted race checks pass | Serialized field updates preserve acknowledged storage/tabs and prevent stale-save resurrection after Delete. Profile-scoped service-worker and history operations now reject ambiguous active bindings rather than choosing a map entry; active bindings remain intact. Shared-profile snapshot ownership, conflict/fork policy and native locks remain open. | BAS profile aggregate/concurrency | Qualify writable browser-session ownership/fork/conflict policy and supported native locks. |
 | BAS-RF-027 | A / isolated repository/service reproductions | Missing protected state appears empty; unreadable profiles disappear from listing and default resolution creates a replacement | BAS profile recovery/API | Missing/locked/corrupt state is visible without exposing secrets; prior identity preserved; explicit recovery rather than silent replacement. |
 | BAS-RF-028 | A / generator + typed-ingress reproductions | Generated workflows drop modifiers, double-click count and horizontal scroll; blur/drag can become clicks | BAS recording semantic conversion | Versioned action corpus retains meaning; unsupported actions fail explicitly; no competing lossy registry/V2 mappings. |
-| BAS-RF-029 | A / actual input-hook payload reproductions | Printable shortcuts become text; pointer modifiers omitted; composing keydown forwarded as ordinary key | BAS browser input/UI | Real browser/OS shortcut, modifier, clipboard and IME corpus; text and key/pointer state have separate explicit semantics. |
-| BAS-RF-030 | A / generator + typed-ingress reproduction | Unmerged recorded actions lose page/frame context and yield accepted untargeted workflows | BAS journal-to-workflow derivation | Logical tab/frame bindings and lifecycle reconstruction qualify alternating contexts, popups and nested frames in a fresh replay. |
+| BAS-RF-029 | A / actual input-hook payload reproductions; deployed hook and driver route now preserve key chords, pointer modifier lifetime and IME composition; Chromium input effects pass | Printable shortcuts become text; pointer modifiers omitted; composing keydown forwarded as ordinary key | BAS browser input/UI | Real browser/OS shortcut, modifier, clipboard and IME corpus; text and key/pointer state have separate explicit semantics. Current Chromium fixture covers Control+A and Shift pointer down/move/up; platform-specific Command/clipboard behavior and native IME remain open. Evidence: `internal/evidence/rehabilitation/input-semantics-098-2026-09-23.json`. |
+| BAS-RF-030 | A / W172–W176 targeted capture, generator and close-order owners pass; W177 fresh-context replay; W178 raw input→journal→saved-workflow replay on managed build `sha256:43bbd665…` | Three actual pointer inputs pass through recording ingress. Their driver action IDs join durable timeline entries carrying logical page IDs; the generated workflow preserves main → popup → main and replays exactly those effects in a separate context. UI caller's ID-join helper passes its focused owner. The managed test calls the generation API after applying the same join; UI click-to-generate is not browser-driven. Nested frame/tab alternation and popup close/reopen timing remain unverified. | BAS driver recording ingress → timeline → journal-to-workflow derivation; runtime tab stack | Keep logical page IDs sourced from the durable timeline when generating; replay frames and popup close/reopen edges in a fresh context. Preserve page-stack open/close ownership in SessionManager and idempotent TabHandler updates. |
+| BAS-RF-127 | A / W177 reproduced on managed BAS and repaired; Go path/version regression and managed Delete→Get check pass on `sha256:43bbd665…` | `WorkflowIndex.FilePath` is project-root-relative and includes `workflows/`, but deletion joined it to `ProjectWorkflowsDir`, constructing `workflows/workflows/...`; the failed file removal was ignored. Deletion now resolves the project-root path and removes version snapshots before catalog deletion. | BAS workflow catalog/file store | Keep the project-root-relative path regression and live disposable-workflow check; cover storage fault ordering for source/version/catalog deletion. |
 | BAS-RF-031 | A / actual manager/decisions with seeded executing state | Same-execution start retry changes executing to ready and permits another instruction | BAS session operation/lease coordinator | Delayed live action plus retried start preserves exclusivity; recovery requires fenced cancellation/expiry proof. |
 | BAS-RF-032 | A / actual reset owner with synthetic page/context I/O | Clean reset retains a closed active second tab; reset failure stays resetting and immune to idle cleanup | BAS session isolation/recovery | Correct retained page/maps, explicit failed-reset recovery, all-origin storage isolation matrix and external-target ownership preserved. |
 | BAS-RF-033 | A / local viewer ownership repaired | Viewer sequence and pending-work disposal qualified; upstream queued-frame page/lease identity remains RF038 | BAS frame lifecycle/UI | Monotonic sequence and session/page generation at every async boundary; stale work disposed; real-renderer switch/unmount/reconnect corpus. |
 | BAS-RF-034 | A / viewer fallback repaired; broader transport matrix open | Connected/no-frame, failed-decode and stalled-stream fallback repaired; remaining driver/transport and performance matrix unqualified | BAS preview transport/fallback | Connected/no-frame, stable-page readiness, failed decode and stream-stall fixtures maintain current preview with bounded polling; real browser receipt. |
 | BAS-RF-035 | A / actual retention service with in-memory index/filesystem | keep_latest is recalculated inside bounded/preview subsets, repeatedly protecting old evidence and blocking cleanup | BAS evidence retention | Global per-workflow protection survives bounded batches and preview application; repeated sweeps progress; active evidence stays protected. |
 | BAS-RF-036 | A / actual driver close composition and Go executor fault probes | Driver hides close/flush failures and removes ownership; Go executor also returns success when its engine reports a close error | BAS session finalization/evidence | Structured close and artifact outcomes across both owners, bounded recovery ownership, validated references and full-workflow fault qualification. |
+| BAS-RF-128 | Repaired and deployed on `sha256:d0ccb959…`; targeted external-artifact regression passes | Unknown external artifact kinds were accepted into `result.json` but silently omitted from the canonical replay manifest, allowing a successful result with incomplete evidence | BAS execution evidence writer | Reject unsupported external evidence kinds before acknowledging them; keep internal step metadata outside the replay-artifact manifest. |
+| BAS-RF-129 | Repaired and deployed on `sha256:d0ccb959…`; same-size mutation regression fails before fix and passes after | The writer hashed a file before storage, then accepted a storage receipt based only on byte count; same-size changes could make the retained bytes disagree with the manifest SHA-256 | BAS storage adapters and execution evidence writer | Return a digest of the exact stored stream from every artifact backend and require it to equal the evidence descriptor before publishing the artifact. |
+| BAS-RF-130 | Repaired in the setpoint reader; targeted live read passes within 4 KiB | Rehabilitation output duplicated shared owner run/build metadata per row and exceeded Program Runtime's 4,096-byte limit, truncating the final rows and making the CLI exit 1 | BAS setpoint-read output shaping | Keep all 17 row verdicts and evidence references; store common run/build metadata once and keep the serialized envelope below the governed output cap. |
+| BAS-RF-131 | Repaired and deployed on `sha256:88714c68…`; targeted persisted-artifact regression and `rehabilitation-evidence` phase pass | The default evidence policy classified network data as sensitive and enabled redaction, but execution-writer persisted raw query credentials, selected headers, body previews, and final navigation URLs in replay artifacts | BAS evidence policy and execution writer | Apply one privacy policy before producing inline artifacts, external telemetry objects, and timeline URLs; retain hashes of only the redacted bytes. |
+| BAS-RF-132 | Repaired and qualified on `sha256:9b3f96dc…`; exact provider phase passes L1 and setpoint row is in-band | Evidence completeness remained `pending_telemetry` despite focused writer/retention behavior because no retained owner logs or governed capability connected the contract row to the current-candidate provider | BAS execution evidence writer, retention owner, rehabilitation provider | Preserve the focused screenshot, console/network, video/trace and active-retention owners; keep their exact passing `go test -json` events and raw-log hashes bound to source, contract and live build. |
+| BAS-RF-133 | Repaired on `sha256:1eb1349c…`; managed profile owner and exact provider phase pass | Profile durability required separately retained seed/verify artifacts plus a one-off root-level wrapper, making each qualification depend on manual receipt composition | BAS profile durability cohort runner | The maintained owner `assemble` stage must fail closed on stale/failed stage receipts, source or contract drift, or build mismatch, then write the provider receipt with both raw artifact hashes. |
+| BAS-RF-134 | Repaired in maintained passive-fidelity assembler; synthetic success/stale/missing/overwrite checks pass | The three focused owners retained their outputs, but each qualification required manually joined provider wrappers with repeated source and artifact digests; current-build raw receipts could not be consumed by the provider directly | BAS passive-fidelity evidence producer | `api/cmd/passive-fidelity-cohort/qualification.mjs` validates the live build, owner invariants, source/contract hashes and raw artifacts, then writes provider-shaped wrappers without overwriting prior evidence. |
 | BAS-RF-037 | A / actual run route and manager phase methods | Instructions execute during initializing/resetting/closing because rejected phase transition is ignored | BAS instruction admission/state coordinator | Atomic phase admission rejects every disallowed state; delayed reset/close races cannot admit browser effects; recording/executing controls preserved. |
 | BAS-RF-038 | A / command and frame-source admission repaired | Page/viewport mutations, same-page frame epochs, API completion attribution and full handoff fencing remain open | BAS operation ownership/protocol | All mutating commands carry and validate lease/generation before caches or effects; delayed old-owner and handoff fixtures pass. |
 | BAS-RF-039 | A / repaired public HTTP + native browser oracles; deployed027 | Distinct loop/retry operations, immutable lease/payload receipts and nonretryable uncertain outcomes now preserve effect counts. Restart and effect reconciliation remain unqualified | BAS invocation/retry/idempotency contract | Retain eviction/reset/handoff and post-effect exception controls; qualify broader interruption/reconciliation. Receipt: internal/evidence/rehabilitation/instruction-operation-2026-09-22.json. |
@@ -519,16 +546,22 @@ C = later product extension. These letters are not PRD release tiers.
 | BAS-RF-052 | A / real-file reproduction, repository repair verified | Nonempty profile IDs allowed Delete to escape the store; all CRUD paths now validate before I/O | BAS profile persistence | Invalid path IDs rejected before lock/key/profile I/O; sibling files preserved; public Delete UUID validation retained. |
 | BAS-RF-053 | A / real open-handle and timer-count reproduction | Invalid vision screenshots allocated a request timeout before validation, retaining a timer after rejection; allocation now follows body validation | BAS AI Gateway vision client | Rejected image leaves zero timers and no network call; full driver suite exits naturally under unchanged watchdog. |
 | BAS-RF-054 | B / repaired032, live read verified | Status/workflow/project filters precede paging; matching total and has_more repaired; large UI reads use bounded pages | BAS execution query | Real SQLite/HTTP and routed-pool regressions; live pending0/running5, total2833 on full and empty pages. Cross-request snapshot isolation remains unclaimed. |
-| BAS-RF-055 | A / live historical state | Five September7–16 execution snapshots still claim RUNNING after their owning API process has exited | BAS execution recovery/journal | Durable process/generation ownership and explicit interrupted terminal/recovery state; history must not claim active work without a live owner. |
-| BAS-RF-056 | A / driver source, browser fixture pending | Execution ignores typed click button/count/delay/modifiers and keyboard modifiers; input submit/clear/delay also ignored | BAS driver semantic action handlers | Independent browser event log verifies typed semantics and bounded modifier ownership; failure cannot retain modifier state. |
+| BAS-RF-055 | A / live historical repro and recent-orphan red/green regression; managed startup verified | The 1,000-row mixed-status page hid five September 7–16 RUNNING rows; the first repair recovered those rows but retained a five-minute age gate. A row orphaned less than five minutes before startup would then remain active indefinitely because recovery runs once. Recovery now queries every RUNNING and PENDING row before serving work and marks each interrupted, regardless of UpdatedAt. The >1,000-history regression and a one-second-old RUNNING/PENDING regression pass; the latter failed before the change. Managed startup is healthy and logged the new recovery path. Concurrent or duplicate API process ownership remains unqualified beyond the managed single-process lifecycle. | BAS execution recovery/journal | Preserve history and ensure every persisted active row becomes explicitly interrupted before the restarted API admits work; retain recent-row and >1,000 newer-terminal-row regressions. Multi-process ownership needs adverse concurrent-start evidence before that boundary is considered qualified. Evidence: `internal/evidence/rehabilitation/stale-recovery-101-2026-09-23.json`. |
+| BAS-RF-056 | A / reproduced in Chromium recording/replay; typed click button/count/delay/modifiers and keyboard modifier events are observed working | Recorder converts the complete current input value to an append action (`clearFirst=false`), so replay into a prefilled field preserves the old value and appends the replacement | BAS recording-to-proto conversion | Full-value recording replays as replacement into a prefilled field while explicitly authored append remains supported; retain browser event tests for right button, click count/delay/modifiers and Ctrl+A. Saved-workflow API round-trip and typed `submit` behavior remain unverified. Evidence: `internal/evidence/rehabilitation/input-replacement-099-2026-09-23.json`. |
 | BAS-RF-057 | A / actual Chromium under coverage | Babel coverage inserts Node-only counters into page.evaluate callbacks, causing ReferenceError in the renderer | BAS driver validation instrumentation | Use a compatible coverage producer with all source/floors retained; same browser fixture passes with coverage enabled and native totals are explicitly rebaselined for comparison. |
-| BAS-RF-058 | A / production schema omission | Recording repository writes timeline_entries, absent from every production schema; unit fixture privately creates it | BAS recording domain schema | Production bootstrap plus routed leased-pool append/read regression; repository fixtures use the canonical domain schema. |
+| BAS-RF-058 | Resolved / production and routed-pool schema verified | The original production bootstrap omitted `timeline_entries`; cycle013 added it to the embedded recording domain schema, registered that provider for startup and leased pools, and removed private fixture DDL. Fresh owner tests confirm append/read and schema reapplication preserve journal data on the leased pool while the primary remains empty. | BAS recording domain schema | Keep `api/internal/recording/schema.sql` as the sole table definition and retain the routed-pool append/read/reapply regression. Full recording durability remains separately unqualified under RF-002/RF-024. Evidence: `internal/evidence/rehabilitation/recording-schema-2026-09-22.json`; current verification in `internal/evidence/rehabilitation/recording-schema-review-2026-09-23.json`. |
 | BAS-RF-059 | B / completed coverage timing | V8 driver coverage takes349.969s versus preceding Babel71.543s; unchanged300s owner deadline loses all native verdicts | BAS driver validation performance | Preserve all tests, browser semantics, source denominator and floors while reducing coverage cost; phase deadline must cover a measured valid run. |
-| BAS-RF-060 | A / real PNG, file writer and storage receipt faults | Screenshot sanitizer slices encoded image bytes at its size cap and mutates caller-owned capture metadata/notes | BAS outcome shaping and artifact writer | Over-budget PNG/JPEG is rejected or omitted explicitly; original bytes and caller metadata remain unchanged; retained images decode and storage receipt matches their bytes. |
+| BAS-RF-060 | Resolved / integrity fault matrix passes; residual resource limits tracked under RF119 | The original sanitizer truncated encoded images and mutated caller-owned screenshot/notes. It now omits over-budget images with a reason, clones caller-owned metadata, validates full PNG/JPEG decoding and complete storage receipts, and fails required capture when persistence is incomplete. Current fault-matrix test passes. Full-decode validation has a measured isolated cost; hostile-dimension memory bounds and end-to-end browser impact remain unqualified and have a separate defect entry. | BAS outcome shaping and artifact writer | Retain `TestScreenshotEvidenceRequiresValidReceipt` and the exact PNG/JPEG byte/receipt invariants. Any later performance work must continue rejecting truncated images and preserving required-capture failure semantics. Integrity evidence: `internal/evidence/rehabilitation/screenshot-storage-2026-09-22.json`; current verification: `internal/evidence/rehabilitation/screenshot-integrity-review-2026-09-23.json` and resource audit `internal/evidence/rehabilitation/screenshot-decode-bounds-2026-09-23.json`; open raster-memory issue: RF119. |
 | BAS-RF-062 | A / owner source and native027 scan | Tidiness language detector scans only api, ui/src and cli; declared Playwright sidecar is absent from native findings despite large modules | Tidiness Manager source inventory; shared CodeFacts surface authority | Reuse the existing filtered whole-target inventory, include sidecar length/coupling findings, and retain comparable original/current readings. CodeFacts confirms declared component ownership. JavaScript duplication adapter gap is RF064. RF061 was retired duplicate023; not reused. |
 
 | BAS-RF-063 | A / resolved executable native regression | Unit Health Go evidence instrumentation rejects the absolute executable its planner supplies, causing false no-output timeout and missing test observations | Unit Health Go evidence adapter | Preserve selected executable and coverage flags while observing fresh per-test pass/skip states through absolute and PATH command forms. |
 | BAS-RF-064 | A / adapter source and native expanded scan | JavaScript duplication ignores the provided inventory, scans only ui/src, and invalid JSON becomes an empty result; analyzer errors/skips do not qualify the native metric coverage | Tidiness Manager analyzers/native validation | Use the supplied inventory, parse actual tool reports strictly, surface unavailable/failed analyzer evidence, and qualify duplicate fixtures outside ui/src. No unavailable analyzer may count as a clean result. |
+| BAS-RF-120 | Resolved / immediate-probe regression and repeated auto-restart suite | Sidecar supervisor waited a full 500ms poll interval before the first health check, equal to the configured startup timeout; a healthy process could time out before its first probe under load | BAS sidecar supervisor startup health | Probe health immediately, then wait between retries; preserve context cancellation and the configured retry interval. Evidence: `internal/evidence/rehabilitation/screenshot-decode-admission-2026-09-23.json`. |
+| BAS-RF-122 | Resolved / app-hook key-event regression | Deferred unregister-by-ID deleted replacement shortcut registrations after owner rerenders, leaving app shortcuts inert | BAS UI shortcut registry | Real key events invoke replacement registrations even when they reuse the same callback function; unmount removes only its own per-effect registration. |
+| BAS-RF-123 | A / workflow resume guard and focused service-to-driver cancellation check pass | An `INSTRUCTION_OUTCOME_UNCERTAIN` browser action after the last successful checkpoint could be admitted for resume and repeated without reconciliation. W137 also verifies one external effect remains uncertain through StopExecution and the same leased session closes before stop returns. | BAS execution checkpoint/resume | Preserve the uncertain failure in the timeline and refuse replacement execution until the external effect is reconciled; retain independent effect/terminal/resource evidence. Full live-browser cancellation/recovery timing and external-effect reconciliation remain open. |
+| BAS-RF-124 | Repaired in source / deferred-action unit and Chromium regressions | Reset and close tracked an in-flight instruction but began browser mutation/teardown without joining its settlement, allowing lifecycle I/O to race a still-running effect; after adding a join, close could wait for the action's full timeout | Playwright driver session lifecycle | Reset joins before browser mutation. Close marks an in-flight action uncertain, closes its active page or detaches an external target, then joins the receipt before releasing the lease. Chromium regressions cover a completed click and a 15s pending selector wait; close is under 1s locally and uncertain outcomes are non-retryable. External-target cancellation and managed release qualification remain open. |
+| BAS-RF-125 | Repaired in source / focused service regression (red then green) | StopExecution returned success when its process had no in-memory cancellation owner, even if the persisted execution remained pending or running; the RPC then reported `stopped` without evidence of cancellation | BAS execution cancellation acknowledgement | Without a local owner, read the durable row and reject active status or read failure; keep unknown and terminal execution stops idempotent. Startup recovery handles ordinary single-process restart; cross-process owner routing and managed cancellation qualification remain open. |
+| BAS-RF-126 | Repaired in source and deployed / focused recovery regression | Startup logged interrupted-execution recovery errors and continued to start workers and accept work, leaving persisted pending/running rows without a resolved owner | BAS API startup recovery gate | Recover active rows before starting workers/sidecars; fail recovery if any row remains active and refuse startup. Focused recovery/workflow/RPC packages pass and managed build `3ff3a2b336662ada94430c1021952760d6e88b326839faa5ee0ea05310974115` is healthy. Multi-process ownership and abrupt-death release qualification remain open. |
 
 Follow-up disposition, 2026-09-22 UTC: 21 probe observations produced 19 desired-
 behavior mismatches and two successful controls. No issue was fixed or closed.
@@ -680,6 +713,31 @@ fresh and resumed executions now pass the same eight lifecycle/terminal-status
 cases. Focused race and CLI checks pass. Coverage, driver routing and browser
 workflow qualification remain open; see BAS-WORK-004.
 
+2026-09-23 BAS-RF-014 follow-up — added focused `ExportDialog` behavior tests:
+binary video export is blocked without replay frames, while raw JSON export is
+available without them. The focused export-domain project passes2/2, the new
+test passes ESLint, and UI TypeScript checking passes. Overall UI coverage is
+still below the unchanged85% floor, so this does not qualify the owner unit
+phase or close RF-014. See
+`internal/evidence/rehabilitation/export-dialog-coverage-2026-09-23.json`.
+
+2026-09-24 RF-014 follow-up: scoped Test Genie unit run
+`20260924-010206-011c0204` failed at the UI `pnpm run test:coverage` command
+after491s. The unchanged85% merged UI floor remains below target; the retained
+current aggregate is30.52% statements/lines,33.61% functions and67.26% branches.
+The unit provider also reports79 `LOW_COVERAGE` files. This is actionable test
+debt, not a runner outage. The floor remains unchanged and further owner-backed
+behavior coverage is required.
+
+2026-09-24 RF-014 follow-up: added app-hook coverage for execution export gates
+and server request settings. The `execution-viewer` project passes2/2, UI
+TypeScript and targeted ESLint pass, and the test is included in project discovery.
+Scoped Test Genie unit run `20260924-014452-cc414191` failed after551s at the
+same merged UI coverage floor:31.4% aggregate,79 `LOW_COVERAGE` files, one
+`TEST_EXECUTION_FAILURE`,82 warnings, zero observations. No
+`UNIT_POLICY_PROJECTION_DRIFT` finding is present. RF-014 remains open; the85%
+floor was not changed.
+
 ### 2026-09-22 — BAS-WORK-005: profile atomicity and credential recovery
 
 RF-025/J06,J14: replaced the paired metadata/protected writer with one encrypted
@@ -757,6 +815,9 @@ now requests indexedDB:true and derives storage type from installed provider.
 isolated. This does not qualify disk/API roundtrip, process crash/checkpoints,
 sessionStorage, service-worker caches or native browser platforms. Evidence:
 `internal/evidence/rehabilitation/profile-indexeddb-2026-09-22.json`.
+
+2026-09-23 BAS-RF-011 — BAS-WORK-096 periodic checkpoint implementation is
+deployed in healthy API build `sha256:1f7ea2d3255419e5f63edf0bda4b782d7b288a6428b656e62cdca286a6819b3d`. The API-owned worker captures every 2 seconds with a 2-second browser-I/O deadline and joined shutdown; health reports stale/error state. Identity fencing is shared with manual persistence. Multiple active bindings to the same profile are kept supported but automatic writes degrade/skip as ambiguous. The native five-case fixture now confirms independent cookie/localStorage/IndexedDB writes, checkpoint state visible by 5504.81ms, manual persistence, and close/reopen restoration (5/5) on the deployed implementation. A managed API/driver restart then restored all three values from the same synthetic profile (3/3); the owned profile/session were deleted. This is graceful managed restart evidence, not abrupt process-crash or power-loss proof. Multiple-binding degradation remains untested. Lifecycle identity changed after authored docs/evidence edits, which is expected because it hashes those inputs; all344 frozen code paths match and a new owner capture receipt is in-band. Evidence: `internal/evidence/rehabilitation/periodic-checkpoint-097-2026-09-23.json`.
 
 2026-09-22 BAS-RF-052 — temp-directory Delete("../outside") removed a sibling
 JSON file before repair. No operator data was used. Path derivation now owns
@@ -2639,13 +2700,472 @@ Before recurring writes, establish capture/commit association fencing: current
 handler readsprofileID, awaits browser storage/tabs, then commitswithout
 checking whether the session binding was cleared orreplaced.
 
-### BAS-RF-118 — Late profile snapshots commit after binding invalidation
+### BAS-RF-118 — Resolved 2026-09-24 — late profile snapshots commit after binding invalidation
 
-A / maintained publicpersist regressions,096. Clearing a session binding,
-replacing it with the sameprofile (ABA), replacing it with anotherprofile, or
-cancelling the request during browsercapture all return200 andoverwrite the
-original savedprofile. Fourcases fail in /tmp/bas-profile-binding-red-096.txt
-(72274exit1). Fencedcapture/aggregatecommit belongs tosession-profile service;
-recordingadapter supplies browser storage/tabs. Preserve bothold/newprofiles
-andreturnnon-success when ownership orrequestvalidity islost. This is a necessary
-prerequisite for RF011periodiccheckpoints, not proofthat theyalreadyexist.
+The 096 maintained public regressions originally showed that clearing a session
+binding, rebinding the same or another profile, or cancelling during browser
+capture could still acknowledge and write the stale snapshot. The session-profile
+service now validates the binding while holding the same registry lock as the
+aggregate repository commit and rechecks request cancellation at that commit
+boundary. The existing clear/same-profile-rebind/other-profile-rebind/cancel
+handler matrix passes under `go test -race`; a new deterministic service test
+also cancels after the earlier post-capture check while the commit waits for the
+registry lock. Before the final context check, that regression failed because
+the stale snapshot committed and returned nil; it now returns
+`context.Canceled` and leaves the stored profile unchanged. Focused evidence:
+`internal/evidence/rehabilitation/profile-binding-cancel-boundary-2026-09-24.json`.
+
+This resolves the stale capture overwrite defect. It does not qualify RF-011's
+automatic checkpoint timing, abrupt process death, or the profile-durability
+setpoint row, which remains pending until its owner receipt has a governed
+sensor.
+
+### BAS-RF-119 — Screenshot byte limits do not bound decoded raster memory
+
+A deterministic valid-image reproduction. A constant-color1280x12800 PNG
+encodes to74,012 bytes (below the default4MiB artifact limit) while
+`image.Decode` allocates65,594,288 bytes and takes72.5ms. The maintained full-writer
+benchmark records66,607,544B/op and104.8ms/op on the same16.384MP fixture.
+Full-page screenshot actions are supported; the writer performs complete PNG/JPEG
+decoding after its encoded-byte check, so compressed raster dimensions can drive
+memory independent of retained file size. API+driver PSS targets300MiB idle and
+one fixture browser+shell targets1GiB; neither declares active or concurrent
+screenshot-decode memory. The API admits10 concurrent browser sessions by default
+and allows up to100 with `MAX_SESSIONS`.
+
+Both production `FileWriter` instances share the same process-wide weighted
+admission owner. The managed1280x12800 PNG (74,107 bytes) persists byte-for-byte.
+A retained ten-writer measurement probe holds `MemoryStorage` at one barrier and
+uses the actual `FileWriter` path. Each independent process captured the same
+image and sampled Linux PSS every millisecond. Ten writers peaked at664,296 KiB
+PSS with a2GiB open admission control,277,719 KiB with the original192MiB/five
+bytes-per-pixel estimate, and149,479 KiB with192MiB/ten bytes per pixel. The
+five-byte run showed131,267,208 bytes live heap at the storage barrier; the
+ten-byte run showed65,736,136. Total allocations stayed about659–661MB in all
+three ten-writer runs, as expected: the change limits concurrent allocation and
+resident peak, not total work. All ten valid artifacts reached storage.
+
+The current owner at `api/automation/execution-writer/screenshot_decode_budget.go`
+charges ten estimated bytes per pixel so one16.384MP fixture is admitted at a
+time; the maintained writer test asserts two such reservations exceed the budget
+while the real image still persists unchanged. Ten concurrent full-page writer
+calls completed in655ms under the ten-byte budget versus405ms under the prior
+five-byte budget, and the PSS peak fell46%. Unrestricted admission completed in
+230ms but peaked at649MiB PSS. This is a deliberate throughput tradeoff for a
+measured77.5% peak reduction against unrestricted decoding; it still is not a
+hard cap on managed API+driver PSS or total retained Go heap. Malformed/truncated
+receipt failures remain covered. A managed concurrent full-page PNG cohort has
+now measured API+driver memory briefly; a valid managed full-page JPEG cohort
+also completes on Linux. Native Windows/macOS memory and concurrent storage
+backpressure remain unmeasured. The new policy is deployed on build
+`sha256:6aa67b6b0db708dc1807d412458ba236e654f2677ff19ed82873662630f41180`.
+Two fresh managed capture cohorts pass the2s band at445ms and358ms service p95;
+the corrected active API+driver sample peaked at203,405KiB during the viewport
+fixture workload. This does not qualify the idle limit or full-page writer peak.
+After that cohort, ten concurrent managed adhoc full-page PNG executions at
+16.384MP all completed and stored identical 71,139-byte artifacts. Synchronized
+API+driver PSS peaked390,105KiB during the burst. Starting about6 seconds after
+the burst and spanning10 seconds,21 samples remained316,676–321,564KiB. This
+short post-burst window is above the300MiB idle
+target but does not establish steady-state recovery or a leak. A 65.5MP and a
+32.8MP managed page both failed before raster allocation as intended. The later
+same-process60-second post-burst sample also stayed above target, so recovery is
+not established. A managed restart preserved the one listed profile identity and all
+three protected profile-file hashes. A settled31-second Linux idle sample then
+measured186,057–186,389KiB combined API+driver PSS, below the300MiB target.
+However, ten more full-page writes on that same process raised combined PSS to
+414,299KiB; the following60-second sample remained348,154–410,326KiB. API PSS
+stayed256,708–256,830KiB while driver PSS returned near its pre-run baseline,
+localizing the retained residency to the API process. Live Go heap versus
+unreleased heap pages is unknown. The valid managed full-page JPEG cohort passes
+on the current Linux candidate; a later filename correction preserves the JPEG
+bytes/hash and pairs with a PNG control. Windows/macOS memory, CPU and storage
+backpressure remain unverified. Evidence:
+`internal/evidence/rehabilitation/screenshot-decode-managed-fullpage-2026-09-23.json`.
+
+The managed API run environment in `.vrooli/service.json` now owns
+`GOMEMLIMIT=96MiB`, retained after managed qualification. The live API
+environment was verified after lifecycle restart; the protected profile identity
+and all three file hashes were unchanged. Settled idle API+driver PSS was
+106,257–106,559KiB. Ten concurrent full-page writes peaked at363,218KiB active
+PSS, then returned to206,058KiB combined at60seconds; all ten durable artifacts
+matched exactly. This materially reduced the previously retained API residency
+and restored the idle reading below300MiB, but GOMEMLIMIT is soft and does not
+cap active PSS. Maintained Performance Health capture passed100+1 at441ms
+service/635.548562ms wall p95 against2seconds; Test Genie performance
+`20260923-231621-3aca1543` passed with zero observations. This is within the
+retained comparable p95 range and does not establish a causal latency change.
+The direct isolated writer cohort still shows about17% slower group completion
+at96MiB. The setting is retained as an evidence-backed resource tradeoff, not a
+hard cap. Valid large JPEG, Windows/macOS, CPU, storage backpressure and long
+soak remain open. Full raw measurements and operation IDs:
+`internal/evidence/rehabilitation/screenshot-decode-managed-fullpage-2026-09-23.json`.
+Earlier evidence: `internal/evidence/rehabilitation/screenshot-raster-expansion-2026-09-23.json`,
+`internal/evidence/rehabilitation/screenshot-decode-admission-2026-09-23.json`,
+and `internal/evidence/rehabilitation/screenshot-decode-budget-recalibration-2026-09-23.json`.
+
+2026-09-24 CPU/storage follow-up: one60-second Linux idle window sampled the
+managed API+driver at0.10% of one core on average (1.0% p95 sample,1.98% peak);
+combined PSS ended at136,158KiB and ranged136,090–196,596KiB. The declared
+100+1 Performance Health viewport workload passed at425ms service p95 and
+608.321ms wall p95; synchronized API+driver CPU averaged14.54% of one core,
+with a36.73% p95 sample and109.41% peak sample. API process write_bytes rose
+124,698,624bytes during that56.437-second workload. Its fullpage path is not
+exercised by this fixed viewport workload.
+
+A separate concurrent adhoc cohort ran five full-page PNG and five JPEG
+screenshots (2560x6400) through the managed API, driver and FileStorage. All ten
+executions completed; each saved artifact hash and MIME/extension pair was
+verified. Combined API+driver PSS peaked at288,438KiB over4.043seconds. API
+write_bytes increased4,374,528bytes; the host-wide I/O-pressure total rose
+113,816us (`some`) and91,652us (`full`) over that interval, below the idle
+window's rate. This does not show increased host I/O pressure for this cohort,
+but the PSI signal is system-wide and does not attribute stalls to BAS. The
+single API FileStorage syscall latency is not exposed by current owner
+telemetry; ptrace tracing was denied and Linux task delay accounting is off.
+Therefore this is a bounded initial CPU/write-throughput observation, not a
+storage-backpressure qualification. Windows/macOS and long-soak behavior remain
+unqualified. Full results:
+`internal/evidence/rehabilitation/resource-cpu-storage-2026-09-24.json`.
+
+2026-09-24 owner-span producer follow-up: the writer measures monotonic duration
+inside `StorageInterface.StoreScreenshot`; durable screenshot artifact metadata
+exposes the value in nanoseconds. The controlled30ms
+storage adapter reports30.472192ms. Managed build
+`sha256:db55a6b0712c33a2ad2c6484968b9c25247466ec6f5ae4ae2e43f65f578f4365`
+passes the declared100+1 viewport capture workload at421ms service/636.983ms
+wall p95. A ten-execution concurrent synthetic full-page PNG cohort completed
+10/10; each2560x6400 artifact is62,022 bytes. Historical timeline metadata gives
+105,160–3,732,705ns storage spans (median129,735.5ns; nearest-rank p95
+3,732,705ns). Ten recent14.7KB viewport artifacts range115,201–217,030ns.
+These spans directly include synchronous FileStorage call time for one Linux
+build and host; they do not qualify MinIO, Windows/macOS, or long-soak behavior.
+RF-119 remains open for those scopes and broader write-load evidence. Evidence:
+`internal/evidence/rehabilitation/screenshot-storage-span-2026-09-24.json`.
+
+Managed deployment follow-up, 2026-09-24: the failed-span branch is now on
+healthy build `sha256:484089a05a799a8b78a9995fac6cc43c8f23d58d11f646a099580e8ae9ddd006`.
+The preserved profile identity and timestamps match across restart. A fresh
+declared100+1 capture workload passed at444ms service p95 and617.836227ms wall
+p95; the governed rehabilitation board reports capture1/17 in band and product
+qualification false. This closes the deployment gap only. Managed failure
+fault injection, MinIO behavior, real caller cancellation, Windows/macOS and
+long soak remain unqualified. Full capture, receipt, setpoint and inventory
+evidence is retained in
+`internal/evidence/rehabilitation/screenshot-storage-span-2026-09-24.json`.
+
+2026-09-24 failure-path repair: the writer now stores a positive measured span
+in the failed core outcome notes when `StoreScreenshot` returns an error or an
+incomplete receipt. The completed screenshot `RecordResult` remains suppressed.
+`TestFailedScreenshotStorageDurationSurvivesOutcome` verifies durable timing for
+a delayed storage error and for a delayed adapter return of `context.Canceled`.
+This is not a real cancellation race or managed filesystem fault-injection run;
+the managed restart confirms deployment but did not inject a storage failure.
+MinIO, non-Linux, caller-cancellation and long-soak behavior remain
+unqualified. Evidence is retained in
+`internal/evidence/rehabilitation/screenshot-storage-span-2026-09-24.json`.
+
+Focused boundary regression, 2026-09-24: `TestScreenshotDecodeWeightEnforcesRasterBudget`
+now verifies the exact largest admitted pixel count, one-pixel overflow, huge
+dimensions and nonpositive dimensions. Together with the weighted-capacity and
+cancellation regression, it passes directly in 0.048s. This proves the
+arithmetic guard, not a hard process-memory cap or managed recovery after decode.
+Evidence: `internal/evidence/rehabilitation/screenshot-raster-budget-unit-2026-09-24.json`.
+
+
+### BAS-RF-121 — JPEG screenshot bytes use PNG artifact names
+
+A managed full-page screenshot workflow action with `quality=80` takes the
+production JPEG branch. Ten adhoc executions completed through driver capture,
+`FileWriter` and managed `FileStorage`. Every artifact is a valid2560x6400 JPEG,
+101,301bytes, SHA256
+`17b30bf2f974f644a3157225dd491a13362578c7b4d81dc0ba832c29d1ceaaf7`, and is
+reported as `image/jpeg`; each durable URL/path ends in `.png`. Reproduction ids,
+artifact ids and managed API+driver PSS series are retained in
+`internal/evidence/rehabilitation/screenshot-decode-managed-fullpage-2026-09-23.json`.
+This mismatches the stable object name's extension with its media type and can
+mislead downloaded-file consumers despite correct stored bytes and response
+metadata.
+
+Implementation owner: `api/storage` screenshot object naming, shared by
+`FileStorage`, `MemoryStorage` and `MinIOClient`. Expected behavior is `.jpg` for
+`image/jpeg` and unchanged `.png` for `image/png`, with bytes and content type
+unchanged. The managed JPEG result is the discriminator; focused storage tests and
+a post-restart managed JPEG/PNG artifact check qualify W3.
+
+Resolution — 2026-09-23: `api/storage/image_helpers.go` now owns MIME-to-extension
+mapping, used consistently by FileStorage, MemoryStorage and MinIOClient. JPEG
+uses `.jpg`; PNG retains `.png`; GIF receives `.gif`; unknown or malformed MIME
+types retain the historical `.png` fallback. No existing object was renamed or
+rewritten. Focused storage tests, the full storage package, and the execution-writer
+package pass. After managed restart operation
+`startop-b528f71642b4b341091f7e1d8071e84f` on build
+`sha256:3e81cd3eecfb96b02422eda46141cfab78209c1a47adbc31627aa2e08e1fb9f9`, a
+valid 2560x6400 JPEG retained its prior hash and `image/jpeg` type with a `.jpg`
+URL; the paired 2560x6400 PNG retained its prior hash and `.png` URL. The protected
+profile identity and three file hashes remained equal across restart. W3 passes
+for the validated FileStorage path; MinIO is compile-covered, while external
+MinIO integration runtime remains unqualified.
+
+### BAS-RF-122 — App shortcut handlers disappear after a rerender
+
+`useRegisterShortcuts` defers cleanup with `queueMicrotask` to avoid a Zustand
+state update during React effect cleanup, but `unregisterAction` currently removes
+only by shortcut ID. In the same effect pass, a replacement callback can be
+registered under that ID before the queued cleanup runs; cleanup then removes the
+replacement. `RootLayout` supplies callbacks recreated during each render, and
+`useAppShortcuts` rebuilds its action map when those callbacks change.
+
+Reproduction: the maintained app-hook test rerenders `useAppShortcuts` with a
+replacement `openDocs` handler, flushes the cleanup microtask, and sends the
+global `Shift+?` key event. Before repair, the replacement handler is called zero
+times. Expected behavior: teardown removes an action only when that exact
+per-effect registration is still current; a newer registration remains
+available even if it reuses the same callback function, while final unmount
+still releases its own registration.
+
+Resolution — 2026-09-24: `useRegisterShortcut` and `useRegisterShortcuts` now
+register effect-unique wrapper closures, and deferred cleanup removes an action
+only while that exact registration is current. Both changed-callback and
+same-callback keyboard-event cases pass, and unmount clears their registrations.
+Focused Vitest passes (2/2), along with TypeScript and targeted ESLint. Test
+Genie run `20260924-012813-5f34d6da` has no policy-projection drift, but the unit
+phase remains failed at the pre-existing 85% aggregate UI coverage floor (31.4%,
+79 low-coverage files). This separate RF-014 gate remains open. This is a
+jsdom-level app-hook reproduction; packaged/native browser behavior and managed
+product qualification remain untested, and no service restart was performed.
+
+### BAS-RF-017 — Passive recording exposed a password value
+
+The browser capture script previously buffered every `INPUT`/`TEXTAREA` value.
+Its element metadata also copied the live `.value` to `innerText` and included a
+password's literal `value` attribute. This was reproduced in actual Chromium:
+the synthetic password appeared in both the event `payload.text` and
+`elementMeta.innerText`. This was a capture boundary defect; the protected
+credential-use workflow policy is a separate mechanism and does not establish
+passive redaction.
+
+Resolution is partial, 2026-09-24. The passive recorder now omits values for
+password/hidden controls and controls marked with password, one-time-code or
+payment autocomplete tokens. It still captures the interaction and selector.
+The maintained actual-Chromium regression proves three synthetic values do not
+reach driver event objects or the browser's pending-event journal; ordinary text
+input continues to be recorded. A second guard in the canonical raw-event-to-
+timeline converter strips payload and metadata values even when an unsafe event
+arrives; four maintained converter tests cover password, hidden, OTP and ordinary
+text fields. The combined focused command passes 17/17; driver typecheck,
+targeted ESLint, Prettier and diff check pass. An earlier coverage-enabled narrow
+run passes all 13 browser cases but fails the existing global driver function-
+coverage threshold (13.79% vs 15%). No service restart or deployment was
+performed.
+
+Owner receipt: `internal/evidence/rehabilitation/secret-capture-boundary-120-2026-09-24.json`.
+
+Do not close RF-017 yet. Existing saved recordings may retain previously captured
+secrets at rest. Main timeline and buffered-action reads now redact legacy
+responses while leaving their saved rows unchanged. Direct storage exposure,
+exports, other payment-autocomplete screenshot variants, downstream derived
+attachments, and the intended credential-use flow remain unqualified. The AI
+element-extraction screenshot path now passes an actual managed Chromium fixture
+for password, OTP, cc-number, cc-csc and hidden synthetic values plus data-token
+sentinels; screenshots are pixel-identical and the hidden control is omitted.
+Recheck each remaining consumer with synthetic-only fixtures and decide on safe
+handling of legacy records without exposing or destroying user data. W121–122
+record these boundary changes and receipts, including
+`internal/evidence/rehabilitation/secret-capture-boundary-122-2026-09-24.json`.
+
+2026-09-24 BAS-RF-011 — BAS-WORK-124 audited the 097 receipt and found that its
+five-second predicate was mislabeled. The recorded positive state was observed
+at 5504.810455ms after a fixed 5500ms delay, so that receipt does not prove the
+five-second band. A maintained owner probe now polls at 50ms intervals and
+records each completed read against a monotonic 5000ms deadline. On the managed
+candidate, it observed persisted state after1170.868017ms; cookies, localStorage
+and IndexedDB remained distinct across alpha/beta profiles, survived close/reopen
+and an API/driver `make restart`, and were deleted with all owned sessions. The
+restarted candidate is healthy at build
+`sha256:feb8fcb826bb5102b950678eeb7dd49abc1e753b86581766efafe8900063a6c5`.
+The outcome row remains pending until a governed reader consumes this receipt;
+abrupt process-death recovery and timing repeatability are still unqualified.
+Receipt: `internal/evidence/rehabilitation/profile-durability-124-2026-09-24.json`.
+
+2026-09-24 BAS-RF-005 — BAS-WORK-129 reproduces and fixes the distinct-session
+capacity race. At maxConcurrent=1, a controlled first request held in browser
+context creation allowed a second execution ID to fulfill before the repair;
+the new maintained regression failed on that current source. SessionManager
+now reserves one slot synchronously after reuse checks and releases the slot in
+finally on success or error. A second regression injects session-context
+creation failure and proves the next request can claim the slot. A real
+Chromium integration test passes concurrent same-owner deduplication followed
+by one-of-two distinct-owner admission at the configured limit. Current focused
+validation passes 64/64 manager and Chromium tests and TypeScript typecheck;
+contract preparation passes all24 journeys. No Test Genie run was started.
+The profile/release setpoint remains1/17 in band,16 pending, product
+qualification false. SessionManager exposes no request-cancellation signal, so
+cancel-specific behavior and managed-service restart remain unverified. Owner
+receipt: `internal/evidence/rehabilitation/session-admission-capacity-129-2026-09-24.json`.
+
+2026-09-24 BAS-RF-011 — BAS-WORK-130 reran the maintained owner cohort after
+rebuilding the RF-005 session-manager change. All five seed checks passed,
+including cookie/localStorage/IndexedDB write, close/reopen, alpha/beta
+isolation and an automatic checkpoint observed in1115.704ms. Both profile
+identities survived the managed API/driver restart; both synthetic profiles
+were deleted, and the driver returned healthy with zero sessions and recordings.
+The focused profile-storage-continuity Jest suite also passes7/7. The fresh
+capture workload on the same candidate passes100 samples at444ms service p95
+and640.403589ms wall p95 against2000ms. The setpoint therefore remains1/17 in
+band with16 pending and product qualification false: the profile row still has
+no governed receipt reader. Repeat timing, abrupt process-death recovery and
+other platforms remain unverified. Receipts:
+`internal/evidence/rehabilitation/profile-durability-130-2026-09-24.json`,
+`internal/evidence/rehabilitation/profile-durability-130-seed-owner.json`, and
+`internal/evidence/rehabilitation/profile-durability-130-restart-owner.json`.
+2026-09-24 BAS-RF-011 — BAS-WORK-131 introduced the focused governed join.
+The BAS validation provider checks the retained owner receipt bytes, contract
+and product-source hashes, checkpoint ceiling, isolation, cleanup, and equality
+between the receipt build and live API health. Test Genie planned and passed
+only the `profile-durability` phase in runs `20260924-051822-fdec2297` and
+`20260924-052843-5342932d`; the latest run evidence tier is degraded because the
+shared checkout was dirty, while the provider assessment itself passed against
+the exact current build. The fresh
+cohort has five seed checks and two restart-survival checks; checkpoint was
+visible at1550.781ms and both temporary profiles were deleted. The fresh
+Performance Health captures on the same build pass100 samples at622ms and473ms
+service p95, with795.97214ms and668.552432ms wall p95 against2000ms. An
+intervening repeat failed at sample4 because the driver already had10 sessions
+and returned a 429; the retained receipt records zero sessions after cleanup.
+A fresh capture after the driver health read returned zero sessions qualifies.
+Setpoint `prog_7f34f892-c20c-472f-af54-155bdd5ea3fa` reports2/17 in-band,15 unknown,
+and product qualification false. Repeated timing, abrupt process death and
+non-Linux platforms remain open. Owner artifacts:
+`internal/evidence/rehabilitation/profile-durability-131-2026-09-24.json`,
+`internal/evidence/rehabilitation/profile-durability-131-seed-owner.json`, and
+`internal/evidence/rehabilitation/profile-durability-131-restart-owner.json`.
+2026-09-24 BAS-RF-005 — BAS-WORK-132 adds a focused workflow-owner regression
+for the cancellation boundary. `StopExecution` now signals the owned runner and
+waits for its completion channel before returning; the caller context bounds the
+wait. The focused regression proves stop cannot return before cleanup, and the
+routed resume/cancel case still reaches a durable cancelled terminal state.
+Cancellation/cleanup timing bands, uncertain-side-effect reconciliation, and
+session recovery are not qualified. No Test Genie execution was needed for this
+targeted change; the maintained Go tests pass.
+W132 evidence amendment: replaced the artificial done-channel regression with
+an actual async workflow-service runner whose event sink blocks in
+`CloseExecution`. The test observes durable terminal cancellation while cleanup
+is held, asserts stop has not returned, then releases cleanup and observes stop
+completion. `go test ./services/workflow` selected cancellation cases passes;
+governed read `prog_582924c7-2e00-477c-bacb-06a2069413b8` still reports the row
+pending. This proves service-level join ordering, not browser detach timing or
+session recovery.
+
+2026-09-24 BAS-RF-123 — BAS-WORK-133 reproduced unsafe recovery admission. The
+driver already emits `INSTRUCTION_OUTCOME_UNCERTAIN` when transport ends without
+a receipt proving whether an action took effect. `ExtractCheckpointState` chose
+the last success and ignored a later uncertain step; `ResumeExecution` therefore
+admitted a new runner from the earlier cursor. The regression failed before the
+fix with `resume error = <nil>`. The driver and checkpoint reader now share the
+failure-code constant in `automation/contracts`; checkpoint extraction rejects
+an uncertain event after the last success with an explicit reconcile-before-
+resume error. The focused workflow/session tests pass. This prevents automatic
+replay; it does not reconcile the external effect or qualify live browser stop
+timing, session counts or restart recovery. Owner test: `TestResumeRejectsUncertainBrowserEffectAfterCheckpoint`.
+The required setpoint read `prog_94c2cc9b-95a3-4ed6-a76f-48348867aaca`
+completed `ok` and still reports cancellation-recovery as
+`pending_telemetry` (overall 2/17 in-band).
+
+2026-09-24 BAS-RF-005 / BAS-RF-123 — BAS-WORK-137 adds
+`TestStopExecutionRetainsUncertainOutcomeAndJoinsLeasedDriverClose`. This
+maintained Go test runs a real workflow service and executor against a local
+HTTP driver fixture. It records one external effect, cancels the instruction,
+asserts the execution and lease IDs on close, observes one live session until
+close acknowledgement, requires `StopExecution` to remain blocked during that
+interval, and retains the non-retryable uncertain step outcome. The focused test
+passes normally and under `-race`, along with adjacent stop-join, caller-cancel
+and ambiguous-session tests. J07's two existing Chromium tests and this Go test
+are now attributed to J07 in the contract; the mistaken J01 evidence attribution
+is removed. Contract preparation passes with zero errors. A fresh declared
+capture workload passes 100/100 samples plus one warmup at412ms service p95 and
+568.291511ms wall p95 against2000ms, restoring capture to1/17 in-band. Profile
+durability remains unqualified under the corrected contract digest; no managed
+restart was performed while preserving the separate live-owned execution.
+
+2026-09-24 BAS-RF-011 / BAS-RF-014 — BAS-WORK-138 corrects J07 evidence
+attribution and requalifies the current profile/capture candidate. The prior
+W137 patch put the three J07 references under J02; a journey-ID audit caught
+that error, and the canonical contract now has zero evidence under J01/J02 and
+all three test references under J07. The earlier provider unit test also failed
+because it read an old repository cohort and hard-coded an obsolete build; it
+now constructs a temporary, hash-consistent contract/source/owner fixture.
+`go test . ./handlers/profilevalidation -count=1` and the nine contract tests
+pass. The first profile seed/verify pair crossed build identities when the
+managed restart incorporated W137 changes, so it was not retained as evidence.
+On stable build `3484515d0fcf2f821276c3047e0e5036e47648fa417d08b393d6955a20699f95`,
+the fresh cohort passed five seed checks, checkpoint visibility at1537.966ms,
+two post-restart identity checks and deletion of both temporary profiles. The
+declared capture workload operation `63abbeae9458c58df4e5b59c89eec181` passed
+100/100 samples plus one warmup at437ms service p95 and633.314174ms wall p95
+against2000ms. Exact Test Genie run `20260924-072006-49f64968` passed only the
+`profile-durability` phase at L1/Verified; its evidence tier is degraded because
+the shared checkout is dirty. Setpoint
+`prog_920f732b-89a9-4fae-b239-b41798b7eee6` reports2/17 in-band,15 unknown,
+`product_qualified=false`. Abrupt process death, timing repeatability,
+non-Linux platforms, and J07 cancellation qualification remain open.
+
+2026-09-24 BAS-RF-011 / BAS-RF-016 — BAS-WORK-146 reran the maintained
+profile seed/restart cohort after the source candidate changed. The first
+seed/verify attempt crossed build identities during the managed restart and was
+discarded. A second cohort on stable build
+`a2a0938a5c89776b5dbe86f9dd33ab4ef1902ec0b3babfb02d5ec164d2dfb2ea` passed all
+five seed checks, checkpoint visibility at1638.938ms, alpha/beta isolation,
+both post-restart identity checks and cleanup of both synthetic profiles. The
+current capture workload `8e9c95b9e60f5093b94006a3727e17e5` passed100/100 plus
+one warmup at413ms service p95 and575.487613ms wall p95 against2000ms. The
+exact composite Test Genie phase was not run because the required J07 receipt
+does not exist; the profile row remains unqualified. Evidence:
+`internal/evidence/rehabilitation/profile-durability-146-2026-09-24.json` and
+its seed/restart owner receipts. Repeat timing, abrupt process death, shared
+profile ownership and non-Linux qualification remain open.
+
+## Work ladder — StopExecution false acknowledgement — 2026-09-24
+
+- Rung: W3 (localized implementation defect; expected behavior is stated by BAS-RF-125 and BAS-RH-J07).
+- Evidence: with no in-memory owner and a durable `running` row, the old service returned nil. The persisted-status regression failed before the code repair and now passes; the RPC-boundary test verifies an owner-unavailable error returns no `stopped` response.
+- Validation: focused `go test` for workflow service and execution handler; workflow race subset; contract preparation and requirements validation pass. No broad Test Genie phase was run. Setpoint remains 2/17 because J07 still lacks its full owner receipt.
+- W2 evidence follow-up: J07 now links the workflow-service, RPC-boundary and real-Chromium test files in `requirements/08-rehabilitation/module.json`; the tagged Go cases emit `[REQ:BAS-RH-J07]`. Business Health passes and reports zero `business_req_no_validation` and zero missing-ref findings for J07. The requirement stays `planned`; the scenario-wide evidence ladder and J07's death/restart/timeout/retry cases remain open.
+- Measured: 2026-09-24. No complexity or debt reduction is claimed for this fix.
+
+2026-09-24 BAS-RF-011 — BAS-WORK-152 aligned profile, cancellation/recovery and
+capture evidence on managed build `sha256:5da600a9d2286fc1bbba6de708d1accc9e51590a17eb6054027fea409ff5afbb`.
+The profile owner passed five seed and two post-restart checks, checkpoint at
+268.481ms, isolation and synthetic-profile cleanup. The five J07 owners passed
+with one independent effect each, resource count1→0, uncertainty preserved and
+retry denied. The managed restart owner measured1.204s cleanup and6.261s
+recovery; its77.654s input-to-stop includes dependency preflight. Capture
+operation `53581f9f1b54b6bc1b5568c0918bd0fa` passed100 samples plus one warmup
+at423ms p95 against2000ms. Exact phase `20260924-112014-c3770cf6` passed both
+capabilities at L1; setpoint
+`prog_d08ebd17-dcec-436a-9e7b-70f1d067dd84` is3/17 in-band,14 unavailable and
+not product-qualified. The phase evidence tier is degraded by the dirty shared
+checkout. Current receipt payloads are retained under ignored
+`.vrooli/runtime/rehabilitation-evidence/` and exposed through links in the
+documented evidence directory so measured artifacts do not perturb their
+candidate build identity. Repeat checkpoint timing, abrupt process death,
+shared-profile conflict and non-Linux behavior remain unqualified.
+
+## Work ladder — ambiguous shared-profile live operations — 2026-09-24
+
+- Rung: W3 (implementation contradicts the ownership boundary now stated in
+  `docs/concepts/ARCHITECTURE.md` under “Profile snapshot ownership”).
+- Evidence: `ActiveSessionRegistry.GetByProfile` returns the first matching
+  element from a Go map. `RecordingsService.GetServiceWorkers`,
+  `ClearAllServiceWorkers`, `DeleteServiceWorker`, and `NavigateToHistoryURL`
+  route profile-scoped live operations through that method. With multiple
+  active sessions for one profile, selection is nondeterministic; two of the
+  operations mutate the chosen browser and history navigation can affect the
+  wrong browser.
+- Expected behavior: return a clear failed-precondition error for ambiguous
+  active bindings, without dispatching a live operation or clearing bindings;
+  keep the no-session and exactly-one-session behavior.
+- Measured: 2026-09-24. Build `sha256:ea4c369c7e90c21fb552915773c5abf9d3b1418332b831527913c9eacc20a441`
+  serves the repair. The `services/session-profile` and `handlers/recordings`
+  suites pass under `go test -race`, including Connect RPC cases for all four
+  operations. No broader readiness gate is inferred from this rung.

@@ -277,6 +277,17 @@
   var inputBuffer = '';
   var inputTarget = null;
   var inputTimeout = null;
+  var sensitiveAutocompleteTokens = [
+    'current-password',
+    'new-password',
+    'one-time-code',
+    'cc-name',
+    'cc-number',
+    'cc-exp',
+    'cc-exp-month',
+    'cc-exp-year',
+    'cc-csc',
+  ];
 
   // Scroll debouncing state
   var scrollTimeout = null;
@@ -733,9 +744,26 @@
 
   function getVisibleText(element) {
     if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+      if (isSensitiveInput(element)) return '';
       return (element.value || element.placeholder || '').slice(0, CONFIG.MAX_TEXT_LENGTH);
     }
     return (element.textContent || '').trim().slice(0, CONFIG.MAX_TEXT_LENGTH);
+  }
+
+  function isSensitiveInput(element) {
+    if (!element || (element.tagName !== 'INPUT' && element.tagName !== 'TEXTAREA')) {
+      return false;
+    }
+
+    var type = (element.type || '').toLowerCase();
+    if (type === 'password' || type === 'hidden') return true;
+
+    var autocomplete = (element.getAttribute('autocomplete') || '').toLowerCase().split(/\s+/);
+    for (var i = 0; i < autocomplete.length; i++) {
+      if (sensitiveAutocompleteTokens.indexOf(autocomplete[i]) !== -1) return true;
+    }
+
+    return false;
   }
 
   function escapeCssSelector(str) {
@@ -775,6 +803,7 @@
     var interesting = [
       'type',
       'name',
+      'autocomplete',
       'placeholder',
       'title',
       'alt',
@@ -785,13 +814,15 @@
 
     for (var i = 0; i < interesting.length; i++) {
       var attr = interesting[i];
+      if (attr === 'value' && isSensitiveInput(element)) continue;
       var val = element.getAttribute(attr);
       if (val) attrs[attr] = val.slice(0, 100);
     }
 
+    var includeDataAttributes = !isSensitiveInput(element);
     for (var j = 0; j < element.attributes.length; j++) {
       var a = element.attributes[j];
-      if (a.name.startsWith('data-')) {
+      if (includeDataAttributes && a.name.startsWith('data-')) {
         attrs[a.name] = a.value.slice(0, 100);
       }
     }
@@ -908,6 +939,17 @@
     // Only capture for form elements
     if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') return;
 
+    // Credential and payment fields remain interactive, but their values must
+    // never enter the passive recording buffer or event stream.
+    if (isSensitiveInput(target)) {
+      if (inputTarget === target) {
+        clearTimeout(inputTimeout);
+        inputBuffer = '';
+        inputTarget = null;
+      }
+      return;
+    }
+
     // Track that DOM event handler fired (for input events)
     window.__vrooli_recording_telemetry.eventsDetected++;
 
@@ -926,7 +968,7 @@
    * Flush buffered input to capture action.
    */
   function flushInput() {
-    if (inputBuffer && inputTarget) {
+    if (inputTarget && !isSensitiveInput(inputTarget)) {
       captureAction('type', inputTarget, null, {
         text: inputBuffer,
       });

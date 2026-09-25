@@ -3,8 +3,10 @@ package executionwriter
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"hash/crc32"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -13,6 +15,8 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,6 +27,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/storage"
+	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -131,6 +136,136 @@ func TestRecordExecutionArtifacts(t *testing.T) {
 	}
 }
 
+type captureArtifactStorage struct {
+	*storage.MemoryStorage
+	objects map[string][]byte
+}
+
+func (s *captureArtifactStorage) StoreArtifact(ctx context.Context, name string, data []byte, contentType string) (*storage.ArtifactInfo, error) {
+	s.objects[name] = append([]byte(nil), data...)
+	return s.MemoryStorage.StoreArtifact(ctx, name, data, contentType)
+}
+
+func TestNetworkEvidenceRedactsSecretsBeforePublishingInlineAndStoredArtifacts(t *testing.T) {
+	const (
+		urlToken  = "synthetic-url-secret"
+		headerKey = "synthetic-header-secret"
+		bodyToken = "synthetic-body-secret"
+	)
+	dir := t.TempDir()
+	store := &captureArtifactStorage{MemoryStorage: storage.NewMemoryStorage(), objects: map[string][]byte{}}
+	writer := NewFileWriter(noopRepo{}, store, nil, NewStaticRoot(dir))
+	executionID := uuid.New()
+	plan := contracts.ExecutionPlan{ExecutionID: executionID, WorkflowID: uuid.New()}
+	outcome := contracts.StepOutcome{
+		ExecutionID: executionID, StepIndex: 1, Attempt: 1, NodeID: "request", StepType: "navigate",
+		StartedAt: time.Now(), Success: true,
+		FinalURL: "https://example.test/final?token=" + urlToken,
+		Network: []contracts.NetworkEvent{{
+			Type: "request", URL: "https://example.test/data?token=" + urlToken + "&safe=kept",
+			Method: "POST", Timestamp: time.Now(),
+			RequestHeaders:      map[string]string{"Authorization": "Bearer " + headerKey, "Accept": "application/json"},
+			RequestBodyPreview:  `{"access_token":"` + bodyToken + `","safe":"kept"}`,
+			ResponseBodyPreview: "opaque response preview",
+		}},
+	}
+	if _, err := writer.RecordStepOutcome(context.Background(), plan, outcome); err != nil {
+		t.Fatalf("record outcome: %v", err)
+	}
+	result := writer.getOrCreateResult(plan)
+	var network ArtifactData
+	for _, artifact := range result.Artifacts {
+		if artifact.ArtifactType == "network" {
+			network = artifact
+			break
+		}
+	}
+	if network.ArtifactID == "" {
+		t.Fatal("network replay artifact was not persisted")
+	}
+	inline, err := json.Marshal(network.Payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(inline), urlToken) {
+		t.Fatalf("inline network artifact retained query secret: %s", inline)
+	}
+	if len(store.objects) != 1 {
+		t.Fatalf("stored network artifacts = %d, want 1", len(store.objects))
+	}
+	for _, stored := range store.objects {
+		for _, secret := range []string{urlToken, headerKey, bodyToken, "opaque response preview"} {
+			if strings.Contains(string(stored), secret) {
+				t.Fatalf("stored network evidence retained %q: %s", secret, stored)
+			}
+		}
+	}
+	rawTimeline, err := os.ReadFile(filepath.Join(dir, executionID.String(), protoTimelineFileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var timeline bastimeline.ExecutionTimeline
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(rawTimeline, &timeline); err != nil {
+		t.Fatal(err)
+	}
+	if got := timeline.Entries[0].Telemetry.GetUrl(); strings.Contains(got, urlToken) {
+		t.Fatalf("timeline URL retained query secret: %s", got)
+	}
+}
+
+func TestInlineTelemetryRemainsAttributableWhenSnapshotStorageFails(t *testing.T) {
+	root := t.TempDir()
+	backend := rejectingArtifactStorage{err: errors.New("synthetic telemetry snapshot failure")}
+	writer := NewFileWriter(nil, backend, nil, NewStaticRoot(root))
+	plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New()}
+	now := time.Now().UTC()
+
+	result, err := writer.RecordStepOutcome(context.Background(), plan, contracts.StepOutcome{
+		ExecutionID: plan.ExecutionID,
+		StepType:    "click",
+		Success:     true,
+		ConsoleLogs: []contracts.ConsoleLogEntry{{Type: "log", Text: "fixture console entry", Timestamp: now}},
+		Network:     []contracts.NetworkEvent{{Type: "response", URL: "https://fixture.invalid/data", Status: 200, Timestamp: now}},
+	})
+	require.NoError(t, err, "inline evidence remains the durable source when optional snapshots fail")
+	require.NotNil(t, result.TimelineArtifactID)
+
+	artifacts := writer.getOrCreateResult(plan).Artifacts
+	inline := map[string]ArtifactData{}
+	for _, artifact := range artifacts {
+		if artifact.ArtifactType == "console" || artifact.ArtifactType == "network" {
+			inline[artifact.ArtifactType] = artifact
+		}
+	}
+	require.Len(t, inline, 2)
+	for _, kind := range []string{"console", "network"} {
+		artifact := inline[kind]
+		require.Len(t, artifact.SHA256, 64, "%s artifact must be byte-attributable", kind)
+		require.NotEmpty(t, artifact.ArtifactID, "%s artifact must remain attributable", kind)
+		require.NotEmpty(t, artifact.Payload, "%s inline payload must survive snapshot failure", kind)
+	}
+	require.Equal(t, "fixture console entry", inline["console"].Payload["text"])
+	require.Equal(t, "https://fixture.invalid/data", inline["network"].Payload["url"])
+
+	manifestPath, err := writer.evidenceManifestFilePath(context.Background(), plan.ExecutionID)
+	require.NoError(t, err)
+	manifestBytes, err := os.ReadFile(manifestPath)
+	require.NoError(t, err, "integrity references must survive in the durable evidence manifest")
+	var manifest basevidence.ReplayPackage
+	require.NoError(t, (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(manifestBytes, &manifest))
+	refs := map[string]*basevidence.ArtifactManifest{}
+	for _, artifact := range manifest.GetEvidence().GetArtifacts() {
+		if artifact.GetKind().String() == "ARTIFACT_KIND_CONSOLE" || artifact.GetKind().String() == "ARTIFACT_KIND_NETWORK" {
+			refs[artifact.GetKind().String()] = artifact
+		}
+	}
+	require.Len(t, refs, 2)
+	for _, ref := range refs {
+		require.Len(t, ref.GetSha256(), 64)
+		require.NotEmpty(t, ref.GetId())
+	}
+}
+
 func TestScreenshotMetadataUsesEncodedPixelDimensions(t *testing.T) {
 	for _, format := range []string{"png", "jpeg"} {
 		t.Run(format, func(t *testing.T) {
@@ -217,12 +352,19 @@ type screenshotReceiptStore struct {
 	*storage.MemoryStorage
 	fault string
 	calls int
+	delay time.Duration
 }
 
 func (s *screenshotReceiptStore) StoreScreenshot(ctx context.Context, executionID uuid.UUID, name string, data []byte, contentType string) (*storage.ScreenshotInfo, error) {
 	s.calls++
+	if s.delay > 0 {
+		time.Sleep(s.delay)
+	}
 	if s.fault == "error" {
 		return nil, errors.New("screenshot store failed")
+	}
+	if s.fault == "context-canceled" {
+		return nil, context.Canceled
 	}
 	if s.fault == "nil-receipt" {
 		return nil, nil
@@ -237,6 +379,87 @@ func (s *screenshotReceiptStore) StoreScreenshot(ctx context.Context, executionI
 		result.SizeBytes++
 	}
 	return result, err
+}
+
+func TestRecordStepOutcomeReportsScreenshotStorageWait(t *testing.T) {
+	const storageDelay = 30 * time.Millisecond
+	store := &screenshotReceiptStore{MemoryStorage: storage.NewMemoryStorage(), delay: storageDelay}
+	root := t.TempDir()
+	writer := NewFileWriter(nil, store, nil, NewStaticRoot(root))
+	plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New()}
+	var encoded bytes.Buffer
+	require.NoError(t, png.Encode(&encoded, image.NewRGBA(image.Rect(0, 0, 2, 2))))
+
+	_, err := writer.RecordStepOutcome(context.Background(), plan, contracts.StepOutcome{
+		ExecutionID: plan.ExecutionID,
+		StepType:    "screenshot",
+		Success:     true,
+		Screenshot:  &contracts.Screenshot{Data: encoded.Bytes()},
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, store.calls)
+	timelineData, err := os.ReadFile(filepath.Join(root, plan.ExecutionID.String(), "timeline.proto.json"))
+	require.NoError(t, err)
+	var timeline bastimeline.ExecutionTimeline
+	require.NoError(t, protojson.Unmarshal(timelineData, &timeline))
+	require.Len(t, timeline.Entries, 1)
+	var storedSpan int64
+	for _, artifact := range timeline.Entries[0].GetAggregates().GetArtifacts() {
+		if artifact.GetType().String() != "ARTIFACT_TYPE_SCREENSHOT" {
+			continue
+		}
+		storedSpan = artifact.GetPayload()["storage_duration_ns"].GetIntValue()
+	}
+	require.GreaterOrEqual(t, storedSpan, storageDelay.Nanoseconds(),
+		"persisted span must include time blocked inside StoreScreenshot")
+	t.Logf("controlled StoreScreenshot wait: requested=%s reported=%s", storageDelay, time.Duration(storedSpan))
+	require.NotZero(t, storedSpan,
+		"screenshot timeline artifact must retain the storage span for later owner analysis")
+}
+
+func TestFailedScreenshotStorageDurationSurvivesOutcome(t *testing.T) {
+	const storageDelay = 30 * time.Millisecond
+	for _, fault := range []string{"error", "context-canceled"} {
+		t.Run(fault, func(t *testing.T) {
+			root := t.TempDir()
+			store := &screenshotReceiptStore{MemoryStorage: storage.NewMemoryStorage(), fault: fault, delay: storageDelay}
+			writer := NewFileWriter(nil, store, nil, NewStaticRoot(root))
+			plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New()}
+			var encoded bytes.Buffer
+			require.NoError(t, png.Encode(&encoded, image.NewRGBA(image.Rect(0, 0, 2, 2))))
+
+			result, err := writer.RecordStepOutcome(context.Background(), plan, contracts.StepOutcome{
+				ExecutionID: plan.ExecutionID,
+				StepType:    "screenshot",
+				Success:     true,
+				Screenshot:  &contracts.Screenshot{Data: encoded.Bytes()},
+			})
+			require.Error(t, err)
+			require.Nil(t, result.TimelineArtifactID, "failed required screenshot must not return a completed receipt")
+			require.Equal(t, 1, store.calls)
+
+			timelineData, readErr := os.ReadFile(filepath.Join(root, plan.ExecutionID.String(), "timeline.proto.json"))
+			require.NoError(t, readErr, "failed capture should retain its failure evidence")
+			var timeline bastimeline.ExecutionTimeline
+			require.NoError(t, protojson.Unmarshal(timelineData, &timeline))
+			require.Len(t, timeline.Entries, 1)
+			var savedOutcome map[string]any
+			for _, artifact := range timeline.Entries[0].GetAggregates().GetArtifacts() {
+				if value := artifact.GetPayload()["outcome"]; value != nil {
+					savedOutcome, _ = typeconv.JsonValueToAny(value).(map[string]any)
+				}
+			}
+			require.NotNil(t, savedOutcome)
+			notes, ok := savedOutcome["notes"].(map[string]any)
+			require.True(t, ok)
+			nanosText, ok := notes["screenshot_storage_duration_ns"].(string)
+			require.True(t, ok, "failed storage timing must be retained in core outcome notes")
+			nanos, parseErr := strconv.ParseInt(nanosText, 10, 64)
+			require.NoError(t, parseErr)
+			require.GreaterOrEqual(t, nanos, storageDelay.Nanoseconds())
+			require.Contains(t, notes, "screenshot_persistence_error")
+		})
+	}
 }
 
 // [REQ:BAS-RH-J08] A required image cannot acknowledge absent/corrupt/truncated
@@ -318,6 +541,113 @@ func TestScreenshotEvidenceRequiresValidReceipt(t *testing.T) {
 	}
 }
 
+func TestManagedFullPageScreenshotPersistsWithinDecodeBudget(t *testing.T) {
+	data, err := os.ReadFile("testdata/full-page-1280x12800.png")
+	require.NoError(t, err)
+	config, format, weight, err := screenshotDecodeConfig(data)
+	require.NoError(t, err)
+	require.Equal(t, "png", format)
+	require.Equal(t, 1280, config.Width)
+	require.Equal(t, 12800, config.Height)
+	require.Less(t, weight, maxActiveScreenshotDecodeBytes)
+	require.Greater(t, weight*2, maxActiveScreenshotDecodeBytes,
+		"measured Go heap retention makes two concurrent full-page raster decodes exceed the observed resident-memory envelope")
+
+	store := storage.NewMemoryStorage()
+	writer := NewFileWriter(nil, store, nil, NewStaticRoot(t.TempDir()))
+	plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New()}
+	result, err := writer.RecordStepOutcome(context.Background(), plan, contracts.StepOutcome{
+		ExecutionID: plan.ExecutionID,
+		StepType:    "screenshot",
+		Success:     true,
+		Screenshot:  &contracts.Screenshot{Data: data, MediaType: "image/png"},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, result.TimelineArtifactID)
+	names, err := store.ListExecutionScreenshots(context.Background(), plan.ExecutionID)
+	require.NoError(t, err)
+	require.Len(t, names, 1)
+	reader, _, err := store.GetScreenshot(context.Background(), names[0])
+	require.NoError(t, err)
+	stored, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	require.NoError(t, reader.Close())
+	require.Equal(t, data, stored, "bounded integrity validation must preserve every full-page pixel")
+}
+
+func TestScreenshotRasterOverBudgetFailsBeforeFullDecode(t *testing.T) {
+	data := pngIHDR(10000, 10000)
+	config, format, err := image.DecodeConfig(bytes.NewReader(data))
+	require.NoError(t, err, "DecodeConfig reads the bounded header without allocating the raster")
+	require.Equal(t, "png", format)
+	require.Equal(t, 10000, config.Width)
+	require.Equal(t, 10000, config.Height)
+	_, _, _, err = screenshotDecodeConfig(data)
+	require.ErrorContains(t, err, "active screenshot decode budget")
+
+	store := storage.NewMemoryStorage()
+	writer := NewFileWriter(nil, store, nil, NewStaticRoot(t.TempDir()))
+	plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New()}
+	_, err = writer.RecordStepOutcome(context.Background(), plan, contracts.StepOutcome{
+		ExecutionID: plan.ExecutionID,
+		StepType:    "screenshot",
+		Success:     true,
+		Screenshot:  &contracts.Screenshot{Data: data, MediaType: "image/png"},
+	})
+	require.ErrorContains(t, err, "active screenshot decode budget")
+	names, listErr := store.ListExecutionScreenshots(context.Background(), plan.ExecutionID)
+	require.NoError(t, listErr)
+	require.Empty(t, names, "an over-budget raster must never reach storage")
+}
+
+func TestScreenshotJPEGRasterOverBudgetFailsBeforeFullDecode(t *testing.T) {
+	var encoded bytes.Buffer
+	require.NoError(t, jpeg.Encode(&encoded, image.NewRGBA(image.Rect(0, 0, 1, 1)), nil))
+	data := encoded.Bytes()
+	sof := bytes.Index(data, []byte{0xff, 0xc0})
+	require.NotEqual(t, -1, sof, "test JPEG should contain a baseline start-of-frame header")
+	binary.BigEndian.PutUint16(data[sof+5:sof+7], 10000)
+	binary.BigEndian.PutUint16(data[sof+7:sof+9], 10000)
+
+	config, format, err := image.DecodeConfig(bytes.NewReader(data))
+	require.NoError(t, err)
+	require.Equal(t, "jpeg", format)
+	require.Equal(t, 10000, config.Width)
+	require.Equal(t, 10000, config.Height)
+	_, _, _, err = screenshotDecodeConfig(data)
+	require.ErrorContains(t, err, "active screenshot decode budget")
+
+	store := storage.NewMemoryStorage()
+	writer := NewFileWriter(nil, store, nil, NewStaticRoot(t.TempDir()))
+	plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New()}
+	_, err = writer.RecordStepOutcome(context.Background(), plan, contracts.StepOutcome{
+		ExecutionID: plan.ExecutionID,
+		StepType:    "screenshot",
+		Success:     true,
+		Screenshot:  &contracts.Screenshot{Data: data, MediaType: "image/jpeg"},
+	})
+	require.ErrorContains(t, err, "active screenshot decode budget")
+	names, listErr := store.ListExecutionScreenshots(context.Background(), plan.ExecutionID)
+	require.NoError(t, listErr)
+	require.Empty(t, names, "an over-budget JPEG raster must never reach storage")
+}
+
+func pngIHDR(width, height uint32) []byte {
+	data := []byte{137, 80, 78, 71, 13, 10, 26, 10}
+	chunk := make([]byte, 4+4+13)
+	binary.BigEndian.PutUint32(chunk[:4], 13)
+	copy(chunk[4:8], "IHDR")
+	binary.BigEndian.PutUint32(chunk[8:12], width)
+	binary.BigEndian.PutUint32(chunk[12:16], height)
+	chunk[16] = 8
+	chunk[17] = 2
+	crc := crc32.ChecksumIEEE(chunk[4:])
+	data = append(data, chunk...)
+	var checksum [4]byte
+	binary.BigEndian.PutUint32(checksum[:], crc)
+	return append(data, checksum[:]...)
+}
+
 func BenchmarkScreenshotOutcomePersistence(b *testing.B) {
 	pixels := image.NewRGBA(image.Rect(0, 0, 1280, 720))
 	for y := 0; y < 720; y++ {
@@ -335,6 +665,55 @@ func BenchmarkScreenshotOutcomePersistence(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New()}
 		_, err := writer.RecordStepOutcome(context.Background(), plan, contracts.StepOutcome{ExecutionID: plan.ExecutionID, StepIndex: i, Attempt: 1, NodeID: "capture", StepType: "screenshot", StartedAt: time.Now(), Success: true, Screenshot: &contracts.Screenshot{Data: encoded.Bytes(), MediaType: "image/png", Width: 1280, Height: 720}})
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+type solidRaster struct {
+	bounds image.Rectangle
+	color  color.Color
+}
+
+func (s solidRaster) ColorModel() color.Model { return color.RGBAModel }
+func (s solidRaster) Bounds() image.Rectangle { return s.bounds }
+func (s solidRaster) At(int, int) color.Color { return s.color }
+
+// BenchmarkScreenshotOutcomePersistenceExpandedRaster keeps the compressed-byte
+// versus decoded-pixel cost reproducible without allocating a source raster.
+func BenchmarkScreenshotOutcomePersistenceExpandedRaster(b *testing.B) {
+	const width, height = 1280, 12800
+	var encoded bytes.Buffer
+	if err := png.Encode(&encoded, solidRaster{
+		bounds: image.Rect(0, 0, width, height),
+		color:  color.RGBA{R: 247, G: 247, B: 247, A: 255},
+	}); err != nil {
+		b.Fatal(err)
+	}
+	if encoded.Len() >= config.DefaultMaxScreenshotBytes {
+		b.Fatalf("expanded-raster fixture is %d bytes; want less than screenshot limit %d", encoded.Len(), config.DefaultMaxScreenshotBytes)
+	}
+
+	writer := NewFileWriter(nil, storage.NewMemoryStorage(), nil, NewStaticRoot(b.TempDir()))
+	b.ReportAllocs()
+	b.SetBytes(int64(encoded.Len()))
+	b.ResetTimer()
+	b.ReportMetric(float64(width*height), "pixels/op")
+	for i := 0; i < b.N; i++ {
+		plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New()}
+		_, err := writer.RecordStepOutcome(context.Background(), plan, contracts.StepOutcome{
+			ExecutionID: plan.ExecutionID,
+			StepIndex:   i,
+			Attempt:     1,
+			NodeID:      "capture",
+			StepType:    "screenshot",
+			StartedAt:   time.Now(),
+			Success:     true,
+			Screenshot: &contracts.Screenshot{
+				Data: encoded.Bytes(), MediaType: "image/png", Width: width, Height: height,
+			},
+		})
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -370,9 +749,13 @@ func TestStructuredOutcomeSurvivesDiskProjection(t *testing.T) {
 		name  string
 		value any
 	}{
-		{"primitive", large}, {"map", map[string]any{"identity": large}},
-		{"struct", item}, {"pointer", &item}, {"typed-list", []sample{item}},
-		{"nil-pointer", absent}, {"proto-shaped-map", map[string]any{"string_value": "data"}},
+		{"primitive", large},
+		{"map", map[string]any{"identity": large}},
+		{"struct", item},
+		{"pointer", &item},
+		{"typed-list", []sample{item}},
+		{"nil-pointer", absent},
+		{"proto-shaped-map", map[string]any{"string_value": "data"}},
 		{"json-number", json.Number("9007199254740993")},
 	}
 	for _, tc := range cases {
@@ -381,7 +764,8 @@ func TestStructuredOutcomeSurvivesDiskProjection(t *testing.T) {
 			writer := NewFileWriter(nil, storage.NewMemoryStorage(), nil, NewStaticRoot(dir))
 			plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New()}
 			now := time.Date(2026, 9, 22, 10, 0, 0, 123, time.UTC)
-			outcome := contracts.StepOutcome{SchemaVersion: contracts.StepOutcomeSchemaVersion, PayloadVersion: contracts.PayloadVersion,
+			outcome := contracts.StepOutcome{
+				SchemaVersion: contracts.StepOutcomeSchemaVersion, PayloadVersion: contracts.PayloadVersion,
 				ExecutionID: plan.ExecutionID, CorrelationID: "attempt-3", StepIndex: 7, Attempt: 3, NodeID: "typed-evidence", StepType: "assert",
 				StartedAt: now, CompletedAt: &now, Failure: &contracts.StepFailure{Kind: contracts.FailureKindUser, Code: "EXPECTED_FAILURE", Message: "fixture failed", Details: map[string]any{"value": tc.value}},
 				Assertion:     &contracts.AssertionOutcome{Mode: "equals", Expected: tc.value, Actual: tc.value},
@@ -471,7 +855,8 @@ func BenchmarkStructuredOutcomePersistence(b *testing.B) {
 		Identity int64    `json:"identity"`
 		Labels   []string `json:"labels"`
 	}{9007199254740993, []string{"a", "b", "c"}}
-	outcome := contracts.StepOutcome{SchemaVersion: contracts.StepOutcomeSchemaVersion, PayloadVersion: contracts.PayloadVersion,
+	outcome := contracts.StepOutcome{
+		SchemaVersion: contracts.StepOutcomeSchemaVersion, PayloadVersion: contracts.PayloadVersion,
 		NodeID: "typed", StepType: "assert", Success: true, StartedAt: now, CompletedAt: &now, Attempt: 1,
 		ExtractedData: map[string]any{"item": value}, Assertion: &contracts.AssertionOutcome{Expected: value, Actual: value, Success: true},
 	}

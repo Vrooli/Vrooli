@@ -7,6 +7,8 @@ import { createContext, useContext, useLayoutEffect, useRef } from 'react';
 
 export interface WebSocketMessage {
   type: string;
+  session_id?: string;
+  input_id?: string;
   execution_id?: string;
   workflow_id?: string;
   status?: string;

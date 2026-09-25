@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -58,6 +59,30 @@ func ProjectWorkflowsDir(project *database.ProjectIndex) string {
 		return workflowDirectoryName
 	}
 	return filepath.Join(root, workflowDirectoryName)
+}
+
+// ProjectWorkflowFilePath resolves WorkflowIndex.FilePath, which is relative
+// to the project root (including the "workflows/" segment).
+func ProjectWorkflowFilePath(project *database.ProjectIndex, filePath string) string {
+	if project == nil {
+		return ""
+	}
+	return filepath.Join(project.FolderPath, filepath.FromSlash(filePath))
+}
+
+func removeWorkflowFiles(project *database.ProjectIndex, index *database.WorkflowIndex) error {
+	if project == nil || index == nil {
+		return nil
+	}
+	workflowPath := ProjectWorkflowFilePath(project, index.FilePath)
+	if err := os.Remove(workflowPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove workflow source %q: %w", workflowPath, err)
+	}
+	versionsPath := workflowVersionsDir(project.FolderPath, index.ID)
+	if err := os.RemoveAll(versionsPath); err != nil {
+		return fmt.Errorf("remove workflow versions %q: %w", versionsPath, err)
+	}
+	return nil
 }
 
 func normalizeFolderPath(folder string) string {

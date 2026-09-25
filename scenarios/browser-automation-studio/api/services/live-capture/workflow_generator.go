@@ -4,10 +4,13 @@ package livecapture
 
 import (
 	"fmt"
+	"slices"
+	"sort"
 	"time"
 
 	"github.com/vrooli/browser-automation-studio/automation/actions"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/domain"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
@@ -24,11 +27,22 @@ func NewWorkflowGenerator() *WorkflowGenerator {
 
 // GenerateWorkflow derives typed candidates; unsupported observations never become clicks.
 func (g *WorkflowGenerator) GenerateWorkflow(recorded []driver.RecordedAction) (*basworkflows.WorkflowDefinitionV2, error) {
+	return g.GenerateWorkflowWithPages(recorded, nil)
+}
+
+// GenerateWorkflowWithPages derives tab switches from the recording session's
+// existing page tracker. A popup created by the immediately preceding observed
+// action is selected rather than opened a second time.
+func (g *WorkflowGenerator) GenerateWorkflowWithPages(recorded []driver.RecordedAction, pages []*domain.Page) (*basworkflows.WorkflowDefinitionV2, error) {
 	actions, err := prepareRecordedActions(recorded)
 	if err != nil {
 		return nil, err
 	}
 	actions = MergeConsecutiveActions(actions)
+	tabState, err := newWorkflowTabState(actions, pages)
+	if err != nil {
+		return nil, err
+	}
 	flow := &basworkflows.WorkflowDefinitionV2{}
 	appendNode := func(action *basactions.ActionDefinition) {
 		index := len(flow.Nodes)
@@ -39,18 +53,232 @@ func (g *WorkflowGenerator) GenerateWorkflow(recorded []driver.RecordedAction) (
 		flow.Nodes = append(flow.Nodes, node)
 	}
 	for index, recordedAction := range actions {
+		if err := tabState.validateTargetAt(index, recordedAction); err != nil {
+			return nil, err
+		}
+		if index > 0 {
+			if err := tabState.transition(index, recordedAction, appendNode); err != nil {
+				return nil, err
+			}
+			appendFramePathTransition(appendNode, actions[index-1].FramePath, recordedAction.FramePath)
+			if wait := analyzeTransitionForWait(actions[index-1], recordedAction); wait != nil {
+				appendNode(waitAction(wait))
+			}
+		}
 		action, err := recordedActionDefinition(recordedAction)
 		if err != nil {
 			return nil, fmt.Errorf("recorded action %d (%s): %w", index+1, recordedAction.ActionType, err)
 		}
 		appendNode(action)
-		if index+1 < len(actions) {
-			if wait := analyzeTransitionForWait(recordedAction, actions[index+1]); wait != nil {
-				appendNode(waitAction(wait))
-			}
-		}
 	}
 	return flow, nil
+}
+
+type workflowTabState struct {
+	targets  []string
+	pages    map[string]*domain.Page
+	actions  []driver.RecordedAction
+	closures []*domain.Page
+	open     []string
+	active   string
+}
+
+func newWorkflowTabState(actions []driver.RecordedAction, pages []*domain.Page) (*workflowTabState, error) {
+	targets, pageByID, err := resolveRecordedPageTargets(actions, pages)
+	if err != nil {
+		return nil, err
+	}
+	state := &workflowTabState{targets: targets, pages: pageByID, actions: actions}
+	for _, page := range pages {
+		if page != nil && page.Status == domain.PageStatusClosed && page.ClosedAt != nil {
+			state.closures = append(state.closures, page)
+		}
+	}
+	sort.Slice(state.closures, func(i, j int) bool {
+		return state.closures[i].ClosedAt.Before(*state.closures[j].ClosedAt)
+	})
+	if len(targets) > 0 {
+		state.active = targets[0]
+		state.open = []string{state.active}
+	}
+	return state, nil
+}
+
+func (s *workflowTabState) transition(index int, action driver.RecordedAction, appendNode func(*basactions.ActionDefinition)) error {
+	if err := s.applyRecordedClosures(index, action.Timestamp, appendNode); err != nil {
+		return err
+	}
+	target := s.targets[index]
+	if target == s.active {
+		return nil
+	}
+	if tabIndex := pageIndex(s.open, target); tabIndex >= 0 {
+		appendNode(tabSwitchAction(basactions.TabSwitchAction_TAB_SWITCH_ACTION_SWITCH, int32(tabIndex), ""))
+		s.active = target
+		return nil
+	}
+
+	page := s.pages[target]
+	if page == nil {
+		return fmt.Errorf("recorded action %d: target page %q is not replayable", index+1, target)
+	}
+	if page.OpenerID != nil {
+		if popupCreatedByPreviousAction(page, s.targets, s.actions, index) {
+			s.open = append(s.open, target)
+			appendNode(tabSwitchAction(basactions.TabSwitchAction_TAB_SWITCH_ACTION_SWITCH, int32(len(s.open)-1), ""))
+			s.active = target
+			return nil
+		}
+		return fmt.Errorf("recorded action %d: popup page %q has ambiguous opener timing", index+1, target)
+	}
+
+	url := action.URL
+	if url == "" {
+		url = page.URL
+	}
+	s.open = append(s.open, target)
+	appendNode(tabSwitchAction(basactions.TabSwitchAction_TAB_SWITCH_ACTION_OPEN, 0, url))
+	s.active = target
+	return nil
+}
+
+func (s *workflowTabState) validateTargetAt(index int, action driver.RecordedAction) error {
+	target := s.targets[index]
+	page := s.pages[target]
+	if page == nil {
+		return nil
+	}
+	actionAt := parseRecordedActionTime(action)
+	if !page.CreatedAt.IsZero() && !actionAt.IsZero() && actionAt.Before(page.CreatedAt) {
+		return fmt.Errorf("recorded action %d: target page %q did not exist yet", index+1, target)
+	}
+	if page.Status == domain.PageStatusClosed && (page.ClosedAt == nil || actionAt.IsZero() || !actionAt.Before(*page.ClosedAt)) {
+		return fmt.Errorf("recorded action %d: target page %q is not replayable", index+1, target)
+	}
+	return nil
+}
+
+// applyRecordedClosures replays page closes that are causally between adjacent
+// recorded actions. A close with an ambiguous timestamp fails closed while its
+// page is part of the replay stack.
+func (s *workflowTabState) applyRecordedClosures(index int, timestamp string, appendNode func(*basactions.ActionDefinition)) error {
+	if index <= 0 {
+		return nil
+	}
+	previousAt := parseRecordedActionTime(s.actions[index-1])
+	currentAt, _ := time.Parse(time.RFC3339Nano, timestamp)
+	if previousAt.IsZero() || currentAt.IsZero() {
+		for _, page := range s.closures {
+			if pageIndex(s.open, page.ID.String()) >= 0 {
+				return fmt.Errorf("recorded close for page %q is ambiguous relative to action %d", page.ID, index+1)
+			}
+		}
+		return nil
+	}
+	for _, page := range s.closures {
+		pageID := page.ID.String()
+		closedAt := *page.ClosedAt
+		if closedAt.After(currentAt) {
+			continue
+		}
+		tabIndex := pageIndex(s.open, pageID)
+		if tabIndex < 0 {
+			continue // Pages are opened at first use, so an unused closed page has no replay effect.
+		}
+		if !closedAt.After(previousAt) || !closedAt.Before(currentAt) {
+			return fmt.Errorf("recorded close for page %q is ambiguous relative to action %d", pageID, index+1)
+		}
+		for _, other := range s.closures {
+			if other.ID != page.ID && other.ClosedAt.Equal(closedAt) && pageIndex(s.open, other.ID.String()) >= 0 {
+				return fmt.Errorf("recorded closes for pages %q and %q share an ambiguous timestamp", pageID, other.ID)
+			}
+		}
+		if len(s.open) == 1 {
+			return fmt.Errorf("recorded close would remove the last replay tab before action %d", index+1)
+		}
+		appendNode(tabSwitchAction(basactions.TabSwitchAction_TAB_SWITCH_ACTION_CLOSE, int32(tabIndex), ""))
+		s.open = append(s.open[:tabIndex], s.open[tabIndex+1:]...)
+		if s.active == pageID {
+			nextIndex := tabIndex
+			if nextIndex >= len(s.open) {
+				nextIndex = len(s.open) - 1
+			}
+			s.active = s.open[nextIndex]
+		}
+	}
+	return nil
+}
+
+func popupCreatedByPreviousAction(page *domain.Page, targets []string, actions []driver.RecordedAction, index int) bool {
+	if page == nil || page.OpenerID == nil || page.CreatedAt.IsZero() || index <= 0 || targets[index-1] != page.OpenerID.String() {
+		return false
+	}
+	if index >= len(actions) || (actions[index-1].ActionType != "click" && actions[index-1].ActionType != "keyboard") {
+		return false
+	}
+	previousTime := parseRecordedActionTime(actions[index-1])
+	currentTime := parseRecordedActionTime(actions[index])
+	return !previousTime.IsZero() && !currentTime.IsZero() && page.CreatedAt.After(previousTime) &&
+		(page.CreatedAt.Before(currentTime) || page.CreatedAt.Equal(currentTime))
+}
+
+func parseRecordedActionTime(action driver.RecordedAction) time.Time {
+	parsed, _ := time.Parse(time.RFC3339Nano, action.Timestamp)
+	return parsed
+}
+
+func pageIndex(pages []string, target string) int {
+	for index, page := range pages {
+		if page == target {
+			return index
+		}
+	}
+	return -1
+}
+
+func tabSwitchAction(action basactions.TabSwitchAction, index int32, url string) *basactions.ActionDefinition {
+	params := &basactions.TabSwitchParams{Action: action}
+	label := "Switch tab"
+	if action == basactions.TabSwitchAction_TAB_SWITCH_ACTION_OPEN {
+		label = "Open tab"
+		params.Url = proto.String(url)
+	} else {
+		params.Index = proto.Int32(index)
+	}
+	return &basactions.ActionDefinition{
+		Type:     basactions.ActionType_ACTION_TYPE_TAB_SWITCH,
+		Params:   &basactions.ActionDefinition_TabSwitch{TabSwitch: params},
+		Metadata: &basactions.ActionMetadata{Label: proto.String(label)},
+	}
+}
+
+func appendFramePathTransition(appendNode func(*basactions.ActionDefinition), from, to []string) {
+	shared := 0
+	for shared < len(from) && shared < len(to) && from[shared] == to[shared] {
+		shared++
+	}
+	for index := len(from); index > shared; index-- {
+		appendNode(frameSwitchAction(basactions.FrameSwitchAction_FRAME_SWITCH_ACTION_PARENT, ""))
+	}
+	for _, selector := range to[shared:] {
+		appendNode(frameSwitchAction(basactions.FrameSwitchAction_FRAME_SWITCH_ACTION_ENTER, selector))
+	}
+}
+
+func frameSwitchAction(action basactions.FrameSwitchAction, selector string) *basactions.ActionDefinition {
+	label := "Return to parent frame"
+	params := &basactions.FrameSwitchParams{Action: action}
+	if action == basactions.FrameSwitchAction_FRAME_SWITCH_ACTION_ENTER {
+		label = "Enter recorded frame"
+		params.Selector = proto.String(selector)
+	}
+	return &basactions.ActionDefinition{
+		Type:   basactions.ActionType_ACTION_TYPE_FRAME_SWITCH,
+		Params: &basactions.ActionDefinition_FrameSwitch{FrameSwitch: params},
+		Metadata: &basactions.ActionMetadata{
+			Label: proto.String(label),
+		},
+	}
 }
 
 // MergeConsecutiveActions coalesces full input/scroll snapshots only within one
@@ -77,7 +305,7 @@ func MergeConsecutiveActions(recorded []driver.RecordedAction) []driver.Recorded
 }
 
 func sameTarget(a, b driver.RecordedAction) bool {
-	if a.PageID != b.PageID || a.DriverPageID != b.DriverPageID || a.FrameID != b.FrameID || a.URL != b.URL {
+	if a.PageID != b.PageID || a.DriverPageID != b.DriverPageID || a.FrameID != b.FrameID || a.URL != b.URL || !slices.Equal(a.FramePath, b.FramePath) {
 		return false
 	}
 	if a.Selector == nil || b.Selector == nil {

@@ -302,6 +302,11 @@ type StepFailure struct {
 	Source     FailureSource  `json:"source,omitempty"`      // engine|executor|recorder
 }
 
+// FailureCodeInstructionOutcomeUncertain means transport ended without a
+// receipt that proves whether the browser action took effect. Callers must
+// reconcile the external effect before replaying that step.
+const FailureCodeInstructionOutcomeUncertain = "INSTRUCTION_OUTCOME_UNCERTAIN"
+
 // FailureKind enumerates the supported failure taxonomy.
 type FailureKind string
 

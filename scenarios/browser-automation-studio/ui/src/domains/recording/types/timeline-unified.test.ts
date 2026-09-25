@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  attachTimelinePageIdentities,
   mergeActionsWithAISteps,
   recordedActionToTimelineItem,
   useTimelineEntryToTimelineItem,
@@ -30,6 +31,53 @@ function createRecordedAction(
     ...overrides,
   };
 }
+
+describe('attachTimelinePageIdentities', () => {
+  it('joins driver actions to durable logical page identities by action ID', () => {
+    const actions = [
+      createRecordedAction({ id: 'main-1', actionType: 'click' }),
+      createRecordedAction({ id: 'popup-1', actionType: 'click' }),
+      createRecordedAction({ id: 'unmatched', actionType: 'click', pageId: 'driver-fallback' }),
+    ];
+    const entries: UseTimelineEntry[] = [
+      {
+        id: 'timeline-main-1',
+        type: 'action',
+        timestamp: '2026-09-24T00:00:00Z',
+        pageId: 'logical-main',
+        action: {
+          id: 'main-1',
+          actionType: 'click',
+          sequenceNum: 1,
+          timestamp: '2026-09-24T00:00:00Z',
+          confidence: 1,
+        },
+      },
+      {
+        id: 'timeline-popup-1',
+        type: 'action',
+        timestamp: '2026-09-24T00:00:01Z',
+        pageId: 'logical-popup',
+        action: {
+          id: 'popup-1',
+          actionType: 'click',
+          sequenceNum: 2,
+          timestamp: '2026-09-24T00:00:01Z',
+          confidence: 1,
+        },
+      },
+    ];
+
+    const identified = attachTimelinePageIdentities(actions, entries);
+
+    expect(identified.map((action) => action.pageId)).toEqual([
+      'logical-main',
+      'logical-popup',
+      'driver-fallback',
+    ]);
+    expect(actions[0]?.pageId).toBeUndefined();
+  });
+});
 
 // Helper to create test AI steps
 interface AIStepForTest {

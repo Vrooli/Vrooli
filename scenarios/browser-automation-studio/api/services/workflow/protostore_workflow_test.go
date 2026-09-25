@@ -99,6 +99,32 @@ func TestWriteWorkflowSummaryFile_PreferredRelClean(t *testing.T) {
 	}
 }
 
+func TestRemoveWorkflowFilesUsesProjectRootIndexAndRemovesVersionSnapshots(t *testing.T) {
+	dir := t.TempDir()
+	project := &database.ProjectIndex{ID: uuid.New(), Name: "Delete path", FolderPath: dir}
+	wf := &basapi.WorkflowSummary{
+		Id: uuid.NewString(), ProjectId: project.ID.String(), Name: "Delete me", FolderPath: "/",
+		Version: 1, FlowDefinition: &basworkflows.WorkflowDefinitionV2{},
+	}
+	absPath, indexPath, err := WriteWorkflowSummaryFile(project, wf, "")
+	if err != nil {
+		t.Fatalf("write workflow: %v", err)
+	}
+	if err := persistWorkflowVersionSnapshot(project, wf); err != nil {
+		t.Fatalf("write workflow version: %v", err)
+	}
+	index := &database.WorkflowIndex{ID: uuid.MustParse(wf.Id), ProjectID: &project.ID, FilePath: indexPath}
+	if err := removeWorkflowFiles(project, index); err != nil {
+		t.Fatalf("remove indexed workflow files: %v", err)
+	}
+	if _, err := os.Stat(absPath); !os.IsNotExist(err) {
+		t.Fatalf("workflow file remains after deletion: %v", err)
+	}
+	if _, err := os.Stat(workflowVersionsDir(project.FolderPath, index.ID)); !os.IsNotExist(err) {
+		t.Fatalf("workflow version snapshots remain after deletion: %v", err)
+	}
+}
+
 // TestGetWorkflowDoesNotSyncFromDisk asserts the resolver path no
 // longer re-reads disk in a way that would clobber a fresh API write.
 // The behavior is encoded structurally: we walk the project root before

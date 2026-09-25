@@ -350,6 +350,73 @@ func TestService_PersistSessionState_LimitsTabs(t *testing.T) {
 	}
 }
 
+type secondErrObservedContext struct {
+	context.Context
+	checks      atomic.Int32
+	secondCheck chan struct{}
+}
+
+func (c *secondErrObservedContext) Err() error {
+	if c.checks.Add(1) == 2 {
+		close(c.secondCheck)
+	}
+	return c.Context.Err()
+}
+
+// Cancellation while waiting to reacquire the binding lock must not publish a
+// snapshot after the capture's earlier context check.
+func TestService_PersistSessionStateRechecksCancellationBeforeCommit(t *testing.T) {
+	svc, repo, _ := newTestService(t)
+	profile, err := svc.CreateProfile("Main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc.SetActiveSession("main", string(profile.ID))
+	base, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ctx := &secondErrObservedContext{Context: base, secondCheck: make(chan struct{})}
+	captureStarted, releaseCapture := make(chan struct{}), make(chan struct{})
+	done := make(chan error, 1)
+	go func() {
+		done <- svc.PersistSessionState(ctx, "main", func(context.Context, string) (*persistence.SessionEndState, error) {
+			close(captureStarted)
+			<-releaseCapture
+			return &persistence.SessionEndState{StorageState: []byte(`{"marker":"stale"}`)}, nil
+		})
+	}()
+	select {
+	case <-captureStarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("profile capture did not start")
+	}
+	svc.sessions.mu.Lock()
+	close(releaseCapture)
+	select {
+	case <-ctx.secondCheck:
+	case <-time.After(5 * time.Second):
+		svc.sessions.mu.Unlock()
+		t.Fatal("post-capture context check was not reached")
+	}
+	cancel()
+	svc.sessions.mu.Unlock()
+
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("cancelled snapshot result = %v, want context.Canceled", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("profile snapshot did not finish after releasing the registry lock")
+	}
+	got, err := repo.Get(profile.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, profile) {
+		t.Fatalf("cancelled snapshot changed profile: got %+v, want %+v", got, profile)
+	}
+}
+
 // [REQ:BAS-RH-J14] A cancelled waiter neither captures nor publishes an older
 // snapshot; unrelated profiles continue while a browser capture is pending.
 func TestService_ProfileCapturesSerializeAndRespectCancellation(t *testing.T) {
@@ -727,9 +794,9 @@ func TestActiveSessionRegistry_Operations(t *testing.T) {
 		t.Errorf("expected profile-a, got %s", got)
 	}
 
-	// Test GetByProfile (reverse lookup)
-	if got := registry.GetByProfile("profile-a"); got != "session-1" {
-		t.Errorf("expected session-1, got %s", got)
+	// Test unique reverse lookup.
+	if got, err := registry.ResolveByProfile("profile-a"); err != nil || got != "session-1" {
+		t.Errorf("unique profile resolution = %q, %v; want session-1", got, err)
 	}
 
 	// Test Clear
@@ -747,6 +814,28 @@ func TestActiveSessionRegistry_Operations(t *testing.T) {
 	}
 	if got := registry.Get("session-3"); got != "" {
 		t.Error("expected session-3 to be cleared")
+	}
+}
+
+func TestActiveSessionRegistry_ResolveByProfileRejectsAmbiguity(t *testing.T) {
+	registry := NewActiveSessionRegistry()
+	registry.Set("session-a", "profile-shared", time.Now())
+	registry.Set("session-b", "profile-shared", time.Now())
+
+	if got, err := registry.ResolveByProfile("profile-shared"); !errors.Is(err, ErrAmbiguousProfileSession) || got != "" {
+		t.Fatalf("ambiguous resolution = %q, %v; want no session and ErrAmbiguousProfileSession", got, err)
+	}
+	if registry.Get("session-a") != "profile-shared" || registry.Get("session-b") != "profile-shared" {
+		t.Fatal("ambiguous lookup changed active profile bindings")
+	}
+
+	registry.Clear("session-a")
+	if got, err := registry.ResolveByProfile("profile-shared"); err != nil || got != "session-b" {
+		t.Fatalf("unique resolution after detach = %q, %v; want session-b", got, err)
+	}
+	registry.Clear("session-b")
+	if got, err := registry.ResolveByProfile("profile-shared"); err != nil || got != "" {
+		t.Fatalf("absent resolution = %q, %v; want empty session without error", got, err)
 	}
 }
 

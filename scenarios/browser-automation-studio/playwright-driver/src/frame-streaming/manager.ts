@@ -113,6 +113,7 @@ export function startFrameStreaming(
       generation,
       wsManager: createWebSocketConnectionManager({
         url: buildWebSocketUrl(options.callbackUrl, sessionId), sessionId,
+        routedTestMode: options.routedTestMode,
       }),
       strategyHandle: null,
       strategyName: 'none',
@@ -181,10 +182,19 @@ export function updateFrameStreamSettings(
     if (quality !== session.quality && !handle.updateQuality) throw new Error('Active stream does not support quality updates');
     if (fps !== session.targetFps && !handle.updateTargetFps) throw new Error('Active stream does not support FPS updates');
     if (perfMode !== session.includePerfHeaders && !handle.updatePerfMode) throw new Error('Active stream does not support performance header updates');
-    if (quality !== session.quality) await handle.updateQuality!(quality);
+    if (quality !== session.quality) {
+      if (!handle.updateQuality) throw new Error('Active stream does not support quality updates');
+      await handle.updateQuality(quality);
+    }
     if (slot.generation !== generation || !handle.isActive()) return false;
-    if (fps !== session.targetFps) handle.updateTargetFps!(fps);
-    if (perfMode !== session.includePerfHeaders) handle.updatePerfMode!(perfMode);
+    if (fps !== session.targetFps) {
+      if (!handle.updateTargetFps) throw new Error('Active stream does not support FPS updates');
+      handle.updateTargetFps(fps);
+    }
+    if (perfMode !== session.includePerfHeaders) {
+      if (!handle.updatePerfMode) throw new Error('Active stream does not support performance header updates');
+      handle.updatePerfMode(perfMode);
+    }
     session.quality = quality;
     session.targetFps = fps;
     session.includePerfHeaders = perfMode;
@@ -305,8 +315,8 @@ async function startWithStrategy(
         });
       }
     },
-    onFrameSkipped: (reason) => {
-      if (isCurrent() && reason === 'unchanged') {
+    onFrameSkipped: (_reason) => {
+      if (isCurrent()) {
         session.perfCollector.recordSkipped(0, 0);
       }
     },

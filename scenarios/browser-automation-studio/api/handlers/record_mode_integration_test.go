@@ -11,6 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -257,6 +258,55 @@ func TestReceiveRecordingActionRequiresCommit(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReceiveRecordingActionRedactsBeforePersistenceAndBroadcast(t *testing.T) {
+	const secret = "BAS_SYNTHETIC_HTTP_INGRESS_SECRET_11c4"
+	log := logrus.New()
+	repo := persistence.NewMockRepository()
+	journal := recording.NewService(repo, recording.ServiceConfig{})
+	require.NoError(t, journal.RegisterSession(context.Background(), "session", recording.SessionConfig{}))
+	session := &autosession.Session{}
+	session.InitializePageTracking("https://example.test")
+	hub := NewTestRecordingHub(log)
+	handler := &Handler{
+		recordModeService: &journalIngressService{
+			MockRecordModeService: NewMockRecordModeService(),
+			session:               session,
+			journal:               journal,
+		},
+		wsHub: hub,
+		log:   log,
+	}
+	body := map[string]interface{}{
+		"id": "synthetic-input", "actionType": "input", "timestamp": "2026-09-24T00:00:00Z",
+		"elementMeta": map[string]interface{}{
+			"tagName": "input", "innerText": secret,
+			"attributes": map[string]string{"type": "password", "value": secret, "data-token": secret},
+		},
+		"payload": map[string]string{"text": secret, "value": secret},
+	}
+	encoded, err := json.Marshal(body)
+	require.NoError(t, err)
+	request := httptest.NewRequest(http.MethodPost, "/recordings/live/session/action", strings.NewReader(string(encoded)))
+	route := chi.NewRouteContext()
+	route.URLParams.Add("sessionId", "session")
+	request = request.WithContext(context.WithValue(request.Context(), chi.RouteCtxKey, route))
+	response := httptest.NewRecorder()
+	handler.ReceiveRecordingAction(response, request)
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+
+	stored := repo.GetAllEntries("session")
+	require.Len(t, stored, 1)
+	require.Empty(t, stored[0].Action.Payload["text"])
+	require.Empty(t, stored[0].Action.Payload["value"])
+	require.Empty(t, stored[0].Action.ElementMeta.InnerText)
+	require.NotContains(t, stored[0].Action.ElementMeta.Attributes, "value")
+	require.NotContains(t, stored[0].Action.ElementMeta.Attributes, "data-token")
+
+	broadcast := hub.GetLastEntry("session")
+	require.NotNil(t, broadcast)
+	require.NotContains(t, broadcast.String(), secret)
 }
 
 // createOwnedNavigationSession exercises driver wire ownership for API controls.
@@ -642,6 +692,54 @@ func TestPageCallbacksPreserveRegisteredPageIdentity(t *testing.T) {
 			require.Equal(t, 2, pages.PageCount())
 		})
 	}
+}
+
+func TestDriverPageLifecycleTimestampsArePreserved(t *testing.T) {
+	sess := &autosession.Session{}
+	sess.InitializePageTracking("https://main.test")
+	pages := sess.Pages()
+	pages.SetInitialPageDriverID("main-driver")
+	service := NewMockRecordModeService()
+	service.OwnedSessions = map[string]*autosession.Session{"session": sess}
+	log := logrus.New()
+	hub := NewTestRecordingHub(log)
+	h := &Handler{recordModeService: service, wsHub: hub, log: log}
+	createdAt := time.Date(2026, time.September, 24, 12, 0, 2, 123456000, time.UTC)
+	closedAt := createdAt.Add(2 * time.Second)
+
+	invoke := func(eventType string, timestamp time.Time) *httptest.ResponseRecorder {
+		body, err := json.Marshal(domain.DriverPageEvent{
+			DriverPageID: "popup-driver", EventType: eventType,
+			OpenerDriverPageID: "main-driver", Timestamp: timestamp.Format(time.RFC3339Nano),
+		})
+		require.NoError(t, err)
+		req := httptest.NewRequest(http.MethodPost, "/session/page-event", strings.NewReader(string(body)))
+		route := chi.NewRouteContext()
+		route.URLParams.Add("sessionId", "session")
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, route))
+		response := httptest.NewRecorder()
+		h.ReceivePageEvent(response, req)
+		return response
+	}
+
+	created := invoke("created", createdAt)
+	require.Equal(t, http.StatusOK, created.Code, created.Body.String())
+	pageID := pages.GetPageIDByDriverID("popup-driver")
+	require.NotNil(t, pageID)
+	page, ok := pages.GetPage(*pageID)
+	require.True(t, ok)
+	assert.Equal(t, createdAt, page.CreatedAt)
+	require.NotNil(t, hub.lastPageEvent["session"])
+	assert.Equal(t, createdAt, hub.lastPageEvent["session"].Timestamp)
+
+	closed := invoke("closed", closedAt)
+	require.Equal(t, http.StatusOK, closed.Code, closed.Body.String())
+	page, ok = pages.GetPage(*pageID)
+	require.True(t, ok)
+	require.NotNil(t, page.ClosedAt)
+	assert.Equal(t, closedAt, *page.ClosedAt)
+	require.NotNil(t, hub.lastPageEvent["session"])
+	assert.Equal(t, closedAt, hub.lastPageEvent["session"].Timestamp)
 }
 
 // [REQ:BAS-RH-J03] Close success reflects the browser, and repeated observations commit once.

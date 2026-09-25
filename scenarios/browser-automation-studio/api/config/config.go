@@ -263,8 +263,8 @@ type WebSocketConfig struct {
 	// Env: BAS_WS_CLIENT_SEND_BUFFER_SIZE (default: 256)
 	ClientSendBufferSize int
 
-	// ClientBinaryBufferSize is the channel buffer size for binary frame data per client.
-	// Holds ~2 seconds at 60 FPS.
+	// ClientBinaryBufferSize is the maximum queued frame count per client.
+	// BinarySend also enforces a 12 MiB + 4 KiB byte budget including the active write.
 	// Env: BAS_WS_CLIENT_BINARY_BUFFER_SIZE (default: 120)
 	ClientBinaryBufferSize int
 
@@ -440,7 +440,8 @@ type StorageConfig struct {
 // ArtifactLimitsConfig controls size limits for collected artifacts.
 // These are global defaults that can be overridden per-execution via ArtifactCollectionConfig.
 type ArtifactLimitsConfig struct {
-	// MaxScreenshotBytes is the maximum screenshot size before truncation.
+	// MaxScreenshotBytes is the maximum encoded screenshot size to retain.
+	// Encoded screenshots are indivisible, so over-budget images are omitted.
 	// Env: BAS_ARTIFACT_MAX_SCREENSHOT_BYTES (default: 4194304, 4MB)
 	MaxScreenshotBytes int
 

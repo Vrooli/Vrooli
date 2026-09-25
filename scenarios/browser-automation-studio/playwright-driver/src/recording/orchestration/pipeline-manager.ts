@@ -106,6 +106,8 @@ export interface PipelineManagerOptions {
   logger?: winston.Logger;
   /** Session ID (for logging) */
   sessionId: string;
+  /** Resolves the stable ID already assigned to a page by the session manager. */
+  getDriverPageId?: (page: Page) => string | undefined;
 }
 
 // Re-export types for convenience
@@ -148,6 +150,7 @@ export class RecordingPipelineManager {
   private readonly contextInitializer: RecordingContextInitializer;
   private readonly logger: winston.Logger;
   private readonly sessionId: string;
+  private readonly getDriverPageId?: (page: Page) => string | undefined;
 
   // Callbacks (set during startRecording)
   private entryCallback: RecordEntryCallback | null = null;
@@ -204,6 +207,7 @@ export class RecordingPipelineManager {
     this.context = context;
     this.contextInitializer = contextInitializer;
     this.sessionId = options.sessionId;
+    this.getDriverPageId = options.getDriverPageId;
     this.logger = options.logger ?? defaultLogger;
 
     // Create state machine
@@ -569,7 +573,7 @@ export class RecordingPipelineManager {
       this.contextInitializer.setEventHandler((rawEvent: RawBrowserEvent) => this.handleRawEvent(rawEvent));
 
       // Setup page-level event route
-      await this.contextInitializer.setupPageEventRoute(this.page, { force: true });
+      await this.setupPageEventRoute(this.page, { force: true });
 
       // Capture initial navigation
       await this.captureInitialNavigation();
@@ -582,7 +586,7 @@ export class RecordingPipelineManager {
       this.context.on('page', this.newPageHandler);
       for (const page of this.context.pages()) this.watchPage(page, generation, recordingId);
       await Promise.all(this.context.pages().map(async (page) => {
-        await this.contextInitializer.setupPageEventRoute(page, { force: true });
+        await this.setupPageEventRoute(page, { force: true });
         await this.activateRecordingOnPage(page, recordingId);
       }));
 
@@ -719,7 +723,7 @@ export class RecordingPipelineManager {
 
         case 'EVENT_ROUTE_FAILED': {
           // Re-setup route
-          await this.contextInitializer.setupPageEventRoute(this.page, { force: true });
+          await this.setupPageEventRoute(this.page, { force: true });
           this.stateMachine.dispatch({ type: 'RECOVER' });
           break;
         }
@@ -805,7 +809,7 @@ export class RecordingPipelineManager {
     const operation = (async () => {
       await frame.waitForLoadState('domcontentloaded', { timeout: 5000 });
       if (!isCurrent() || frame.isDetached()) return;
-      await this.contextInitializer.setupPageEventRoute(frame.page(), { force: true });
+      await this.setupPageEventRoute(frame.page(), { force: true });
       if (!isCurrent() || frame.isDetached()) return;
       await frame.page().evaluate(generateActivationScript(recordingId));
       if (isCurrent() && frame === this.page.mainFrame()) {
@@ -823,6 +827,13 @@ export class RecordingPipelineManager {
     page.off('framenavigated', handlers.navigated);
     page.off('close', handlers.closed);
     this.pageHandlers.delete(page);
+  }
+
+  private setupPageEventRoute(page: Page, options: { force?: boolean } = {}): Promise<void> {
+    return this.contextInitializer.setupPageEventRoute(page, {
+      ...options,
+      driverPageId: this.getDriverPageId?.(page),
+    });
   }
 
   // ===========================================================================

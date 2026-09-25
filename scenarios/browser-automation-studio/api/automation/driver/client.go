@@ -43,6 +43,7 @@ const (
 	// PlaywrightDriverAdminSecretEnv authorizes only the loopback recovery
 	// endpoint. It is never sent with normal lease-protected operations.
 	PlaywrightDriverAdminSecretEnv = "PLAYWRIGHT_DRIVER_ADMIN_SECRET"
+	maxSessionAdmissionRetryDelay  = 500 * time.Millisecond
 )
 
 // HTTPDoer is an interface for making HTTP requests.
@@ -77,6 +78,15 @@ type ClientInterface interface {
 	// Screenshot and frame operations
 	CaptureScreenshot(ctx context.Context, sessionID string, req *CaptureScreenshotRequest) (*CaptureScreenshotResponse, error)
 	GetFrame(ctx context.Context, sessionID, queryParams string) (*GetFrameResponse, error)
+}
+
+// ForwardInputResponse identifies the sequence the driver actually applied.
+// CoalescedCount reports pending pointer moves replaced by this applied move.
+type ForwardInputResponse struct {
+	Status          string `json:"status"`
+	AppliedSequence uint64 `json:"applied_sequence"`
+	CoalescedCount  int    `json:"coalesced_count"`
+	InputID         string `json:"input_id,omitempty"`
 }
 
 // Compile-time interface enforcement for ClientInterface
@@ -364,8 +374,12 @@ func waitForSessionAdmission(ctx context.Context, budget, delay time.Duration, a
 		if !time.Now().Before(deadline) {
 			return err
 		}
-		delay = min(delay*2, 2*time.Second)
+		delay = nextSessionAdmissionDelay(delay)
 	}
+}
+
+func nextSessionAdmissionDelay(delay time.Duration) time.Duration {
+	return min(delay*2, maxSessionAdmissionRetryDelay)
 }
 
 // CreateSessionForDrill executes the normal admission path with a scoped
@@ -562,16 +576,29 @@ func (c *Client) GetRecordedActions(ctx context.Context, sessionID string) (*Get
 	if actions == nil {
 		actions = []RecordedAction{}
 	}
+	for i := range actions {
+		RedactSensitiveValues(&actions[i])
+	}
 
 	var entries []*bastimeline.TimelineEntry
+	sanitizedRawEntries := make([]json.RawMessage, 0, len(raw.Entries))
 	for _, entryRaw := range raw.Entries {
 		if len(entryRaw) == 0 {
+			sanitizedRawEntries = append(sanitizedRawEntries, entryRaw)
 			continue
 		}
 		var entry bastimeline.TimelineEntry
 		if err := protojson.Unmarshal(entryRaw, &entry); err != nil {
 			return nil, fmt.Errorf("parse recorded entry: %w", err)
 		}
+		if RedactSensitiveTimelineEntry(&entry) {
+			sanitized, err := protojson.Marshal(&entry)
+			if err != nil {
+				return nil, fmt.Errorf("encode redacted recorded entry: %w", err)
+			}
+			entryRaw = sanitized
+		}
+		sanitizedRawEntries = append(sanitizedRawEntries, entryRaw)
 		entries = append(entries, &entry)
 	}
 
@@ -586,7 +613,7 @@ func (c *Client) GetRecordedActions(ctx context.Context, sessionID string) (*Get
 		SessionID:   raw.SessionID,
 		IsRecording: raw.IsRecording,
 		Actions:     actions,
-		Entries:     raw.Entries,
+		Entries:     sanitizedRawEntries,
 	}, nil
 }
 
@@ -760,18 +787,25 @@ func (c *Client) GetFrame(ctx context.Context, sessionID, queryParams string) (*
 }
 
 // ForwardInput forwards pointer/keyboard/wheel events to the driver.
-func (c *Client) ForwardInput(ctx context.Context, sessionID, executionID, leaseID string, body []byte) error {
+func (c *Client) ForwardInput(ctx context.Context, sessionID, executionID, leaseID string, body []byte) (*ForwardInputResponse, error) {
 	if strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
-		return errors.New("live input requires execution ID and lease ID")
+		return nil, errors.New("live input requires execution ID and lease ID")
 	}
 	var input map[string]json.RawMessage
 	if err := json.Unmarshal(body, &input); err != nil || input == nil {
-		return errors.New("live input requires a JSON object")
+		return nil, errors.New("live input requires a JSON object")
 	}
 	// The owned Session supplies authority; caller JSON cannot override it.
 	input["execution_id"], _ = json.Marshal(executionID)
 	input["lease_id"], _ = json.Marshal(leaseID)
-	return c.post(ctx, fmt.Sprintf("/session/%s/record/input", url.PathEscape(sessionID)), input, nil)
+	var receipt ForwardInputResponse
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/input", url.PathEscape(sessionID)), input, &receipt); err != nil {
+		return nil, err
+	}
+	if receipt.Status != "ok" || receipt.AppliedSequence == 0 {
+		return nil, errors.New("driver returned an invalid live input receipt")
+	}
+	return &receipt, nil
 }
 
 // SetActivePage switches the active page for frame streaming and input forwarding.
@@ -918,7 +952,7 @@ func uncertainInstructionOutcome(instruction contracts.CompiledInstruction, err 
 	}
 	return contracts.StepOutcome{
 		StepIndex: instruction.Index, NodeID: instruction.NodeID, Attempt: instruction.Attempt,
-		Failure: &contracts.StepFailure{Kind: kind, Code: "INSTRUCTION_OUTCOME_UNCERTAIN", Message: err.Error(), Retryable: false},
+		Failure: &contracts.StepFailure{Kind: kind, Code: contracts.FailureCodeInstructionOutcomeUncertain, Message: err.Error(), Retryable: false},
 	}, err
 }
 

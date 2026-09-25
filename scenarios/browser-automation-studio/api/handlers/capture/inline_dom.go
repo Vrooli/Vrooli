@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 )
 
-// defaultInlineDomMaxBytes caps CaptureResponse.dom_html so a pathological
-// page cannot balloon the RPC response. Truncation is silent (documented
-// on the proto field); readable-text consumers tolerate a cut-off tail by
-// design.
+// defaultInlineDomMaxBytes bounds rendered-DOM outputs so a pathological page
+// cannot balloon an inline response or generated artifact. Truncation is
+// silent for the documented dom_html response; readable-text consumers
+// tolerate a cut-off tail by design.
 const defaultInlineDomMaxBytes = 2 << 20
 
 // defaultInlineDomExpression is evaluated in-page to read the rendered DOM.
@@ -92,10 +92,10 @@ func (c InlineDomConfig) withDefaults() InlineDomConfig {
 // exported timeline.json. The driver's evaluate handler returns the raw
 // result under the "result" key of extracted_data, which the execution
 // writer persists verbatim as the frame's extracted_data_preview.
-func (c InlineDomConfig) readInlineDom(outDir, nodeID string) (string, error) {
+func (c InlineDomConfig) readInlineDom(outDir, nodeID string) (string, bool, error) {
 	raw, err := os.ReadFile(filepath.Join(outDir, "timeline.json"))
 	if err != nil {
-		return "", fmt.Errorf("read timeline.json: %w", err)
+		return "", false, fmt.Errorf("read timeline.json: %w", err)
 	}
 	var timeline struct {
 		Frames []struct {
@@ -104,28 +104,30 @@ func (c InlineDomConfig) readInlineDom(outDir, nodeID string) (string, error) {
 		} `json:"frames"`
 	}
 	if err := json.Unmarshal(raw, &timeline); err != nil {
-		return "", fmt.Errorf("decode timeline.json: %w", err)
+		return "", false, fmt.Errorf("decode timeline.json: %w", err)
 	}
 	for _, frame := range timeline.Frames {
 		if frame.NodeID != nodeID {
 			continue
 		}
 		if value, ok := frame.ExtractedDataPreview["result"].(string); ok && value != "" {
-			if len(value) > c.MaxBytes {
+			truncated := len(value) > c.MaxBytes
+			if truncated {
 				value = value[:c.MaxBytes]
 			}
-			return value, nil
+			return value, truncated, nil
 		}
 		if value := frame.ExtractedDataPreview["result"]; value != nil {
 			encoded, marshalErr := json.Marshal(value)
 			if marshalErr != nil {
-				return "", fmt.Errorf("encode DOM evaluate result: %w", marshalErr)
+				return "", false, fmt.Errorf("encode DOM evaluate result: %w", marshalErr)
 			}
-			if len(encoded) > c.MaxBytes {
+			truncated := len(encoded) > c.MaxBytes
+			if truncated {
 				encoded = encoded[:c.MaxBytes]
 			}
-			return string(encoded), nil
+			return string(encoded), truncated, nil
 		}
 	}
-	return "", errors.New("timeline has no DOM evaluate result")
+	return "", false, errors.New("timeline has no DOM evaluate result")
 }

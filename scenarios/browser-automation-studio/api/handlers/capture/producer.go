@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
 )
@@ -47,19 +48,84 @@ func NewProducerRegistry(producers ...ArtifactProducer) *ProducerRegistry {
 }
 
 // DefaultProducerRegistry returns the registry wired with the producers
-// BAS ships today: one per implemented capture type plus placeholder
-// "unavailable" producers for the types the executor cannot export yet.
+// BAS ships today: one per implemented capture type plus placeholders for
+// capture types that remain unavailable.
 func DefaultProducerRegistry() *ProducerRegistry {
 	return NewProducerRegistry(
 		screenshotProducer{},
 		fileProducer{captureType: capturev1.CaptureType_CAPTURE_TYPE_CONSOLE_LOGS, file: "console-logs.md"},
 		fileProducer{captureType: capturev1.CaptureType_CAPTURE_TYPE_NETWORK, file: "network-activity.md"},
+		domProducer{},
 		fileProducer{captureType: capturev1.CaptureType_CAPTURE_TYPE_ACCESSIBILITY, file: "accessibility.json"},
 		fileProducer{captureType: capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE, file: "dom-tree.json"},
-		unavailableProducer{captureType: capturev1.CaptureType_CAPTURE_TYPE_VIDEO},
-		unavailableProducer{captureType: capturev1.CaptureType_CAPTURE_TYPE_DOM},
+		videoProducer{},
 		performanceProducer{},
 	)
+}
+
+type domProducer struct{}
+
+func (domProducer) Type() capturev1.CaptureType {
+	return capturev1.CaptureType_CAPTURE_TYPE_DOM
+}
+
+func (p domProducer) Produce(outDir string) ([]*capturev1.CaptureArtifact, error) {
+	path := filepath.Join(outDir, "dom.html")
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return []*capturev1.CaptureArtifact{
+				unavailableArtifactWithReason(p.Type(), path, "rendered DOM snapshot unavailable for this execution"),
+			}, nil
+		}
+		return nil, fmt.Errorf("stat rendered DOM: %w", err)
+	}
+	return []*capturev1.CaptureArtifact{artifactFromFile(p.Type(), path)}, nil
+}
+
+type videoProducer struct{}
+
+func (videoProducer) Type() capturev1.CaptureType {
+	return capturev1.CaptureType_CAPTURE_TYPE_VIDEO
+}
+
+func (p videoProducer) Produce(outDir string) ([]*capturev1.CaptureArtifact, error) {
+	videoDir := filepath.Join(outDir, "videos")
+	entries, err := os.ReadDir(videoDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []*capturev1.CaptureArtifact{
+				unavailableArtifactWithReason(p.Type(), filepath.Join(videoDir, canonicalFileName(p.Type())), "browser video recording unavailable for this execution"),
+			}, nil
+		}
+		return nil, fmt.Errorf("read videos dir: %w", err)
+	}
+
+	artifacts := make([]*capturev1.CaptureArtifact, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.EqualFold(filepath.Ext(entry.Name()), ".webm") {
+			continue
+		}
+		path := filepath.Join(videoDir, entry.Name())
+		info, err := entry.Info()
+		if err != nil {
+			return nil, fmt.Errorf("stat video %q: %w", entry.Name(), err)
+		}
+		if !info.Mode().IsRegular() {
+			continue
+		}
+		artifacts = append(artifacts, &capturev1.CaptureArtifact{
+			Type:      p.Type(),
+			Path:      path,
+			SizeBytes: info.Size(),
+			Metadata:  map[string]string{"filename": entry.Name()},
+		})
+	}
+	if len(artifacts) == 0 {
+		return []*capturev1.CaptureArtifact{
+			unavailableArtifactWithReason(p.Type(), filepath.Join(videoDir, canonicalFileName(p.Type())), "browser video recording unavailable for this execution"),
+		}, nil
+	}
+	return artifacts, nil
 }
 
 // ProduceAll assembles, in request order, every artifact for the given
@@ -221,9 +287,8 @@ func (p performanceProducer) Produce(outDir string) ([]*capturev1.CaptureArtifac
 }
 
 // unavailableProducer is the placeholder for capture types the executor's
-// folder export cannot produce yet (video, dom-file). It
-// always returns a single unavailable artifact with the canonical path.
-// P2 replaces the performance entry with a real producer.
+// folder export cannot produce yet (currently video). It always returns a
+// single unavailable artifact with the canonical path.
 type unavailableProducer struct {
 	captureType capturev1.CaptureType
 }

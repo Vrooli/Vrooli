@@ -124,6 +124,46 @@ func TestExternalArtifactsRejectMissingOrUncommittedEvidence(t *testing.T) {
 	}
 }
 
+func TestExternalArtifactsRejectKindsMissingFromReplayManifest(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "custom.bin")
+	require.NoError(t, os.WriteFile(source, []byte("custom bytes"), 0o600))
+	writer := NewFileWriter(nil, storage.NewMemoryStorage(), nil, NewStaticRoot(dir))
+	plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New()}
+
+	err := writer.RecordExecutionArtifacts(context.Background(), plan, []ExternalArtifact{{ArtifactType: "custom_export", Path: source}})
+	require.ErrorContains(t, err, `unknown artifact kind "custom_export"`)
+	require.Empty(t, writer.getOrCreateResult(plan).Artifacts, "unsupported evidence cannot be acknowledged without appearing in the replay manifest")
+}
+
+type mutatingArtifactStorage struct {
+	*storage.MemoryStorage
+	replacement []byte
+}
+
+func (s mutatingArtifactStorage) StoreArtifactFromFile(ctx context.Context, executionID uuid.UUID, label string, path string, contentType string) (*storage.ArtifactInfo, error) {
+	if err := os.WriteFile(path, s.replacement, 0o600); err != nil {
+		return nil, err
+	}
+	return s.MemoryStorage.StoreArtifactFromFile(ctx, executionID, label, path, contentType)
+}
+
+func TestExternalArtifactRejectsSameSizeMutationBetweenHashAndStore(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "trace.zip")
+	original := []byte("trace-content-0001")
+	replacement := []byte("TRACE-content-0001")
+	require.Len(t, replacement, len(original))
+	require.NoError(t, os.WriteFile(source, original, 0o600))
+	backend := mutatingArtifactStorage{MemoryStorage: storage.NewMemoryStorage(), replacement: replacement}
+	writer := NewFileWriter(nil, backend, nil, NewStaticRoot(dir))
+	plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New()}
+
+	err := writer.RecordExecutionArtifacts(context.Background(), plan, []ExternalArtifact{{ArtifactType: "trace", Path: source}})
+	require.ErrorContains(t, err, "artifact content digest differs")
+	require.Empty(t, writer.getOrCreateResult(plan).Artifacts, "bytes with a different digest cannot be acknowledged")
+}
+
 func TestExternalTraceBytesSurviveSourceRemoval(t *testing.T) {
 	dir := t.TempDir()
 	source := filepath.Join(dir, "trace.zip")

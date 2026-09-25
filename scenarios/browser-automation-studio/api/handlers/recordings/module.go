@@ -40,7 +40,7 @@ type SessionProfileRepo interface {
 	ClearHistory(id sessionprofilepersistence.ProfileID) (*sessionprofilepersistence.SessionProfile, error)
 	DeleteHistoryEntry(id sessionprofilepersistence.ProfileID, entryID string) (*sessionprofilepersistence.SessionProfile, error)
 	UpdateHistorySettings(id sessionprofilepersistence.ProfileID, settings *sessionprofilepersistence.HistorySettings) (*sessionprofilepersistence.SessionProfile, error)
-	GetSessionForProfile(profileID string) string
+	ResolveSessionForProfile(profileID string) (string, error)
 	SaveOpenTabs(id sessionprofilepersistence.ProfileID, tabs []sessionprofilepersistence.TabState) (*sessionprofilepersistence.SessionProfile, error)
 }
 

@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -36,6 +37,7 @@ import (
 	exportsserviceconnect "github.com/vrooli/browser-automation-studio/handlers/exports_service"
 	basmeasuresconnect "github.com/vrooli/browser-automation-studio/handlers/measures"
 	observabilityconnect "github.com/vrooli/browser-automation-studio/handlers/observability"
+	profilevalidation "github.com/vrooli/browser-automation-studio/handlers/profilevalidation"
 	projectfilesconnect "github.com/vrooli/browser-automation-studio/handlers/project_files"
 	projectsconnect "github.com/vrooli/browser-automation-studio/handlers/projects"
 	recordingsconnect "github.com/vrooli/browser-automation-studio/handlers/recordings"
@@ -72,6 +74,7 @@ import (
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	monetization "github.com/vrooli/vrooli/packages/monetization-go"
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 
 	// Unified recording service for timeline persistence
 	unifiedrecording "github.com/vrooli/browser-automation-studio/services/recording"
@@ -156,6 +159,23 @@ func main() {
 
 	// Initialize repository
 	repo := database.NewRepository(db, log)
+
+	// Resolve ownership left by the previous API process before starting any
+	// workers or sidecars. Serving with active rows whose recovery failed could
+	// let a new process accept work while stale executions still look owned.
+	recoverySvc := recovery.NewService(repo, log)
+	recoverCtx, recoverCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	recoveryResult, recoveryErr := recoverySvc.RecoverInterruptedExecutions(recoverCtx)
+	recoverCancel()
+	if recoveryErr != nil {
+		log.WithError(recoveryErr).Fatal("Interrupted execution recovery failed; refusing to start")
+	}
+	if recoveryResult.TotalActive > 0 {
+		log.WithFields(logrus.Fields{
+			"recovered":    recoveryResult.Recovered,
+			"total_active": recoveryResult.TotalActive,
+		}).Info("✅ Interrupted execution recovery completed")
+	}
 
 	// Initialize import usecase handlers
 	fsScanner := shared.NewFilesystemScanner(log)
@@ -344,20 +364,6 @@ func main() {
 		// and provide diagnostic information even when the automation engine is unavailable
 	}
 
-	// Recover stale executions from previous runs (progress continuity)
-	recoverySvc := recovery.NewService(repo, log)
-	recoverCtx, recoverCancel := context.WithTimeout(context.Background(), 30*time.Second)
-	if result, err := recoverySvc.RecoverStaleExecutions(recoverCtx); err != nil {
-		log.WithError(err).Warn("⚠️  Stale execution recovery failed - some executions may show incorrect status")
-	} else if result.TotalStale > 0 {
-		log.WithFields(logrus.Fields{
-			"recovered":   result.Recovered,
-			"resumable":   result.Resumable,
-			"total_stale": result.TotalStale,
-		}).Info("✅ Stale execution recovery completed")
-	}
-	recoverCancel()
-
 	// Terminal executions are the API's source of truth for session ownership.
 	// Reconcile their driver sessions in the background without weakening the
 	// normal lease-protected close endpoint.
@@ -510,6 +516,12 @@ func main() {
 			Tracker:             vision.MultiTracker{playwrightNav, claudeCodeNav},
 			CredentialAuthority: credentialAuthority,
 		}),
+	}
+	if validationHandler, validationErr := profilevalidation.Module(filepath.Join(projectRoot, "scenarios", "browser-automation-studio")); validationErr != nil {
+		log.WithError(validationErr).Warn("profile durability validation provider is unavailable")
+	} else {
+		validationPath, validationRPC := scenariovalidationconnect.NewScenarioValidationServiceHandler(validationHandler)
+		connectMounts = append(connectMounts, connectx.ServiceMount{Path: validationPath, Handler: validationRPC})
 	}
 	schemaMount, err := schemaconnect.Module(schemaconnect.Deps{Logger: log})
 	if err != nil {

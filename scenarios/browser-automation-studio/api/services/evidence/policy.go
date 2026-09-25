@@ -24,8 +24,8 @@ func DefaultPolicy() *basevidence.EvidencePolicy {
 		DefaultAccessPolicy:         basevidence.AccessPolicy_ACCESS_POLICY_PROJECT_MEMBERS,
 		RedactHar:                   true,
 		RedactNetwork:               true,
-		RedactedHeaderNames:         []string{"authorization", "cookie", "set-cookie", "proxy-authorization", "x-api-key"},
-		RedactedQueryParameterNames: []string{"access_token", "api_key", "apikey", "authorization", "password", "token"},
+		RedactedHeaderNames:         []string{"authorization", "cookie", "set-cookie", "proxy-authorization", "x-api-key", "x-auth-token", "x-access-token", "x-refresh-token"},
+		RedactedQueryParameterNames: []string{"access_token", "api_key", "apikey", "authorization", "client_secret", "password", "refresh_token", "secret", "session", "session_id", "token"},
 	}
 }
 

@@ -52,20 +52,22 @@ func RecordedActionFromTimelineEntry(entry *bastimeline.TimelineEntry) RecordedA
 	cursorPos := cursorPosFromTelemetry(entry.GetTelemetry())
 
 	return RecordedAction{
-		ID:          entry.GetId(),
-		SessionID:   sessionID,
-		SequenceNum: int(entry.GetSequenceNum()),
-		Timestamp:   timestamp.UTC().Format(time.RFC3339Nano),
-		DurationMs:  int(entry.GetDurationMs()),
-		ActionType:  actionType,
-		Confidence:  action.GetMetadata().GetConfidence(),
-		Selector:    selector,
-		ElementMeta: elementMeta,
-		BoundingBox: boundingBox,
-		Payload:     payload,
-		URL:         urlFromEntry(entry, action),
-		FrameID:     entry.GetTelemetry().GetFrameId(),
-		CursorPos:   cursorPos,
+		ID:           entry.GetId(),
+		SessionID:    sessionID,
+		SequenceNum:  int(entry.GetSequenceNum()),
+		Timestamp:    timestamp.UTC().Format(time.RFC3339Nano),
+		DurationMs:   int(entry.GetDurationMs()),
+		ActionType:   actionType,
+		Confidence:   action.GetMetadata().GetConfidence(),
+		Selector:     selector,
+		ElementMeta:  elementMeta,
+		BoundingBox:  boundingBox,
+		Payload:      payload,
+		URL:          urlFromEntry(entry, action),
+		FrameID:      entry.GetTelemetry().GetFrameId(),
+		FramePath:    append([]string(nil), entry.GetTelemetry().GetFramePath()...),
+		DriverPageID: entry.GetTelemetry().GetDriverPageId(),
+		CursorPos:    cursorPos,
 	}
 }
 
@@ -240,9 +242,7 @@ func payloadFromActionParams(action *basactions.ActionDefinition) map[string]int
 		if input == nil {
 			break
 		}
-		if input.Value != "" {
-			payload["text"] = input.Value
-		}
+		payload["text"] = input.Value
 		if input.Submit != nil {
 			payload["submit"] = input.GetSubmit()
 		}

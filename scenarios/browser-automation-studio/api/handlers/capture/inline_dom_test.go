@@ -12,6 +12,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 
+	"github.com/vrooli/browser-automation-studio/storage"
 	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
 )
 
@@ -69,6 +70,93 @@ func TestCapture_InlineDom_ReturnsRenderedHTML(t *testing.T) {
 	require.Len(t, flow.GetEdges(), 1)
 	require.Equal(t, flow.GetNodes()[0].GetId(), flow.GetEdges()[0].GetSource())
 	require.Equal(t, flow.GetNodes()[1].GetId(), flow.GetEdges()[0].GetTarget())
+}
+
+func TestCapture_DomArtifactDoesNotRequireInlineResponseFlag(t *testing.T) {
+	const page = "<html><body>artifact body</body></html>"
+	const tree = `{"tagName":"BODY","computed":{"display":"block"}}`
+	exec := &fakeExecutor{
+		ExportLayout: map[string]string{"result.json": "{}"},
+		ExportFunc: func(f *fakeExecutor, outputDir string) error {
+			frames := make([]map[string]any, 0, 2)
+			for _, node := range f.LastReq.GetFlowDefinition().GetNodes() {
+				evaluate := node.GetAction().GetEvaluate()
+				if evaluate == nil {
+					continue
+				}
+				result := page
+				if evaluate.GetExpression() == defaultInlineDomTreeExpression {
+					result = tree
+				}
+				frames = append(frames, map[string]any{
+					"node_id": node.GetId(), "step_type": "evaluate",
+					"extracted_data_preview": map[string]any{"result": result},
+				})
+			}
+			raw, err := json.Marshal(map[string]any{"frames": frames})
+			if err != nil {
+				return err
+			}
+			return os.WriteFile(filepath.Join(outputDir, "timeline.json"), raw, 0o644)
+		},
+	}
+	client, _ := newTestServer(t, Deps{Executor: exec, Storage: storage.NewMemoryStorage()})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url: "https://example.com",
+		Captures: []capturev1.CaptureType{
+			capturev1.CaptureType_CAPTURE_TYPE_DOM,
+			capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE,
+		},
+	}))
+	require.NoError(t, err)
+
+	var domNodeID, treeNodeID string
+	for _, node := range exec.LastReq.GetFlowDefinition().GetNodes() {
+		if evaluate := node.GetAction().GetEvaluate(); evaluate != nil {
+			switch evaluate.GetExpression() {
+			case defaultInlineDomExpression:
+				domNodeID = node.GetId()
+			case defaultInlineDomTreeExpression:
+				treeNodeID = node.GetId()
+			}
+		}
+	}
+	require.NotEmpty(t, domNodeID, "a requested DOM artifact must evaluate the rendered DOM")
+	require.NotEmpty(t, treeNodeID, "a requested DOM-tree artifact must evaluate its independent snapshot")
+	require.NotEqual(t, domNodeID, treeNodeID)
+	require.Empty(t, resp.Msg.DomHtml, "artifact capture should not implicitly expand the inline response")
+	require.Empty(t, resp.Msg.DomTreeJson)
+	require.Len(t, resp.Msg.Artifacts, 2)
+	byType := map[capturev1.CaptureType]*capturev1.CaptureArtifact{}
+	for _, artifact := range resp.Msg.Artifacts {
+		byType[artifact.GetType()] = artifact
+	}
+	for _, expected := range []struct {
+		captureType capturev1.CaptureType
+		filename    string
+		contents    string
+		reference   string
+	}{
+		{capturev1.CaptureType_CAPTURE_TYPE_DOM, "dom.html", page, "dom"},
+		{capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE, "dom-tree.json", tree, "dom_tree"},
+	} {
+		artifact := byType[expected.captureType]
+		require.NotNil(t, artifact)
+		require.Equal(t, int64(len(expected.contents)), artifact.GetSizeBytes())
+		require.NotEqual(t, "true", artifact.GetMetadata()["unavailable"])
+		require.Equal(t, expected.filename, artifact.GetMetadata()["filename"])
+		require.Equal(t, "bas-capture://"+resp.Msg.GetExecutionId()+"/"+expected.reference, artifact.GetReference())
+		require.NotEmpty(t, artifact.GetMetadata()["view_url"], "generated DOM artifacts must be published through storage")
+		require.FileExists(t, artifact.GetPath())
+		contents, err := os.ReadFile(artifact.GetPath())
+		require.NoError(t, err)
+		require.Equal(t, expected.contents, string(contents))
+	}
+	result, err := os.ReadFile(filepath.Join(exec.LastExportDir, "result.json"))
+	require.NoError(t, err)
+	require.Contains(t, string(result), "dom.html")
+	require.Contains(t, string(result), "dom-tree.json")
 }
 
 func TestCapture_InlineDomTree_PublishesComputedSnapshotArtifact(t *testing.T) {
@@ -135,10 +223,14 @@ func TestCapture_InlineDom_TruncatesOversizedPayload(t *testing.T) {
 
 	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
 		Url:       "https://example.com",
+		Captures:  []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_DOM},
 		InlineDom: true,
 	}))
 	require.NoError(t, err)
 	require.Len(t, resp.Msg.DomHtml, defaultInlineDomMaxBytes)
+	require.Len(t, resp.Msg.Artifacts, 1)
+	require.Equal(t, "true", resp.Msg.Artifacts[0].GetMetadata()["truncated"])
+	require.Equal(t, int64(defaultInlineDomMaxBytes), resp.Msg.Artifacts[0].GetSizeBytes())
 }
 
 func TestCapture_InlineDom_DryRun_StaysEmpty(t *testing.T) {

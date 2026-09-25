@@ -88,6 +88,11 @@ export function setLogger(newLogger: winston.Logger): void {
   loggerInstance = newLogger;
 }
 
+/** Update the active Winston logger's threshold without replacing transports. */
+export function setLogLevel(level: string): void {
+  loggerInstance.level = level;
+}
+
 /**
  * Create a scoped log message with consistent prefix.
  * Example: scopedLog('session', 'created') => 'session: created'

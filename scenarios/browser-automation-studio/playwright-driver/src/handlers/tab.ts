@@ -173,7 +173,7 @@ export class TabHandler extends BaseHandler {
     }
 
     // Add to tab stack
-    context.tabStack.push(newPage);
+    if (!context.tabStack.includes(newPage)) context.tabStack.push(newPage);
 
     // Navigate if URL provided
     if (url !== 'about:blank') {
@@ -453,16 +453,19 @@ export class TabHandler extends BaseHandler {
       url: pageToClose.url(),
     });
 
+    const wasCurrentPage = context.page === pageToClose;
+
     // Close the page
     await pageToClose.close();
 
     // Remove from tab stack
-    context.tabStack.splice(index, 1);
+    const closedIndex = context.tabStack.indexOf(pageToClose);
+    if (closedIndex !== -1) context.tabStack.splice(closedIndex, 1);
 
     // If we closed the current page, switch to another tab
-    if (context.page === pageToClose) {
+    if (wasCurrentPage) {
       // Switch to the previous tab, or first tab if we closed index 0
-      const newIndex = Math.min(index, context.tabStack.length - 1);
+      const newIndex = Math.min(closedIndex === -1 ? index : closedIndex, context.tabStack.length - 1);
       const nextPage = context.tabStack[newIndex];
       if (!nextPage) {
         return {

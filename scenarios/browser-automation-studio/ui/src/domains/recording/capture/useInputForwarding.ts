@@ -21,12 +21,28 @@
  * incorrect cursor positions.
  */
 
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { getConfig } from '@/config';
-import { useWebSocket } from '@/contexts/WebSocketContext';
+import { useWebSocket, useWebSocketMessage } from '@/contexts/WebSocketContext';
 import { mapClientToViewportWithFrame, type Rect } from '../utils/coordinateMapping';
 
 type PointerAction = 'move' | 'down' | 'up' | 'click';
+type PointerButton = 'left' | 'middle' | 'right';
+type HeldPointer = { pointerId: number; x: number; y: number; modifiers: string[] };
+type PendingInput = { inputId: string; sessionId: string; pageId?: string | null; payload: Record<string, unknown> };
+
+function pointerButton(button: number): PointerButton {
+  return button === 2 ? 'right' : button === 1 ? 'middle' : 'left';
+}
+
+function inputModifiers(event: { altKey: boolean; ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }): string[] {
+  return [
+    event.altKey ? 'Alt' : null,
+    event.ctrlKey ? 'Control' : null,
+    event.metaKey ? 'Meta' : null,
+    event.shiftKey ? 'Shift' : null,
+  ].filter((modifier): modifier is string => modifier !== null);
+}
 
 export interface UseInputForwardingOptions {
   sessionId: string | null;
@@ -89,8 +105,51 @@ export function useInputForwarding({
 }: UseInputForwardingOptions): UseInputForwardingResult {
   const lastMoveRef = useRef(0);
   const wsSubscribedRef = useRef(false);
+  const heldPointersRef = useRef(new Map<PointerButton, HeldPointer>());
+  const pendingInputsRef = useRef(new Map<string, PendingInput>());
+  const recoveryPromiseRef = useRef<Promise<void> | null>(null);
 
   const { isConnected, send } = useWebSocket();
+
+  useWebSocketMessage((message) => {
+    if (message.type !== 'recording_input_applied' || message.session_id !== sessionId) return;
+    const inputId = typeof message.input_id === 'string' ? message.input_id : undefined;
+    if (inputId) pendingInputsRef.current.delete(inputId);
+  });
+
+  const sendHttpInput = useCallback(async (input: PendingInput): Promise<void> => {
+    const config = await getConfig();
+    const body = input.pageId ? { ...input.payload, page_id: input.pageId } : input.payload;
+    const res = await fetch(`${config.API_URL}/recordings/live/${input.sessionId}/input`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || `Input dispatch failed (${res.status})`);
+    }
+    const receipt = await res.json() as { status?: string; input_id?: string; applied_sequence?: number };
+    if (receipt.status !== 'ok' || receipt.input_id !== input.inputId || !receipt.applied_sequence) {
+      throw new Error('Input dispatch returned an invalid application receipt');
+    }
+  }, []);
+
+  const recoverPendingInputs = useCallback((): Promise<void> => {
+    if (recoveryPromiseRef.current) return recoveryPromiseRef.current;
+    const recovery = (async () => {
+      for (const input of [...pendingInputsRef.current.values()]) {
+        try {
+          await sendHttpInput(input);
+          pendingInputsRef.current.delete(input.inputId);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Failed to recover pending input';
+          onError?.(message);
+          break;
+        }
+      }
+    })();
+    recoveryPromiseRef.current = recovery.finally(() => { recoveryPromiseRef.current = null; });
+    return recoveryPromiseRef.current;
+  }, [onError, sendHttpInput]);
 
   /**
    * Send input via WebSocket for low latency (falls back to HTTP if WS unavailable).
@@ -98,13 +157,19 @@ export function useInputForwarding({
   const sendInput = useCallback(
     async (payload: unknown) => {
       if (!sessionId || pageId === null) return;
+      const inputId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const inputPayload = { ...(payload as Record<string, unknown>), input_id: inputId };
+      const pending: PendingInput = { inputId, sessionId, pageId, payload: inputPayload };
 
       // Prefer WebSocket for lower latency
       if (isConnected && wsSubscribedRef.current) {
+        pendingInputsRef.current.set(inputId, pending);
         const message: Record<string, unknown> = {
           type: 'recording_input',
           session_id: sessionId,
-          input: payload,
+          input: inputPayload,
         };
         if (pageId) {
           message.page_id = pageId;
@@ -113,21 +178,8 @@ export function useInputForwarding({
         return;
       }
 
-      // Fallback to HTTP POST
       try {
-        const config = await getConfig();
-        const body = pageId
-          ? { ...payload as Record<string, unknown>, page_id: pageId }
-          : payload;
-        const res = await fetch(`${config.API_URL}/recordings/live/${sessionId}/input`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || `Input dispatch failed (${res.status})`);
-        }
+        await sendHttpInput(pending);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to forward input';
         if (onError) {
@@ -135,8 +187,61 @@ export function useInputForwarding({
         }
       }
     },
-    [isConnected, pageId, send, sessionId, onError]
+    [isConnected, pageId, send, sessionId, onError, sendHttpInput]
   );
+
+  const releaseHeldPointers = useCallback(() => {
+    const held = [...heldPointersRef.current.entries()];
+    heldPointersRef.current.clear();
+    for (const [button, state] of held) {
+      void sendInput({
+        type: 'pointer', action: 'up', button, x: state.x, y: state.y,
+        ...(state.modifiers.length > 0 ? { modifiers: state.modifiers } : {}),
+      });
+    }
+  }, [sendInput]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const onBlur = () => releaseHeldPointers();
+    const onPointerUp = (event: PointerEvent) => {
+      const button = pointerButton(event.button);
+      const held = heldPointersRef.current.get(button);
+      if (!held || held.pointerId !== event.pointerId) return;
+      heldPointersRef.current.delete(button);
+      void sendInput({
+        type: 'pointer', action: 'up', button, x: held.x, y: held.y,
+        ...(held.modifiers.length > 0 ? { modifiers: held.modifiers } : {}),
+      });
+    };
+    const onPointerCancel = (event: PointerEvent) => {
+      for (const [button, held] of heldPointersRef.current) {
+        if (held.pointerId !== event.pointerId) continue;
+        heldPointersRef.current.delete(button);
+        void sendInput({
+          type: 'pointer', action: 'up', button, x: held.x, y: held.y,
+          ...(held.modifiers.length > 0 ? { modifiers: held.modifiers } : {}),
+        });
+      }
+    };
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerCancel);
+    return () => {
+      window.removeEventListener('blur', onBlur);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerCancel);
+    };
+  }, [releaseHeldPointers, sendInput]);
+
+  const wasConnectedRef = useRef(isConnected);
+  useEffect(() => {
+    const wasConnected = wasConnectedRef.current;
+    wasConnectedRef.current = isConnected;
+    if (wasConnected && !isConnected) {
+      void recoverPendingInputs().finally(() => releaseHeldPointers());
+    }
+  }, [isConnected, recoverPendingInputs, releaseHeldPointers]);
 
   /**
    * Get scaled point from client coordinates to viewport coordinates.
@@ -215,7 +320,8 @@ export function useInputForwarding({
         canvasRect,
         effectiveFrameDimensions
       );
-      const button = e.button === 2 ? 'right' : e.button === 1 ? 'middle' : 'left';
+      const button = pointerButton(e.button);
+      const modifiers = inputModifiers(e);
 
       void sendInput({
         type: 'pointer',
@@ -223,7 +329,20 @@ export function useInputForwarding({
         x: point.x,
         y: point.y,
         button,
+        ...(modifiers.length > 0 ? { modifiers } : {}),
       });
+
+      if (action === 'down') {
+        heldPointersRef.current.set(button, { pointerId: e.pointerId, x: point.x, y: point.y, modifiers });
+      } else if (action === 'up') {
+        heldPointersRef.current.delete(button);
+      } else if (action === 'move') {
+        for (const held of heldPointersRef.current.values()) {
+          held.x = point.x;
+          held.y = point.y;
+          held.modifiers = modifiers;
+        }
+      }
 
       e.preventDefault();
       e.stopPropagation();
@@ -250,16 +369,12 @@ export function useInputForwarding({
   const handleKey = useCallback(
     (e: React.KeyboardEvent<HTMLElement>, hasFrame: boolean) => {
       if (!hasFrame) return;
+      if (e.nativeEvent.isComposing || e.key === 'Process') return;
 
-      const modifiers = [
-        e.altKey ? 'Alt' : null,
-        e.ctrlKey ? 'Control' : null,
-        e.metaKey ? 'Meta' : null,
-        e.shiftKey ? 'Shift' : null,
-      ].filter(Boolean) as string[];
+      const modifiers = inputModifiers(e);
 
       const payload =
-        e.key.length === 1
+        e.key.length === 1 && modifiers.length === 0
           ? { type: 'keyboard' as const, text: e.key }
           : { type: 'keyboard' as const, key: e.key, modifiers };
 

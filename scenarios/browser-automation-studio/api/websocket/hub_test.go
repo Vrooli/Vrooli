@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -921,6 +922,39 @@ func TestBroadcastBinaryFrameDropsWithFullBuffer(t *testing.T) {
 	})
 }
 
+func TestBroadcastBinaryFrameDropsAtByteBudget(t *testing.T) {
+	hub := newTestHub(t)
+	sessionID := "test-session-binary-byte-budget"
+	client := &Client{
+		ID: uuid.New(), Send: make(chan any, 4), BinarySend: make(chan []byte, 4), Hub: hub,
+		RecordingFrames: true, RecordingSessionID: &sessionID,
+	}
+	hub.register <- client
+	_ = waitForMessage(t, client.Send)
+
+	frame := make([]byte, MaxClientBinaryQueueBytes*3/4)
+	hub.BroadcastBinaryFrame(sessionID, frame)
+	hub.BroadcastBinaryFrame(sessionID, frame)
+	queued := client.queuedBinaryFrameBytes()
+	if queued != len(frame) || queued > MaxClientBinaryQueueBytes || len(client.BinarySend) != 1 {
+		t.Fatalf("queued=%d channel_frames=%d, want one %d-byte frame under %d-byte cap", queued, len(client.BinarySend), len(frame), MaxClientBinaryQueueBytes)
+	}
+	if dropped := hub.GetDroppedFrameCount(); dropped != 1 {
+		t.Fatalf("dropped frames=%d, want 1 for byte-cap rejection", dropped)
+	}
+
+	first := <-client.BinarySend
+	client.releaseBinaryFrame(first)
+	if queued := client.queuedBinaryFrameBytes(); queued != 0 {
+		t.Fatalf("queued after completed write=%d, want 0", queued)
+	}
+	hub.BroadcastBinaryFrame(sessionID, frame)
+	if queued := client.queuedBinaryFrameBytes(); queued != len(frame) {
+		t.Fatalf("queued after release=%d, want %d", queued, len(frame))
+	}
+	t.Logf("BAS_MOTION_RELAY_QUEUE max_queued_bytes=%d cap_bytes=%d dropped=%d", queued, MaxClientBinaryQueueBytes, hub.GetDroppedFrameCount())
+}
+
 // TestBroadcastBinaryFrameToSubscribedClient verifies binary frames are sent to subscribed clients
 func TestBroadcastBinaryFrameToSubscribedClient(t *testing.T) {
 	t.Run("[REQ:BAS-FRAME-STREAM] broadcasts binary frames to subscribed clients", func(t *testing.T) {
@@ -1048,7 +1082,7 @@ func TestRecordingInputPreservesConnectionOrder(t *testing.T) {
 	hub := newTestHubBase(t)
 	first, second, release := make(chan struct{}), make(chan struct{}), make(chan struct{})
 	effects := make(chan int, 2)
-	hub.SetInputForwarder(func(_ string, input map[string]any) error {
+	hub.SetInputForwarder(func(_ string, input map[string]any) (*driver.ForwardInputResponse, error) {
 		n := int(input["sequence"].(float64))
 		if n == 1 {
 			close(first)
@@ -1058,7 +1092,7 @@ func TestRecordingInputPreservesConnectionOrder(t *testing.T) {
 		if n == 2 {
 			close(second)
 		}
-		return nil
+		return &driver.ForwardInputResponse{Status: "ok", AppliedSequence: uint64(n), InputID: fmt.Sprintf("input-%d", n)}, nil
 	})
 	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1075,9 +1109,16 @@ func TestRecordingInputPreservesConnectionOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Close()
+	if err := conn.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	var connected map[string]any
+	if err := conn.ReadJSON(&connected); err != nil || connected["type"] != "connected" {
+		t.Fatalf("read connection confirmation: message=%v err=%v", connected, err)
+	}
 	send := func(sequence int) {
 		t.Helper()
-		if err := conn.WriteJSON(map[string]any{"type": "recording_input", "session_id": "input-order", "input": map[string]any{"sequence": sequence}}); err != nil {
+		if err := conn.WriteJSON(map[string]any{"type": "recording_input", "session_id": "input-order", "input": map[string]any{"sequence": sequence, "input_id": fmt.Sprintf("input-%d", sequence)}}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1119,6 +1160,15 @@ func TestRecordingInputPreservesConnectionOrder(t *testing.T) {
 			}
 		case <-time.After(time.Second):
 			t.Fatal("input failed to finish")
+		}
+	}
+	for want := 1; want <= 2; want++ {
+		var ack map[string]any
+		if err := conn.ReadJSON(&ack); err != nil {
+			t.Fatalf("read input receipt %d: %v", want, err)
+		}
+		if ack["type"] != "recording_input_applied" || ack["session_id"] != "input-order" || ack["input_id"] != fmt.Sprintf("input-%d", want) || ack["applied_sequence"] != float64(want) {
+			t.Errorf("receipt %d has wrong content: %v", want, ack)
 		}
 	}
 }

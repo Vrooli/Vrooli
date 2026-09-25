@@ -4,22 +4,28 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/automation/events"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/automation/executor"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/cancellationqualification"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	uxcollector "github.com/vrooli/browser-automation-studio/services/uxmetrics/collector"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
@@ -357,6 +363,310 @@ func TestSynchronousWaitCancellationPreservesDetachedExecution(t *testing.T) {
 					t.Fatalf("detached execution did not finish: context=%v status=%s", executionErr, repo.index.Status)
 				}
 			})
+		})
+	}
+}
+
+func TestStopExecutionWaitsForRunnerCleanup(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		releaseCleanup := make(chan struct{})
+		entered := make(chan struct{})
+		service, repo, invoke := newCompletionFixture(t, "saved", func(ctx context.Context, _ executor.Request) error {
+			close(entered)
+			<-ctx.Done()
+			return ctx.Err()
+		})
+		service.eventSinkFactory = func() events.Sink {
+			return &delayedCompletionSink{MemorySink: events.NewMemorySink(contracts.DefaultEventBufferLimits), release: releaseCleanup}
+		}
+		if got := invoke(context.Background(), false); got.err != nil || got.completed {
+			t.Fatalf("admit async workflow: %+v", got)
+		}
+		synctest.Wait()
+		select {
+		case <-entered:
+		default:
+			t.Fatal("runner did not enter the action")
+		}
+
+		stopResult := make(chan error, 1)
+		go func() { stopResult <- service.StopExecution(context.Background(), repo.index.ID) }()
+		synctest.Wait()
+		if repo.index.Status != database.ExecutionStatusCancelled || repo.index.CompletedAt == nil {
+			t.Fatalf("runner did not persist cancellation before cleanup gate: status=%s completed=%v", repo.index.Status, repo.index.CompletedAt)
+		}
+		select {
+		case err := <-stopResult:
+			t.Fatalf("StopExecution returned while owned sink cleanup was pending: %v", err)
+		default:
+		}
+
+		close(releaseCleanup)
+		synctest.Wait()
+		if err := <-stopResult; err != nil {
+			t.Fatalf("StopExecution after cleanup: %v", err)
+		}
+	})
+}
+
+type retainedWorkflowEventSink struct {
+	mu     sync.Mutex
+	events []contracts.EventEnvelope
+}
+
+func (s *retainedWorkflowEventSink) Publish(_ context.Context, event contracts.EventEnvelope) error {
+	s.mu.Lock()
+	s.events = append(s.events, event)
+	s.mu.Unlock()
+	return nil
+}
+
+func (*retainedWorkflowEventSink) Limits() contracts.EventBufferLimits {
+	return contracts.DefaultEventBufferLimits
+}
+
+func (*retainedWorkflowEventSink) CloseExecution(uuid.UUID) {}
+
+func (s *retainedWorkflowEventSink) snapshot() []contracts.EventEnvelope {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]contracts.EventEnvelope(nil), s.events...)
+}
+
+// [REQ:BAS-RH-J07] A real Go workflow cancellation retains an uncertain browser
+// outcome, closes the same execution lease and waits for driver resource cleanup.
+func TestStopExecutionRetainsUncertainOutcomeAndJoinsLeasedDriverClose(t *testing.T) {
+	t.Log("[REQ:BAS-RH-J07] canceled external effect remains uncertain and StopExecution joins leased-driver cleanup")
+	runEntered := make(chan struct{})
+	runCanceled := make(chan struct{})
+	closeEntered := make(chan struct{})
+	releaseClose := make(chan struct{})
+	closedLease := make(chan struct {
+		executionID string
+		leaseID     string
+	}, 1)
+	var startedExecution atomic.Value
+	var effects atomic.Int32
+	var liveSessions atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/session/start":
+			var request struct {
+				ExecutionID string `json:"execution_id"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				t.Errorf("decode session start: %v", err)
+				http.Error(w, "bad request", http.StatusBadRequest)
+				return
+			}
+			startedExecution.Store(request.ExecutionID)
+			liveSessions.Add(1)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"session_id": "cancel-session", "lease_id": "lease-owner-1", "active_page_id": "page-1",
+			})
+		case r.URL.Path == "/session/cancel-session/run":
+			var request struct {
+				ExecutionID string `json:"execution_id"`
+				LeaseID     string `json:"lease_id"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				t.Errorf("decode instruction: %v", err)
+				return
+			}
+			if request.ExecutionID != startedExecution.Load().(string) || request.LeaseID != "lease-owner-1" {
+				t.Errorf("instruction owner = %q/%q, want %q/lease-owner-1", request.ExecutionID, request.LeaseID, startedExecution.Load())
+			}
+			effects.Add(1) // The external effect occurs before its response is lost.
+			close(runEntered)
+			<-r.Context().Done()
+			close(runCanceled)
+		case r.URL.Path == "/session/cancel-session/close":
+			var request struct {
+				ExecutionID string `json:"execution_id"`
+				LeaseID     string `json:"lease_id"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				t.Errorf("decode session close: %v", err)
+				http.Error(w, "bad request", http.StatusBadRequest)
+				return
+			}
+			closedLease <- struct {
+				executionID string
+				leaseID     string
+			}{request.ExecutionID, request.LeaseID}
+			close(closeEntered)
+			<-releaseClose
+			liveSessions.Add(-1)
+			_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
+		default:
+			t.Errorf("unexpected driver request: %s %s", r.Method, r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	playwright, err := engine.NewPlaywrightEngineWithHTTPClient(server.URL, server.Client(), logrus.New())
+	if err != nil {
+		t.Fatalf("create Playwright engine: %v", err)
+	}
+	sink := &retainedWorkflowEventSink{}
+	service, repo, invoke := newCompletionFixture(t, "saved", func(ctx context.Context, request executor.Request) error {
+		request.EngineName = playwright.Name()
+		request.EngineFactory = engine.NewStaticFactory(playwright)
+		request.EngineCaps = &contracts.EngineCapabilities{
+			SchemaVersion: contracts.CapabilitiesSchemaVersion,
+			Engine:        "playwright", MaxConcurrentSessions: 1,
+			SupportsHAR: true, SupportsVideo: true, SupportsTracing: true,
+		}
+		return executor.NewSimpleExecutor(nil).Execute(ctx, request)
+	})
+	service.eventSinkFactory = func() events.Sink { return sink }
+	service.artifactRecorder = executionwriter.NewFileWriter(nil, nil, nil, executionwriter.NewStaticRoot(t.TempDir()))
+	if got := invoke(context.Background(), false); got.err != nil || got.completed {
+		t.Fatalf("admit async workflow: %+v", got)
+	}
+	select {
+	case <-runEntered:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("workflow never dispatched the browser instruction: status=%s error=%q events=%+v", repo.index.Status, repo.index.ErrorMessage, sink.snapshot())
+	}
+	executionID, _ := startedExecution.Load().(string)
+	if executionID == "" {
+		t.Fatal("driver session start did not retain execution ownership")
+	}
+
+	stopStarted := time.Now()
+	stopResult := make(chan error, 1)
+	go func() { stopResult <- service.StopExecution(context.Background(), repo.index.ID) }()
+	select {
+	case <-runCanceled:
+	case <-time.After(time.Second):
+		t.Fatal("accepted cancellation did not interrupt the live instruction within1s")
+	}
+	inputStoppedAt := time.Now()
+	select {
+	case <-closeEntered:
+	case <-time.After(time.Second):
+		t.Fatal("owned session close did not start within1s of StopExecution")
+	}
+	if time.Since(stopStarted) > time.Second {
+		t.Fatalf("StopExecution began driver teardown after %s", time.Since(stopStarted))
+	}
+	closed := <-closedLease
+	if closed.executionID != executionID || closed.leaseID != "lease-owner-1" {
+		t.Fatalf("closed lease = %q/%q, want %q/lease-owner-1", closed.executionID, closed.leaseID, executionID)
+	}
+	if effects.Load() != 1 || liveSessions.Load() != 1 {
+		t.Fatalf("before close acknowledgement: effects=%d live sessions=%d, want1/1", effects.Load(), liveSessions.Load())
+	}
+	resourcesBeforeClose := liveSessions.Load()
+	select {
+	case err := <-stopResult:
+		t.Fatalf("StopExecution returned before driver close acknowledged resource cleanup: %v", err)
+	default:
+	}
+
+	closeReleasedAt := time.Now()
+	close(releaseClose)
+	select {
+	case err := <-stopResult:
+		if err != nil {
+			t.Fatalf("StopExecution after driver cleanup: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("terminal cleanup did not finish within5s after driver close was released")
+	}
+	if repo.index.Status != database.ExecutionStatusCancelled || repo.index.CompletedAt == nil {
+		t.Fatalf("terminal receipt = status %s completed %v, want cancelled with completion time", repo.index.Status, repo.index.CompletedAt)
+	}
+	if effects.Load() != 1 || liveSessions.Load() != 0 {
+		t.Fatalf("after terminal cleanup: effects=%d live sessions=%d, want1/0", effects.Load(), liveSessions.Load())
+	}
+	var uncertain *contracts.StepOutcome
+	for _, event := range sink.snapshot() {
+		if event.Kind != contracts.EventKindStepFailed {
+			continue
+		}
+		payload, marshalErr := json.Marshal(event.Payload)
+		if marshalErr != nil {
+			t.Fatalf("marshal failure event: %v", marshalErr)
+		}
+		var recorded struct {
+			Outcome contracts.StepOutcome `json:"outcome"`
+		}
+		if err := json.Unmarshal(payload, &recorded); err != nil {
+			t.Fatalf("decode failure event: %v", err)
+		}
+		uncertain = &recorded.Outcome
+	}
+	if uncertain == nil || uncertain.Failure == nil || uncertain.Failure.Code != contracts.FailureCodeInstructionOutcomeUncertain || uncertain.Failure.Retryable {
+		t.Fatalf("last step evidence = %+v, want a retained non-retryable uncertain outcome", uncertain)
+	}
+	inputStoppedMS := float64(inputStoppedAt.Sub(stopStarted).Microseconds()) / 1000
+	cleanupMS := float64(time.Since(closeReleasedAt).Microseconds()) / 1000
+	if inputStoppedMS > 1000 || cleanupMS > 5000 {
+		t.Fatalf("cancellation timings outside J07 band: inputStopped=%.2fms cleanup=%.2fms", inputStoppedMS, cleanupMS)
+	}
+	if err := cancellationqualification.RecordObservation(t.Name(), "cancellation", cancellationqualification.CaseObservation{
+		Observed: true, Passed: true, ExternalEffects: int(effects.Load()), TerminalStatus: "cancelled",
+		LiveResourcesBeforeClose: int(resourcesBeforeClose), LiveResourcesAfterClose: int(liveSessions.Load()),
+		InputStoppedMS: inputStoppedMS, CleanupMS: cleanupMS, RecoveryMS: 0,
+		UncertainEffect: uncertain.Failure.Code == contracts.FailureCodeInstructionOutcomeUncertain,
+		RetryAdmitted:   uncertain.Failure.Retryable,
+	}); err != nil {
+		t.Fatalf("record J07 cancellation observation: %v", err)
+	}
+}
+
+func TestStopExecutionWaitRespectsCallerCancellation(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		service := &WorkflowService{}
+		executionID := uuid.New()
+		done := make(chan struct{})
+		cancelled := make(chan struct{})
+		service.storeExecutionCancel(executionID, func() { close(cancelled) }, done)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		stopResult := make(chan error, 1)
+		go func() { stopResult <- service.StopExecution(ctx, executionID) }()
+		synctest.Wait()
+		select {
+		case <-cancelled:
+		default:
+			t.Fatal("StopExecution did not signal runner cancellation")
+		}
+		cancel()
+		synctest.Wait()
+		if err := <-stopResult; !errors.Is(err, context.Canceled) {
+			t.Fatalf("StopExecution error after caller cancellation = %v, want context.Canceled", err)
+		}
+		close(done)
+	})
+}
+
+func TestStopExecutionWithoutLocalOwnerUsesDurableStatus(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		execution *database.ExecutionIndex
+		wantError bool
+	}{
+		{name: "running", execution: &database.ExecutionIndex{Status: database.ExecutionStatusRunning}, wantError: true},
+		{name: "pending", execution: &database.ExecutionIndex{Status: database.ExecutionStatusPending}, wantError: true},
+		{name: "terminal", execution: &database.ExecutionIndex{Status: database.ExecutionStatusCompleted}},
+		{name: "missing"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Logf("[REQ:BAS-RH-J07] stop with no local owner checks durable status: %s", tc.name)
+			executionID := uuid.New()
+			if tc.execution != nil {
+				tc.execution.ID = executionID
+			}
+			service := &WorkflowService{repo: &lifecycleRepository{execution: tc.execution}}
+			err := service.StopExecution(context.Background(), executionID)
+			if (err != nil) != tc.wantError {
+				t.Fatalf("StopExecution error = %v, wantError=%t", err, tc.wantError)
+			}
 		})
 	}
 }
@@ -849,7 +1159,10 @@ func TestResumeRetainsRoutedContextAfterAdmission(t *testing.T) {
 				want := database.ExecutionStatusCompleted
 				if stop {
 					want = database.ExecutionStatusCancelled
-					if err := service.StopExecution(coredb.WithTestMode(context.Background()), resumed.ID); err != nil {
+					stopDone := make(chan error, 1)
+					go func() { stopDone <- service.StopExecution(coredb.WithTestMode(context.Background()), resumed.ID) }()
+					synctest.Wait()
+					if err := <-stopDone; err != nil {
 						t.Fatal(err)
 					}
 				} else {
@@ -957,4 +1270,62 @@ func TestResumeRequiresMatchingCommittedStore(t *testing.T) {
 			})
 		})
 	}
+}
+
+// [REQ:BAS-RH-J07] A later action with an uncertain browser effect must not be
+// replayed from an earlier successful checkpoint without reconciliation.
+func TestResumeRejectsUncertainBrowserEffectAfterCheckpoint(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		service, repo, _ := newCompletionFixture(t, "saved", func(context.Context, executor.Request) error {
+			return errors.New("fixture failure")
+		})
+		workflowPath := filepath.Join(repo.project.FolderPath, repo.workflow.FilePath)
+		workflowBytes, err := os.ReadFile(workflowPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var workflow basapi.WorkflowSummary
+		if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(workflowBytes, &workflow); err != nil {
+			t.Fatal(err)
+		}
+		workflow.Version = 2
+		workflow.FlowDefinition.Nodes = append(workflow.FlowDefinition.Nodes, &basworkflows.WorkflowNodeV2{
+			Id: "submit",
+			Action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_CLICK,
+				Params: &basactions.ActionDefinition_Click{Click: &basactions.ClickParams{Selector: "#submit"}},
+			},
+		})
+		workflow.FlowDefinition.Edges = []*basworkflows.WorkflowEdgeV2{{Id: "navigate-submit", Source: "navigate", Target: "submit"}}
+		_, relativePath, err := WriteWorkflowSummaryFile(repo.project, &workflow, repo.workflow.FilePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		repo.workflow.FilePath = relativePath
+		repo.workflow.Version = int(workflow.Version)
+		if err := persistWorkflowVersionSnapshot(repo.project, &workflow); err != nil {
+			t.Fatal(err)
+		}
+
+		original := prepareResumableMetadataFixture(t, service, repo, &basexecution.ExecutionParameters{})
+		timelinePath := filepath.Join(service.executionDataRoot, original.String(), "timeline.proto.json")
+		timeline := []byte(`{"entries":[{"step_index":0,"node_id":"navigate","context":{"success":true}},{"step_index":1,"node_id":"submit","context":{"success":false,"error":"browser response was cancelled after dispatch","error_code":"INSTRUCTION_OUTCOME_UNCERTAIN"}}]}`)
+		if err := os.WriteFile(timelinePath, timeline, 0o600); err != nil {
+			t.Fatal(err)
+		}
+
+		runnerCalled := false
+		service.executor = completionExecutor(func(context.Context, executor.Request) error {
+			runnerCalled = true
+			return nil
+		})
+		_, err = service.ResumeExecution(context.Background(), original, nil)
+		synctest.Wait()
+		if !errors.Is(err, ErrExecutionNotResumable) || !strings.Contains(strings.ToLower(err.Error()), "uncertain") {
+			t.Fatalf("resume error = %v, want an explicit uncertain-effect refusal", err)
+		}
+		if runnerCalled || repo.index.ID != original {
+			t.Fatalf("uncertain operation admitted replacement execution: runner=%t index=%s original=%s", runnerCalled, repo.index.ID, original)
+		}
+	})
 }

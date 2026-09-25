@@ -47,9 +47,20 @@ export async function teardownSessionResources(session: SessionState): Promise<s
   if (session.externalTarget) {
     // Detach BAS's CDP connection. The target owner controls its pages/process.
     await once('cdp_detach', async () => session.browser.close());
+    await session.instructionSettlement;
   } else {
-    for (const [index, page] of session.pages.entries()) {
+    const pages = [...session.pages.entries()];
+    if (!pages.some(([, page]) => page === session.page)) {
+      pages.push([pages.length, session.page]);
+    }
+    if (session.instructionInterrupted) {
+      pages.sort((left, right) => Number(right[1] === session.page) - Number(left[1] === session.page));
+    }
+    for (const [index, page] of pages) {
       await once(`page_close:${index}`, async () => { if (!page.isClosed()) await page.close(); });
+      if (session.instructionInterrupted && page === session.page) {
+        await session.instructionSettlement;
+      }
     }
     // video.path() yields a destination, not proof that the encoder finished.
     // Context close flushes capture before any file is moved or published.

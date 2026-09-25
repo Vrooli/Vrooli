@@ -888,7 +888,7 @@ func (h *Handler) ForwardRecordingInput(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// The service carries the immutable session lease for this mutation.
-	err = h.recordModeService.ForwardInput(ctx, sessionID, bodyBytes)
+	receipt, err := h.recordModeService.ForwardInput(ctx, sessionID, bodyBytes)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to forward recording input")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
@@ -897,9 +897,7 @@ func (h *Handler) ForwardRecordingInput(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, map[string]string{
-		"status": "ok",
-	})
+	h.respondSuccess(w, http.StatusOK, receipt)
 }
 
 // GetRecordingFrame handles GET /api/v1/recordings/live/{sessionId}/frame
@@ -991,13 +989,13 @@ func (h *Handler) GetRecordingFrame(w http.ResponseWriter, r *http.Request) {
 // - Uses a shared HTTP client with connection pooling (reuses TCP connections)
 // - Keep-alive connections reduce latency by avoiding TCP handshake per request
 // - Connection pool sized for concurrent input events across sessions
-func (h *Handler) CreateInputForwarder() func(sessionID string, input map[string]any) error {
-	return func(sessionID string, input map[string]any) error {
+func (h *Handler) CreateInputForwarder() func(sessionID string, input map[string]any) (*driver.ForwardInputResponse, error) {
+	return func(sessionID string, input map[string]any) (*driver.ForwardInputResponse, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		body, err := json.Marshal(input)
 		if err != nil {
-			return fmt.Errorf("marshal input: %w", err)
+			return nil, fmt.Errorf("marshal input: %w", err)
 		}
 		return h.recordModeService.ForwardInput(ctx, sessionID, body)
 	}

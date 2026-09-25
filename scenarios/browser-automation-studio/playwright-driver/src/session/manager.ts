@@ -5,7 +5,7 @@ import type {
   SessionCloseResult,
   AppTargetSpec,
 } from '../types';
-import type { Browser, BrowserContext } from 'rebrowser-playwright';
+import type { Browser, BrowserContext, Page } from 'rebrowser-playwright';
 import path from 'node:path';
 import type { Config } from '../config';
 import {
@@ -58,6 +58,26 @@ import {
   verifyAppTargetRenderer,
 } from './electron-target';
 
+/** Keep workflow tab operations aligned with pages created outside the tab handler. */
+function trackSessionPageStack(session: SessionState): void {
+  const trackPage = (page: Page): void => {
+    if (!session.pages.includes(page)) session.pages.push(page);
+    page.once('close', () => {
+      const index = session.pages.indexOf(page);
+      if (index !== -1) session.pages.splice(index, 1);
+      if (session.page === page) {
+        session.frameStack.length = 0;
+        const next = session.pages.find((candidate) => !candidate.isClosed());
+        if (next) session.page = next;
+      }
+      session.currentPageIndex = session.pages.indexOf(session.page);
+    });
+  };
+
+  session.context.on('page', trackPage);
+  session.pages.forEach(trackPage);
+}
+
 /**
  * SessionManager - Browser Session Lifecycle Management
  *
@@ -102,6 +122,8 @@ const getErrorMessage = (error: unknown): string =>
 
 export class SessionManager {
   private sessions: Map<string, SessionState> = new Map();
+  /** New sessions that reserved capacity but are not in the session map yet. */
+  private reservedSessionStarts = 0;
   private browserManager: BrowserManager;
   private config: Config;
   private qualificationDevice: Promise<PipeWireQualificationDevice> | null = null;
@@ -202,6 +224,25 @@ export class SessionManager {
    * Separated from startSession to enable InFlightGuard tracking.
    */
   private async startSessionInternal(spec: SessionSpec): Promise<SessionCreationResult> {
+    let reserved = false;
+    try {
+      return await this.startSessionAttempt(spec, () => {
+        this.reservedSessionStarts += 1;
+        reserved = true;
+      });
+    } finally {
+      if (reserved) this.reservedSessionStarts -= 1;
+    }
+  }
+
+  /**
+   * Internal session creation logic. Reservation is acquired synchronously at
+   * the admission check and released by startSessionInternal on every outcome.
+   */
+  private async startSessionAttempt(
+    spec: SessionSpec,
+    reserveCapacity: () => void
+  ): Promise<SessionCreationResult> {
     // Idempotency: Check for existing session with same execution_id
     // Decision logic is in session-decisions.ts
     const existingByExecutionId = findByExecutionId(this.sessions.values(), spec.execution_id);
@@ -287,17 +328,24 @@ export class SessionManager {
 
     // New sessions consume capacity only after idempotent and released-lease
     // reuse paths have been considered.
-    if (this.sessions.size >= this.config.session.maxConcurrent) {
+    const occupiedSlots = this.sessions.size + this.reservedSessionStarts;
+    if (occupiedSlots >= this.config.session.maxConcurrent) {
       logger.warn(scopedLog(LogContext.SESSION, 'resource limit reached'), {
         maxSessions: this.config.session.maxConcurrent,
         currentSessions: this.sessions.size,
+        pendingStarts: this.reservedSessionStarts,
         hint: 'Release or close unused sessions, or increase MAX_SESSIONS configuration',
       });
       throw new ResourceLimitError(
         `Maximum concurrent sessions reached: ${this.config.session.maxConcurrent}`,
-        { maxSessions: this.config.session.maxConcurrent, currentSessions: this.sessions.size }
+        {
+          maxSessions: this.config.session.maxConcurrent,
+          currentSessions: this.sessions.size,
+          pendingStarts: this.reservedSessionStarts,
+        }
       );
     }
+    reserveCapacity();
 
     if (spec.app_target) {
       return this.startAppTargetSessionInternal(spec, spec.app_target);
@@ -466,11 +514,18 @@ export class SessionManager {
       // Network events are collected by telemetry, not logged individually
       // (reduces noise while still capturing data for debugging)
 
+      const pageIdMap = new Map<string, Page>();
+      const pageToIdMap = new WeakMap<Page, string>();
+      const initialPageId = crypto.randomUUID();
+      pageIdMap.set(initialPageId, page);
+      pageToIdMap.set(page, initialPageId);
+
       // Create recording pipeline manager (eager instantiation)
       // This allows early verification and ensures the pipeline is ready before recording starts
       const pipelineManager = new RecordingPipelineManager(page, context, recordingInitializer, {
         sessionId,
         logger,
+        getDriverPageId: (target) => pageToIdMap.get(target),
       });
 
       // Create session state
@@ -505,8 +560,8 @@ export class SessionManager {
         frameStack: [],
         pages: [page],
         currentPageIndex: 0,
-        pageIdMap: new Map(),
-        pageToIdMap: new WeakMap(),
+        pageIdMap,
+        pageToIdMap,
         activeMocks: new Map(),
         // Idempotency: Track executed instructions for replay safety
         instructionReceipts: new Map(),
@@ -519,12 +574,8 @@ export class SessionManager {
         pipelineManager,
       };
 
-      // Assign an ID to the initial page and track it
-      const initialPageId = crypto.randomUUID();
-      session.pageIdMap.set(initialPageId, page);
-      session.pageToIdMap.set(page, initialPageId);
-
       this.sessions.set(sessionId, session);
+      trackSessionPageStack(session);
 
       try {
         // Setup diagnostic logging for redirect loop debugging
@@ -748,6 +799,11 @@ export class SessionManager {
       const page = await selectAppTargetPage(context.pages(), target);
       sessionId = uuidv4();
       const createdAt = new Date();
+      const pageIdMap = new Map<string, Page>();
+      const pageToIdMap = new WeakMap<Page, string>();
+      const pageId = crypto.randomUUID();
+      pageIdMap.set(pageId, page);
+      pageToIdMap.set(page, pageId);
       const recordingInitializer = createRecordingContextInitializer({ logger });
       await recordingInitializer.initialize(context);
       const serviceWorkerController = new ServiceWorkerController(
@@ -758,6 +814,7 @@ export class SessionManager {
       const pipelineManager = new RecordingPipelineManager(page, context, recordingInitializer, {
         sessionId,
         logger,
+        getDriverPageId: (targetPage) => pageToIdMap.get(targetPage),
       });
       const session: SessionState = {
         id: sessionId,
@@ -779,8 +836,8 @@ export class SessionManager {
         frameStack: [],
         pages: [page],
         currentPageIndex: 0,
-        pageIdMap: new Map(),
-        pageToIdMap: new WeakMap(),
+        pageIdMap,
+        pageToIdMap,
         activeMocks: new Map(),
         instructionReceipts: new Map(),
         lastInstructionSequence: 0,
@@ -788,10 +845,8 @@ export class SessionManager {
         recordingInitializer,
         pipelineManager,
       };
-      const pageId = crypto.randomUUID();
-      session.pageIdMap.set(pageId, page);
-      session.pageToIdMap.set(page, pageId);
       this.sessions.set(sessionId, session);
+      trackSessionPageStack(session);
       setupDiagnosticLogging(context, sessionId);
       session.pipelineReadyPromise = pipelineManager
         .initialize()
@@ -1075,9 +1130,11 @@ export class SessionManager {
     // stay resetting and may be explicitly retried; closing remains terminal.
     session.phase = 'resetting';
     session.lastUsedAt = new Date();
-    const reset = resetSessionState(session).then(() => {
+    const reset = (async () => {
+      if (session.instructionSettlement) await session.instructionSettlement;
+      await resetSessionState(session);
       if (session.phase === 'resetting') session.phase = 'ready';
-    }).finally(() => { this.resettingSessions.delete(sessionId); });
+    })().finally(() => { this.resettingSessions.delete(sessionId); });
     this.resettingSessions.set(sessionId, reset);
     return reset;
   }
@@ -1094,6 +1151,7 @@ export class SessionManager {
     const session = this.peekSession(sessionId);
     const previousPhase = session.phase;
     session.phase = 'closing';
+    session.instructionInterrupted = session.instructionInFlight === true;
 
     const closing = (async (): Promise<SessionCloseResult> => {
       await safeInvoke(this.instrumentation.onSessionClose?.bind(this.instrumentation), {
@@ -1105,6 +1163,9 @@ export class SessionManager {
         // A reset may already own browser I/O. Join its settlement before disposal;
         // close can still recover a reset that failed partway through clearing.
         await this.resettingSessions.get(sessionId)?.catch(() => undefined);
+        // Teardown interrupts an admitted browser operation at the active page
+        // (or detaches an external target), then joins its uncertain receipt
+        // before releasing the session lease.
         const videoPaths = await teardownSessionResources(session);
         this.sessions.delete(sessionId);
         metrics.sessionDuration.observe(Date.now() - startTime);

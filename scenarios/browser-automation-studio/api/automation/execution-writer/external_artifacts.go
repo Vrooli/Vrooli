@@ -53,6 +53,9 @@ func (r *FileWriter) prepareExternalArtifact(ctx context.Context, executionID uu
 	if kind == "" {
 		kind = "custom"
 	}
+	if evidence.KindFor(kind) == basevidence.ArtifactKind_ARTIFACT_KIND_UNSPECIFIED {
+		return ArtifactData{}, fmt.Errorf("unknown artifact kind %q", kind)
+	}
 	label := strings.TrimSpace(item.Label)
 	if label == "" {
 		label = kind
@@ -114,6 +117,9 @@ func (r *FileWriter) prepareExternalArtifact(ctx context.Context, executionID uu
 		}
 		if stored.SizeBytes != descriptor.SizeBytes {
 			return ArtifactData{}, errors.New("artifact storage size differs from described bytes")
+		}
+		if !strings.EqualFold(strings.TrimSpace(stored.SHA256), descriptor.SHA256) {
+			return ArtifactData{}, errors.New("artifact content digest differs from stored bytes")
 		}
 		storageURL, payload["storage_object"] = stored.URL, stored.ObjectName
 		if stored.ContentType != "" {

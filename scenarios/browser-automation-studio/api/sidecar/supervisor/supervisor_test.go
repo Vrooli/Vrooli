@@ -84,6 +84,22 @@ func TestProcessSupervisor_Start(t *testing.T) {
 	})
 }
 
+func TestProcessSupervisorChecksHealthBeforeWaitingForPollInterval(t *testing.T) {
+	mock := NewMockProcess()
+	cfg := testConfig()
+	cfg.StartupTimeout = 25 * time.Millisecond
+	healthCalls := 0
+	sup := NewProcessSupervisor(cfg, mock, func(context.Context) error {
+		healthCalls++
+		return nil
+	}, testLogger())
+
+	require.NoError(t, sup.Start(context.Background()))
+	assert.Equal(t, 1, healthCalls)
+	assert.Equal(t, StateRunning, sup.State())
+	require.NoError(t, sup.Stop(context.Background()))
+}
+
 func TestProcessSupervisor_Stop(t *testing.T) {
 	t.Run("stops running process", func(t *testing.T) {
 		mock := NewMockProcess()

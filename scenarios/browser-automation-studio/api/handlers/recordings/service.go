@@ -10,12 +10,24 @@ import (
 
 	autodriver "github.com/vrooli/browser-automation-studio/automation/driver"
 	autosession "github.com/vrooli/browser-automation-studio/automation/session"
+	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	recordingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/recordings"
 )
 
 type service struct {
 	deps Deps
+}
+
+func (s *service) resolveSessionForProfile(profileID string) (string, error) {
+	sessionID, err := s.deps.Repo.ResolveSessionForProfile(profileID)
+	if err == nil {
+		return sessionID, nil
+	}
+	if errors.Is(err, sessionprofile.ErrAmbiguousProfileSession) {
+		return "", connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return "", connect.NewError(connect.CodeInternal, err)
 }
 
 // =============================================================================
@@ -301,7 +313,10 @@ func (s *service) GetServiceWorkers(
 	if strings.TrimSpace(rawProfileID) == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errProfileIDRequired)
 	}
-	sessionID := s.deps.Repo.GetSessionForProfile(rawProfileID)
+	sessionID, err := s.resolveSessionForProfile(rawProfileID)
+	if err != nil {
+		return nil, err
+	}
 	if sessionID == "" {
 		return connect.NewResponse(&recordingsv1.GetServiceWorkersResponse{
 			Control: &recordingsv1.ServiceWorkerControl{Mode: "allow"},
@@ -328,7 +343,10 @@ func (s *service) ClearAllServiceWorkers(
 	if strings.TrimSpace(rawProfileID) == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errProfileIDRequired)
 	}
-	sessionID := s.deps.Repo.GetSessionForProfile(rawProfileID)
+	sessionID, err := s.resolveSessionForProfile(rawProfileID)
+	if err != nil {
+		return nil, err
+	}
 	if sessionID == "" {
 		return connect.NewResponse(&recordingsv1.ClearAllServiceWorkersResponse{
 			Message: "No active session for this profile",
@@ -357,7 +375,10 @@ func (s *service) DeleteServiceWorker(
 	if scopeURL == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errScopeURLRequired)
 	}
-	sessionID := s.deps.Repo.GetSessionForProfile(rawProfileID)
+	sessionID, err := s.resolveSessionForProfile(rawProfileID)
+	if err != nil {
+		return nil, err
+	}
 	if sessionID == "" {
 		return nil, connect.NewError(connect.CodeNotFound, errNoActiveSession)
 	}
@@ -487,7 +508,10 @@ func (s *service) NavigateToHistoryURL(
 	if url == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errURLRequired)
 	}
-	sessionID := s.deps.Repo.GetSessionForProfile(rawProfileID)
+	sessionID, err := s.resolveSessionForProfile(rawProfileID)
+	if err != nil {
+		return nil, err
+	}
 	if sessionID == "" {
 		return nil, connect.NewError(connect.CodeNotFound, errNoActiveSession)
 	}

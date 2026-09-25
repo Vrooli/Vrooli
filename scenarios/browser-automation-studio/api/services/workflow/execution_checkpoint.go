@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/google/uuid"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
@@ -94,10 +95,25 @@ func (s *WorkflowService) ExtractCheckpointState(ctx context.Context, executionI
 		}
 
 		var last *bastimeline.TimelineEntry
-		for _, entry := range timeline.Entries {
+		lastSuccessPosition := -1
+		for position, entry := range timeline.Entries {
 			if entry != nil && entry.GetContext().GetSuccess() {
 				last = entry
+				lastSuccessPosition = position
 			}
+		}
+		for _, entry := range timeline.Entries[lastSuccessPosition+1:] {
+			if entry == nil || entry.GetContext().GetErrorCode() != autocontracts.FailureCodeInstructionOutcomeUncertain {
+				continue
+			}
+			step := entry.GetNodeId()
+			if step == "" && entry.StepIndex != nil {
+				step = fmt.Sprintf("step %d", entry.GetStepIndex())
+			}
+			if step == "" {
+				step = "an unknown step"
+			}
+			return nil, fmt.Errorf("%w: browser outcome for %s is uncertain; reconcile it before resuming", ErrExecutionNotResumable, step)
 		}
 		if last == nil {
 			return checkpoint, nil

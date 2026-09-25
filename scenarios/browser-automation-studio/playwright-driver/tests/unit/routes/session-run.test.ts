@@ -269,6 +269,34 @@ describe('handleSessionRun', () => {
     expect(session.phase).toBe('ready');
   });
 
+  it('close waits for an admitted instruction before tearing down its session', async () => {
+    const session = buildSession();
+    const manager = buildSessionManager(session);
+    let release!: () => void;
+    let entered!: () => void;
+    const started = new Promise<void>((resolve) => { entered = resolve; });
+    mockExecuteInstruction.mockImplementationOnce(async () => {
+      entered();
+      await new Promise<void>((resolve) => { release = resolve; });
+      return { success: true, driverOutcome: { success: true } } as never;
+    });
+
+    const run = request(manager);
+    await started;
+    const close = manager.closeSession(session.id);
+    try {
+      expect(session.phase).toBe('closing');
+      expect(session.context.close).not.toHaveBeenCalled();
+      expect(manager.getSessionCount()).toBe(1);
+    } finally {
+      release();
+      await run.done;
+      await close;
+    }
+    expect(session.context.close).toHaveBeenCalledTimes(1);
+    expect(manager.getSessionCount()).toBe(0);
+  });
+
   it.each(['invalid', 'throw', 'success'] as const)(
     'restores recording after %s completion', async (result) => {
       const session = buildSession({ phase: 'recording', pipelineManager: { isRecording: jest.fn().mockReturnValue(true) } });
@@ -336,15 +364,20 @@ describe('handleSessionRun', () => {
     });
     const first = request(manager);
     await entered;
+    let resetSettled = false;
+    const reset = manager.resetSession(session.id).then(() => { resetSettled = true; });
     try {
-      await manager.resetSession(session.id);
+      await Promise.resolve();
       const second = request(manager);
       await second.done;
       expect(second.res.statusCode).toBe(409);
       expect(mockExecuteInstruction).toHaveBeenCalledTimes(1);
+      expect(session.page.goto).not.toHaveBeenCalled();
+      expect(resetSettled).toBe(false);
     } finally {
       release();
       await first.done;
+      await reset;
     }
     const afterSettlement = request(manager, {}, { operation_sequence: 2 });
     await afterSettlement.done;

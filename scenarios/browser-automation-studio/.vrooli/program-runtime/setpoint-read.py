@@ -19,7 +19,8 @@ evidence_sample = int(inputs.get("evidence_sample", 5))
 envelope = {
     "program": "browser-automation-studio.setpoint-read", "version": "1",
     "status": "failed", "phase": "validate",
-    "inputs": {"window": window, "evidence_sample": evidence_sample, "profile": profile},
+    "inputs": ({"profile": profile} if profile == "rehabilitation" else {
+        "window": window, "evidence_sample": evidence_sample, "profile": profile}),
     "signals": {"rows": [], "readable": 0, "unavailable": 0},
     "errors": [], "evidence": [],
 }
@@ -59,6 +60,36 @@ def one(handle, key, default=None):
     return (rows[0] if rows else {}).get(key, default)
 
 
+def latest_rehabilitation_run(runs, captured_at):
+    """Select the exact composite phase's terminal result after this capture."""
+    for run in runs:
+        planned = run.get("plannedPhases", run.get("planned_phases", []))
+        phases = run.get("phases", [])
+        completed = run.get("completedAt", run.get("completed_at", ""))
+        if (planned == ["rehabilitation-evidence"] and run.get("status") in ("passed", "failed")
+                and len(phases) == 1 and phases[0].get("name") == "rehabilitation-evidence"
+                and phases[0].get("status") in ("passed", "failed") and captured_at and completed
+                and completed >= captured_at):
+            return run
+    return None
+
+
+def capability_standing(findings, capability_id):
+    """Read one provider-owned capability from the persisted phase presentation."""
+    for phase in findings.get("phases", []):
+        if phase.get("name") != "rehabilitation-evidence":
+            continue
+        presentation = phase.get("phasePresentation", phase.get("phase_presentation", {})) or {}
+        for capability in presentation.get("capabilities", []):
+            if capability.get("id") == capability_id:
+                return {
+                    "level": capability.get("currentLevel", capability.get("current_level")),
+                    "clean": capability.get("clean"),
+                    "label": capability.get("currentLevelLabel", capability.get("current_level_label")),
+                }
+    return None
+
+
 def step_validate():
     if profile not in ("operations", "rehabilitation"):
         return fail("failed", "invalid_input", "unknown qualification profile", "validate")
@@ -82,6 +113,45 @@ def step_collect():  # COLLECT · one governed read; the evidence sample is read
             _, klass = program.classify(exc)
             handles["capture"] = {}
             handles["capture_error"] = klass
+        try:
+            handles["test_genie_runs"] = test_genie.runs.list(scenario="browser-automation-studio", limit=10).head(10)
+        except Exception as exc:
+            _, klass = program.classify(exc)
+            handles["test_genie_runs"] = []
+            handles["test_genie_error"] = klass
+        try:
+            # meta() contains only descriptor-selected top-level fields; the
+            # managed build identity is nested, so read the governed response.
+            api_status = vrooli.scenario.status(name="browser-automation-studio").raw() or {}
+            runtime = api_status.get("runtime") or {}
+            scenario = api_status.get("scenario") or {}
+            handles["current_build"] = (
+                runtime.get("buildIdentity", runtime.get("build_identity", ""))
+                or scenario.get("buildIdentity", scenario.get("build_identity", ""))
+            )
+            if not handles["current_build"]:
+                handles["runtime_error"] = "scenario status omitted managed build identity"
+        except Exception as exc:
+            _, klass = program.classify(exc)
+            handles["current_build"] = ""
+            handles["runtime_error"] = klass
+        capture = handles.get("capture", {})
+        current_build = handles.get("current_build", "")
+        if (capture.get("buildIdentity", capture.get("build_identity", "")) == current_build
+                and current_build):
+            run = latest_rehabilitation_run(handles.get("test_genie_runs", []), capture.get("capturedAt", capture.get("captured_at", "")))
+            if run:
+                try:
+                    findings = test_genie.runs.findings(
+                        scenario="browser-automation-studio",
+                        run_id=run.get("runId", run.get("run_id", "")),
+                    )
+                    handles["owner_run"] = run
+                    handles["owner_findings"] = findings.head(10)
+                except Exception as exc:
+                    _, klass = program.classify(exc)
+                    handles["owner_findings"] = []
+                    handles["findings_error"] = klass
         return "classify"
     try:
         handles["ex"] = browser_automation_studio.executions.list(limit=window)
@@ -132,7 +202,25 @@ def classify_rehabilitation():
                   and capture.get("declaredWarmups") == 1
                   and capture.get("budgetMs") == 2000
                   and bool(capture.get("operationId"))
-                  and bool(capture.get("receiptSha256")))
+                  and bool(capture.get("receiptSha256"))
+                  and capture.get("buildIdentity", capture.get("build_identity", ""))
+                  == handles.get("current_build", "")
+                  and bool(handles.get("current_build")))
+    owner_run = handles.get("owner_run") if applicable else None
+    owner_findings = {"phases": handles.get("owner_findings", [])}
+    if owner_run and owner_findings["phases"]:
+        # These values are shared by the owner-qualified rows. Store them
+        # once; duplicating the build digest and run receipt in every row pushed
+        # the governed CLI result past its 4 KiB output bound.
+        envelope["signals"]["owner_evidence"] = {
+            "run_id": owner_run.get("runId", owner_run.get("run_id")),
+            "completed_at": owner_run.get("completedAt", owner_run.get("completed_at")),
+            "build_identity": handles.get("current_build"),
+            "phase_status": next((p.get("status") for p in owner_run.get("phases", [])
+                                   if p.get("name") == "rehabilitation-evidence"), None),
+            "evidence_tier": owner_run.get("evidenceTier", owner_run.get("evidence_tier")),
+            "source": "test-genie/runs/findings",
+        }
     for name in REHABILITATION_ROWS:
         if name == "capture" and applicable:
             reading = {"p95_ms": capture.get("p95Ms"), "wall_p95_ms": capture.get("wallP95Ms"),
@@ -140,15 +228,44 @@ def classify_rehabilitation():
                        "build_identity": capture.get("buildIdentity"), "captured_at": capture.get("capturedAt")}
             row(name, reading, "bas-rehabilitation-v1#capture", capture.get("withinBudget") is True,
                 sensor="performance-health sweep workload-get browser-automation-studio capture")
+        elif name in ("motion", "passive-fidelity", "profile-durability", "cancellation-recovery", "resource-budget", "evidence-completeness") and applicable and owner_run and owner_findings["phases"]:
+            standing = capability_standing(owner_findings, name)
+            if standing and standing.get("level"):
+                verified = standing.get("level") == "L1" and standing.get("clean") is True
+                reading = {"current_level": standing.get("level"),
+                           "clean": standing.get("clean")}
+                row(name, reading, "bas-rehabilitation-v1#" + name, verified,
+                    sensor="test-genie/runs/findings")
+                if not verified:
+                    envelope["signals"]["rows"][-1]["reason"] = f"capability remains at {standing.get('level')}"
+            else:
+                row(name, None, "bas-rehabilitation-v1#" + name, None, unavailable=True,
+                    reason="exact phase findings lack the named capability standing",
+                    sensor="test-genie/runs/findings")
         else:
             reason = "pending_telemetry"
             if name == "capture":
-                reason = handles.get("capture_error") or capture.get("reason") or "owner_evidence_not_applicable"
-            row(name, None, "bas-rehabilitation-v1#" + name, None, unavailable=True, reason=reason)
+                reason = handles.get("capture_error") or handles.get("runtime_error") or capture.get("reason") or "capture evidence missing or build identity is stale"
+                if capture.get("operationId") or capture.get("operation_id"):
+                    reading = {
+                        "operation_id": capture.get("operationId", capture.get("operation_id")),
+                        "workload_build_identity": capture.get("buildIdentity", capture.get("build_identity", "")),
+                        "live_build_identity": handles.get("current_build", ""),
+                    }
+                    reason = reason or "capture build identity does not match live BAS"
+                else:
+                    reading = None
+            elif name in ("motion", "passive-fidelity", "profile-durability", "cancellation-recovery", "resource-budget"):
+                reason = (handles.get("test_genie_error") or handles.get("findings_error")
+                          or handles.get("runtime_error") or "no_matching_current_candidate_phase_receipt")
+                reading = None
+            else:
+                reading = None
+            row(name, reading, "bas-rehabilitation-v1#" + name, None, unavailable=True, reason=reason)
     envelope["signals"]["required"] = len(REHABILITATION_ROWS)
     envelope["signals"]["unmet"] = sum(r["in_band"] is not True for r in envelope["signals"]["rows"])
     envelope["signals"]["product_qualified"] = envelope["signals"]["unmet"] == 0
-    envelope["status"] = "partial" if handles.get("capture_error") else "ok"
+    envelope["status"] = "partial" if any(handles.get(key) for key in ("capture_error", "test_genie_error", "findings_error", "runtime_error")) else "ok"
     return "report"
 
 

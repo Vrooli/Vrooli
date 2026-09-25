@@ -28,7 +28,7 @@ func TestSanitizeHARRedactsHeadersQueriesAndBodies(t *testing.T) {
 	if strings.Contains(got, "Bearer secret") || strings.Contains(got, "token=secret") || strings.Contains(got, `\"text\":\"secret\"`) {
 		t.Fatalf("secret leaked from sanitized HAR: %s", got)
 	}
-	if !strings.Contains(got, redactedValue) {
+	if !strings.Contains(got, RedactedValue) {
 		t.Fatalf("redaction marker missing: %s", got)
 	}
 }

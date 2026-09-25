@@ -172,10 +172,10 @@ func (f *fakeRepo) UpdateHistorySettings(id sessionprofilepersistence.ProfileID,
 	return p, nil
 }
 
-func (f *fakeRepo) GetSessionForProfile(profileID string) string {
+func (f *fakeRepo) ResolveSessionForProfile(profileID string) (string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return f.sessions[profileID]
+	return f.sessions[profileID], nil
 }
 
 func (f *fakeRepo) SaveOpenTabs(id sessionprofilepersistence.ProfileID, tabs []sessionprofilepersistence.TabState) (*sessionprofilepersistence.SessionProfile, error) {
@@ -190,15 +190,20 @@ func (f *fakeRepo) SaveOpenTabs(id sessionprofilepersistence.ProfileID, tabs []s
 }
 
 type fakeRecordMode struct {
-	session    *autosession.Session
-	swResp     *autodriver.GetServiceWorkersResponse
-	swErr      error
-	clearResp  *autodriver.UnregisterServiceWorkersResponse
-	deleteResp *autodriver.UnregisterServiceWorkerResponse
-	deleteErr  error
+	session         *autosession.Session
+	swResp          *autodriver.GetServiceWorkersResponse
+	swErr           error
+	clearResp       *autodriver.UnregisterServiceWorkersResponse
+	deleteResp      *autodriver.UnregisterServiceWorkerResponse
+	deleteErr       error
+	workerCalls     int
+	clearCalls      int
+	deleteCalls     int
+	getSessionCalls int
 }
 
 func (f *fakeRecordMode) GetServiceWorkers(_ context.Context, _ string) (*autodriver.GetServiceWorkersResponse, error) {
+	f.workerCalls++
 	if f.swErr != nil {
 		return nil, f.swErr
 	}
@@ -206,6 +211,7 @@ func (f *fakeRecordMode) GetServiceWorkers(_ context.Context, _ string) (*autodr
 }
 
 func (f *fakeRecordMode) UnregisterAllServiceWorkers(_ context.Context, sessionID string) (*autodriver.UnregisterServiceWorkersResponse, error) {
+	f.clearCalls++
 	if f.clearResp == nil {
 		return &autodriver.UnregisterServiceWorkersResponse{SessionID: sessionID, UnregisteredCount: 0}, nil
 	}
@@ -213,6 +219,7 @@ func (f *fakeRecordMode) UnregisterAllServiceWorkers(_ context.Context, sessionI
 }
 
 func (f *fakeRecordMode) UnregisterServiceWorker(_ context.Context, sessionID, scopeURL string) (*autodriver.UnregisterServiceWorkerResponse, error) {
+	f.deleteCalls++
 	if f.deleteErr != nil {
 		return nil, f.deleteErr
 	}
@@ -223,6 +230,7 @@ func (f *fakeRecordMode) UnregisterServiceWorker(_ context.Context, sessionID, s
 }
 
 func (f *fakeRecordMode) GetSession(string) (*autosession.Session, bool) {
+	f.getSessionCalls++
 	return f.session, f.session != nil
 }
 
@@ -544,6 +552,66 @@ func TestDeleteServiceWorker_DriverError(t *testing.T) {
 	_, err := client.DeleteServiceWorker(context.Background(), connect.NewRequest(&recordingsv1.DeleteServiceWorkerRequest{ProfileId: "p", ScopeUrl: "https://x"}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+}
+
+func TestProfileScopedLiveOperationsRejectAmbiguousBindings(t *testing.T) {
+	operations := []struct {
+		name string
+		call func(recordingsconnect.RecordingsServiceClient) error
+	}{
+		{
+			name: "get service workers",
+			call: func(client recordingsconnect.RecordingsServiceClient) error {
+				_, err := client.GetServiceWorkers(context.Background(), connect.NewRequest(&recordingsv1.GetServiceWorkersRequest{ProfileId: "shared"}))
+				return err
+			},
+		},
+		{
+			name: "clear service workers",
+			call: func(client recordingsconnect.RecordingsServiceClient) error {
+				_, err := client.ClearAllServiceWorkers(context.Background(), connect.NewRequest(&recordingsv1.ClearAllServiceWorkersRequest{ProfileId: "shared"}))
+				return err
+			},
+		},
+		{
+			name: "delete service worker",
+			call: func(client recordingsconnect.RecordingsServiceClient) error {
+				_, err := client.DeleteServiceWorker(context.Background(), connect.NewRequest(&recordingsv1.DeleteServiceWorkerRequest{ProfileId: "shared", ScopeUrl: "https://fixture.invalid"}))
+				return err
+			},
+		},
+		{
+			name: "navigate history",
+			call: func(client recordingsconnect.RecordingsServiceClient) error {
+				_, err := client.NavigateToHistoryURL(context.Background(), connect.NewRequest(&recordingsv1.NavigateToHistoryURLRequest{ProfileId: "shared", Url: "https://fixture.invalid"}))
+				return err
+			},
+		},
+	}
+	for _, operation := range operations {
+		t.Run(operation.name, func(t *testing.T) {
+			repo := sessionprofile.NewService(sessionprofilepersistence.NewMockRepository(), nil)
+			const profileID = "shared"
+			repo.SetActiveSession("browser-a", profileID)
+			repo.SetActiveSession("browser-b", profileID)
+			rm := &fakeRecordMode{}
+			client, cleanup := newTestServer(t, repo, rm)
+			defer cleanup()
+
+			err := operation.call(client)
+			require.Error(t, err)
+			require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+			require.Contains(t, err.Error(), "exactly one active browser session")
+			require.Zero(t, rm.workerCalls)
+			require.Zero(t, rm.clearCalls)
+			require.Zero(t, rm.deleteCalls)
+			require.Zero(t, rm.getSessionCalls)
+			_, err = repo.ResolveSessionForProfile(profileID)
+			require.ErrorIs(t, err, sessionprofile.ErrAmbiguousProfileSession)
+			require.Equal(t, profileID, repo.GetActiveSession("browser-a"))
+			require.Equal(t, profileID, repo.GetActiveSession("browser-b"))
+		})
+	}
 }
 
 // =============================================================================

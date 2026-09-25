@@ -26,6 +26,8 @@ export interface StartRecordingRequest {
   frame_callback_url?: string;
   /** Optional callback URL to stream page lifecycle events to (for multi-tab support) */
   page_callback_url?: string;
+  /** Carries the API request's test-storage routing context to callback requests. */
+  routed_test_mode?: boolean;
   /** Frame quality (1-100), default 55 (from API config) */
   frame_quality?: number;
   /** Target FPS for frame streaming (1-60), default 30 (from API config) */
@@ -187,6 +189,8 @@ export type InputType = 'pointer' | 'keyboard' | 'wheel';
 export interface InputRequest {
   execution_id: string;
   lease_id: string;
+  /** Stable client-generated ID used to make transport retries idempotent. */
+  input_id?: string;
   type: InputType;
   session_id?: string;
   // Pointer

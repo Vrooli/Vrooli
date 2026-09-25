@@ -58,7 +58,43 @@
       "description": "Given an active workflow, when timeout, cancellation, driver death, API restart or a retried start overlaps a live instruction, then terminal state, last evidence, leases and cleanup have one consistent result, with no concurrent owner created by retry.",
       "status": "planned",
       "prd_ref": "OT-P0-005",
-      "validation": []
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/automation/executor/session_lifecycle_test.go",
+          "phase": "unit",
+          "status": "passed",
+          "notes": "Focused live-request timeout and driver-listener-loss tests pass; they verify a single fixture effect, non-retryable uncertainty, timeout cleanup and process-owned resource release. Other J07 cases and the whole-row owner receipt remain open."
+        },
+        {
+          "type": "test",
+          "ref": "api/services/workflow/execution_results_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Stop acknowledgement checks durable ownership; cancellation retains the uncertain effect and joins leased-driver cleanup. Driver death, API restart, timeout and concurrent retry remain unqualified."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/executions/service_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "An unavailable cancellation owner returns an RPC error without a stopped response."
+        },
+        {
+          "type": "test",
+          "ref": "playwright-driver/tests/integration/typed-action-semantics.test.ts",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Real Chromium close preserves uncertain outcomes and promptly interrupts a pending wait."
+        },
+        {
+          "type": "test",
+          "ref": "api/services/recovery/service_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Startup recovery terminalizes persisted active executions and refuses to continue when any owner remains unresolved; driver death, bounded timeout, and full retry overlap still need qualification."
+        }
+      ]
     },
     {
       "id": "BAS-RH-J08",

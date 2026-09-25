@@ -53,7 +53,7 @@ import { useStreamSettings } from './capture/streamSettingsState';
 import type { StreamSettingsValues } from './capture/StreamSettings';
 import { DEFAULT_STREAM_FPS, DEFAULT_STREAM_QUALITY } from './constants';
 import type { TimelineMode } from './types/timeline-unified';
-import { mergeActionsWithAISteps } from './types/timeline-unified';
+import { attachTimelinePageIdentities, mergeActionsWithAISteps } from './types/timeline-unified';
 import { UnifiedSidebar, useUnifiedSidebar, useAISettings } from './sidebar';
 import { useAIConversation } from './ai-conversation';
 import { HumanInterventionOverlay } from './ai-navigation';
@@ -706,7 +706,11 @@ export function RecordModePage({
     workflowEdges: mode === 'execution' ? workflowEdges : undefined,
   });
 
-  const mergedActions = useMemo(() => mergeConsecutiveActions(actions), [actions]);
+  const identifiedActions = useMemo(
+    () => attachTimelinePageIdentities(actions, timelineEntries),
+    [actions, timelineEntries]
+  );
+  const mergedActions = useMemo(() => mergeConsecutiveActions(identifiedActions), [identifiedActions]);
 
   // Merge timeline items with AI steps for the final display
   const mergedTimelineItems = useMemo(() => {

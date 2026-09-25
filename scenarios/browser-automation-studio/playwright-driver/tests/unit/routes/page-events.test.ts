@@ -170,33 +170,42 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
     return { context, page, frame, session, setup, open };
   }
 
-  it('publishes the loaded document icon on creation and navigation without a document request', async () => {
+  it('publishes page creation before loaded document metadata', async () => {
     const f = fixture(); const {cleanup} = f.setup();
     try {
       await f.open();
       await (f.page.listeners('framenavigated')[0] as (frame: unknown) => Promise<void>)(f.frame);
       const events = fetchMock.mock.calls.map(([, init]) => JSON.parse(init!.body as string));
-      expect(events.map(e => e.faviconUrl)).toEqual(['https://fixture.invalid/custom.svg', 'https://fixture.invalid/custom.svg']);
+      expect(events.map(e => e.eventType)).toEqual(['created', 'navigated']);
+      expect(events[0].faviconUrl).toBeUndefined();
+      expect(events[1].faviconUrl).toBe('https://fixture.invalid/custom.svg');
       expect(fetchMock.mock.calls.every(([url]) => url === 'http://callback')).toBe(true);
       expect(f.page.goto).not.toHaveBeenCalled();
     } finally {cleanup();}
   });
 
-  it('preserves page admission and queued navigation during a creation metadata read', async () => {
-    const f = fixture(); const icon = deferred<string>();
-    jest.mocked(f.page.evaluate).mockReturnValueOnce(icon.promise);
-    const {cleanup} = f.setup(); const opening = f.open();
+  it('publishes creation without waiting for document readiness, then orders navigation metadata', async () => {
+    const f = fixture(); const readiness = deferred<void>();
+    jest.mocked(f.page.waitForLoadState).mockReturnValueOnce(readiness.promise);
+    const {cleanup} = f.setup();
     try {
+      await f.open();
+      const creationBody = fetchMock.mock.calls[0]?.[1]?.body;
+      expect(creationBody).toEqual(expect.stringContaining('"eventType":"created"'));
+      expect(creationBody).toEqual(expect.stringContaining('"driverPageId":"'));
+      expect(f.page.waitForLoadState).not.toHaveBeenCalled();
+
       await new Promise(setImmediate);
-      expect(f.page.evaluate).toHaveBeenCalled();
       f.page.url = () => 'https://fixture.invalid/new-document';
       f.page.emit('framenavigated', f.frame);
-      icon.resolve('https://fixture.invalid/old.svg');
-      await opening; await new Promise(setImmediate);
+      await new Promise(setImmediate);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      readiness.resolve();
+      await new Promise(setImmediate);
       const events = fetchMock.mock.calls.map(([, init]) => JSON.parse(init!.body as string));
       expect(events.map(e => e.eventType)).toEqual(['created', 'navigated']);
       expect(events[1]).toMatchObject({url: 'https://fixture.invalid/new-document', faviconUrl: 'https://fixture.invalid/custom.svg'});
-    } finally {icon.resolve(''); cleanup();}
+    } finally {readiness.resolve(); cleanup();}
   });
 
   it.each(['cleanup', 'replacement'])('discards icon metadata after %s while the DOM read waits', async kind => {
@@ -206,7 +215,7 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
     jest.mocked(f.page.evaluate).mockImplementation(() => {reading.resolve(); return icon.promise;});
     const navigation = (f.page.listeners('framenavigated')[0] as (frame: unknown) => Promise<void>)(f.frame);
     try {
-      // Existing implementation never reads the icon, so fail immediately rather than await a missing signal.
+      // The navigation callback must still wait for current document metadata.
       await new Promise(setImmediate);
       expect(f.page.evaluate).toHaveBeenCalled();
       if (kind === 'cleanup') cleanup();

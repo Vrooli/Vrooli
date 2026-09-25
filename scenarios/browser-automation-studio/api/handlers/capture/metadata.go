@@ -4,7 +4,7 @@ import capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automat
 
 // captureTypeMeta is the single source of truth for everything a
 // CaptureType "is" on the handler side: its human/file label, on-disk
-// extension, and whether the executor's folder export can produce it
+// extension, and whether the handler can produce it from execution data
 // today. The five label/ext/availability switches that used to be
 // scattered across service.go collapse into this one table.
 //
@@ -41,16 +41,14 @@ var captureTypeMetadata = map[capturev1.CaptureType]captureTypeMeta{
 		available: true,
 	},
 	capturev1.CaptureType_CAPTURE_TYPE_VIDEO: {
-		shortName:       "video",
-		ext:             ".webm",
-		available:       false,
-		availableReason: unavailableExportReason,
+		shortName: "video",
+		ext:       ".webm",
+		available: true,
 	},
 	capturev1.CaptureType_CAPTURE_TYPE_DOM: {
-		shortName:       "dom",
-		ext:             ".html",
-		available:       false,
-		availableReason: unavailableExportReason,
+		shortName: "dom",
+		ext:       ".html",
+		available: true,
 	},
 	capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE: {
 		shortName: "performance",

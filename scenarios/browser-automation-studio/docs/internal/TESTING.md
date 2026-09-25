@@ -63,7 +63,8 @@ All paths below are within this scenario. There is no external plan/log dependen
 | `docs/internal/OPERATOR_FEEDBACK.md` | Verbatim feedback captured before acting, with discrete statuses and resolution receipts |
 | `docs/internal/DECISIONS.md` | Durable architecture decisions and tradeoffs |
 | `docs/internal/REFRACTOR_*_2026-09-*.json` | Dated baseline/assessment observations; append an amendment rather than rewrite history |
-| `docs/internal/evidence/rehabilitation/` | Small durable preparation/experiment evidence; reference owner artifacts for large captures |
+| `docs/internal/evidence/rehabilitation/` | Dated design/review records and historical evidence |
+| `.vrooli/runtime/rehabilitation-evidence/` | Current build-bound owner receipts and raw artifacts; this ignored runtime directory is excluded from managed build identity |
 
 On every start or resume, read the goal, contract, this protocol, feedback and
 latest progress; then inspect the relevant issue and source. Recover pending
@@ -174,11 +175,247 @@ owns invocation, applicability, retention and the governed reading through
 Test Genie retains the performance gate result. The dated090 evidence records
 the first qualified local capture reading; fresh candidates need fresh receipts.
 
-The first command validates preparation and returns no product verdict. The
-second reads required outcomes. The third measures source size, not complexity.
-Use only the file responsibilities above. Test Genie and platform owners retain
-their receipts; the progress file links those receipts and owns the checkpoint.
-Do not create a second issue register or a replacement tracking application.
+### Resource-budget owner receipt
+
+`api/cmd/resource-budget-cohort/qualification.mjs` measures the managed Linux
+candidate directly. It samples API+driver PSS and CPU for62 one-second points
+over at least60 seconds while requiring zero driver sessions/recordings at every
+point, then opens one local fixture page and measures its Chromium descendants
+plus the fixture harness process. It binds the result to the live BAS build,
+contract, owner source digests and raw artifact hash. A nonzero session during
+the idle interval invalidates the cohort; do not close another caller's session
+to make it idle. Windows private-memory status is reported separately; this
+Linux owner does not claim Windows qualification.
+
+Run from `api/` after confirming the managed driver is idle:
+
+```bash
+node cmd/resource-budget-cohort/qualification.mjs
+```
+
+The wrapper and raw sample are retained in ignored
+`.vrooli/runtime/rehabilitation-evidence/`. Keeping generated owner outputs out
+of `docs/` prevents evidence creation from changing the authored source identity
+that the receipt records. The
+provider checks all sample counts, duration, per-sample idle state, recomputed
+PSS and CPU aggregates, fixture process totals, cleanup, source/build identity,
+Windows status and artifact digest. A passing owner is necessary but not
+sufficient: run only the exact `rehabilitation-evidence` phase to qualify the
+row on that candidate.
+
+### Motion owner receipt
+
+Run from the repository root against a healthy managed BAS build:
+
+```bash
+node scenarios/browser-automation-studio/api/cmd/motion-cohort/qualification.mjs
+```
+
+The owner runs the focused UI one-active/newest-pending decoder regression,
+focused Go relay, driver-settings JSON and API response regressions, and a
+managed API-to-viewer cohort. The driver/API wire keeps fractional `current_fps`
+values so a capture shortfall remains observable. The
+live fixture changes a 16-bit visual marker at 30 FPS. Its five-minute baseline
+requires at least 9,000 rendered and unique fixture frames, p95 frame age at
+most 100 ms, p95 decode at most 100 ms, maximum decode at most 250 ms, and frame
+payloads no larger than 12 MiB plus 4 KiB. A separate 18-second slow-viewer
+cohort adds 250 ms main-thread stalls every five seconds and an 80 ms decode
+delay; it requires one active decode, fewer decoded/rendered frames than frames
+received, frame age at most one second, and viewer/Go-relay byte queues within
+the same frame-size ceiling. The receipt binds current sources and managed
+build identity, plus hashes of the frame samples and combined owner logs.
+
+Run only the exact `rehabilitation-evidence` phase after the motion owner and
+all other current-build receipts pass. The setpoint reader consumes its
+provider-owned `motion` standing. The intentional slow-reader delay measures BAS
+viewer decode/backlog behavior; it does not qualify a remote network or native
+device.
+
+### Profile-durability owner receipt
+
+Run the seed and verify stages from `api/` using one new ignored evidence
+directory. The seed stage creates two synthetic profiles and closes its driver
+sessions. Confirm `/observability/sessions` reports zero active sessions before
+the managed restart; then restart BAS, run verify, and assemble the provider
+wrapper from the two stage receipts:
+
+```bash
+node cmd/profile-durability-cohort/qualification.mjs seed ../.vrooli/runtime/rehabilitation-evidence/profile-durability-<run-id>
+make -C .. restart
+node cmd/profile-durability-cohort/qualification.mjs verify ../.vrooli/runtime/rehabilitation-evidence/profile-durability-<run-id>
+node cmd/profile-durability-cohort/qualification.mjs assemble ../.vrooli/runtime/rehabilitation-evidence/profile-durability-<run-id>
+```
+
+Use a new `<run-id>` for each cohort. `assemble` fails closed unless both stage
+receipts pass, match the current harness and contract, and have the same build
+identity as the live API. It writes the provider receipt one directory above
+the stage receipts. This binds seed, managed restart, recovery and cleanup into
+one repeatable owner without manually composing receipt JSON.
+
+### Evidence-completeness owner receipt
+
+The focused artifact-integrity owner checks that a required screenshot write
+failure remains explicit, inline console/network artifacts remain attributable
+and byte-hashed when optional snapshot storage fails, missing or failed external
+video/trace stores are not acknowledged, and active evidence cannot be deleted
+during export. It runs only four named Go tests and retains their `go test -json`
+output with source, contract and managed-build digests:
+
+```bash
+node scenarios/browser-automation-studio/api/cmd/evidence-completeness-cohort/qualification.mjs
+```
+
+Run it against a healthy managed BAS after candidate startup. The receipt and
+raw test logs go under the ignored `.vrooli/runtime/rehabilitation-evidence/`
+directory. The provider verifies every named pass event, raw-log SHA-256,
+required source digest and live build; it does not infer a pass from the test
+command's exit status alone. As with the other owner receipts, run only the
+exact `rehabilitation-evidence` phase to qualify this row.
+
+### Passive-fidelity owner receipts
+
+The passive-fidelity receipt join requires three focused owners: the managed
+10,000-action Playwright/API journal test, the recording-service process-death
+and same-ID reconnect test, and three selected browser-semantics cases. Each
+receipt binds the contract and exact owner-source digests; the managed owner
+also binds the live BAS build and proves routed temporary storage with zero
+primary-pool requests. The provider rejects missing or stale digests and raw
+owner artifacts whose SHA256 does not match.
+
+Run the managed Chromium-to-journal owner from `playwright-driver/`:
+
+```bash
+BAS_REHAB_LIVE_API_BASE=http://127.0.0.1:17116 BAS_PASSIVE_FIDELITY_RECEIPT=.vrooli/runtime/rehabilitation-evidence/passive-fidelity-managed-current.json pnpm exec jest tests/integration/saved-workflow-fresh-context.test.ts --runInBand --coverage=false --silent=false --testNamePattern='persists 10000 native fixture clicks through the managed API journal'
+```
+
+Run the crash/reconnect and browser-semantics owners from their owning
+directories with observation output enabled:
+
+```bash
+cd api && BAS_PASSIVE_FIDELITY_CRASH_OBSERVATION=/absolute/path/to/.vrooli/runtime/rehabilitation-evidence/passive-fidelity-crash-current.json GOTOOLCHAIN=local GOPROXY=off go test ./services/recording -run '^TestJournalSameIDRetryRecoversAcrossServiceProcessDeath$' -count=1
+cd ../playwright-driver && BAS_PASSIVE_FIDELITY_SEMANTICS_OBSERVATIONS=.vrooli/runtime/rehabilitation-evidence/passive-fidelity-semantics-current.jsonl pnpm exec jest tests/integration/pipeline-e2e.test.ts --runInBand --coverage=false --silent=false --testNamePattern='should capture all core event types in single session|should capture navigation events|should continue capturing events after navigation'
+```
+
+After those three owners pass and write their raw observations, assemble the
+provider receipts once for that tag and live build:
+
+```bash
+node api/cmd/passive-fidelity-cohort/qualification.mjs assemble <tag> <live-build-identity>
+```
+
+The assembler checks the managed build and 10,000 ordered effects, crash/retry
+invariants, all three semantics cases, exact current source and contract hashes,
+and raw artifact hashes. It writes new `*-assembled.json` wrappers and refuses
+missing inputs or overwriting retained wrappers. Use a fresh tag per owner run;
+the assembler does not rerun the browser or Go tests. Run only the exact
+`rehabilitation-evidence` phase after the three owner runs and assembly pass.
+
+The current wrappers and raw artifacts live under
+`.vrooli/runtime/rehabilitation-evidence/` and include each raw artifact
+path/hash plus contract/source digests. The
+`rehabilitation-evidence` provider phase validates passive fidelity together
+with profile durability and cancellation/recovery; run only that phase after
+refreshing all build-bound receipts. The provider's per-capability clean L1
+standing, not the aggregate phase exit alone, is what the governed setpoint
+reads. On 2026-09-24, run `20260924-223631-06f03747` passed all three at L1/clean
+on build `sha256:a74ff8db5ab1a9d5346a721a2df458d83ab0c985e8ea559fb935faa6651a88eb`.
+This evidence does not cover managed browser/driver process loss or every
+supported event kind.
+
+### Cancellation/recovery owner receipt
+
+J07 requires its own BAS fixture receipt at
+`.vrooli/runtime/rehabilitation-evidence/cancellation-recovery-*.json`. The
+focused orchestrator now joins four measured Go/Playwright owners with a
+managed API-restart owner, then the fail-closed assembler validates and writes
+the receipt. A provider phase is still required to qualify J07. The receipt must
+carry the contract digest, source-file digests, managed API
+build identity, and observations for `cancellation`, `timeout`, `driverDeath`,
+`apiRestart`, and `retriedStart`. Each observation records whether it was
+observed and passed, external effect count, terminal status, live resources
+before/after cleanup, accepted-input stop time, cleanup time, recovery time,
+uncertain-effect state, and retry admission. Its oracle uses the fixture's
+independent action log and resource counter, never the product's own emitted
+events as the expected count.
+
+The API executor now has focused in-process HTTP fault tests for a live
+instruction timeout and driver-listener death. They assert an independent
+single-effect counter, non-retryable uncertain failure, session cleanup on
+timeout, and process-owned resource release on driver death. The workflow
+service test additionally verifies accepted cancellation stops the live driver
+input within1s and waits for session cleanup; the recovery-service test checks
+that a persisted running execution becomes terminal after restart. Run only
+these owner tests from `api/`:
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off go test -race -timeout 30s ./services/workflow ./services/recovery ./automation/executor -run '^(TestStopExecutionRetainsUncertainOutcomeAndJoinsLeasedDriverClose|TestExecuteTimeoutDuringLiveInstructionClosesSessionWithoutReplay|TestExecuteDriverDeathRetainsUncertainEffectWithoutReplay|TestRecoverInterruptedExecutions_MarksInterrupted)$' -count=1
+```
+
+The driver owner tests use real Chromium for retry admission and cancellation
+while an action is active. The session-manager unit tests verify repeated and
+concurrent starts with one `execution_id` return the same session:
+
+```bash
+pnpm exec jest tests/integration/typed-action-semantics.test.ts --runInBand --testNamePattern='close keeps a completed click uncertain while denying retry admission|close interrupts a pending browser wait and retains an uncertain receipt'
+pnpm exec jest tests/unit/idempotency/session-idempotency.test.ts --runInBand --testNamePattern='should return same session when called twice with same execution_id|should handle concurrent requests with same execution_id'
+```
+
+These focused owners do not alone create the five-case retained receipt. The
+maintained orchestrator runs the exact Go and selected Playwright owners, then
+the loopback restart owner and receipt assembler. Generated payloads are stored
+under the scenario's ignored `.vrooli/runtime/rehabilitation-evidence/`
+directory and exposed through links in the documented evidence directory; this
+keeps newly measured evidence from changing the managed source identity it
+records. The provider verifies payload hashes, source/contract identity and the
+live build before assigning capability maturity.
+
+The receipt validator now binds every Go and Playwright owner test listed for
+these cases, in addition to their implementation sources. Its focused race
+tests check that every listed source digest is enforced:
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off go test -race ./internal/cancellationqualification ./handlers/profilevalidation -count=1
+```
+
+`rehabilitation-evidence` is the exact Test Genie provider phase for the
+current-candidate owner receipts. It validates evidence-completeness,
+resource-budget, passive-fidelity, profile-durability and cancellation-recovery receipts against the live
+build and source/contract digests. Its persisted Phase Capability presentation is the owner assessment
+for each capability. The governed setpoint reads that presentation with
+`test-genie runs findings` and checks each capability independently: only its
+own clean L1 standing qualifies its row. Therefore an overall phase failure
+caused by missing J07 evidence does not erase a separately verified profile
+capability, and a passing profile capability cannot promote cancellation
+recovery. The setpoint also requires capture and owner assessment to match the
+live managed BAS build. Running the phase does not replace the focused tests or
+produce their owner receipt. On 2026-09-24, run
+`20260924-112014-c3770cf6` passed this phase at L1/Verified for both profile
+durability and cancellation/recovery; the current overall setpoint remains
+incomplete because 14 other rows have no current telemetry.
+
+The phase name comes from BAS's `.vrooli/test-genie.json` descriptor. After a
+descriptor change, restart the managed Test Genie scenario with
+`vrooli scenario restart test-genie` before checking applicability or starting
+a run; a running service can retain a stale catalog and disagree with the CLI.
+
+The status binding's typed projection must preserve `build_identity` in both
+its scenario and runtime objects. A focused regression covers that conversion:
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off go test ./internal/api -run '^TestScenarioStatusPreservesManagedBuildIdentityAcrossTypedProjection$' -count=1
+```
+
+The running root API must load that projection change before the setpoint can
+join the live status identity. BAS has no root-API scenario lifecycle target;
+until its owning project lifecycle refreshes the server, a missing identity is
+reported unavailable rather than inferred from the CLI or receipt.
+
+`refactor_contract.py` validates preparation and returns no product verdict;
+the setpoint reads required outcomes; `refactor_inventory.py` measures source
+size, not complexity. Use only the file responsibilities above. Test Genie and
+platform owners retain their receipts; the progress file links those receipts
+and owns the checkpoint. Do not create a second issue register or a replacement
+tracking application.
 
 ### Producer and oracle contract
 
@@ -217,6 +454,15 @@ probe or a stubbed I/O reproduction alone does not qualify the full journey.
 | J23 | Measured FPS, quality, headers and current frame after reconnect on a stable page; unsupported controls explicit | Stream/UI performance suites |
 | J24 | Public CLI assertion enforcement plus primitive/map/struct/pointer typed outcome round-trips including failure/attempt identity | CLI-core/API/driver public contract tests |
 
+RF-026's profile-scoped live routing guard has a focused owner regression. It
+keeps multiple active sessions bound, rejects profile-only live operations
+when that binding is ambiguous, and proves no service-worker or navigation
+driver call is dispatched. From `api/`, run only the two affected packages:
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off go test -race -timeout 60s ./services/session-profile ./handlers/recordings -count=1
+```
+
 Each journey's full Given/When/Then statement, owning roots and phase mapping is
 in the contract. All 24 requirements start `planned`, with empty validation lists
 where a complete behavioral test does not exist. Add exact real test references
@@ -238,6 +484,27 @@ cohorts. Publish denominators, first attempts, retries, quantiles and confidence
 intervals. No discarded failures, arbitrary idle sleeps, smaller workloads or
 changed screenshot fidelity to improve a result. Apply the contract's 5% relative
 regression rule only when repeated comparable trials distinguish it from noise.
+
+### Interactive-feedback local owner
+
+The current local owner correlates 1,000 recording inputs with applied receipts
+and the corresponding viewer-canvas pixels. Run only this case from
+`playwright-driver/`; set `BAS_REHAB_RECEIPT_PATH` to retain its complete sample
+set, contract and test-source hashes, and managed API build identity:
+
+```bash
+BAS_REHAB_LIVE_API_BASE=http://127.0.0.1:17116/api/v1 \
+BAS_REHAB_LIVE_UI_BASE=http://127.0.0.1:21794 \
+BAS_REHAB_LIVE_SAMPLE_COUNT=1000 \
+BAS_REHAB_RECEIPT_PATH=../.vrooli/runtime/rehabilitation-evidence/interactive-feedback-local-<run-id>.json \
+pnpm exec jest tests/integration/input-feedback.test.ts --runInBand --coverage=false \
+  --testNamePattern='correlates live UI inputs with applied receipts and viewer-canvas pixels'
+```
+
+The output path is restricted to the ignored rehabilitation-evidence directory.
+The receipt is local diagnostic evidence: the outcome remains unqualified until
+the separate remote p95 cohort and governed sensor are present. Do not infer the
+remote band from the loopback result.
 
 Long soaks and native matrices are scheduled once after their affected paths
 stabilize. Focused regressions and relevant Test Genie phases govern iterations:

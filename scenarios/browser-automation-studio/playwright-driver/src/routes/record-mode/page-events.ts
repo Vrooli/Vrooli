@@ -44,7 +44,8 @@ const PAGE_EVENT_TIMEOUT_MS = 5_000;
 export async function sendPageEvent(
   sessionId: string,
   callbackUrl: string,
-  event: DriverPageEvent
+  event: DriverPageEvent,
+  routedTestMode = false
 ): Promise<void> {
   // Check if we should attempt half-open (atomically claims the attempt)
   const attemptHalfOpen = pageEventCircuitBreaker.tryEnterHalfOpen(sessionId);
@@ -67,6 +68,7 @@ export async function sendPageEvent(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(routedTestMode ? { 'X-Vrooli-Test-Mode': '1' } : {}),
       },
       body: JSON.stringify(event),
       signal: controller.signal,
@@ -110,9 +112,12 @@ export function setupPageLifecycleListeners(
   sessionId: string,
   session: ReturnType<SessionManager['getSession']>,
   pageCallbackUrl: string,
-  config: Config
+  config: Config,
+  routedTestMode = false
 ): { cleanup: () => void; ready: Promise<void> } {
   const context = session.context;
+  const send = (event: DriverPageEvent): Promise<void> =>
+    sendPageEvent(sessionId, pageCallbackUrl, event, routedTestMode);
   const listeners = new Map<Page, () => void>();
   let active = true;
   const reportError = (error: unknown): void => {
@@ -120,9 +125,9 @@ export function setupPageLifecycleListeners(
       sessionId, error: error instanceof Error ? error.message : String(error),
     });
   };
-  const event = (pageId: string, eventType: DriverPageEvent['eventType'], url = '', title = '', faviconUrl?: string): DriverPageEvent => ({
+  const event = (pageId: string, eventType: DriverPageEvent['eventType'], url = '', title = '', faviconUrl?: string, timestamp = new Date().toISOString()): DriverPageEvent => ({
     sessionId, driverPageId: pageId, vrooliPageId: '', eventType, url, title, faviconUrl,
-    timestamp: new Date().toISOString(),
+    timestamp,
   });
 
   const attach = (page: Page, pageId: string, admitted = Promise.resolve(true)): (() => void) | undefined => {
@@ -136,7 +141,7 @@ export function setupPageLifecycleListeners(
       if (!owns() || page.url() !== url) return;
       const [title, faviconUrl] = await Promise.all([page.title().catch(() => ''), readFaviconUrl(page)]);
       if (!owns() || page.url() !== url) return;
-      await sendPageEvent(sessionId, pageCallbackUrl, event(pageId, 'navigated', url, title, faviconUrl));
+      await send(event(pageId, 'navigated', url, title, faviconUrl));
       if (!owns()) return;
       const thumbnail = config.history.thumbnailEnabled
         ? await captureThumbnail(page, config.history.thumbnailQuality)
@@ -148,7 +153,7 @@ export function setupPageLifecycleListeners(
       detach();
       unregisterRecordingPage(session, page);
       if (!await admitted || !active) return;
-      await sendPageEvent(sessionId, pageCallbackUrl, event(pageId, 'closed'));
+      await send(event(pageId, 'closed'));
     };
     const onNavigate = (frame: Frame) => navigate(frame).catch(reportError);
     const onClose = () => close().catch(reportError);
@@ -165,6 +170,7 @@ export function setupPageLifecycleListeners(
 
   const newPage = async (page: Page): Promise<void> => {
     if (!active) return;
+    const createdAt = new Date().toISOString();
     const pageId = registerRecordingPage(session, page);
     let settle!: (published: boolean) => void;
     const admitted = new Promise<boolean>((resolve) => { settle = resolve; });
@@ -174,13 +180,10 @@ export function setupPageLifecycleListeners(
     try {
       const opener = await page.opener();
       if (!active) return;
-      await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
       if (!active || page.isClosed()) return;
       const url = page.url();
-      const [title, faviconUrl] = await Promise.all([page.title().catch(() => ''), readFaviconUrl(page)]);
-      if (!active || page.isClosed()) return;
-      await sendPageEvent(sessionId, pageCallbackUrl, {
-        ...event(pageId, 'created', url, title, page.url() === url ? faviconUrl : undefined),
+      await send({
+        ...event(pageId, 'created', url, '', undefined, createdAt),
         openerDriverPageId: opener ? session.pageToIdMap.get(opener) : undefined,
       });
       published = true;
@@ -200,7 +203,7 @@ export function setupPageLifecycleListeners(
     const url = initialPage.url();
     const [title, faviconUrl] = await Promise.all([initialPage.title().catch(() => ''), readFaviconUrl(initialPage)]);
     if (active && listeners.has(initialPage) && initialPage.url() === url) {
-      await sendPageEvent(sessionId, pageCallbackUrl, event(initialId, 'initial', url, title, faviconUrl));
+      await send(event(initialId, 'initial', url, title, faviconUrl));
     }
   })();
   void ready.catch(reportError);

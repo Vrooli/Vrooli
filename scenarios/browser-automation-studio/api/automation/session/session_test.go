@@ -128,7 +128,7 @@ func TestSession_ForwardInput_RejectsExecutionMode(t *testing.T) {
 		mode: ModeExecution,
 	}
 
-	err := sess.ForwardInput(context.Background(), []byte("{}"))
+	_, err := sess.ForwardInput(context.Background(), []byte("{}"))
 	if err == nil {
 		t.Error("expected error when forwarding input in execution mode")
 	}
@@ -323,7 +323,7 @@ func TestSession_HybridMode_AllowsRunAndForwardInput(t *testing.T) {
 	}
 
 	// Hybrid mode should allow ForwardInput (doesn't reject like execution mode)
-	fwdErr := sess.ForwardInput(context.Background(), []byte("{}"))
+	_, fwdErr := sess.ForwardInput(context.Background(), []byte("{}"))
 	if fwdErr != nil && strings.Contains(fwdErr.Error(), "execution-only mode") {
 		t.Error("hybrid mode should not reject ForwardInput operations")
 	}
@@ -1454,7 +1454,8 @@ func TestSession_ForwardInputCarriesOwnership(t *testing.T) {
 		if input["type"] != "pointer" || input["action"] != "click" || input["x"] != float64(12) {
 			t.Errorf("input payload changed: %v", input)
 		}
-		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok", "applied_sequence": 1, "coalesced_count": 0})
 	}))
 	defer srv.Close()
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
@@ -1462,7 +1463,7 @@ func TestSession_ForwardInputCarriesOwnership(t *testing.T) {
 		t.Fatal(err)
 	}
 	sess := &Session{id: "input-session", executionID: "input-owner", leaseID: "input-lease", mode: ModeRecording, client: client}
-	if err := sess.ForwardInput(context.Background(), []byte(`{"type":"pointer","action":"click","x":12}`)); err != nil {
+	if _, err := sess.ForwardInput(context.Background(), []byte(`{"type":"pointer","action":"click","x":12}`)); err != nil {
 		t.Fatal(err)
 	}
 }

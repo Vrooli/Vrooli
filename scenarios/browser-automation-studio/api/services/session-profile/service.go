@@ -177,6 +177,8 @@ func (s *Service) UpdateBrowserProfile(id persistence.ProfileID, browserProfile 
 
 var ErrSessionBindingChanged = errors.New("session profile binding changed during capture; retry with the current session")
 
+var ErrAmbiguousProfileSession = errors.New("profile-scoped live operation requires exactly one active browser session")
+
 // PersistSessionState serializes complete browser snapshots for one active
 // binding. Detach/replacement invalidates any capture still awaiting browser I/O.
 func (s *Service) PersistSessionState(ctx context.Context, sessionID string, capture func(context.Context, string) (*persistence.SessionEndState, error)) error {
@@ -220,6 +222,9 @@ func (s *Service) persistSessionState(ctx context.Context, sessionID string, cap
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if err := r.validateCaptureBinding(sessionID, binding, automatic); err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 	_, err = s.UpdateProfile(persistence.ProfileID(binding.profileID), func(profile *persistence.SessionProfile) error {
@@ -475,9 +480,10 @@ func (s *Service) ClearActiveSession(browserSessionID string) string {
 	return profileID
 }
 
-// GetSessionForProfile returns the browser session ID associated with a profile.
-func (s *Service) GetSessionForProfile(profileID string) string {
-	return s.sessions.GetByProfile(profileID)
+// ResolveSessionForProfile returns a live browser only when the profile has a
+// unique active binding. Profile-scoped operations must not choose arbitrarily.
+func (s *Service) ResolveSessionForProfile(profileID string) (string, error) {
+	return s.sessions.ResolveByProfile(profileID)
 }
 
 // ClearSessionsForProfile removes all browser session associations for a given profile.
@@ -570,16 +576,22 @@ func (r *ActiveSessionRegistry) Get(browserSessionID string) string {
 	return ""
 }
 
-// GetByProfile returns the browser session ID for a profile (reverse lookup).
-func (r *ActiveSessionRegistry) GetByProfile(profileID string) string {
+// ResolveByProfile returns a session only when exactly one active binding
+// matches. Multiple bindings remain registered, but profile-scoped live calls
+// must not select one by map iteration order.
+func (r *ActiveSessionRegistry) ResolveByProfile(profileID string) (string, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for sessionID, binding := range r.sessions {
+	foundSessionID := ""
+	for candidateSessionID, binding := range r.sessions {
 		if binding.profileID == profileID {
-			return sessionID
+			if foundSessionID != "" {
+				return "", ErrAmbiguousProfileSession
+			}
+			foundSessionID = candidateSessionID
 		}
 	}
-	return ""
+	return foundSessionID, nil
 }
 
 // Clear removes the association for a browser session.

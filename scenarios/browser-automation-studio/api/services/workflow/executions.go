@@ -422,10 +422,12 @@ func (s *WorkflowService) startExecutionRunnerWithOptions(parent context.Context
 	// correctness boundary. Rebuild a background context with that one durable
 	// execution attribute instead of retaining the request cancellation chain.
 	ctx, cancel := context.WithCancel(detachedExecutionContext(parent))
-	s.storeExecutionCancel(executionID, cancel)
 	completion := make(chan struct{})
+	s.storeExecutionCancel(executionID, cancel, completion)
 	go func() {
-		defer close(completion)
+		defer func() {
+			close(completion)
+		}()
 		if err := s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, browserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError); err != nil && s.log != nil {
 			s.log.WithError(err).WithField("execution_id", executionID).Warn("Execution did not complete successfully")
 		}
@@ -734,11 +736,11 @@ func (s *WorkflowService) finalizeExecution(ctx context.Context, execIndex *data
 	return nil
 }
 
-func (s *WorkflowService) storeExecutionCancel(executionID uuid.UUID, cancel context.CancelFunc) {
+func (s *WorkflowService) storeExecutionCancel(executionID uuid.UUID, cancel context.CancelFunc, done <-chan struct{}) {
 	if s == nil {
 		return
 	}
-	s.executionCancels.Store(executionID, cancel)
+	s.executionCancels.Store(executionID, executionControl{cancel: cancel, done: done})
 }
 
 func (s *WorkflowService) cancelExecutionByID(executionID uuid.UUID) {
@@ -746,8 +748,8 @@ func (s *WorkflowService) cancelExecutionByID(executionID uuid.UUID) {
 		return
 	}
 	if value, ok := s.executionCancels.Load(executionID); ok {
-		if cancel, ok := value.(context.CancelFunc); ok && cancel != nil {
-			cancel()
+		if control, ok := value.(executionControl); ok && control.cancel != nil {
+			control.cancel()
 		}
 	}
 	s.executionCancels.Delete(executionID)
@@ -757,9 +759,36 @@ func (s *WorkflowService) StopExecution(ctx context.Context, executionID uuid.UU
 	if s == nil {
 		return errors.New("workflow service not configured")
 	}
-	_ = ctx
-	s.cancelExecutionByID(executionID)
-	return nil
+	value, ok := s.executionCancels.Load(executionID)
+	if !ok {
+		if s.repo == nil {
+			return fmt.Errorf("execution %s has no local cancellation owner", executionID)
+		}
+		execution, err := s.repo.GetExecution(ctx, executionID)
+		if err != nil {
+			return fmt.Errorf("check execution %s before acknowledging stop: %w", executionID, err)
+		}
+		if execution != nil && (execution.Status == database.ExecutionStatusPending || execution.Status == database.ExecutionStatusRunning) {
+			return fmt.Errorf("execution %s is %s but this API process has no cancellation owner", executionID, execution.Status)
+		}
+		return nil
+	}
+	control, ok := value.(executionControl)
+	if !ok {
+		return errors.New("execution cancellation state is invalid")
+	}
+	if control.cancel != nil {
+		control.cancel()
+	}
+	if control.done == nil {
+		return nil
+	}
+	select {
+	case <-control.done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // executionOutcome preserves successful completion in a stop race and uses

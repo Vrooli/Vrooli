@@ -235,6 +235,28 @@ export interface UseTimelineEntry {
 }
 
 /**
+ * Restore BAS logical page identity onto driver actions before generation.
+ * The driver owns driverPageId; the persisted timeline owns the session-local
+ * pageId used by workflows. Action IDs are the shared capture identity.
+ */
+export function attachTimelinePageIdentities(
+  actions: RecordedAction[],
+  entries: UseTimelineEntry[]
+): RecordedAction[] {
+  const pageIdsByActionId = new Map<string, string>();
+  for (const entry of entries) {
+    if (entry.type === 'action' && entry.action && entry.pageId) {
+      pageIdsByActionId.set(entry.action.id, entry.pageId);
+    }
+  }
+
+  return actions.map((action) => {
+    const pageId = pageIdsByActionId.get(action.id);
+    return pageId ? { ...action, pageId } : action;
+  });
+}
+
+/**
  * Convert a useTimeline TimelineEntry to a TimelineItem.
  * Handles both action entries and page event entries.
  * This is for entries from the /timeline API endpoint (useTimeline hook).

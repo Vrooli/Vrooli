@@ -25,15 +25,18 @@ function evaluate(relativePath, mocks = {}) {
 }
 const coordinates = evaluate('ui/src/domains/recording/utils/coordinateMapping.ts');
 const { useInputForwarding } = evaluate('ui/src/domains/recording/capture/useInputForwarding.ts', {
-  react: { useCallback: fn => fn, useRef: initial => ({ current: initial }) },
+  react: { useCallback: fn => fn, useRef: initial => ({ current: initial }), useEffect: () => {} },
   '@/config': { getConfig: async () => { throw new Error('Unexpected HTTP fallback'); } },
-  '@/contexts/WebSocketContext': { useWebSocket: () => ({ isConnected: true, send: message => messages.push(message) }) },
+  '@/contexts/WebSocketContext': {
+    useWebSocket: () => ({ isConnected: true, send: message => messages.push(message) }),
+    useWebSocketMessage: () => {},
+  },
   '../utils/coordinateMapping': coordinates,
 });
 const hook = useInputForwarding({ sessionId: 'synthetic-session', pageId: 'synthetic-page', viewport: { width: 800, height: 600 }, frameDimensions: { width: 800, height: 600 } });
 hook.setWsSubscribed(true);
 const observations = [];
-const event = overrides => ({ key: 'a', altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, preventDefault() {}, stopPropagation() {}, ...overrides });
+const event = overrides => ({ key: 'a', altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, nativeEvent: { isComposing: false }, clientX: 100, clientY: 200, button: 0, preventDefault() {}, stopPropagation() {}, ...overrides });
 for (const [name, input, modifier] of [
   ['control-a', { key: 'a', ctrlKey: true }, 'Control'],
   ['command-c', { key: 'c', metaKey: true }, 'Meta'],
@@ -45,11 +48,12 @@ for (const [name, input, modifier] of [
 }
 hook.handleKey(event({ key: 'x' }), true);
 observations.push({ id: 'plain-text-control', expected: 'Ordinary printable text remains x', actual: messages.at(-1), expected_behavior_met: messages.at(-1).input.text === 'x' });
+observations.push({ id: 'input-id', expected: 'Every forwarded input has a stable retry ID', actual: messages.at(-1), expected_behavior_met: typeof messages.at(-1).input.input_id === 'string' && messages.at(-1).input.input_id.length > 0 });
 hook.handleKey(event({ key: 'Tab', shiftKey: true }), true);
 observations.push({ id: 'special-shortcut-control', expected: 'Shift-Tab retains its modifier', actual: messages.at(-1), expected_behavior_met: messages.at(-1).input.modifiers.includes('Shift') });
 hook.handlePointer('down', event({ clientX: 100, clientY: 200, button: 0, shiftKey: true }), { left: 0, top: 0, width: 800, height: 600 }, true);
 observations.push({ id: 'shift-pointer-down', expected: 'Modified pointer input retains modifier state', actual: messages.at(-1), expected_behavior_met: messages.at(-1).input.modifiers?.includes('Shift') === true });
 const beforeComposition = messages.length;
-hook.handleKey(event({ key: 'Process', isComposing: true }), true);
+hook.handleKey(event({ key: 'Process', nativeEvent: { isComposing: true } }), true);
 observations.push({ id: 'composition-keydown', expected: 'Composition bookkeeping is not forwarded as a standalone browser key command', actual: messages.slice(beforeComposition), expected_behavior_met: messages.length === beforeComposition });
 console.log(JSON.stringify({ schema_version: 1, observed_at: new Date().toISOString(), scope: 'actual hook/coordinate logic; synthetic React hooks and WebSocket sink; OS/browser effects not tested', results: observations }, null, 2));

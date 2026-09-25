@@ -249,15 +249,15 @@ type UpdateStreamSettingsRequest struct {
 
 // UpdateStreamSettingsResponse is the response after updating stream settings.
 type UpdateStreamSettingsResponse struct {
-	SessionID    string `json:"session_id"`
-	Quality      int    `json:"quality"`
-	FPS          int    `json:"fps"`
-	CurrentFPS   int    `json:"current_fps"`
-	Scale        string `json:"scale"`
-	IsStreaming  bool   `json:"is_streaming"`
-	Updated      bool   `json:"updated"`
-	ScaleWarning string `json:"scale_warning,omitempty"`
-	PerfMode     bool   `json:"perf_mode"`
+	SessionID    string  `json:"session_id"`
+	Quality      int     `json:"quality"`
+	FPS          int     `json:"fps"`
+	CurrentFPS   float64 `json:"current_fps"`
+	Scale        string  `json:"scale"`
+	IsStreaming  bool    `json:"is_streaming"`
+	Updated      bool    `json:"updated"`
+	ScaleWarning string  `json:"scale_warning,omitempty"`
+	PerfMode     bool    `json:"perf_mode"`
 }
 
 // =============================================================================

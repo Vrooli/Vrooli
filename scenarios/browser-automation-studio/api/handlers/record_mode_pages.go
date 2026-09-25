@@ -216,6 +216,7 @@ func (h *Handler) ReceivePageEvent(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "driverPageId"}))
 		return
 	}
+	occurredAt := driverPageEventTime(event.Timestamp)
 
 	sess, ok := h.recordModeService.GetSession(sessionID)
 	if !ok {
@@ -240,7 +241,7 @@ func (h *Handler) ReceivePageEvent(w http.ResponseWriter, r *http.Request) {
 			openerID = pages.GetPageIDByDriverID(event.OpenerDriverPageID)
 		}
 
-		observed := &domain.Page{URL: event.URL, Title: event.Title, OpenerID: openerID, DriverPageID: event.DriverPageID}
+		observed := &domain.Page{URL: event.URL, Title: event.Title, OpenerID: openerID, DriverPageID: event.DriverPageID, CreatedAt: occurredAt}
 		if event.FaviconURL != nil {
 			observed.FaviconURL = *event.FaviconURL
 		}
@@ -263,7 +264,7 @@ func (h *Handler) ReceivePageEvent(w http.ResponseWriter, r *http.Request) {
 			Title:      event.Title,
 			FaviconURL: event.FaviconURL,
 			OpenerID:   openerID,
-			Timestamp:  time.Now(),
+			Timestamp:  occurredAt,
 		}
 
 		h.log.WithFields(map[string]interface{}{
@@ -286,7 +287,7 @@ func (h *Handler) ReceivePageEvent(w http.ResponseWriter, r *http.Request) {
 				URL:        event.URL,
 				Title:      event.Title,
 				FaviconURL: event.FaviconURL,
-				Timestamp:  time.Now(),
+				Timestamp:  occurredAt,
 			}
 
 			h.log.WithFields(map[string]interface{}{
@@ -300,7 +301,7 @@ func (h *Handler) ReceivePageEvent(w http.ResponseWriter, r *http.Request) {
 		vrooliPageID := pages.GetPageIDByDriverID(event.DriverPageID)
 		if vrooliPageID != nil {
 			var err error
-			pageEvent, err = pages.ClosePage(*vrooliPageID)
+			pageEvent, err = pages.ClosePageAt(*vrooliPageID, occurredAt)
 			if err != nil {
 				h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{"error": err.Error()}))
 				return
@@ -326,6 +327,13 @@ func (h *Handler) ReceivePageEvent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func driverPageEventTime(value string) time.Time {
+	if parsed, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(value)); err == nil {
+		return parsed
+	}
+	return time.Now()
 }
 
 // GetRecordingTimeline handles GET /api/v1/recordings/live/{sessionId}/timeline

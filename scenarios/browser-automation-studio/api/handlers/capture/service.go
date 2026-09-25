@@ -140,11 +140,7 @@ func (s *service) Capture(
 
 	releaseEvidence := retention.BeginEvidenceActivity(filepath.Clean(outDir))
 	defer releaseEvidence()
-	inlineExpression := s.deps.InlineDom.Expression
-	if msg.GetInlineDomTree() {
-		inlineExpression = defaultInlineDomTreeExpression
-	}
-	adhocReq, domNodeID, err := buildAdhocRequest(resolvedURL, msg, width, height, inlineExpression)
+	adhocReq, domNodeIDs, err := buildAdhocRequest(resolvedURL, msg, width, height, s.deps.InlineDom.Expression)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -226,14 +222,47 @@ func (s *service) Capture(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("harvest artifacts: %w", err))
 	}
-	// Producers harvest files from the capture bundle. Publish those files
-	// through BAS storage as well so downstream consumers receive a durable,
-	// browser-openable URL instead of only the internal bas-capture:// id.
+	// Inline DOM is best-effort: a failed in-page read degrades to an empty
+	// dom_html (documented on the proto field) rather than failing a capture
+	// whose other artifacts are already on disk.
+	domHTML := ""
+	domTreeJSON := ""
+	domHTMLTruncated := false
+	domTreeTruncated := false
+	if domNodeIDs.html != "" {
+		inlineDom := s.deps.InlineDom
+		domHTML, domHTMLTruncated, err = inlineDom.readInlineDom(executionOutDir, domNodeIDs.html)
+		if err != nil && s.deps.Logger != nil {
+			s.deps.Logger.WithError(err).Warn("capture: inline DOM read failed")
+		}
+	}
+	if domNodeIDs.tree != "" {
+		treeReader := s.deps.InlineDom
+		treeReader.Expression = defaultInlineDomTreeExpression
+		treeReader.MaxBytes = 16 << 20
+		domTreeJSON, domTreeTruncated, err = treeReader.readInlineDom(executionOutDir, domNodeIDs.tree)
+		if err != nil && s.deps.Logger != nil {
+			s.deps.Logger.WithError(err).Warn("capture: inline DOM-tree read failed")
+		}
+	}
+	if slices.Contains(captures, capturev1.CaptureType_CAPTURE_TYPE_DOM) && domHTML != "" {
+		if err := publishInlineArtifact(executionOutDir, artifacts, capturev1.CaptureType_CAPTURE_TYPE_DOM, domHTML, domHTMLTruncated); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("write DOM artifact: %w", err))
+		}
+	}
+	if (slices.Contains(captures, capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE) || msg.GetInlineDomTree()) && domTreeJSON != "" {
+		if err := publishInlineArtifact(executionOutDir, artifacts, capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE, domTreeJSON, domTreeTruncated); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("write DOM-tree artifact: %w", err))
+		}
+	}
+	// Materialize DOM outputs before publication so generated files receive the
+	// same durable storage URLs and manifest treatment as executor exports.
+	attachArtifactReferences(execID, artifacts)
 	for _, artifact := range artifacts {
 		if s.deps.Storage == nil {
 			break
 		}
-		if artifact == nil || artifact.GetPath() == "" || artifact.GetMetadata()["unavailable_reason"] != "" {
+		if artifact == nil || artifact.GetPath() == "" || artifact.GetMetadata()["unavailable"] == "true" {
 			continue
 		}
 		contentType := mime.TypeByExtension(filepath.Ext(artifact.GetPath()))
@@ -256,45 +285,17 @@ func (s *service) Capture(
 		artifact.Metadata["view_url"] = stored.URL
 		artifact.Metadata["content_type"] = stored.ContentType
 	}
-	attachArtifactReferences(execID, artifacts)
 	if err := writeCaptureArtifactSummary(executionOutDir, artifacts); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("write capture artifact summary: %w", err))
 	}
 
-	// Inline DOM is best-effort: a failed in-page read degrades to an empty
-	// dom_html (documented on the proto field) rather than failing a capture
-	// whose other artifacts are already on disk.
-	domHTML := ""
-	domTreeJSON := ""
-	if domNodeID != "" {
-		inlineDom := s.deps.InlineDom
-		if msg.GetInlineDomTree() {
-			inlineDom.MaxBytes = 16 << 20
-		}
-		domHTML, err = inlineDom.readInlineDom(executionOutDir, domNodeID)
-		if err != nil && s.deps.Logger != nil {
-			s.deps.Logger.WithError(err).Warn("capture: inline DOM read failed")
-		}
+	responseDomHTML := ""
+	if msg.GetInlineDom() {
+		responseDomHTML = domHTML
 	}
+	responseDomTreeJSON := ""
 	if msg.GetInlineDomTree() {
-		domTreeJSON = domHTML
-		domHTML = ""
-		if domTreeJSON != "" {
-			domTreePath := filepath.Join(executionOutDir, "dom-tree.json")
-			if writeErr := os.WriteFile(domTreePath, []byte(domTreeJSON), 0o644); writeErr != nil {
-				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("write DOM-tree artifact: %w", writeErr))
-			}
-			for _, artifact := range artifacts {
-				if artifact != nil && artifact.GetType() == capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE {
-					artifact.Path = domTreePath
-					artifact.SizeBytes = int64(len(domTreeJSON))
-					artifact.Metadata = map[string]string{"filename": "dom-tree.json", "content_type": "application/json"}
-				}
-			}
-		}
-	}
-	if err := writeCaptureArtifactSummary(executionOutDir, artifacts); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("write capture artifact summary: %w", err))
+		responseDomTreeJSON = domTreeJSON
 	}
 
 	// Inline accessibility is best-effort: a missing/failed AX capture
@@ -334,11 +335,33 @@ func (s *service) Capture(
 		Artifacts:         artifacts,
 		DurationMs:        duration,
 		DryRun:            false,
-		DomHtml:           domHTML,
+		DomHtml:           responseDomHTML,
 		AccessibilityJson: accessibilityJSON,
-		DomTreeJson:       domTreeJSON,
+		DomTreeJson:       responseDomTreeJSON,
 		Readiness:         captureReadinessDiagnosticsWithTiming(msg.GetWaitFor(), selectedReadiness, readinessOutcome, duration, fallbackReason, declaredResolution, timing),
 	}), nil
+}
+
+func publishInlineArtifact(outDir string, artifacts []*capturev1.CaptureArtifact, captureType capturev1.CaptureType, contents string, truncated bool) error {
+	path := filepath.Join(outDir, canonicalFileName(captureType))
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		return err
+	}
+	for _, artifact := range artifacts {
+		if artifact == nil || artifact.GetType() != captureType {
+			continue
+		}
+		artifact.Path = path
+		artifact.SizeBytes = int64(len(contents))
+		artifact.Metadata = map[string]string{
+			"filename":     filepath.Base(path),
+			"content_type": mime.TypeByExtension(filepath.Ext(path)),
+		}
+		if truncated {
+			artifact.Metadata["truncated"] = "true"
+		}
+	}
+	return nil
 }
 
 func attachArtifactReferences(executionID string, artifacts []*capturev1.CaptureArtifact) {
@@ -585,12 +608,17 @@ func isDryRun(header string) bool {
 //
 // This translation preserves the interaction graph and adds only the requested
 // readiness, snapshot and final-image actions through the ordinary executor.
+type inlineDomNodeIDs struct {
+	html string
+	tree string
+}
+
 func buildAdhocRequest(
 	resolvedURL string,
 	msg *capturev1.CaptureRequest,
 	width, height int32,
 	inlineDomExpression string,
-) (*basexecution.ExecuteAdhocRequest, string, error) {
+) (*basexecution.ExecuteAdhocRequest, inlineDomNodeIDs, error) {
 	navigateNode := &workflowsv1.WorkflowNodeV2{
 		Id: uuid.NewString(),
 		Action: &actionsv1.ActionDefinition{
@@ -620,7 +648,7 @@ func buildAdhocRequest(
 	}
 	if direction := strings.ToLower(strings.TrimSpace(msg.GetDirection())); direction != "" {
 		if direction != "ltr" && direction != "rtl" {
-			return nil, "", fmt.Errorf("direction must be ltr or rtl")
+			return nil, inlineDomNodeIDs{}, fmt.Errorf("direction must be ltr or rtl")
 		}
 		directionNode := &workflowsv1.WorkflowNodeV2{
 			Id: uuid.NewString(),
@@ -640,26 +668,32 @@ func buildAdhocRequest(
 	if raw := strings.TrimSpace(msg.GetInteractionFlowJson()); raw != "" {
 		spliced, err := spliceInteractionFlow(predecessorIDs[0], raw)
 		if err != nil {
-			return nil, "", err
+			return nil, inlineDomNodeIDs{}, err
 		}
 		nodes = append(nodes, spliced.nodes...)
 		edges = append(edges, spliced.edges...)
 		predecessorIDs = spliced.terminals
 	}
 
-	domNodeID := ""
-	if msg.GetInlineDom() || msg.GetInlineDomTree() {
+	domNodeIDs := inlineDomNodeIDs{}
+	appendDomRead := func(expression string) string {
 		domNode := &workflowsv1.WorkflowNodeV2{
 			Id: uuid.NewString(),
 			Action: &actionsv1.ActionDefinition{
 				Type: actionsv1.ActionType_ACTION_TYPE_EVALUATE,
 				Params: &actionsv1.ActionDefinition_Evaluate{
-					Evaluate: &actionsv1.EvaluateParams{Expression: inlineDomExpression},
+					Evaluate: &actionsv1.EvaluateParams{Expression: expression},
 				},
 			},
 		}
-		domNodeID = domNode.Id
 		appendNode(domNode)
+		return domNode.Id
+	}
+	if msg.GetInlineDom() || slices.Contains(msg.GetCaptures(), capturev1.CaptureType_CAPTURE_TYPE_DOM) {
+		domNodeIDs.html = appendDomRead(inlineDomExpression)
+	}
+	if msg.GetInlineDomTree() || slices.Contains(msg.GetCaptures(), capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE) {
+		domNodeIDs.tree = appendDomRead(defaultInlineDomTreeExpression)
 	}
 
 	// The requested image is an explicit final action. Setup and snapshot steps
@@ -722,7 +756,7 @@ func buildAdhocRequest(
 			ArtifactConfig: &basexecution.ArtifactCollectionConfig{Profile: proto.String(config.ProfileCapture)},
 		},
 		WaitForCompletion: true,
-	}, domNodeID, nil
+	}, domNodeIDs, nil
 }
 
 // splicedFlow holds the nodes/edges contributed by an interaction flow,

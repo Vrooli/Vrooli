@@ -100,6 +100,7 @@ func (s *Service) RecordAction(ctx context.Context, id string, observed *driver.
 	if err != nil {
 		return fmt.Errorf("recording timestamp: %w", err)
 	}
+	driver.RedactSensitiveValues(observed)
 	action := s.convertDriverAction(observed, id, pageID, ts, source)
 	return s.append(ctx, &persistence.UnifiedTimelineEntry{
 		ID: action.ID, Type: persistence.TimelineEntryTypeAction, Timestamp: ts,
@@ -139,7 +140,48 @@ func (s *Service) GetTimeline(ctx context.Context, q persistence.TimelineQuery) 
 		return nil, ErrRepositoryUnavailable
 	}
 	q.ApplyDefaults()
-	return s.repo.GetTimeline(ctx, q)
+	response, err := s.repo.GetTimeline(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	for i := range response.Entries {
+		if response.Entries[i].Action != nil {
+			response.Entries[i].Action = redactStoredActionForRead(response.Entries[i].Action)
+		}
+	}
+	return response, nil
+}
+
+// redactStoredActionForRead sanitizes the detached repository result, leaving
+// existing saved bytes intact while preventing legacy values from reaching
+// API readers. The maps are copied because some repository implementations
+// return shallow in-memory views.
+func redactStoredActionForRead(action *domain.RecordingAction) *domain.RecordingAction {
+	copyAction := *action
+	if action.ElementMeta != nil {
+		meta := *action.ElementMeta
+		if action.ElementMeta.Attributes != nil {
+			meta.Attributes = make(map[string]string, len(action.ElementMeta.Attributes))
+			for key, value := range action.ElementMeta.Attributes {
+				meta.Attributes[key] = value
+			}
+		}
+		copyAction.ElementMeta = &meta
+	}
+	if action.Payload != nil {
+		copyAction.Payload = make(map[string]interface{}, len(action.Payload))
+		for key, value := range action.Payload {
+			copyAction.Payload[key] = value
+		}
+	}
+	if copyAction.ElementMeta != nil {
+		meta := copyAction.ElementMeta
+		innerText := meta.InnerText
+		if driver.RedactSensitiveFields(meta.TagName, &innerText, meta.Attributes, copyAction.Payload) {
+			meta.InnerText = innerText
+		}
+	}
+	return &copyAction
 }
 
 func (s *Service) GetTimelineForPage(ctx context.Context, id string, page uuid.UUID, limit int) ([]persistence.UnifiedTimelineEntry, error) {

@@ -61,6 +61,61 @@ func (s *WorkflowService) ExportToFolder(ctx context.Context, executionID uuid.U
 		return fmt.Errorf("export accessibility artifacts: %w", err)
 	}
 
+	// Finalized browser recordings live beside other driver artifacts. Export
+	// them into the same folder consumed by capture producers.
+	if err := s.exportVideoArtifacts(ctx, executionID, outputDir, storageClient); err != nil {
+		return fmt.Errorf("export video artifacts: %w", err)
+	}
+
+	return nil
+}
+
+// exportVideoArtifacts copies finalized Playwright recordings from the
+// execution artifact root into outputDir/videos and uploads them alongside
+// other exported artifacts. A missing source directory is expected when the
+// run did not request video or recording degraded gracefully.
+func (s *WorkflowService) exportVideoArtifacts(ctx context.Context, executionID uuid.UUID, outputDir string, storageClient storage.StorageInterface) error {
+	if strings.TrimSpace(s.executionDataRoot) == "" {
+		return nil
+	}
+	srcDir := filepath.Join(s.executionDataRoot, executionID.String(), "artifacts", "videos")
+	entries, err := os.ReadDir(srcDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("read videos dir: %w", err)
+	}
+
+	var destDir string
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.EqualFold(filepath.Ext(entry.Name()), ".webm") {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return fmt.Errorf("stat video %q: %w", entry.Name(), err)
+		}
+		if !info.Mode().IsRegular() {
+			continue
+		}
+		if destDir == "" {
+			destDir = filepath.Join(outputDir, "videos")
+			if err := os.MkdirAll(destDir, 0o755); err != nil {
+				return fmt.Errorf("create videos dir: %w", err)
+			}
+		}
+		srcPath := filepath.Join(srcDir, entry.Name())
+		if err := copyFile(srcPath, filepath.Join(destDir, entry.Name())); err != nil {
+			return fmt.Errorf("copy video %q: %w", entry.Name(), err)
+		}
+		if storageClient != nil {
+			label := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
+			if _, err := storageClient.StoreArtifactFromFile(ctx, executionID, "video/"+label, srcPath, "video/webm"); err != nil && s.log != nil {
+				s.log.WithError(err).WithField("execution_id", executionID).Warn("failed to upload video artifact to storage")
+			}
+		}
+	}
 	return nil
 }
 

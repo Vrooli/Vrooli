@@ -313,9 +313,11 @@ func (s *WorkflowService) DeleteWorkflow(ctx context.Context, req *basapi.Delete
 
 	if index.ProjectID != nil {
 		project, err := s.repo.GetProject(ctx, *index.ProjectID)
-		if err == nil {
-			abs := filepath.Join(ProjectWorkflowsDir(project), filepath.FromSlash(index.FilePath))
-			_ = os.Remove(abs)
+		if err != nil {
+			return nil, fmt.Errorf("get project for workflow deletion: %w", err)
+		}
+		if err := removeWorkflowFiles(project, index); err != nil {
+			return nil, err
 		}
 	}
 

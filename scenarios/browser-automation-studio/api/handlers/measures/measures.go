@@ -66,12 +66,12 @@ const aggregateSQL = `WITH executions_window AS (
   SELECT duration_ms, ROW_NUMBER() OVER (ORDER BY duration_ms) AS rn,
          COUNT(*) OVER () AS total
   FROM executions_window
-  WHERE duration_ms IS NOT NULL
+  WHERE status = 'completed' AND duration_ms IS NOT NULL
 )
 SELECT
   (SELECT COUNT(*) FROM executions_window WHERE status IN ('completed', 'failed')),
   (SELECT COUNT(*) FROM executions_window WHERE status = 'completed'),
-  COALESCE((SELECT duration_ms FROM duration_ranked WHERE rn >= CAST(0.95 * total AS INTEGER) ORDER BY rn LIMIT 1), 0),
+  COALESCE((SELECT duration_ms FROM duration_ranked WHERE rn >= CAST((95 * total + 99) / 100 AS INTEGER) ORDER BY rn LIMIT 1), 0),
   (SELECT step_count FROM metrics_window),
   (SELECT failed_steps FROM metrics_window),
   (SELECT trace_count FROM traces_window),

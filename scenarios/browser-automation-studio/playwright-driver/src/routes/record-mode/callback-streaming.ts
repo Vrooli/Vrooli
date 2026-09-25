@@ -2,13 +2,20 @@ import { timelineEntryToJson, type TimelineEntry } from '../../proto/recording';
 import { metrics } from '../../utils';
 
 /** A matching receipt is issued by the Go ingress only after journal commit. */
-export async function streamRecordingEntry(callbackUrl: string, entry: TimelineEntry): Promise<void> {
+export async function streamRecordingEntry(
+  callbackUrl: string,
+  entry: TimelineEntry,
+  routedTestMode = false
+): Promise<void> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
   let failureReason = 'network';
   try {
     const response = await fetch(callbackUrl, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: {
+        'Content-Type': 'application/json',
+        ...(routedTestMode ? { 'X-Vrooli-Test-Mode': '1' } : {}),
+      },
       body: JSON.stringify(timelineEntryToJson(entry)), signal: controller.signal,
     });
     failureReason = 'http_error';

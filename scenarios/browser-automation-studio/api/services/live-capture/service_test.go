@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/services/recording"
@@ -18,6 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/browser-automation-studio/automation/compiler"
 	"github.com/vrooli/browser-automation-studio/domain"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
@@ -106,6 +108,57 @@ func TestService_GenerateWorkflow_WithActions(t *testing.T) {
 	if result.NodeCount < 2 {
 		t.Errorf("Expected at least 2 nodes, got %d", result.NodeCount)
 	}
+}
+
+func TestService_GenerateWorkflowUsesTrackedPageBindings(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/session/start":
+			_, _ = w.Write([]byte(`{"session_id":"capture-tabs","lease_id":"capture-lease","active_page_id":"main-page"}`))
+		case "/session/capture-tabs/close":
+			_, _ = w.Write([]byte(`{"success":true}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	manager := autosession.NewManagerWithClient(client)
+	owner, err := manager.Create(context.Background(), autosession.Spec{ExecutionID: uuid.New(), Mode: autosession.ModeRecording})
+	require.NoError(t, err)
+	defer func() { require.NoError(t, manager.Close(context.Background(), owner.ID())) }()
+	owner.InitializePageTracking("https://fixture.invalid")
+	pages := owner.Pages()
+	initialID := pages.GetInitialPageID()
+	require.Equal(t, "main-page", pages.GetDriverPageID(initialID))
+
+	firstActionTime := time.Now().UTC().Add(time.Millisecond)
+	popupCreatedAt := firstActionTime.Add(time.Millisecond)
+	popupID := pages.AddPage(&domain.Page{
+		DriverPageID: "popup-page", URL: "https://fixture.invalid/popup",
+		OpenerID: &initialID, CreatedAt: popupCreatedAt, Status: domain.PageStatusActive,
+	}).ID
+	selector := &driver.SelectorSet{Primary: "#same"}
+	formatTime := func(value time.Time) string { return value.Format(time.RFC3339Nano) }
+	actions := []driver.RecordedAction{
+		{ActionType: "click", DriverPageID: "main-page", Timestamp: formatTime(firstActionTime), Selector: selector},
+		{ActionType: "click", DriverPageID: "popup-page", Timestamp: formatTime(popupCreatedAt.Add(time.Millisecond)), Selector: selector},
+		{ActionType: "click", DriverPageID: "main-page", Timestamp: formatTime(popupCreatedAt.Add(2 * time.Millisecond)), Selector: selector},
+	}
+
+	service := NewServiceWithManager(manager, logrus.New(), nil)
+	result, err := service.GenerateWorkflow(context.Background(), owner.ID(), &GenerateWorkflowConfig{Actions: actions})
+	require.NoError(t, err)
+	boundPopupID := pages.GetPageIDByDriverID("popup-page")
+	require.NotNil(t, boundPopupID)
+	require.Equal(t, popupID, *boundPopupID)
+	require.Len(t, result.FlowDefinition.Nodes, 7)
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_TAB_SWITCH, result.FlowDefinition.Nodes[1].Action.Type)
+	require.EqualValues(t, 1, result.FlowDefinition.Nodes[1].Action.GetTabSwitch().GetIndex())
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_TAB_SWITCH, result.FlowDefinition.Nodes[4].Action.Type)
+	require.EqualValues(t, 0, result.FlowDefinition.Nodes[4].Action.GetTabSwitch().GetIndex())
 }
 
 func TestService_GenerateWorkflow_AppliesActionRange(t *testing.T) {
@@ -274,6 +327,7 @@ func TestGenerateWorkflowRejectsUnrepresentableRecording(t *testing.T) {
 		"unknown action":         {{ActionType: "not-a-recorded-action", Selector: &driver.SelectorSet{Primary: "#fixture"}}},
 		"frame":                  {{ActionType: "click", FrameID: "child", Selector: &driver.SelectorSet{Primary: "#fixture"}}},
 		"multiple pages":         {{ActionType: "click", PageID: "first", Selector: &driver.SelectorSet{Primary: "#one"}}, {ActionType: "click", PageID: "second", Selector: &driver.SelectorSet{Primary: "#two"}}},
+		"multiple driver pages":  {{ActionType: "click", DriverPageID: "driver-first", Selector: &driver.SelectorSet{Primary: "#same"}}, {ActionType: "click", DriverPageID: "driver-second", Selector: &driver.SelectorSet{Primary: "#same"}}},
 		"unfinished drag":        {{ActionType: "drag-drop", Payload: map[string]any{"phase": "start"}, Selector: &driver.SelectorSet{Primary: "#source"}}},
 	}
 	for name, actions := range cases {
@@ -371,6 +425,9 @@ func TestService_RecordingUsesOwnedSession(t *testing.T) {
 			t.Errorf("lost session ownership: %v", envelope)
 		}
 		if r.URL.Path == "/session/record-session/record/start" {
+			if envelope["routed_test_mode"] != true {
+				t.Errorf("routed test mode was not propagated to callback owner: %v", envelope)
+			}
 			for field, suffix := range map[string]string{"callback_url": "action", "frame_callback_url": "frame", "page_callback_url": "page-event"} {
 				if envelope[field] != "http://fixture.invalid:9999/api/v1/recordings/live/record-session/"+suffix {
 					t.Errorf("lost callback %s: %v", field, envelope[field])
@@ -381,6 +438,10 @@ func TestService_RecordingUsesOwnedSession(t *testing.T) {
 			}
 		}
 		effects.Add(1)
+		if r.URL.Path == "/session/record-session/record/input" {
+			_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok", "applied_sequence": 1, "coalesced_count": 0})
+			return
+		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"session_id": "record-session", "recording_id": recordingID, "action_count": 7, "started_at": "2026-09-22T12:00:00.123Z", "stopped_at": "2026-09-22T12:01:00.456Z"})
 	}))
 	defer srv.Close()
@@ -391,20 +452,23 @@ func TestService_RecordingUsesOwnedSession(t *testing.T) {
 	require.NoError(t, err)
 	service := NewServiceWithManager(manager, logrus.New(), nil)
 	cfg := &RecordingConfig{APIHost: "fixture.invalid", APIPort: "9999", FrameQuality: 73, FrameFPS: 12}
-	start, err := service.StartRecording(context.Background(), "record-session", cfg)
+	start, err := service.StartRecording(coredb.WithTestMode(context.Background()), "record-session", cfg)
 	require.NoError(t, err)
 	require.Equal(t, recordingID, start.RecordingID)
 	stop, err := service.StopRecording(context.Background(), "record-session")
 	require.NoError(t, err)
 	require.Equal(t, recordingID, stop.RecordingID)
 	require.Equal(t, "2026-09-22T12:01:00.456Z", stop.StoppedAt)
-	require.NoError(t, service.ForwardInput(context.Background(), "record-session", []byte(`{"type":"pointer","action":"click","x":12}`)))
+	receipt, err := service.ForwardInput(context.Background(), "record-session", []byte(`{"type":"pointer","action":"click","x":12}`))
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), receipt.AppliedSequence)
 	require.Equal(t, int32(3), effects.Load())
 	_, err = service.StartRecording(context.Background(), "unknown-session", cfg)
 	require.Error(t, err)
 	_, err = service.StopRecording(context.Background(), "unknown-session")
 	require.Error(t, err)
-	require.Error(t, service.ForwardInput(context.Background(), "unknown-session", []byte(`{"type":"pointer","action":"click"}`)))
+	_, err = service.ForwardInput(context.Background(), "unknown-session", []byte(`{"type":"pointer","action":"click"}`))
+	require.Error(t, err)
 	require.Equal(t, int32(3), effects.Load(), "unknown owner must not reach the driver")
 }
 

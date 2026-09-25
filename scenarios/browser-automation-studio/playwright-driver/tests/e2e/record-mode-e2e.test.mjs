@@ -46,7 +46,28 @@ async function runHarness(fault, { apiAvailable = true, requireApi = false } = {
           result = { success: true };
         } else if (fault === 'outcome') result = { success: false, error: { code: 'REFUSED_REPLAY' } };
         else await click();
-      } else if (path.endsWith('/record/input')) await click();
+      } else if (path.endsWith('/record/input')) {
+        if (body.type === 'pointer' && body.action === 'click') await click();
+        else if (session?.url && (body.type === 'keyboard' || body.type === 'pointer')) {
+          const modifiers = new Set(body.modifiers ?? []);
+          const flags = {
+            ctrlKey: modifiers.has('Control'), metaKey: modifiers.has('Meta'),
+            altKey: modifiers.has('Alt'), shiftKey: modifiers.has('Shift'),
+          };
+          const events = body.type === 'keyboard'
+            ? [{ type: 'keydown', key: body.key, ...flags }]
+            : (body.action === 'click' ? ['pointerdown', 'pointerup'] : [`pointer${body.action}`])
+              .map(type => ({ type, ...flags }));
+          for (const event of events) {
+            await fetch(new URL('/input-observation', session.url), {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(event),
+            });
+          }
+          result = { success: true };
+        } else {
+          result = { success: true };
+        }
+      }
       else if (path.endsWith('/record/start')) {
         if (session.recording) { status = 409; result = { error: 'RECORDING_IN_PROGRESS' }; }
         else {

@@ -602,6 +602,27 @@ func TestCapture_HarvestArtifacts_ReadsExporterOutput(t *testing.T) {
 	require.EqualValues(t, len("# network\n"), network.SizeBytes)
 }
 
+func TestCapture_HarvestsVideoRecordingFromExporter(t *testing.T) {
+	exec := &fakeExecutor{ExportLayout: map[string]string{
+		"videos/page-1.webm": "finalized webm bytes",
+	}}
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:      "https://example.com",
+		OutDir:   t.TempDir(),
+		Captures: []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_VIDEO},
+	}))
+	require.NoError(t, err)
+	require.True(t, exec.LastOpts.RequiresVideo, "video capture must enable browser recording")
+	require.Len(t, resp.Msg.Artifacts, 1)
+	video := resp.Msg.Artifacts[0]
+	require.Equal(t, capturev1.CaptureType_CAPTURE_TYPE_VIDEO, video.Type)
+	require.Equal(t, "page-1.webm", video.Metadata["filename"])
+	require.NotEqual(t, "true", video.Metadata["unavailable"])
+	require.EqualValues(t, len("finalized webm bytes"), video.SizeBytes)
+}
+
 func TestCapture_HarvestArtifacts_MarksUnsupportedTypesUnavailable(t *testing.T) {
 	exec := &fakeExecutor{} // no export layout — every file is missing
 	client, _ := newTestServer(t, Deps{Executor: exec})
@@ -842,7 +863,7 @@ func TestCapture_InteractionBoundariesFollowEdges(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			req, domID, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{InteractionFlowJson: tc.flow, InlineDomTree: true}, 640, 480, "document.documentElement.outerHTML")
+			req, domIDs, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{InteractionFlowJson: tc.flow, InlineDomTree: true}, 640, 480, "document.documentElement.outerHTML")
 			require.NoError(t, err)
 			flow := req.GetFlowDefinition()
 			var entries, terminals []string
@@ -850,7 +871,7 @@ func TestCapture_InteractionBoundariesFollowEdges(t *testing.T) {
 				if edge.Source == flow.Nodes[0].Id {
 					entries = append(entries, edge.Target)
 				}
-				if edge.Target == domID {
+				if edge.Target == domIDs.tree {
 					terminals = append(terminals, edge.Source)
 				}
 			}

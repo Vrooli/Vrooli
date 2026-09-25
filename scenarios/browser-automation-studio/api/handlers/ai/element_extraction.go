@@ -17,6 +17,27 @@ const elementExtractionExpression = `(function() {
 // Find all interactive elements
 const interactiveElements = Array.from(document.querySelectorAll('a, button, input, select, textarea, [role="button"], [onclick], [tabindex]'));
 
+function isSensitiveField(element) {
+  if (!element || !['INPUT', 'TEXTAREA', 'SELECT'].includes(element.tagName)) return false;
+  const type = (element.type || '').toLowerCase();
+  const autocomplete = (element.getAttribute('autocomplete') || '').toLowerCase().split(/\s+/);
+  return type === 'password' || type === 'hidden' || autocomplete.some(token =>
+    token === 'current-password' || token === 'new-password' || token === 'one-time-code' || token.startsWith('cc-')
+  );
+}
+
+function maskSensitiveFieldsForScreenshot() {
+  for (const element of interactiveElements) {
+    if (!isSensitiveField(element)) continue;
+    // Keep layout and field geometry while removing visible text from the
+    // screenshot that is passed to the AI suggestion provider.
+    element.style.setProperty('color', 'transparent', 'important');
+    element.style.setProperty('-webkit-text-fill-color', 'transparent', 'important');
+    element.style.setProperty('text-shadow', 'none', 'important');
+    element.style.setProperty('caret-color', 'transparent', 'important');
+  }
+}
+
 // Helper function to calculate element confidence based on visibility and interactivity
 function calculateConfidence(element) {
   let confidence = 0.1; // Base confidence
@@ -54,7 +75,7 @@ function generateSelectors(element) {
 
   // Data attribute selectors
   for (const attr of element.attributes) {
-    if (attr.name.startsWith('data-')) {
+    if (!isSensitiveField(element) && attr.name.startsWith('data-')) {
       selectors.push({
         selector: '[' + attr.name + '="' + attr.value + '"]',
         type: 'data-attr',
@@ -196,6 +217,10 @@ const pageContext = {
     height: window.innerHeight
   }
 };
+
+// The next workflow step captures the page for AI analysis. Mask sensitive
+// control text after extracting structure and before that screenshot runs.
+maskSensitiveFieldsForScreenshot();
 
 return {
   elements: elements,

@@ -59,6 +59,7 @@ func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) commitRecordingAction(ctx context.Context, sessionID string, action *driver.RecordedAction) *APIError {
+	driver.RedactSensitiveValues(action)
 	session, ok := h.recordModeService.GetSession(sessionID)
 	if !ok || session == nil {
 		return ErrExecutionNotFound.WithMessage("Session not found")

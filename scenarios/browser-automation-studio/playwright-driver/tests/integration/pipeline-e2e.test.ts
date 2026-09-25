@@ -1,5 +1,7 @@
 import { handleRecordStart, handleRecordStop } from '../../src/routes/record-mode/recording-lifecycle';
 import { handleStreamSettings } from '../../src/routes/record-mode/recording-diagnostics-routes';
+import { appendFile, mkdir } from 'node:fs/promises';
+import { dirname } from 'node:path';
 /**
  * Pipeline E2E Tests
  *
@@ -78,6 +80,13 @@ const TEST_PAGE_HTML = `<!DOCTYPE html>
   <div class="section">
     <p>Bottom of page - scroll content</p>
   </div>
+  <script>
+    window.__fixtureClickCount = 0;
+    document.addEventListener('click', (event) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest('#test-btn')) window.__fixtureClickCount += 1;
+    }, { capture: true });
+  </script>
 </body>
 </html>`;
 
@@ -178,6 +187,13 @@ function getActionType(entry: TimelineEntry): ActionType | undefined {
   return entry.action?.type;
 }
 
+async function recordPassiveFidelitySemantics(caseName: string, actionTypes: string[], assertions: string[]): Promise<void> {
+  const path = process.env.BAS_PASSIVE_FIDELITY_SEMANTICS_OBSERVATIONS?.trim();
+  if (!path) return;
+  await mkdir(dirname(path), { recursive: true });
+  await appendFile(path, `${JSON.stringify({ case: caseName, observedAt: new Date().toISOString(), actionTypes, assertions })}\n`);
+}
+
 function getTelemetryUrl(entry: TimelineEntry): string | undefined {
   const telemetry = entry.telemetry as { url?: unknown } | undefined;
   if (!telemetry) {
@@ -243,6 +259,7 @@ describe('Pipeline E2E Tests', () => {
   describe('complete pipeline validation', () => {
     let context: BrowserContext;
     let page: Page;
+    let pageIdentities: WeakMap<Page, string>;
     let initializer: RecordingContextInitializer;
     let pipelineManager: RecordingPipelineManager;
     let capturedEntries: TimelineEntry[];
@@ -252,9 +269,11 @@ describe('Pipeline E2E Tests', () => {
       initializer = createRecordingContextInitializer({});
       await initializer.initialize(context);
       page = await context.newPage();
+      pageIdentities = new WeakMap([[page, 'pipeline-main-tab']]);
 
       pipelineManager = createRecordingPipelineManager(page, context, initializer, {
         sessionId: 'pipeline-e2e-test',
+        getDriverPageId: (target) => pageIdentities.get(target),
       });
       await pipelineManager.initialize();
       capturedEntries = [];
@@ -365,17 +384,28 @@ describe('Pipeline E2E Tests', () => {
     it('retains a rejected browser event until the same identity is acknowledged', async () => {
       await page.goto(server.getUrl('/'));
       await waitForScriptReady(page, 5000);
-      await pipelineManager.startRecording({ sessionId: 'pipeline-e2e-test', recordingId: 'browser-retry', onEntry: () => {} });
+      let recoveredEntryId: string | undefined;
+      let resolveRecovered!: (id: string) => void;
+      const recovered = new Promise<string>((resolve) => { resolveRecovered = resolve; });
+      await pipelineManager.startRecording({
+        sessionId: 'pipeline-e2e-test',
+        recordingId: 'browser-retry',
+        onEntry: (entry) => {
+          if (getActionType(entry) === ActionType.CLICK) {
+            recoveredEntryId = entry.id;
+            resolveRecovered(entry.id);
+          }
+        },
+      });
       const posts: Array<{ id?: string; actionType?: string }> = [];
-      let acknowledge!: () => void;
-      const acknowledged = new Promise<void>((resolve) => { acknowledge = resolve; });
+      let allowAcknowledgement = false;
       await page.route('**/__vrooli_recording_event__', async (route) => {
         const event = route.request().postDataJSON() as { id?: string; actionType?: string };
         if (event.actionType !== 'click') { await route.fulfill({ status: 200, body: JSON.stringify({ ok: true, entry_id: event.id }) }); return; }
         posts.push(event);
-        const accepted = posts.length > 1;
-        await route.fulfill({ status: accepted ? 200 : 503, contentType: 'application/json', body: JSON.stringify({ ok: accepted, entry_id: event.id }) });
-        if (accepted) acknowledge();
+        const accepted = allowAcknowledgement && posts.length > 1;
+        if (accepted) { await route.fallback(); return; }
+        await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ ok: false, entry_id: event.id }) });
       });
       const failed = page.waitForResponse((r) => r.url().endsWith('/__vrooli_recording_event__') && r.status() === 503);
       await page.click('#test-btn');
@@ -383,11 +413,17 @@ describe('Pipeline E2E Tests', () => {
       expect(posts[0]?.id).toMatch(/^[0-9a-f-]{36}$/i);
       const pending = await page.evaluate(() => JSON.parse(sessionStorage.getItem('__vrooli_pending_events__') || '[]') as Array<{data:{id:string}}>);
       expect(pending.some(item => item.data.id === posts[0]?.id)).toBe(true);
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await waitForScriptReady(page, 5000);
+      const recoveredPending = await page.evaluate(() => JSON.parse(sessionStorage.getItem('__vrooli_pending_events__') || '[]') as Array<{data:{id:string}}>);
+      expect(recoveredPending.some(item => item.data.id === posts[0]?.id)).toBe(true);
+      allowAcknowledgement = true;
       let deadline: ReturnType<typeof setTimeout> | undefined;
       try {
-        await Promise.race([acknowledged, new Promise<never>((_, reject) => { deadline = setTimeout(() => reject(new Error('rejected browser event was not retried')), 3000); })]);
+        await Promise.race([recovered, new Promise<never>((_, reject) => { deadline = setTimeout(() => reject(new Error('rejected browser event was not recovered after reload')), 6000); })]);
       } finally { if (deadline) clearTimeout(deadline); }
-      expect(posts[1]?.id).toBe(posts[0]?.id);
+      expect(recoveredEntryId).toBe(posts[0]?.id);
+      expect(posts.every((event) => event.id === posts[0]?.id)).toBe(true);
     });
 
     it('does not acknowledge a browser event when delivery rejects', async () => {
@@ -397,7 +433,7 @@ describe('Pipeline E2E Tests', () => {
       let allowRecovery = false;
       await pipelineManager.startRecording({
         sessionId: 'pipeline-e2e-test', recordingId: 'rejected-delivery',
-        onEntry: async (entry) => {
+        onEntry: (entry) => {
           if (getActionType(entry) === ActionType.CLICK) {
             attempts.push({ id: entry.id, sequence: entry.sequenceNum });
             if (!allowRecovery) throw new Error('journal commit rejected');
@@ -448,7 +484,10 @@ describe('Pipeline E2E Tests', () => {
 
     it('flushes the final input before its debounce timer when stopped', async () => {
       await page.goto(server.getUrl('/'));
-      await pipelineManager.startRecording({ sessionId: 'pipeline-e2e-test', onEntry: (entry) => { capturedEntries.push(entry); } });
+      await pipelineManager.startRecording({
+        sessionId: 'pipeline-e2e-test',
+        onEntry: (entry) => { capturedEntries.push(entry); },
+      });
       await page.fill('#test-input', 'final value');
       const result = await pipelineManager.stopRecording();
       const inputs = capturedEntries.filter((entry) => getActionType(entry) === ActionType.INPUT);
@@ -506,14 +545,40 @@ describe('Pipeline E2E Tests', () => {
 
     it('captures a dynamically attached frame after recording has started', async () => {
       await page.goto(server.getUrl('/'));
-      await pipelineManager.startRecording({ sessionId: 'pipeline-e2e-test', onEntry: (entry) => { capturedEntries.push(entry); } });
+      await pipelineManager.startRecording({
+        sessionId: 'pipeline-e2e-test',
+        onEntry: (entry) => { capturedEntries.push(entry); },
+      });
       const target = server.getUrl('/').replace('localhost', '127.0.0.1');
       await page.evaluate((url) => {
         const frame = document.createElement('iframe'); frame.src = url; frame.id = 'late-frame'; document.body.appendChild(frame);
       }, target);
       await page.frameLocator('#late-frame').locator('#test-btn').click();
       await pipelineManager.stopRecording();
-      expect(capturedEntries.filter((entry) => getActionType(entry) === ActionType.CLICK)).toHaveLength(1);
+      const clicks = capturedEntries.filter((entry) => getActionType(entry) === ActionType.CLICK);
+      expect(clicks).toHaveLength(1);
+      expect(clicks[0]?.telemetry?.framePath).toEqual(['#late-frame']);
+    });
+
+    it('preserves distinct tab identities for equal selectors in the recording timeline', async () => {
+      await page.goto(server.getUrl('/'));
+      await pipelineManager.startRecording({ sessionId: 'pipeline-e2e-test', onEntry: (entry) => { capturedEntries.push(entry); } });
+
+      const secondPage = await context.newPage();
+      pageIdentities.set(secondPage, 'pipeline-secondary-tab');
+      await secondPage.goto(server.getUrl('/'));
+      await waitForScriptReady(secondPage, 5000);
+      await secondPage.click('#test-btn');
+      await page.bringToFront();
+      await page.click('#test-btn');
+      await pipelineManager.stopRecording();
+
+      const clicks = capturedEntries.filter((entry) => getActionType(entry) === ActionType.CLICK);
+      expect(clicks).toHaveLength(2);
+      expect(clicks.map((entry) => entry.telemetry?.driverPageId)).toEqual([
+        'pipeline-secondary-tab',
+        'pipeline-main-tab',
+      ]);
     });
 
     it('[CRITICAL] should capture all core event types in single session', async () => {
@@ -551,6 +616,29 @@ describe('Pipeline E2E Tests', () => {
       expect(inputs.length).toBeGreaterThan(0);
       expect(scrolls.length).toBeGreaterThan(0);
 
+      const fixtureClicks = await page.evaluate(() => (window as any).__fixtureClickCount as number);
+      expect(fixtureClicks).toBe(1);
+      expect(await page.locator('#test-input').inputValue()).toBe('test');
+      expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(50);
+
+      const clickParams = clicks[0]?.action?.params;
+      expect(clickParams?.case).toBe('click');
+      if (clickParams?.case === 'click') {
+        expect(clickParams.value.selector).toContain('test-button');
+        expect(clickParams.value.clickCount).toBe(1);
+      }
+      const inputParams = inputs.at(-1)?.action?.params;
+      expect(inputParams?.case).toBe('input');
+      if (inputParams?.case === 'input') {
+        expect(inputParams.value.selector).toContain('test-input');
+        expect(inputParams.value.value).toBe('test');
+      }
+      const scrollParams = scrolls.at(-1)?.action?.params;
+      expect(scrollParams?.case).toBe('scroll');
+      if (scrollParams?.case === 'scroll') {
+        expect(scrollParams.value.deltaY).toBeGreaterThan(0);
+      }
+
       // Validate TimelineEntry structure
       const entry = capturedEntries[0];
       if (!entry) {
@@ -560,6 +648,14 @@ describe('Pipeline E2E Tests', () => {
       expect(entry.sequenceNum).toBeDefined();
       expect(entry.timestamp).toBeDefined();
       expect(entry.action).toBeDefined();
+      const sequences = capturedEntries.map((captured) => captured.sequenceNum);
+      expect(new Set(sequences).size).toBe(sequences.length);
+      expect(sequences.every((sequence, index) => index === 0 || sequence > (sequences[index - 1] ?? -1))).toBe(true);
+      await recordPassiveFidelitySemantics(
+        'core-events',
+        ['click', 'type', 'scroll'],
+        ['one independent click effect', 'typed value and input selector retained', 'positive scroll delta retained', 'unique increasing sequence numbers']
+      );
     });
 
     it('[CRITICAL] should have clean state between test runs', async () => {
@@ -616,6 +712,11 @@ describe('Pipeline E2E Tests', () => {
         return telemetryUrl?.includes('/page-2') || entryUrl?.includes('/page-2');
       });
       expect(navToPage2).toBeDefined();
+      await recordPassiveFidelitySemantics(
+        'navigation',
+        ['click', 'navigate'],
+        ['click triggering navigation retained', 'navigation entry identifies /page-2']
+      );
     });
 
     it('[CRITICAL] should continue capturing events after navigation', async () => {
@@ -654,6 +755,11 @@ describe('Pipeline E2E Tests', () => {
 
       // CRITICAL: Events after navigation must be captured
       expect(postNavClicks.length).toBeGreaterThan(0);
+      await recordPassiveFidelitySemantics(
+        'capture-after-navigation',
+        ['click', 'navigate', 'click'],
+        ['pre-navigation click retained', 'navigation completed', 'post-navigation click retained']
+      );
     });
 
     it('should maintain correct event sequence ordering', async () => {
@@ -707,6 +813,99 @@ describe('Pipeline E2E Tests', () => {
         expect(current).toBeGreaterThanOrEqual(previous);
       }
     });
+
+    it('retains 10000 unique native fixture actions across one rejected journal delivery', async () => {
+      await page.goto(server.getUrl('/'));
+      await waitForScriptReady(page, 5000);
+
+      const clickEntries: TimelineEntry[] = [];
+      const attemptsById = new Map<string, number>();
+      let rejectedEntryId: string | undefined;
+      let rejectOnce = true;
+      let notifyProgress: (() => void) | undefined;
+      await pipelineManager.startRecording({
+        sessionId: 'pipeline-e2e-test',
+        recordingId: 'passive-fidelity-10k',
+        onEntry: (entry) => {
+          if (getActionType(entry) !== ActionType.CLICK) {
+            capturedEntries.push(entry);
+            return;
+          }
+
+          const attempts = (attemptsById.get(entry.id) ?? 0) + 1;
+          attemptsById.set(entry.id, attempts);
+          if (rejectOnce && clickEntries.length === 5000) {
+            rejectOnce = false;
+            rejectedEntryId = entry.id;
+            throw new Error('controlled transient journal rejection');
+          }
+
+          clickEntries.push(entry);
+          capturedEntries.push(entry);
+          notifyProgress?.();
+        },
+      });
+
+      const waitForClicks = (target: number): Promise<void> => {
+        if (clickEntries.length >= target) return Promise.resolve();
+        return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            notifyProgress = undefined;
+            reject(new Error(`Only ${clickEntries.length}/${target} clicks reached the journal`));
+          }, 30000);
+          notifyProgress = () => {
+            if (clickEntries.length < target) return;
+            clearTimeout(timeout);
+            notifyProgress = undefined;
+            resolve();
+          };
+        });
+      };
+
+      const startedAt = performance.now();
+      const batchSize = 25;
+      const buttonBox = await page.locator('#test-btn').boundingBox();
+      if (!buttonBox) throw new Error('Fixture button has no visible bounds');
+      for (let target = batchSize; target <= 10000; target += batchSize) {
+        const reachedTarget = waitForClicks(target);
+        for (let index = 0; index < batchSize; index += 1) {
+          await page.mouse.click(buttonBox.x + buttonBox.width / 2, buttonBox.y + buttonBox.height / 2);
+        }
+        await reachedTarget;
+      }
+      const elapsedMs = performance.now() - startedAt;
+      const independentFixtureClicks = await page.evaluate(() => (window as Window & { __fixtureClickCount: number }).__fixtureClickCount);
+
+      await pipelineManager.stopRecording();
+
+      const ids = clickEntries.map((entry) => entry.id);
+      const sequences = clickEntries.map((entry) => entry.sequenceNum);
+      const receipt = {
+        producer: 'playwright-driver/tests/integration/pipeline-e2e.test.ts',
+        scenario: 'native Playwright mouse input captured through the recording event route and ordered journal callback',
+        browserVersion: browser.version(),
+        platform: process.platform,
+        architecture: process.arch,
+        actions: clickEntries.length,
+        independentFixtureClicks,
+        uniqueActionIds: new Set(ids).size,
+        strictlyIncreasingSequence: sequences.every((sequence, index) => index === 0 || sequence > (sequences[index - 1] ?? -1)),
+        injectedFault: 'one journal callback rejection at action 5001; browser retries the same event identity',
+        rejectedActionAttempts: attemptsById.get(rejectedEntryId ?? '') ?? 0,
+        dispatchBatchSize: batchSize,
+        elapsedMs: Math.round(elapsedMs),
+        limitation: 'No driver-process crash or persisted API/database journal is exercised; this is partial passive-fidelity evidence.',
+      };
+      // eslint-disable-next-line no-console
+      console.log(`BAS_PASSIVE_FIDELITY_DIAGNOSTIC ${JSON.stringify(receipt)}`);
+      expect(clickEntries).toHaveLength(10000);
+      expect(independentFixtureClicks).toBe(10000);
+      expect(receipt.uniqueActionIds).toBe(10000);
+      expect(rejectedEntryId).toBeDefined();
+      expect(attemptsById.get(rejectedEntryId ?? '')).toBe(2);
+      expect(receipt.strictlyIncreasingSequence).toBe(true);
+      expect(elapsedMs).toBeLessThan(120000);
+    }, 120000);
   });
 
   describe('state management', () => {

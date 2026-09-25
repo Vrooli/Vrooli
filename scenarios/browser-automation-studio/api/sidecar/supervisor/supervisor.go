@@ -105,6 +105,15 @@ func (s *ProcessSupervisor) waitForHealthy(ctx context.Context) error {
 	// missing browser build, a port clash) that the driver already reported.
 	var lastErr error
 	for {
+		if err := s.healthCheck(ctx); err == nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			return nil
+		} else {
+			lastErr = err
+		}
+
 		select {
 		case <-ctx.Done():
 			if lastErr != nil {
@@ -112,11 +121,6 @@ func (s *ProcessSupervisor) waitForHealthy(ctx context.Context) error {
 			}
 			return fmt.Errorf("startup timeout: %w (health endpoint never answered)", ctx.Err())
 		case <-ticker.C:
-			err := s.healthCheck(ctx)
-			if err == nil {
-				return nil
-			}
-			lastErr = err
 		}
 	}
 }

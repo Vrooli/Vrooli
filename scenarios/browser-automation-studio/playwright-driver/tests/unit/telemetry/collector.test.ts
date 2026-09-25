@@ -13,12 +13,14 @@ const findListener = <T>(
   return calls.find(([name]) => name === event)?.[1];
 };
 
-const createRequest = (params: {
-  url?: string;
-  method?: string;
-  resourceType?: string;
-  failure?: { errorText: string } | null;
-} = {}): Request => {
+const createRequest = (
+  params: {
+    url?: string;
+    method?: string;
+    resourceType?: string;
+    failure?: { errorText: string } | null;
+  } = {}
+): Request => {
   const {
     url = 'https://example.com/api',
     method = 'GET',
@@ -39,12 +41,7 @@ const createResponse = (params: {
   ok?: boolean;
   request: Request;
 }): Response => {
-  const {
-    url = 'https://example.com/api',
-    status = 200,
-    ok = true,
-    request,
-  } = params;
+  const { url = 'https://example.com/api', status = 200, ok = true, request } = params;
   return {
     url: (): string => url,
     status: (): number => status,
@@ -56,14 +53,21 @@ const createResponse = (params: {
 describe('ConsoleLogCollector native event ownership', () => {
   const fixture = (limit = 3) => {
     const session = Object.assign(new EventEmitter(), {
-      send: jest.fn().mockResolvedValue({}), detach: jest.fn().mockResolvedValue(undefined),
+      send: jest.fn().mockResolvedValue({}),
+      detach: jest.fn().mockResolvedValue(undefined),
     });
     const newCDPSession = jest.fn().mockResolvedValue(session);
     const page = { context: () => ({ newCDPSession }), isClosed: () => false } as unknown as Page;
     const collector = new ConsoleLogCollector(page, limit);
-    const emit = (text: string, timestamp = Date.now() + 1, type = 'log') => session.emit('Runtime.consoleAPICalled', {
-      type, timestamp, args: [{ value: text }], stackTrace: { callFrames: [{ url: 'https://fixture.test/script.js', lineNumber: 10, columnNumber: 5 }] },
-    });
+    const emit = (text: string, timestamp = Date.now() + 1, type = 'log') =>
+      session.emit('Runtime.consoleAPICalled', {
+        type,
+        timestamp,
+        args: [{ value: text }],
+        stackTrace: {
+          callFrames: [{ url: 'https://fixture.test/script.js', lineNumber: 10, columnNumber: 5 }],
+        },
+      });
     return { session, newCDPSession, page, collector, emit };
   };
 
@@ -73,43 +77,81 @@ describe('ConsoleLogCollector native event ownership', () => {
     f.emit('old history', 0);
     for (let i = 0; i < 5; i++) f.emit(`message ${i}`, Date.now() + 1, i === 4 ? 'warning' : 'log');
     const logs = f.collector.getLogs();
-    expect(logs.map(x => x.text)).toEqual(['message 2', 'message 3', 'message 4']);
-    expect(logs[2]).toMatchObject({ type: 'warn', location: 'https://fixture.test/script.js:10:5' });
-    expect(new Date(logs[2]!.timestamp).getTime()).toBeGreaterThan(0);
+    expect(logs.map((x) => x.text)).toEqual(['message 2', 'message 3', 'message 4']);
+    const latestLog = logs[2];
+    if (!latestLog) throw new Error('Expected the newest log entry');
+    expect(latestLog).toMatchObject({
+      type: 'warn',
+      location: 'https://fixture.test/script.js:10:5',
+    });
+    expect(new Date(latestLog.timestamp).getTime()).toBeGreaterThan(0);
     logs.length = 0;
     expect(f.collector.getAndClear()).toHaveLength(3);
     expect(f.collector.getLogs()).toEqual([]);
-    f.emit('clear me'); f.collector.clear(); expect(f.collector.getLogs()).toEqual([]);
+    f.emit('clear me');
+    f.collector.clear();
+    expect(f.collector.getLogs()).toEqual([]);
     await f.collector.dispose();
-    f.emit('too late'); expect(f.collector.getLogs()).toEqual([]);
+    f.emit('too late');
+    expect(f.collector.getLogs()).toEqual([]);
     expect(f.session.listenerCount('Runtime.consoleAPICalled')).toBe(0);
     expect(f.session.detach).toHaveBeenCalledTimes(1);
   });
 
   it('keeps primitive and unavailable remote-object descriptions without evaluating them', async () => {
-    const f = fixture(); await f.collector.start();
-    f.session.emit('Runtime.consoleAPICalled', { type: 'error', timestamp: Date.now() + 1,
-      args: [{ value: 'message' }, { value: 42 }, { value: null }, { unserializableValue: 'NaN' }, { type: 'object', description: 'Object' }],
+    const f = fixture();
+    await f.collector.start();
+    f.session.emit('Runtime.consoleAPICalled', {
+      type: 'error',
+      timestamp: Date.now() + 1,
+      args: [
+        { value: 'message' },
+        { value: 42 },
+        { value: null },
+        { unserializableValue: 'NaN' },
+        { type: 'object', description: 'Object' },
+      ],
     });
-    expect(f.collector.getLogs()[0]).toMatchObject({ type: 'error', text: 'message 42 null NaN Object' });
+    expect(f.collector.getLogs()[0]).toMatchObject({
+      type: 'error',
+      text: 'message 42 null NaN Object',
+    });
     expect(f.session.send).toHaveBeenCalledTimes(1);
     await f.collector.dispose();
   });
 
   it('does not acknowledge readiness before Runtime.enable settles', async () => {
-    const f = fixture(); let enable!: () => void;
-    f.session.send.mockReturnValueOnce(new Promise<void>(resolve => { enable = resolve; }));
-    let ready = false; const starting = f.collector.start().then(() => { ready = true; });
-    await Promise.resolve(); await Promise.resolve(); expect(ready).toBe(false);
-    enable(); await starting; expect(ready).toBe(true);
+    const f = fixture();
+    let enable!: () => void;
+    f.session.send.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        enable = resolve;
+      })
+    );
+    let ready = false;
+    const starting = f.collector.start().then(() => {
+      ready = true;
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(ready).toBe(false);
+    enable();
+    await starting;
+    expect(ready).toBe(true);
     await Promise.all([f.collector.dispose(), f.collector.dispose()]);
     expect(f.session.detach).toHaveBeenCalledTimes(1);
   });
 
   it('detaches a session acquired after disposal started without enabling it', async () => {
-    const f = fixture(); let attach!: (session: CDPSession) => void;
-    f.newCDPSession.mockReturnValueOnce(new Promise<CDPSession>(resolve => { attach = resolve; }));
-    const starting = f.collector.start(); const closing = f.collector.dispose();
+    const f = fixture();
+    let attach!: (session: CDPSession) => void;
+    f.newCDPSession.mockReturnValueOnce(
+      new Promise<CDPSession>((resolve) => {
+        attach = resolve;
+      })
+    );
+    const starting = f.collector.start();
+    const closing = f.collector.dispose();
     attach(f.session as unknown as CDPSession);
     await Promise.all([starting, closing]);
     expect(f.session.send).not.toHaveBeenCalled();
@@ -118,7 +160,8 @@ describe('ConsoleLogCollector native event ownership', () => {
   });
 
   it('releases its attachment when native initialization fails', async () => {
-    const f = fixture(); f.session.send.mockRejectedValueOnce(new Error('native initialization failed'));
+    const f = fixture();
+    f.session.send.mockRejectedValueOnce(new Error('native initialization failed'));
     await expect(f.collector.start()).rejects.toThrow('native initialization failed');
     await f.collector.dispose();
     expect(f.session.detach).toHaveBeenCalledTimes(1);
@@ -183,6 +226,29 @@ describe('NetworkCollector', () => {
       expect(firstEvent.ok).toBe(true);
     });
 
+    it('correlates overlapping responses by request object identity when strings collide', () => {
+      const requestListener = findListener<Request>(mockPage, 'request');
+      const responseListener = findListener<Response>(mockPage, 'response');
+      if (!requestListener || !responseListener) {
+        throw new Error('Request/response listeners not registered');
+      }
+
+      const requestA = createRequest({ url: 'https://fixture.invalid/a' });
+      const requestB = createRequest({ url: 'https://fixture.invalid/b' });
+      expect(requestA).not.toBe(requestB);
+      expect(String(requestA)).toBe(String(requestB));
+
+      requestListener(requestA);
+      requestListener(requestB);
+      responseListener(createResponse({ request: requestA, url: requestA.url(), status: 201 }));
+      responseListener(createResponse({ request: requestB, url: requestB.url(), status: 202 }));
+
+      expect(collector.getEvents().map(({ url, status }) => ({ url, status }))).toEqual([
+        { url: 'https://fixture.invalid/a', status: 201 },
+        { url: 'https://fixture.invalid/b', status: 202 },
+      ]);
+    });
+
     it('should collect request failure events', () => {
       const requestListener = findListener<Request>(mockPage, 'request');
       const failedListener = findListener<Request>(mockPage, 'requestfailed');
@@ -226,7 +292,10 @@ describe('NetworkCollector', () => {
 
         requestListener(mockRequest);
 
-        const mockResponse = createResponse({ url: `https://example.com/api/${i}`, request: mockRequest });
+        const mockResponse = createResponse({
+          url: `https://example.com/api/${i}`,
+          request: mockRequest,
+        });
 
         responseListener(mockResponse);
       }

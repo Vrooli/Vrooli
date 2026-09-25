@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/events"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/config"
+	"github.com/vrooli/browser-automation-studio/internal/cancellationqualification"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -353,7 +354,7 @@ func TestExecuteCancellationPersistsRealOutcomes(t *testing.T) {
 				root := &cancellationRoot{dir: t.TempDir()}
 				if diskFailure {
 					root.dir = filepath.Join(root.dir, "not-a-directory")
-					require.NoError(t, os.WriteFile(root.dir, []byte("preserve original"), 0600))
+					require.NoError(t, os.WriteFile(root.dir, []byte("preserve original"), 0o600))
 				}
 				ctx, cancel := context.WithCancel(context.WithValue(context.Background(), outcomeRootKey{}, root.dir))
 				defer cancel()
@@ -523,8 +524,10 @@ func TestExecutePreservesInvocationAndTransportOwnership(t *testing.T) {
 			defer server.Close()
 			eng, err := engine.NewPlaywrightEngineWithHTTPClient(server.URL, server.Client(), nil)
 			require.NoError(t, err)
-			action := &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
-				Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid"}}}
+			action := &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+				Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid"}},
+			}
 			plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Instructions: []contracts.CompiledInstruction{{
 				NodeID: "same-node", Action: action, Context: map[string]any{"resilience": map[string]any{"maxAttempts": 2, "delayMs": 0}},
 			}}}
@@ -564,6 +567,224 @@ func TestExecutePreservesInvocationAndTransportOwnership(t *testing.T) {
 			}
 		})
 	}
+}
+
+// [REQ:BAS-RH-J07] A live instruction timeout retains uncertainty, rejects a
+// retry, and still tears down the owned driver session.
+func TestExecuteTimeoutDuringLiveInstructionClosesSessionWithoutReplay(t *testing.T) {
+	var mu sync.Mutex
+	var releaseRun sync.Once
+	runResponseReleased := make(chan struct{})
+	packets := 0
+	effects := 0
+	liveSessions := 0
+	closeCalls := 0
+	resourcesBeforeClose := 0
+	inputStoppedAt := time.Time{}
+	runCanceled := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/health":
+			w.WriteHeader(http.StatusOK)
+		case strings.HasSuffix(r.URL.Path, "/start"):
+			mu.Lock()
+			liveSessions++
+			mu.Unlock()
+			io.WriteString(w, `{"session_id":"timeout-session","lease_id":"timeout-lease"}`)
+		case strings.HasSuffix(r.URL.Path, "/run"):
+			mu.Lock()
+			packets++
+			effects++ // The independent fixture accepts the effect before withholding its response.
+			mu.Unlock()
+			select {
+			case <-r.Context().Done():
+			case <-runResponseReleased:
+			}
+		case strings.HasSuffix(r.URL.Path, "/close"):
+			mu.Lock()
+			closeCalls++
+			resourcesBeforeClose = liveSessions
+			inputStoppedAt = time.Now()
+			liveSessions--
+			mu.Unlock()
+			releaseRun.Do(func() {
+				close(runCanceled)
+				close(runResponseReleased)
+			})
+			io.WriteString(w, `{"success":true}`)
+		default:
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	eng, err := engine.NewPlaywrightEngineWithHTTPClient(server.URL, server.Client(), nil)
+	require.NoError(t, err)
+	action := &basactions.ActionDefinition{
+		Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+		Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid/effect"}},
+	}
+	plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Instructions: []contracts.CompiledInstruction{{
+		NodeID: "timed-navigation", Action: action,
+		Context: map[string]any{"resilience": map[string]any{"maxAttempts": 3, "delayMs": 0}},
+	}}}
+	sink := events.NewMemorySink(contracts.DefaultEventBufferLimits)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	startedAt := time.Now()
+	err = NewSimpleExecutor(nil).Execute(ctx, Request{
+		Plan: plan, EngineName: "playwright", EngineFactory: engine.NewStaticFactory(eng),
+		Recorder: &stubExecutionWriter{}, EventSink: sink,
+	})
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	select {
+	case <-runCanceled:
+	case <-time.After(time.Second):
+		t.Fatal("timeout did not stop the live driver request within1s")
+	}
+
+	mu.Lock()
+	gotPackets, gotEffects, gotCloseCalls, gotLiveSessions := packets, effects, closeCalls, liveSessions
+	gotResourcesBeforeClose, gotInputStoppedAt := resourcesBeforeClose, inputStoppedAt
+	mu.Unlock()
+	require.Equal(t, 1, gotPackets, "a timed-out uncertain instruction must not be replayed")
+	require.Equal(t, 1, gotEffects, "the fixture accepted exactly one effect before the response timed out")
+	require.Equal(t, 1, gotCloseCalls, "executor finalization must close the owned session")
+	require.Zero(t, gotLiveSessions, "the session must be detached before Execute returns")
+	require.Less(t, time.Since(startedAt), time.Second, "timeout must stop the owned request and finish cleanup within the J07 band")
+
+	var failed *contracts.StepOutcome
+	for _, event := range sink.Events() {
+		if event.Kind != contracts.EventKindStepFailed {
+			continue
+		}
+		payload, ok := event.Payload.(map[string]any)
+		require.True(t, ok, "failure event payload should include the step outcome")
+		outcome, ok := payload["outcome"].(contracts.StepOutcome)
+		require.True(t, ok, "failure event should retain a typed step outcome")
+		failed = &outcome
+	}
+	require.NotNil(t, failed, "timeout must retain a terminal step failure")
+	require.NotNil(t, failed.Failure)
+	require.Equal(t, contracts.FailureCodeInstructionOutcomeUncertain, failed.Failure.Code)
+	require.Equal(t, contracts.FailureKindTimeout, failed.Failure.Kind)
+	require.False(t, failed.Failure.Retryable)
+	inputStoppedMS := float64(gotInputStoppedAt.Sub(startedAt).Microseconds()) / 1000
+	cleanupMS := float64(time.Since(gotInputStoppedAt).Microseconds()) / 1000
+	require.GreaterOrEqual(t, inputStoppedMS, float64(0))
+	require.LessOrEqual(t, inputStoppedMS, float64(1000))
+	require.LessOrEqual(t, cleanupMS, float64(5000))
+	require.NoError(t, cancellationqualification.RecordObservation(t.Name(), "timeout", cancellationqualification.CaseObservation{
+		Observed: true, Passed: true, ExternalEffects: gotEffects, TerminalStatus: "failed",
+		LiveResourcesBeforeClose: gotResourcesBeforeClose, LiveResourcesAfterClose: gotLiveSessions,
+		InputStoppedMS: inputStoppedMS, CleanupMS: cleanupMS, RecoveryMS: 0,
+		UncertainEffect: failed.Failure.Code == contracts.FailureCodeInstructionOutcomeUncertain,
+		RetryAdmitted:   failed.Failure.Retryable,
+	}))
+}
+
+// [REQ:BAS-RH-J07] Driver process loss releases its resources while the API
+// retains the uncertain outcome and does not replay the browser effect.
+func TestExecuteDriverDeathRetainsUncertainEffectWithoutReplay(t *testing.T) {
+	var mu sync.Mutex
+	packets := 0
+	effects := 0
+	liveSessions := 0
+	closeCalls := 0
+	resourcesBeforeDeath := 0
+	processDeathAt := time.Time{}
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/health":
+			w.WriteHeader(http.StatusOK)
+		case strings.HasSuffix(r.URL.Path, "/start"):
+			mu.Lock()
+			liveSessions++
+			mu.Unlock()
+			io.WriteString(w, `{"session_id":"death-session","lease_id":"death-lease"}`)
+		case strings.HasSuffix(r.URL.Path, "/run"):
+			mu.Lock()
+			packets++
+			effects++ // The external fixture commits before the driver disappears.
+			resourcesBeforeDeath = liveSessions
+			processDeathAt = time.Now()
+			liveSessions = 0 // Driver process death terminates all process-owned browser resources.
+			mu.Unlock()
+			conn, _, err := w.(http.Hijacker).Hijack()
+			if err != nil {
+				t.Errorf("hijack driver response: %v", err)
+				return
+			}
+			_ = conn.Close()
+			_ = server.Listener.Close()
+		case strings.HasSuffix(r.URL.Path, "/close"):
+			mu.Lock()
+			closeCalls++
+			mu.Unlock()
+			io.WriteString(w, `{"success":true}`)
+		default:
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	eng, err := engine.NewPlaywrightEngineWithHTTPClient(server.URL, server.Client(), nil)
+	require.NoError(t, err)
+	action := &basactions.ActionDefinition{
+		Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+		Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid/effect"}},
+	}
+	plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Instructions: []contracts.CompiledInstruction{{
+		NodeID: "driver-death-navigation", Action: action,
+		Context: map[string]any{"resilience": map[string]any{"maxAttempts": 3, "delayMs": 0}},
+	}}}
+	sink := events.NewMemorySink(contracts.DefaultEventBufferLimits)
+	startedAt := time.Now()
+	err = NewSimpleExecutor(nil).Execute(context.Background(), Request{
+		Plan: plan, EngineName: "playwright", EngineFactory: engine.NewStaticFactory(eng),
+		Recorder: &stubExecutionWriter{}, EventSink: sink,
+	})
+	require.Error(t, err, "driver loss must fail the workflow")
+
+	mu.Lock()
+	require.Equal(t, 1, packets, "uncertain instruction must not be replayed")
+	require.Equal(t, 1, effects, "independent fixture observed exactly one browser effect")
+	require.Equal(t, 0, liveSessions, "driver death must release process-owned browser resources")
+	require.Zero(t, closeCalls, "the dead driver cannot acknowledge an API close request")
+	gotEffects, gotResourcesBeforeDeath, gotResourcesAfterDeath := effects, resourcesBeforeDeath, liveSessions
+	gotProcessDeathAt := processDeathAt
+	mu.Unlock()
+
+	var failed *contracts.StepOutcome
+	for _, event := range sink.Events() {
+		if event.Kind != contracts.EventKindStepFailed {
+			continue
+		}
+		payload, ok := event.Payload.(map[string]any)
+		require.True(t, ok)
+		outcome, ok := payload["outcome"].(contracts.StepOutcome)
+		require.True(t, ok)
+		failed = &outcome
+	}
+	require.NotNil(t, failed, "driver loss must retain a terminal step failure")
+	require.NotNil(t, failed.Failure)
+	require.Equal(t, contracts.FailureCodeInstructionOutcomeUncertain, failed.Failure.Code)
+	require.Equal(t, contracts.FailureKindInfra, failed.Failure.Kind)
+	require.False(t, failed.Failure.Retryable)
+	inputStoppedMS := float64(gotProcessDeathAt.Sub(startedAt).Microseconds()) / 1000
+	cleanupMS := float64(time.Since(gotProcessDeathAt).Microseconds()) / 1000
+	require.LessOrEqual(t, inputStoppedMS, float64(1000))
+	require.LessOrEqual(t, cleanupMS, float64(5000))
+	require.NoError(t, cancellationqualification.RecordObservation(t.Name(), "driverDeath", cancellationqualification.CaseObservation{
+		Observed: true, Passed: true, ExternalEffects: gotEffects, TerminalStatus: "failed",
+		LiveResourcesBeforeClose: gotResourcesBeforeDeath, LiveResourcesAfterClose: gotResourcesAfterDeath,
+		InputStoppedMS: inputStoppedMS, CleanupMS: cleanupMS, RecoveryMS: 0,
+		UncertainEffect: failed.Failure.Code == contracts.FailureCodeInstructionOutcomeUncertain,
+		RetryAdmitted:   failed.Failure.Retryable,
+	}))
 }
 
 type checkpointFixtureSession struct {

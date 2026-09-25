@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/config"
@@ -365,6 +366,7 @@ func (s *Service) StartRecording(ctx context.Context, sessionID string, cfg *Rec
 		CallbackURL:      fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/action", apiHost, apiPort, sessionID),
 		FrameCallbackURL: fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/frame", apiHost, apiPort, sessionID),
 		PageCallbackURL:  fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/page-event", apiHost, apiPort, sessionID),
+		RoutedTestMode:   coredb.IsTestMode(ctx),
 		FrameQuality:     frameQuality,
 		FrameFPS:         frameFPS,
 	}
@@ -382,10 +384,10 @@ func (s *Service) StopRecording(ctx context.Context, sessionID string) (*driver.
 }
 
 // ForwardInput shares session ownership across HTTP and WebSocket transports.
-func (s *Service) ForwardInput(ctx context.Context, sessionID string, input []byte) error {
+func (s *Service) ForwardInput(ctx context.Context, sessionID string, input []byte) (*driver.ForwardInputResponse, error) {
 	owned, ok := s.sessions.Get(sessionID)
 	if !ok {
-		return &driver.Error{Status: http.StatusNotFound, Message: "Recording session is not owned by this API"}
+		return nil, &driver.Error{Status: http.StatusNotFound, Message: "Recording session is not owned by this API"}
 	}
 	return owned.ForwardInput(ctx, input)
 }
@@ -434,8 +436,18 @@ func (s *Service) GenerateWorkflow(ctx context.Context, sessionID string, cfg *G
 		return nil, fmt.Errorf("no actions to convert")
 	}
 
+	// Resolve logical targets from the session's existing tracker. Generator
+	// callers without an owned session remain single-page and fail closed for
+	// ambiguous multi-page action input.
+	var pages []*domain.Page
+	if s.sessions != nil {
+		if sess, ok := s.sessions.Get(sessionID); ok && sess.Pages() != nil {
+			pages, _ = sess.Pages().Snapshot(false)
+		}
+	}
+
 	// Generate workflow
-	flowDef, err := s.generator.GenerateWorkflow(actions)
+	flowDef, err := s.generator.GenerateWorkflowWithPages(actions, pages)
 	if err != nil {
 		return nil, fmt.Errorf("generate workflow: %w", err)
 	}

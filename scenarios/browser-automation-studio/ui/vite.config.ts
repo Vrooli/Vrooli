@@ -440,6 +440,7 @@ export default defineConfig(({ mode }): UserConfig => {
             'src/domains/executions/history/**/*.test.{ts,tsx}',
             'src/domains/executions/hooks/useExecutionEvents.test.{ts,tsx}',
             'src/domains/executions/viewer/useExecutionHeartbeat.test.{ts,tsx}',
+            'src/domains/executions/viewer/useExecutionExport.test.{ts,tsx}',
           ],
           pool: 'threads',
           poolOptions: THREADS_TWO,

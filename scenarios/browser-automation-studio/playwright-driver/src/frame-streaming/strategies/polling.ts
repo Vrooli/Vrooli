@@ -25,7 +25,7 @@ import {
   type FpsControllerState,
   type FpsControllerConfig,
 } from '../../fps';
-import { SCREENSHOT_TIMEOUT_MS, MAX_FRAME_FAILURES } from '../types';
+import { SCREENSHOT_TIMEOUT_MS, MAX_FRAME_FAILURES, MAX_QUEUED_FRAME_BYTES } from '../types';
 import type {
   FrameStreamingStrategy,
   StreamingStrategyConfig,
@@ -190,6 +190,12 @@ export class PollingStrategy implements FrameStreamingStrategy {
                 ws_send_ms: 0, // Will be updated by API
                 frame_bytes: buffer.length,
             } : undefined);
+
+            if ((ws.bufferedAmount ?? 0) + frameToSend.length > MAX_QUEUED_FRAME_BYTES) {
+              statsReporter.onFrameSkipped('ws_backpressure');
+              await sleepUntilNextFrame(loopStart, getIntervalMs(fpsState), abortController.signal);
+              continue;
+            }
 
             ws.send(frameToSend);
             lastDelivered = { page, source, socket: ws, buffer };

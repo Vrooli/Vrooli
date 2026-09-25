@@ -96,7 +96,7 @@ export interface FrameStatsReporter {
   /** Report a successfully sent frame */
   onFrameSent(stats: FrameStats): void;
   /** Report a skipped frame */
-  onFrameSkipped(reason: 'unchanged' | 'timeout' | 'ws_not_ready'): void;
+  onFrameSkipped(reason: 'unchanged' | 'timeout' | 'ws_not_ready' | 'ws_backpressure'): void;
 }
 
 /**

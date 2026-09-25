@@ -252,7 +252,10 @@ export class RecordingContextInitializer {
    * @param page - The page to setup event interception on
    * @param options - Options for route setup
    */
-  async setupPageEventRoute(page: Page, options: { force?: boolean } = {}): Promise<void> {
+  async setupPageEventRoute(
+    page: Page,
+    options: { force?: boolean; driverPageId?: string } = {}
+  ): Promise<void> {
     if (!this.eventRouteManager) {
       throw new Error('Context not initialized. Call initialize() first.');
     }

@@ -68,7 +68,7 @@ type RecordModeService interface {
 	// Recording lifecycle carries the owned session lease and constructs callbacks.
 	StartRecording(ctx context.Context, sessionID string, cfg *livecapture.RecordingConfig) (*autodriver.StartRecordingResponse, error)
 	StopRecording(ctx context.Context, sessionID string) (*autodriver.StopRecordingResponse, error)
-	ForwardInput(ctx context.Context, sessionID string, input []byte) error
+	ForwardInput(ctx context.Context, sessionID string, input []byte) (*autodriver.ForwardInputResponse, error)
 
 	// Workflow generation (has business logic for action conversion)
 	GenerateWorkflow(ctx context.Context, sessionID string, cfg *livecapture.GenerateWorkflowConfig) (*livecapture.GenerateWorkflowResult, error)

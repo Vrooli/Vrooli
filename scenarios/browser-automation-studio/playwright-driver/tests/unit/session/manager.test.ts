@@ -149,6 +149,55 @@ describe('SessionManager', () => {
       await limitedManager.shutdown();
     });
 
+    it('reserves capacity while a distinct session is still being created', async () => {
+      const limitedManager = new SessionManager(createTestConfig({
+        session: { maxConcurrent: 1, idleTimeoutMs: 300000, poolSize: 5, cleanupIntervalMs: 60000 },
+      }));
+      let enteredCreate!: () => void;
+      let releaseCreate!: () => void;
+      const entered = new Promise<void>((resolve) => { enteredCreate = resolve; });
+      const creationGate = new Promise<void>((resolve) => { releaseCreate = resolve; });
+      mockBrowser.newContext.mockImplementation(async () => {
+        enteredCreate();
+        await creationGate;
+        return mockContext;
+      });
+
+      const firstStart = limitedManager.startSession({ ...sessionSpec, execution_id: 'capacity-first' });
+      await entered;
+      const secondStart = limitedManager.startSession({ ...sessionSpec, execution_id: 'capacity-second' });
+      releaseCreate();
+
+      const [first, second] = await Promise.allSettled([firstStart, secondStart]);
+      try {
+        expect(first.status).toBe('fulfilled');
+        expect(second.status).toBe('rejected');
+        if (second.status === 'rejected') expect(second.reason).toBeInstanceOf(ResourceLimitError);
+        expect(limitedManager.getSessionCount()).toBe(1);
+      } finally {
+        await limitedManager.shutdown();
+      }
+    });
+
+    it('releases a capacity reservation when browser context creation fails', async () => {
+      const limitedManager = new SessionManager(createTestConfig({
+        session: { maxConcurrent: 1, idleTimeoutMs: 300000, poolSize: 5, cleanupIntervalMs: 60000 },
+      }));
+      // The first context belongs to BrowserManager's audio-capability probe;
+      // fail the subsequent context created for the session itself.
+      mockBrowser.newContext
+        .mockReturnValueOnce(Promise.resolve(mockContext))
+        .mockRejectedValueOnce(new Error('context creation failed'));
+
+      await expect(limitedManager.startSession({ ...sessionSpec, execution_id: 'capacity-failed' }))
+        .rejects.toThrow('context creation failed');
+      const next = await limitedManager.startSession({ ...sessionSpec, execution_id: 'capacity-retry' });
+
+      expect(next.sessionId).toBeTruthy();
+      expect(limitedManager.getSessionCount()).toBe(1);
+      await limitedManager.shutdown();
+    });
+
     it.each(['ready', 'executing', 'recording', 'resetting', 'closing'] as const)(
       'same-execution clean retry preserves %s state and browser data', async (phase) => {
         const first = await manager.startSession(sessionSpec);

@@ -314,6 +314,31 @@ describe('Record Mode Routes', () => {
     expect(payload.screenshot).toContain('data:image/jpeg;base64,');
     expect(mockPage.goto).toHaveBeenCalledWith('https://example.com', { waitUntil: 'load', timeout: config.execution.navigationTimeoutMs });
   });
+  it('retains distinct same-sequence observations across navigation until each exact ID is acknowledged', async () => {
+    const sessionId = 'same-tick-navigation';
+    const session = { phase: 'ready', page: mockPage, pageToIdMap: new WeakMap([[mockPage, 'original-driver-page']]) };
+    const manager = { ...mockSessionManager, getSessionForLease: () => session, updateActivity: jest.fn() } as unknown as SessionManager;
+    const first = create(TimelineEntrySchema, { id: 'same-tick-a', sequenceNum: 7 });
+    const second = create(TimelineEntrySchema, { id: 'same-tick-b', sequenceNum: 7 });
+    initRecordingBuffer(sessionId);
+    bufferTimelineEntry(sessionId, first);
+    bufferTimelineEntry(sessionId, second);
+    try {
+      const response = createMockHttpResponse();
+      await handleRecordNavigate(createMockHttpRequest({
+        method: 'POST', url: `/session/${sessionId}/record/navigate`,
+        body: { execution_id: 'owner', lease_id: 'lease', url: 'https://example.com', capture: false },
+      }), response, sessionId, manager, config);
+
+      expect(response.statusCode).toBe(200);
+      expect(getTimelineEntries(sessionId).map(entry => entry.id)).toEqual(['same-tick-a', 'same-tick-b']);
+      acknowledgeTimelineEntries(sessionId, [first.id], true);
+      expect(getTimelineEntries(sessionId).map(entry => entry.id)).toEqual(['same-tick-b']);
+    } finally {
+      acknowledgeTimelineEntries(sessionId, getTimelineEntries(sessionId).map(entry => entry.id), true);
+      removeRecordingBuffer(sessionId);
+    }
+  });
   it('requires an explicit acknowledgement after non-destructive reads', async () => {
     const sessionId = 'pull-actions';
     const session = { phase: 'ready', page: mockPage, pageToIdMap: new WeakMap([[mockPage, 'original-driver-page']]) };

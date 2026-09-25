@@ -56,6 +56,7 @@ export async function handleSessionRun(
   appMetrics: Metrics
 ): Promise<void> {
   let executingSession: SessionState | undefined;
+  let settleInstruction: (() => void) | undefined;
   try {
     // Reading yields: check ownership and phase after the full body arrives.
     const body = await parseJsonBody(req, config);
@@ -85,6 +86,7 @@ export async function handleSessionRun(
       return;
     }
     session.instructionInFlight = true;
+    session.instructionSettlement = new Promise<void>((resolve) => { settleInstruction = resolve; });
     executingSession = session;
     const requestFingerprint = fingerprint({ invocation_id: body.invocation_id, attempt: body.attempt, instruction: body.instruction });
     const receipts = session.instructionReceipts ??= new Map();
@@ -123,6 +125,9 @@ export async function handleSessionRun(
     let uncertain = false;
     try {
       const result = await executeInstruction(instruction, executionContext, handlerRegistry, sessionManager.getInstrumentation());
+      if (session.instructionInterrupted) {
+        throw new Error('Session close interrupted the browser operation before its outcome was retained');
+      }
       sessionManager.incrementInstructionCount(sessionId);
       // Serialize before retaining: a getter/cycle/decoration failure after a
       // browser effect must also become one stable, nonretryable receipt.
@@ -151,6 +156,8 @@ export async function handleSessionRun(
     // Reset/close may have taken ownership while execution was pending.
     if (executingSession) {
       executingSession.instructionInFlight = false;
+      executingSession.instructionSettlement = undefined;
+      settleInstruction?.();
       if (executingSession.phase === 'executing') {
         sessionManager.setSessionPhase(sessionId, executingSession.pipelineManager?.isRecording() ? 'recording' : 'ready');
       }

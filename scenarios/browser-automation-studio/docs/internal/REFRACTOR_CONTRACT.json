@@ -47,10 +47,16 @@
       "required": true,
       "band": "Changing 30 FPS fixture renders >=30 FPS for 5 minutes, p95 frame age <=100 ms local; frame bytes/age/decode stay bounded with slow readers.",
       "phases": [
-        "performance"
+        "rehabilitation-evidence"
       ],
       "producer_owner": "test-genie with BAS fixture owners",
       "producer_roots": [
+        "api/automation/driver",
+        "api/handlers",
+        "api/handlers/profilevalidation",
+        "api/internal/motionqualification",
+        "api/websocket",
+        "playwright-driver/tests/integration",
         "playwright-driver/src",
         "ui/src"
       ],
@@ -314,7 +320,11 @@
       ],
       "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
       "state": "planned",
-      "evidence": []
+      "evidence": [
+        "api/services/live-capture/workflow_generator_test.go :: TestGenerateWorkflowWithPagesReplaysPopupTabAlternation",
+        "playwright-driver/tests/integration/pipeline-e2e.test.ts :: preserves distinct tab identities for equal selectors in the recording timeline",
+        "playwright-driver/tests/integration/saved-workflow-fresh-context.test.ts :: saves the generated alternating-tab workflow and replays its same-selector actions (managed build sha256:f3d0bb4e3d94a6abb6c879e6bb4777d614ec6b315207e68cb5f11cbc8c1e8d54)"
+      ]
     },
     {
       "id": "BAS-RH-J02",
@@ -420,7 +430,11 @@
       ],
       "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
       "state": "planned",
-      "evidence": []
+      "evidence": [
+        "playwright-driver/tests/integration/typed-action-semantics.test.ts :: [REQ:BAS-RH-J07] close keeps a completed click uncertain while denying retry admission",
+        "playwright-driver/tests/integration/typed-action-semantics.test.ts :: [REQ:BAS-RH-J07] close interrupts a pending browser wait and retains an uncertain receipt",
+        "api/services/workflow/execution_results_test.go :: TestStopExecutionRetainsUncertainOutcomeAndJoinsLeasedDriverClose"
+      ]
     },
     {
       "id": "BAS-RH-J08",

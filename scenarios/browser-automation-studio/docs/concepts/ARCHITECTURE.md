@@ -21,6 +21,16 @@ Browser Automation Studio is a local Vrooli scenario with Go API and CLI surface
 
 UI workflow intent is validated and compiled by the API into proto-backed instructions. The API sends those to the driver; the driver returns normalized outcomes and artifacts. The API persists evidence and exposes it to UI, CLI, and replay export consumers.
 
+SessionManager owns the runtime page stack for every driver session, including
+pages created by workflow popups while recording is off. TabHandler mutations
+remain idempotent with context page lifecycle events. Recording page identity
+and opener reconstruction feed the workflow generator's narrow multi-page
+path: stable page IDs bind actions to deterministic tab-stack indices, a popup
+may follow its opener action only when lifecycle timestamps prove that causal
+order, and an independent page may be opened at first use. Ambiguous timing,
+missing identities, and closed targets fail closed. Full recording-to-saved-
+workflow replay across tabs/frames in a fresh context remains unqualified.
+
 ## Shared Infrastructure
 
 SQLite is routed through the scenario database layer; artifact storage and process lifecycle are scenario-managed. Test Genie owns scenario-suite execution.
@@ -77,10 +87,52 @@ resource, and evidence policies.
 | Profile store | Supported authentication state, tabs, snapshot versions and recovery | Serialize writable ownership; checkpoints are atomic; failure cannot produce a persisted acknowledgement. |
 | Workflow compiler/deriver | Transform selected observations or AI proposals into typed workflow candidates | Preserve source provenance, target identity, assertions and versions. One normalization policy serves API and UI. |
 | Evidence service | Capture policy, completeness, integrity, retention and authorized retrieval | Heavy artifact work cannot stall interactive input; required evidence failures affect the result. |
+
+Screenshot integrity decoding is owned by `api/automation/execution-writer`. It
+checks encoded dimensions before full PNG/JPEG validation, reserves a shared
+process-wide estimated raster budget across every `FileWriter`, then releases
+the reservation before storage I/O. The 192 MiB budget charges ten estimated
+bytes per pixel so it admits one measured 16.384 MP full-page raster at a time.
+The higher estimate accounts for Go heap pages retained after earlier decodes:
+ten concurrent writer calls peaked at649MiB PSS with admission effectively
+unlimited,271MiB with the original five-byte estimate, and146MiB with ten bytes
+per pixel. The managed16.384MP fixture remains accepted; larger estimates fail
+explicitly before raster allocation. The BAS API's `.vrooli/service.json` run
+environment also owns `GOMEMLIMIT=96MiB`. On Linux, ten managed concurrent
+full-page PNG writes peaked363,218KiB combined API+driver PSS and returned to
+206,058KiB at60seconds, below the300MiB idle target; the settled idle reading
+was106,257–106,559KiB. The maintained capture cohort remained within its2s p95
+band. GOMEMLIMIT is a soft Go heap target, not a hard cap: the measured active
+PSS exceeded300MiB. Valid large JPEG managed capture, Windows/macOS memory, CPU,
+storage backpressure and long-soak growth remain unqualified. The storage package
+uses one MIME-to-extension rule across FileStorage, MemoryStorage and MinIOClient:
+JPEG objects use `.jpg`, PNG objects retain `.png`, and GIF uses `.gif`; this keeps
+durable object identity consistent with validated bytes and response metadata.
 | Workspace UI | Browser chrome, viewer, timeline, workflow editing and agent control | Subscribe by responsibility; frame rendering does not drive whole-workspace React updates. |
 
 These are module boundaries within the current deployment. They do not prescribe
 new microservices or replace the Go/Node/React stack.
+
+The Playwright driver serializes live input per browser page so a delayed pointer
+move cannot let a later button transition overtake it. The queue has a fixed
+pending-work bound, coalesces superseded adjacent pointer moves, and returns the
+monotonic sequence of the applied input through HTTP and WebSocket receipts.
+Each client input carries a stable ID. The driver caches a bounded set of
+per-page receipts and returns the same result for duplicate delivery; reusing an
+ID for different input is rejected. The UI retains unacknowledged WebSocket
+inputs and replays them over HTTP in order after disconnect before sending
+synthetic pointer releases. This recovers dropped acknowledgements within the
+driver's retained receipt window. A full UI page reload, server-side session
+cancellation, and older retries after receipt eviction remain unqualified.
+The driver's frame timing counters describe processing stages only; they do
+not measure input-to-paint, network transit, or UI decode/draw latency. W164
+adds a 1,000-input local measurement from the workspace browser's captured
+pointer event through the applied receipt to the actual canvas pixels: p50
+36.70ms, p95 39.30ms, p99 40.00ms, with all samples correlated. This establishes
+the local numerical band only. The independent remote cohort and governed
+sensor binding remain open; earlier driver-only and command-start measurements
+are diagnostic. See
+`../internal/evidence/rehabilitation/interactive-feedback-browser-clock-2026-09-24.json`.
 
 ### Delivery paths
 
@@ -151,6 +203,14 @@ artifact. Repeat-effect authorization precedes replay qualification.
 Protect sensitive values at capture and export boundaries. Retain secret
 references or redacted observations where appropriate. The separate
 credential-use executor policy does not establish passive-recording redaction.
+The passive recorder must exclude values from password, hidden, one-time-code,
+and payment-autocomplete fields from both event payloads and element metadata;
+preserve the action and selector so the recording remains useful. Historical
+recordings must be redacted at the API persistence/read boundary without
+mutating saved rows during ordinary reads. AI element extraction omits
+data-attribute selectors for these fields and masks their rendered text before
+its full-page screenshot is taken. Export paths and legacy at-rest cleanup still
+require separate qualification.
 
 ### Recorded action conversion target (BAS-WORK-011)
 
@@ -162,13 +222,17 @@ into the compiler's parameter vocabulary. Unknown actions fail with action index
 and kind; they never become clicks. The service propagates conversion failure and
 the handler passes the typed candidate to catalog validation without a JSON roundtrip.
 
-A single recorded page binds to the fresh replay page. Until logical page/frame
-lifecycle reconstruction is implemented, a candidate containing multiple page
-identities or non-main-frame observations must fail explicitly; retaining raw IDs
-as metadata alone does not qualify replay. Raw recording history is unchanged.
-RF-030 remains open for usable multi-context reconstruction. Snapshot merging uses the final full value within an identical page/frame/selector
-and does not mutate journal payloads. Explicit submit boundaries remain distinct.
-Capture omission repairs remain RF-004 and are measured separately.
+A single recorded page binds to the fresh replay page. Frame selector paths now
+produce frame-switch transitions during generation, but the full frame replay
+journey is not yet qualified. Driver page identity now travels from the
+page-level event route through `ActionTelemetry` and Go action conversion, so
+target-aware merging and the multiple-page refusal can distinguish captured
+tabs. Multi-page generation still refuses until lifecycle/opener relationships
+become portable logical tab bindings and alternating-target replay passes in a
+fresh context. Raw recording history is unchanged. Snapshot merging uses the
+final full value within an identical page/frame/selector and does not mutate
+journal payloads. Explicit submit boundaries remain distinct. Capture omission
+repairs remain RF-004 and are measured separately.
 
 ### Typed action execution target (BAS-WORK-012)
 
@@ -310,8 +374,13 @@ adds these proposed requirements:
   Apply the same ownership envelope to reset, input and other mutating surfaces.
   Parse awaited input before reserving the session; reserve synchronously before
   dispatch. Release only an executing phase still owned by that instruction,
-  preserving a concurrent close/reset. The in-flight reservation lasts until the
-  action settles, even after reset completes; pooling and idle cleanup respect it.
+  preserving a concurrent close/reset. Retain a settlement promise alongside the
+  in-flight reservation. Reset joins it before mutating browser state. Close
+  marks a live operation interrupted, closes its active owned page (or detaches
+  an external target), then joins the route's uncertain receipt before releasing
+  the lease. The reservation lasts until the action settles; pooling and idle
+  cleanup respect it. Live timing and external-target interruption still need
+  owner qualification.
   A same-execution start retry observes the
   existing session without resetting browser state or declaring an active action
   abandoned. Recovery requires independent cancellation/expiry evidence.
@@ -1350,6 +1419,47 @@ binary bytes or dropped-frame accounting for the timeline, preserved timeline
 and page events, reconnect/default-frame behavior, and the normal recording
 workflow. The change does not qualify slow-reader queues or a performance band.
 
+Driver frame senders bound each WebSocket's queued outbound data to one maximum
+recording frame (12 MiB plus 4 KiB for the transport envelope). CDP and polling
+drop a new frame when sending it would exceed that bound; CDP continues to keep
+only its newest pending frame. This caps driver-side transport backlog but does
+not qualify end-to-end frame age, browser decode/render work, API relay fanout
+under sustained load, or a 30 FPS session. See BAS-RF-007 for the remaining
+owner matrix.
+
+The managed viewer relay also bounds each client's queued plus actively written
+binary frames to 12 MiB plus 4 KiB. It drops a frame before enqueue when the
+client byte budget would be exceeded, and releases the accounted bytes only
+after the socket write completes. The viewer decoder keeps one active decode
+and replaces its pending frame with the newest one. The managed motion owner
+measures the full driver/API/UI canvas path and deliberately slows a viewer to
+verify these bounds; it does not claim remote-network qualification.
+
+### Managed motion qualification owner
+
+Run from the repository root against a healthy managed BAS build:
+
+```bash
+node scenarios/browser-automation-studio/api/cmd/motion-cohort/qualification.mjs
+```
+
+The owner runs the focused UI one-active/newest-pending decoder regression, a
+focused Go relay-byte-budget regression, and a real managed API-to-viewer cohort.
+The live fixture changes a 16-bit visual marker at 30 FPS. Its five-minute
+baseline requires at least 9,000 rendered and unique fixture frames, p95 frame
+age at most 100 ms, p95 decode at most 100 ms, maximum decode at most 250 ms,
+and frame payloads no larger than 12 MiB plus 4 KiB. A separate 18-second slow
+viewer cohort adds 250 ms main-thread stalls every five seconds and an 80 ms
+decode delay; it requires one active decode, fewer decoded/rendered frames than
+frames received, frame age at most one second, and both viewer and Go relay byte
+queues within the same frame-size ceiling. The receipt binds all relevant
+sources, the live build, and hashes of the frame samples and combined test logs.
+
+Run only the exact `rehabilitation-evidence` phase after the owner and all other
+current-build receipts pass. The setpoint reader consumes its `motion` standing.
+The artificial reader delay measures BAS browser decode/backlog behavior; it
+does not qualify a remote network or native device.
+
 
 ### Session preview scale authority — target076, RF047
 
@@ -1584,8 +1694,12 @@ same saved-workflow admission and runner as a fresh execution, carrying explicit
 resume checkpoint and original execution identity as execution options. Preserve
 resumed trigger/lineage in the index and public hydration. Detach request
 cancellation once while retaining routed storage metadata and the browser routing
-header; explicit StopExecution still owns runner cancellation and terminal writes
-retain their routing. Delete the private resumed starter and executor lifecycle.
+header; explicit StopExecution owns runner cancellation, joins the runner through
+terminal persistence and deferred cleanup before reporting success, and terminal
+writes retain their routing. If a step after the last successful checkpoint has
+`INSTRUCTION_OUTCOME_UNCERTAIN`, reject resume until the browser-side effect is
+reconciled; transport failure alone does not prove that the action did not run.
+Delete the private resumed starter and executor lifecycle.
 
 Recovery must retain original browser, artifact and other execution settings,
 with an explicit resume URL overriding the saved start URL. Missing original
@@ -1670,6 +1784,20 @@ Use the existing artifact policy and telemetry pipeline with a named capture
  every step. Other capture evidence remains available through its existing owner.
  Do not deduplicate exported files after browser work, weaken pixel fidelity, drop
  requested evidence, or turn an explicit screenshot failure into successful capture.
+
+Explicit `DOM` and `DOM_TREE` capture types each add their own post-interaction
+evaluate action, then materialize bounded `dom.html` and `dom-tree.json` files
+before artifact storage publication and result-summary writing. These artifact
+requests do not implicitly populate the larger inline response fields; callers
+must opt into those fields separately. A missing evaluate result leaves that
+artifact explicitly unavailable, and a truncated generated file carries
+`metadata.truncated=true`.
+
+When the driver finalizes browser recordings, workflow folder export copies each
+regular `.webm` file from the execution's `artifacts/videos/` directory into
+`videos/`. The VIDEO capture producer returns one artifact per exported file;
+missing recordings are reported as unavailable. Device-specific video capture
+still requires its own target evidence and is not implied by browser recording.
 
 ### Capture interaction boundaries — target092, RF111
 
@@ -1805,3 +1933,13 @@ RF011 gap requiring a separately justified state-ownership design. Separate prof
 checkpoint concurrently; a slow browser must not hold another profile's capture.
 Do not add per-session timer services, change saved profile format, merge opaque
 storage, or claim crash qualification from an interval test.
+
+Profile-scoped live operations follow the same ambiguity rule. Service-worker
+control and history navigation accept a profile ID but act on one live browser
+context. When more than one active browser is bound to that profile, the API
+must return an explicit conflict and leave every browser unchanged; it must not
+select an arbitrary session from registry iteration order. Keep the active
+bindings intact and preserve the current single-session behavior. A future API
+may accept an explicit session ID if that interaction is needed, but do not add
+an admission restriction or silently apply a profile-scoped command to one of
+several live contexts.

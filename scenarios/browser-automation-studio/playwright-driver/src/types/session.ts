@@ -231,6 +231,10 @@ export interface SessionState {
   /** An admitted instruction remains reserved until its promise settles, even
    * if reset/close changes the lifecycle phase in the meantime. */
   instructionInFlight?: boolean;
+  /** Lifecycle teardown joins this before mutating or disposing browser state. */
+  instructionSettlement?: Promise<void>;
+  /** True when close interrupted an admitted operation; its effect is uncertain. */
+  instructionInterrupted?: boolean;
   /** Successful teardown stages survive a failed close for explicit retry. */
   closeProgress?: { completed: Set<string>; videoPaths: Map<number, string> };
   /** Immutable execution that acquired the current lease. Never rewrite this

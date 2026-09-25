@@ -12,11 +12,16 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/sidecar/health"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/encoding/protojson"
 )
+
+// MaxClientBinaryQueueBytes bounds binary frame data queued and being written
+// for one viewer. It matches one maximum recording-frame packet from the driver.
+const MaxClientBinaryQueueBytes = 12*1024*1024 + 4*1024
 
 // Client represents a WebSocket client. Hub.mu protects its subscription fields
 // and Send-channel lifetime after registration.
@@ -32,6 +37,43 @@ type Client struct {
 	ExecutionFrameStreamID *string    // Optional: client can subscribe to execution frame streaming
 	DriverStatusSubscribed bool       // Optional: client can subscribe to driver status updates
 	ExportSubscriptionID   *string    // Optional: client can subscribe to export progress updates (export ID or execution ID)
+	binaryQueueMu          sync.Mutex
+	binaryQueuedBytes      int
+}
+
+func (c *Client) enqueueBinaryFrame(data []byte) bool {
+	if len(data) == 0 || len(data) > MaxClientBinaryQueueBytes {
+		return false
+	}
+	c.binaryQueueMu.Lock()
+	defer c.binaryQueueMu.Unlock()
+	if c.binaryQueuedBytes+len(data) > MaxClientBinaryQueueBytes {
+		return false
+	}
+	select {
+	case c.BinarySend <- data:
+		c.binaryQueuedBytes += len(data)
+		return true
+	default:
+		return false
+	}
+}
+
+func (c *Client) releaseBinaryFrame(data []byte) {
+	c.binaryQueueMu.Lock()
+	defer c.binaryQueueMu.Unlock()
+	if len(data) > c.binaryQueuedBytes {
+		c.Hub.log.WithField("client_id", c.ID).Error("Binary frame queue byte accounting underflow")
+		c.binaryQueuedBytes = 0
+		return
+	}
+	c.binaryQueuedBytes -= len(data)
+}
+
+func (c *Client) queuedBinaryFrameBytes() int {
+	c.binaryQueueMu.Lock()
+	defer c.binaryQueueMu.Unlock()
+	return c.binaryQueuedBytes
 }
 
 // ExportProgress represents progress updates during export rendering.
@@ -49,7 +91,7 @@ type ExportProgress struct {
 
 // InputForwarder is a function that forwards input events to the playwright-driver.
 // This allows the hub to forward WebSocket input messages without importing handlers.
-type InputForwarder func(sessionID string, input map[string]any) error
+type InputForwarder func(sessionID string, input map[string]any) (*driver.ForwardInputResponse, error)
 
 // Hub maintains the set of active clients and broadcasts messages to them
 type Hub struct {
@@ -235,9 +277,7 @@ func (h *Hub) BroadcastBinaryFrame(sessionID string, jpegData []byte) {
 	for client := range h.clients {
 		// Only send to clients subscribed to this recording session
 		if client.RecordingFrames && client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
-			select {
-			case client.BinarySend <- jpegData:
-			default:
+			if !client.enqueueBinaryFrame(jpegData) {
 				// Client buffer full, skip frame (non-blocking)
 				// Missing a frame is better than blocking the broadcast
 				h.recordDroppedFrame(sessionID, client.ID)
@@ -555,8 +595,22 @@ func (c *Client) readPump() {
 			if c.Hub.inputForwarder != nil {
 				// Await forwarding so button/key transitions retain received order.
 				// The read loop provides backpressure without a per-event goroutine.
-				if err := c.Hub.inputForwarder(sessionID, input); err != nil {
+				receipt, err := c.Hub.inputForwarder(sessionID, input)
+				if err != nil {
 					c.Hub.log.WithError(err).WithField("session_id", sessionID).Warn("Failed to forward input")
+				} else if receipt != nil {
+					ack := map[string]any{
+						"type": "recording_input_applied", "session_id": sessionID,
+						"applied_sequence": receipt.AppliedSequence, "coalesced_count": receipt.CoalescedCount,
+					}
+					if receipt.InputID != "" {
+						ack["input_id"] = receipt.InputID
+					}
+					select {
+					case c.Send <- ack:
+					default:
+						c.Hub.log.WithField("session_id", sessionID).Warn("Dropped recording input receipt because client send queue is full")
+					}
 				}
 			}
 			continue
@@ -698,7 +752,9 @@ func (c *Client) writePump() {
 				return
 			}
 			// Send the canonical source envelope and JPEG payload
-			if err := c.Conn.WriteMessage(websocket.BinaryMessage, data); err != nil {
+			err := c.Conn.WriteMessage(websocket.BinaryMessage, data)
+			c.releaseBinaryFrame(data)
+			if err != nil {
 				c.Hub.log.WithError(err).WithField("client_id", c.ID).Error("Failed to write binary WebSocket frame")
 				return
 			}

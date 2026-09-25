@@ -1,5 +1,6 @@
 import winston from 'winston';
 import { createLogger, setLogger, logger } from '../../../src/utils/logger';
+import { resetRuntimeValue, setRuntimeValue } from '../../../src/runtime-config';
 import { createTestConfig } from '../../helpers';
 
 describe('Logger', () => {
@@ -65,6 +66,20 @@ describe('Logger', () => {
       // The module exports a singleton, so we can't directly test the updated instance
       // but we can verify setLogger doesn't throw
       expect(() => setLogger(newLogger)).not.toThrow();
+    });
+  });
+
+  describe('runtime log level', () => {
+    afterEach(() => {
+      resetRuntimeValue('LOG_LEVEL');
+    });
+
+    it('updates the active logger when LOG_LEVEL changes at runtime', () => {
+      expect(setRuntimeValue('LOG_LEVEL', 'info').success).toBe(true);
+      expect(logger.level).toBe('info');
+
+      expect(setRuntimeValue('LOG_LEVEL', 'debug').success).toBe(true);
+      expect(logger.level).toBe('debug');
     });
   });
 

@@ -144,6 +144,12 @@ func (pt *PageTracker) SetActivePage(pageID uuid.UUID) error {
 // ClosePage records closure and returns its stable observation receipt.
 // Repeated callbacks/commands preserve the original timestamp and journal ID.
 func (pt *PageTracker) ClosePage(pageID uuid.UUID) (*domain.PageEvent, error) {
+	return pt.ClosePageAt(pageID, time.Now())
+}
+
+// ClosePageAt records the browser-observed close time when the driver reports
+// lifecycle events; repeated receipts retain the first close time.
+func (pt *PageTracker) ClosePageAt(pageID uuid.UUID, closedAt time.Time) (*domain.PageEvent, error) {
 	pt.mu.Lock()
 	defer pt.mu.Unlock()
 
@@ -153,8 +159,10 @@ func (pt *PageTracker) ClosePage(pageID uuid.UUID) (*domain.PageEvent, error) {
 	}
 
 	if page.ClosedAt == nil {
-		now := time.Now()
-		page.ClosedAt = &now
+		if closedAt.IsZero() {
+			closedAt = time.Now()
+		}
+		page.ClosedAt = &closedAt
 	}
 	page.Status = domain.PageStatusClosed
 

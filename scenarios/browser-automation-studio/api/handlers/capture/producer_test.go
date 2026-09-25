@@ -100,6 +100,40 @@ func TestUnavailableProducer_AlwaysUnavailable(t *testing.T) {
 	require.Contains(t, arts[0].Path, canonicalFileName(capturev1.CaptureType_CAPTURE_TYPE_VIDEO))
 }
 
+func TestVideoProducer_ExposesFinalizedRecordings(t *testing.T) {
+	dir := t.TempDir()
+	videoDir := filepath.Join(dir, "videos")
+	require.NoError(t, os.MkdirAll(videoDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(videoDir, "page-2.webm"), []byte("video-two"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(videoDir, "page-1.webm"), []byte("video-one"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(videoDir, "notes.txt"), []byte("ignore"), 0o644))
+
+	arts, err := videoProducer{}.Produce(dir)
+	require.NoError(t, err)
+	require.Len(t, arts, 2)
+	require.Equal(t, capturev1.CaptureType_CAPTURE_TYPE_VIDEO, arts[0].Type)
+	require.Equal(t, "page-1.webm", arts[0].Metadata["filename"])
+	require.Equal(t, "page-2.webm", arts[1].Metadata["filename"])
+	require.Positive(t, arts[0].SizeBytes)
+}
+
+func TestVideoProducer_MissingRecordingIsUnavailable(t *testing.T) {
+	arts, err := videoProducer{}.Produce(t.TempDir())
+	require.NoError(t, err)
+	require.Len(t, arts, 1)
+	require.Equal(t, "true", arts[0].Metadata["unavailable"])
+	require.Contains(t, arts[0].Metadata["reason"], "video recording unavailable")
+}
+
+func TestDefaultProducerRegistry_VideoIsRealProducer(t *testing.T) {
+	r := DefaultProducerRegistry()
+	p, ok := r.producers[capturev1.CaptureType_CAPTURE_TYPE_VIDEO]
+	require.True(t, ok)
+	_, isUnavailable := p.(unavailableProducer)
+	require.False(t, isUnavailable)
+	require.True(t, metaFor(capturev1.CaptureType_CAPTURE_TYPE_VIDEO).available)
+}
+
 func TestAccessibilityProducer_PresentAndMissing(t *testing.T) {
 	dir := t.TempDir()
 	const snapshot = `{"contract":"bas-accessibility-snapshot/v1","node_count":3}`

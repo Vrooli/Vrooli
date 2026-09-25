@@ -141,7 +141,7 @@ export async function handleRecordStart(
 
         // A callback acknowledges this entry only after the consumer commits it.
         if (request.callback_url) {
-          await streamRecordingEntry(request.callback_url, entry);
+          await streamRecordingEntry(request.callback_url, entry, request.routed_test_mode === true);
         }
       },
       onError: (error: Error) => {
@@ -173,6 +173,7 @@ export async function handleRecordStart(
     if (request.frame_callback_url) {
       startFrameStreaming(sessionId, { getSession: recordingSession }, {
         callbackUrl: request.frame_callback_url,
+        routedTestMode: request.routed_test_mode === true,
         quality: request.frame_quality,
         fps: request.frame_fps,
         scale: session.spec.frame_scale ?? 'css',
@@ -180,7 +181,9 @@ export async function handleRecordStart(
     }
 
     if (request.page_callback_url) {
-      const pages = setupPageLifecycleListeners(sessionId, session, request.page_callback_url, config);
+      const pages = setupPageLifecycleListeners(
+        sessionId, session, request.page_callback_url, config, request.routed_test_mode === true
+      );
       session.pageLifecycleCleanup = pages.cleanup;
       await pages.ready;
       recordingSession();

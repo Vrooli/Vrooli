@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { createServer } from 'node:http';
 import { dirname, join } from 'node:path';
-import { readFile, rm } from 'node:fs/promises';
+import { appendFile, readFile, rm } from 'node:fs/promises';
 import { cleanupSession } from '../../src/infra/session-cleanup-registry';
 import {
   chromium,
@@ -27,6 +27,7 @@ import {
   FrameSwitchAction,
   KeyboardParamsSchema,
   InputParamsSchema,
+  WaitParamsSchema,
   ScrollParamsSchema,
   KeyboardModifier,
   MouseButton,
@@ -809,7 +810,8 @@ describe('typed browser action semantics', () => {
     }
   });
 
-  it('a retried start cannot admit a second real browser click while the first is settling', async () => {
+  it('[REQ:BAS-RH-J07] close keeps a completed click uncertain while denying retry admission', async () => {
+    const startedAt = performance.now();
     const config = createTestConfig();
     let release!: () => void;
     let entered!: () => void;
@@ -875,6 +877,9 @@ describe('typed browser action semantics', () => {
       return { res, done };
     };
     const first = run(0);
+    let closeSettled = false;
+    let closeStartedAt = 0;
+    let closing: Promise<unknown> | undefined;
     try {
       await Promise.race([
         settling,
@@ -886,21 +891,174 @@ describe('typed browser action semantics', () => {
       const competing = run(1);
       await competing.done;
       expect(competing.res.statusCode).toBe(409);
-      expect((await events()).filter((e: { type: string }) => e.type === 'click')).toHaveLength(1);
+      const observedClicks = (await events()).filter((e: { type: string }) => e.type === 'click');
+      expect(observedClicks).toHaveLength(1);
+      closeStartedAt = performance.now();
+      closing = manager.closeSession(session.id).then((result) => {
+        closeSettled = true;
+        return result;
+      });
+      await Promise.resolve();
+      expect(closeSettled).toBe(false);
+      const resourcesBeforeClose = manager.getSessionCount();
+      expect(resourcesBeforeClose).toBe(1);
       release();
       await first.done;
+      await closing;
       expect(first.res.statusCode).toBe(200);
-      expect(first.res.getJSON().success).toBe(true);
-      const next = run(1);
-      await next.done;
-      expect(next.res.statusCode).toBe(200);
-      expect(next.res.getJSON().success).toBe(true);
-      expect((await events()).filter((e: { type: string }) => e.type === 'click')).toHaveLength(2);
+      expect(first.res.getJSON().failure.code).toBe('INSTRUCTION_OUTCOME_UNCERTAIN');
+      expect(first.res.getJSON().failure.retryable).not.toBe(true);
+      expect(closeSettled).toBe(true);
+      expect(manager.getSessionCount()).toBe(0);
+      expect(observedClicks).toHaveLength(1);
+      const observationsPath = process.env.BAS_J07_OBSERVATIONS?.trim();
+      if (observationsPath) {
+        const cleanupMs = performance.now() - closeStartedAt;
+        const observation = {
+          case: 'retriedStart',
+          observation: {
+            ownerTest: 'close keeps a completed click uncertain while denying retry admission',
+            observed: true,
+            passed: true,
+            externalEffects: observedClicks.length,
+            terminalStatus: 'failed',
+            liveResourcesBeforeClose: resourcesBeforeClose,
+            liveResourcesAfterClose: manager.getSessionCount(),
+            inputStoppedMs: closeStartedAt - startedAt,
+            cleanupMs,
+            recoveryMs: 0,
+            uncertainEffect: first.res.getJSON().failure.code === 'INSTRUCTION_OUTCOME_UNCERTAIN',
+            retryAdmitted: competing.res.statusCode !== 409,
+          },
+        };
+        await appendFile(observationsPath, `${JSON.stringify(observation)}\n`, { mode: 0o600 });
+      }
     } finally {
       release();
       await first.done;
+      await closing;
     }
   }, 15000);
+
+  it('[REQ:BAS-RH-J07] close interrupts a pending browser wait and retains an uncertain receipt', async () => {
+    const manager = new SessionManager(createTestConfig());
+    const session = {
+      id: 'browser-close-pending-action',
+      phase: 'ready',
+      browser,
+      ownerExecutionId: 'fixture-execution',
+      leaseId: 'fixture-lease',
+      context: browserContext,
+      page,
+      pages: [page],
+      currentPageIndex: 0,
+      spec: { execution_id: 'fixture-execution', reuse_mode: 'fresh' },
+      createdAt: new Date(),
+      lastUsedAt: new Date(),
+      instructionCount: 0,
+      frameStack: [],
+      pageIdMap: new Map(),
+      pageToIdMap: new WeakMap(),
+      instructionReceipts: new Map(),
+      lastInstructionSequence: 0,
+    } as unknown as SessionState;
+    Reflect.set(manager, 'sessions', new Map([[session.id, session]]));
+    const registry = new HandlerRegistry();
+    registry.register(new WaitHandler());
+    const action = toJson(
+      ActionDefinitionSchema,
+      create(ActionDefinitionSchema, {
+        type: ActionType.WAIT,
+        params: {
+          case: 'wait',
+          value: create(WaitParamsSchema, {
+            waitFor: { case: 'selector', value: '#never-appears' },
+            timeoutMs: 15000,
+          }),
+        },
+      })
+    );
+    let waiting!: () => void;
+    const waitStarted = new Promise<void>((resolve) => {
+      waiting = resolve;
+    });
+    const originalWaitForSelector = page.waitForSelector.bind(page);
+    const waitSpy = jest.spyOn(page, 'waitForSelector').mockImplementation((selector, options) => {
+      waiting();
+      return originalWaitForSelector(selector, options);
+    });
+    const response = createMockHttpResponse();
+    const run = handleSessionRun(
+      createMockHttpRequest({
+        body: {
+          execution_id: 'fixture-execution',
+          lease_id: 'fixture-lease',
+          operation_sequence: 1,
+          invocation_id: 'pending-wait',
+          attempt: 1,
+          instruction: { index: 0, nodeId: 'wait-for-missing', action },
+        },
+      }),
+      response,
+      session.id,
+      manager,
+      registry,
+      createTestConfig(),
+      logger,
+      metrics
+    );
+    let closing: Promise<unknown> | undefined;
+    let recoveredSessionId: string | undefined;
+    try {
+      await waitStarted;
+      expect(session.instructionInFlight).toBe(true);
+      const closeStartedAt = performance.now();
+      closing = manager.closeSession(session.id);
+      expect(manager.canAcceptInstructions(session.id)).toBe(false);
+      let deadline: NodeJS.Timeout | undefined;
+      const closedPromptly = await Promise.race([
+        closing.then(() => true),
+        new Promise<boolean>((resolve) => {
+          deadline = setTimeout(() => resolve(false), 4500);
+        }),
+      ]);
+      if (deadline) clearTimeout(deadline);
+      expect(closedPromptly).toBe(true);
+      const closeElapsedMs = performance.now() - closeStartedAt;
+      await run;
+      expect(closeElapsedMs).toBeLessThan(1000);
+      expect(response.statusCode).toBe(200);
+      expect(response.getJSON().failure).toMatchObject({
+        code: 'INSTRUCTION_OUTCOME_UNCERTAIN',
+      });
+      expect(response.getJSON().failure.retryable).not.toBe(true);
+      expect(session.instructionInFlight).toBe(false);
+      expect(manager.getSessionCount()).toBe(0);
+
+      const recoveryStartedAt = performance.now();
+      const recovered = await manager.startSession({
+        execution_id: 'fixture-recovery',
+        workflow_id: 'cancellation-recovery',
+        base_url: 'about:blank',
+        viewport: { width: 800, height: 600 },
+        reuse_mode: 'fresh',
+        required_capabilities: {},
+      });
+      recoveredSessionId = recovered.sessionId;
+      expect(performance.now() - recoveryStartedAt).toBeLessThan(10000);
+      expect(manager.getSessionCount()).toBe(1);
+      await manager.closeSession(recovered.sessionId);
+      recoveredSessionId = undefined;
+      expect(manager.getSessionCount()).toBe(0);
+    } finally {
+      waitSpy.mockRestore();
+      if (!page.isClosed()) await page.close();
+      await run;
+      await closing;
+      if (recoveredSessionId) await manager.closeSession(recoveredSessionId).catch(() => undefined);
+      await manager.shutdown();
+    }
+  }, 12000);
 
   it('only the current unreleased lease can execute or retrieve cached browser effects', async () => {
     const config = createTestConfig();
@@ -1363,35 +1521,50 @@ describe('SDK context acknowledgement', () => {
   );
 });
 
-
 // [REQ:BAS-RH-J22] SDK mutation must respect the existing capture queue.
 describe('SDK viewport and screenshot ordering', () => {
-  it.each([false, true])('waits for an admitted capture (capture fails=%s) before applying viewport', async (fails) => {
-    const playwrightRoot = dirname(require.resolve('rebrowser-playwright'));
-    const coreRoot = dirname(require.resolve('playwright-core', { paths: [playwrightRoot] }));
-    const { Page: SDKPage } = require(join(coreRoot, 'lib/server/page.js'));
-    const { Screenshotter } = require(join(coreRoot, 'lib/server/screenshotter.js'));
-    let release!: () => void;
-    let entered!: () => void;
-    const held = new Promise<void>(resolve => { release = resolve; });
-    const admitted = new Promise<void>(resolve => { entered = resolve; });
-    const prior = { viewport: { width: 640, height: 480 }, screen: { width: 640, height: 480 } };
-    const page = { _emulatedSize: prior, _delegate: { updateEmulatedViewportSize: jest.fn().mockResolvedValue(undefined) }, _screenshotter: undefined as any };
-    page._screenshotter = new Screenshotter(page);
-    const capture = page._screenshotter._queue.postTask(async () => {
-      entered(); await held;
-      if (fails) throw new Error('controlled screenshot failure');
-    }).catch((error: Error) => error.message);
-    await admitted;
-    const resize = SDKPage.prototype.setViewportSize.call(page, { width: 800, height: 600 });
-    try {
-      await new Promise(resolve => setImmediate(resolve));
-      expect(page._delegate.updateEmulatedViewportSize).not.toHaveBeenCalled();
-      expect(page._emulatedSize).toBe(prior);
-    } finally {
-      release(); await capture; await resize;
+  it.each([false, true])(
+    'waits for an admitted capture (capture fails=%s) before applying viewport',
+    async (fails) => {
+      const playwrightRoot = dirname(require.resolve('rebrowser-playwright'));
+      const coreRoot = dirname(require.resolve('playwright-core', { paths: [playwrightRoot] }));
+      const { Page: SDKPage } = require(join(coreRoot, 'lib/server/page.js'));
+      const { Screenshotter } = require(join(coreRoot, 'lib/server/screenshotter.js'));
+      let release!: () => void;
+      let entered!: () => void;
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const admitted = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      const prior = { viewport: { width: 640, height: 480 }, screen: { width: 640, height: 480 } };
+      const page = {
+        _emulatedSize: prior,
+        _delegate: { updateEmulatedViewportSize: jest.fn().mockResolvedValue(undefined) },
+        _screenshotter: undefined as any,
+      };
+      page._screenshotter = new Screenshotter(page);
+      const capture = page._screenshotter._queue
+        .postTask(async () => {
+          entered();
+          await held;
+          if (fails) throw new Error('controlled screenshot failure');
+        })
+        .catch((error: Error) => error.message);
+      await admitted;
+      const resize = SDKPage.prototype.setViewportSize.call(page, { width: 800, height: 600 });
+      try {
+        await new Promise((resolve) => setImmediate(resolve));
+        expect(page._delegate.updateEmulatedViewportSize).not.toHaveBeenCalled();
+        expect(page._emulatedSize).toBe(prior);
+      } finally {
+        release();
+        await capture;
+        await resize;
+      }
+      expect(page._delegate.updateEmulatedViewportSize).toHaveBeenCalledTimes(1);
+      expect(page._emulatedSize.viewport).toEqual({ width: 800, height: 600 });
     }
-    expect(page._delegate.updateEmulatedViewportSize).toHaveBeenCalledTimes(1);
-    expect(page._emulatedSize.viewport).toEqual({ width: 800, height: 600 });
-  });
+  );
 });

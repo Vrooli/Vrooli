@@ -657,6 +657,9 @@ func TestForwardRecordingInput_Success(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
 	}
+	if !strings.Contains(rr.Body.String(), `"applied_sequence":1`) {
+		t.Fatalf("expected the applied input receipt in the response, got %s", rr.Body.String())
+	}
 
 	if !mockService.ForwardInputCalled {
 		t.Fatal("expected ForwardInput to be called")
@@ -779,8 +782,12 @@ func TestGetRecordingFrame_NotModified(t *testing.T) {
 // ============================================================================
 
 func TestUpdateStreamSettings_Success(t *testing.T) {
-	handler, _, tempDir, _ := createTestHandlerWithRecordMode(t)
+	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
 	defer os.RemoveAll(tempDir)
+	mockService.MockClient().StreamSettingsResponse = &driver.UpdateStreamSettingsResponse{
+		SessionID: "test-session-123", Quality: 80, FPS: 30, CurrentFPS: 22.28,
+		Scale: "css", IsStreaming: true, Updated: true,
+	}
 
 	sessionID := "test-session-123"
 	body := `{"quality": 80, "fps": 30}`
@@ -804,6 +811,9 @@ func TestUpdateStreamSettings_Success(t *testing.T) {
 
 	if !response.Updated {
 		t.Fatal("expected updated to be true")
+	}
+	if response.CurrentFPS != 22.28 {
+		t.Fatalf("expected fractional current_fps 22.28, got %v", response.CurrentFPS)
 	}
 }
 
@@ -1112,10 +1122,10 @@ func TestRecordingLifecycle_PreservesDriverReceipt(t *testing.T) {
 
 type inputForwardingService struct {
 	RecordModeService
-	forward func(context.Context, string, []byte) error
+	forward func(context.Context, string, []byte) (*driver.ForwardInputResponse, error)
 }
 
-func (s inputForwardingService) ForwardInput(ctx context.Context, id string, body []byte) error {
+func (s inputForwardingService) ForwardInput(ctx context.Context, id string, body []byte) (*driver.ForwardInputResponse, error) {
 	return s.forward(ctx, id, body)
 }
 
@@ -1125,7 +1135,7 @@ func TestWebSocketInputForwarderUsesOwnedServiceAndDeadline(t *testing.T) {
 	sentinel := errors.New("input rejected by owner")
 	var seenContext context.Context
 	calls := 0
-	h.recordModeService = inputForwardingService{RecordModeService: service, forward: func(ctx context.Context, id string, body []byte) error {
+	h.recordModeService = inputForwardingService{RecordModeService: service, forward: func(ctx context.Context, id string, body []byte) (*driver.ForwardInputResponse, error) {
 		calls++
 		seenContext = ctx
 		if id != "owned-input" {
@@ -1142,16 +1152,16 @@ func TestWebSocketInputForwarderUsesOwnedServiceAndDeadline(t *testing.T) {
 		if payload["type"] != "pointer" || payload["x"] != float64(12) {
 			t.Errorf("changed input: %v", payload)
 		}
-		return sentinel
+		return nil, sentinel
 	}}
 	forward := h.CreateInputForwarder()
-	if err := forward("owned-input", map[string]any{"type": "pointer", "x": 12}); !errors.Is(err, sentinel) {
+	if _, err := forward("owned-input", map[string]any{"type": "pointer", "x": 12}); !errors.Is(err, sentinel) {
 		t.Errorf("owner rejection lost: %v", err)
 	}
 	if calls != 1 || seenContext == nil || seenContext.Err() != context.Canceled {
 		t.Fatal("forwarding or deadline cleanup missing")
 	}
-	if err := forward("owned-input", map[string]any{"invalid": make(chan int)}); err == nil {
+	if _, err := forward("owned-input", map[string]any{"invalid": make(chan int)}); err == nil {
 		t.Error("accepted unencodable input")
 	}
 	if calls != 1 {

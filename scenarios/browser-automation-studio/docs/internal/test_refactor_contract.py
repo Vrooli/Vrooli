@@ -6,6 +6,7 @@ import io
 import json
 import runpy
 import unittest
+from types import SimpleNamespace
 
 from refactor_contract import SCENARIO, validate
 from refactor_regressions import classify
@@ -26,6 +27,9 @@ class ProgramHarness:
         self.envelope["errors"].append({"class": klass, "detail": str(detail), "where": where})
         return "report"
 
+    def classify(self, exc):
+        return "unavailable", "no_governed_binding"
+
     def run(self, states, state):
         while state is not None:
             state = states[state]()
@@ -35,10 +39,21 @@ def board(inputs):
     # No BAS/lib bindings exist here. The preparation profile must be usable
     # before broken product sensors exist, without treating them as passing.
     output = io.StringIO()
+    empty = SimpleNamespace(head=lambda limit: [])
+    performance = SimpleNamespace(sweep=SimpleNamespace(workload_get=lambda **_: empty))
+    test_genie = SimpleNamespace(runs=SimpleNamespace(list=lambda **_: empty))
+    vrooli = SimpleNamespace(scenario=SimpleNamespace(
+        status=lambda **_: SimpleNamespace(raw=lambda: {
+            "runtime": {"buildIdentity": "sha256:current"},
+        })
+    ))
     with contextlib.redirect_stdout(output):
-        runpy.run_path(str(SCENARIO / ".vrooli/program-runtime/setpoint-read.py"),
-                       init_globals={"program": ProgramHarness(inputs)})
-    return json.loads(output.getvalue()), len(output.getvalue().encode())
+        namespace = runpy.run_path(str(SCENARIO / ".vrooli/program-runtime/setpoint-read.py"),
+                                   init_globals={"program": ProgramHarness(inputs),
+                                                 "performance_health": performance,
+                                                 "test_genie": test_genie,
+                                                 "vrooli": vrooli})
+    return json.loads(output.getvalue()), len(output.getvalue().encode()), namespace
 
 
 class PreparationTest(unittest.TestCase):
@@ -77,7 +92,7 @@ class PreparationTest(unittest.TestCase):
         self.assertGreaterEqual(len(validate(changed)), 2)
 
     def test_unavailable_evidence_is_not_product_completion(self):
-        result, size = board({"profile": "rehabilitation"})
+        result, size, _ = board({"profile": "rehabilitation"})
         self.assertEqual("ok", result["status"])
         self.assertFalse(result["signals"]["product_qualified"])
         self.assertEqual(len(self.contract["rows"]), result["signals"]["unmet"])
@@ -88,7 +103,7 @@ class PreparationTest(unittest.TestCase):
             self.assertIsNone(row["in_band"])
 
     def test_unknown_profile_fails_without_domain_calls(self):
-        result, _ = board({"profile": "pretend-release"})
+        result, _, _ = board({"profile": "pretend-release"})
         self.assertEqual("failed", result["status"])
         self.assertEqual("invalid_input", result["errors"][0]["class"])
 
@@ -97,6 +112,35 @@ class PreparationTest(unittest.TestCase):
         self.assertEqual("unavailable", classify({"results": [{"id": "a"}]}))
         self.assertEqual("failed", classify({"results": [{"id": "a", "expected_behavior_met": False}]}))
         self.assertEqual("passed", classify({"results": [{"id": "a", "expected_behavior_met": True}]}))
+
+    def test_profile_sensor_uses_exact_fresh_composite_phase(self):
+        _, _, namespace = board({"profile": "rehabilitation"})
+        qualifies = namespace["latest_rehabilitation_run"]
+        phase = {"name": "rehabilitation-evidence", "status": "passed"}
+        good = {"planned_phases": ["rehabilitation-evidence"], "status": "passed",
+                "phases": [phase], "completed_at": "2026-09-24T05:00:00Z"}
+        self.assertIs(qualifies([good], "2026-09-24T04:50:00Z"), good)
+        self.assertIsNone(qualifies([good], "2026-09-24T05:01:00Z"))
+        self.assertIsNone(qualifies([{**good, "planned_phases": ["unit", "rehabilitation-evidence"]}], "2026-09-24T04:50:00Z"))
+        self.assertIsNone(qualifies([{**good, "phases": [phase, {"name": "unit", "status": "passed"}]}],
+                                    "2026-09-24T04:50:00Z"))
+        failed_overall = {**good, "status": "failed",
+                          "phases": [{"name": "rehabilitation-evidence", "status": "failed"}]}
+        self.assertIs(qualifies([failed_overall], "2026-09-24T04:50:00Z"), failed_overall)
+        self.assertIsNone(qualifies([{**good, "status": "running"}], "2026-09-24T04:50:00Z"))
+
+    def test_capability_standing_reads_only_the_named_provider_capability(self):
+        _, _, namespace = board({"profile": "rehabilitation"})
+        findings = {"phases": [{
+            "name": "rehabilitation-evidence",
+            "phase_presentation": {"capabilities": [
+                {"id": "profile-durability", "current_level": "L1", "clean": True},
+                {"id": "cancellation-recovery", "current_level": "L0", "clean": False},
+            ]},
+        }]}
+        self.assertEqual("L1", namespace["capability_standing"](findings, "profile-durability")["level"])
+        self.assertEqual("L0", namespace["capability_standing"](findings, "cancellation-recovery")["level"])
+        self.assertIsNone(namespace["capability_standing"](findings, "interactive-feedback"))
 
 
 if __name__ == "__main__":

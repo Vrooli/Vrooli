@@ -85,12 +85,12 @@ func (s *Session) Run(ctx context.Context, instr contracts.CompiledInstruction) 
 
 // ForwardInput forwards pointer/keyboard/wheel events to the driver.
 // Only available in ModeRecording and ModeHybrid.
-func (s *Session) ForwardInput(ctx context.Context, input []byte) error {
+func (s *Session) ForwardInput(ctx context.Context, input []byte) (*driver.ForwardInputResponse, error) {
 	if s.mode == ModeExecution {
-		return errors.New("cannot forward input in execution-only mode")
+		return nil, errors.New("cannot forward input in execution-only mode")
 	}
 	if s.isClosed() {
-		return errors.New("session closed")
+		return nil, errors.New("session closed")
 	}
 	return s.client.ForwardInput(ctx, s.id, s.executionID, s.leaseID, input)
 }

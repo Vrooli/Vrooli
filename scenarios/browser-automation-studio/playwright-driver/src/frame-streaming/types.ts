@@ -18,6 +18,8 @@ import type { FrameSession } from './frame';
  */
 export interface FrameWebSocket {
   readyState: number;
+  /** Bytes waiting in the transport implementation's outbound queue. */
+  bufferedAmount?: number;
   send(data: Buffer): void;
   close(): void;
   on(event: 'open', listener: () => void): void;
@@ -41,6 +43,8 @@ export interface FrameStreamOptions {
   fps?: number;
   /** Screenshot scale: 'css' for 1x (default), 'device' for devicePixelRatio */
   scale?: 'css' | 'device';
+  /** Carries the API request's test-storage routing context to the frame socket. */
+  routedTestMode?: boolean;
 }
 
 /**
@@ -88,6 +92,9 @@ export const MAX_FRAME_FAILURES = 3;
 
 /** WebSocket reconnection delay in ms */
 export const WS_RECONNECT_DELAY_MS = 1000;
+
+/** Keep at most one configured maximum-size recording frame queued per viewer. */
+export const MAX_QUEUED_FRAME_BYTES = 12 * 1024 * 1024 + 4096;
 
 /** How often to log FPS changes (every N frames) */
 export const FPS_LOG_INTERVAL = 30;

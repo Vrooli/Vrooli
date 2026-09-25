@@ -319,6 +319,7 @@ func TestMinIOClient_StoreScreenshot(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.NotNil(t, info)
+		assert.Contains(t, info.ObjectName, "jpeg-test.jpg")
 	})
 }
 
